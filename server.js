@@ -63,6 +63,22 @@ const db = new sqlite3.Database('./database.db', (err) => {
                 if (err) console.error("Error al crear la tabla 'notifications':", err.message);
                 else console.log("Tabla 'notifications' creada con el nuevo esquema simplificado.");
             });
+
+            // NUEVA TABLA: Historial de Transacciones
+            db.run(`DROP TABLE IF EXISTS transactions`);
+            db.run(`CREATE TABLE transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL,
+                type TEXT NOT NULL, -- 'payment_sent', 'payment_received', 'burn'
+                description TEXT NOT NULL,
+                blue_change INTEGER NOT NULL DEFAULT 0,
+                red_change INTEGER NOT NULL DEFAULT 0,
+                related_publication_id INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )`, (err) => {
+                if (err) console.error("Error al crear tabla 'transactions':", err.message);
+                else console.log("Tabla 'transactions' creada.");
+            });
         });
     }
 });
@@ -115,7 +131,7 @@ app.post('/login', (req, res) => {
         }
         
         if (!user) {
-            return res.status(401).json({ message: "Credenciales inválidas." }); // Usuario no encontrado
+            return res.status(404).json({ message: "Usuario no encontrado. Por favor, regístrese primero." });
         }
 
         try {
@@ -132,7 +148,7 @@ app.post('/login', (req, res) => {
                     red_balance: user.red_balance
                 });
             } else {
-                res.status(401).json({ message: "Credenciales inválidas." }); // Contraseña incorrecta
+                res.status(401).json({ message: "Contraseña incorrecta." });
             }
         } catch (error) {
             console.error("Error en la comparación de contraseñas:", error);
@@ -165,6 +181,23 @@ app.get('/publications', (req, res) => {
     db.all(sql, [], (err, rows) => {
         if (err) {
             console.error("Error al obtener las publicaciones:", err.message);
+            return res.status(500).json({ message: "Error interno del servidor." });
+        }
+        res.status(200).json(rows);
+    });
+});
+
+// Ruta para obtener solo las publicaciones ACTIVAS (para el panel principal)
+app.get('/publications/active', (req, res) => {
+    // Definimos como "activa" cualquier publicación que no esté 'confirmed_paid'
+    const sql = `
+        SELECT * FROM publications 
+        WHERE status != 'confirmed_paid' 
+        ORDER BY created_at DESC
+    `;
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error("Error al obtener las publicaciones activas:", err.message);
             return res.status(500).json({ message: "Error interno del servidor." });
         }
         res.status(200).json(rows);
@@ -276,16 +309,29 @@ app.post('/publications/:id/confirm-payment', (req, res) => {
 
         // La verificación de fondos ya no es necesaria con el nuevo modelo económico.
 
+        const insertTxSql = `
+            INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id) 
+            VALUES (?, ?, ?, ?, ?, ?)
+        `;
+
         // Realizar la transacción completa
         db.serialize(() => {
             db.run("BEGIN TRANSACTION");
-            // AÑADIR RED al autor (pagador)
+            
+            // 1. AÑADIR RED al autor (pagador) y registrar su transacción
             db.run(`UPDATE users SET red_balance = red_balance + ? WHERE username = ?`, [cost, author]);
-            // AÑADIR BLUE al trabajador
+            const authorDesc = `Solicitaste: "${pub.title}"`;
+            db.run(insertTxSql, [author, 'payment_sent', authorDesc, 0, cost, pubId]);
+
+            // 2. AÑADIR BLUE al trabajador y registrar su transacción
             db.run(`UPDATE users SET blue_balance = blue_balance + ? WHERE username = ?`, [cost, worker]);
-            // Actualizar estado de la publicación
+            const workerDesc = `Realizaste: "${pub.title}"`;
+            db.run(insertTxSql, [worker, 'payment_received', workerDesc, cost, 0, pubId]);
+            
+            // 3. Actualizar estado de la publicación
             db.run(`UPDATE publications SET status = 'confirmed_paid' WHERE id = ?`, [pubId]);
-            // Crear notificación final para el trabajador
+            
+            // 4. Crear notificación final para el trabajador
             const message = `¡Has recibido ${cost} BLUE por la tarea "${pub.title}"!`;
             db.run(`INSERT INTO notifications (recipient_username, message) VALUES (?, ?)`, [worker, message]);
             
@@ -345,13 +391,81 @@ app.post('/users/burn', (req, res) => {
         }
         
         // Proceder con la quema
-        const sql = `UPDATE users SET blue_balance = blue_balance - ?, red_balance = red_balance - ? WHERE username = ?`;
-        db.run(sql, [amount, amount, username], function(err) {
-            if (err) {
-                return res.status(500).json({ message: "Error del servidor al quemar los tokens." });
-            }
-            res.status(200).json({ message: `Has quemado ${amount} BLUE y ${amount} RED exitosamente.` });
+        db.serialize(() => {
+            db.run("BEGIN TRANSACTION");
+
+            // 1. Actualizar saldos
+            const sql = `UPDATE users SET blue_balance = blue_balance - ?, red_balance = red_balance - ? WHERE username = ?`;
+            db.run(sql, [amount, amount, username]);
+
+            // 2. Registrar la transacción de quema
+            const burnDesc = `Tokens Quemados`;
+            const insertTxSql = `
+                INSERT INTO transactions (username, type, description, blue_change, red_change) 
+                VALUES (?, 'burn', ?, ?, ?)
+            `;
+            db.run(insertTxSql, [username, burnDesc, -amount, -amount]);
+
+            db.run("COMMIT", (commitErr) => {
+                if (commitErr) {
+                    db.run("ROLLBACK");
+                    return res.status(500).json({ message: "Error del servidor al quemar los tokens." });
+                }
+                res.status(200).json({ message: `Has quemado ${amount} BLUE y ${amount} RED exitosamente.` });
+            });
         });
+    });
+});
+
+// NUEVA RUTA: Obtener el historial de un usuario
+app.get('/users/:username/history', (req, res) => {
+    const { username } = req.params;
+
+    const authoredSql = `
+        SELECT * FROM publications 
+        WHERE author_username = ? 
+        ORDER BY created_at DESC
+    `;
+    
+    const completedSql = `
+        SELECT * FROM publications 
+        WHERE accepted_by_username = ? AND status = 'confirmed_paid'
+        ORDER BY created_at DESC
+    `;
+
+    // Usamos Promise.all para ejecutar ambas consultas en paralelo para mayor eficiencia
+    Promise.all([
+        new Promise((resolve, reject) => {
+            db.all(authoredSql, [username], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        }),
+        new Promise((resolve, reject) => {
+            db.all(completedSql, [username], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        })
+    ]).then(([authored, completed]) => {
+        res.status(200).json({ authored, completed });
+    }).catch(err => {
+        console.error("Error al obtener el historial del usuario:", err.message);
+        res.status(500).json({ message: "Error interno del servidor." });
+    });
+});
+
+// NUEVA RUTA: Obtener las transacciones de un usuario
+app.get('/users/:username/transactions', (req, res) => {
+    const { username } = req.params;
+    const sql = `SELECT * FROM transactions WHERE username = ? ORDER BY created_at DESC`;
+
+    db.all(sql, [username], (err, rows) => {
+        if (err) {
+            console.error("Error al obtener las transacciones:", err.message);
+            return res.status(500).json({ message: "Error interno del servidor." });
+        }
+        res.status(200).json(rows);
     });
 });
 

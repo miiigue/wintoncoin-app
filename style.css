@@ -517,4 +517,117 @@ hr {
 
 .burn-trigger:hover {
     transform: translateY(-2px);
+}
+
+/* --- Estilos para la Página de Historial --- */
+.back-link {
+    display: inline-block;
+    margin-bottom: 2rem;
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-secondary-color);
+}
+.back-link:hover {
+    color: var(--primary-color);
+}
+
+.subtitle {
+    margin-top: -1.5rem;
+    margin-bottom: 2rem;
+    font-size: 1.1rem;
+}
+
+.history-section {
+    margin-bottom: 2rem;
+    text-align: left;
+}
+
+.history-section h2 {
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+}
+
+.history-section .publications-list {
+    margin-top: 1rem;
+}
+
+.pub-meta-list {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 0 0;
+    color: var(--text-secondary-color);
+    font-size: 0.9rem;
+}
+
+.pub-meta-list li {
+    margin-bottom: 0.5rem;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: white;
+}
+
+.status-badge.open             { background-color: #007bff; }
+.status-badge.pending_approval { background-color: #ffc107; color: #333; }
+.status-badge.approved         { background-color: #17a2b8; }
+.status-badge.completed        { background-color: #6f42c1; }
+.status-badge.confirmed_paid   { background-color: #28a745; }
+
+/* --- Estilos para la Tabla de Transacciones --- */
+.table-container {
+    width: 100%;
+    overflow-x: auto; /* Para responsividad en pantallas pequeñas */
+    background-color: var(--background-color);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #2a3b5c;
+}
+
+#transactions-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+#transactions-table th,
+#transactions-table td {
+    padding: 12px 15px;
+    border-bottom: 1px solid #2a3b5c;
+}
+
+#transactions-table thead th {
+    background-color: var(--surface-color);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+#transactions-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+#transactions-table tbody tr:hover {
+    background-color: #2a3b5c;
+}
+
+.positive-change {
+    color: #2ecc71; /* Verde */
+    font-weight: 600;
+}
+
+.negative-change {
+    color: #e74c3c; /* Rojo */
+    font-weight: 600;
+}
+
+.red-text-always {
+    color: #e74c3c; /* Rojo */
+    font-weight: 600;
+}
+
+.no-change {
+    color: var(--text-secondary-color);
 } 

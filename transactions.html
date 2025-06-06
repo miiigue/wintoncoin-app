@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de Transacciones - Winton Coin</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <a href="contract_interaction.html" class="back-link">&larr; Volver al Panel</a>
+        
+        <h1>Historial de Transacciones</h1>
+        <p class="subtitle" id="transactionsUsername">Transacciones para ...</p>
+
+        <div class="table-container">
+            <table id="transactions-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Descripción</th>
+                        <th>BLUE</th>
+                        <th>RED</th>
+                    </tr>
+                </thead>
+                <tbody id="transactions-table-body">
+                    <!-- Las filas de transacciones se insertarán aquí -->
+                </tbody>
+            </table>
+        </div>
+        <p id="no-transactions-message" style="display: none;">No tienes ninguna transacción todavía.</p>
+    </div>
+
+    <script src="transactions.js"></script>
+</body>
+</html> 

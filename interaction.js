@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Lógica de Renderizado ---
     async function fetchAndDisplayPublications() {
-        const response = await fetch('http://localhost:3000/publications');
+        const response = await fetch('http://localhost:3000/publications/active');
         const publications = await response.json();
         elements.publicationsList.innerHTML = '';
         if (publications.length === 0) {
@@ -201,7 +201,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         switch (pub.status) {
             case 'open':
-                if (!isAuthor) {
+                if (isAuthor) {
+                    actionHTML = `<div class="status-pending">Esperando respuesta</div>`;
+                } else {
                     actionHTML = `<button class="action-button accept" data-id="${pub.id}" data-action="accept">Aceptar</button>`;
                 }
                 break;

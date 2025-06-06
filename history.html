@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Historial - Winton Coin</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Enlace para volver al panel principal -->
+        <a href="contract_interaction.html" class="back-link">&larr; Volver al Panel</a>
+
+        <h1>Mi Historial</h1>
+        <p class="subtitle" id="historyUsername">Historial para ...</p>
+        
+        <hr>
+
+        <div class="history-section">
+            <h2>Mis Publicaciones</h2>
+            <p>Aquí se muestran todas las tareas que has creado.</p>
+            <div id="authored-publications-list" class="publications-list">
+                <!-- Las publicaciones creadas por el usuario se cargarán aquí -->
+            </div>
+        </div>
+
+        <hr>
+
+        <div class="history-section">
+            <h2>Tareas Realizadas</h2>
+            <p>Aquí se muestran todas las tareas que has completado para otros usuarios.</p>
+            <div id="completed-publications-list" class="publications-list">
+                <!-- Las publicaciones completadas por el usuario se cargarán aquí -->
+            </div>
+        </div>
+    </div>
+
+    <script src="history.js"></script>
+</body>
+</html> 
