@@ -6,7 +6,8 @@ const cors = require('cors');
 
 // 2. Configuración inicial
 const app = express();
-const PORT = 3000;
+// El puerto será el que nos asigne Hostinger (process.env.PORT) o el 3000 si estamos en desarrollo.
+const PORT = process.env.PORT || 3000;
 const saltRounds = 10; // Costo del hasheo para bcrypt
 
 // 3. Middlewares
@@ -23,21 +24,19 @@ const db = new sqlite3.Database('./database.db', (err) => {
         // Usamos db.serialize para asegurar que los comandos se ejecutan en orden
         db.serialize(() => {
             // Tabla de usuarios con saldos
-            db.run(`DROP TABLE IF EXISTS users`);
-            db.run(`CREATE TABLE users (
+            db.run(`CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL,
                 blue_balance INTEGER NOT NULL DEFAULT 0,
                 red_balance INTEGER NOT NULL DEFAULT 0
             )`, (err) => {
-                if (err) console.error("Error al crear tabla 'users':", err.message);
-                else console.log("Tabla 'users' creada con saldos.");
+                if (err) console.error("Error al asegurar tabla 'users':", err.message);
+                else console.log("Tabla 'users' asegurada.");
             });
 
             // Recreamos la tabla de publicaciones con el nuevo esquema
-            db.run(`DROP TABLE IF EXISTS publications`);
-            db.run(`CREATE TABLE publications (
+            db.run(`CREATE TABLE IF NOT EXISTS publications (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL,
                 description TEXT NOT NULL,
@@ -47,26 +46,24 @@ const db = new sqlite3.Database('./database.db', (err) => {
                 status TEXT NOT NULL DEFAULT 'open', -- open, pending_approval, approved, completed, confirmed_paid
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )`, (err) => {
-                if (err) console.error("Error al crear la tabla 'publications':", err.message);
-                else console.log("Tabla 'publications' creada con el nuevo esquema.");
+                if (err) console.error("Error al asegurar la tabla 'publications':", err.message);
+                else console.log("Tabla 'publications' asegurada.");
             });
 
             // Recreamos la tabla de notificaciones con el nuevo esquema
-            db.run(`DROP TABLE IF EXISTS notifications`);
-            db.run(`CREATE TABLE notifications (
+            db.run(`CREATE TABLE IF NOT EXISTS notifications (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 recipient_username TEXT NOT NULL,
                 message TEXT NOT NULL,
                 is_read INTEGER DEFAULT 0, -- 0 for unread, 1 for read
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )`, (err) => {
-                if (err) console.error("Error al crear la tabla 'notifications':", err.message);
-                else console.log("Tabla 'notifications' creada con el nuevo esquema simplificado.");
+                if (err) console.error("Error al asegurar la tabla 'notifications':", err.message);
+                else console.log("Tabla 'notifications' asegurada.");
             });
 
             // NUEVA TABLA: Historial de Transacciones
-            db.run(`DROP TABLE IF EXISTS transactions`);
-            db.run(`CREATE TABLE transactions (
+            db.run(`CREATE TABLE IF NOT EXISTS transactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL,
                 type TEXT NOT NULL, -- 'payment_sent', 'payment_received', 'burn'
@@ -76,8 +73,8 @@ const db = new sqlite3.Database('./database.db', (err) => {
                 related_publication_id INTEGER,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )`, (err) => {
-                if (err) console.error("Error al crear tabla 'transactions':", err.message);
-                else console.log("Tabla 'transactions' creada.");
+                if (err) console.error("Error al asegurar tabla 'transactions':", err.message);
+                else console.log("Tabla 'transactions' asegurada.");
             });
         });
     }
