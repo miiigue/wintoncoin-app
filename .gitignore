@@ -1,0 +1,15 @@
+# Dependencias de Node.js - ¡Nunca deben subirse!
+node_modules/
+
+# Archivos de entorno - Contienen claves secretas
+.env
+
+# Archivos de base de datos
+*.db
+*.db-journal
+
+# Logs y archivos de debug
+*.log
+
+# Directorio del contrato de Solidity (lo manejaremos por separado)
+wintonCoin-solidity/ 

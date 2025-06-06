@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crear Publicación - Interfaz Smart Contract</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Crear Nueva Publicación</h1>
+        <h2>Comparte algo nuevo con la comunidad.</h2>
+
+        <form id="publishForm">
+            <div>
+                <label for="title">Título:</label>
+                <input type="text" id="title" name="title" required>
+            </div>
+            
+            <div>
+                <label for="description">Descripción:</label>
+                <input type="text" id="description" name="description" required>
+            </div>
+            
+            <div>
+                <label for="blueCost">Cantidad de BLUE a pagar:</label>
+                <input type="number" id="blueCost" name="blueCost" required>
+            </div>
+            
+            <div>
+                <button type="submit">Publicar</button>
+            </div>
+        </form>
+        <p><a href="contract_interaction.html">Volver al panel principal</a></p>
+    </div>
+
+    <script src="publish.js"></script>
+</body>
+</html> 

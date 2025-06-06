@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactuar con Smart Contract</title>
+    <link rel="stylesheet" href="style.css"> <!-- Enlace a la hoja de estilos -->
+</head>
+<body>
+
+    <div class="header-menu">
+        <!-- Menú de Notificaciones -->
+        <div class="notification-menu">
+            <div class="notification-trigger">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-bell-fill" viewBox="0 0 16 16">
+                    <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2zm.995-14.901a1 1 0 1 0-1.99 0A5.002 5.002 0 0 0 3 6c0 1.098-.5 6-2.5 7h13c-2-1-2.5-5.902-2.5-7 0-2.42-1.72-4.44-4.005-4.901z"/>
+                </svg>
+                <span class="notification-badge" id="notificationBadge"></span>
+            </div>
+            <div class="dropdown-content" id="notificationDropdown">
+                <!-- Las notificaciones se cargarán aquí -->
+            </div>
+        </div>
+
+        <!-- Menú de Perfil del Usuario -->
+        <div class="profile-menu">
+            <div class="profile-trigger">
+                <span id="usernameDisplay">Usuario</span> <!-- El nombre se insertará aquí -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-caret-down-fill" viewBox="0 0 16 16">
+                    <path d="M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z"/>
+                </svg>
+            </div>
+            <div class="dropdown-content" id="profileDropdown">
+                <a href="#" id="logoutLink">Cerrar Sesión</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container"> <!-- Contenedor para centrar y dar estilo -->
+        <h1>Panel de Interacción</h1>
+        <h2>Smart Contract WINTONCOIN</h2>
+        
+        <div class="saldo-container">
+            <div class="saldo-item">
+                <p>Saldo BLUE</p>
+                <span id="saldoBlue">--</span>
+            </div>
+            <div class="saldo-item">
+                <p>Saldo RED</p>
+                <span id="saldoRed">--</span>
+            </div>
+        </div>
+        <button class="action-button burn-trigger" id="burnTriggerBtn">Quemar Tokens</button>
+
+        <hr>
+
+        <div id="contractForm-placeholder"></div>
+
+        <hr>
+
+        <div class="publications-section">
+            <h2>Últimas Publicaciones</h2>
+            <a href="publish.html" class="button-link">Crear Nueva Publicación</a>
+            <div id="publications-list">
+                <!-- Las publicaciones se cargarán aquí dinámicamente -->
+            </div>
+        </div>
+    </div>
+
+    <div id="burnModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Quemar Tokens</h2>
+            <p>Esta acción es irreversible y restará la cantidad especificada de tus saldos de BLUE y RED.</p>
+            
+            <div class="burn-info">
+                <span>Tu saldo actual:</span>
+                <div>
+                    <span id="burnModalBlue" class="saldo-blue-text">-- BLUE</span>
+                    <span id="burnModalRed" class="saldo-red-text">-- RED</span>
+                </div>
+            </div>
+
+            <form id="burnForm">
+                <div class="form-group">
+                    <label for="burnAmount">Cantidad a quemar:</label>
+                    <input type="number" id="burnAmount" name="burnAmount" placeholder="0" required min="1">
+                </div>
+                <button type="submit" class="action-button confirm">Quemar</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="interaction.js"></script>
+</body>
+</html> 
