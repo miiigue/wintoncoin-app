@@ -13,6 +13,7 @@ const saltRounds = 10; // Costo del hasheo para bcrypt
 // 3. Middlewares
 app.use(cors()); // Permite peticiones de otros orígenes (nuestro frontend)
 app.use(express.json()); // Permite al servidor entender JSON en el cuerpo de las peticiones
+app.use(express.static('.')); // Servir archivos estáticos desde la carpeta raíz
 
 // 4. Conectar a la Base de Datos SQLite
 // Se creará un archivo 'database.db' si no existe.
@@ -464,6 +465,12 @@ app.get('/users/:username/transactions', (req, res) => {
         }
         res.status(200).json(rows);
     });
+});
+
+// ---- NUEVA RUTA ----
+// Redirección de la raíz a la página de login
+app.get('/', (req, res) => {
+    res.redirect('/login.html');
 });
 
 // 6. Iniciar el servidor
