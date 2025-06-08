@@ -239,12 +239,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
         }
 
+        const formattedId = `#${String(pub.id).padStart(7, '0')}`;
+
         return `
+            <div class="cost-ribbon">${pub.blue_cost} BLUE</div>
+            <div class="publication-id">${formattedId}</div>
             <h3>${pub.title}</h3>
             <p class="pub-description">${pub.description}</p>
             <div class="pub-meta">
                 <span>Autor: <strong>${pub.author_username}</strong></span>
-                <span>Costo: <strong>${pub.blue_cost} BLUE</strong></span>
             </div>
             ${messageHTML}
             ${actionHTML}
