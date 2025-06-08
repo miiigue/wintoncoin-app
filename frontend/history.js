@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Lógica de Datos ---
     async function fetchHistory() {
         try {
-            const response = await fetch(`http://localhost:3000/users/${storedUsername}/history`);
+            const response = await fetch(`https://wintoncoin-backend.onrender.com/users/${storedUsername}/history`);
             if (!response.ok) {
                 throw new Error('No se pudo cargar el historial.');
             }

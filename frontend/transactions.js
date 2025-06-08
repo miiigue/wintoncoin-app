@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Lógica de Datos ---
     async function fetchTransactions() {
         try {
-            const response = await fetch(`http://localhost:3000/users/${storedUsername}/transactions`);
+            const response = await fetch(`https://wintoncoin-backend.onrender.com/users/${storedUsername}/transactions`);
             if (!response.ok) {
                 throw new Error('No se pudo cargar el historial de transacciones.');
             }

@@ -14,8 +14,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
-            // Dirección de nuestro backend
-            const loginUrl = 'http://localhost:3000/login';
+            // Dirección de nuestro backend en producción
+            const loginUrl = 'https://wintoncoin-backend.onrender.com/login';
 
             try {
                 // Usamos 'fetch' para hacer la petición de red al backend

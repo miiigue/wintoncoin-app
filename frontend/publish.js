@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const description = document.getElementById('description').value;
         const blueCost = document.getElementById('blueCost').value;
         
-        const publishUrl = 'http://localhost:3000/publish';
+        const publishUrl = 'https://wintoncoin-backend.onrender.com/publish';
 
         try {
             const response = await fetch(publishUrl, {

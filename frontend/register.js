@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Dirección del endpoint de registro en nuestro backend
-            const registerUrl = 'http://localhost:3000/register';
+            const registerUrl = 'https://wintoncoin-backend.onrender.com/register';
 
             try {
                 // 2. Hacer la petición 'fetch' al backend

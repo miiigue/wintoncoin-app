@@ -1,5 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
 
+    // --- Configuración Global ---
+    const API_URL = 'https://wintoncoin-backend.onrender.com';
+
     // --- Estado Global y Elementos del DOM ---
     const storedUsername = sessionStorage.getItem('username');
     const elements = {
@@ -161,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function postToServer(endpoint, body) {
         try {
-            const response = await fetch(`http://localhost:3000${endpoint}`, {
+            const response = await fetch(`${API_URL}${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
@@ -178,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Lógica de Renderizado ---
     async function fetchAndDisplayPublications() {
-        const response = await fetch('http://localhost:3000/publications/active');
+        const response = await fetch(`${API_URL}/publications/active`);
         const publications = await response.json();
         elements.publicationsList.innerHTML = '';
         if (publications.length === 0) {
@@ -249,7 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function fetchNotifications() {
-        const response = await fetch(`http://localhost:3000/notifications/${storedUsername}`);
+        const response = await fetch(`${API_URL}/notifications/${storedUsername}`);
         const notifications = await response.json();
         
         const unreadCount = notifications.filter(n => n.is_read === 0).length;
@@ -278,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function markNotificationsAsRead() {
-        await fetch('http://localhost:3000/notifications/mark-read', {
+        await fetch(`${API_URL}/notifications/mark-read`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username: storedUsername })
@@ -288,7 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchAndDisplayBalances() {
         try {
-            const response = await fetch(`http://localhost:3000/users/${storedUsername}/balance`);
+            const response = await fetch(`${API_URL}/users/${storedUsername}/balance`);
             const balances = await response.json();
             if (response.ok) {
                 // Actualizamos la interfaz
