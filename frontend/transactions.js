@@ -1,5 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
 
+    // Lógica para determinar la URL del API automáticamente
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+
     // --- Estado y Elementos del DOM ---
     const storedUsername = sessionStorage.getItem('username');
     const elements = {
@@ -23,10 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Lógica de Datos ---
     async function fetchTransactions() {
         try {
-            // Lógica para determinar la URL del API automáticamente
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
-
             const response = await fetch(`${API_URL}/users/${storedUsername}/transactions`);
             if (!response.ok) {
                 throw new Error('No se pudo cargar el historial de transacciones.');

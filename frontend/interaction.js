@@ -64,9 +64,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 event.stopPropagation();
                 const isOpening = !dropdown.classList.contains('show');
                 closeAllDropdowns();
-                if (isOpening) dropdown.classList.toggle('show');
-                if (isOpening && dropdown.id === 'notificationDropdown') {
-                    // Lógica para marcar como leídas se movió al handler de la notificación
+                if (isOpening) {
+                    dropdown.classList.toggle('show');
+                    // Si el dropdown que se abre es el de notificaciones, márcalas como leídas.
+                    if (dropdown.id === 'notificationDropdown') {
+                        // Usamos un pequeño retraso para que el usuario vea el badge antes de que desaparezca.
+                        setTimeout(markNotificationsAsRead, 1000);
+                    }
                 }
             });
         };
@@ -83,7 +87,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('click', closeAllDropdowns);
         elements.logoutLink.addEventListener('click', handleLogout);
         elements.publicationsList.addEventListener('click', handlePublicationAction);
-        elements.notificationDropdown.addEventListener('click', handleNotificationAction);
         elements.burnTriggerBtn.addEventListener('click', () => {
             // Actualizamos los saldos en el modal cada vez que se abre
             const blueBalance = sessionStorage.getItem('blue_balance') || '0';
@@ -146,28 +149,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (endpoint) {
             await postToServer(endpoint, body);
-        }
-    }
-
-    async function handleNotificationAction(event) {
-        const button = event.target.closest('[data-action]');
-        if (button) {
-            const notifId = button.dataset.id;
-            const action = button.dataset.action;
-            let endpoint, body;
-            
-            if (action === 'approve') {
-                endpoint = `/notifications/${notifId}/approve`;
-                body = { approverUsername: storedUsername };
-            } else if (action === 'complete') {
-                endpoint = `/notifications/${notifId}/complete`;
-                body = { completerUsername: storedUsername };
-            } else if (action === 'confirm-payment') {
-                endpoint = `/notifications/${notifId}/confirm-payment`;
-                body = { confirmerUsername: storedUsername };
-            }
-            
-            if (endpoint) await postToServer(endpoint, body);
         }
     }
 
@@ -272,6 +253,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const unreadCount = notifications.filter(n => n.is_read === 0).length;
         updateNotificationBadge(unreadCount);
 
+        // Limpiar notificaciones anteriores para evitar duplicados al refrescar
+        elements.notificationDropdown.innerHTML = '';
+
         if (notifications.length === 0) {
             elements.notificationDropdown.innerHTML = '<div class="no-notifications">No tienes notificaciones.</div>';
             return;
@@ -295,4 +279,68 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function markNotificationsAsRead() {
-        await fetch(`
+        // Solo enviar la petición si hay notificaciones sin leer.
+        if (elements.notificationBadge.style.display === 'none') return;
+
+        try {
+            await fetch(`${API_URL}/notifications/mark-read`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: storedUsername })
+            });
+            // Ocultar visualmente el badge de inmediato para una respuesta rápida.
+            updateNotificationBadge(0);
+        } catch (error) {
+            console.error('Error marcando notificaciones como leídas:', error);
+        }
+    }
+
+    async function fetchAndDisplayBalances() {
+        try {
+            const response = await fetch(`${API_URL}/users/${storedUsername}/balance`);
+            if (response.ok) {
+                const balances = await response.json();
+                elements.saldoBlue.textContent = balances.blue_balance;
+                elements.saldoRed.textContent = balances.red_balance;
+                // También actualizamos sessionStorage para que esté fresco
+                sessionStorage.setItem('blue_balance', balances.blue_balance);
+                sessionStorage.setItem('red_balance', balances.red_balance);
+            }
+        } catch (error) {
+            console.error('Error al obtener los saldos:', error);
+        }
+    }
+
+    async function handleBurnSubmit(event) {
+        event.preventDefault();
+        const amountInput = document.getElementById('burnAmount');
+        const amount = amountInput.value;
+
+        if (!amount || amount <= 0) {
+            showCustomAlert('Por favor, introduce una cantidad válida para quemar.');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/users/burn`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: storedUsername, amount: parseInt(amount) })
+            });
+            const result = await response.json();
+            showCustomAlert(result.message);
+
+            if (response.ok) {
+                elements.burnModal.style.display = 'none'; // Cierra el modal
+                elements.burnForm.reset(); // Limpia el formulario
+                loadAllData(); // Recarga todo para ver los nuevos saldos
+            }
+        } catch (error) {
+            console.error('Error al quemar tokens:', error);
+            showCustomAlert('Error de red al intentar quemar tokens.');
+        }
+    }
+
+    // --- Funciones de Utilidad ---
+    // La función showCustomAlert se ha movido a utils.js para ser usada globalmente.
+});
