@@ -15,8 +15,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 return; // Detiene la ejecución si no coinciden
             }
 
-            // Dirección del endpoint de registro en nuestro backend
-            const registerUrl = 'https://wintoncoin-backend.onrender.com/register';
+            // Lógica para determinar la URL del API automáticamente
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+            const registerUrl = `${API_URL}/register`;
 
             try {
                 // 2. Hacer la petición 'fetch' al backend

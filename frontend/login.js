@@ -14,8 +14,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
-            // Dirección de nuestro backend en producción
-            const loginUrl = 'https://wintoncoin-backend.onrender.com/login';
+            // Lógica para determinar la URL del API automáticamente
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+            const loginUrl = `${API_URL}/login`;
 
             try {
                 // Usamos 'fetch' para hacer la petición de red al backend

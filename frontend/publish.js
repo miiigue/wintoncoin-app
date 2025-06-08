@@ -16,7 +16,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const description = document.getElementById('description').value;
         const blueCost = document.getElementById('blueCost').value;
         
-        const publishUrl = 'https://wintoncoin-backend.onrender.com/publish';
+        // Lógica para determinar la URL del API automáticamente
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+        const publishUrl = `${API_URL}/publish`;
 
         try {
             const response = await fetch(publishUrl, {

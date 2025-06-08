@@ -1,7 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- Configuración Global ---
-    const API_URL = 'https://wintoncoin-backend.onrender.com';
+    // Lógica para determinar la URL del API automáticamente
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
 
     // --- Estado Global y Elementos del DOM ---
     const storedUsername = sessionStorage.getItem('username');
@@ -116,7 +118,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handlePublicationAction(event) {
         const button = event.target.closest('[data-action]');
-        if (!button) return;
+        if (!button) {
+            return;
+        }
 
         const pubId = button.dataset.id;
         const action = button.dataset.action;
@@ -140,7 +144,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 body = { confirmerUsername: storedUsername };
                 break;
         }
-        if (endpoint) await postToServer(endpoint, body);
+        if (endpoint) {
+            await postToServer(endpoint, body);
+        }
     }
 
     async function handleNotificationAction(event) {
@@ -289,63 +295,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function markNotificationsAsRead() {
-        await fetch(`${API_URL}/notifications/mark-read`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: storedUsername })
-        });
-        loadAllData();
-    }
-
-    async function fetchAndDisplayBalances() {
-        try {
-            const response = await fetch(`${API_URL}/users/${storedUsername}/balance`);
-            const balances = await response.json();
-            if (response.ok) {
-                // Actualizamos la interfaz
-                elements.saldoBlue.textContent = balances.blue_balance;
-                elements.saldoRed.textContent = balances.red_balance;
-                // Y también actualizamos el sessionStorage para mantenerlo sincronizado
-                sessionStorage.setItem('blue_balance', balances.blue_balance);
-                sessionStorage.setItem('red_balance', balances.red_balance);
-            } else {
-                console.error("Error al obtener saldos:", balances.message);
-                elements.saldoBlue.textContent = 'Error';
-                elements.saldoRed.textContent = 'Error';
-            }
-        } catch (error) {
-            console.error("Error de red al obtener saldos:", error);
-            elements.saldoBlue.textContent = 'Error';
-            elements.saldoRed.textContent = 'Error';
-        }
-    }
-
-    async function handleBurnSubmit(event) {
-        event.preventDefault();
-        const amount = document.getElementById('burnAmount').value;
-        if (!amount || amount <= 0) {
-            showCustomAlert('Por favor, introduce una cantidad válida para quemar.');
-            return;
-        }
-
-        try {
-            const response = await fetch(`${API_URL}/users/burn`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: storedUsername, amount })
-            });
-
-            const result = await response.json();
-            showCustomAlert(result.message);
-
-            if (response.ok) {
-                elements.burnModal.style.display = 'none';
-                elements.burnForm.reset();
-                fetchAndDisplayBalances(); // Actualizar saldos en la página principal
-            }
-        } catch (error) {
-            console.error('Error al quemar tokens:', error);
-            showCustomAlert('Error de red al intentar quemar los tokens.');
-        }
-    }
-}); 
+        await fetch(`

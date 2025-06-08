@@ -10,8 +10,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Inicialización ---
     if (!storedUsername) {
-        alert('Debes iniciar sesión para ver tu historial.');
-        window.location.href = 'index.html';
+        showCustomAlert('Debes iniciar sesión para ver tu historial.', () => {
+            window.location.href = 'index.html';
+        });
         return;
     }
 
@@ -21,7 +22,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Lógica de Datos ---
     async function fetchHistory() {
         try {
-            const response = await fetch(`https://wintoncoin-backend.onrender.com/users/${storedUsername}/history`);
+            // Lógica para determinar la URL del API automáticamente
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+
+            const response = await fetch(`${API_URL}/users/${storedUsername}/history`);
             if (!response.ok) {
                 throw new Error('No se pudo cargar el historial.');
             }
