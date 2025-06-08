@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // 1. Verificar que las contraseñas coincidan
             if (password !== confirmPassword) {
-                alert('Las contraseñas no coinciden. Inténtalo de nuevo.');
+                showCustomAlert('Las contraseñas no coinciden. Inténtalo de nuevo.');
                 return; // Detiene la ejecución si no coinciden
             }
 
@@ -31,14 +31,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 const result = await response.json();
 
                 if (response.ok) { // Éxito (ej. código 201 Created)
-                    alert(result.message + ' Ahora puedes iniciar sesión.');
-                    window.location.href = 'index.html'; // 4. Redirigir a la página de login
+                    // Pasamos la redirección como callback
+                    showCustomAlert(result.message + ' Ahora puedes iniciar sesión.', () => {
+                        window.location.href = 'index.html'; // 4. Redirigir a la página de login
+                    });
                 } else { // Error (ej. 409 Conflict - usuario ya existe)
-                    alert(`Error: ${result.message}`);
+                    showCustomAlert(`Error: ${result.message}`);
                 }
             } catch (error) {
                 console.error('Error de red o al conectar con el servidor:', error);
-                alert('No se pudo conectar con el servidor. Asegúrate de que está en funcionamiento.');
+                showCustomAlert('No se pudo conectar con el servidor. Asegúrate de que está en funcionamiento.');
             }
         });
     } else {

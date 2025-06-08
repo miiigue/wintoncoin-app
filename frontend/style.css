@@ -479,7 +479,8 @@ hr {
 
 .close-button:hover,
 .close-button:focus {
-    color: var(--error-color);
+    color: #ff5252;
+    text-decoration: none;
     cursor: pointer;
 }
 
@@ -653,4 +654,23 @@ hr {
 
 .no-change {
     color: var(--text-secondary-color);
+}
+
+/* --- Estilos específicos para el Modal de Alerta --- */
+#customAlertModal .modal-content {
+    padding: 2rem;
+    text-align: center;
+}
+
+#customAlertMessage {
+    margin-bottom: 1.5rem;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: var(--text-color);
+}
+
+#customAlertModal .action-button {
+    width: auto;
+    padding: 10px 30px;
+    margin-top: 1rem;
 } 

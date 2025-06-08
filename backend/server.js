@@ -189,14 +189,30 @@ app.get('/publications', (req, res) => {
 });
 
 // Ruta para obtener solo las publicaciones ACTIVAS (para el panel principal)
+// AHORA filtra según el usuario que hace la petición
 app.get('/publications/active', (req, res) => {
-    // Definimos como "activa" cualquier publicación que no esté 'confirmed_paid'
+    const { user } = req.query;
+
+    if (!user) {
+        return res.status(400).json({ message: "Es necesario especificar un usuario." });
+    }
+
+    // Esta consulta ahora es más compleja:
+    // 1. Selecciona cualquier publicación que esté 'open'.
+    // 2. O, selecciona publicaciones en otros estados si el usuario es el autor O el aceptante.
     const sql = `
         SELECT * FROM publications 
-        WHERE status != 'confirmed_paid' 
+        WHERE 
+            status = 'open' 
+            OR (
+                status IN ('pending_approval', 'approved', 'completed') 
+                AND (author_username = ? OR accepted_by_username = ?)
+            )
         ORDER BY created_at DESC
     `;
-    db.all(sql, [], (err, rows) => {
+    
+    // Pasamos el nombre del usuario dos veces a la consulta, para los placeholders '?'
+    db.all(sql, [user, user], (err, rows) => {
         if (err) {
             console.error("Error al obtener las publicaciones activas:", err.message);
             return res.status(500).json({ message: "Error interno del servidor." });

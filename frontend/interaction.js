@@ -26,8 +26,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Inicialización ---
     if (!storedUsername) {
-        alert('Debes iniciar sesión para acceder a esta página.');
-        window.location.href = 'index.html';
+        // Ahora, la redirección se pasa como un callback.
+        showCustomAlert('Debes iniciar sesión para acceder a esta página.', () => {
+            window.location.href = 'index.html';
+        });
         return;
     }
     elements.usernameDisplay.textContent = storedUsername;
@@ -107,8 +109,9 @@ document.addEventListener('DOMContentLoaded', () => {
         sessionStorage.removeItem('username');
         sessionStorage.removeItem('blue_balance');
         sessionStorage.removeItem('red_balance');
-        alert('Has cerrado la sesión.');
-        window.location.href = 'index.html';
+        showCustomAlert('Has cerrado la sesión.', () => {
+            window.location.href = 'index.html';
+        });
     }
 
     async function handlePublicationAction(event) {
@@ -170,18 +173,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify(body)
             });
             const result = await response.json();
-            alert(result.message);
+            // Usamos el modal personalizado
+            showCustomAlert(result.message);
             if (response.ok) {
                 loadAllData(); // Recargar TODO para reflejar todos los cambios
             }
         } catch (error) {
-            alert('Error de red al realizar la acción.');
+            console.error('Error en postToServer:', error);
+            showCustomAlert('Error de red al realizar la acción. Revisa la consola para más detalles.');
         }
     }
 
     // --- Lógica de Renderizado ---
     async function fetchAndDisplayPublications() {
-        const response = await fetch(`${API_URL}/publications/active`);
+        const response = await fetch(`${API_URL}/publications/active?user=${storedUsername}`);
         const publications = await response.json();
         elements.publicationsList.innerHTML = '';
         if (publications.length === 0) {
@@ -317,27 +322,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleBurnSubmit(event) {
         event.preventDefault();
-        const amountToBurn = parseInt(document.getElementById('burnAmount').value);
-        const currentBlue = parseInt(elements.saldoBlue.textContent);
-
-        // Validación del lado del cliente
-        if (isNaN(amountToBurn) || amountToBurn <= 0) {
-            alert("Por favor, ingresa un número positivo.");
-            return;
-        }
-        if (amountToBurn > currentBlue) {
-            alert("No puedes quemar más BLUE de los que tienes.");
-            return;
-        }
-        
-        const confirmation = confirm(`¿Estás seguro de que quieres quemar ${amountToBurn} BLUE y ${amountToBurn} RED? Esta acción no se puede deshacer.`);
-        if (!confirmation) {
+        const amount = document.getElementById('burnAmount').value;
+        if (!amount || amount <= 0) {
+            showCustomAlert('Por favor, introduce una cantidad válida para quemar.');
             return;
         }
 
-        // Llamada al servidor
-        await postToServer('/users/burn', { username: storedUsername, amount: amountToBurn });
-        elements.burnModal.style.display = 'none'; // Cerrar el modal después del intento
-        document.getElementById('burnAmount').value = ''; // Limpiar el input
+        try {
+            const response = await fetch(`${API_URL}/users/burn`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: storedUsername, amount })
+            });
+
+            const result = await response.json();
+            showCustomAlert(result.message);
+
+            if (response.ok) {
+                elements.burnModal.style.display = 'none';
+                elements.burnForm.reset();
+                fetchAndDisplayBalances(); // Actualizar saldos en la página principal
+            }
+        } catch (error) {
+            console.error('Error al quemar tokens:', error);
+            showCustomAlert('Error de red al intentar quemar los tokens.');
+        }
     }
 }); 

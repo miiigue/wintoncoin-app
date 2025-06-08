@@ -2,8 +2,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Primero, verificamos si el usuario ha iniciado sesión.
     const authorUsername = sessionStorage.getItem('username');
     if (!authorUsername) {
-        alert('Debes iniciar sesión para poder publicar.');
-        window.location.href = 'index.html';
+        showCustomAlert('Debes iniciar sesión para poder publicar.', () => {
+            window.location.href = 'index.html';
+        });
         return;
     }
 
@@ -32,15 +33,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await response.json();
 
             if (response.ok) {
-                alert(result.message);
-                window.location.href = 'contract_interaction.html'; // Volver al panel para ver la publicación
+                showCustomAlert(result.message, () => {
+                    window.location.href = 'contract_interaction.html'; // Volver al panel para ver la publicación
+                });
             } else {
-                alert(`Error: ${result.message}`);
+                showCustomAlert(`Error: ${result.message}`);
             }
 
         } catch (error) {
             console.error('Error de red al publicar:', error);
-            alert('No se pudo conectar con el servidor para publicar.');
+            showCustomAlert('No se pudo conectar con el servidor para publicar.');
         }
     });
 }); 

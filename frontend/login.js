@@ -42,13 +42,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     // Si hay un error (ej. 401 credenciales inválidas)
                     const errorResult = await response.json();
-                    alert(`Error: ${errorResult.message}`);
+                    showCustomAlert(`Error: ${errorResult.message}`);
                     document.getElementById('password').value = ''; // Limpiar campo de contraseña
                 }
             } catch (error) {
                 // Este bloque se ejecuta si hay un problema de red (ej. el servidor no está corriendo)
                 console.error('Error de red o al conectar con el servidor:', error);
-                alert('No se pudo conectar con el servidor. Asegúrate de que está en funcionamiento.');
+                showCustomAlert('No se pudo conectar con el servidor. Asegúrate de que está en funcionamiento.');
             }
         });
     } else {
