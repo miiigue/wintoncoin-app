@@ -258,15 +258,17 @@ hr {
 }
 
 .publication-item .pub-description {
-    margin-bottom: 1rem;
-    color: var(--text-color);
+    margin-bottom: 1.5rem;
 }
 
 .publication-item .pub-meta {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.9rem;
+    margin-bottom: 1rem;
     color: var(--text-secondary-color);
+    font-size: 0.9rem;
+    display: flex; /* Usamos flexbox */
+    justify-content: space-between; /* Espacio entre el nombre y las estrellas */
+    align-items: center; /* Alinear verticalmente */
+    flex-wrap: wrap; /* Permitir que se envuelva si no hay espacio */
 }
 
 .publication-item .pub-meta strong {
@@ -275,7 +277,7 @@ hr {
 
 .action-button {
     margin-top: 1rem;
-    padding: 8px 15px;
+    padding: 10px 15px;
     width: auto;
     font-size: 0.9rem;
     border: none;
@@ -673,4 +675,91 @@ hr {
     width: auto;
     padding: 10px 30px;
     margin-top: 1rem;
-} 
+}
+
+/* --- Estilos para el Modal de Calificación --- */
+.rating-stars {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.star-rating {
+    display: flex;
+    flex-direction: row-reverse; /* Importante para el efecto de hover */
+    justify-content: center;
+}
+
+/* Ocultar los radio buttons reales */
+.star-rating input[type="radio"] {
+    display: none;
+}
+
+/* Estilo de las estrellas (labels) */
+.star-rating .star {
+    font-size: 2.5rem;
+    color: #444; /* Color de estrella vacía */
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+/* --- Lógica de Hover y Selección de Estrellas --- */
+
+/* Cuando pasamos el ratón sobre una estrella, TODAS las estrellas anteriores (hermanos ~) se iluminan */
+.star-rating:not(:hover) input[type="radio"]:checked ~ .star,
+.star-rating:hover input[type="radio"]:hover ~ .star,
+.star-rating input[type="radio"]:checked ~ .star {
+    color: #ffc107; /* Amarillo estrella */
+}
+
+/* La estrella sobre la que está el ratón */
+.star-rating input[type="radio"]:hover {
+    color: #ffc107;
+}
+
+/* Asegurar que la propia estrella (label) también se coloree */
+.star-rating input[type="radio"]:hover ~ .star,
+.star-rating input[type="radio"]:hover,
+.star-rating:hover .star:hover{
+     color: #ffc107;
+}
+
+/* Colorear la estrella que está justo debajo del ratón, y las anteriores */
+.star-rating .star:hover,
+.star-rating .star:hover ~ .star {
+    color: #ffc107;
+}
+
+/* Estilos para el textarea de comentarios */
+#ratingForm textarea {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid #2a3b5c;
+    background-color: var(--background-color);
+    border-radius: 8px;
+    color: var(--text-color);
+    font-size: 1rem;
+    box-sizing: border-box;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    resize: vertical; /* Permitir redimensionar verticalmente */
+}
+
+#ratingForm textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 10px rgba(106, 90, 205, 0.5);
+}
+
+/* --- Estilos para la Calificación en la Tarjeta de Publicación --- */
+.rating-display .stars {
+    color: #ffc107; /* Mismo amarillo que las estrellas del modal */
+    font-size: 1rem;
+    margin-right: 0.3rem;
+}
+
+.rating-display .rating-count,
+.rating-display .no-rating {
+    font-size: 0.8rem;
+    color: var(--text-secondary-color);
+}

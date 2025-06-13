@@ -27,13 +27,15 @@ const db = new sqlite3.Database(dbPath, (err) => {
         console.log("Conectado a la base de datos SQLite.");
         // Usamos db.serialize para asegurar que los comandos se ejecutan en orden
         db.serialize(() => {
-            // Tabla de usuarios con saldos
+            // Tabla de usuarios con saldos y calificaciones
             db.run(`CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL,
                 blue_balance INTEGER NOT NULL DEFAULT 0,
-                red_balance INTEGER NOT NULL DEFAULT 0
+                red_balance INTEGER NOT NULL DEFAULT 0,
+                average_rating REAL NOT NULL DEFAULT 0,
+                ratings_count INTEGER NOT NULL DEFAULT 0
             )`, (err) => {
                 if (err) console.error("Error al asegurar tabla 'users':", err.message);
                 else console.log("Tabla 'users' asegurada.");
@@ -79,6 +81,23 @@ const db = new sqlite3.Database(dbPath, (err) => {
             )`, (err) => {
                 if (err) console.error("Error al asegurar tabla 'transactions':", err.message);
                 else console.log("Tabla 'transactions' asegurada.");
+            });
+
+            // NUEVA TABLA: Calificaciones (Ratings)
+            db.run(`CREATE TABLE IF NOT EXISTS ratings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                publication_id INTEGER NOT NULL,
+                rater_username TEXT NOT NULL,
+                ratee_username TEXT NOT NULL,
+                rating INTEGER NOT NULL,
+                comment TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (publication_id) REFERENCES publications(id),
+                FOREIGN KEY (rater_username) REFERENCES users(username),
+                FOREIGN KEY (ratee_username) REFERENCES users(username)
+            )`, (err) => {
+                if (err) console.error("Error al crear tabla 'ratings':", err.message);
+                else console.log("Tabla 'ratings' creada/asegurada.");
             });
         });
     }
@@ -486,6 +505,118 @@ app.get('/users/:username/transactions', (req, res) => {
     });
 });
 
+// Ruta para obtener el historial de transacciones de un usuario
+app.get('/transactions/:username', (req, res) => {
+    const { username } = req.params;
+    const sql = `SELECT * FROM transactions WHERE username = ? ORDER BY created_at DESC`;
+
+    db.all(sql, [username], (err, rows) => {
+        if (err) {
+            console.error("Error al obtener las transacciones:", err.message);
+            return res.status(500).json({ message: "Error interno del servidor." });
+        }
+        res.status(200).json(rows);
+    });
+});
+
+// Ruta para obtener datos públicos de un usuario (incluyendo calificación)
+app.get('/user/:username', (req, res) => {
+    const { username } = req.params;
+    const sql = `SELECT username, average_rating, ratings_count FROM users WHERE username = ?`;
+
+    db.get(sql, [username], (err, user) => {
+        if (err) {
+            console.error("Error al obtener datos del usuario:", err.message);
+            return res.status(500).json({ message: "Error interno del servidor." });
+        }
+        if (!user) {
+            return res.status(404).json({ message: "Usuario no encontrado." });
+        }
+        res.status(200).json(user);
+    });
+});
+
+// NUEVA RUTA: para enviar una calificación
+app.post('/rate', (req, res) => {
+    const { publicationId, raterUsername, rateeUsername, rating, comment } = req.body;
+
+    // 1. Validaciones básicas
+    if (!publicationId || !raterUsername || !rateeUsername || !rating) {
+        return res.status(400).json({ message: "Faltan datos para la calificación." });
+    }
+    if (rating < 1 || rating > 5) {
+        return res.status(400).json({ message: "La calificación debe ser entre 1 y 5." });
+    }
+
+    db.serialize(() => {
+        db.run("BEGIN TRANSACTION;");
+
+        // 2. Verificar que la publicación está en estado 'confirmed_paid'
+        const checkPubSql = `SELECT status FROM publications WHERE id = ?`;
+        db.get(checkPubSql, [publicationId], (err, publication) => {
+            if (err) {
+                db.run("ROLLBACK;");
+                return res.status(500).json({ message: "Error al verificar la publicación." });
+            }
+            if (!publication || publication.status !== 'confirmed_paid') {
+                db.run("ROLLBACK;");
+                return res.status(403).json({ message: "No se puede calificar esta publicación en su estado actual." });
+            }
+
+            // 3. Verificar que el usuario no haya calificado ya esta interacción
+            const checkRatingSql = `SELECT id FROM ratings WHERE publication_id = ? AND rater_username = ?`;
+            db.get(checkRatingSql, [publicationId, raterUsername], (err, existingRating) => {
+                if (err) {
+                    db.run("ROLLBACK;");
+                    return res.status(500).json({ message: "Error al verificar calificación existente." });
+                }
+                if (existingRating) {
+                    db.run("ROLLBACK;");
+                    return res.status(409).json({ message: "Ya has calificado esta interacción." });
+                }
+
+                // 4. Insertar la nueva calificación
+                const insertSql = `INSERT INTO ratings (publication_id, rater_username, ratee_username, rating, comment) VALUES (?, ?, ?, ?, ?)`;
+                db.run(insertSql, [publicationId, raterUsername, rateeUsername, rating, comment], function(err) {
+                    if (err) {
+                        db.run("ROLLBACK;");
+                        return res.status(500).json({ message: "Error al guardar la calificación." });
+                    }
+
+                    // 5. Actualizar la calificación promedio del usuario calificado (ratee)
+                    const getUserSql = `SELECT average_rating, ratings_count FROM users WHERE username = ?`;
+                    db.get(getUserSql, [rateeUsername], (err, user) => {
+                        if (err || !user) {
+                            db.run("ROLLBACK;");
+                            return res.status(500).json({ message: "Error al obtener datos del usuario calificado." });
+                        }
+
+                        const newRatingsCount = user.ratings_count + 1;
+                        const newAverageRating = ((user.average_rating * user.ratings_count) + rating) / newRatingsCount;
+
+                        const updateUserSql = `UPDATE users SET average_rating = ?, ratings_count = ? WHERE username = ?`;
+                        db.run(updateUserSql, [newAverageRating, newRatingsCount, rateeUsername], (err) => {
+                            if (err) {
+                                db.run("ROLLBACK;");
+                                return res.status(500).json({ message: "Error al actualizar el perfil del usuario." });
+                            }
+                            
+                            // Si todo fue bien, confirmar la transacción
+                            db.run("COMMIT;", (err) => {
+                                if (err) {
+                                    db.run("ROLLBACK;"); // Por si acaso
+                                    return res.status(500).json({ message: "Error finalizando la transacción." });
+                                }
+                                res.status(201).json({ message: "Calificación enviada con éxito." });
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    });
+});
+
 // ---- NUEVA RUTA ----
 // Redirección de la raíz a la página de login
 app.get('/', (req, res) => {
@@ -494,6 +625,6 @@ app.get('/', (req, res) => {
 });
 
 // 6. Iniciar el servidor
-app.listen(PORT, () => {
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Servidor corriendo en http://0.0.0.0:${PORT}`);
 }); 

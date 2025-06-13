@@ -93,6 +93,40 @@
         </div>
     </div>
 
+    <!-- Modal de Calificación -->
+    <div id="ratingModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button rating-close-button">&times;</span>
+            <h2 id="ratingModalTitle">Calificar al Usuario</h2>
+            <p>Por favor, califica tu experiencia con el usuario.</p>
+            
+            <form id="ratingForm">
+                <!-- Inputs ocultos para pasar datos -->
+                <input type="hidden" id="ratingPublicationId">
+                <input type="hidden" id="ratingRaterUsername">
+                <input type="hidden" id="ratingRateeUsername">
+
+                <div class="form-group rating-stars">
+                    <label>Calificación:</label>
+                    <div class="star-rating">
+                        <input type="radio" id="5-stars" name="rating" value="5" required /><label for="5-stars" class="star">&#9733;</label>
+                        <input type="radio" id="4-stars" name="rating" value="4" /><label for="4-stars" class="star">&#9733;</label>
+                        <input type="radio" id="3-stars" name="rating" value="3" /><label for="3-stars" class="star">&#9733;</label>
+                        <input type="radio" id="2-stars" name="rating" value="2" /><label for="2-stars" class="star">&#9733;</label>
+                        <input type="radio" id="1-star" name="rating" value="1" /><label for="1-star" class="star">&#9733;</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="ratingComment">Comentario (opcional):</label>
+                    <textarea id="ratingComment" name="comment" rows="4" placeholder="Describe tu experiencia..."></textarea>
+                </div>
+
+                <button type="submit" class="action-button confirm">Enviar Calificación</button>
+            </form>
+        </div>
+    </div>
+
     <script src="utils.js"></script>
     <script src="interaction.js"></script>
 
