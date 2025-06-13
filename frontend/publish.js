@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const authorUsername = sessionStorage.getItem('username');
     if (!authorUsername) {
         showCustomAlert('Debes iniciar sesión para poder publicar.', () => {
-            window.location.href = 'index.html';
+        window.location.href = 'index.html';
         });
         return;
     }
@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (response.ok) {
                 showCustomAlert(result.message, () => {
-                    window.location.href = 'contract_interaction.html'; // Volver al panel para ver la publicación
+                window.location.href = 'contract_interaction.html'; // Volver al panel para ver la publicación
                 });
             } else {
                 showCustomAlert(`Error: ${result.message}`);

@@ -656,7 +656,7 @@ hr {
 
 .no-change {
     color: var(--text-secondary-color);
-}
+} 
 
 /* --- Estilos específicos para el Modal de Alerta --- */
 #customAlertModal .modal-content {
