@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!storedUsername) {
         // Ahora, la redirección se pasa como un callback.
         showCustomAlert('Debes iniciar sesión para acceder a esta página.', () => {
-            window.location.href = 'index.html';
+        window.location.href = 'index.html';
         });
         return;
     }
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sessionStorage.removeItem('blue_balance');
         sessionStorage.removeItem('red_balance');
         showCustomAlert('Has cerrado la sesión.', () => {
-            window.location.href = 'index.html';
+        window.location.href = 'index.html';
         });
     }
 
@@ -267,130 +267,90 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchAndDisplayPublications() {
         try {
             const response = await fetch(`${API_URL}/publications/active?user=${storedUsername}`);
-            if (!response.ok) throw new Error('Error al obtener publicaciones.');
-            const publications = await response.json();
-
-            // --- PASO 0: Manejo no destructivo del mensaje de "no hay publicaciones" ---
-            const noPubsMessage = elements.publicationsList.querySelector('.no-publications-message');
-            if (publications.length === 0) {
-                if (!noPubsMessage) {
-                    elements.publicationsList.innerHTML = '<p class="no-publications-message">Aún no hay publicaciones. ¡Sé el primero!</p>';
-                }
+            if (!response.ok) {
+                elements.publicationsList.innerHTML = '<p>Error al cargar las publicaciones.</p>';
                 return;
-            } else if (noPubsMessage) {
-                noPubsMessage.remove();
+            }
+            const publications = await response.json();
+            
+            if (publications.length === 0) {
+                elements.publicationsList.innerHTML = '<p class="empty-message">No hay publicaciones disponibles en este momento. ¡Sé el primero en crear una!</p>';
+                return;
             }
 
-            // --- PASO 1: Obtener todos los datos de calificación en paralelo ---
-            const ratingsPromises = publications.map(pub =>
-                fetch(`${API_URL}/user/${pub.author_username}`).then(res => res.ok ? res.json() : null)
-            );
-            const userRatings = await Promise.all(ratingsPromises);
+            // Un mapa para cachear las calificaciones de los usuarios.
+            const userRatingsCache = new Map();
 
-            const newPublicationsMap = new Map();
-            publications.forEach((pub, index) => {
-                newPublicationsMap.set(pub.id.toString(), { pub, userData: userRatings[index] });
-            });
-
-            const currentElementsMap = new Map(
-                Array.from(elements.publicationsList.children)
-                     .filter(el => el.dataset.id)
-                     .map(el => [el.dataset.id, el])
-            );
-
-            // --- PASO 2: Actualizar y Añadir (Lógica Data-Driven) ---
-            newPublicationsMap.forEach(({ pub, userData }, pubId) => {
-                const average_rating = userData ? userData.average_rating : 0;
-                const ratings_count = userData ? userData.ratings_count : 0;
-
-                if (currentElementsMap.has(pubId)) {
-                    // La publicación ya existe, actualizamos solo si los datos han cambiado.
-                    const element = currentElementsMap.get(pubId);
-
-                    // Actualizamos el 'acceptor' por si ha cambiado (p. ej. de null a un nombre de usuario)
-                    element.dataset.acceptor = pub.accepted_by_username || '';
-
-                    // Actualización del rating basada en datos
-                    const currentRating = parseFloat(element.dataset.rating || 0);
-                    const currentRatingCount = parseInt(element.dataset.ratingCount || 0, 10);
-                    if (currentRating !== average_rating || currentRatingCount !== ratings_count) {
-                        element.querySelector('.rating-display').innerHTML = generateStarRating(average_rating, ratings_count);
-                        element.dataset.rating = average_rating;
-                        element.dataset.ratingCount = ratings_count;
-                    }
-
-                    // Actualización de acciones basada en el estado
-                    if (element.dataset.status !== pub.status) {
-                        const { messageHTML, actionHTML } = getActionAndMessageHTML(pub);
-                        element.querySelector('.publication-actions').innerHTML = messageHTML + actionHTML;
-                        element.dataset.status = pub.status;
-                    }
-                } else {
-                    // Es una publicación nueva, la creamos y la añadimos.
-                    const item = document.createElement('div');
-                    item.className = 'publication-item';
-                    item.dataset.id = pub.id;
-                    item.dataset.status = pub.status;
-                    item.dataset.rating = average_rating;
-                    item.dataset.ratingCount = ratings_count;
-                    item.dataset.author = pub.author_username;
-                    item.dataset.acceptor = pub.accepted_by_username || '';
-
-                    const ratingHTML = generateStarRating(average_rating, ratings_count);
-                    const { messageHTML, actionHTML } = getActionAndMessageHTML(pub);
-                    item.innerHTML = getFullPublicationHTML(pub, ratingHTML, messageHTML, actionHTML);
-                    elements.publicationsList.prepend(item);
+            // Usamos Promise.all para obtener todas las calificaciones en paralelo, lo que es más eficiente.
+            const publicationsHTML = await Promise.all(publications.map(async (pub) => {
+                let ratingHTML = '';
+                // Solo buscamos la calificación si no la tenemos ya en caché.
+                if (!userRatingsCache.has(pub.author_username)) {
+                    const ratingData = await fetchUserRating(pub.author_username);
+                    userRatingsCache.set(pub.author_username, ratingData);
                 }
-            });
+                const authorRating = userRatingsCache.get(pub.author_username);
+                ratingHTML = generateStarRating(authorRating.average, authorRating.count);
 
-            // --- PASO 3: Eliminar las antiguas ---
-            currentElementsMap.forEach((element, pubId) => {
-                if (!newPublicationsMap.has(pubId)) {
-                    element.remove();
-                }
-            });
+                const { messageHTML, actionHTML } = getActionAndMessageHTML(pub);
+
+                // Pasamos la publicación completa para tener acceso a todos sus datos
+                return getFullPublicationHTML(pub, ratingHTML, messageHTML, actionHTML);
+            }));
+
+            elements.publicationsList.innerHTML = publicationsHTML.join('');
 
         } catch (error) {
-            console.error('Error en fetchAndDisplayPublications:', error);
+            console.error('Error al obtener publicaciones:', error);
+            elements.publicationsList.innerHTML = '<p>No se pudo conectar con el servidor para obtener las publicaciones.</p>';
         }
     }
 
-    // Separa la lógica de obtener el HTML completo de la lógica de las acciones
+    // --- Funciones de Renderizado ---
+    
     function getFullPublicationHTML(pub, ratingHTML, messageHTML, actionHTML) {
+        const acceptor = pub.accepted_by_username || '';
         const formattedId = `#${String(pub.id).padStart(7, '0')}`;
+        // Cambiamos el texto del ribbon según tu petición
+        const rewardText = pub.is_sell_post ? `Venta: ${pub.blue_cost} BLUE` : `${pub.blue_cost} BLUE`;
+        const ribbonClass = pub.is_sell_post ? 'sell-ribbon' : ''; // Clase especial para la cinta de venta
+
+        // Estructura HTML con la tarjeta principal sin cambios de clase, pero con la clase en la cinta
         return `
-            <div class="cost-ribbon">${pub.blue_cost} BLUE</div>
-            <div class="publication-id">${formattedId}</div>
-            <h3>${pub.title}</h3>
-            <p class="pub-description">${pub.description}</p>
-            <div class="pub-meta">
-                <span>Autor: <strong>${pub.author_username}</strong></span>
-                <span class="rating-display">${ratingHTML}</span>
-            </div>
-            <div class="publication-actions">
-                ${messageHTML}
-                ${actionHTML}
+            <div class="publication-item" data-id="${pub.id}" data-author="${pub.author_username}" data-acceptor="${acceptor}" data-status="${pub.status}">
+                <div class="cost-ribbon ${ribbonClass}">${rewardText}</div>
+                <div class="publication-id">${formattedId}</div>
+                <h3>${pub.title}</h3>
+                <p class="pub-description">${pub.description}</p>
+                <div class="pub-meta">
+                    <span>Autor: <strong>${pub.author_username}</strong></span>
+                    <span class="rating-display">${ratingHTML}</span>
+                </div>
+                <div class="publication-actions">
+                    ${messageHTML}
+                    ${actionHTML}
+                </div>
             </div>
         `;
     }
 
-    // Esta función ahora solo devuelve las partes dinámicas
     function getActionAndMessageHTML(pub) {
-        let actionHTML = '';
+        const currentUser = storedUsername;
         let messageHTML = '';
-        const isAuthor = pub.author_username === storedUsername;
-        const isAcceptor = pub.accepted_by_username === storedUsername;
+        let actionHTML = '';
 
+        // Ya no generamos el mensaje de costo aquí, se muestra en el "cost-ribbon"
+        
         switch (pub.status) {
             case 'open':
-                if (isAuthor) {
-                    actionHTML = `<div class="status-pending">Esperando respuesta</div>`;
-                } else {
+                if (currentUser !== pub.author_username) {
                     actionHTML = `<button class="action-button accept" data-id="${pub.id}" data-action="accept">Aceptar</button>`;
+                } else {
+                    actionHTML = `<div class="status-pending">Esperando respuesta</div>`;
                 }
                 break;
             case 'pending_approval':
-                if (isAuthor) {
+                if (currentUser === pub.author_username) {
                     messageHTML = `<div class="action-message"><strong>${pub.accepted_by_username}</strong> quiere hacer esta tarea.</div>`;
                     actionHTML = `<button class="action-button approve" data-id="${pub.id}" data-action="approve">Aprobar Solicitud</button>`;
                 } else {
@@ -398,7 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 break;
             case 'approved':
-                if (isAcceptor) {
+                if (currentUser === pub.accepted_by_username) {
                     messageHTML = `<div class="action-message">Fuiste aprobado. ¡Completa la tarea!</div>`;
                     actionHTML = `<button class="action-button complete" data-id="${pub.id}" data-action="complete">Tarea Culminada</button>`;
                 } else {
@@ -406,7 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 break;
             case 'completed':
-                if (isAuthor) {
+                if (currentUser === pub.author_username) {
                     messageHTML = `<div class="action-message"><strong>${pub.accepted_by_username}</strong> ha culminado la tarea.</div>`;
                     actionHTML = `<button class="action-button confirm" data-id="${pub.id}" data-action="confirm-payment">Conforme y Pagar</button>`;
                 } else {
@@ -415,9 +375,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case 'confirmed_paid':
                 actionHTML = `<div class="status-accepted">Tarea finalizada y pagada a ${pub.accepted_by_username}</div>`;
-                if (isAcceptor) {
-                    // actionHTML += `<button class="action-button rate" data-id="${pub.id}" data-action="rate-author">Calificar al publicador</button>`;
-                }
                 break;
         }
         return { messageHTML, actionHTML };
@@ -430,7 +387,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const unreadCount = notifications.filter(n => n.is_read === 0).length;
         updateNotificationBadge(unreadCount);
 
-        // Limpiar notificaciones anteriores para evitar duplicados al refrescar
         elements.notificationDropdown.innerHTML = '';
 
         if (notifications.length === 0) {
@@ -456,7 +412,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function markNotificationsAsRead() {
-        // Solo enviar la petición si hay notificaciones sin leer.
         if (elements.notificationBadge.style.display === 'none') return;
 
         try {
@@ -465,7 +420,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username: storedUsername })
             });
-            // Ocultar visualmente el badge de inmediato para una respuesta rápida.
             updateNotificationBadge(0);
         } catch (error) {
             console.error('Error marcando notificaciones como leídas:', error);
@@ -479,7 +433,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const balances = await response.json();
                 elements.saldoBlue.textContent = balances.blue_balance;
                 elements.saldoRed.textContent = balances.red_balance;
-                // También actualizamos sessionStorage para que esté fresco
                 sessionStorage.setItem('blue_balance', balances.blue_balance);
                 sessionStorage.setItem('red_balance', balances.red_balance);
             }
@@ -508,9 +461,9 @@ document.addEventListener('DOMContentLoaded', () => {
             showCustomAlert(result.message);
 
             if (response.ok) {
-                elements.burnModal.style.display = 'none'; // Cierra el modal
-                elements.burnForm.reset(); // Limpia el formulario
-                loadAllData(); // Recarga todo para ver los nuevos saldos
+                elements.burnModal.style.display = 'none';
+                elements.burnForm.reset();
+                loadAllData();
             }
         } catch (error) {
             console.error('Error al quemar tokens:', error);
@@ -518,18 +471,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Funciones de Utilidad ---
-    // La función showCustomAlert se ha movido a utils.js para ser usada globalmente.
-
     function openRatingModal(publicationId, raterUsername, rateeUsername) {
-        // Primero, reseteamos el formulario para limpiar cualquier dato anterior (incluyendo estrellas seleccionadas).
         elements.ratingForm.reset(); 
-        
-        // Ahora, establecemos los nuevos valores en los campos ocultos.
         elements.ratingPublicationId.value = publicationId;
         elements.ratingRaterUsername.value = raterUsername;
         elements.ratingRateeUsername.value = rateeUsername;
-        
         elements.ratingModalTitle.textContent = `Calificar a ${rateeUsername}`;
         elements.ratingModal.style.display = 'flex';
     }
@@ -545,9 +491,24 @@ document.addEventListener('DOMContentLoaded', () => {
         let starsHTML = '';
 
         for (let i = 0; i < fullStars; i++) starsHTML += '★';
-        if (halfStar) starsHTML += '½'; // O podrías usar otro ícono para media estrella
+        if (halfStar) starsHTML += '½';
         for (let i = 0; i < emptyStars; i++) starsHTML += '☆';
         
         return `<span class="stars">${starsHTML}</span> <span class="rating-count">(${count})</span>`;
+    }
+
+    async function fetchUserRating(username) {
+        try {
+            const response = await fetch(`${API_URL}/user/${username}`);
+            if (!response.ok) {
+                console.warn(`Could not fetch rating for user ${username}. Status: ${response.status}`);
+                return { average: 0, count: 0 };
+            }
+            const data = await response.json();
+            return { average: data.average_rating, count: data.ratings_count };
+        } catch (error) {
+            console.error(`Error fetching rating for ${username}:`, error);
+            return { average: 0, count: 0 };
+        }
     }
 });

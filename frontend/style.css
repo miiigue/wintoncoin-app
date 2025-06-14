@@ -242,6 +242,12 @@ hr {
     margin-bottom: 1rem;
     position: relative;
     overflow: hidden;
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.publication-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
 }
 
 .publication-id {
@@ -340,6 +346,11 @@ hr {
     font-size: 1.5em; 
     font-weight: 600;
     border-bottom-left-radius: 10px;
+}
+
+.cost-ribbon.sell-ribbon {
+    background-color: #ffc107; /* Un amarillo vistoso */
+    color: #000; /* Texto en negro */
 }
 
 /* --- Menús del Header --- */
@@ -762,4 +773,9 @@ hr {
 .rating-display .no-rating {
     font-size: 0.8rem;
     color: var(--text-secondary-color);
+}
+
+.publication-header {
+    display: flex;
+    justify-content: space-between;
 }
