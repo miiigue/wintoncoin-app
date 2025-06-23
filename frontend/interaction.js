@@ -175,6 +175,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Para confirmar pago, el flujo es especial
                 await confirmPaymentAndRate(pubId, authorUsername, acceptorUsername);
                 break;
+            case 'delete':
+                showCustomConfirm('¿Deseas eliminar esta tarea? Esta acción no se puede deshacer.', async () => {
+                    await deleteFromServer(`/publications/${pubId}`, { deleterUsername: storedUsername });
+                });
+                break;
         }
     }
 
@@ -346,7 +351,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (currentUser !== pub.author_username) {
                     actionHTML = `<button class="action-button accept" data-id="${pub.id}" data-action="accept">Aceptar</button>`;
                 } else {
-                    actionHTML = `<div class="status-pending">Esperando respuesta</div>`;
+                    // El autor ahora ve un mensaje y un botón para eliminar
+                    messageHTML = `<div class="status-pending">Esperando respuesta de otros usuarios.</div>`;
+                    actionHTML = `<button class="action-button delete" data-id="${pub.id}" data-action="delete">Eliminar</button>`;
                 }
                 break;
             case 'pending_approval':
@@ -509,6 +516,24 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error(`Error fetching rating for ${username}:`, error);
             return { average: 0, count: 0 };
+        }
+    }
+
+    async function deleteFromServer(endpoint, body) {
+        try {
+            const response = await fetch(`${API_URL}${endpoint}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const result = await response.json();
+            showCustomAlert(result.message);
+            if (response.ok) {
+                loadAllData(); // Recargar para que la publicación desaparezca
+            }
+        } catch (error) {
+            console.error('Error en deleteFromServer:', error);
+            showCustomAlert('Error de red al intentar eliminar.');
         }
     }
 });

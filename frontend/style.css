@@ -303,6 +303,7 @@ hr {
 .action-button.approve  { background-color: #28a745; } /* Verde */
 .action-button.complete { background-color: #17a2b8; } /* Cyan */
 .action-button.confirm  { background-color: #6f42c1; } /* Púrpura */
+.action-button.delete   { background-color: #dc3545; } /* Rojo/Peligro */
 
 .action-message {
     background-color: rgba(243, 156, 18, 0.1); /* Naranja muy transparente */
@@ -686,6 +687,47 @@ hr {
     width: auto;
     padding: 10px 30px;
     margin-top: 1rem;
+}
+
+/* --- Estilos para el Modal de Confirmación --- */
+#customConfirmModal .modal-content {
+    padding: 2rem;
+    text-align: center;
+}
+
+#customConfirmMessage {
+    margin-bottom: 1.5rem;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: var(--text-color);
+}
+
+#customConfirmModal .confirm-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+#customConfirmModal .action-button {
+    width: auto;
+    padding: 10px 30px;
+}
+
+#customConfirmModal .action-button.cancel-button {
+    background-color: #6c757d; /* Gris secundario */
+}
+
+#customConfirmModal .action-button.cancel-button:hover {
+    background-color: #5a6268;
+}
+
+#customConfirmModal .action-button.confirm-button {
+    background-color: var(--error-color); /* Rojo */
+}
+
+#customConfirmModal .action-button.confirm-button:hover {
+    background-color: #d73a3a;
 }
 
 /* --- Estilos para el Modal de Calificación --- */

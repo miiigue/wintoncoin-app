@@ -605,6 +605,43 @@ async function startServer() {
             });
         });
 
+        // Ruta para ELIMINAR una publicación
+        app.delete('/publications/:id', (req, res) => {
+            const { id } = req.params;
+            const { deleterUsername } = req.body; // El usuario que intenta borrar
+
+            if (!deleterUsername) {
+                return res.status(400).json({ message: "Se requiere el nombre de usuario para eliminar." });
+            }
+
+            const getSql = `SELECT author_username, status FROM publications WHERE id = ?`;
+            db.get(getSql, [id], (err, pub) => {
+                if (err) {
+                    console.error("Error al buscar la publicación para eliminar:", err.message);
+                    return res.status(500).json({ message: "Error interno del servidor." });
+                }
+                if (!pub) {
+                    return res.status(404).json({ message: "La publicación no existe." });
+                }
+                if (pub.author_username !== deleterUsername) {
+                    return res.status(403).json({ message: "No tienes permiso para eliminar esta publicación." });
+                }
+                if (pub.status !== 'open') {
+                    return res.status(403).json({ message: "No se puede eliminar una tarea que ya ha sido aceptada o está en progreso." });
+                }
+
+                // Si todas las comprobaciones pasan, proceder a eliminar
+                const deleteSql = `DELETE FROM publications WHERE id = ?`;
+                db.run(deleteSql, [id], function(err) {
+                    if (err) {
+                        console.error("Error al eliminar la publicación:", err.message);
+                        return res.status(500).json({ message: "Error interno al eliminar la publicación." });
+                    }
+                    res.status(200).json({ message: "Publicación eliminada correctamente." });
+                });
+            });
+        });
+
         // 6. Iniciar el servidor
         app.listen(PORT, '0.0.0.0',() => {
             console.log(`Servidor corriendo en http://0.0.0.0:${PORT}`);

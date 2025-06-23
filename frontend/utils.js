@@ -42,26 +42,86 @@ function closeCustomAlert() {
     }
 }
 
+// --- Funciones del Modal de Confirmación ---
+let onConfirmCallback = null;
+
+/**
+ * Muestra un modal de confirmación personalizado.
+ * @param {string} message El mensaje a mostrar.
+ * @param {function} onConfirm La función a ejecutar si el usuario confirma.
+ */
+function showCustomConfirm(message, onConfirm) {
+    const modal = document.getElementById('customConfirmModal');
+    const messageElement = document.getElementById('customConfirmMessage');
+    
+    if (modal && messageElement) {
+        messageElement.textContent = message;
+        onConfirmCallback = typeof onConfirm === 'function' ? onConfirm : null;
+        modal.style.display = 'flex';
+    } else {
+        // Fallback al confirm nativo si el modal no se encuentra
+        if (confirm(message)) {
+            if (typeof onConfirm === 'function') {
+                onConfirm();
+            }
+        }
+    }
+}
+
+/**
+ * Cierra el modal de confirmación y limpia el callback.
+ */
+function closeCustomConfirm() {
+    const modal = document.getElementById('customConfirmModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    onConfirmCallback = null;
+}
+
+/**
+ * Función interna que se llama al hacer clic en el botón de confirmar.
+ */
+function handleConfirm() {
+    if (onConfirmCallback) {
+        onConfirmCallback();
+    }
+    closeCustomConfirm();
+}
+
 // Es importante inicializar los listeners una vez que el DOM esté cargado.
 // Podríamos añadir un inicializador aquí o asegurarnos de que se llama
 // desde los otros scripts. Por simplicidad, añadiremos un listener aquí.
 document.addEventListener('DOMContentLoaded', () => {
-    const modal = document.getElementById('customAlertModal');
-    const closeButtons = document.querySelectorAll('.alert-close-button');
+    const alertModal = document.getElementById('customAlertModal');
+    const alertCloseButtons = document.querySelectorAll('.alert-close-button');
+    const confirmModal = document.getElementById('customConfirmModal');
 
-    if (modal) {
-         // Cerrar el modal si se hace clic fuera del contenido
-        window.addEventListener('click', (event) => {
-            if (event.target == modal) {
-                closeCustomAlert();
-            }
+    // Listener global para cerrar modales al hacer clic fuera
+    window.addEventListener('click', (event) => {
+        if (event.target === alertModal) {
+            closeCustomAlert();
+        }
+        if (event.target === confirmModal) {
+            closeCustomConfirm();
+        }
+    });
+    
+    // Listeners para el modal de alerta
+    if (alertModal) {
+        alertCloseButtons.forEach(button => {
+            button.addEventListener('click', closeCustomAlert);
         });
+    }
 
-        // Listeners para los botones de cerrar
-        closeButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                closeCustomAlert();
-            });
-        });
+    // Listeners para el modal de confirmación
+    if (confirmModal) {
+        const closeBtn = confirmModal.querySelector('.confirm-close-button');
+        const cancelBtn = confirmModal.querySelector('.cancel-button');
+        const confirmBtn = confirmModal.querySelector('.confirm-button');
+
+        if (closeBtn) closeBtn.addEventListener('click', closeCustomConfirm);
+        if (cancelBtn) cancelBtn.addEventListener('click', closeCustomConfirm);
+        if (confirmBtn) confirmBtn.addEventListener('click', handleConfirm);
     }
 }); 
