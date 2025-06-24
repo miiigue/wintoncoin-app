@@ -25,63 +25,63 @@ const dbPath = path.join(__dirname, 'database.db');
 function initializeDatabase() {
     return new Promise((resolve, reject) => {
         const db = new sqlite3.Database(dbPath, (err) => {
-            if (err) {
-                console.error("Error al abrir la base de datos:", err.message);
+    if (err) {
+        console.error("Error al abrir la base de datos:", err.message);
                 return reject(err);
             }
-            console.log("Conectado a la base de datos SQLite.");
+        console.log("Conectado a la base de datos SQLite.");
             
-            db.serialize(() => {
+        db.serialize(() => {
                 // Usamos una serie de `run` que se pueden encadenar para asegurar el orden
-                db.run(`CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT UNIQUE NOT NULL,
-                    password TEXT NOT NULL,
-                    blue_balance INTEGER NOT NULL DEFAULT 0,
+            db.run(`CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                blue_balance INTEGER NOT NULL DEFAULT 0,
                     red_balance INTEGER NOT NULL DEFAULT 0,
                     average_rating REAL NOT NULL DEFAULT 0,
                     ratings_count INTEGER NOT NULL DEFAULT 0
-                )`, (err) => {
+            )`, (err) => {
                     if (err) return reject(err);
                     console.log("Tabla 'users' asegurada.");
-                });
+            });
 
-                db.run(`CREATE TABLE IF NOT EXISTS publications (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    title TEXT NOT NULL,
-                    description TEXT NOT NULL,
-                    blue_cost INTEGER NOT NULL,
+            db.run(`CREATE TABLE IF NOT EXISTS publications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL,
+                blue_cost INTEGER NOT NULL,
                     is_sell_post BOOLEAN NOT NULL DEFAULT 0,
-                    author_username TEXT NOT NULL,
-                    accepted_by_username TEXT,
+                author_username TEXT NOT NULL,
+                accepted_by_username TEXT,
                     status TEXT NOT NULL DEFAULT 'open',
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )`, (err) => {
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )`, (err) => {
                     if (err) return reject(err);
                     console.log("Tabla 'publications' asegurada.");
-                });
+            });
 
-                db.run(`CREATE TABLE IF NOT EXISTS notifications (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    recipient_username TEXT NOT NULL,
-                    message TEXT NOT NULL,
+            db.run(`CREATE TABLE IF NOT EXISTS notifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                recipient_username TEXT NOT NULL,
+                message TEXT NOT NULL,
                     is_read INTEGER DEFAULT 0,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )`, (err) => {
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )`, (err) => {
                     if (err) return reject(err);
                     console.log("Tabla 'notifications' asegurada.");
-                });
+            });
 
-                db.run(`CREATE TABLE IF NOT EXISTS transactions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT NOT NULL,
+            db.run(`CREATE TABLE IF NOT EXISTS transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL,
                     type TEXT NOT NULL,
-                    description TEXT NOT NULL,
-                    blue_change INTEGER NOT NULL DEFAULT 0,
-                    red_change INTEGER NOT NULL DEFAULT 0,
-                    related_publication_id INTEGER,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )`, (err) => {
+                description TEXT NOT NULL,
+                blue_change INTEGER NOT NULL DEFAULT 0,
+                red_change INTEGER NOT NULL DEFAULT 0,
+                related_publication_id INTEGER,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )`, (err) => {
                     if (err) return reject(err);
                     console.log("Tabla 'transactions' asegurada.");
                 });
@@ -105,9 +105,9 @@ function initializeDatabase() {
                 // Resolvemos la promesa con la instancia de la base de datos
                 resolve(db);
             });
+            });
         });
-    });
-}
+    }
 
 // 5. Función principal asíncrona para iniciar el servidor
 async function startServer() {
@@ -117,73 +117,73 @@ async function startServer() {
 
         // --- AHORA DEFINIMOS LAS RUTAS, SOLO DESPUÉS DE QUE LA BD ESTÉ LISTA ---
 
-        // Ruta de Registro de Usuario
-        app.post('/register', async (req, res) => {
-            const { username, password } = req.body;
+// Ruta de Registro de Usuario
+app.post('/register', async (req, res) => {
+    const { username, password } = req.body;
 
-            if (!username || !password) {
-                return res.status(400).json({ message: "Usuario y contraseña son requeridos." });
+    if (!username || !password) {
+        return res.status(400).json({ message: "Usuario y contraseña son requeridos." });
+    }
+
+    try {
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        const sql = `INSERT INTO users (username, password) VALUES (?, ?)`;
+        db.run(sql, [username, hashedPassword], function(err) {
+            if (err) {
+                if (err.code === 'SQLITE_CONSTRAINT') {
+                    return res.status(409).json({ message: "El nombre de usuario ya existe." });
+                }
+                console.error("Error al registrar usuario:", err.message);
+                return res.status(500).json({ message: "Error interno del servidor." });
             }
+            res.status(201).json({ message: `Usuario ${username} registrado exitosamente.` });
+        });
+    } catch (error) {
+        console.error("Error en el hasheo:", error);
+        res.status(500).json({ message: "Error interno del servidor al procesar la contraseña." });
+    }
+});
 
-            try {
-                const hashedPassword = await bcrypt.hash(password, saltRounds);
-                const sql = `INSERT INTO users (username, password) VALUES (?, ?)`;
-                db.run(sql, [username, hashedPassword], function(err) {
-                    if (err) {
-                        if (err.code === 'SQLITE_CONSTRAINT') {
-                            return res.status(409).json({ message: "El nombre de usuario ya existe." });
-                        }
-                        console.error("Error al registrar usuario:", err.message);
-                        return res.status(500).json({ message: "Error interno del servidor." });
-                    }
-                    res.status(201).json({ message: `Usuario ${username} registrado exitosamente.` });
+// Ruta de Inicio de Sesión
+app.post('/login', (req, res) => {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+        return res.status(400).json({ message: "Usuario y contraseña son requeridos." });
+    }
+
+    const sql = `SELECT * FROM users WHERE username = ?`;
+    db.get(sql, [username], async (err, user) => {
+        if (err) {
+            console.error("Error al buscar usuario:", err.message);
+            return res.status(500).json({ message: "Error interno del servidor." });
+        }
+        
+        if (!user) {
+            return res.status(404).json({ message: "Usuario no encontrado. Por favor, regístrese primero." });
+        }
+
+        try {
+            const match = await bcrypt.compare(password, user.password);
+            if (match) {
+                res.status(200).json({
+                    message: "Inicio de sesión exitoso.",
+                    username: user.username,
+                    blue_balance: user.blue_balance,
+                    red_balance: user.red_balance
                 });
-            } catch (error) {
-                console.error("Error en el hasheo:", error);
-                res.status(500).json({ message: "Error interno del servidor al procesar la contraseña." });
+            } else {
+                res.status(401).json({ message: "Contraseña incorrecta." });
             }
-        });
+        } catch (error) {
+            console.error("Error en la comparación de contraseñas:", error);
+            res.status(500).json({ message: "Error interno del servidor." });
+        }
+    });
+});
 
-        // Ruta de Inicio de Sesión
-        app.post('/login', (req, res) => {
-            const { username, password } = req.body;
-
-            if (!username || !password) {
-                return res.status(400).json({ message: "Usuario y contraseña son requeridos." });
-            }
-
-            const sql = `SELECT * FROM users WHERE username = ?`;
-            db.get(sql, [username], async (err, user) => {
-                if (err) {
-                    console.error("Error al buscar usuario:", err.message);
-                    return res.status(500).json({ message: "Error interno del servidor." });
-                }
-                
-                if (!user) {
-                    return res.status(404).json({ message: "Usuario no encontrado. Por favor, regístrese primero." });
-                }
-
-                try {
-                    const match = await bcrypt.compare(password, user.password);
-                    if (match) {
-                        res.status(200).json({
-                            message: "Inicio de sesión exitoso.",
-                            username: user.username,
-                            blue_balance: user.blue_balance,
-                            red_balance: user.red_balance
-                        });
-                    } else {
-                        res.status(401).json({ message: "Contraseña incorrecta." });
-                    }
-                } catch (error) {
-                    console.error("Error en la comparación de contraseñas:", error);
-                    res.status(500).json({ message: "Error interno del servidor." });
-                }
-            });
-        });
-
-        // Ruta para crear una nueva Publicación
-        app.post('/publish', (req, res) => {
+// Ruta para crear una nueva Publicación
+app.post('/publish', (req, res) => {
             // Ahora podemos recibir 'blueCost' (para trabajos) o 'blueSell' (para ventas)
             const { title, description, blueCost, blueSell, authorUsername } = req.body;
         
@@ -202,30 +202,30 @@ async function startServer() {
         
             const sql = `INSERT INTO publications (title, description, blue_cost, is_sell_post, author_username) VALUES (?, ?, ?, ?, ?)`;
             db.run(sql, [title, description, cost, isSellPost, authorUsername], function(err) {
-                if (err) {
-                    console.error("Error al guardar la publicación:", err.message);
-                    return res.status(500).json({ message: "Error interno del servidor." });
-                }
-                res.status(201).json({ message: "Publicación creada exitosamente.", publicationId: this.lastID });
-            });
-        });
-        
-        // Ruta para obtener todas las publicaciones
-        app.get('/publications', (req, res) => {
+        if (err) {
+            console.error("Error al guardar la publicación:", err.message);
+            return res.status(500).json({ message: "Error interno del servidor." });
+        }
+        res.status(201).json({ message: "Publicación creada exitosamente.", publicationId: this.lastID });
+    });
+});
+
+// Ruta para obtener todas las publicaciones
+app.get('/publications', (req, res) => {
             // Nos aseguramos de seleccionar la nueva columna is_sell_post
-            const sql = `SELECT * FROM publications ORDER BY created_at DESC`; // Las más nuevas primero
-            db.all(sql, [], (err, rows) => {
-                if (err) {
-                    console.error("Error al obtener las publicaciones:", err.message);
-                    return res.status(500).json({ message: "Error interno del servidor." });
-                }
-                res.status(200).json(rows);
-            });
-        });
-        
-        // Ruta para obtener solo las publicaciones ACTIVAS (para el panel principal)
+    const sql = `SELECT * FROM publications ORDER BY created_at DESC`; // Las más nuevas primero
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error("Error al obtener las publicaciones:", err.message);
+            return res.status(500).json({ message: "Error interno del servidor." });
+        }
+        res.status(200).json(rows);
+    });
+});
+
+// Ruta para obtener solo las publicaciones ACTIVAS (para el panel principal)
         // AHORA filtra según el usuario que hace la petición
-        app.get('/publications/active', (req, res) => {
+app.get('/publications/active', (req, res) => {
             const { user } = req.query;
         
             if (!user) {
@@ -235,32 +235,32 @@ async function startServer() {
             // Esta consulta ahora es más compleja:
             // 1. Selecciona cualquier publicación que esté 'open'.
             // 2. O, selecciona publicaciones en otros estados si el usuario es el autor O el aceptante.
-            const sql = `
-                SELECT * FROM publications 
+    const sql = `
+        SELECT * FROM publications 
                 WHERE 
                     status = 'open' 
                     OR (
                         status IN ('pending_approval', 'approved', 'completed') 
                         AND (author_username = ? OR accepted_by_username = ?)
                     )
-                ORDER BY created_at DESC
-            `;
+        ORDER BY created_at DESC
+    `;
             
             // Pasamos el nombre del usuario dos veces a la consulta, para los placeholders '?'
             db.all(sql, [user, user], (err, rows) => {
-                if (err) {
-                    console.error("Error al obtener las publicaciones activas:", err.message);
-                    return res.status(500).json({ message: "Error interno del servidor." });
-                }
-                res.status(200).json(rows);
-            });
-        });
-        
+        if (err) {
+            console.error("Error al obtener las publicaciones activas:", err.message);
+            return res.status(500).json({ message: "Error interno del servidor." });
+        }
+        res.status(200).json(rows);
+    });
+});
+
         // Ruta para Aceptar una publicación
-        app.post('/publications/:id/accept', (req, res) => {
+app.post('/publications/:id/accept', (req, res) => {
             const { id } = req.params;
-            const { acceptorUsername } = req.body;
-        
+    const { acceptorUsername } = req.body;
+
             db.get(`SELECT author_username FROM publications WHERE id = ? AND status = 'open'`, [id], (err, pub) => {
                 if (err || !pub) {
                     return res.status(404).json({ message: "Publicación no encontrada o ya no está abierta." });
@@ -273,8 +273,8 @@ async function startServer() {
                 const updateSql = `UPDATE publications SET accepted_by_username = ?, status = 'pending_approval' WHERE id = ?`;
                 db.run(updateSql, [acceptorUsername, id], function(err) {
                     if (err) {
-                        return res.status(500).json({ message: "Error al aceptar la publicación." });
-                    }
+                    return res.status(500).json({ message: "Error al aceptar la publicación." });
+                }
         
                     const message = `El usuario ${acceptorUsername} ha aceptado tu publicación "${pub.title}".`;
                     const notifySql = `INSERT INTO notifications (recipient_username, message) VALUES (?, ?)`;
@@ -284,11 +284,11 @@ async function startServer() {
         
                     res.status(200).json({ message: "Publicación aceptada. Esperando aprobación del autor." });
                 });
-            });
-        });
-        
+    });
+});
+
         // Ruta para Aprobar a un usuario
-        app.post('/publications/:id/approve', (req, res) => {
+app.post('/publications/:id/approve', (req, res) => {
             const { id } = req.params;
             const { approverUsername } = req.body; // Es el autor de la publicación
         
@@ -299,19 +299,19 @@ async function startServer() {
         
                 db.run(`UPDATE publications SET status = 'approved' WHERE id = ?`, [id], function(err) {
                     if (err) {
-                        return res.status(500).json({ message: "Error al aprobar." });
-                    }
+                    return res.status(500).json({ message: "Error al aprobar." });
+                }
         
                     const message = `¡Has sido aprobado para la tarea "${pub.title}"!`;
                     db.run(`INSERT INTO notifications (recipient_username, message) VALUES (?, ?)`, [pub.accepted_by_username, message]);
         
                     res.status(200).json({ message: "Usuario aprobado." });
                 });
-            });
-        });
-        
+    });
+});
+
         // Ruta para Marcar como Culminada
-        app.post('/publications/:id/complete', (req, res) => {
+app.post('/publications/:id/complete', (req, res) => {
             const { id } = req.params;
             const { completerUsername } = req.body;
         
@@ -330,29 +330,29 @@ async function startServer() {
         
                     res.status(200).json({ message: "Tarea marcada como culminada." });
                 });
-            });
-        });
-        
+    });
+});
+
         // Ruta para Confirmar y Pagar
-        app.post('/publications/:id/confirm-payment', (req, res) => {
-            const pubId = req.params.id;
+app.post('/publications/:id/confirm-payment', (req, res) => {
+    const pubId = req.params.id;
             const { confirmerUsername } = req.body;
-        
-            db.get(`SELECT * FROM publications WHERE id = ? AND author_username = ? AND status = 'completed'`, [pubId, confirmerUsername], (err, pub) => {
-                if (err || !pub) return res.status(404).json({ message: "No se encontró la publicación o no se puede confirmar el pago." });
-        
-                const cost = pub.blue_cost;
+
+    db.get(`SELECT * FROM publications WHERE id = ? AND author_username = ? AND status = 'completed'`, [pubId, confirmerUsername], (err, pub) => {
+        if (err || !pub) return res.status(404).json({ message: "No se encontró la publicación o no se puede confirmar el pago." });
+
+        const cost = pub.blue_cost;
                 const author = pub.author_username; // El creador de la publicación
                 const worker = pub.accepted_by_username; // Quien aceptó y completó
-        
-                const insertTxSql = `
-                    INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id) 
-                    VALUES (?, ?, ?, ?, ?, ?)
-                `;
-        
-                db.serialize(() => {
-                    db.run("BEGIN TRANSACTION");
-        
+
+        const insertTxSql = `
+            INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id) 
+            VALUES (?, ?, ?, ?, ?, ?)
+        `;
+
+        db.serialize(() => {
+            db.run("BEGIN TRANSACTION");
+            
                     if (pub.is_sell_post) {
                         // --- LÓGICA DE VENTA ---
                         // El autor (vendedor) recibe BLUE.
@@ -368,160 +368,160 @@ async function startServer() {
                     } else {
                         // --- LÓGICA DE TRABAJO (NORMAL) ---
                         // El autor (pagador) recibe RED.
-                        db.run(`UPDATE users SET red_balance = red_balance + ? WHERE username = ?`, [cost, author]);
-                        const authorDesc = `Solicitaste: "${pub.title}"`;
-                        db.run(insertTxSql, [author, 'payment_sent', authorDesc, 0, cost, pubId]);
-        
+            db.run(`UPDATE users SET red_balance = red_balance + ? WHERE username = ?`, [cost, author]);
+            const authorDesc = `Solicitaste: "${pub.title}"`;
+            db.run(insertTxSql, [author, 'payment_sent', authorDesc, 0, cost, pubId]);
+
                         // El trabajador (receptor del pago) recibe BLUE.
                         db.run(`UPDATE users SET red_balance = red_balance + ? WHERE username = ?`, [cost, worker]);
-                        const workerDesc = `Realizaste: "${pub.title}"`;
-                        db.run(insertTxSql, [worker, 'payment_received', workerDesc, cost, 0, pubId]);
+            const workerDesc = `Realizaste: "${pub.title}"`;
+            db.run(insertTxSql, [worker, 'payment_received', workerDesc, cost, 0, pubId]);
                     }
-                    
+            
                     // --- Acciones Comunes ---
                     // 1. Actualizar estado de la publicación
-                    db.run(`UPDATE publications SET status = 'confirmed_paid' WHERE id = ?`, [pubId]);
-                    
+            db.run(`UPDATE publications SET status = 'confirmed_paid' WHERE id = ?`, [pubId]);
+            
                     // 2. Crear notificación final para el trabajador
                     const notificationMessage = pub.is_sell_post 
                         ? `¡Has completado la compra de "${pub.title}" y recibido ${cost} RED!`
                         : `¡Has recibido ${cost} BLUE por la tarea "${pub.title}"!`;
                     db.run(`INSERT INTO notifications (recipient_username, message) VALUES (?, ?)`, [worker, notificationMessage]);
-                    
-                    db.run("COMMIT", (commitErr) => {
-                        if (commitErr) {
-                            db.run("ROLLBACK");
-                            return res.status(500).json({ message: "Error crítico en la transacción." });
-                        }
-                        res.status(200).json({ message: "Pago confirmado y tarea finalizada." });
-                    });
-                });
-            });
-        });
-        
-        // Ruta para obtener las notificaciones de un usuario
-        app.get('/notifications/:username', (req, res) => {
-            const { username } = req.params;
-            const sql = `SELECT * FROM notifications WHERE recipient_username = ? ORDER BY created_at DESC`;
-            db.all(sql, [username], (err, rows) => {
-                if (err) {
-                    return res.status(500).json({ message: "Error interno del servidor." });
-                }
-                res.status(200).json(rows);
-            });
-        });
-        
-        // Ruta para marcar notificaciones como leídas
-        app.post('/notifications/mark-read', (req, res) => {
-            const { username } = req.body;
-            const sql = `UPDATE notifications SET is_read = 1 WHERE recipient_username = ? AND is_read = 0`;
-            db.run(sql, [username], function(err) {
-                if (err) {
-                    return res.status(500).json({ message: "Error al marcar notificaciones como leídas." });
-                }
-                res.status(200).json({ message: `${this.changes} notificaciones marcadas como leídas.` });
-            });
-        });
-        
-        // Ruta para QUEMAR tokens
-        app.post('/users/burn', (req, res) => {
-            const { username, amount } = req.body;
-        
-            // Validar que el monto sea un número positivo
-            if (!username || !amount || amount <= 0) {
-                return res.status(400).json({ message: "La cantidad a quemar debe ser un número positivo." });
-            }
-        
-            // Obtener los saldos actuales del usuario
-            db.get(`SELECT blue_balance, red_balance FROM users WHERE username = ?`, [username], (err, user) => {
-                if (err || !user) {
-                    return res.status(404).json({ message: "Usuario no encontrado." });
-                }
-        
-                // Validar que el usuario tenga suficientes fondos de AMBOS tipos
-                if (user.blue_balance < amount || user.red_balance < amount) {
-                    return res.status(400).json({ message: "No tienes suficientes BLUE o RED para quemar esta cantidad." });
-                }
-                
-                // Proceder con la quema
-                db.serialize(() => {
-                    db.run("BEGIN TRANSACTION");
-        
-                    // 1. Actualizar saldos
-                    const sql = `UPDATE users SET blue_balance = blue_balance - ?, red_balance = red_balance - ? WHERE username = ?`;
-                    db.run(sql, [amount, amount, username]);
-        
-                    // 2. Registrar la transacción de quema
-                    const burnDesc = `Tokens Quemados`;
-                    const insertTxSql = `
-                        INSERT INTO transactions (username, type, description, blue_change, red_change) 
-                        VALUES (?, 'burn', ?, ?, ?)
-                    `;
-                    db.run(insertTxSql, [username, burnDesc, -amount, -amount]);
-        
-                    db.run("COMMIT", (commitErr) => {
-                        if (commitErr) {
-                            db.run("ROLLBACK");
-                            return res.status(500).json({ message: "Error del servidor al quemar los tokens." });
-                        }
-                        res.status(200).json({ message: `Has quemado ${amount} BLUE y ${amount} RED exitosamente.` });
-                    });
-                });
-            });
-        });
-        
-        // NUEVA RUTA: Obtener el historial de un usuario
-        app.get('/users/:username/history', (req, res) => {
-            const { username } = req.params;
-        
-            const authoredSql = `
-                SELECT * FROM publications 
-                WHERE author_username = ? 
-                ORDER BY created_at DESC
-            `;
             
-            const completedSql = `
-                SELECT * FROM publications 
-                WHERE accepted_by_username = ? AND status = 'confirmed_paid'
-                ORDER BY created_at DESC
-            `;
-        
-            // Usamos Promise.all para ejecutar ambas consultas en paralelo para mayor eficiencia
-            Promise.all([
-                new Promise((resolve, reject) => {
-                    db.all(authoredSql, [username], (err, rows) => {
-                        if (err) reject(err);
-                        else resolve(rows);
-                    });
-                }),
-                new Promise((resolve, reject) => {
-                    db.all(completedSql, [username], (err, rows) => {
-                        if (err) reject(err);
-                        else resolve(rows);
-                    });
-                })
-            ]).then(([authored, completed]) => {
-                res.status(200).json({ authored, completed });
-            }).catch(err => {
-                console.error("Error al obtener el historial del usuario:", err.message);
-                res.status(500).json({ message: "Error interno del servidor." });
-            });
-        });
-        
-        // NUEVA RUTA: Obtener las transacciones de un usuario
-        app.get('/users/:username/transactions', (req, res) => {
-            const { username } = req.params;
-            const sql = `SELECT * FROM transactions WHERE username = ? ORDER BY created_at DESC`;
-        
-            db.all(sql, [username], (err, rows) => {
-                if (err) {
-                    console.error("Error al obtener las transacciones:", err.message);
-                    return res.status(500).json({ message: "Error interno del servidor." });
+            db.run("COMMIT", (commitErr) => {
+                if (commitErr) {
+                    db.run("ROLLBACK");
+                    return res.status(500).json({ message: "Error crítico en la transacción." });
                 }
-                res.status(200).json(rows);
+                res.status(200).json({ message: "Pago confirmado y tarea finalizada." });
             });
         });
+    });
+});
+
+// Ruta para obtener las notificaciones de un usuario
+app.get('/notifications/:username', (req, res) => {
+    const { username } = req.params;
+    const sql = `SELECT * FROM notifications WHERE recipient_username = ? ORDER BY created_at DESC`;
+    db.all(sql, [username], (err, rows) => {
+        if (err) {
+            return res.status(500).json({ message: "Error interno del servidor." });
+        }
+        res.status(200).json(rows);
+    });
+});
+
+// Ruta para marcar notificaciones como leídas
+app.post('/notifications/mark-read', (req, res) => {
+    const { username } = req.body;
+    const sql = `UPDATE notifications SET is_read = 1 WHERE recipient_username = ? AND is_read = 0`;
+    db.run(sql, [username], function(err) {
+        if (err) {
+            return res.status(500).json({ message: "Error al marcar notificaciones como leídas." });
+        }
+        res.status(200).json({ message: `${this.changes} notificaciones marcadas como leídas.` });
+    });
+});
+
+// Ruta para QUEMAR tokens
+app.post('/users/burn', (req, res) => {
+    const { username, amount } = req.body;
+
+    // Validar que el monto sea un número positivo
+    if (!username || !amount || amount <= 0) {
+        return res.status(400).json({ message: "La cantidad a quemar debe ser un número positivo." });
+    }
+
+    // Obtener los saldos actuales del usuario
+    db.get(`SELECT blue_balance, red_balance FROM users WHERE username = ?`, [username], (err, user) => {
+        if (err || !user) {
+            return res.status(404).json({ message: "Usuario no encontrado." });
+        }
+
+        // Validar que el usuario tenga suficientes fondos de AMBOS tipos
+        if (user.blue_balance < amount || user.red_balance < amount) {
+            return res.status(400).json({ message: "No tienes suficientes BLUE o RED para quemar esta cantidad." });
+        }
         
+        // Proceder con la quema
+        db.serialize(() => {
+            db.run("BEGIN TRANSACTION");
+
+            // 1. Actualizar saldos
+            const sql = `UPDATE users SET blue_balance = blue_balance - ?, red_balance = red_balance - ? WHERE username = ?`;
+            db.run(sql, [amount, amount, username]);
+
+            // 2. Registrar la transacción de quema
+            const burnDesc = `Tokens Quemados`;
+            const insertTxSql = `
+                INSERT INTO transactions (username, type, description, blue_change, red_change) 
+                VALUES (?, 'burn', ?, ?, ?)
+            `;
+            db.run(insertTxSql, [username, burnDesc, -amount, -amount]);
+
+            db.run("COMMIT", (commitErr) => {
+                if (commitErr) {
+                    db.run("ROLLBACK");
+                    return res.status(500).json({ message: "Error del servidor al quemar los tokens." });
+                }
+                res.status(200).json({ message: `Has quemado ${amount} BLUE y ${amount} RED exitosamente.` });
+            });
+        });
+    });
+});
+
+// NUEVA RUTA: Obtener el historial de un usuario
+app.get('/users/:username/history', (req, res) => {
+    const { username } = req.params;
+
+    const authoredSql = `
+        SELECT * FROM publications 
+        WHERE author_username = ? 
+        ORDER BY created_at DESC
+    `;
+    
+    const completedSql = `
+        SELECT * FROM publications 
+        WHERE accepted_by_username = ? AND status = 'confirmed_paid'
+        ORDER BY created_at DESC
+    `;
+
+    // Usamos Promise.all para ejecutar ambas consultas en paralelo para mayor eficiencia
+    Promise.all([
+        new Promise((resolve, reject) => {
+            db.all(authoredSql, [username], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        }),
+        new Promise((resolve, reject) => {
+            db.all(completedSql, [username], (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        })
+    ]).then(([authored, completed]) => {
+        res.status(200).json({ authored, completed });
+    }).catch(err => {
+        console.error("Error al obtener el historial del usuario:", err.message);
+        res.status(500).json({ message: "Error interno del servidor." });
+    });
+});
+
+// NUEVA RUTA: Obtener las transacciones de un usuario
+app.get('/users/:username/transactions', (req, res) => {
+    const { username } = req.params;
+    const sql = `SELECT * FROM transactions WHERE username = ? ORDER BY created_at DESC`;
+
+    db.all(sql, [username], (err, rows) => {
+        if (err) {
+            console.error("Error al obtener las transacciones:", err.message);
+            return res.status(500).json({ message: "Error interno del servidor." });
+        }
+        res.status(200).json(rows);
+    });
+});
+
         // Ruta para obtener el historial de transacciones de un usuario
         app.get('/transactions/:username', (req, res) => {
             const { username } = req.params;
@@ -640,9 +640,9 @@ async function startServer() {
                     res.status(200).json({ message: "Publicación eliminada correctamente." });
                 });
             });
-        });
+});
 
-        // 6. Iniciar el servidor
+// 6. Iniciar el servidor
         app.listen(PORT, '0.0.0.0',() => {
             console.log(`Servidor corriendo en http://0.0.0.0:${PORT}`);
         });

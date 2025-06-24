@@ -435,7 +435,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchAndDisplayBalances() {
         try {
-            const response = await fetch(`${API_URL}/users/${storedUsername}/balance`);
+            // Añadimos un parámetro que cambia con el tiempo para evitar la caché del navegador.
+            const response = await fetch(`${API_URL}/users/${storedUsername}/balance?t=${new Date().getTime()}`);
             if (response.ok) {
                 const balances = await response.json();
                 elements.saldoBlue.textContent = balances.blue_balance;
