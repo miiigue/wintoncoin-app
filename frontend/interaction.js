@@ -276,11 +276,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.publicationsList.innerHTML = '<p>Error al cargar las publicaciones.</p>';
                 return;
             }
-            const publications = await response.json();
+        const publications = await response.json();
             
-            if (publications.length === 0) {
+        if (publications.length === 0) {
                 elements.publicationsList.innerHTML = '<p class="empty-message">No hay publicaciones disponibles en este momento. ¡Sé el primero en crear una!</p>';
-                return;
+            return;
             }
 
             // Un mapa para cachear las calificaciones de los usuarios.
@@ -317,7 +317,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const acceptor = pub.accepted_by_username || '';
         const formattedId = `#${String(pub.id).padStart(7, '0')}`;
         // Cambiamos el texto del ribbon según tu petición
-        const rewardText = pub.is_sell_post ? `Venta: ${pub.blue_cost} BLUE` : `${pub.blue_cost} BLUE`;
+        const rewardText = pub.is_sell_post ? `COMPRO: ${pub.blue_cost} BLUE` : `${pub.blue_cost} BLUE`;
         const ribbonClass = pub.is_sell_post ? 'sell-ribbon' : ''; // Clase especial para la cinta de venta
 
         // Estructura HTML con la tarjeta principal sin cambios de clase, pero con la clase en la cinta
@@ -345,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let actionHTML = '';
 
         // Ya no generamos el mensaje de costo aquí, se muestra en el "cost-ribbon"
-        
+
         switch (pub.status) {
             case 'open':
                 if (currentUser !== pub.author_username) {
@@ -423,10 +423,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await fetch(`${API_URL}/notifications/mark-read`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: storedUsername })
-            });
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: storedUsername })
+        });
             updateNotificationBadge(0);
         } catch (error) {
             console.error('Error marcando notificaciones como leídas:', error);
@@ -536,4 +536,4 @@ document.addEventListener('DOMContentLoaded', () => {
             showCustomAlert('Error de red al intentar eliminar.');
         }
     }
-});
+}); 
