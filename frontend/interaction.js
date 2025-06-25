@@ -288,19 +288,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Usamos Promise.all para obtener todas las calificaciones en paralelo, lo que es más eficiente.
             const publicationsHTML = await Promise.all(publications.map(async (pub) => {
-                let ratingHTML = '';
-                // Solo buscamos la calificación si no la tenemos ya en caché.
+                // 1. Obtener calificación del AUTOR
                 if (!userRatingsCache.has(pub.author_username)) {
                     const ratingData = await fetchUserRating(pub.author_username);
                     userRatingsCache.set(pub.author_username, ratingData);
                 }
                 const authorRating = userRatingsCache.get(pub.author_username);
-                ratingHTML = generateStarRating(authorRating.average, authorRating.count);
+                const authorRatingHTML = generateStarRating(authorRating.average, authorRating.count);
 
-                const { messageHTML, actionHTML } = getActionAndMessageHTML(pub);
+                // 2. Obtener calificación del ACEPTANTE (si existe)
+                let acceptorRatingData = null;
+                if (pub.accepted_by_username) {
+                    if (!userRatingsCache.has(pub.accepted_by_username)) {
+                        const ratingData = await fetchUserRating(pub.accepted_by_username);
+                        userRatingsCache.set(pub.accepted_by_username, ratingData);
+                    }
+                    acceptorRatingData = userRatingsCache.get(pub.accepted_by_username);
+                }
+
+                // 3. Generar HTML pasando la calificación del aceptante
+                const { messageHTML, actionHTML } = getActionAndMessageHTML(pub, acceptorRatingData);
 
                 // Pasamos la publicación completa para tener acceso a todos sus datos
-                return getFullPublicationHTML(pub, ratingHTML, messageHTML, actionHTML);
+                return getFullPublicationHTML(pub, authorRatingHTML, messageHTML, actionHTML);
             }));
 
             elements.publicationsList.innerHTML = publicationsHTML.join('');
@@ -339,7 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
-    function getActionAndMessageHTML(pub) {
+    function getActionAndMessageHTML(pub, acceptorRatingData) {
         const currentUser = storedUsername;
         let messageHTML = '';
         let actionHTML = '';
@@ -358,7 +368,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case 'pending_approval':
                 if (currentUser === pub.author_username) {
-                    messageHTML = `<div class="action-message"><strong>${pub.accepted_by_username}</strong> quiere hacer esta tarea.</div>`;
+                    const ratingHTML = getShortRatingHTML(acceptorRatingData);
+                    messageHTML = `<div class="action-message"><strong>${pub.accepted_by_username}</strong>${ratingHTML} quiere hacer esta tarea.</div>`;
                     actionHTML = `<button class="action-button approve" data-id="${pub.id}" data-action="approve">Aprobar Solicitud</button>`;
                 } else {
                     actionHTML = `<div class="status-pending">Solicitud enviada. Esperando aprobación.</div>`;
@@ -503,6 +514,21 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 0; i < emptyStars; i++) starsHTML += '☆';
         
         return `<span class="stars">${starsHTML}</span> <span class="rating-count">(${count})</span>`;
+    }
+
+    /**
+     * Genera un fragmento de HTML para una calificación corta (ej: "4.5 ★").
+     * @param {object} ratingData Objeto con { average, count }.
+     * @returns {string} El HTML de la calificación corta.
+     */
+    function getShortRatingHTML(ratingData) {
+        if (!ratingData || ratingData.count === 0) {
+            return ''; // No mostrar nada si no hay calificaciones
+        }
+        // toFixed(1) asegura que haya un decimal (ej. 4.0 o 4.5)
+        const formattedRating = parseFloat(ratingData.average).toFixed(1);
+        // Usamos un 'title' para mostrar el número de calificaciones al pasar el ratón.
+        return ` <span class="short-rating" title="${ratingData.count} calificaciones">${formattedRating} ★</span>`;
     }
 
     async function fetchUserRating(username) {

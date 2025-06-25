@@ -817,6 +817,14 @@ hr {
     color: var(--text-secondary-color);
 }
 
+/* Estilo para la calificación corta junto al nombre de usuario */
+.short-rating {
+    font-weight: normal;
+    color: #ffc107; /* Amarillo estrella */
+    margin-left: 0.5em; /* Espacio entre el nombre y la calificación */
+    cursor: help; /* Cursor de ayuda para indicar que hay un tooltip (title) */
+}
+
 .publication-header {
     display: flex;
     justify-content: space-between;
