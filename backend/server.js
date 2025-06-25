@@ -537,6 +537,7 @@ app.get('/users/:username/transactions', (req, res) => {
         });
         
         // RUTA RESTAURADA: Obtener los saldos de un usuario
+        // Este endpoint es crucial para mostrar los saldos en el panel principal.
         app.get('/users/:username/balance', (req, res) => {
             const { username } = req.params;
             const sql = `SELECT blue_balance, red_balance FROM users WHERE username = ?`;
