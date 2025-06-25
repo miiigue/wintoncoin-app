@@ -368,14 +368,14 @@ app.post('/publications/:id/confirm-payment', (req, res) => {
                     } else {
                         // --- LÓGICA DE TRABAJO (NORMAL) ---
                         // El autor (pagador) recibe RED.
-            db.run(`UPDATE users SET red_balance = red_balance + ? WHERE username = ?`, [cost, author]);
-            const authorDesc = `Solicitaste: "${pub.title}"`;
-            db.run(insertTxSql, [author, 'payment_sent', authorDesc, 0, cost, pubId]);
+                        db.run(`UPDATE users SET red_balance = red_balance + ? WHERE username = ?`, [cost, author]);
+                        const authorDesc = `Solicitaste: "${pub.title}"`;
+                        db.run(insertTxSql, [author, 'payment_sent', authorDesc, 0, cost, pubId]);
 
                         // El trabajador (receptor del pago) recibe BLUE.
                         db.run(`UPDATE users SET blue_balance = blue_balance + ? WHERE username = ?`, [cost, worker]);
-            const workerDesc = `Realizaste: "${pub.title}"`;
-            db.run(insertTxSql, [worker, 'payment_received', workerDesc, cost, 0, pubId]);
+                        const workerDesc = `Realizaste: "${pub.title}"`;
+                        db.run(insertTxSql, [worker, 'payment_received', workerDesc, cost, 0, pubId]);
                     }
             
                     // --- Acciones Comunes ---
