@@ -32,7 +32,11 @@ document.addEventListener('DOMContentLoaded', () => {
         ratingPublicationId: document.getElementById('ratingPublicationId'),
         ratingRaterUsername: document.getElementById('ratingRaterUsername'),
         ratingRateeUsername: document.getElementById('ratingRateeUsername'),
-        ratingComment: document.getElementById('ratingComment')
+        ratingComment: document.getElementById('ratingComment'),
+        // --- Elementos para el Modal de Tipo de Publicación ---
+        openPublicationModalBtn: document.getElementById('openPublicationModalBtn'),
+        publicationTypeModal: document.getElementById('publicationTypeModal'),
+        closePublicationTypeModalBtn: document.querySelector('.publication-type-close')
     };
 
     // --- Inicialización ---
@@ -116,6 +120,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (event.target == elements.ratingModal) {
                 elements.ratingModal.style.display = 'none';
             }
+            // Cerrar el nuevo modal si se hace clic fuera
+            if (event.target == elements.publicationTypeModal) {
+                elements.publicationTypeModal.style.display = 'none';
+            }
         });
         elements.burnForm.addEventListener('submit', handleBurnSubmit);
 
@@ -124,6 +132,15 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.ratingModal.style.display = 'none';
         });
         elements.ratingForm.addEventListener('submit', handleRatingSubmit);
+
+        // Listeners para el nuevo modal de selección de publicación
+        elements.openPublicationModalBtn.addEventListener('click', (event) => {
+            event.preventDefault(); // Evitar que el enlace '#' mueva la página
+            elements.publicationTypeModal.style.display = 'flex';
+        });
+        elements.closePublicationTypeModalBtn.addEventListener('click', () => {
+            elements.publicationTypeModal.style.display = 'none';
+        });
     }
     
     // --- Handlers de Eventos ---
@@ -326,8 +343,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function getFullPublicationHTML(pub, ratingHTML, messageHTML, actionHTML) {
         const acceptor = pub.accepted_by_username || '';
         const formattedId = `#${String(pub.id).padStart(7, '0')}`;
-        // Cambiamos el texto del ribbon según tu petición
-        const rewardText = pub.is_sell_post ? `COMPRO: ${pub.blue_cost} BLUE` : `${pub.blue_cost} BLUE`;
+        // Unificamos el texto del ribbon. Ahora solo mostrará el coste.
+        const rewardText = `${pub.blue_cost} BLUE`;
         const ribbonClass = pub.is_sell_post ? 'sell-ribbon' : ''; // Clase especial para la cinta de venta
 
         // Estructura HTML con la tarjeta principal sin cambios de clase, pero con la clase en la cinta

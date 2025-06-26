@@ -31,7 +31,7 @@
                 </svg>
             </div>
             <div class="dropdown-content" id="profileDropdown">
-                <a href="history.html">Mi Historial</a>
+                <a href="history.html">Historial</a>
                 <a href="transactions.html">Transacciones</a>
                 <a href="#" id="logoutLink">Cerrar Sesión</a>
             </div>
@@ -62,7 +62,7 @@
 
         <div class="publications-section">
             <h2>Últimas Publicaciones</h2>
-            <a href="publish.html" class="button-link">Crear Nueva Publicación</a>
+            <a href="#" id="openPublicationModalBtn" class="button-link">Crear Nueva Publicación</a>
             <div id="publications-list">
                 <!-- Las publicaciones se cargarán aquí dinámicamente -->
             </div>
@@ -147,6 +147,37 @@
             <div class="confirm-buttons">
                 <button class="action-button cancel-button">Cancelar</button>
                 <button class="action-button confirm-button">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Selección de Tipo de Publicación -->
+    <div id="publicationTypeModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button publication-type-close">&times;</span>
+            <h2>¿Qué te gustaría hacer?</h2>
+            <p>Elige una opción para continuar. Cada acción te llevará a un formulario específico.</p>
+            <div class="modal-options">
+                <a href="publish.html?type=request" class="modal-option-button request">
+                    <div class="option-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="bi bi-person-plus" viewBox="0 0 16 16">
+                            <path d="M6 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H1s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C9.516 10.68 8.289 10 6 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/>
+                            <path fill-rule="evenodd" d="M13.5 5a.5.5 0 0 1 .5.5V7h1.5a.5.5 0 0 1 0 1H14v1.5a.5.5 0 0 1-1 0V8h-1.5a.5.5 0 0 1 0-1H13V5.5a.5.5 0 0 1 .5-.5z"/>
+                        </svg>
+                    </div>
+                    <h3>Solicitar un Ayudante</h3>
+                    <p>Pagarás BLUE a cambio de una tarea o servicio, recibirás RED.</p>
+                </a>
+                <a href="publish.html?type=sell" class="modal-option-button sell">
+                    <div class="option-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="bi bi-tag" viewBox="0 0 16 16">
+                            <path d="M6 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-1 0a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0z"/>
+                            <path d="M2 1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 1 6.586V2a1 1 0 0 1 1-1zm0 5.586 7 7L13.586 9l-7-7H2v4.586z"/>
+                        </svg>
+                    </div>
+                    <h3>Ofrecer un Servicio / Venta</h3>
+                    <p>Recibirás BLUE por un producto o servicio que ofrezcas.</p>
+                </a>
             </div>
         </div>
     </div>

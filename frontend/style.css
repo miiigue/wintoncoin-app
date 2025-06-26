@@ -829,3 +829,86 @@ hr {
     display: flex;
     justify-content: space-between;
 }
+
+/* --- Estilos para el Modal de Selección de Tipo de Publicación --- */
+#publicationTypeModal .modal-content {
+    max-width: 700px; /* Un poco más ancho para que quepan las opciones */
+    text-align: center;
+}
+
+#publicationTypeModal .modal-content p {
+    color: var(--text-secondary-color);
+}
+
+#publicationTypeModal .modal-options {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-top: 2rem;
+    flex-wrap: wrap; /* Para que se adapte en pantallas pequeñas */
+}
+
+.modal-option-button {
+    flex: 1;
+    min-width: 250px; /* Ancho mínimo para cada tarjeta */
+    padding: 2rem;
+    border-radius: 10px;
+    border: 1px solid #2a3b5c;
+    text-decoration: none;
+    color: var(--text-color);
+    background-color: var(--background-color);
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.modal-option-button:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    text-decoration: none;
+}
+
+.modal-option-button.request:hover {
+    border-color: #4a90e2; /* Azul que usamos en las cintas */
+}
+
+.modal-option-button.sell:hover {
+    border-color: #ffc107; /* Amarillo que usamos en las cintas */
+}
+
+.modal-option-button h3 {
+    margin: 1rem 0 0.5rem 0;
+    font-size: 1.2rem;
+    transition: color 0.3s ease;
+}
+
+.modal-option-button p {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.modal-option-button .option-icon {
+    margin-bottom: 1rem;
+    transition: transform 0.3s ease;
+}
+
+.modal-option-button:hover .option-icon {
+    transform: scale(1.1);
+}
+
+.modal-option-button.request .option-icon svg {
+    color: #4a90e2;
+}
+.modal-option-button.request h3 {
+    color: #4a90e2;
+}
+
+.modal-option-button.sell .option-icon svg {
+    color: #ffc107;
+}
+.modal-option-button.sell h3 {
+    color: #ffc107;
+}
