@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // Lógica para determinar la URL del API automáticamente
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
     const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
 
     // Primero, verificamos si el usuario ha iniciado sesión.
@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const description = document.getElementById('description').value;
         const blueCost = blueCostInput.value;
         const blueSell = blueSellInput.value;
+        const availableSlots = document.getElementById('availableSlots').value;
 
         // La validación 'required' en el input se encarga de que uno de los dos campos tenga valor.
         // Este chequeo es una seguridad adicional.
@@ -76,7 +77,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const publishData = {
             title,
             description,
-            authorUsername
+            authorUsername,
+            availableSlots
         };
 
         // Determinamos si es una venta o una publicación normal basado en el campo que tiene valor

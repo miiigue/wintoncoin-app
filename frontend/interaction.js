@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Configuración Global ---
     // Lógica para determinar la URL del API automáticamente
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
     const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
 
     // --- Estado Global y Elementos del DOM ---
@@ -164,11 +164,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const pubId = button.dataset.id;
         const action = button.dataset.action;
 
-        // Buscamos la publicación en el DOM para obtener los nombres de usuario
+        // Buscamos la publicación en el DOM para obtener el nombre del autor.
         const publicationElement = button.closest('.publication-item');
         const authorUsername = publicationElement.dataset.author;
-        const acceptorUsername = publicationElement.dataset.acceptor;
-
+        
+        // El usuario específico para una acción (aprobar, descartar, pagar) se obtiene del botón.
+        const userInAction = button.dataset.user; 
 
         let endpoint, body = {};
 
@@ -180,7 +181,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case 'approve':
                 endpoint = `/publications/${pubId}/approve`;
-                body = { approverUsername: storedUsername };
+                // Usamos 'userInAction' que contiene el nombre del usuario a aprobar.
+                body = { approverUsername: storedUsername, userToApprove: userInAction };
                 await postToServer(endpoint, body);
                 break;
             case 'complete':
@@ -189,13 +191,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 await postToServer(endpoint, body);
                 break;
             case 'confirm-payment':
-                // Para confirmar pago, el flujo es especial
-                await confirmPaymentAndRate(pubId, authorUsername, acceptorUsername);
+                // Para confirmar el pago, necesitamos el autor (confirmer) y el trabajador (userInAction).
+                await confirmPaymentAndRate(pubId, authorUsername, userInAction);
                 break;
             case 'delete':
                 showCustomConfirm('¿Deseas eliminar esta tarea? Esta acción no se puede deshacer.', async () => {
                     await deleteFromServer(`/publications/${pubId}`, { deleterUsername: storedUsername });
                 });
+                break;
+            case 'discard':
+                showCustomConfirm(`¿Seguro que quieres descartar la solicitud de ${userInAction}?`, async () => {
+                    await postToServer(`/publications/${pubId}/discard`, { discarderUsername: storedUsername, userToDiscard: userInAction });
+                });
+                break;
+            case 'toggle-pause':
+                // La acción es la misma para pausar o reanudar, el backend se encarga de cambiar el estado.
+                await postToServer(`/publications/${pubId}/toggle-pause`, { username: storedUsername });
+                break;
+            case 'hide':
+                // Ocultamos la publicación de la vista del usuario actual
+                await postToServer(`/publications/${pubId}/hide`, { username: storedUsername });
                 break;
         }
     }
@@ -205,7 +220,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${API_URL}/publications/${pubId}/confirm-payment`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ confirmerUsername: storedUsername })
+                // El backend ahora necesita tanto el confirmer como el worker
+                body: JSON.stringify({ confirmerUsername: storedUsername, workerUsername: acceptorUsername })
             });
 
             const result = await response.json();
@@ -341,15 +357,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Funciones de Renderizado ---
     
     function getFullPublicationHTML(pub, ratingHTML, messageHTML, actionHTML) {
-        const acceptor = pub.accepted_by_username || '';
+        // El acceptor username ahora puede venir de diferentes partes, así que lo manejamos con cuidado.
+        // La API ahora devuelve accepted_by_username solo si el usuario actual ha aceptado.
+        // Necesitaremos una forma de obtener todos los participantes si queremos mostrarlos.
+        const acceptor = pub.accepted_by_username || ''; 
         const formattedId = `#${String(pub.id).padStart(7, '0')}`;
-        // Unificamos el texto del ribbon. Ahora solo mostrará el coste.
         const rewardText = `${pub.blue_cost} BLUE`;
-        const ribbonClass = pub.is_sell_post ? 'sell-ribbon' : ''; // Clase especial para la cinta de venta
+        const ribbonClass = pub.is_sell_post ? 'sell-ribbon' : '';
+        // Mostramos los cupos disponibles.
+        const slotsText = pub.available_slots > 0 
+            ? `<span class="slots-available">${pub.available_slots} cupos disponibles</span>`
+            : `<span class="slots-full">Cupos agotados</span>`;
 
-        // Estructura HTML con la tarjeta principal sin cambios de clase, pero con la clase en la cinta
         return `
-            <div class="publication-item" data-id="${pub.id}" data-author="${pub.author_username}" data-acceptor="${acceptor}" data-status="${pub.status}">
+            <div class="publication-item" data-id="${pub.id}" data-author="${pub.author_username}" data-acceptor="${acceptor}" data-status="${pub.user_acceptance_status || 'open'}">
                 <div class="cost-ribbon ${ribbonClass}">${rewardText}</div>
                 <div class="publication-id">${formattedId}</div>
                 <h3>${pub.title}</h3>
@@ -357,6 +378,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="pub-meta">
                     <span>Autor: <strong>${pub.author_username}</strong></span>
                     <span class="rating-display">${ratingHTML}</span>
+                </div>
+                <div class="publication-footer">
+                    ${slotsText}
                 </div>
                 <div class="publication-actions">
                     ${messageHTML}
@@ -371,48 +395,141 @@ document.addEventListener('DOMContentLoaded', () => {
         let messageHTML = '';
         let actionHTML = '';
 
-        // Ya no generamos el mensaje de costo aquí, se muestra en el "cost-ribbon"
+        // La nueva lógica se basa en pub.user_acceptance_status y si el usuario es el autor
+        const userStatus = pub.user_acceptance_status;
 
-        switch (pub.status) {
-            case 'open':
-                if (currentUser !== pub.author_username) {
-                    actionHTML = `<button class="action-button accept" data-id="${pub.id}" data-action="accept">Aceptar</button>`;
-                } else {
-                    // El autor ahora ve un mensaje y un botón para eliminar
-                    messageHTML = `<div class="status-pending">Esperando respuesta de otros usuarios.</div>`;
-                    actionHTML = `<button class="action-button delete" data-id="${pub.id}" data-action="delete">Eliminar</button>`;
-                }
-                break;
-            case 'pending_approval':
-                if (currentUser === pub.author_username) {
-                    const ratingHTML = getShortRatingHTML(acceptorRatingData);
-                    messageHTML = `<div class="action-message"><strong>${pub.accepted_by_username}</strong>${ratingHTML} quiere hacer esta tarea.</div>`;
-                    actionHTML = `<button class="action-button approve" data-id="${pub.id}" data-action="approve">Aprobar Solicitud</button>`;
-                } else {
-                    actionHTML = `<div class="status-pending">Solicitud enviada. Esperando aprobación.</div>`;
-                }
-                break;
-            case 'approved':
-                if (currentUser === pub.accepted_by_username) {
-                    messageHTML = `<div class="action-message">Fuiste aprobado. ¡Completa la tarea!</div>`;
-                    actionHTML = `<button class="action-button complete" data-id="${pub.id}" data-action="complete">Tarea Culminada</button>`;
-                } else {
-                    actionHTML = `<div class="status-progress">Tarea en progreso por ${pub.accepted_by_username}</div>`;
-                }
-                break;
-            case 'completed':
-                if (currentUser === pub.author_username) {
-                    messageHTML = `<div class="action-message"><strong>${pub.accepted_by_username}</strong> ha culminado la tarea.</div>`;
-                    actionHTML = `<button class="action-button confirm" data-id="${pub.id}" data-action="confirm-payment">Conforme y Pagar</button>`;
-                } else {
-                    actionHTML = `<div class="status-progress">Tarea completada. Esperando pago.</div>`;
-                }
-                break;
-            case 'confirmed_paid':
-                actionHTML = `<div class="status-accepted">Tarea finalizada y pagada a ${pub.accepted_by_username}</div>`;
-                break;
+        if (currentUser === pub.author_username) {
+            // --- VISTA DEL AUTOR ---
+            // El backend ahora nos da una lista de participantes para las publicaciones del autor
+            if (pub.participants && pub.participants.length > 0) {
+                actionHTML += getAuthorParticipantsHTML(pub);
+            } else {
+                messageHTML = `<div class="status-pending">Aún no hay solicitudes para esta tarea.</div>`;
+            }
+
+            // Lógica de botones para el autor, más robusta y profesional:
+            const hasAnyParticipants = pub.participants.length > 0;
+            const hasActiveParticipants = pub.participants.some(p => ['approved', 'completed'].includes(p.status));
+            const allParticipantsPaid = hasAnyParticipants && pub.participants.every(p => p.status === 'confirmed_paid');
+
+            // La tarea se considera "finalizada" cuando todos los que participaron han cobrado.
+            const isTaskFinished = allParticipantsPaid;
+
+            // Se puede eliminar si no hay nadie trabajando activamente.
+            // Esto permite eliminarla si está vacía, si solo hay pendientes, o si ya todos cobraron.
+            const canDelete = !hasActiveParticipants;
+
+            // Se puede pausar/reanudar mientras la tarea no esté completamente finalizada.
+            const canManagePause = !isTaskFinished;
+
+            if (canManagePause) {
+                actionHTML += `
+                    <button class="action-button pause" data-id="${pub.id}" data-action="toggle-pause">
+                        ${pub.is_paused ? 'Reanudar Solicitudes' : 'Pausar Solicitudes'}
+                    </button>
+                `;
+            }
+             
+            actionHTML += `
+                <button class="action-button delete" data-id="${pub.id}" data-action="delete" ${canDelete ? '' : 'disabled'}>
+                    Eliminar Tarea
+                </button>
+            `;
+            if (!canDelete) {
+                 messageHTML += `<div class="status-info">No puedes eliminar una tarea con participantes activos.</div>`;
+            }
+
+        } else {
+            // --- VISTA DE OTROS USUARIOS ---
+            // Lógica final y correcta: el botón de ocultar es independiente.
+            switch (userStatus) {
+                case null: // El usuario no ha interactuado con esta publicación.
+                    
+                    // Primero, definimos qué mensaje o botón de acción principal mostrar.
+                    if (pub.available_slots > 0 && !pub.is_paused) {
+                        actionHTML += `<button class="action-button accept" data-id="${pub.id}" data-action="accept">Aceptar Tarea</button>`;
+                    } else if (pub.is_paused) {
+                        messageHTML = `<div class="status-pending">El autor ha pausado las nuevas solicitudes para esta tarea.</div>`;
+                    } else {
+                        messageHTML = `<div class="status-accepted">Todos los cupos para esta tarea están llenos.</div>`;
+                    }
+
+                    // Después, añadimos SIEMPRE el botón de ocultar para darle control al usuario.
+                    actionHTML += `<button class="action-button hide" data-id="${pub.id}" data-action="hide">Ocultar</button>`;
+                    break;
+                case 'pending_approval':
+                    actionHTML = `<div class="status-pending">Tu solicitud ha sido enviada. Esperando aprobación del autor.</div>`;
+                    break;
+                case 'approved':
+                    messageHTML = `<div class="action-message">¡Has sido aprobado! Ahora puedes completar la tarea.</div>`;
+                    actionHTML = `<button class="action-button complete" data-id="${pub.id}" data-action="complete">Marcar como Culminada</button>`;
+                    break;
+                case 'completed':
+                    actionHTML = `<div class="status-progress">Tarea marcada como completada. Esperando confirmación y pago del autor.</div>`;
+                    break;
+                case 'confirmed_paid':
+                    actionHTML = `<div class="status-accepted">¡Felicidades! Esta tarea ha sido finalizada y pagada.</div>`;
+                    break;
+            }
         }
         return { messageHTML, actionHTML };
+    }
+
+    /**
+     * Genera el HTML para la lista de participantes desde la vista del autor.
+     * @param {object} pub La publicación con su array de participantes.
+     * @returns {string} El bloque de HTML.
+     */
+    function getAuthorParticipantsHTML(pub) {
+        const participantsList = pub.participants.map(p => {
+            const ratingHTML = generateStarRating(p.average_rating, p.ratings_count);
+            const statusText = getStatusText(p.status);
+            let actionButtons = '';
+
+            // Si el participante está pendiente, el autor puede aprobarlo o descartarlo.
+            if (p.status === 'pending_approval') {
+                actionButtons = `
+                    <button class="action-button approve" data-id="${pub.id}" data-action="approve" data-user="${p.username}">Aprobar</button>
+                    <button class="action-button discard" data-id="${pub.id}" data-action="discard" data-user="${p.username}">Descartar</button>
+                `;
+            } else if (p.status === 'completed') {
+                // Si el participante ha culminado la tarea, el autor puede confirmar el pago.
+                actionButtons = `
+                    <button class="action-button confirm" data-id="${pub.id}" data-action="confirm-payment" data-user="${p.username}">Confirmar Pago</button>
+                `;
+            }
+
+            return `
+                <li class="participant-item">
+                    <div class="participant-info">
+                        <strong>${p.username}</strong>
+                        <span class="rating-display">${ratingHTML}</span>
+                    </div>
+                    <div class="participant-status">
+                        <span class="status-badge ${p.status}">${statusText}</span>
+                        ${actionButtons}
+                    </div>
+                </li>
+            `;
+        }).join('');
+
+        return `
+            <div class="participants-section">
+                <h4>Solicitudes de Participantes</h4>
+                <ul class="participants-list">${participantsList}</ul>
+            </div>
+        `;
+    }
+
+    function getStatusText(status) {
+        const statusMap = {
+            'open': 'Abierta',
+            'pending_approval': 'Pendiente',
+            'approved': 'Aprobado',
+            'completed': 'Culminado',
+            'confirmed_paid': 'Pagado'
+        };
+        return statusMap[status] || status;
     }
 
     async function fetchNotifications() {
