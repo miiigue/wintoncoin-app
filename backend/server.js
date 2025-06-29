@@ -141,6 +141,18 @@ async function initializeDatabase() {
         console.log("Tabla 'ratings' creada/asegurada.");
 
         // --- MIGRACIÓN SIMPLE PARA ASEGURAR COMPATIBILIDAD ---
+
+        // MIGRACIÓN para available_slots
+        const slotsColumnCheck = await client.query(`
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name='publications' AND column_name='available_slots'
+        `);
+        if (slotsColumnCheck.rowCount === 0) {
+            console.log("MIGRACIÓN: La columna 'available_slots' no existe. Añadiéndola a 'publications'...");
+            await client.query(`ALTER TABLE publications ADD COLUMN available_slots INTEGER NOT NULL DEFAULT 1`);
+            console.log("MIGRACIÓN: Columna 'available_slots' añadida exitosamente.");
+        }
+
         // Verificamos si la columna 'is_paused' existe en 'publications'.
         // Esto es crucial para no fallar en bases de datos que fueron creadas ANTES de añadir este campo.
         const columnCheck = await client.query(`
