@@ -7,6 +7,7 @@ const { Pool } = require('pg'); // Importamos el Pool de pg
 const bcrypt = require('bcrypt');
 const cors = require('cors');
 const path = require('path');
+const jwt = require('jsonwebtoken'); // <-- NUEVA LIBRERÍA
 
 // 2. Configuración inicial
 const app = express();
@@ -139,6 +140,26 @@ async function initializeDatabase() {
             )
         `);
         console.log("Tabla 'ratings' creada/asegurada.");
+
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS app_settings (
+                setting_key VARCHAR(255) PRIMARY KEY,
+                setting_value TEXT NOT NULL
+            )
+        `);
+        console.log("Tabla 'app_settings' creada/asegurada.");
+
+        // Insertar la configuración por defecto para los perfiles públicos.
+        // ON CONFLICT... evita errores si la llave ya existe, simplemente no hace nada.
+        await client.query(`
+            INSERT INTO app_settings (setting_key, setting_value)
+            VALUES 
+                ('public_profiles_enabled', 'false'),
+                ('allow_new_registrations', 'true'),
+                ('allow_new_publications', 'true')
+            ON CONFLICT (setting_key) DO NOTHING;
+        `);
+        console.log("Configuraciones por defecto aseguradas en 'app_settings'.");
 
         // --- MIGRACIÓN SIMPLE PARA ASEGURAR COMPATIBILIDAD ---
 
@@ -876,7 +897,177 @@ app.post('/register', async (req, res) => {
                 console.error("Error en /hide:", error);
                 res.status(500).json({ message: "Error interno del servidor." });
             }
-});
+        });
+
+        // Ruta para obtener el perfil público de un usuario
+        app.get('/users/:username/profile', async (req, res) => {
+            const { username } = req.params;
+        
+            const client = await pool.connect();
+            try {
+                // 1. PRIMERO Y MÁS IMPORTANTE: Verificar si la funcionalidad está activada
+                const settingsResult = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'public_profiles_enabled'`);
+                const isEnabled = settingsResult.rows[0]?.setting_value === 'true';
+        
+                if (!isEnabled) {
+                    return res.status(404).json({ message: "Perfiles de usuario no encontrados." }); // Usamos 404 para no revelar que la función existe pero está desactivada.
+                }
+        
+                // 2. Si está activado, procedemos a buscar los datos del perfil
+                await client.query('BEGIN');
+        
+                // Obtener datos básicos del usuario
+                const userSql = `SELECT username, average_rating, ratings_count FROM users WHERE username = $1`;
+                const userResult = await client.query(userSql, [username]);
+                if (userResult.rowCount === 0) {
+                    throw { status: 404, message: "Usuario no encontrado." };
+                }
+                const userProfile = userResult.rows[0];
+        
+                // Obtener todas las calificaciones y comentarios recibidos por el usuario
+                const ratingsSql = `SELECT rater_username, rating, comment, created_at FROM ratings WHERE ratee_username = $1 ORDER BY created_at DESC`;
+                const ratingsResult = await client.query(ratingsSql, [username]);
+                const ratings = ratingsResult.rows;
+        
+                await client.query('COMMIT');
+        
+                // 3. Devolver el perfil completo
+                res.status(200).json({
+                    user: userProfile,
+                    ratings: ratings
+                });
+        
+            } catch (error) {
+                await client.query('ROLLBACK');
+                console.error(`Error al obtener el perfil de ${username}:`, error);
+                res.status(error.status || 500).json({ message: error.message || "Error interno del servidor." });
+            } finally {
+                client.release();
+            }
+        });
+
+        // --- Rutas de Configuración y Administración ---
+
+        // Ruta de LOGIN para el administrador (NO necesita autenticación)
+        app.post('/api/admin/login', (req, res) => {
+            const { password } = req.body;
+
+            if (!password) {
+                return res.status(400).json({ message: "Se requiere la contraseña." });
+            }
+
+            // Comparamos la contraseña enviada con la variable de entorno
+            if (password === process.env.ADMIN_PASSWORD) {
+                // La contraseña es correcta, generamos un token JWT
+                const adminUser = { name: 'admin' }; // Payload del token
+                const accessToken = jwt.sign(adminUser, process.env.ADMIN_SECRET_KEY, { expiresIn: '8h' }); // Token expira en 8 horas
+                
+                res.json({ token: accessToken });
+            } else {
+                // Contraseña incorrecta
+                res.status(401).json({ message: "Contraseña incorrecta." });
+            }
+        });
+
+        // Ruta PÚBLICA para obtener configuraciones seguras para el frontend
+        app.get('/api/settings', async (req, res) => {
+            try {
+                // Ahora exponemos todas las claves que el frontend necesita.
+                const sql = `
+                    SELECT setting_key, setting_value 
+                    FROM app_settings 
+                    WHERE setting_key IN ('public_profiles_enabled', 'allow_new_registrations', 'allow_new_publications')
+                `;
+                const result = await pool.query(sql);
+                // Convertimos el resultado en un objeto clave-valor para fácil uso en el frontend
+                const settings = result.rows.reduce((acc, row) => {
+                    // Convertimos 'true'/'false' strings a booleanos reales
+                    acc[row.setting_key] = row.setting_value === 'true';
+                    return acc;
+                }, {});
+                res.status(200).json(settings);
+            } catch (error) {
+                console.error("Error al obtener la configuración pública:", error);
+                res.status(500).json({ message: "Error interno del servidor." });
+            }
+        });
+
+        // NOTA: Las siguientes rutas son para el futuro panel de administración.
+        // AHORA ESTÁN PROTEGIDAS POR EL MIDDLEWARE verifyAdminToken.
+
+        // Ruta de ADMIN para obtener TODAS las configuraciones
+        app.get('/api/admin/settings', verifyAdminToken, async (req, res) => {
+            try {
+                const sql = `SELECT * FROM app_settings ORDER BY setting_key`;
+                const result = await pool.query(sql);
+                res.status(200).json(result.rows);
+            } catch (error) {
+                console.error("Error al obtener todas las configuraciones:", error);
+                res.status(500).json({ message: "Error interno del servidor." });
+            }
+        });
+
+        // Ruta de ADMIN para actualizar una configuración
+        app.post('/api/admin/settings', verifyAdminToken, async (req, res) => {
+            const { key, value } = req.body;
+            if (!key || typeof value !== 'string') {
+                return res.status(400).json({ message: "Se requiere una 'key' y un 'value' (string)." });
+            }
+
+            try {
+                const sql = `UPDATE app_settings SET setting_value = $1 WHERE setting_key = $2 RETURNING *`;
+                const result = await pool.query(sql, [value, key]);
+
+                if (result.rowCount === 0) {
+                    return res.status(404).json({ message: `La clave de configuración '${key}' no fue encontrada.` });
+                }
+
+                res.status(200).json({ message: `Configuración '${key}' actualizada.`, setting: result.rows[0] });
+            } catch (error) {
+                console.error("Error al actualizar la configuración:", error);
+                res.status(500).json({ message: "Error interno del servidor." });
+            }
+        });
+
+        // --- Rutas del Dashboard ---
+        app.get('/api/admin/dashboard-stats', verifyAdminToken, async (req, res) => {
+            const client = await pool.connect();
+            try {
+                // Usamos Promise.all para ejecutar todas las consultas en paralelo, es más eficiente.
+                const [
+                    usersResult,
+                    publicationsResult,
+                    tokensResult
+                ] = await Promise.all([
+                    // 1. Contar usuarios totales
+                    client.query('SELECT COUNT(*) AS total_users FROM users'),
+                    // 2. Contar publicaciones activas (definidas como las que no están completamente pagadas)
+                    client.query(`
+                        SELECT COUNT(DISTINCT p.id) AS active_publications
+                        FROM publications p
+                        LEFT JOIN publication_acceptances pa ON p.id = pa.publication_id
+                        WHERE pa.status IS NULL OR pa.status != 'confirmed_paid'
+                    `),
+                    // 3. Sumar todos los tokens en circulación
+                    client.query('SELECT SUM(blue_balance) AS total_blue, SUM(red_balance) AS total_red FROM users')
+                ]);
+
+                const stats = {
+                    totalUsers: parseInt(usersResult.rows[0].total_users, 10),
+                    activePublications: parseInt(publicationsResult.rows[0].active_publications, 10),
+                    totalBlue: parseInt(tokensResult.rows[0].total_blue, 10) || 0,
+                    totalRed: parseInt(tokensResult.rows[0].total_red, 10) || 0
+                };
+                
+                res.status(200).json(stats);
+
+            } catch (error) {
+                console.error("Error al obtener las estadísticas del dashboard:", error);
+                res.status(500).json({ message: "Error interno del servidor." });
+            } finally {
+                client.release();
+            }
+        });
 
 // 6. Iniciar el servidor
 app.listen(PORT, () => {
@@ -887,6 +1078,24 @@ app.listen(PORT, () => {
         console.error("Error fatal al iniciar el servidor:", err);
         process.exit(1);
     }
+}
+
+// --- MIDDLEWARE DE AUTENTICACIÓN DE ADMIN ---
+function verifyAdminToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Formato: "Bearer TOKEN"
+
+    if (!token) {
+        return res.sendStatus(401); // Unauthorized
+    }
+
+    jwt.verify(token, process.env.ADMIN_SECRET_KEY, (err, user) => {
+        if (err) {
+            return res.sendStatus(403); // Forbidden (token inválido o expirado)
+        }
+        req.user = user;
+        next(); // El token es válido, continuar
+    });
 }
 
 // Llamamos a la función principal para que todo comience
