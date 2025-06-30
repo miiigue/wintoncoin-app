@@ -215,4 +215,79 @@ input:focus + .slider {
 
 input:checked + .slider:before {
     transform: translateX(26px);
+}
+
+/* --- Estilos para la Gestión de Usuarios (y otras tablas) --- */
+.table-controls {
+    margin: 2rem 0 1rem 0;
+}
+
+.table-controls input[type="text"] {
+    padding: 10px 15px;
+    border-radius: 8px;
+    background-color: var(--admin-bg);
+    border: 1px solid var(--admin-border);
+    color: var(--admin-text);
+    font-size: 1rem;
+    width: 100%;
+    max-width: 400px;
+}
+
+.table-container-admin {
+    width: 100%;
+    overflow-x: auto;
+    background-color: var(--admin-surface);
+    border-radius: 12px;
+    border: 1px solid var(--admin-border);
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+    padding: 1rem 1.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-table thead th {
+    color: var(--admin-text-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
+}
+
+.admin-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.admin-table tbody tr:hover {
+    background-color: var(--admin-bg);
+}
+
+.admin-table .username-cell {
+    font-weight: 600;
+    color: var(--admin-text);
+}
+
+.admin-table .username-cell a {
+    color: var(--admin-primary);
+    text-decoration: none;
+}
+
+.admin-table .username-cell a:hover {
+    text-decoration: underline;
+}
+
+.admin-table .rating-cell .stars {
+    color: #ffc107;
+}
+
+.admin-table .no-rating {
+    color: var(--admin-text-secondary);
+    font-style: italic;
 } 

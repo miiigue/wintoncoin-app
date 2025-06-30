@@ -61,7 +61,8 @@ async function initializeDatabase() {
                 blue_balance INTEGER NOT NULL DEFAULT 0,
                 red_balance INTEGER NOT NULL DEFAULT 0,
                 average_rating REAL NOT NULL DEFAULT 0,
-                ratings_count INTEGER NOT NULL DEFAULT 0
+                ratings_count INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ DEFAULT NOW()
             )
         `);
         console.log("Tabla 'users' asegurada.");
@@ -186,6 +187,17 @@ async function initializeDatabase() {
             console.log("MIGRACIÓN: La columna 'is_paused' no existe. Añadiéndola a 'publications'...");
             await client.query(`ALTER TABLE publications ADD COLUMN is_paused BOOLEAN NOT NULL DEFAULT FALSE`);
             console.log("MIGRACIÓN: Columna 'is_paused' añadida exitosamente.");
+        }
+
+        // MIGRACIÓN para añadir la fecha de registro a los usuarios existentes
+        const usersCreatedAtCheck = await client.query(`
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name='users' AND column_name='created_at'
+        `);
+        if (usersCreatedAtCheck.rowCount === 0) {
+            console.log("MIGRACIÓN: La columna 'created_at' no existe en 'users'. Añadiéndola...");
+            await client.query(`ALTER TABLE users ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW()`);
+            console.log("MIGRACIÓN: Columna 'created_at' añadida exitosamente a 'users'.");
         }
 
         // --- MIGRACIÓN PARA LA REGLA DE BORRADO EN CASCADA DE RATINGS ---
@@ -1025,6 +1037,38 @@ app.post('/register', async (req, res) => {
                 res.status(200).json({ message: `Configuración '${key}' actualizada.`, setting: result.rows[0] });
             } catch (error) {
                 console.error("Error al actualizar la configuración:", error);
+                res.status(500).json({ message: "Error interno del servidor." });
+            }
+        });
+
+        // Ruta de ADMIN para obtener la lista de usuarios (con búsqueda)
+        app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
+            const { search = '' } = req.query; // Default a string vacío si no hay búsqueda
+            
+            try {
+                // Seleccionamos solo los datos que son seguros y útiles para el administrador.
+                // NUNCA exponemos el hash de la contraseña.
+                const sql = `
+                    SELECT 
+                        id, 
+                        username, 
+                        blue_balance, 
+                        red_balance, 
+                        average_rating, 
+                        ratings_count,
+                        created_at
+                    FROM users
+                    WHERE username ILIKE $1  -- ILIKE es como LIKE pero insensible a mayúsculas/minúsculas
+                    ORDER BY created_at DESC
+                `;
+                // El comodín '%' permite buscar cualquier usuario que contenga el término de búsqueda.
+                const searchTerm = `%${search}%`;
+                const result = await pool.query(sql, [searchTerm]);
+                
+                res.status(200).json(result.rows);
+
+            } catch (error) {
+                console.error("Error al obtener la lista de usuarios:", error);
                 res.status(500).json({ message: "Error interno del servidor." });
             }
         });

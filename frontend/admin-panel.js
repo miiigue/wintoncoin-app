@@ -16,7 +16,9 @@ document.addEventListener('DOMContentLoaded', () => {
         sections: document.querySelectorAll('.admin-section'),
         logoutBtn: document.getElementById('adminLogoutBtn'),
         settingsContainer: document.getElementById('settings-switches'),
-        dashboardContainer: document.getElementById('dashboard-stats')
+        dashboardContainer: document.getElementById('dashboard-stats'),
+        usersTableContainer: document.getElementById('users-table-container'),
+        userSearchInput: document.getElementById('userSearchInput')
     };
 
     // --- Inicialización ---
@@ -43,6 +45,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Listener para los interruptores (se añade al contenedor padre)
         elements.settingsContainer.addEventListener('change', handleSettingChange);
+
+        // Listener para la búsqueda de usuarios
+        // Usamos 'keyup' para una respuesta en tiempo real, con un debounce para no sobrecargar el servidor.
+        let searchTimeout;
+        elements.userSearchInput.addEventListener('keyup', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                loadUsers(elements.userSearchInput.value);
+            }, 300); // Espera 300ms después de la última tecla pulsada
+        });
     }
 
     function showSection(sectionId) {
@@ -65,6 +77,8 @@ document.addEventListener('DOMContentLoaded', () => {
             loadDashboardData();
         } else if (sectionId === 'settings') {
             loadSettings();
+        } else if (sectionId === 'users') {
+            loadUsers();
         }
     }
 
@@ -92,6 +106,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         return response.json();
+    }
+
+    async function loadUsers(searchTerm = '') {
+        elements.usersTableContainer.innerHTML = '<div class="loading-spinner"></div>';
+        try {
+            // Añadimos el término de búsqueda como un query parameter
+            const users = await apiFetch(`/api/admin/users?search=${encodeURIComponent(searchTerm)}`);
+            renderUsersTable(users);
+        } catch (error) {
+            elements.usersTableContainer.innerHTML = `<p class="error-message">Error al cargar los usuarios: ${error.message}</p>`;
+        }
     }
 
     async function loadDashboardData() {
@@ -133,6 +158,52 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Lógica de Renderizado ---
+    function renderUsersTable(users) {
+        if (users.length === 0) {
+            elements.usersTableContainer.innerHTML = '<p class="empty-message">No se encontraron usuarios.</p>';
+            return;
+        }
+
+        const tableHTML = `
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Saldo BLUE</th>
+                        <th>Saldo RED</th>
+                        <th>Calificación</th>
+                        <th>Fecha de Registro</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${users.map(user => getUserRowHTML(user)).join('')}
+                </tbody>
+            </table>
+        `;
+        elements.usersTableContainer.innerHTML = tableHTML;
+    }
+
+    function getUserRowHTML(user) {
+        const registrationDate = new Date(user.created_at).toLocaleDateString('es-ES', {
+            year: 'numeric', month: 'long', day: 'numeric'
+        });
+        const ratingHTML = user.ratings_count > 0 
+            ? `<span class="rating-cell"><span class="stars">${'★'.repeat(Math.round(user.average_rating))}${'☆'.repeat(5 - Math.round(user.average_rating))}</span> (${user.ratings_count})</span>`
+            : `<span class="no-rating">Sin calificar</span>`;
+
+        return `
+            <tr>
+                <td class="username-cell">
+                    <a href="profile.html?user=${user.username}" target="_blank">${user.username}</a>
+                </td>
+                <td class="saldo-blue-text">${user.blue_balance}</td>
+                <td class="saldo-red-text">${user.red_balance}</td>
+                <td>${ratingHTML}</td>
+                <td>${registrationDate}</td>
+            </tr>
+        `;
+    }
+
     function renderDashboard(stats) {
         elements.dashboardContainer.innerHTML = `
             <div class="stat-card">

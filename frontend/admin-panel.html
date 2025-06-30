@@ -55,7 +55,15 @@
             <section id="users-section" class="admin-section">
                 <h1>Gestión de Usuarios</h1>
                 <p>Explora y busca en la base de datos de usuarios.</p>
-                <!-- Aquí irá la tabla de usuarios -->
+                
+                <div class="table-controls">
+                    <input type="text" id="userSearchInput" placeholder="Buscar por nombre de usuario...">
+                </div>
+
+                <div id="users-table-container" class="table-container-admin">
+                    <!-- La tabla de usuarios se cargará aquí -->
+                    <div class="loading-spinner"></div>
+                </div>
             </section>
 
             <!-- Sección Gestión de Contenido -->
