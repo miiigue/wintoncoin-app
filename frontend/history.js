@@ -115,6 +115,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const statusText = getStatusText(participant.status);
         let actionButton = '';
 
+        // Lógica de enlace de perfil
+        const participantNameHTML = window.appSettings.public_profiles_enabled
+            ? `<a href="profile.html?user=${participant.acceptor_username}" class="profile-link">${participant.acceptor_username}</a>`
+            : participant.acceptor_username;
+
         if (participant.status === 'pending_approval') {
             actionButton = `<button class="action-button approve" data-pub-id="${pubId}" data-user-to-approve="${participant.acceptor_username}">Aprobar</button>`;
         } else if (participant.status === 'completed') {
@@ -124,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return `
             <li class="participant-item">
                 <div class="participant-info">
-                    <strong>${participant.acceptor_username}</strong>
+                    <strong>${participantNameHTML}</strong>
                     <span class="rating-display">${rating}</span>
                 </div>
                 <div class="participant-status">
@@ -137,12 +142,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getCompletedPublicationHTML(pub) {
         const statusText = getStatusText(pub.user_acceptance_status);
+
+        // Lógica de enlace de perfil
+        const authorNameHTML = window.appSettings.public_profiles_enabled
+            ? `<a href="profile.html?user=${pub.author_username}" class="profile-link">${pub.author_username}</a>`
+            : pub.author_username;
+
         return `
             <div class="publication-details">
                 <h3>${pub.title}</h3>
                 <p class="pub-description">${pub.description}</p>
                 <ul class="pub-meta-list">
-                    <li>Autor: <strong>${pub.author_username}</strong></li>
+                    <li>Autor: <strong>${authorNameHTML}</strong></li>
                     <li>Costo: <strong>${pub.blue_cost} BLUE</strong></li>
                     <li>Estado: <span class="status-badge ${pub.user_acceptance_status}">${statusText}</span></li>
                 </ul>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perfil de Usuario - Winton Coin</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container profile-container">
+        <!-- Enlace para volver al panel principal -->
+        <a href="contract_interaction.html" class="back-link">&larr; Volver al Panel</a>
+
+        <div id="profile-header" class="profile-header">
+            <!-- El contenido se cargará aquí (ej: nombre y estrellas) -->
+            <div class="loading-spinner"></div>
+        </div>
+        
+        <hr>
+
+        <div class="profile-section">
+            <h2>Calificaciones y Comentarios</h2>
+            <div id="ratings-list" class="ratings-list">
+                <!-- Las calificaciones se cargarán aquí -->
+                <p class="loading-text">Cargando calificaciones...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="utils.js"></script>
+    <script src="profile.js"></script>
+
+    <!-- Modal de Alerta Personalizado (por si hay errores) -->
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+</body>
+</html> 

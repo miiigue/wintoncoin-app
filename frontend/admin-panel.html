@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - Winton Coin</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="admin-style.css"> <!-- Hoja de estilos específica para el panel -->
+</head>
+<body>
+    <div class="admin-grid-container">
+        <!-- Barra Lateral de Navegación -->
+        <aside class="admin-sidebar">
+            <div class="sidebar-header">
+                <h3>Winton Coin</h3>
+                <p>Admin Panel</p>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li><a href="#dashboard" class="nav-link active" data-section="dashboard">Dashboard</a></li>
+                    <li><a href="#settings" class="nav-link" data-section="settings">Configuración</a></li>
+                    <li><a href="#users" class="nav-link" data-section="users">Gestión de Usuarios</a></li>
+                    <li><a href="#publications" class="nav-link" data-section="publications">Gestión de Contenido</a></li>
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <a href="#" id="adminLogoutBtn">Cerrar Sesión</a>
+            </div>
+        </aside>
+
+        <!-- Contenido Principal -->
+        <main class="admin-main">
+            <!-- Cada sección se cargará aquí. Por defecto se muestra el Dashboard. -->
+
+            <!-- Sección Dashboard -->
+            <section id="dashboard-section" class="admin-section active-section">
+                <h1>Dashboard</h1>
+                <p>Resumen general de la plataforma.</p>
+                <!-- Aquí irán las tarjetas de estadísticas -->
+                <div id="dashboard-stats" class="stats-container">
+                    <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- Sección Configuración -->
+            <section id="settings-section" class="admin-section">
+                <h1>Gestión de Configuración</h1>
+                <p>Activa o desactiva funcionalidades de la aplicación en tiempo real.</p>
+                <div id="settings-switches" class="settings-container">
+                    <!-- Los interruptores se cargarán aquí -->
+                </div>
+            </section>
+
+            <!-- Sección Gestión de Usuarios -->
+            <section id="users-section" class="admin-section">
+                <h1>Gestión de Usuarios</h1>
+                <p>Explora y busca en la base de datos de usuarios.</p>
+                <!-- Aquí irá la tabla de usuarios -->
+            </section>
+
+            <!-- Sección Gestión de Contenido -->
+            <section id="publications-section" class="admin-section">
+                <h1>Gestión de Contenido</h1>
+                <p>Modera las publicaciones de la plataforma.</p>
+                <!-- Aquí irá la tabla de publicaciones -->
+            </section>
+
+        </main>
+    </div>
+
+    <script src="utils.js"></script>
+    <script src="admin-panel.js"></script>
+
+    <!-- Modal de Alerta -->
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+</body>
+</html> 

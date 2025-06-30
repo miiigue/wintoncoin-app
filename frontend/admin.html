@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso de Administrador - Winton Coin</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Panel de Administración</h1>
+        <h2>Acceso Restringido</h2>
+
+        <form id="adminLoginForm">
+            <div>
+                <label for="adminPassword">Contraseña de Administrador:</label>
+                <input type="password" id="adminPassword" name="adminPassword" required>
+            </div>
+            
+            <div>
+                <button type="submit">Ingresar</button>
+            </div>
+        </form>
+        <p><a href="index.html">Volver a la página principal</a></p>
+    </div>
+
+    <script src="utils.js"></script>
+    <script src="admin-login.js"></script>
+
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+</body>
+</html> 

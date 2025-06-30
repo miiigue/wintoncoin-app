@@ -4,6 +4,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
     
     const registerForm = document.getElementById('registerForm');
+    const container = document.querySelector('.container');
+
+    // Escuchamos el evento personalizado que disparamos desde utils.js
+    document.addEventListener('app-settings-loaded', () => {
+        if (!window.appSettings.allow_new_registrations) {
+            // Deshabilitar completamente la funcionalidad si los registros están cerrados
+            container.innerHTML = `
+                <h1>Registro Cerrado</h1>
+                <p>En este momento no se aceptan nuevos registros. Por favor, inténtalo de nuevo más tarde.</p>
+                <p><a href="index.html">Volver a inicio de sesión</a></p>
+            `;
+        }
+    });
 
     if (registerForm) {
         registerForm.addEventListener('submit', async function(event) {

@@ -125,3 +125,44 @@ document.addEventListener('DOMContentLoaded', () => {
         if (confirmBtn) confirmBtn.addEventListener('click', handleConfirm);
     }
 }); 
+
+// --- Configuración Global de la Aplicación ---
+
+// Guardamos la configuración en una variable global para que todos los scripts puedan acceder a ella.
+window.appSettings = {
+    public_profiles_enabled: false // Valor por defecto hasta que se cargue del backend
+};
+
+/**
+ * Carga las configuraciones desde el backend y las almacena en window.appSettings.
+ * @returns {Promise<void>}
+ */
+async function loadAppSettings() {
+    // Lógica para determinar la URL del API automáticamente
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
+    const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+
+    try {
+        const response = await fetch(`${API_URL}/api/settings`);
+        if (!response.ok) {
+            console.warn('No se pudo cargar la configuración de la aplicación desde el backend.');
+            return;
+        }
+        const settings = await response.json();
+        // Mezclamos los nuevos settings con los que ya pudieran existir
+        window.appSettings = { ...window.appSettings, ...settings };
+        
+        // Disparamos un evento personalizado para notificar a otros scripts que la configuración ha cargado.
+        // Esto es una práctica profesional para manejar tareas asíncronas.
+        document.dispatchEvent(new CustomEvent('app-settings-loaded'));
+
+    } catch (error) {
+        console.error('Error de red al cargar la configuración de la aplicación:', error);
+    }
+}
+
+// Invocamos la carga de configuración tan pronto como el script se ejecuta.
+// Usamos una función autoejecutable para no contaminar el scope global.
+(async () => {
+    await loadAppSettings();
+})(); 

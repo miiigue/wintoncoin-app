@@ -39,6 +39,20 @@ document.addEventListener('DOMContentLoaded', () => {
         closePublicationTypeModalBtn: document.querySelector('.publication-type-close')
     };
 
+    // --- Lógica de Control de Funcionalidades ---
+    // Escuchamos el evento personalizado para actualizar la UI según los permisos
+    document.addEventListener('app-settings-loaded', checkPublicationPermissions);
+
+    function checkPublicationPermissions() {
+        if (window.appSettings && elements.openPublicationModalBtn) {
+            if (window.appSettings.allow_new_publications === false) {
+                elements.openPublicationModalBtn.style.display = 'none';
+            } else {
+                elements.openPublicationModalBtn.style.display = 'inline-block';
+            }
+        }
+    }
+
     // --- Inicialización ---
     if (!storedUsername) {
         // Ahora, la redirección se pasa como un callback.
@@ -58,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAllData();
     setupDropdowns();
     setupEventListeners();
+    checkPublicationPermissions(); // <-- Llamada inicial por si las settings cargan antes que el DOM
 
     // --- Actualización Automática (Polling) ---
     // Hacemos que la página se actualice sola cada 5 segundos para mantener los datos frescos.
@@ -369,6 +384,11 @@ document.addEventListener('DOMContentLoaded', () => {
             ? `<span class="slots-available">${pub.available_slots} cupos disponibles</span>`
             : `<span class="slots-full">Cupos agotados</span>`;
 
+        // Lógica de enlace de perfil
+        const authorNameHTML = window.appSettings.public_profiles_enabled
+            ? `<a href="profile.html?user=${pub.author_username}" class="profile-link">${pub.author_username}</a>`
+            : pub.author_username;
+
         return `
             <div class="publication-item" data-id="${pub.id}" data-author="${pub.author_username}" data-acceptor="${acceptor}" data-status="${pub.user_acceptance_status || 'open'}">
                 <div class="cost-ribbon ${ribbonClass}">${rewardText}</div>
@@ -376,7 +396,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <h3>${pub.title}</h3>
                 <p class="pub-description">${pub.description}</p>
                 <div class="pub-meta">
-                    <span>Autor: <strong>${pub.author_username}</strong></span>
+                    <span>Autor: <strong>${authorNameHTML}</strong></span>
                     <span class="rating-display">${ratingHTML}</span>
                 </div>
                 <div class="publication-footer">
@@ -486,6 +506,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const statusText = getStatusText(p.status);
             let actionButtons = '';
 
+            // Lógica de enlace de perfil para participantes
+            const participantNameHTML = window.appSettings.public_profiles_enabled
+                ? `<a href="profile.html?user=${p.username}" class="profile-link">${p.username}</a>`
+                : p.username;
+
             // Si el participante está pendiente, el autor puede aprobarlo o descartarlo.
             if (p.status === 'pending_approval') {
                 actionButtons = `
@@ -502,7 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return `
                 <li class="participant-item">
                     <div class="participant-info">
-                        <strong>${p.username}</strong>
+                        <strong>${participantNameHTML}</strong>
                         <span class="rating-display">${ratingHTML}</span>
                     </div>
                     <div class="participant-status">
