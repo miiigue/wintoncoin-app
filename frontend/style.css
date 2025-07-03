@@ -135,6 +135,39 @@ a:hover {
     color: var(--text-color);
 }
 
+/* --- Estilos para el Contador de Deuda --- */
+.debt-countdown {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed var(--admin-border);
+}
+
+.debt-countdown p {
+    margin: 0 0 0.25rem 0;
+    font-size: 0.8rem;
+    font-weight: 300;
+    color: var(--text-secondary-color);
+}
+
+#debt-countdown-timer {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--admin-primary); /* Un color azul brillante para destacar */
+    letter-spacing: 1.5px;
+}
+
+#debt-countdown-timer.expired {
+    color: var(--error-color);
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.05); opacity: 0.7; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
 #saldoBlue { color: #3498db; }
 #saldoRed { color: #e74c3c; }
 

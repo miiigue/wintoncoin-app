@@ -143,6 +143,19 @@ async function initializeDatabase() {
         console.log("Tabla 'ratings' creada/asegurada.");
 
         await client.query(`
+            CREATE TABLE IF NOT EXISTS red_token_debts (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                amount INTEGER NOT NULL CHECK (amount > 0),
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                due_at TIMESTAMPTZ NOT NULL,
+                is_settled BOOLEAN NOT NULL DEFAULT FALSE,
+                is_penalized BOOLEAN NOT NULL DEFAULT FALSE
+            )
+        `);
+        console.log("Tabla 'red_token_debts' asegurada.");
+
+        await client.query(`
             CREATE TABLE IF NOT EXISTS app_settings (
                 setting_key VARCHAR(255) PRIMARY KEY,
                 setting_value TEXT NOT NULL
@@ -157,7 +170,9 @@ async function initializeDatabase() {
             VALUES 
                 ('public_profiles_enabled', 'false'),
                 ('allow_new_registrations', 'true'),
-                ('allow_new_publications', 'true')
+                ('allow_new_publications', 'true'),
+                ('debt_system_enabled', 'false'),
+                ('debt_cycle_days', '30')
             ON CONFLICT (setting_key) DO NOTHING;
         `);
         console.log("Configuraciones por defecto aseguradas en 'app_settings'.");
@@ -602,17 +617,35 @@ app.post('/register', async (req, res) => {
                 const insertTxSql = `INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id) VALUES ($1, $2, $3, $4, $5, $6)`;
                 
                 if (is_sell_post) {
-                    // Venta: Vendedor (author) recibe BLUE, Comprador (worker) recibe RED.
-                    await client.query(`UPDATE users SET blue_balance = blue_balance + $1 WHERE username = $2`, [cost, author]);
-                    await client.query(insertTxSql, [author, 'sale_completed', `Vendiste: "${title}"`, cost, 0, pubId]);
+                    // Venta: Comprador (worker) recibe RED.
+                    // ¡AQUÍ SE GENERA UNA DEUDA RED!
+                    const settingsResult = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'debt_cycle_days'`);
+                    const debtCycleDays = parseInt(settingsResult.rows[0]?.setting_value || '30', 10);
                     
                     await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE username = $2`, [cost, workerUsername]);
+                    await client.query(
+                        `INSERT INTO red_token_debts (username, amount, due_at) VALUES ($1, $2, NOW() + INTERVAL '${debtCycleDays} days')`,
+                        [workerUsername, cost]
+                    );
                     await client.query(insertTxSql, [workerUsername, 'purchase_completed', `Compraste: "${title}"`, 0, cost, pubId]);
+                    
+                    // Vendedor (author) recibe BLUE.
+                    await client.query(`UPDATE users SET blue_balance = blue_balance + $1 WHERE username = $2`, [cost, author]);
+                    await client.query(insertTxSql, [author, 'sale_completed', `Vendiste: "${title}"`, cost, 0, pubId]);
                 } else {
-                    // Trabajo: Pagador (author) recibe RED, Trabajador (worker) recibe BLUE.
+                    // Trabajo: Pagador (author) recibe RED.
+                    // ¡AQUÍ SE GENERA UNA DEUDA RED!
+                    const settingsResult = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'debt_cycle_days'`);
+                    const debtCycleDays = parseInt(settingsResult.rows[0]?.setting_value || '30', 10);
+
                     await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE username = $2`, [cost, author]);
+                    await client.query(
+                        `INSERT INTO red_token_debts (username, amount, due_at) VALUES ($1, $2, NOW() + INTERVAL '${debtCycleDays} days')`,
+                        [author, cost]
+                    );
                     await client.query(insertTxSql, [author, 'payment_sent', `Solicitaste: "${title}"`, 0, cost, pubId]);
                     
+                    // Trabajador (worker) recibe BLUE.
                     await client.query(`UPDATE users SET blue_balance = blue_balance + $1 WHERE username = $2`, [cost, workerUsername]);
                     await client.query(insertTxSql, [workerUsername, 'payment_received', `Realizaste: "${title}"`, cost, 0, pubId]);
                 }
@@ -635,9 +668,9 @@ app.post('/register', async (req, res) => {
             } finally {
                 client.release();
             }
-});
+        });
 
-// Ruta para obtener las notificaciones de un usuario
+        // Ruta para obtener las notificaciones de un usuario
         app.get('/notifications/:username', async (req, res) => {
     const { username } = req.params;
             const sql = `SELECT * FROM notifications WHERE recipient_username = $1 ORDER BY created_at DESC`;
@@ -661,43 +694,95 @@ app.post('/register', async (req, res) => {
             }
 });
 
-// Ruta para QUEMAR tokens
-        app.post('/users/burn', async (req, res) => {
+// Ruta para QUEMAR tokens (RECONSTRUIDA CON LÓGICA FIFO)
+app.post('/users/burn', async (req, res) => {
     const { username, amount } = req.body;
-    if (!username || !amount || amount <= 0) {
+    const amountToBurn = parseInt(amount, 10);
+
+    if (!username || !amountToBurn || amountToBurn <= 0) {
         return res.status(400).json({ message: "La cantidad a quemar debe ser un número positivo." });
     }
 
-            const client = await pool.connect();
-            try {
-                await client.query('BEGIN');
-                
-                const userResult = await client.query(`SELECT blue_balance, red_balance FROM users WHERE username = $1 FOR UPDATE`, [username]);
-                const user = userResult.rows[0];
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        
+        // 1. Verificar si el usuario tiene suficientes balances (chequeo rápido)
+        const userResult = await client.query(`SELECT blue_balance, red_balance FROM users WHERE username = $1 FOR UPDATE`, [username]);
+        const user = userResult.rows[0];
+        if (!user) throw { status: 404, message: "Usuario no encontrado." };
+        if (user.blue_balance < amountToBurn || user.red_balance < amountToBurn) {
+            throw { status: 400, message: "No tienes suficientes BLUE o RED para quemar esta cantidad." };
+        }
 
-                if (!user) throw { status: 404, message: "Usuario no encontrado." };
-        if (user.blue_balance < amount || user.red_balance < amount) {
-                    throw { status: 400, message: "No tienes suficientes BLUE o RED para quemar esta cantidad." };
-                }
+        // 2. Obtener todas las deudas pendientes del usuario, las más antiguas primero (FIFO)
+        const debtsResult = await client.query(
+            `SELECT id, amount FROM red_token_debts WHERE username = $1 AND is_settled = FALSE ORDER BY due_at ASC FOR UPDATE`,
+            [username]
+        );
+        const debts = debtsResult.rows;
 
-                await client.query(`UPDATE users SET blue_balance = blue_balance - $1, red_balance = red_balance - $2 WHERE username = $3`, [amount, amount, username]);
-                
-            const burnDesc = `Tokens Quemados`;
-                await client.query(`INSERT INTO transactions (username, type, description, blue_change, red_change) VALUES ($1, 'burn', $2, $3, $4)`, [username, burnDesc, -amount, -amount]);
+        let remainingToBurn = amountToBurn;
+        let totalSettledAmount = 0;
 
-                await client.query('COMMIT');
-                res.status(200).json({ message: `Has quemado ${amount} BLUE y ${amount} RED exitosamente.` });
-            } catch (error) {
-                await client.query('ROLLBACK');
-                console.error("Error al quemar tokens:", error);
-                res.status(error.status || 500).json({ message: error.message || "Error del servidor al quemar los tokens." });
-            } finally {
-                client.release();
+        // 3. Iterar sobre las deudas y saldarlas
+        for (const debt of debts) {
+            if (remainingToBurn <= 0) break;
+
+            const amountToSettleFromThisDebt = Math.min(remainingToBurn, debt.amount);
+            
+            totalSettledAmount += amountToSettleFromThisDebt;
+            remainingToBurn -= amountToSettleFromThisDebt;
+            const newDebtAmount = debt.amount - amountToSettleFromThisDebt;
+
+            if (newDebtAmount <= 0) {
+                // Si la deuda se liquida por completo, se marca como saldada
+                await client.query(`UPDATE red_token_debts SET is_settled = TRUE, amount = 0 WHERE id = $1`, [debt.id]);
+            } else {
+                // Si se liquida parcialmente, solo se actualiza la cantidad
+                await client.query(`UPDATE red_token_debts SET amount = $1 WHERE id = $2`, [newDebtAmount, debt.id]);
             }
-        });
+        }
+        
+        // 4. Asegurarse de que el total a quemar no exceda la deuda real del usuario.
+        if (amountToBurn > totalSettledAmount) {
+            // Esto puede pasar si el usuario intenta quemar más RED del que realmente debe según la tabla de deudas.
+            // En este caso, quemamos solo lo que realmente debe.
+            console.warn(`Intento de quema de ${amountToBurn} por ${username}, pero solo debe ${totalSettledAmount}. Se ajustará la quema.`);
+        }
+        const finalBurnAmount = totalSettledAmount; // Quemamos lo que realmente se pudo saldar
 
-        // Ruta: Obtener el historial de un usuario
-        app.get('/users/:username/history', async (req, res) => {
+        if (finalBurnAmount <= 0) {
+            throw { status: 400, message: "No tienes deudas pendientes para quemar." };
+        }
+
+        // 5. Actualizar los saldos del usuario en la tabla 'users'
+        await client.query(
+            `UPDATE users SET blue_balance = blue_balance - $1, red_balance = red_balance - $1 WHERE username = $2`,
+            [finalBurnAmount, username]
+        );
+        
+        // 6. Registrar la transacción de quema
+        const burnDesc = `Quemaste ${finalBurnAmount} tokens para saldar deudas.`;
+        await client.query(
+            `INSERT INTO transactions (username, type, description, blue_change, red_change) VALUES ($1, 'burn', $2, $3, $4)`,
+            [username, burnDesc, -finalBurnAmount, -finalBurnAmount]
+        );
+
+        await client.query('COMMIT');
+        res.status(200).json({ message: `Has quemado ${finalBurnAmount} BLUE y ${finalBurnAmount} RED exitosamente.` });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error("Error al quemar tokens:", error);
+        res.status(error.status || 500).json({ message: error.message || "Error del servidor al quemar los tokens." });
+    } finally {
+        client.release();
+    }
+});
+
+// Ruta: Obtener el historial de un usuario
+app.get('/users/:username/history', async (req, res) => {
     const { username } = req.params;
             try {
                 // Para las publicaciones creadas por el usuario, ahora simplemente las seleccionamos.
@@ -768,15 +853,39 @@ app.post('/register', async (req, res) => {
         // RUTA: Obtener los saldos de un usuario
         app.get('/users/:username/balance', async (req, res) => {
             const { username } = req.params;
-            const sql = `SELECT blue_balance, red_balance FROM users WHERE username = $1`;
+            
+            const client = await pool.connect();
             try {
-                const result = await pool.query(sql, [username]);
-                if (result.rows.length === 0) {
+                const userSql = `SELECT blue_balance, red_balance FROM users WHERE username = $1`;
+                const debtSql = `
+                    SELECT due_at 
+                    FROM red_token_debts 
+                    WHERE username = $1 AND is_settled = FALSE 
+                    ORDER BY due_at ASC 
+                    LIMIT 1
+                `;
+                
+                const [userResult, debtResult] = await Promise.all([
+                    client.query(userSql, [username]),
+                    client.query(debtSql, [username])
+                ]);
+
+                if (userResult.rows.length === 0) {
                     return res.status(404).json({ message: "Usuario no encontrado." });
                 }
-                res.status(200).json(result.rows[0]);
+
+                const responseData = {
+                    ...userResult.rows[0],
+                    next_due_at: debtResult.rows[0]?.due_at || null // Añade la fecha de vencimiento o null
+                };
+                
+                res.status(200).json(responseData);
+
             } catch (err) {
+                console.error("Error al obtener balance y deuda:", err);
                 return res.status(500).json({ message: "Error interno del servidor." });
+            } finally {
+                client.release();
             }
         });
         
@@ -1073,6 +1182,28 @@ app.post('/register', async (req, res) => {
             }
         });
 
+        // Ruta de ADMIN para obtener la lista de DEUDORES (NUEVA)
+        app.get('/api/admin/debtors', verifyAdminToken, async (req, res) => {
+            try {
+                // Sumamos todas las deudas penalizadas por usuario para tener un total.
+                const sql = `
+                    SELECT 
+                        username, 
+                        SUM(amount) AS total_penalized_debt,
+                        COUNT(*) AS penalized_debts_count
+                    FROM red_token_debts
+                    WHERE is_penalized = TRUE AND is_settled = FALSE
+                    GROUP BY username
+                    ORDER BY total_penalized_debt DESC
+                `;
+                const result = await pool.query(sql);
+                res.status(200).json(result.rows);
+            } catch (error) {
+                console.error("Error al obtener la lista de deudores:", error);
+                res.status(500).json({ message: "Error interno del servidor." });
+            }
+        });
+
         // --- Rutas del Dashboard ---
         app.get('/api/admin/dashboard-stats', verifyAdminToken, async (req, res) => {
             const client = await pool.connect();
@@ -1117,6 +1248,89 @@ app.post('/register', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
 }); 
+
+        // --- PROCESO AUTOMÁTICO DE VENCIMIENTO DE DEUDAS (RECOLECTOR) ---
+        // Se ejecuta cada 5 minutos
+        const DEBT_COLLECTOR_INTERVAL_MS = 5 * 60 * 1000; 
+
+        setInterval(async () => {
+            // Esta es la función principal del recolector de deudas
+            const client = await pool.connect();
+            try {
+                const settingsResult = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'debt_system_enabled'`);
+                const isEnabled = settingsResult.rows[0]?.setting_value === 'true';
+
+                if (!isEnabled) {
+                    return;
+                }
+
+                console.log('[Debt Collector] Iniciando ciclo de revisión de deudas vencidas...');
+                
+                await client.query('BEGIN');
+
+                const overdueDebtsResult = await client.query(`
+                    SELECT id, username, amount 
+                    FROM red_token_debts
+                    WHERE due_at <= NOW() AND is_settled = FALSE AND is_penalized = FALSE
+                    ORDER BY username, due_at ASC
+                `);
+
+                if (overdueDebtsResult.rowCount === 0) {
+                    console.log('[Debt Collector] No se encontraron deudas vencidas. Ciclo finalizado.');
+                    await client.query('COMMIT');
+                    return;
+                }
+                
+                let currentUser = null;
+                let userBalances = {};
+
+                for (const debt of overdueDebtsResult.rows) {
+                    if (currentUser !== debt.username) {
+                        if (currentUser) {
+                            await client.query('UPDATE users SET blue_balance = $1, red_balance = $2 WHERE username = $3', [userBalances.blue, userBalances.red, currentUser]);
+                        }
+                        currentUser = debt.username;
+                        const userResult = await client.query('SELECT blue_balance, red_balance FROM users WHERE username = $1 FOR UPDATE', [currentUser]);
+                        userBalances = { blue: userResult.rows[0].blue_balance, red: userResult.rows[0].red_balance };
+                        console.log(`[Debt Collector] Procesando a ${currentUser} con ${userBalances.blue} BLUE y ${userBalances.red} RED.`);
+                    }
+
+                    const debtAmount = debt.amount;
+                    if (userBalances.blue >= debtAmount) {
+                        // Caso A: Pago completo
+                        userBalances.blue -= debtAmount;
+                        userBalances.red -= debtAmount;
+                        await client.query('UPDATE red_token_debts SET is_settled = TRUE WHERE id = $1', [debt.id]);
+                        const desc = `Cobro automático por deuda vencida de ${debtAmount} tokens.`;
+                        await client.query(`INSERT INTO transactions (username, type, description, blue_change, red_change) VALUES ($1, 'auto_burn', $2, $3, $4)`, [currentUser, desc, -debtAmount, -debtAmount]);
+                        await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [currentUser, `Se ha realizado un cobro automático de ${debtAmount} tokens por una deuda vencida.`]);
+                    } else {
+                        // Caso B: Penalización
+                        const amountToBurn = userBalances.blue;
+                        const remainingDebt = debtAmount - amountToBurn;
+                        userBalances.red -= amountToBurn;
+                        userBalances.blue = 0;
+                        await client.query('UPDATE red_token_debts SET is_penalized = TRUE, amount = $1 WHERE id = $2', [remainingDebt, debt.id]);
+                        const desc = `Penalización por deuda vencida. Se quemaron ${amountToBurn} de ${debtAmount}.`;
+                        await client.query(`INSERT INTO transactions (username, type, description, blue_change, red_change) VALUES ($1, 'penalty', $2, $3, $4)`, [currentUser, desc, -amountToBurn, -amountToBurn]);
+                        await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [currentUser, `¡ATENCIÓN! No tenías suficientes BLUE para cubrir una deuda de ${debtAmount}. Has sido penalizado con ${remainingDebt} RED.`]);
+                    }
+                }
+
+                if (currentUser) {
+                    await client.query('UPDATE users SET blue_balance = $1, red_balance = $2 WHERE username = $3', [userBalances.blue, userBalances.red, currentUser]);
+                }
+
+                await client.query('COMMIT');
+                console.log(`[Debt Collector] Ciclo finalizado. Se procesaron ${overdueDebtsResult.rowCount} deudas.`);
+
+            } catch (error) {
+                console.error('[Debt Collector] Error durante el ciclo de revisión, revirtiendo cambios:', error);
+                await client.query('ROLLBACK');
+            } finally {
+                if (client) client.release();
+            }
+        }, DEBT_COLLECTOR_INTERVAL_MS);
 
     } catch (err) {
         console.error("Error fatal al iniciar el servidor:", err);

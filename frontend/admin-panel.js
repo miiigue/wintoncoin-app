@@ -18,7 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
         settingsContainer: document.getElementById('settings-switches'),
         dashboardContainer: document.getElementById('dashboard-stats'),
         usersTableContainer: document.getElementById('users-table-container'),
-        userSearchInput: document.getElementById('userSearchInput')
+        userSearchInput: document.getElementById('userSearchInput'),
+        debtorsTableContainer: document.getElementById('debtors-table-container')
     };
 
     // --- Inicialización ---
@@ -45,6 +46,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Listener para los interruptores (se añade al contenedor padre)
         elements.settingsContainer.addEventListener('change', handleSettingChange);
+
+        // Listener para los inputs numéricos (con debounce)
+        elements.settingsContainer.addEventListener('keyup', (event) => {
+            if (event.target.type === 'number') {
+                handleSettingChange(event);
+            }
+        });
 
         // Listener para la búsqueda de usuarios
         // Usamos 'keyup' para una respuesta en tiempo real, con un debounce para no sobrecargar el servidor.
@@ -79,6 +87,8 @@ document.addEventListener('DOMContentLoaded', () => {
             loadSettings();
         } else if (sectionId === 'users') {
             loadUsers();
+        } else if (sectionId === 'debtors') {
+            loadDebtors();
         }
     }
 
@@ -119,6 +129,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function loadDebtors() {
+        elements.debtorsTableContainer.innerHTML = '<div class="loading-spinner"></div>';
+        try {
+            const debtors = await apiFetch(`/api/admin/debtors`);
+            renderDebtorsTable(debtors);
+        } catch (error) {
+            elements.debtorsTableContainer.innerHTML = `<p class="error-message">Error al cargar los deudores: ${error.message}</p>`;
+        }
+    }
+
     async function loadDashboardData() {
         elements.dashboardContainer.innerHTML = '<div class="loading-spinner"></div>';
         try {
@@ -154,6 +174,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Revertir el checkbox a su estado anterior si falla el guardado
                 event.target.checked = !event.target.checked;
             }
+        } else if (event.target.type === 'number') {
+            // Usamos un debounce para no guardar con cada tecla
+            clearTimeout(window.settingSaveTimeout);
+            window.settingSaveTimeout = setTimeout(async () => {
+                const key = event.target.dataset.key;
+                const value = event.target.value;
+
+                // Validacion simple
+                if (!value || isNaN(parseInt(value)) || parseInt(value) <= 0) {
+                    showCustomAlert('El valor debe ser un número positivo.');
+                    // Podríamos revertir al valor anterior si lo guardáramos
+                    return;
+                }
+
+                try {
+                    await apiFetch('/api/admin/settings', {
+                        method: 'POST',
+                        body: JSON.stringify({ key, value })
+                    });
+                } catch (error) {
+                    showCustomAlert(`Error al guardar el cambio: ${error.message}`);
+                }
+            }, 500); // Guardar 500ms después de que el usuario deje de teclear
         }
     }
 
@@ -238,13 +281,38 @@ document.addEventListener('DOMContentLoaded', () => {
             'allow_new_publications': {
                 title: 'Permitir Nuevas Publicaciones',
                 description: 'Si se desactiva, los usuarios no podrán crear nuevas tareas o servicios.'
+            },
+            'debt_system_enabled': {
+                title: 'Activar Sistema de Deuda RED',
+                description: 'Activa o desactiva la mecánica de vencimiento y penalización para los tokens RED.',
+                type: 'switch'
+            },
+            'debt_cycle_days': {
+                title: 'Duración del Ciclo de Deuda (en días)',
+                description: 'Establece cuántos días tiene un usuario para quemar un lote de tokens RED antes de que venza.',
+                type: 'number'
             }
         };
         
         elements.settingsContainer.innerHTML = settings.map(setting => {
             const info = settingsMap[setting.setting_key] || { title: setting.setting_key, description: '' };
-            const isChecked = setting.setting_value === 'true';
+            
+            if (info.type === 'number') {
+                return `
+                    <div class="setting-item">
+                        <div class="setting-item-info">
+                            <h4>${info.title}</h4>
+                            <p>${info.description}</p>
+                        </div>
+                        <div class="setting-item-control">
+                            <input type="number" class="admin-numeric-input" data-key="${setting.setting_key}" value="${setting.setting_value}" min="1">
+                        </div>
+                    </div>
+                `;
+            }
 
+            // El switch es el default
+            const isChecked = setting.setting_value === 'true';
             return `
                 <div class="setting-item">
                     <div class="setting-item-info">
@@ -258,5 +326,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
         }).join('');
+    }
+
+    function renderDebtorsTable(debtors) {
+        if (debtors.length === 0) {
+            elements.debtorsTableContainer.innerHTML = '<p class="empty-message">¡Buenas noticias! No hay usuarios con deudas penalizadas en este momento.</p>';
+            return;
+        }
+
+        const tableHTML = `
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Deuda Penalizada Total (RED)</th>
+                        <th>Nº de Deudas Vencidas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${debtors.map(debtor => getDebtorRowHTML(debtor)).join('')}
+                </tbody>
+            </table>
+        `;
+        elements.debtorsTableContainer.innerHTML = tableHTML;
+    }
+
+    function getDebtorRowHTML(debtor) {
+        return `
+            <tr>
+                <td class="username-cell">
+                    <a href="profile.html?user=${debtor.username}" target="_blank">${debtor.username}</a>
+                </td>
+                <td class="saldo-red-text">${parseInt(debtor.total_penalized_debt).toLocaleString('es-ES')}</td>
+                <td>${debtor.penalized_debts_count}</td>
+            </tr>
+        `;
     }
 }); 

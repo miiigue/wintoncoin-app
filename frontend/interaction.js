@@ -36,8 +36,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- Elementos para el Modal de Tipo de Publicación ---
         openPublicationModalBtn: document.getElementById('openPublicationModalBtn'),
         publicationTypeModal: document.getElementById('publicationTypeModal'),
-        closePublicationTypeModalBtn: document.querySelector('.publication-type-close')
+        closePublicationTypeModalBtn: document.querySelector('.publication-type-close'),
+        // --- Elementos para el contador de deuda ---
+        debtCountdownContainer: document.getElementById('debt-countdown-container'),
+        debtCountdownTimer: document.getElementById('debt-countdown-timer')
     };
+
+    // Variable global para el intervalo del contador, para poder detenerlo
+    let debtCountdownInterval = null;
 
     // --- Lógica de Control de Funcionalidades ---
     // Escuchamos el evento personalizado para actualizar la UI según los permisos
@@ -613,9 +619,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.saldoRed.textContent = balances.red_balance;
                 sessionStorage.setItem('blue_balance', balances.blue_balance);
                 sessionStorage.setItem('red_balance', balances.red_balance);
+
+                // --- Lógica del Contador de Deuda ---
+                if (balances.next_due_at && balances.red_balance > 0) {
+                    startDebtCountdown(balances.next_due_at);
+                    elements.debtCountdownContainer.style.display = 'block';
+                } else {
+                    // Si no hay fecha de vencimiento, nos aseguramos de que el contador esté oculto y detenido.
+                    if (debtCountdownInterval) clearInterval(debtCountdownInterval);
+                    elements.debtCountdownContainer.style.display = 'none';
+                }
             }
         } catch (error) {
             console.error('Error al obtener los saldos:', error);
+            // Si falla la carga, también ocultamos el contador para evitar mostrar datos incorrectos
+            if (debtCountdownInterval) clearInterval(debtCountdownInterval);
+            if (elements.debtCountdownContainer) elements.debtCountdownContainer.style.display = 'none';
         }
     }
 
@@ -721,5 +740,53 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error en deleteFromServer:', error);
             showCustomAlert('Error de red al intentar eliminar.');
         }
+    }
+
+    /**
+     * Inicia y actualiza el contador de deuda cada segundo.
+     * @param {string} dueDateString La fecha de vencimiento en formato ISO (viene del backend).
+     */
+    function startDebtCountdown(dueDateString) {
+        // Detenemos cualquier contador anterior para evitar múltiples intervalos corriendo a la vez.
+        if (debtCountdownInterval) {
+            clearInterval(debtCountdownInterval);
+        }
+
+        const dueDate = new Date(dueDateString);
+
+        // Función que se ejecuta cada segundo
+        const updateTimer = () => {
+            const now = new Date();
+            const distance = dueDate - now;
+
+            if (distance < 0) {
+                clearInterval(debtCountdownInterval);
+                elements.debtCountdownTimer.textContent = "¡VENCIDO!";
+                elements.debtCountdownTimer.classList.add('expired');
+                // Forzamos una recarga de datos para que el sistema procese la deuda vencida.
+                setTimeout(loadAllData, 2000); // Pequeña espera antes de recargar
+                return;
+            }
+
+            // Cálculos de tiempo
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            // Formatear para que siempre tengan dos dígitos (ej: 09 en vez de 9)
+            const fDays = String(days).padStart(2, '0');
+            const fHours = String(hours).padStart(2, '0');
+            const fMinutes = String(minutes).padStart(2, '0');
+            const fSeconds = String(seconds).padStart(2, '0');
+            
+            elements.debtCountdownTimer.textContent = `${fDays}d : ${fHours}h : ${fMinutes}m : ${fSeconds}s`;
+            elements.debtCountdownTimer.classList.remove('expired');
+        };
+
+        // Ejecutamos la función una vez de inmediato para no esperar el primer segundo.
+        updateTimer(); 
+        // Y luego la configuramos para que se repita.
+        debtCountdownInterval = setInterval(updateTimer, 1000);
     }
 }); 

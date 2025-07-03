@@ -168,6 +168,21 @@
     color: var(--admin-text-secondary);
 }
 
+.setting-item-control {
+    flex-shrink: 0; /* Evita que el input se encoja */
+}
+
+.admin-numeric-input {
+    width: 80px;
+    padding: 10px 15px;
+    border-radius: 8px;
+    background-color: var(--admin-bg);
+    border: 1px solid var(--admin-border);
+    color: var(--admin-text);
+    font-size: 1rem;
+    text-align: center;
+}
+
 .switch {
     position: relative;
     display: inline-block;
