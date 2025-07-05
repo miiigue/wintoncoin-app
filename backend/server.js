@@ -58,9 +58,9 @@ async function initializeDatabase() {
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(255) UNIQUE NOT NULL,
                 password TEXT NOT NULL,
-                liquid_blue_balance INTEGER NOT NULL DEFAULT 0,
-                escrow_blue_balance INTEGER NOT NULL DEFAULT 0,
-                red_balance INTEGER NOT NULL DEFAULT 0,
+                liquid_blue_balance NUMERIC(19, 4) NOT NULL DEFAULT 0,
+                escrow_blue_balance NUMERIC(19, 4) NOT NULL DEFAULT 0,
+                red_balance NUMERIC(19, 4) NOT NULL DEFAULT 0,
                 average_rating REAL NOT NULL DEFAULT 0,
                 ratings_count INTEGER NOT NULL DEFAULT 0,
                 created_at TIMESTAMPTZ DEFAULT NOW()
@@ -73,7 +73,7 @@ async function initializeDatabase() {
                 id SERIAL PRIMARY KEY,
                 title VARCHAR(255) NOT NULL,
                 description TEXT NOT NULL,
-                blue_cost INTEGER NOT NULL,
+                blue_cost NUMERIC(19, 4) NOT NULL,
                 is_sell_post BOOLEAN NOT NULL DEFAULT FALSE,
                 author_username VARCHAR(255) NOT NULL,
                 available_slots INTEGER NOT NULL DEFAULT 1 CHECK (available_slots >= 0),
@@ -122,8 +122,8 @@ async function initializeDatabase() {
                 username VARCHAR(255) NOT NULL,
                 type VARCHAR(255) NOT NULL,
                 description TEXT NOT NULL,
-                blue_change INTEGER NOT NULL DEFAULT 0,
-                red_change INTEGER NOT NULL DEFAULT 0,
+                blue_change NUMERIC(19, 4) NOT NULL DEFAULT 0,
+                red_change NUMERIC(19, 4) NOT NULL DEFAULT 0,
                 related_publication_id INTEGER,
                 created_at TIMESTAMPTZ DEFAULT NOW()
             )
@@ -147,7 +147,7 @@ async function initializeDatabase() {
             CREATE TABLE IF NOT EXISTS red_token_debts (
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(255) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
-                amount INTEGER NOT NULL CHECK (amount > 0),
+                amount NUMERIC(19, 4) NOT NULL CHECK (amount > 0),
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 due_at TIMESTAMPTZ NOT NULL,
                 is_settled BOOLEAN NOT NULL DEFAULT FALSE,
@@ -243,13 +243,48 @@ async function initializeDatabase() {
             CREATE TABLE IF NOT EXISTS blue_token_escrows (
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(255) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
-                amount INTEGER NOT NULL CHECK (amount > 0),
+                amount NUMERIC(19, 4) NOT NULL CHECK (amount > 0),
                 unlock_at TIMESTAMPTZ NOT NULL,
                 is_released BOOLEAN NOT NULL DEFAULT FALSE,
                 created_at TIMESTAMPTZ DEFAULT NOW()
             )
         `);
         console.log("Tabla 'blue_token_escrows' asegurada.");
+
+        // --- MIGRACIONES PARA DECIMALES ---
+        // Este bloque ahora es el único responsable de asegurar que todas las columnas
+        // monetarias tengan el tipo NUMERIC(19, 4) correcto.
+        const columns_to_migrate = [
+            { table: 'users', column: 'liquid_blue_balance' },
+            { table: 'users', column: 'escrow_blue_balance' },
+            { table: 'users', column: 'red_balance' },
+            { table: 'publications', column: 'blue_cost' },
+            { table: 'transactions', column: 'blue_change' },
+            { table: 'transactions', column: 'red_change' },
+            { table: 'red_token_debts', column: 'amount' },
+            { table: 'blue_token_escrows', column: 'amount' }
+        ];
+
+        for (const { table, column } of columns_to_migrate) {
+            const check = await client.query(`
+                SELECT data_type, numeric_precision, numeric_scale 
+                FROM information_schema.columns
+                WHERE table_name = $1 AND column_name = $2
+            `, [table, column]);
+
+            if (check.rowCount > 0) {
+                const colInfo = check.rows[0];
+                const isInteger = colInfo.data_type.includes('int');
+                const isWrongNumeric = colInfo.data_type === 'numeric' && (colInfo.numeric_precision !== 19 || colInfo.numeric_scale !== 4);
+
+                if (isInteger || isWrongNumeric) {
+                    console.log(`MIGRACIÓN: Cambiando tipo de la columna ${table}.${column} a NUMERIC(19, 4)...`);
+                    // Usamos USING para convertir los datos existentes de forma segura.
+                    await client.query(`ALTER TABLE ${table} ALTER COLUMN ${column} TYPE NUMERIC(19, 4) USING ${column}::NUMERIC(19, 4);`);
+                    console.log(`MIGRACIÓN: Columna ${table}.${column} migrada exitosamente.`);
+                }
+            }
+        }
 
         // 2. Migrar la tabla 'users' para los nuevos balances
         const liquidBalanceCheck = await client.query(`
@@ -267,7 +302,7 @@ async function initializeDatabase() {
                 await client.query(`ALTER TABLE users RENAME COLUMN blue_balance TO liquid_blue_balance;`);
                 console.log("MIGRACIÓN: Columna 'blue_balance' renombrada a 'liquid_blue_balance'.");
             } else {
-                await client.query(`ALTER TABLE users ADD COLUMN liquid_blue_balance INTEGER NOT NULL DEFAULT 0;`);
+                await client.query(`ALTER TABLE users ADD COLUMN liquid_blue_balance NUMERIC(19, 4) NOT NULL DEFAULT 0;`);
                 console.log("MIGRACIÓN: Creada columna 'liquid_blue_balance' porque no se encontró ninguna versión anterior.");
             }
         }
@@ -279,7 +314,7 @@ async function initializeDatabase() {
 
         if (escrowBalanceCheck.rowCount === 0) {
             console.log("MIGRACIÓN: La columna 'escrow_blue_balance' no existe. Añadiéndola a 'users'...");
-            await client.query(`ALTER TABLE users ADD COLUMN escrow_blue_balance INTEGER NOT NULL DEFAULT 0;`);
+            await client.query(`ALTER TABLE users ADD COLUMN escrow_blue_balance NUMERIC(19, 4) NOT NULL DEFAULT 0;`);
             console.log("MIGRACIÓN: Columna 'escrow_blue_balance' añadida exitosamente.");
         }
 
@@ -368,11 +403,17 @@ app.post('/register', async (req, res) => {
             const { title, description, blueCost, blueSell, authorUsername, availableSlots } = req.body;
         
             if (!title || !description || !authorUsername || (!blueCost && !blueSell)) {
-                return res.status(400).json({ message: "Faltan datos requeridos para la publicación." });
+                return res.status(400).json({ message: "Faltan datos requeridos para la publicación. Título, descripción y costo son obligatorios." });
             }
         
             const isSellPost = !!blueSell;
-            const cost = blueSell || blueCost;
+            const costString = (blueSell || blueCost).toString().replace(',', '.');
+            const cost = parseFloat(costString);
+
+            if (isNaN(cost) || cost <= 0) {
+                return res.status(400).json({ message: "El costo o recompensa debe ser un número positivo." });
+            }
+
             // Si no se especifica, por defecto es 1. Lo convertimos a número.
             const slots = availableSlots ? parseInt(availableSlots, 10) : 1;
 
@@ -755,7 +796,9 @@ app.post('/register', async (req, res) => {
 // Ruta para QUEMAR tokens (RECONSTRUIDA CON LÓGICA FIFO)
 app.post('/users/burn', async (req, res) => {
     const { username, amount } = req.body;
-    const amountToBurn = parseInt(amount, 10);
+
+    const amountToBurnString = (amount || "0").toString().replace(',', '.');
+    const amountToBurn = parseFloat(amountToBurnString);
 
     if (!username || !amountToBurn || amountToBurn <= 0) {
         return res.status(400).json({ message: "La cantidad a quemar debe ser un número positivo." });
@@ -1468,7 +1511,7 @@ app.listen(PORT, () => {
                     );
 
                     // Registrar la transacción
-                    const desc = `Se liberaron ${totalAmount} BLUE de tu saldo bloqueado.`;
+                    const desc = `Se liberaron ${totalAmount} BLUE de tu saldo pendiente.`;
                     await client.query(
                         `INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'escrow_release', $2, $3)`,
                         [username, desc, totalAmount]

@@ -44,11 +44,11 @@
         
         <div class="saldo-container">
             <div class="saldo-item">
-                <p>Saldo BLUE (Líquido)</p>
+                <p>Saldo BLUE (Disponible)</p>
                 <span id="saldoBlue">--</span>
             </div>
             <div class="saldo-item">
-                <p>Saldo BLUE (Bloqueado)</p>
+                <p>Saldo BLUE (Pendientes)</p>
                 <span id="saldoEscrowBlue">--</span>
                 <div id="escrow-countdown-container" class="escrow-countdown" style="display: none;">
                     <p>Próxima Liberación:</p>
@@ -98,7 +98,8 @@
             <form id="burnForm">
                 <div class="form-group">
                     <label for="burnAmount">Cantidad a quemar:</label>
-                    <input type="number" id="burnAmount" name="burnAmount" placeholder="0" required min="1">
+                    <input type="text" inputmode="decimal" id="burnAmount" name="burnAmount" placeholder="Ej: 10.5000" required pattern="^[0-9]+([.,][0-9]{1,4})?$">
+                    <small class="input-hint">Usa un punto (.) o una coma (,) para los decimales.</small>
                 </div>
                 <button type="submit" class="action-button confirm">Quemar</button>
             </form>

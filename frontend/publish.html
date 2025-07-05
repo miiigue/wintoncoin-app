@@ -23,13 +23,15 @@
             </div>
             
             <div id="cost-wrapper">
-                <label for="blueCost">Cantidad de BLUE a pagar (recibirás RED):</label>
-                <input type="number" id="blueCost" name="blueCost" min="1">
+                <label for="blueCost">Recompensa (en BLUE):</label>
+                <input type="text" inputmode="decimal" id="blueCost" name="blueCost" placeholder="Ej: 12.53" pattern="^[0-9]+([.,][0-9]{1,4})?$">
+                <small class="input-hint">Usa un punto (.) o una coma (,) para los decimales. Máximo 4 decimales.</small>
             </div>
 
             <div id="sell-wrapper">
-                <label for="blueSell">Cantidad de BLUE a vender (recibiras BLUE):</label>
-                <input type="number" id="blueSell" name="blueSell" min="1">
+                <label for="blueSell">Precio de Venta (en BLUE):</label>
+                <input type="text" inputmode="decimal" id="blueSell" name="blueSell" placeholder="Ej: 50.00" pattern="^[0-9]+([.,][0-9]{1,4})?$">
+                <small class="input-hint">Usa un punto (.) o una coma (,) para los decimales. Máximo 4 decimales.</small>
             </div>
 
             <div>

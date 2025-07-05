@@ -1,5 +1,15 @@
 document.addEventListener('DOMContentLoaded', () => {
 
+    // --- Función de Utilidad para Formatear Saldos ---
+    function formatBalance(value) {
+        const num = Number(value) || 0;
+        // Formato español: separador de miles con punto, decimal con coma.
+        return num.toLocaleString('es-ES', {
+            minimumFractionDigits: 4,
+            maximumFractionDigits: 4
+        });
+    }
+
     // --- Configuración y Estado ---
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
     const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
@@ -212,8 +222,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <thead>
                     <tr>
                         <th>Usuario</th>
-                        <th>Saldo BLUE (Líquido)</th>
-                        <th>Saldo BLUE (Bloqueado)</th>
+                        <th>Saldo BLUE (Disponible)</th>
+                        <th>Saldo BLUE (Pendientes)</th>
                         <th>Saldo RED</th>
                         <th>Calificación</th>
                         <th>Fecha de Registro</th>
@@ -240,9 +250,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="username-cell">
                     <a href="profile.html?user=${user.username}" target="_blank">${user.username}</a>
                 </td>
-                <td class="saldo-blue-text">${user.liquid_blue_balance}</td>
-                <td class="saldo-escrow-text">${user.escrow_blue_balance}</td>
-                <td class="saldo-red-text">${user.red_balance}</td>
+                <td class="saldo-blue-text">${formatBalance(user.liquid_blue_balance)}</td>
+                <td class="saldo-escrow-text">${formatBalance(user.escrow_blue_balance)}</td>
+                <td class="saldo-red-text">${formatBalance(user.red_balance)}</td>
                 <td>${ratingHTML}</td>
                 <td>${registrationDate}</td>
             </tr>
@@ -261,11 +271,11 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="stat-card">
                 <h4>Total de BLUE en Circulación</h4>
-                <p class="stat-value saldo-blue-text">${stats.totalBlue.toLocaleString('es-ES')}</p>
+                <p class="stat-value saldo-blue-text">${formatBalance(stats.totalBlue)}</p>
             </div>
             <div class="stat-card">
                 <h4>Total de RED en Circulación</h4>
-                <p class="stat-value saldo-red-text">${stats.totalRed.toLocaleString('es-ES')}</p>
+                <p class="stat-value saldo-red-text">${formatBalance(stats.totalRed)}</p>
             </div>
         `;
     }
@@ -364,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="username-cell">
                     <a href="profile.html?user=${debtor.username}" target="_blank">${debtor.username}</a>
                 </td>
-                <td class="saldo-red-text">${parseInt(debtor.total_penalized_debt).toLocaleString('es-ES')}</td>
+                <td class="saldo-red-text">${formatBalance(debtor.total_penalized_debt)}</td>
                 <td>${debtor.penalized_debts_count}</td>
             </tr>
         `;
