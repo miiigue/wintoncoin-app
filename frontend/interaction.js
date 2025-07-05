@@ -39,11 +39,16 @@ document.addEventListener('DOMContentLoaded', () => {
         closePublicationTypeModalBtn: document.querySelector('.publication-type-close'),
         // --- Elementos para el contador de deuda ---
         debtCountdownContainer: document.getElementById('debt-countdown-container'),
-        debtCountdownTimer: document.getElementById('debt-countdown-timer')
+        debtCountdownTimer: document.getElementById('debt-countdown-timer'),
+        // --- Elementos para el contador de escrow ---
+        saldoEscrowBlue: document.getElementById('saldoEscrowBlue'),
+        escrowCountdownContainer: document.getElementById('escrow-countdown-container'),
+        escrowCountdownTimer: document.getElementById('escrow-countdown-timer')
     };
 
     // Variable global para el intervalo del contador, para poder detenerlo
     let debtCountdownInterval = null;
+    let escrowCountdownInterval = null;
 
     // --- Lógica de Control de Funcionalidades ---
     // Escuchamos el evento personalizado para actualizar la UI según los permisos
@@ -72,6 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Mostramos los saldos guardados en la sesión inmediatamente.
     // La función fetchAndDisplayBalances los actualizará después con los datos más recientes.
     elements.saldoBlue.textContent = sessionStorage.getItem('blue_balance') || '0';
+    elements.saldoEscrowBlue.textContent = sessionStorage.getItem('escrow_blue_balance') || '0';
     elements.saldoRed.textContent = sessionStorage.getItem('red_balance') || '0';
 
     // Carga inicial y configuración de listeners
@@ -124,8 +130,9 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.burnTriggerBtn.addEventListener('click', () => {
             // Actualizamos los saldos en el modal cada vez que se abre
             const blueBalance = sessionStorage.getItem('blue_balance') || '0';
+            const escrowBlueBalance = sessionStorage.getItem('escrow_blue_balance') || '0';
             const redBalance = sessionStorage.getItem('red_balance') || '0';
-            elements.burnModalBlue.textContent = `${blueBalance} BLUE`;
+            elements.burnModalBlue.innerHTML = `Líquido: <span class="saldo-blue-text">${blueBalance} BLUE</span><br>Bloqueado: <span class="saldo-escrow-text">${escrowBlueBalance} BLUE</span>`;
             elements.burnModalRed.textContent = `${redBalance} RED`;
             
             elements.burnModal.style.display = 'flex';
@@ -170,6 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Limpiamos todos los datos de la sesión al salir
         sessionStorage.removeItem('username');
         sessionStorage.removeItem('blue_balance');
+        sessionStorage.removeItem('escrow_blue_balance');
         sessionStorage.removeItem('red_balance');
         showCustomAlert('Has cerrado la sesión.', () => {
         window.location.href = 'index.html';
@@ -616,8 +624,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 const balances = await response.json();
                 elements.saldoBlue.textContent = balances.blue_balance;
+                elements.saldoEscrowBlue.textContent = balances.escrow_blue_balance;
                 elements.saldoRed.textContent = balances.red_balance;
                 sessionStorage.setItem('blue_balance', balances.blue_balance);
+                sessionStorage.setItem('escrow_blue_balance', balances.escrow_blue_balance);
                 sessionStorage.setItem('red_balance', balances.red_balance);
 
                 // --- Lógica del Contador de Deuda ---
@@ -629,12 +639,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (debtCountdownInterval) clearInterval(debtCountdownInterval);
                     elements.debtCountdownContainer.style.display = 'none';
                 }
+
+                // --- Lógica del Contador de Escrow ---
+                if (balances.next_unlock_at && balances.escrow_blue_balance > 0) {
+                    startEscrowCountdown(balances.next_unlock_at);
+                    elements.escrowCountdownContainer.style.display = 'block';
+                } else {
+                    // Si no hay fecha de liberación, nos aseguramos de que el contador esté oculto y detenido.
+                    if (escrowCountdownInterval) clearInterval(escrowCountdownInterval);
+                    elements.escrowCountdownContainer.style.display = 'none';
+                }
+
             }
         } catch (error) {
             console.error('Error al obtener los saldos:', error);
             // Si falla la carga, también ocultamos el contador para evitar mostrar datos incorrectos
             if (debtCountdownInterval) clearInterval(debtCountdownInterval);
             if (elements.debtCountdownContainer) elements.debtCountdownContainer.style.display = 'none';
+            if (escrowCountdownInterval) clearInterval(escrowCountdownInterval);
+            if (elements.escrowCountdownContainer) elements.escrowCountdownContainer.style.display = 'none';
         }
     }
 
@@ -788,5 +811,45 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTimer(); 
         // Y luego la configuramos para que se repita.
         debtCountdownInterval = setInterval(updateTimer, 1000);
+    }
+
+    /**
+     * Inicia y actualiza el contador de liberación de escrow cada segundo.
+     * @param {string} unlockDateString La fecha de liberación en formato ISO (viene del backend).
+     */
+    function startEscrowCountdown(unlockDateString) {
+        if (escrowCountdownInterval) {
+            clearInterval(escrowCountdownInterval);
+        }
+
+        const unlockDate = new Date(unlockDateString);
+
+        const updateTimer = () => {
+            const now = new Date();
+            const distance = unlockDate - now;
+
+            if (distance < 0) {
+                clearInterval(escrowCountdownInterval);
+                elements.escrowCountdownTimer.textContent = "¡LIBERANDO!";
+                // Forzamos una recarga de datos para que el sistema procese la liberación.
+                setTimeout(loadAllData, 2000); // Pequeña espera antes de recargar
+                return;
+            }
+
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            const fDays = String(days).padStart(2, '0');
+            const fHours = String(hours).padStart(2, '0');
+            const fMinutes = String(minutes).padStart(2, '0');
+            const fSeconds = String(seconds).padStart(2, '0');
+            
+            elements.escrowCountdownTimer.textContent = `${fDays}d : ${fHours}h : ${fMinutes}m : ${fSeconds}s`;
+        };
+
+        updateTimer();
+        escrowCountdownInterval = setInterval(updateTimer, 1000);
     }
 }); 

@@ -212,7 +212,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <thead>
                     <tr>
                         <th>Usuario</th>
-                        <th>Saldo BLUE</th>
+                        <th>Saldo BLUE (Líquido)</th>
+                        <th>Saldo BLUE (Bloqueado)</th>
                         <th>Saldo RED</th>
                         <th>Calificación</th>
                         <th>Fecha de Registro</th>
@@ -239,7 +240,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="username-cell">
                     <a href="profile.html?user=${user.username}" target="_blank">${user.username}</a>
                 </td>
-                <td class="saldo-blue-text">${user.blue_balance}</td>
+                <td class="saldo-blue-text">${user.liquid_blue_balance}</td>
+                <td class="saldo-escrow-text">${user.escrow_blue_balance}</td>
                 <td class="saldo-red-text">${user.red_balance}</td>
                 <td>${ratingHTML}</td>
                 <td>${registrationDate}</td>
@@ -290,6 +292,11 @@ document.addEventListener('DOMContentLoaded', () => {
             'debt_cycle_days': {
                 title: 'Duración del Ciclo de Deuda (en días)',
                 description: 'Establece cuántos días tiene un usuario para quemar un lote de tokens RED antes de que venza.',
+                type: 'number'
+            },
+            'blue_escrow_days': {
+                title: 'Duración del Depósito BLUE (en días)',
+                description: 'Establece cuántos días permanecen los tokens BLUE en el saldo bloqueado (escrow) antes de liberarse.',
                 type: 'number'
             }
         };

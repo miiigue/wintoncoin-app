@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Guardamos los datos del usuario en sessionStorage para usarlos en otras páginas
                     sessionStorage.setItem('username', result.username);
                     sessionStorage.setItem('blue_balance', result.blue_balance);
+                    sessionStorage.setItem('escrow_blue_balance', result.escrow_blue_balance);
                     sessionStorage.setItem('red_balance', result.red_balance);
 
                     // Redirigimos al usuario a la página principal de la aplicación

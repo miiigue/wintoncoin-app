@@ -298,6 +298,10 @@ input:checked + .slider:before {
     text-decoration: underline;
 }
 
+.admin-table .saldo-escrow-text {
+    color: #8e44ad;
+}
+
 .admin-table .rating-cell .stars {
     color: #ffc107;
 }

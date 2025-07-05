@@ -44,8 +44,16 @@
         
         <div class="saldo-container">
             <div class="saldo-item">
-                <p>Saldo BLUE</p>
+                <p>Saldo BLUE (Líquido)</p>
                 <span id="saldoBlue">--</span>
+            </div>
+            <div class="saldo-item">
+                <p>Saldo BLUE (Bloqueado)</p>
+                <span id="saldoEscrowBlue">--</span>
+                <div id="escrow-countdown-container" class="escrow-countdown" style="display: none;">
+                    <p>Próxima Liberación:</p>
+                    <span id="escrow-countdown-timer">--:--:--:--</span>
+                </div>
             </div>
             <div class="saldo-item">
                 <p>Saldo RED</p>

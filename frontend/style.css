@@ -116,10 +116,11 @@ a:hover {
 
 /* --- Estilos para la Página de Interacción --- */
 .saldo-container {
-    display: flex;
-    justify-content: space-around;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
     background-color: var(--background-color);
-    padding: 1rem;
+    padding: 1.5rem;
     border-radius: 10px;
     margin-bottom: 2rem;
 }
@@ -168,7 +169,29 @@ a:hover {
     100% { transform: scale(1); opacity: 1; }
 }
 
+.escrow-countdown {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed var(--admin-border);
+}
+
+.escrow-countdown p {
+    margin: 0 0 0.25rem 0;
+    font-size: 0.8rem;
+    font-weight: 300;
+    color: var(--text-secondary-color);
+}
+
+#escrow-countdown-timer {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2ecc71; /* Verde para la liberación */
+    letter-spacing: 1.5px;
+}
+
 #saldoBlue { color: #3498db; }
+#saldoEscrowBlue { color: #8e44ad; } /* Púrpura para el saldo en escrow */
 #saldoRed { color: #e74c3c; }
 
 hr {
@@ -599,6 +622,7 @@ hr {
 }
 
 .saldo-blue-text { color: #3498db; }
+.saldo-escrow-text { color: #8e44ad; }
 .saldo-red-text { color: #e74c3c; }
 
 .burn-trigger {

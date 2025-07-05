@@ -58,7 +58,8 @@ async function initializeDatabase() {
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(255) UNIQUE NOT NULL,
                 password TEXT NOT NULL,
-                blue_balance INTEGER NOT NULL DEFAULT 0,
+                liquid_blue_balance INTEGER NOT NULL DEFAULT 0,
+                escrow_blue_balance INTEGER NOT NULL DEFAULT 0,
                 red_balance INTEGER NOT NULL DEFAULT 0,
                 average_rating REAL NOT NULL DEFAULT 0,
                 ratings_count INTEGER NOT NULL DEFAULT 0,
@@ -172,7 +173,8 @@ async function initializeDatabase() {
                 ('allow_new_registrations', 'true'),
                 ('allow_new_publications', 'true'),
                 ('debt_system_enabled', 'false'),
-                ('debt_cycle_days', '30')
+                ('debt_cycle_days', '30'),
+                ('blue_escrow_days', '7')
             ON CONFLICT (setting_key) DO NOTHING;
         `);
         console.log("Configuraciones por defecto aseguradas en 'app_settings'.");
@@ -232,6 +234,53 @@ async function initializeDatabase() {
         } catch(e) {
             // Si la constraint no existe con ese nombre, podría fallar, lo ignoramos y continuamos.
             console.warn("Advertencia al intentar migrar la llave foránea de ratings. Puede que ya estuviera correcta.", e.message);
+        }
+
+        // --- MIGRACIÓN Y CREACIÓN PARA EL SISTEMA DE ESCROW DE TOKENS BLUE ---
+
+        // 1. Crear la nueva tabla blue_token_escrows
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS blue_token_escrows (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                amount INTEGER NOT NULL CHECK (amount > 0),
+                unlock_at TIMESTAMPTZ NOT NULL,
+                is_released BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        `);
+        console.log("Tabla 'blue_token_escrows' asegurada.");
+
+        // 2. Migrar la tabla 'users' para los nuevos balances
+        const liquidBalanceCheck = await client.query(`
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name='users' AND column_name='liquid_blue_balance'
+        `);
+
+        if (liquidBalanceCheck.rowCount === 0) {
+            console.log("MIGRACIÓN: La columna 'liquid_blue_balance' no existe. Migrando 'blue_balance'...");
+            const oldBalanceCheck = await client.query(`
+                SELECT 1 FROM information_schema.columns 
+                WHERE table_name='users' AND column_name='blue_balance'
+            `);
+            if (oldBalanceCheck.rowCount > 0) {
+                await client.query(`ALTER TABLE users RENAME COLUMN blue_balance TO liquid_blue_balance;`);
+                console.log("MIGRACIÓN: Columna 'blue_balance' renombrada a 'liquid_blue_balance'.");
+            } else {
+                await client.query(`ALTER TABLE users ADD COLUMN liquid_blue_balance INTEGER NOT NULL DEFAULT 0;`);
+                console.log("MIGRACIÓN: Creada columna 'liquid_blue_balance' porque no se encontró ninguna versión anterior.");
+            }
+        }
+
+        const escrowBalanceCheck = await client.query(`
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name='users' AND column_name='escrow_blue_balance'
+        `);
+
+        if (escrowBalanceCheck.rowCount === 0) {
+            console.log("MIGRACIÓN: La columna 'escrow_blue_balance' no existe. Añadiéndola a 'users'...");
+            await client.query(`ALTER TABLE users ADD COLUMN escrow_blue_balance INTEGER NOT NULL DEFAULT 0;`);
+            console.log("MIGRACIÓN: Columna 'escrow_blue_balance' añadida exitosamente.");
         }
 
         await client.query('COMMIT'); // Finalizar transacción
@@ -301,7 +350,8 @@ app.post('/register', async (req, res) => {
                 res.status(200).json({
                     message: "Inicio de sesión exitoso.",
                     username: user.username,
-                    blue_balance: user.blue_balance,
+                    blue_balance: user.liquid_blue_balance,
+                    escrow_blue_balance: user.escrow_blue_balance,
                     red_balance: user.red_balance
                 });
             } else {
@@ -613,15 +663,18 @@ app.post('/register', async (req, res) => {
 
                 const { blue_cost: cost, is_sell_post, title, author_username: author, acceptance_id } = acceptance;
 
+                // Obtenemos la configuración de días para las deudas y el escrow
+                const settingsResult = await client.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key IN ('debt_cycle_days', 'blue_escrow_days')`);
+                const settings = settingsResult.rows.reduce((acc, row) => ({...acc, [row.setting_key]: row.setting_value }), {});
+                const debtCycleDays = parseInt(settings.debt_cycle_days || '30', 10);
+                const blueEscrowDays = parseInt(settings.blue_escrow_days || '7', 10);
+
                 // 2. Realizamos la lógica de transferencia de tokens y transacciones
                 const insertTxSql = `INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id) VALUES ($1, $2, $3, $4, $5, $6)`;
                 
                 if (is_sell_post) {
                     // Venta: Comprador (worker) recibe RED.
                     // ¡AQUÍ SE GENERA UNA DEUDA RED!
-                    const settingsResult = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'debt_cycle_days'`);
-                    const debtCycleDays = parseInt(settingsResult.rows[0]?.setting_value || '30', 10);
-                    
                     await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE username = $2`, [cost, workerUsername]);
                     await client.query(
                         `INSERT INTO red_token_debts (username, amount, due_at) VALUES ($1, $2, NOW() + INTERVAL '${debtCycleDays} days')`,
@@ -629,15 +682,16 @@ app.post('/register', async (req, res) => {
                     );
                     await client.query(insertTxSql, [workerUsername, 'purchase_completed', `Compraste: "${title}"`, 0, cost, pubId]);
                     
-                    // Vendedor (author) recibe BLUE.
-                    await client.query(`UPDATE users SET blue_balance = blue_balance + $1 WHERE username = $2`, [cost, author]);
+                    // Vendedor (author) recibe BLUE, pero ahora en ESCROW.
+                    await client.query(`UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE username = $2`, [cost, author]);
+                    await client.query(
+                        `INSERT INTO blue_token_escrows (username, amount, unlock_at) VALUES ($1, $2, NOW() + INTERVAL '${blueEscrowDays} days')`,
+                        [author, cost]
+                    );
                     await client.query(insertTxSql, [author, 'sale_completed', `Vendiste: "${title}"`, cost, 0, pubId]);
                 } else {
                     // Trabajo: Pagador (author) recibe RED.
                     // ¡AQUÍ SE GENERA UNA DEUDA RED!
-                    const settingsResult = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'debt_cycle_days'`);
-                    const debtCycleDays = parseInt(settingsResult.rows[0]?.setting_value || '30', 10);
-
                     await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE username = $2`, [cost, author]);
                     await client.query(
                         `INSERT INTO red_token_debts (username, amount, due_at) VALUES ($1, $2, NOW() + INTERVAL '${debtCycleDays} days')`,
@@ -645,8 +699,12 @@ app.post('/register', async (req, res) => {
                     );
                     await client.query(insertTxSql, [author, 'payment_sent', `Solicitaste: "${title}"`, 0, cost, pubId]);
                     
-                    // Trabajador (worker) recibe BLUE.
-                    await client.query(`UPDATE users SET blue_balance = blue_balance + $1 WHERE username = $2`, [cost, workerUsername]);
+                    // Trabajador (worker) recibe BLUE, pero ahora en ESCROW.
+                    await client.query(`UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE username = $2`, [cost, workerUsername]);
+                    await client.query(
+                        `INSERT INTO blue_token_escrows (username, amount, unlock_at) VALUES ($1, $2, NOW() + INTERVAL '${blueEscrowDays} days')`,
+                        [workerUsername, cost]
+                    );
                     await client.query(insertTxSql, [workerUsername, 'payment_received', `Realizaste: "${title}"`, cost, 0, pubId]);
                 }
                 
@@ -707,62 +765,79 @@ app.post('/users/burn', async (req, res) => {
     try {
         await client.query('BEGIN');
         
-        // 1. Verificar si el usuario tiene suficientes balances (chequeo rápido)
-        const userResult = await client.query(`SELECT blue_balance, red_balance FROM users WHERE username = $1 FOR UPDATE`, [username]);
-        const user = userResult.rows[0];
-        if (!user) throw { status: 404, message: "Usuario no encontrado." };
-        if (user.blue_balance < amountToBurn || user.red_balance < amountToBurn) {
-            throw { status: 400, message: "No tienes suficientes BLUE o RED para quemar esta cantidad." };
+        // 1. Obtener deudas pendientes del usuario (las más antiguas primero, FIFO)
+        // y el balance de RED para un chequeo inicial.
+        const userCheckResult = await client.query('SELECT red_balance FROM users WHERE username = $1', [username]);
+        if (userCheckResult.rowCount === 0) throw { status: 404, message: "Usuario no encontrado." };
+        if (userCheckResult.rows[0].red_balance < amountToBurn) {
+             throw { status: 400, message: `No tienes suficientes RED para quemar ${amountToBurn}. Tienes ${userCheckResult.rows[0].red_balance}.` };
         }
 
-        // 2. Obtener todas las deudas pendientes del usuario, las más antiguas primero (FIFO)
         const debtsResult = await client.query(
             `SELECT id, amount FROM red_token_debts WHERE username = $1 AND is_settled = FALSE ORDER BY due_at ASC FOR UPDATE`,
             [username]
         );
         const debts = debtsResult.rows;
 
-        let remainingToBurn = amountToBurn;
+        // 2. Iterar sobre las deudas para ver cuánto se puede saldar realmente
+        let remainingToSettle = amountToBurn;
         let totalSettledAmount = 0;
 
-        // 3. Iterar sobre las deudas y saldarlas
         for (const debt of debts) {
-            if (remainingToBurn <= 0) break;
-
-            const amountToSettleFromThisDebt = Math.min(remainingToBurn, debt.amount);
+            if (remainingToSettle <= 0) break;
+            const amountToSettleFromThisDebt = Math.min(remainingToSettle, debt.amount);
             
             totalSettledAmount += amountToSettleFromThisDebt;
-            remainingToBurn -= amountToSettleFromThisDebt;
+            remainingToSettle -= amountToSettleFromThisDebt;
             const newDebtAmount = debt.amount - amountToSettleFromThisDebt;
 
             if (newDebtAmount <= 0) {
-                // Si la deuda se liquida por completo, se marca como saldada
                 await client.query(`UPDATE red_token_debts SET is_settled = TRUE, amount = 0 WHERE id = $1`, [debt.id]);
             } else {
-                // Si se liquida parcialmente, solo se actualiza la cantidad
                 await client.query(`UPDATE red_token_debts SET amount = $1 WHERE id = $2`, [newDebtAmount, debt.id]);
             }
         }
         
-        // 4. Asegurarse de que el total a quemar no exceda la deuda real del usuario.
-        if (amountToBurn > totalSettledAmount) {
-            // Esto puede pasar si el usuario intenta quemar más RED del que realmente debe según la tabla de deudas.
-            // En este caso, quemamos solo lo que realmente debe.
-            console.warn(`Intento de quema de ${amountToBurn} por ${username}, pero solo debe ${totalSettledAmount}. Se ajustará la quema.`);
-        }
-        const finalBurnAmount = totalSettledAmount; // Quemamos lo que realmente se pudo saldar
+        // La cantidad final a quemar es lo que realmente se pudo saldar de la deuda
+        const finalBurnAmount = totalSettledAmount;
 
         if (finalBurnAmount <= 0) {
-            throw { status: 400, message: "No tienes deudas pendientes para quemar." };
+            throw { status: 400, message: "No tienes deudas pendientes que coincidan con la cantidad a quemar, o el monto es cero." };
+        }
+        
+        // 3. NUEVA LÓGICA DE QUEMA DE BLUE (con prioridad de escrow)
+        const userBalancesResult = await client.query(`SELECT liquid_blue_balance, escrow_blue_balance FROM users WHERE username = $1 FOR UPDATE`, [username]);
+        const user = userBalancesResult.rows[0];
+        const totalBlueAvailable = user.liquid_blue_balance + user.escrow_blue_balance;
+        
+        if (totalBlueAvailable < finalBurnAmount) {
+            throw { status: 400, message: `No tienes suficientes BLUE para cubrir la deuda de ${finalBurnAmount}. Tienes ${totalBlueAvailable}.` };
         }
 
-        // 5. Actualizar los saldos del usuario en la tabla 'users'
+        let blueRemainingToBurn = finalBurnAmount;
+        let burnedFromEscrow = 0;
+        let burnedFromLiquid = 0;
+
+        if (user.escrow_blue_balance > 0) {
+            burnedFromEscrow = Math.min(blueRemainingToBurn, user.escrow_blue_balance);
+            blueRemainingToBurn -= burnedFromEscrow;
+        }
+
+        if (blueRemainingToBurn > 0) {
+            burnedFromLiquid = Math.min(blueRemainingToBurn, user.liquid_blue_balance);
+        }
+
+        // 4. Actualizar los saldos del usuario en la tabla 'users'
         await client.query(
-            `UPDATE users SET blue_balance = blue_balance - $1, red_balance = red_balance - $1 WHERE username = $2`,
-            [finalBurnAmount, username]
+            `UPDATE users 
+             SET liquid_blue_balance = liquid_blue_balance - $1,
+                 escrow_blue_balance = escrow_blue_balance - $2, 
+                 red_balance = red_balance - $3 
+             WHERE username = $4`,
+            [burnedFromLiquid, burnedFromEscrow, finalBurnAmount, username]
         );
         
-        // 6. Registrar la transacción de quema
+        // 5. Registrar la transacción de quema
         const burnDesc = `Quemaste ${finalBurnAmount} tokens para saldar deudas.`;
         await client.query(
             `INSERT INTO transactions (username, type, description, blue_change, red_change) VALUES ($1, 'burn', $2, $3, $4)`,
@@ -856,7 +931,9 @@ app.get('/users/:username/history', async (req, res) => {
             
             const client = await pool.connect();
             try {
-                const userSql = `SELECT blue_balance, red_balance FROM users WHERE username = $1`;
+                const userSql = `SELECT liquid_blue_balance, escrow_blue_balance, red_balance FROM users WHERE username = $1`;
+                
+                // Query for next RED debt
                 const debtSql = `
                     SELECT due_at 
                     FROM red_token_debts 
@@ -864,10 +941,20 @@ app.get('/users/:username/history', async (req, res) => {
                     ORDER BY due_at ASC 
                     LIMIT 1
                 `;
+
+                // Query for next BLUE escrow release
+                const escrowSql = `
+                    SELECT unlock_at
+                    FROM blue_token_escrows
+                    WHERE username = $1 AND is_released = FALSE
+                    ORDER BY unlock_at ASC
+                    LIMIT 1
+                `;
                 
-                const [userResult, debtResult] = await Promise.all([
+                const [userResult, debtResult, escrowResult] = await Promise.all([
                     client.query(userSql, [username]),
-                    client.query(debtSql, [username])
+                    client.query(debtSql, [username]),
+                    client.query(escrowSql, [username])
                 ]);
 
                 if (userResult.rows.length === 0) {
@@ -875,8 +962,11 @@ app.get('/users/:username/history', async (req, res) => {
                 }
 
                 const responseData = {
-                    ...userResult.rows[0],
-                    next_due_at: debtResult.rows[0]?.due_at || null // Añade la fecha de vencimiento o null
+                    blue_balance: userResult.rows[0].liquid_blue_balance,
+                    escrow_blue_balance: userResult.rows[0].escrow_blue_balance,
+                    red_balance: userResult.rows[0].red_balance,
+                    next_due_at: debtResult.rows[0]?.due_at || null, // Añade la fecha de vencimiento o null
+                    next_unlock_at: escrowResult.rows[0]?.unlock_at || null // Añade la fecha de liberación o null
                 };
                 
                 res.status(200).json(responseData);
@@ -1161,7 +1251,8 @@ app.get('/users/:username/history', async (req, res) => {
                     SELECT 
                         id, 
                         username, 
-                        blue_balance, 
+                        liquid_blue_balance, 
+                        escrow_blue_balance,
                         red_balance, 
                         average_rating, 
                         ratings_count,
@@ -1224,7 +1315,7 @@ app.get('/users/:username/history', async (req, res) => {
                         WHERE pa.status IS NULL OR pa.status != 'confirmed_paid'
                     `),
                     // 3. Sumar todos los tokens en circulación
-                    client.query('SELECT SUM(blue_balance) AS total_blue, SUM(red_balance) AS total_red FROM users')
+                    client.query('SELECT SUM(liquid_blue_balance + escrow_blue_balance) AS total_blue, SUM(red_balance) AS total_red FROM users')
                 ]);
 
                 const stats = {
@@ -1287,11 +1378,11 @@ app.listen(PORT, () => {
                 for (const debt of overdueDebtsResult.rows) {
                     if (currentUser !== debt.username) {
                         if (currentUser) {
-                            await client.query('UPDATE users SET blue_balance = $1, red_balance = $2 WHERE username = $3', [userBalances.blue, userBalances.red, currentUser]);
+                            await client.query('UPDATE users SET liquid_blue_balance = $1, red_balance = $2 WHERE username = $3', [userBalances.blue, userBalances.red, currentUser]);
                         }
                         currentUser = debt.username;
-                        const userResult = await client.query('SELECT blue_balance, red_balance FROM users WHERE username = $1 FOR UPDATE', [currentUser]);
-                        userBalances = { blue: userResult.rows[0].blue_balance, red: userResult.rows[0].red_balance };
+                        const userResult = await client.query('SELECT liquid_blue_balance, red_balance FROM users WHERE username = $1 FOR UPDATE', [currentUser]);
+                        userBalances = { blue: userResult.rows[0].liquid_blue_balance, red: userResult.rows[0].red_balance };
                         console.log(`[Debt Collector] Procesando a ${currentUser} con ${userBalances.blue} BLUE y ${userBalances.red} RED.`);
                     }
 
@@ -1318,7 +1409,7 @@ app.listen(PORT, () => {
                 }
 
                 if (currentUser) {
-                    await client.query('UPDATE users SET blue_balance = $1, red_balance = $2 WHERE username = $3', [userBalances.blue, userBalances.red, currentUser]);
+                    await client.query('UPDATE users SET liquid_blue_balance = $1, red_balance = $2 WHERE username = $3', [userBalances.blue, userBalances.red, currentUser]);
                 }
 
                 await client.query('COMMIT');
@@ -1331,6 +1422,83 @@ app.listen(PORT, () => {
                 if (client) client.release();
             }
         }, DEBT_COLLECTOR_INTERVAL_MS);
+
+        // --- PROCESO AUTOMÁTICO DE LIBERACIÓN DE TOKENS (LIBERADOR) ---
+        // Se ejecuta cada 4 minutos para no solaparse exactamente con el colector
+        const TOKEN_RELEASER_INTERVAL_MS = 4 * 60 * 1000;
+
+        setInterval(async () => {
+            const client = await pool.connect();
+            try {
+                console.log('[Token Releaser] Iniciando ciclo de liberación de tokens BLUE en escrow...');
+                await client.query('BEGIN');
+
+                // 1. Encontrar todos los escrows listos para ser liberados y bloquearlos para la transacción
+                const releasableEscrowsResult = await client.query(`
+                    SELECT id, username, amount
+                    FROM blue_token_escrows
+                    WHERE unlock_at <= NOW() AND is_released = FALSE
+                    FOR UPDATE
+                `);
+                
+                const escrows = releasableEscrowsResult.rows;
+
+                if (escrows.length === 0) {
+                    console.log('[Token Releaser] No se encontraron tokens para liberar. Ciclo finalizado.');
+                    await client.query('COMMIT');
+                    return;
+                }
+
+                // 2. Agregar los montos por usuario para eficiencia
+                const userUpdateMap = new Map();
+                for (const escrow of escrows) {
+                    const currentAmount = userUpdateMap.get(escrow.username) || 0;
+                    userUpdateMap.set(escrow.username, currentAmount + escrow.amount);
+                }
+
+                // 3. Actualizar balances, notificaciones y transacciones por cada usuario
+                for (const [username, totalAmount] of userUpdateMap.entries()) {
+                    // Mover los tokens de escrow a líquido
+                    await client.query(
+                        `UPDATE users 
+                         SET liquid_blue_balance = liquid_blue_balance + $1, 
+                             escrow_blue_balance = escrow_blue_balance - $1 
+                         WHERE username = $2`,
+                        [totalAmount, username]
+                    );
+
+                    // Registrar la transacción
+                    const desc = `Se liberaron ${totalAmount} BLUE de tu saldo bloqueado.`;
+                    await client.query(
+                        `INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'escrow_release', $2, $3)`,
+                        [username, desc, totalAmount]
+                    );
+                    
+                    // Notificar al usuario
+                    await client.query(
+                        `INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`,
+                        [username, `¡Buenas noticias! ${desc}`]
+                    );
+                    console.log(`[Token Releaser] Liberados ${totalAmount} BLUE para el usuario ${username}.`);
+                }
+
+                // 4. Marcar todos los escrows procesados como liberados
+                const escrowIds = escrows.map(e => e.id);
+                await client.query(
+                    `UPDATE blue_token_escrows SET is_released = TRUE WHERE id = ANY($1::int[])`,
+                    [escrowIds]
+                );
+
+                await client.query('COMMIT');
+                console.log(`[Token Releaser] Ciclo finalizado. Se procesaron ${escrows.length} registros de escrow para ${userUpdateMap.size} usuarios.`);
+
+            } catch (error) {
+                console.error('[Token Releaser] Error durante el ciclo de liberación, revirtiendo cambios:', error);
+                await client.query('ROLLBACK');
+            } finally {
+                if (client) client.release();
+            }
+        }, TOKEN_RELEASER_INTERVAL_MS);
 
     } catch (err) {
         console.error("Error fatal al iniciar el servidor:", err);
