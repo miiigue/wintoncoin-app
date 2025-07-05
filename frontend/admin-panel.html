@@ -4,8 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel de Administración - Winton Coin</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="admin-style.css"> <!-- Hoja de estilos específica para el panel -->
+    <link id="main-stylesheet" rel="stylesheet" href="style.css">
+    <link id="admin-stylesheet" rel="stylesheet" href="admin-style.css"> <!-- Hoja de estilos específica para el panel -->
+    <script>
+        document.getElementById('main-stylesheet').href = `style.css?v=${new Date().getTime()}`;
+        document.getElementById('admin-stylesheet').href = `admin-style.css?v=${new Date().getTime()}`;
+    </script>
 </head>
 <body>
     <div class="admin-grid-container">

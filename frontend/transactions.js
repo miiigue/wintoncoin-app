@@ -76,13 +76,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    /**
+     * Formatea un número para que sea positivo o negativo, añadiendo el signo,
+     * y ahora también aplicando el estilo a los decimales.
+     * @param {number|string} change El valor a formatear.
+     * @returns {string} El HTML formateado.
+     */
     function formatChange(change) {
-        if (change > 0) {
-            return { text: `+${change}`, className: 'positive-change' };
-        } else if (change < 0) {
-            return { text: `${change}`, className: 'negative-change' };
+        const num = parseFloat(change);
+        if (isNaN(num) || num === 0) {
+            return `<span class="no-change">0,0000</span>`;
+        }
+
+        const formattedString = Math.abs(num).toLocaleString('es-ES', {
+            minimumFractionDigits: 4,
+            maximumFractionDigits: 4
+        });
+        
+        let styledString = formattedString;
+        const parts = formattedString.split(',');
+        if (parts.length === 2) {
+            styledString = `${parts[0]},<span class="decimal-part">${parts[1]}</span>`;
+        }
+        
+        if (num > 0) {
+            return `<span class="positive-change">+${styledString}</span>`;
         } else {
-            return { text: '-', className: 'no-change' };
+            return `<span class="negative-change">-${styledString}</span>`;
         }
     }
 }); 

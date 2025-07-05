@@ -154,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <p class="pub-description">${pub.description}</p>
                 <ul class="pub-meta-list">
                     <li>Autor: <strong>${authorNameHTML}</strong></li>
-                    <li>Costo: <strong>${pub.blue_cost} BLUE</strong></li>
+                    <li>Costo: <strong>${formatBalance(pub.blue_cost)} BLUE</strong></li>
                     <li>Estado: <span class="status-badge ${pub.user_acceptance_status}">${statusText}</span></li>
                 </ul>
             </div>
@@ -165,6 +165,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // --- HELPERS ---
+    function formatBalance(value) {
+        const num = Number(value) || 0;
+        const formattedString = num.toLocaleString('es-ES', {
+            minimumFractionDigits: 4,
+            maximumFractionDigits: 4
+        });
+        const parts = formattedString.split(',');
+        if (parts.length === 2) {
+            return `${parts[0]},<span class="decimal-part">${parts[1]}</span>`;
+        }
+        return formattedString;
+    }
+
     function getStatusText(status) {
         const statusMap = {
             'open': 'Abierta',

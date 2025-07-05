@@ -4,10 +4,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function formatBalance(value) {
         const num = Number(value) || 0;
         // Formato español: separador de miles con punto, decimal con coma.
-        return num.toLocaleString('es-ES', {
+        const formattedString = num.toLocaleString('es-ES', {
             minimumFractionDigits: 4,
             maximumFractionDigits: 4
         });
+        const parts = formattedString.split(',');
+        // Si el número tiene decimales, envolvemos la parte decimal en un span para darle estilo.
+        if (parts.length === 2) {
+            return `${parts[0]},<span class="decimal-part">${parts[1]}</span>`;
+        }
+        return formattedString;
     }
 
     // --- Configuración Global ---
@@ -86,9 +92,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Mostramos los saldos guardados en la sesión inmediatamente.
     // La función fetchAndDisplayBalances los actualizará después con los datos más recientes.
-    elements.saldoBlue.textContent = formatBalance(sessionStorage.getItem('blue_balance'));
-    elements.saldoEscrowBlue.textContent = formatBalance(sessionStorage.getItem('escrow_blue_balance'));
-    elements.saldoRed.textContent = formatBalance(sessionStorage.getItem('red_balance'));
+    elements.saldoBlue.innerHTML = formatBalance(sessionStorage.getItem('blue_balance'));
+    elements.saldoEscrowBlue.innerHTML = formatBalance(sessionStorage.getItem('escrow_blue_balance'));
+    elements.saldoRed.innerHTML = formatBalance(sessionStorage.getItem('red_balance'));
 
     // Carga inicial y configuración de listeners
     loadAllData();
@@ -143,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const escrowBlueBalance = sessionStorage.getItem('escrow_blue_balance') || '0';
             const redBalance = sessionStorage.getItem('red_balance') || '0';
             elements.burnModalBlue.innerHTML = `Disponible: <span class="saldo-blue-text">${formatBalance(blueBalance)} BLUE</span><br>Pendientes: <span class="saldo-escrow-text">${formatBalance(escrowBlueBalance)} BLUE</span>`;
-            elements.burnModalRed.textContent = `${formatBalance(redBalance)} RED`;
+            elements.burnModalRed.innerHTML = `${formatBalance(redBalance)} RED`;
             
             elements.burnModal.style.display = 'flex';
         });
@@ -633,9 +639,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${API_URL}/users/${storedUsername}/balance?t=${new Date().getTime()}`);
             if (response.ok) {
                 const balances = await response.json();
-                elements.saldoBlue.textContent = formatBalance(balances.blue_balance);
-                elements.saldoEscrowBlue.textContent = formatBalance(balances.escrow_blue_balance);
-                elements.saldoRed.textContent = formatBalance(balances.red_balance);
+                elements.saldoBlue.innerHTML = formatBalance(balances.blue_balance);
+                elements.saldoEscrowBlue.innerHTML = formatBalance(balances.escrow_blue_balance);
+                elements.saldoRed.innerHTML = formatBalance(balances.red_balance);
                 sessionStorage.setItem('blue_balance', balances.blue_balance);
                 sessionStorage.setItem('escrow_blue_balance', balances.escrow_blue_balance);
                 sessionStorage.setItem('red_balance', balances.red_balance);

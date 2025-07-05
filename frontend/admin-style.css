@@ -309,4 +309,12 @@ input:checked + .slider:before {
 .admin-table .no-rating {
     color: var(--admin-text-secondary);
     font-style: italic;
+}
+
+/* Estilo para los decimales pequeños, aplicado tanto en tablas como en tarjetas de estadísticas */
+.decimal-part {
+    font-size: 0.4em; /* Aún más pequeño para un contraste dramático. */
+    opacity: 0.65;  /* Un poco más transparente. */
+    position: relative;
+    top: 0; /* Se elimina el ajuste vertical que puede desalinear fuentes muy pequeñas. */
 } 

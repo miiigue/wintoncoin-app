@@ -4,10 +4,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function formatBalance(value) {
         const num = Number(value) || 0;
         // Formato español: separador de miles con punto, decimal con coma.
-        return num.toLocaleString('es-ES', {
+        const formattedString = num.toLocaleString('es-ES', {
             minimumFractionDigits: 4,
             maximumFractionDigits: 4
         });
+        const parts = formattedString.split(',');
+        if (parts.length === 2) {
+            return `${parts[0]},<span class="decimal-part">${parts[1]}</span>`;
+        }
+        return formattedString;
     }
 
     // --- Configuración y Estado ---
