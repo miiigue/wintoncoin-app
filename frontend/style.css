@@ -59,7 +59,8 @@ label {
 
 input[type="text"],
 input[type="password"],
-input[type="number"] {
+input[type="number"],
+textarea {
     width: 100%;
     padding: 12px 15px;
     border: 1px solid #2a3b5c;
@@ -67,13 +68,20 @@ input[type="number"] {
     border-radius: 8px;
     color: var(--text-color);
     font-size: 1rem;
+    font-family: 'Poppins', sans-serif;
     box-sizing: border-box; /* Asegura que el padding no afecte el ancho total */
     transition: border-color 0.3s, box-shadow 0.3s;
 }
 
+textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
 input[type="text"]:focus,
 input[type="password"]:focus,
-input[type="number"]:focus {
+input[type="number"]:focus,
+textarea:focus {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 10px rgba(106, 90, 205, 0.5);
@@ -113,10 +121,21 @@ a:hover {
     color: var(--secondary-color);
 }
 
+.embedded-link {
+    font-weight: 600;
+    color: var(--primary-color);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--primary-color);
+}
+
+.embedded-link:hover {
+    text-decoration: underline;
+    color: var(--text-color);
+}
+
 /* Regla ultra-específica y autoritaria para los decimales */
-span .decimal-part {
-    font-size: 0.7em !important; /* Mitad de tamaño, con !important para anular cualquier otra regla */
-    opacity: 0.65;
+.decimal-part {
+    font-size: 0.7em !important;
     vertical-align: super; /* Alinea los decimales como un superíndice, visualmente más atractivo */
 }
 
@@ -956,19 +975,6 @@ hr {
 }
 
 /* Estilos para el textarea de comentarios */
-#ratingForm textarea {
-    width: 100%;
-    padding: 12px 15px;
-    border: 1px solid #2a3b5c;
-    background-color: var(--background-color);
-    border-radius: 8px;
-    color: var(--text-color);
-    font-size: 1rem;
-    box-sizing: border-box;
-    transition: border-color 0.3s, box-shadow 0.3s;
-    resize: vertical; /* Permitir redimensionar verticalmente */
-}
-
 #ratingForm textarea:focus {
     outline: none;
     border-color: var(--primary-color);

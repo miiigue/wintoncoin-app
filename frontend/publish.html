@@ -11,28 +11,28 @@
     <div class="container">
         <h1>Crear Nueva Publicación</h1>
         <h2>Comparte algo nuevo con la comunidad.</h2>
-
+        
         <form id="publishForm">
             <div>
                 <label for="title">Título:</label>
-                <input type="text" id="title" name="title" required>
+                <input type="text" id="title" name="title" required placeholder="Ej: Necesito un logo para mi marca">
+                <small class="input-hint">Un título corto y descriptivo que resuma la tarea.</small>
             </div>
-            
+
             <div>
                 <label for="description">Descripción:</label>
-                <input type="text" id="description" name="description" required>
+                <textarea id="description" name="description" rows="4" required placeholder="Ej: Busco un diseñador para crear un logo moderno y minimalista para mi startup. Los colores principales deben ser azul y blanco..."></textarea>
+                <small class="input-hint">Detalla aquí los requisitos, el alcance y cualquier otra información relevante.</small>
             </div>
             
             <div id="cost-wrapper">
                 <label for="blueCost">Recompensa (en BLUE):</label>
                 <input type="text" inputmode="decimal" id="blueCost" name="blueCost" placeholder="Ej: 12.53" pattern="^[0-9]+([.,][0-9]{1,4})?$">
-                <small class="input-hint">Usa un punto (.) o una coma (,) para los decimales. Máximo 4 decimales.</small>
             </div>
 
             <div id="sell-wrapper">
                 <label for="blueSell">Precio de Venta (en BLUE):</label>
                 <input type="text" inputmode="decimal" id="blueSell" name="blueSell" placeholder="Ej: 50.00" pattern="^[0-9]+([.,][0-9]{1,4})?$">
-                <small class="input-hint">Usa un punto (.) o una coma (,) para los decimales. Máximo 4 decimales.</small>
             </div>
 
             <div>

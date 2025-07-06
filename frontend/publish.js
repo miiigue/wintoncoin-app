@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const authorUsername = sessionStorage.getItem('username');
     if (!authorUsername) {
         showCustomAlert('Debes iniciar sesión para poder publicar.', () => {
-            window.location.href = 'index.html';
+        window.location.href = 'index.html';
         });
         return;
     }
@@ -27,28 +27,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (publicationType === 'request') {
         // Configuración para "Solicitar Ayudante"
-        titleElement.textContent = 'Solicitar un Ayudante/Pagar BLUE';
-        subtitleElement.textContent = 'Describe la tarea y el precio en BLUE que ofreces.';
+        titleElement.textContent = 'Solicitar un Servicio';
+        subtitleElement.style.display = 'none';
         
         costWrapper.style.display = 'block';
-        costWrapper.querySelector('label').textContent = 'Recompensa (en BLUE):';
+        costWrapper.querySelector('label').textContent = 'Pagarás (en BLUE):';
         blueCostInput.required = true;
-
+        
         sellWrapper.style.display = 'none';
         blueSellInput.required = false;
 
     } else if (publicationType === 'sell') {
         // Configuración para "Ofrecer Venta/Servicio"
-        titleElement.textContent = 'Ofrecer un Servicio o Venta';
-        subtitleElement.textContent = 'Describe tu producto o servicio y establece el precio.';
+        titleElement.textContent = 'Ofrecer un Servicio o Producto';
+        subtitleElement.style.display = 'none';
         
         sellWrapper.style.display = 'block';
         sellWrapper.querySelector('label').textContent = 'Precio de Venta (en BLUE):';
         blueSellInput.required = true;
-        
+
         costWrapper.style.display = 'none';
         blueCostInput.required = false;
-
+        
     } else {
         // Redireccionar si no hay un tipo válido o se accede directamente
         showCustomAlert("Acción no especificada. Por favor, elige una opción desde el panel principal.", () => {
@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const blueCost = blueCostInput.value;
         const blueSell = blueSellInput.value;
         const availableSlots = document.getElementById('availableSlots').value;
-
+        
         // La validación 'required' en el input se encarga de que uno de los dos campos tenga valor.
         // Este chequeo es una seguridad adicional.
         if (!blueCost && !blueSell) {
@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (response.ok) {
                 showCustomAlert(result.message, () => {
-                    window.location.href = 'contract_interaction.html'; // Volver al panel para ver la publicación
+                window.location.href = 'contract_interaction.html'; // Volver al panel para ver la publicación
                 });
             } else {
                 showCustomAlert(`Error: ${result.message}`);

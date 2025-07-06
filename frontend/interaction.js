@@ -407,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Necesitaremos una forma de obtener todos los participantes si queremos mostrarlos.
         const acceptor = pub.accepted_by_username || ''; 
         const formattedId = `#${String(pub.id).padStart(7, '0')}`;
-        const rewardText = `${pub.blue_cost} BLUE`;
+        const rewardText = `${formatBalance(pub.blue_cost)} BLUE`;
         const ribbonClass = pub.is_sell_post ? 'sell-ribbon' : '';
         // Mostramos los cupos disponibles.
         const slotsText = pub.available_slots > 0 
@@ -419,15 +419,19 @@ document.addEventListener('DOMContentLoaded', () => {
             ? `<a href="profile.html?user=${pub.author_username}" class="profile-link">${pub.author_username}</a>`
             : pub.author_username;
 
+        const costRibbon = `<div class="cost-ribbon ${ribbonClass}">${rewardText}</div>`;
+
         return `
             <div class="publication-item" data-id="${pub.id}" data-author="${pub.author_username}" data-acceptor="${acceptor}" data-status="${pub.user_acceptance_status || 'open'}">
-                <div class="cost-ribbon ${ribbonClass}">${rewardText}</div>
-                <div class="publication-id">${formattedId}</div>
+                <div class="publication-header">
+                    <div class="publication-id">${formattedId}</div>
+                    ${costRibbon}
+                </div>
                 <h3>${pub.title}</h3>
-                <p class="pub-description">${pub.description}</p>
+                <p class="pub-description">${linkify(pub.description)}</p>
                 <div class="pub-meta">
-                    <span>Autor: <strong>${authorNameHTML}</strong></span>
-                    <span class="rating-display">${ratingHTML}</span>
+                    <span>Autor: <strong>${authorNameHTML}</strong>${ratingHTML}</span>
+                    <span class="slots">Cupos disponibles: <strong>${pub.available_slots}</strong></span>
                 </div>
                 <div class="publication-footer">
                     ${slotsText}
@@ -500,26 +504,26 @@ document.addEventListener('DOMContentLoaded', () => {
                         actionHTML += `<button class="action-button accept" data-id="${pub.id}" data-action="accept">Aceptar Tarea</button>`;
                     } else if (pub.is_paused) {
                         messageHTML = `<div class="status-pending">El autor ha pausado las nuevas solicitudes para esta tarea.</div>`;
-                    } else {
+                } else {
                         messageHTML = `<div class="status-accepted">Todos los cupos para esta tarea están llenos.</div>`;
-                    }
+                }
 
                     // Después, añadimos SIEMPRE el botón de ocultar para darle control al usuario.
                     actionHTML += `<button class="action-button hide" data-id="${pub.id}" data-action="hide">Ocultar</button>`;
-                    break;
-                case 'pending_approval':
+                break;
+            case 'pending_approval':
                     actionHTML = `<div class="status-pending">Tu solicitud ha sido enviada. Esperando aprobación del autor.</div>`;
-                    break;
-                case 'approved':
+                break;
+            case 'approved':
                     messageHTML = `<div class="action-message">¡Has sido aprobado! Ahora puedes completar la tarea.</div>`;
                     actionHTML = `<button class="action-button complete" data-id="${pub.id}" data-action="complete">Marcar como Culminada</button>`;
-                    break;
-                case 'completed':
+                break;
+            case 'completed':
                     actionHTML = `<div class="status-progress">Tarea marcada como completada. Esperando confirmación y pago del autor.</div>`;
-                    break;
-                case 'confirmed_paid':
+                break;
+            case 'confirmed_paid':
                     actionHTML = `<div class="status-accepted">¡Felicidades! Esta tarea ha sido finalizada y pagada.</div>`;
-                    break;
+                break;
             }
         }
         return { messageHTML, actionHTML };
@@ -660,7 +664,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (balances.next_unlock_at && balances.escrow_blue_balance > 0) {
                     startEscrowCountdown(balances.next_unlock_at);
                     elements.escrowCountdownContainer.style.display = 'block';
-                } else {
+            } else {
                     // Si no hay fecha de liberación, nos aseguramos de que el contador esté oculto y detenido.
                     if (escrowCountdownInterval) clearInterval(escrowCountdownInterval);
                     elements.escrowCountdownContainer.style.display = 'none';
@@ -804,7 +808,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.debtCountdownTimer.classList.add('expired');
                 // Forzamos una recarga de datos para que el sistema procese la deuda vencida.
                 setTimeout(loadAllData, 2000); // Pequeña espera antes de recargar
-                return;
+            return;
             }
 
             // Cálculos de tiempo

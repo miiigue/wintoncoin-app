@@ -126,6 +126,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 }); 
 
+/**
+ * Busca texto que parezca un enlace (http, https, www) y lo convierte en una etiqueta <a> clicable.
+ * @param {string} text - El texto a procesar.
+ * @returns {string} El texto con los enlaces convertidos a HTML.
+ */
+function linkify(text) {
+    if (!text) return '';
+    
+    // Primero, escapamos el HTML básico para evitar inyección de XSS simple.
+    // Esto convierte < en &lt;, etc.
+    const escapedText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    // Regex para encontrar URLs.
+    const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])|(\bwww\.[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+
+    return escapedText.replace(urlRegex, function(url) {
+        // Para los enlaces que empiezan con 'www', añadimos 'http://' para que funcionen.
+        const fullUrl = url.startsWith('www.') ? 'http://' + url : url;
+        return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer" class="embedded-link">${url}</a>`;
+    });
+}
+
 // --- Configuración Global de la Aplicación ---
 
 // Guardamos la configuración en una variable global para que todos los scripts puedan acceder a ella.

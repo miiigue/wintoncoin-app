@@ -312,8 +312,7 @@ input:checked + .slider:before {
 }
 
 /* Regla ultra-específica y autoritaria para los decimales */
-span .decimal-part {
-    font-size: 0.7em !important; /* Mitad de tamaño, con !important para anular cualquier otra regla */
-    opacity: 0.65;
+.decimal-part {
+    font-size: 0.7em !important;
     vertical-align: super; /* Alinea los decimales como un superíndice, visualmente más atractivo */
 } 

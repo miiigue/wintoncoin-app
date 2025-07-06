@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function getAuthoredPublicationHTML(pub) {
         return `
             <h3>${pub.title}</h3>
-            <p class="pub-description">${pub.description}</p>
+            <p class="pub-description">${linkify(pub.description)}</p>
             <div class="participants-section">
                 <h4>Participantes</h4>
                 <ul class="participants-list" data-pub-id="${pub.id}"><li class="loading-participants">Cargando...</li></ul>
@@ -151,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return `
             <div class="publication-details">
                 <h3>${pub.title}</h3>
-                <p class="pub-description">${pub.description}</p>
+                <p class="pub-description">${linkify(pub.description)}</p>
                 <ul class="pub-meta-list">
                     <li>Autor: <strong>${authorNameHTML}</strong></li>
                     <li>Costo: <strong>${formatBalance(pub.blue_cost)} BLUE</strong></li>
