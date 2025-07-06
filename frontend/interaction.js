@@ -431,7 +431,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <p class="pub-description">${linkify(pub.description)}</p>
                 <div class="pub-meta">
                     <span>Autor: <strong>${authorNameHTML}</strong>${ratingHTML}</span>
-                    <span class="slots">Cupos disponibles: <strong>${pub.available_slots}</strong></span>
                 </div>
                 <div class="publication-footer">
                     ${slotsText}

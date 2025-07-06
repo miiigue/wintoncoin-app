@@ -251,6 +251,26 @@ async function initializeDatabase() {
         `);
         console.log("Tabla 'blue_token_escrows' asegurada.");
 
+        // --- MIGRACIONES Y SANEAMIENTO DE DATOS ---
+
+        // 1. SANEAMIENTO: Corregir cualquier saldo de escrow negativo existente
+        const fixNegativeResult = await client.query(`UPDATE users SET escrow_blue_balance = 0 WHERE escrow_blue_balance < 0 RETURNING username`);
+        if (fixNegativeResult.rowCount > 0) {
+            const fixedUsers = fixNegativeResult.rows.map(r => r.username).join(', ');
+            console.log(`SANEAMIENTO: Corregidos saldos de escrow negativos para los usuarios: ${fixedUsers}`);
+        }
+
+        // 2. FORTALECIMIENTO: Añadir la restricción CHECK si no existe
+        const constraintCheck = await client.query(`
+            SELECT 1 FROM information_schema.constraint_column_usage
+            WHERE table_name = 'users' AND constraint_name = 'users_escrow_blue_balance_non_negative'
+        `);
+        if (constraintCheck.rowCount === 0) {
+            console.log("FORTALECIMIENTO: Añadiendo restricción CHECK para escrow_blue_balance no negativo...");
+            await client.query(`ALTER TABLE users ADD CONSTRAINT users_escrow_blue_balance_non_negative CHECK (escrow_blue_balance >= 0);`);
+            console.log("FORTALECIMIENTO: Restricción añadida exitosamente.");
+        }
+
         // --- MIGRACIONES PARA DECIMALES ---
         // Este bloque ahora es el único responsable de asegurar que todas las columnas
         // monetarias tengan el tipo NUMERIC(19, 4) correcto.
@@ -1517,7 +1537,7 @@ app.listen(PORT, () => {
                     await client.query(
                         `UPDATE users 
                          SET liquid_blue_balance = liquid_blue_balance + $1, 
-                             escrow_blue_balance = escrow_blue_balance - $1 
+                             escrow_blue_balance = GREATEST(0, escrow_blue_balance - $1)
                          WHERE username = $2`,
                         [totalAmount, username]
                     );
