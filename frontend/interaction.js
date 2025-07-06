@@ -691,7 +691,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${API_URL}/users/burn`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: storedUsername, amount: parseInt(amount) })
+                body: JSON.stringify({ username: storedUsername, amount: amount })
             });
             const result = await response.json();
             showCustomAlert(result.message);

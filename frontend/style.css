@@ -643,11 +643,34 @@ hr {
     width: auto;
     padding: 10px 20px;
     font-size: 1rem;
-    margin-top: 1rem; /* Espacio sobre el botón */
+    margin-top: 1rem;
+    background-color: var(--error-color); /* Rojo claro para una acción destructiva */
+    display: inline-flex; /* Para alinear iconos y texto */
+    align-items: center;
+    justify-content: center;
+    gap: 0.7em; /* Espacio entre los elementos */
 }
 
 .burn-trigger:hover {
+    background-color: #d73a3a; /* Rojo más oscuro en hover */
     transform: translateY(-2px);
+}
+
+.burn-trigger .fire-icon {
+    font-size: 1.2em; /* Icono un poco más grande */
+    line-height: 1; /* Mejor alineamiento vertical */
+    animation: fire-flicker 2s ease-in-out infinite; /* Animación sutil */
+}
+
+@keyframes fire-flicker {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.1) rotate(-5deg);
+        opacity: 0.8;
+    }
 }
 
 /* --- Estilos para la Página de Historial --- */

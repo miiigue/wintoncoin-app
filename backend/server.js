@@ -808,87 +808,99 @@ app.post('/users/burn', async (req, res) => {
     try {
         await client.query('BEGIN');
         
-        // 1. Obtener deudas pendientes del usuario (las más antiguas primero, FIFO)
-        // y el balance de RED para un chequeo inicial.
-        const userCheckResult = await client.query('SELECT red_balance FROM users WHERE username = $1', [username]);
-        if (userCheckResult.rowCount === 0) throw { status: 404, message: "Usuario no encontrado." };
-        if (userCheckResult.rows[0].red_balance < amountToBurn) {
-             throw { status: 400, message: `No tienes suficientes RED para quemar ${amountToBurn}. Tienes ${userCheckResult.rows[0].red_balance}.` };
+        // --- 1. VALIDACIÓN RIGUROSA DE SALDOS ---
+        const userBalancesResult = await client.query(
+            `SELECT liquid_blue_balance, escrow_blue_balance, red_balance FROM users WHERE username = $1 FOR UPDATE`,
+            [username]
+        );
+
+        if (userBalancesResult.rowCount === 0) {
+            throw { status: 404, message: "Usuario no encontrado." };
         }
 
+        const user = userBalancesResult.rows[0];
+        const liquidBlue = parseFloat(user.liquid_blue_balance);
+        const escrowBlue = parseFloat(user.escrow_blue_balance);
+        const totalBlueAvailable = liquidBlue + escrowBlue;
+        const totalRed = parseFloat(user.red_balance);
+
+        if (totalBlueAvailable < amountToBurn) {
+            throw { status: 400, message: `No tienes suficientes tokens BLUE para quemar ${amountToBurn}. Tienes un total de ${totalBlueAvailable.toFixed(4)} (disponibles + pendientes).` };
+        }
+        if (totalRed < amountToBurn) {
+            throw { status: 400, message: `No tienes suficientes tokens RED para quemar ${amountToBurn}. Tienes ${totalRed.toFixed(4)}.` };
+        }
+
+        // --- 2. DEDUCCIÓN ATÓMICA DE BLUE (LÍQUIDO PRIMERO) ---
+        const burnedFromLiquid = Math.min(amountToBurn, liquidBlue);
+        const burnedFromEscrow = amountToBurn - burnedFromLiquid;
+
+        // --- 3. SALDADO DE DEUDAS RED (LÓGICA FIFO) ---
         const debtsResult = await client.query(
             `SELECT id, amount FROM red_token_debts WHERE username = $1 AND is_settled = FALSE ORDER BY due_at ASC FOR UPDATE`,
             [username]
         );
         const debts = debtsResult.rows;
 
-        // 2. Iterar sobre las deudas para ver cuánto se puede saldar realmente
         let remainingToSettle = amountToBurn;
-        let totalSettledAmount = 0;
-
         for (const debt of debts) {
             if (remainingToSettle <= 0) break;
-            const amountToSettleFromThisDebt = Math.min(remainingToSettle, debt.amount);
-            
-            totalSettledAmount += amountToSettleFromThisDebt;
-            remainingToSettle -= amountToSettleFromThisDebt;
-            const newDebtAmount = debt.amount - amountToSettleFromThisDebt;
 
-            if (newDebtAmount <= 0) {
-                await client.query(`UPDATE red_token_debts SET is_settled = TRUE, amount = 0 WHERE id = $1`, [debt.id]);
+            const amountFromThisDebt = Math.min(remainingToSettle, parseFloat(debt.amount));
+            const newDebtAmount = parseFloat(debt.amount) - amountFromThisDebt;
+            
+            if (newDebtAmount < 0.0001) { // Si la deuda se salda por completo...
+                // LA CORRECCIÓN: En lugar de actualizar a 0, eliminamos el registro.
+                await client.query(`DELETE FROM red_token_debts WHERE id = $1`, [debt.id]);
             } else {
                 await client.query(`UPDATE red_token_debts SET amount = $1 WHERE id = $2`, [newDebtAmount, debt.id]);
             }
-        }
-        
-        // La cantidad final a quemar es lo que realmente se pudo saldar de la deuda
-        const finalBurnAmount = totalSettledAmount;
-
-        if (finalBurnAmount <= 0) {
-            throw { status: 400, message: "No tienes deudas pendientes que coincidan con la cantidad a quemar, o el monto es cero." };
-        }
-        
-        // 3. NUEVA LÓGICA DE QUEMA DE BLUE (con prioridad de escrow)
-        const userBalancesResult = await client.query(`SELECT liquid_blue_balance, escrow_blue_balance FROM users WHERE username = $1 FOR UPDATE`, [username]);
-        const user = userBalancesResult.rows[0];
-        const totalBlueAvailable = user.liquid_blue_balance + user.escrow_blue_balance;
-        
-        if (totalBlueAvailable < finalBurnAmount) {
-            throw { status: 400, message: `No tienes suficientes BLUE para cubrir la deuda de ${finalBurnAmount}. Tienes ${totalBlueAvailable}.` };
+            remainingToSettle -= amountFromThisDebt;
         }
 
-        let blueRemainingToBurn = finalBurnAmount;
-        let burnedFromEscrow = 0;
-        let burnedFromLiquid = 0;
+        // --- 3.5. CONSUMO DE LOTES DE ESCROW (LÓGICA FIFO) ---
+        if (burnedFromEscrow > 0.0001) {
+            const escrowLotsResult = await client.query(
+                `SELECT id, amount FROM blue_token_escrows WHERE username = $1 AND is_released = FALSE ORDER BY unlock_at ASC FOR UPDATE`,
+                [username]
+            );
+            const escrowLots = escrowLotsResult.rows;
 
-        if (user.escrow_blue_balance > 0) {
-            burnedFromEscrow = Math.min(blueRemainingToBurn, user.escrow_blue_balance);
-            blueRemainingToBurn -= burnedFromEscrow;
+            let remainingToConsumeFromEscrow = burnedFromEscrow;
+            for (const escrowLot of escrowLots) {
+                if (remainingToConsumeFromEscrow <= 0) break;
+
+                const amountFromThisLot = Math.min(remainingToConsumeFromEscrow, parseFloat(escrowLot.amount));
+                const newEscrowLotAmount = parseFloat(escrowLot.amount) - amountFromThisLot;
+
+                if (newEscrowLotAmount < 0.0001) { // Si el lote de escrow se consume por completo...
+                    await client.query(`DELETE FROM blue_token_escrows WHERE id = $1`, [escrowLot.id]);
+                } else {
+                    await client.query(`UPDATE blue_token_escrows SET amount = $1 WHERE id = $2`, [newEscrowLotAmount, escrowLot.id]);
+                }
+                remainingToConsumeFromEscrow -= amountFromThisLot;
+            }
         }
 
-        if (blueRemainingToBurn > 0) {
-            burnedFromLiquid = Math.min(blueRemainingToBurn, user.liquid_blue_balance);
-        }
-
-        // 4. Actualizar los saldos del usuario en la tabla 'users'
+        // --- 4. ACTUALIZACIÓN FINAL DE SALDOS DEL USUARIO ---
         await client.query(
             `UPDATE users 
              SET liquid_blue_balance = liquid_blue_balance - $1,
                  escrow_blue_balance = escrow_blue_balance - $2, 
                  red_balance = red_balance - $3 
              WHERE username = $4`,
-            [burnedFromLiquid, burnedFromEscrow, finalBurnAmount, username]
+            [burnedFromLiquid, burnedFromEscrow, amountToBurn, username]
         );
         
-        // 5. Registrar la transacción de quema
-        const burnDesc = `Quemaste ${finalBurnAmount} tokens para saldar deudas.`;
+        // --- 5. REGISTRO DE TRANSACCIÓN ---
+        const burnDesc = `Quemaste ${amountToBurn.toFixed(4)} tokens. Se usaron ${burnedFromLiquid.toFixed(4)} BLUE (disponible) y ${burnedFromEscrow.toFixed(4)} BLUE (pendiente).`;
         await client.query(
             `INSERT INTO transactions (username, type, description, blue_change, red_change) VALUES ($1, 'burn', $2, $3, $4)`,
-            [username, burnDesc, -finalBurnAmount, -finalBurnAmount]
+            [username, burnDesc, -amountToBurn, -amountToBurn]
         );
 
         await client.query('COMMIT');
-        res.status(200).json({ message: `Has quemado ${finalBurnAmount} BLUE y ${finalBurnAmount} RED exitosamente.` });
+        res.json({ message: `Se han quemado ${amountToBurn.toFixed(4)} tokens exitosamente. Tu saldo ha sido actualizado.` });
 
     } catch (error) {
         await client.query('ROLLBACK');
