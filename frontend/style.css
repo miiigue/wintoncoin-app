@@ -113,11 +113,11 @@ a:hover {
     color: var(--secondary-color);
 }
 
-.decimal-part {
-    font-size: 0.4em; /* Aún más pequeño para un contraste dramático. */
-    opacity: 0.65;  /* Un poco más transparente. */
-    position: relative;
-    top: 0; /* Se elimina el ajuste vertical que puede desalinear fuentes muy pequeñas. */
+/* Regla ultra-específica y autoritaria para los decimales */
+span .decimal-part {
+    font-size: 0.7em !important; /* Mitad de tamaño, con !important para anular cualquier otra regla */
+    opacity: 0.65;
+    vertical-align: super; /* Alinea los decimales como un superíndice, visualmente más atractivo */
 }
 
 .input-hint {
