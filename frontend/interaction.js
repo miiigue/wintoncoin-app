@@ -56,10 +56,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- Elementos para el contador de deuda ---
         debtCountdownContainer: document.getElementById('debt-countdown-container'),
         debtCountdownTimer: document.getElementById('debt-countdown-timer'),
+        debtNextAmount: document.getElementById('debt-next-amount'),
         // --- Elementos para el contador de escrow ---
         saldoEscrowBlue: document.getElementById('saldoEscrowBlue'),
         escrowCountdownContainer: document.getElementById('escrow-countdown-container'),
-        escrowCountdownTimer: document.getElementById('escrow-countdown-timer')
+        escrowCountdownTimer: document.getElementById('escrow-countdown-timer'),
+        escrowNextAmount: document.getElementById('escrow-next-amount')
     };
 
     // Variable global para el intervalo del contador, para poder detenerlo
@@ -402,17 +404,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Funciones de Renderizado ---
     
     function getFullPublicationHTML(pub, ratingHTML, messageHTML, actionHTML) {
-        // El acceptor username ahora puede venir de diferentes partes, así que lo manejamos con cuidado.
-        // La API ahora devuelve accepted_by_username solo si el usuario actual ha aceptado.
-        // Necesitaremos una forma de obtener todos los participantes si queremos mostrarlos.
-        const acceptor = pub.accepted_by_username || ''; 
-        const formattedId = `#${String(pub.id).padStart(7, '0')}`;
         const rewardText = `${formatBalance(pub.blue_cost)} BLUE`;
         const ribbonClass = pub.is_sell_post ? 'sell-ribbon' : '';
-        // Mostramos los cupos disponibles.
+
+        const slotsClass = pub.available_slots > 0 ? 'available' : 'full';
         const slotsText = pub.available_slots > 0 
-            ? `<span class="slots-available">${pub.available_slots} cupos disponibles</span>`
-            : `<span class="slots-full">Cupos agotados</span>`;
+            ? `${pub.available_slots} cupo${pub.available_slots > 1 ? 's' : ''} disponible${pub.available_slots > 1 ? 's' : ''}`
+            : `Cupos agotados`;
 
         // Lógica de enlace de perfil
         const authorNameHTML = window.appSettings.public_profiles_enabled
@@ -422,19 +420,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const costRibbon = `<div class="cost-ribbon ${ribbonClass}">${rewardText}</div>`;
 
         return `
-            <div class="publication-item" data-id="${pub.id}" data-author="${pub.author_username}" data-acceptor="${acceptor}" data-status="${pub.user_acceptance_status || 'open'}">
+            <div class="publication-item" data-id="${pub.id}" data-author="${pub.author_username}">
+                <div class="cost-ribbon ${ribbonClass}">${rewardText}</div>
+                
                 <div class="publication-header">
-                    <div class="publication-id">${formattedId}</div>
-                    ${costRibbon}
+                    <h3>${pub.title}</h3>
                 </div>
-                <h3>${pub.title}</h3>
+                
                 <p class="pub-description">${linkify(pub.description)}</p>
-                <div class="pub-meta">
-                    <span>Autor: <strong>${authorNameHTML}</strong>${ratingHTML}</span>
-                </div>
+                
                 <div class="publication-footer">
-                    ${slotsText}
+                    <div class="pub-meta">
+                        <span>Por: <strong>${authorNameHTML}</strong></span>
+                        ${ratingHTML}
+                    </div>
+                    <div class="slots-info ${slotsClass}">
+                        ${slotsText}
+                    </div>
                 </div>
+
                 <div class="publication-actions">
                     ${messageHTML}
                     ${actionHTML}
@@ -447,32 +451,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentUser = storedUsername;
         let messageHTML = '';
         let actionHTML = '';
-
-        // La nueva lógica se basa en pub.user_acceptance_status y si el usuario es el autor
         const userStatus = pub.user_acceptance_status;
 
         if (currentUser === pub.author_username) {
             // --- VISTA DEL AUTOR ---
-            // El backend ahora nos da una lista de participantes para las publicaciones del autor
             if (pub.participants && pub.participants.length > 0) {
                 actionHTML += getAuthorParticipantsHTML(pub);
             } else {
                 messageHTML = `<div class="status-pending">Aún no hay solicitudes para esta tarea.</div>`;
             }
 
-            // Lógica de botones para el autor, más robusta y profesional:
             const hasAnyParticipants = pub.participants.length > 0;
             const hasActiveParticipants = pub.participants.some(p => ['approved', 'completed'].includes(p.status));
             const allParticipantsPaid = hasAnyParticipants && pub.participants.every(p => p.status === 'confirmed_paid');
-
-            // La tarea se considera "finalizada" cuando todos los que participaron han cobrado.
             const isTaskFinished = allParticipantsPaid;
-
-            // Se puede eliminar si no hay nadie trabajando activamente.
-            // Esto permite eliminarla si está vacía, si solo hay pendientes, o si ya todos cobraron.
             const canDelete = !hasActiveParticipants;
-
-            // Se puede pausar/reanudar mientras la tarea no esté completamente finalizada.
             const canManagePause = !isTaskFinished;
 
             if (canManagePause) {
@@ -494,35 +487,72 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } else {
             // --- VISTA DE OTROS USUARIOS ---
-            // Lógica final y correcta: el botón de ocultar es independiente.
-            switch (userStatus) {
-                case null: // El usuario no ha interactuado con esta publicación.
-                    
-                    // Primero, definimos qué mensaje o botón de acción principal mostrar.
-                    if (pub.available_slots > 0 && !pub.is_paused) {
-                        actionHTML += `<button class="action-button accept" data-id="${pub.id}" data-action="accept">Aceptar Tarea</button>`;
-                    } else if (pub.is_paused) {
-                        messageHTML = `<div class="status-pending">El autor ha pausado las nuevas solicitudes para esta tarea.</div>`;
-                } else {
-                        messageHTML = `<div class="status-accepted">Todos los cupos para esta tarea están llenos.</div>`;
+            if (pub.is_sell_post) {
+                // --- VISTA PARA PUBLICACIONES DE VENTA ---
+                switch (userStatus) {
+                    case 'completed':
+                        messageHTML = `<p class="action-message status-pending">Has marcado la compra como completada. Esperando confirmación final del vendedor.</p>`;
+                        break;
+                    case 'confirmed_paid':
+                        messageHTML = `<p class="action-message status-info">¡Compra completada!</p>`;
+                        if (pub.available_slots > 0) {
+                            actionHTML = `
+                                <button class="action-button accept" data-action="accept" data-id="${pub.id}">Comprar de nuevo</button>
+                                <button class="action-button hide" data-action="hide" data-id="${pub.id}">Ocultar</button>
+                            `;
+                        } else {
+                            actionHTML = `<button class="action-button hide" data-action="hide" data-id="${pub.id}">Ocultar</button>`;
+                        }
+                        break;
+                    default: // 'open', null, o cualquier otro estado.
+                        if (pub.available_slots > 0 && !pub.is_paused) {
+                            actionHTML += `<button class="action-button accept" data-id="${pub.id}" data-action="accept">Comprar</button>`;
+                        } else if (pub.is_paused) {
+                            messageHTML = `<div class="status-pending">El autor ha pausado la venta de este artículo.</div>`;
+                        } else {
+                            messageHTML = `<div class="status-accepted">Artículo agotado.</div>`;
+                        }
+                        // Solo añadir ocultar si el usuario no está ya en un proceso activo
+                        if (userStatus !== 'pending_approval' && userStatus !== 'approved' && userStatus !== 'completed') {
+                            actionHTML += `<button class="action-button hide" data-id="${pub.id}" data-action="hide">Ocultar</button>`;
+                        }
+                        break;
                 }
-
-                    // Después, añadimos SIEMPRE el botón de ocultar para darle control al usuario.
-                    actionHTML += `<button class="action-button hide" data-id="${pub.id}" data-action="hide">Ocultar</button>`;
-                break;
-            case 'pending_approval':
-                    actionHTML = `<div class="status-pending">Tu solicitud ha sido enviada. Esperando aprobación del autor.</div>`;
-                break;
-            case 'approved':
-                    messageHTML = `<div class="action-message">¡Has sido aprobado! Ahora puedes completar la tarea.</div>`;
-                    actionHTML = `<button class="action-button complete" data-id="${pub.id}" data-action="complete">Marcar como Culminada</button>`;
-                break;
-            case 'completed':
-                    actionHTML = `<div class="status-progress">Tarea marcada como completada. Esperando confirmación y pago del autor.</div>`;
-                break;
-            case 'confirmed_paid':
-                    actionHTML = `<div class="status-accepted">¡Felicidades! Esta tarea ha sido finalizada y pagada.</div>`;
-                break;
+            } else {
+                // --- VISTA PARA PUBLICACIONES DE SOLICITUD DE TAREA ---
+                switch (userStatus) {
+                    case 'pending_approval':
+                        messageHTML = `<div class="status-pending">Tu solicitud ha sido enviada. Esperando aprobación del autor.</div>`;
+                        break;
+                    case 'approved':
+                        messageHTML = `<div class="action-message">¡Has sido aprobado! Ahora puedes completar la tarea.</div>`;
+                        actionHTML = `<button class="action-button complete" data-id="${pub.id}" data-action="complete">Marcar como Culminada</button>`;
+                        break;
+                    case 'completed':
+                         messageHTML = `<p class="action-message status-pending">Tarea culminada. Esperando confirmación y pago del autor.</p>`;
+                        break;
+                    case 'confirmed_paid':
+                        messageHTML = `<p class="action-message status-info">Felicidades, te pagaron.</p>`;
+                        if (pub.available_slots > 0) {
+                            actionHTML = `
+                                <button class="action-button accept" data-action="accept" data-id="${pub.id}">Aceptar nuevamente</button>
+                                <button class="action-button hide" data-action="hide" data-id="${pub.id}">Ocultar</button>
+                            `;
+                        } else {
+                            actionHTML = `<button class="action-button hide" data-action="hide" data-id="${pub.id}">Ocultar</button>`;
+                        }
+                        break;
+                    default: // 'open' or null
+                        if (pub.available_slots > 0 && !pub.is_paused) {
+                            actionHTML += `<button class="action-button accept" data-id="${pub.id}" data-action="accept">Aceptar Tarea</button>`;
+                        } else if (pub.is_paused) {
+                            messageHTML = `<div class="status-pending">El autor ha pausado las nuevas solicitudes para esta tarea.</div>`;
+                        } else {
+                            messageHTML = `<div class="status-accepted">Todos los cupos para esta tarea están llenos.</div>`;
+                        }
+                        actionHTML += `<button class="action-button hide" data-id="${pub.id}" data-action="hide">Ocultar</button>`;
+                        break;
+                }
             }
         }
         return { messageHTML, actionHTML };
@@ -573,8 +603,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return `
             <div class="participants-section">
-                <h4>Solicitudes de Participantes</h4>
-                <ul class="participants-list">${participantsList}</ul>
+                <ul class="participants-list" data-pub-id="${pub.id}">
+                    ${participantsList}
+                </ul>
             </div>
         `;
     }
@@ -641,37 +672,37 @@ document.addEventListener('DOMContentLoaded', () => {
             // Añadimos un parámetro que cambia con el tiempo para evitar la caché del navegador.
             const response = await fetch(`${API_URL}/users/${storedUsername}/balance?t=${new Date().getTime()}`);
             if (response.ok) {
-                const balances = await response.json();
-                elements.saldoBlue.innerHTML = formatBalance(balances.blue_balance);
-                elements.saldoEscrowBlue.innerHTML = formatBalance(balances.escrow_blue_balance);
-                elements.saldoRed.innerHTML = formatBalance(balances.red_balance);
-                sessionStorage.setItem('blue_balance', balances.blue_balance);
-                sessionStorage.setItem('escrow_blue_balance', balances.escrow_blue_balance);
-                sessionStorage.setItem('red_balance', balances.red_balance);
+                const data = await response.json();
+                elements.saldoBlue.innerHTML = formatBalance(data.blue_balance);
+                elements.saldoEscrowBlue.innerHTML = formatBalance(data.escrow_blue_balance);
+                elements.saldoRed.innerHTML = formatBalance(data.red_balance);
+                sessionStorage.setItem('blue_balance', data.blue_balance);
+                sessionStorage.setItem('escrow_blue_balance', data.escrow_blue_balance);
+                sessionStorage.setItem('red_balance', data.red_balance);
 
-                // --- Lógica del Contador de Deuda ---
-                if (balances.next_due_at && balances.red_balance > 0) {
-                    startDebtCountdown(balances.next_due_at);
+                // Seteamos los saldos en el modal de quemado también.
+                document.getElementById('burnModalBlue').innerHTML = formatBalance(data.blue_balance);
+                document.getElementById('burnModalRed').innerHTML = formatBalance(data.red_balance);
+
+                if (data.next_due_at && parseFloat(data.next_due_amount) > 0) {
+                    elements.debtNextAmount.innerHTML = formatBalance(data.next_due_amount) + ' RED';
                     elements.debtCountdownContainer.style.display = 'block';
+                    startDebtCountdown(data.next_due_at);
                 } else {
-                    // Si no hay fecha de vencimiento, nos aseguramos de que el contador esté oculto y detenido.
-                    if (debtCountdownInterval) clearInterval(debtCountdownInterval);
                     elements.debtCountdownContainer.style.display = 'none';
                 }
 
-                // --- Lógica del Contador de Escrow ---
-                if (balances.next_unlock_at && balances.escrow_blue_balance > 0) {
-                    startEscrowCountdown(balances.next_unlock_at);
+                if (data.next_unlock_at && parseFloat(data.next_unlock_amount) > 0) {
+                    elements.escrowNextAmount.innerHTML = formatBalance(data.next_unlock_amount) + ' BLUE';
                     elements.escrowCountdownContainer.style.display = 'block';
-            } else {
-                    // Si no hay fecha de liberación, nos aseguramos de que el contador esté oculto y detenido.
-                    if (escrowCountdownInterval) clearInterval(escrowCountdownInterval);
+                    startEscrowCountdown(data.next_unlock_at);
+                } else {
                     elements.escrowCountdownContainer.style.display = 'none';
                 }
 
             }
         } catch (error) {
-            console.error('Error al obtener los saldos:', error);
+            console.error('Error al obtener saldos:', error);
             // Si falla la carga, también ocultamos el contador para evitar mostrar datos incorrectos
             if (debtCountdownInterval) clearInterval(debtCountdownInterval);
             if (elements.debtCountdownContainer) elements.debtCountdownContainer.style.display = 'none';

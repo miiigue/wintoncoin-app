@@ -341,6 +341,33 @@ async function initializeDatabase() {
         await client.query('COMMIT'); // Finalizar transacción
         console.log("Todas las tablas han sido aseguradas en PostgreSQL.");
 
+        // El frontend se encargará de buscar a los participantes si es necesario.
+        await client.query(`
+            INSERT INTO publication_acceptances (publication_id, acceptor_username) 
+            SELECT p.id, u.username
+            FROM publications p, users u
+            WHERE p.title = 'Tarea de Prueba para Calificación' AND u.username = 'miguelchrome'
+            ON CONFLICT DO NOTHING
+        `);
+
+        // --- MIGRACIÓN PARA LA REGLA DE "UNA SOLICITUD ACTIVA POR TAREA" ---
+        // Esto permite que un usuario pueda volver a aceptar una tarea que ya completó.
+
+        // 1. Eliminamos la antigua restricción UNIQUE si existe.
+        const constraintName = 'publication_acceptances_publication_id_acceptor_username_key';
+        await client.query(`ALTER TABLE publication_acceptances DROP CONSTRAINT IF EXISTS ${constraintName};`);
+
+        // 2. Creamos un nuevo ÍNDICE ÚNICO PARCIAL.
+        // Este índice solo se aplica a las filas que NO están 'confirmed_paid', permitiendo duplicados
+        // si el estado es finalizado, pero no si está activo.
+        const indexName = 'one_active_acceptance_per_user_per_pub_idx';
+        await client.query(`
+            CREATE UNIQUE INDEX IF NOT EXISTS ${indexName}
+            ON publication_acceptances (publication_id, acceptor_username)
+            WHERE (status <> 'confirmed_paid');
+        `);
+        console.log("MIGRACIÓN: Regla de 'una solicitud activa por tarea' asegurada.");
+
     } catch (err) {
         await client.query('ROLLBACK'); // Revertir en caso de error
         console.error("Error al inicializar las tablas:", err);
@@ -464,7 +491,20 @@ app.post('/register', async (req, res) => {
     const sql = `
                 SELECT
                     p.*,
-                    (SELECT pa.status FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.acceptor_username = $1) as user_acceptance_status,
+                    (
+                        SELECT pa.status 
+                        FROM publication_acceptances pa 
+                        WHERE pa.publication_id = p.id AND pa.acceptor_username = $1
+                        ORDER BY
+                            CASE pa.status
+                                WHEN 'approved' THEN 1
+                                WHEN 'completed' THEN 2
+                                WHEN 'pending_approval' THEN 3
+                                WHEN 'confirmed_paid' THEN 4
+                                ELSE 5
+                            END
+                        LIMIT 1
+                    ) as user_acceptance_status,
                     (CASE
                         WHEN p.author_username = $1 THEN (
                             SELECT json_agg(json_build_object(
@@ -1010,16 +1050,16 @@ app.get('/users/:username/history', async (req, res) => {
                 
                 // Query for next RED debt
                 const debtSql = `
-                    SELECT due_at 
+                    SELECT due_at, amount
                     FROM red_token_debts 
                     WHERE username = $1 AND is_settled = FALSE 
                     ORDER BY due_at ASC 
                     LIMIT 1
                 `;
 
-                // Query for next BLUE escrow release
+                // Query for next BLUE escrow release, AHORA TAMBIÉN INCLUYE LA CANTIDAD
                 const escrowSql = `
-                    SELECT unlock_at
+                    SELECT unlock_at, amount
                     FROM blue_token_escrows
                     WHERE username = $1 AND is_released = FALSE
                     ORDER BY unlock_at ASC
@@ -1040,8 +1080,10 @@ app.get('/users/:username/history', async (req, res) => {
                     blue_balance: userResult.rows[0].liquid_blue_balance,
                     escrow_blue_balance: userResult.rows[0].escrow_blue_balance,
                     red_balance: userResult.rows[0].red_balance,
-                    next_due_at: debtResult.rows[0]?.due_at || null, // Añade la fecha de vencimiento o null
-                    next_unlock_at: escrowResult.rows[0]?.unlock_at || null // Añade la fecha de liberación o null
+                    next_due_at: debtResult.rows[0]?.due_at || null,
+                    next_due_amount: debtResult.rows[0]?.amount || null, // <-- AÑADIDO
+                    next_unlock_at: escrowResult.rows[0]?.unlock_at || null,
+                    next_unlock_amount: escrowResult.rows[0]?.amount || null
                 };
                 
                 res.status(200).json(responseData);
