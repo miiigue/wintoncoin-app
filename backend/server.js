@@ -832,7 +832,8 @@ app.post('/register', async (req, res) => {
         // Ruta para obtener las notificaciones de un usuario
         app.get('/notifications/:username', async (req, res) => {
     const { username } = req.params;
-            const sql = `SELECT * FROM notifications WHERE recipient_username = $1 ORDER BY created_at DESC`;
+            // MODIFICACIÓN: Ahora solo trae las no leídas por defecto.
+            const sql = `SELECT * FROM notifications WHERE recipient_username = $1 AND is_read = FALSE ORDER BY created_at DESC`;
             try {
                 const result = await pool.query(sql, [username]);
                 res.status(200).json(result.rows);
@@ -847,10 +848,38 @@ app.post('/register', async (req, res) => {
             const sql = `UPDATE notifications SET is_read = TRUE WHERE recipient_username = $1 AND is_read = FALSE`;
             try {
                 const result = await pool.query(sql, [username]);
-                res.status(200).json({ message: `${result.rowCount} notificaciones marcadas como leídas.` });
+                // CORRECCIÓN: Devolvemos una respuesta neutral, no un mensaje para el usuario.
+                res.status(200).json({ success: true, count: result.rowCount });
             } catch(error) {
                 res.status(500).json({ message: "Error al marcar notificaciones como leídas." });
             }
+});
+
+// Ruta para descartar una notificación INDIVIDUAL (NUEVA)
+app.post('/notifications/:id/dismiss', async (req, res) => {
+    const { id } = req.params;
+    const { username } = req.body; // Para seguridad, nos aseguramos que el usuario es el dueño de la notificación
+
+    if (!username) {
+        return res.status(400).json({ message: "Se requiere nombre de usuario." });
+    }
+
+    try {
+        // Marcamos la notificación como leída solo si pertenece al usuario y no está ya leída.
+        // `RETURNING id` es para confirmar que una fila fue efectivamente actualizada.
+        const sql = `UPDATE notifications SET is_read = TRUE WHERE id = $1 AND recipient_username = $2 AND is_read = FALSE RETURNING id`;
+        const result = await pool.query(sql, [id, username]);
+
+        if (result.rowCount > 0) {
+            res.status(200).json({ message: "Notificación descartada." });
+        } else {
+            // Esto puede pasar si ya estaba leída o no pertenece al usuario. En cualquier caso, no es un error crítico.
+            res.status(200).json({ message: "La notificación no necesitaba ser descartada." });
+        }
+    } catch (error) {
+        console.error('Error al descartar notificación:', error);
+        res.status(500).json({ message: "Error interno del servidor." });
+    }
 });
 
 // Ruta para QUEMAR tokens (RECONSTRUIDA CON LÓGICA FIFO)

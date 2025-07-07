@@ -169,29 +169,25 @@ a:hover {
     color: var(--text-color);
 }
 
-/* --- Estilos para el Contador de Deuda --- */
-.debt-countdown {
+/* --- Estilos para el Contador de Deuda y Escrow (REFACTORIZADO A UNA LÍNEA) --- */
+.countdown-container {
     margin-top: 0.75rem;
     padding-top: 0.75rem;
-    border-top: 1px dashed var(--admin-border);
+    border-top: 1px dashed #2a3b5c; /* Usamos un color fijo para la línea */
 }
 
-.debt-countdown p {
-    margin: 0 0 0.25rem 0;
-    font-size: 0.8rem;
+.countdown-text {
+    margin: 0;
+    font-size: 0.9rem;
     font-weight: 300;
     color: var(--text-secondary-color);
 }
 
-#debt-countdown-timer {
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 1.1rem;
+.countdown-text strong {
     font-weight: 600;
-    color: var(--admin-primary); /* Un color azul brillante para destacar */
-    letter-spacing: 1.5px;
 }
 
-#debt-countdown-timer.expired {
+.countdown-text .expired {
     color: var(--error-color);
     animation: pulse 1.5s infinite;
 }
@@ -202,25 +198,23 @@ a:hover {
     100% { transform: scale(1); opacity: 1; }
 }
 
-.escrow-countdown {
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 1px dashed var(--admin-border);
-}
-
-.escrow-countdown p {
-    margin: 0 0 0.25rem 0;
-    font-size: 0.8rem;
-    font-weight: 300;
-    color: var(--text-secondary-color);
-}
-
+#debt-countdown-timer,
 #escrow-countdown-timer {
     font-family: 'Courier New', Courier, monospace;
     font-size: 1.1rem;
     font-weight: 600;
+    letter-spacing: normal;
+    background-color: rgba(0,0,0,0.2);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+#debt-countdown-timer {
+    color: var(--primary-color);
+}
+
+#escrow-countdown-timer {
     color: #2ecc71; /* Verde para la liberación */
-    letter-spacing: 1.5px;
 }
 
 #saldoBlue { color: #3498db; }
@@ -547,22 +541,56 @@ hr {
 
 #notificationDropdown .notification-item {
     padding: 12px 16px;
+    padding-right: 35px; /* Espacio para el botón de cierre */
     border-bottom: 1px solid #2a3b5c;
-    cursor: pointer;
+    position: relative;
+    cursor: default; /* El contenedor ya no es clickeable */
 }
 
 #notificationDropdown .notification-item:last-child {
     border-bottom: none;
 }
 
-#notificationDropdown .notification-item.unread {
-    background-color: #2a3b5c;
-}
-
 #notificationDropdown .notification-item p {
     margin: 0;
     font-size: 0.9rem;
     line-height: 1.4;
+}
+
+.notification-dismiss {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
+    font-size: 24px;
+    color: var(--text-secondary-color);
+    cursor: pointer;
+    transition: color 0.2s ease, transform 0.2s ease;
+    padding: 5px;
+    line-height: 0.5;
+}
+
+.notification-dismiss:hover {
+    color: var(--error-color);
+    transform: translateY(-50%) scale(1.1);
+}
+
+.notification-footer {
+    padding: 12px 16px;
+    text-align: center;
+    border-top: 1px solid #2a3b5c;
+    background-color: var(--background-color);
+}
+
+.notification-footer-link {
+    font-size: 0.9rem;
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.notification-footer-link:hover {
+    text-decoration: underline;
 }
 
 .notification-button {
@@ -955,66 +983,72 @@ hr {
     background-color: #d73a3a;
 }
 
-/* --- Estilos para el Modal de Calificación --- */
-.rating-stars {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+/* --- Estilos para el Modal de Calificación (NUEVO DISEÑO COMPACTO) --- */
+.rating-modal-content {
+    max-width: 380px; /* Más estrecho */
+    padding: 1.5rem 2rem; /* Menos padding */
+    text-align: center;
+}
+
+.rating-form-header {
     margin-bottom: 1.5rem;
 }
 
-.star-rating {
-    display: flex;
-    flex-direction: row-reverse; /* Importante para el efecto de hover */
-    justify-content: center;
+.rating-modal-content h2 {
+    font-size: 1.3rem; /* Título más pequeño y legible */
+    margin: 0 0 1rem 0;
+    color: var(--text-color);
+    font-weight: 600;
 }
 
-/* Ocultar los radio buttons reales */
+/* Escondemos los radio buttons originales, son solo para la lógica */
 .star-rating input[type="radio"] {
     display: none;
 }
 
-/* Estilo de las estrellas (labels) */
+/* Las estrellas son labels, las hacemos inline-block para poder estilizarlas */
 .star-rating .star {
-    font-size: 2.5rem;
-    color: #444; /* Color de estrella vacía */
+    padding: 2px;
+    font-size: 2.5rem; /* Estrellas grandes y fáciles de clickear */
+    color: #444; /* Color de estrella vacía (un gris oscuro) */
     cursor: pointer;
-    transition: color 0.2s;
+    transition: color 0.2s ease-in-out;
 }
 
-/* --- Lógica de Hover y Selección de Estrellas --- */
-
-/* Cuando pasamos el ratón sobre una estrella, TODAS las estrellas anteriores (hermanos ~) se iluminan */
-.star-rating:not(:hover) input[type="radio"]:checked ~ .star,
-.star-rating:hover input[type="radio"]:hover ~ .star,
-.star-rating input[type="radio"]:checked ~ .star {
-    color: #ffc107; /* Amarillo estrella */
-}
-
-/* La estrella sobre la que está el ratón */
-.star-rating input[type="radio"]:hover {
-    color: #ffc107;
-}
-
-/* Asegurar que la propia estrella (label) también se coloree */
-.star-rating input[type="radio"]:hover ~ .star,
-.star-rating input[type="radio"]:hover,
-.star-rating:hover .star:hover{
-     color: #ffc107;
-}
-
-/* Colorear la estrella que está justo debajo del ratón, y las anteriores */
+/* La magia del hover: colorea la estrella actual y las siguientes a la derecha (gracias a flex-direction: row-reverse) */
 .star-rating .star:hover,
 .star-rating .star:hover ~ .star {
+    color: #ffc107; /* Amarillo brillante al pasar el ratón */
+}
+
+/* Mantiene las estrellas seleccionadas con su color amarillo cuando el ratón no está encima */
+.star-rating input[type="radio"]:checked ~ .star {
     color: #ffc107;
 }
 
-/* Estilos para el textarea de comentarios */
-#ratingForm textarea:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 10px rgba(106, 90, 205, 0.5);
+/* Para que la selección sea de 5 a 1 (hover sobre la 3ra estrella ilumina 3, no 3,4,5) */
+.star-rating {
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: center;
 }
+
+
+.rating-modal-content #ratingForm textarea {
+    min-height: 70px; /* Altura mínima más pequeña */
+    font-size: 0.9rem;
+    padding: 10px;
+    margin-bottom: 1rem;
+    resize: none; /* Evitamos que el usuario pueda cambiar el tamaño */
+}
+
+.rating-modal-content #ratingForm button {
+    margin-top: 0;
+    padding: 12px;
+    font-size: 1rem;
+    width: 100%;
+}
+
 
 /* --- Estilos para la Calificación en la Tarjeta de Publicación --- */
 .rating-display .stars {

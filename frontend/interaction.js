@@ -55,13 +55,13 @@ document.addEventListener('DOMContentLoaded', () => {
         closePublicationTypeModalBtn: document.querySelector('.publication-type-close'),
         // --- Elementos para el contador de deuda ---
         debtCountdownContainer: document.getElementById('debt-countdown-container'),
-        debtCountdownTimer: document.getElementById('debt-countdown-timer'),
-        debtNextAmount: document.getElementById('debt-next-amount'),
+        debtCountdownText: document.getElementById('debt-countdown-text'),
         // --- Elementos para el contador de escrow ---
         saldoEscrowBlue: document.getElementById('saldoEscrowBlue'),
         escrowCountdownContainer: document.getElementById('escrow-countdown-container'),
-        escrowCountdownTimer: document.getElementById('escrow-countdown-timer'),
-        escrowNextAmount: document.getElementById('escrow-next-amount')
+        escrowCountdownText: document.getElementById('escrow-countdown-text'),
+        authoredList: document.getElementById('authored-publications-list'),
+        completedList: document.getElementById('completed-publications-list')
     };
 
     // Variable global para el intervalo del contador, para poder detenerlo
@@ -126,8 +126,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     dropdown.classList.toggle('show');
                     // Si el dropdown que se abre es el de notificaciones, márcalas como leídas.
                     if (dropdown.id === 'notificationDropdown') {
-                        // Usamos un pequeño retraso para que el usuario vea el badge antes de que desaparezca.
-                        setTimeout(markNotificationsAsRead, 1000);
+                        // Llamamos a la función para marcar como leído.
+                        markNotificationsAsRead();
                     }
                 }
             });
@@ -186,6 +186,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         elements.closePublicationTypeModalBtn.addEventListener('click', () => {
             elements.publicationTypeModal.style.display = 'none';
+        });
+
+        // Event listener delegado para las acciones dentro del menú de notificaciones
+        elements.notificationDropdown.addEventListener('click', async (event) => {
+            const dismissButton = event.target.closest('.notification-dismiss');
+            const clearAllLink = event.target.closest('.notification-footer-link');
+
+            if (dismissButton) {
+                event.preventDefault();
+                const notificationId = dismissButton.dataset.id;
+                await dismissNotification(notificationId);
+            }
+
+            if (clearAllLink) {
+                event.preventDefault();
+                await clearAllNotifications();
+            }
         });
     }
     
@@ -292,59 +309,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleRatingSubmit(event) {
         event.preventDefault();
+        const formData = new FormData(event.target);
+        const body = Object.fromEntries(formData.entries());
         
-        const ratingValue = elements.ratingForm.querySelector('input[name="rating"]:checked');
-        if (!ratingValue) {
-            showCustomAlert("Por favor, selecciona una calificación en estrellas.");
-            return;
-        }
-
-        const body = {
-            publicationId: parseInt(elements.ratingPublicationId.value, 10),
-            raterUsername: elements.ratingRaterUsername.value,
-            rateeUsername: elements.ratingRateeUsername.value,
-            rating: parseInt(ratingValue.value, 10),
-            comment: elements.ratingComment.value
-        };
-
         try {
-            const response = await fetch(`${API_URL}/rate`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-
-            const result = await response.json();
-            showCustomAlert(result.message);
-
-            if (response.ok) {
-                elements.ratingModal.style.display = 'none'; // Cerrar modal
-                elements.ratingForm.reset(); // Limpiar formulario
-                loadAllData(); // Recargar para mostrar nuevas calificaciones
-            }
-        } catch (error) {
-            console.error('Error al enviar la calificación:', error);
-            showCustomAlert('Error de red al enviar la calificación.');
+            await postToServer('/rate', body);
+            // El modal se cierra y los datos se recargan gracias a postToServer
+            elements.ratingModal.style.display = 'none';
+        } catch(error) {
+            console.error("La calificación falló.", error);
         }
     }
 
-
-    async function postToServer(endpoint, body) {
+    async function postToServer(endpoint, body, options = {}) {
+        const { silent = false, reload = true } = options; // `reload` es true por defecto
         try {
             const response = await fetch(`${API_URL}${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             });
+
             const result = await response.json();
-            // Usamos el modal personalizado
-            showCustomAlert(result.message);
-            if (response.ok) {
-                loadAllData(); // Recargar TODO para reflejar todos los cambios
+            
+            if (!response.ok) {
+                showCustomAlert(result.message || `Error en el servidor: ${response.status}`);
+                throw new Error(result.message || `Error en el servidor`);
             }
+
+            if (!silent && result.message) {
+                showCustomAlert(result.message);
+            }
+            
+            if (response.ok && reload) {
+                loadAllData(); // Recargar datos si la operación fue exitosa y se debe recargar
+            }
+            
+            return result;
+
         } catch (error) {
-            console.error('Error en postToServer:', error);
-            showCustomAlert('Error de red al realizar la acción. Revisa la consola para más detalles.');
+            console.error(`Error en postToServer (${endpoint}):`, error);
+            throw error;
         }
     }
 
@@ -622,48 +627,104 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function fetchNotifications() {
-        const response = await fetch(`${API_URL}/notifications/${storedUsername}`);
-        const notifications = await response.json();
-        
-        const unreadCount = notifications.filter(n => n.is_read === 0).length;
-        updateNotificationBadge(unreadCount);
+        try {
+            const response = await fetch(`${API_URL}/notifications/${storedUsername}`);
+            if (!response.ok) throw new Error('Error al cargar notificaciones.');
+            
+            const notifications = await response.json();
+            const dropdown = document.getElementById('notificationDropdown');
+            dropdown.innerHTML = ''; // Limpiar notificaciones viejas
 
-        elements.notificationDropdown.innerHTML = '';
+            if (notifications.length === 0) {
+                dropdown.innerHTML = '<div class="no-notifications">No tienes notificaciones nuevas.</div>';
+            } else {
+                notifications.forEach(notification => {
+                    const item = document.createElement('div');
+                    item.className = 'notification-item';
+                    item.dataset.id = notification.id; // Guardamos el ID en el elemento
+                    item.innerHTML = `
+                        <p>${notification.message}</p>
+                        <span class="notification-dismiss" data-id="${notification.id}" title="Descartar">&times;</span>
+                    `;
+                    dropdown.appendChild(item);
+                });
 
-        if (notifications.length === 0) {
-            elements.notificationDropdown.innerHTML = '<div class="no-notifications">No tienes notificaciones.</div>';
-            return;
+                // Añadir el pie de página para limpiar todo
+                const footer = document.createElement('div');
+                footer.className = 'notification-footer';
+                footer.innerHTML = '<a href="#" class="notification-footer-link">Limpiar todas las notificaciones</a>';
+                dropdown.appendChild(footer);
+            }
+
+            updateNotificationBadge(notifications.length);
+
+        } catch (error) {
+            console.error(error.message);
+            updateNotificationBadge(0);
         }
-
-        notifications.forEach(notif => {
-            const item = document.createElement('div');
-            item.className = 'notification-item' + (notif.is_read === 0 ? ' unread' : '');
-            item.innerHTML = `<p>${notif.message}</p>`;
-            elements.notificationDropdown.appendChild(item);
-        });
     }
 
     function updateNotificationBadge(count) {
+        const badge = document.getElementById('notificationBadge');
         if (count > 0) {
-            elements.notificationBadge.textContent = count;
-            elements.notificationBadge.style.display = 'flex';
+            badge.textContent = count;
+            badge.style.display = 'flex';
         } else {
-            elements.notificationBadge.style.display = 'none';
+            badge.style.display = 'none';
         }
     }
 
+    // NUEVA FUNCIÓN para marcar como leído sin limpiar la UI
     async function markNotificationsAsRead() {
-        if (elements.notificationBadge.style.display === 'none') return;
+        const badge = document.getElementById('notificationBadge');
+        if (badge.style.display === 'none') return; // No hacer nada si no hay notificaciones
 
         try {
-            await fetch(`${API_URL}/notifications/mark-read`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: storedUsername })
-        });
-            updateNotificationBadge(0);
+            // Llamada silenciosa y sin recarga de toda la página
+            await postToServer('/notifications/mark-read', { username: storedUsername }, { silent: true, reload: false });
+            updateNotificationBadge(0); // Ocultar la pastilla roja inmediatamente
         } catch (error) {
-            console.error('Error marcando notificaciones como leídas:', error);
+            console.error("Error al marcar notificaciones como leídas:", error);
+        }
+    }
+
+    async function dismissNotification(notificationId) {
+        const notificationElement = document.querySelector(`.notification-item[data-id='${notificationId}']`);
+        
+        // Optimistic UI: remove immediately
+        if (notificationElement) {
+            notificationElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            notificationElement.style.opacity = '0';
+            notificationElement.style.transform = 'translateX(20px)';
+            setTimeout(() => {
+                notificationElement.remove();
+                const remaining = document.querySelectorAll('.notification-item').length;
+                updateNotificationBadge(remaining);
+                if (remaining === 0) {
+                    fetchNotifications(); // Recargar para mostrar el mensaje "sin notificaciones"
+                }
+            }, 300);
+        }
+        
+        try {
+            // Llamada silenciosa y sin recarga
+            await postToServer(`/notifications/${notificationId}/dismiss`, { username: storedUsername }, { silent: true, reload: false });
+        } catch (error) {
+            console.error("Error al descartar la notificación en el servidor:", error);
+        }
+    }
+
+    async function clearAllNotifications() {
+        try {
+            // Llamada silenciosa y sin recarga
+            const response = await postToServer('/notifications/mark-read', { username: storedUsername }, { silent: true, reload: false });
+            if (response.success) {
+                const dropdown = document.getElementById('notificationDropdown');
+                dropdown.innerHTML = '<div class="no-notifications">No tienes notificaciones nuevas.</div>';
+                updateNotificationBadge(0);
+            }
+        } catch (error) {
+            console.error("Error al limpiar todas las notificaciones:", error);
         }
     }
 
@@ -685,19 +746,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('burnModalRed').innerHTML = formatBalance(data.red_balance);
 
                 if (data.next_due_at && parseFloat(data.next_due_amount) > 0) {
-                    elements.debtNextAmount.innerHTML = formatBalance(data.next_due_amount) + ' RED';
                     elements.debtCountdownContainer.style.display = 'block';
-                    startDebtCountdown(data.next_due_at);
+                    startDebtCountdown(data.next_due_at, data.next_due_amount);
                 } else {
                     elements.debtCountdownContainer.style.display = 'none';
+                    if (debtCountdownInterval) clearInterval(debtCountdownInterval);
                 }
 
                 if (data.next_unlock_at && parseFloat(data.next_unlock_amount) > 0) {
-                    elements.escrowNextAmount.innerHTML = formatBalance(data.next_unlock_amount) + ' BLUE';
                     elements.escrowCountdownContainer.style.display = 'block';
-                    startEscrowCountdown(data.next_unlock_at);
+                    startEscrowCountdown(data.next_unlock_at, data.next_unlock_amount);
                 } else {
                     elements.escrowCountdownContainer.style.display = 'none';
+                    if (escrowCountdownInterval) clearInterval(escrowCountdownInterval);
                 }
 
             }
@@ -819,47 +880,36 @@ document.addEventListener('DOMContentLoaded', () => {
      * Inicia y actualiza el contador de deuda cada segundo.
      * @param {string} dueDateString La fecha de vencimiento en formato ISO (viene del backend).
      */
-    function startDebtCountdown(dueDateString) {
-        // Detenemos cualquier contador anterior para evitar múltiples intervalos corriendo a la vez.
-        if (debtCountdownInterval) {
-            clearInterval(debtCountdownInterval);
-        }
+    function startDebtCountdown(dueDateString, dueAmount) {
+        if (debtCountdownInterval) clearInterval(debtCountdownInterval);
+        const formattedAmount = formatBalance(dueAmount);
 
-        const dueDate = new Date(dueDateString);
-
-        // Función que se ejecuta cada segundo
         const updateTimer = () => {
             const now = new Date();
-            const distance = dueDate - now;
+            const dueDate = new Date(dueDateString);
+            const diff = dueDate - now;
 
-            if (distance < 0) {
+            if (diff <= 0) {
+                elements.debtCountdownText.innerHTML = `Próximo vencimiento: <strong class="expired">¡VENCIDO!</strong>`;
                 clearInterval(debtCountdownInterval);
-                elements.debtCountdownTimer.textContent = "¡VENCIDO!";
-                elements.debtCountdownTimer.classList.add('expired');
-                // Forzamos una recarga de datos para que el sistema procese la deuda vencida.
-                setTimeout(loadAllData, 2000); // Pequeña espera antes de recargar
-            return;
+                return;
             }
 
-            // Cálculos de tiempo
-            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-            // Formatear para que siempre tengan dos dígitos (ej: 09 en vez de 9)
-            const fDays = String(days).padStart(2, '0');
-            const fHours = String(hours).padStart(2, '0');
-            const fMinutes = String(minutes).padStart(2, '0');
-            const fSeconds = String(seconds).padStart(2, '0');
-            
-            elements.debtCountdownTimer.textContent = `${fDays}d : ${fHours}h : ${fMinutes}m : ${fSeconds}s`;
-            elements.debtCountdownTimer.classList.remove('expired');
+            let timeUnit = '';
+            if (days > 0) { timeUnit = `${days}d`; } 
+            else if (hours > 0) { timeUnit = `${hours}h`; }
+            else if (minutes > 0) { timeUnit = `${minutes}m`; }
+            else { timeUnit = `${seconds}s`; }
+
+            elements.debtCountdownText.innerHTML = `Próximo vencimiento <strong class="saldo-red-text">${formattedAmount} RED</strong> en <strong>${timeUnit}</strong>`;
         };
 
-        // Ejecutamos la función una vez de inmediato para no esperar el primer segundo.
-        updateTimer(); 
-        // Y luego la configuramos para que se repita.
+        updateTimer();
         debtCountdownInterval = setInterval(updateTimer, 1000);
     }
 
@@ -867,38 +917,36 @@ document.addEventListener('DOMContentLoaded', () => {
      * Inicia y actualiza el contador de liberación de escrow cada segundo.
      * @param {string} unlockDateString La fecha de liberación en formato ISO (viene del backend).
      */
-    function startEscrowCountdown(unlockDateString) {
-        if (escrowCountdownInterval) {
-            clearInterval(escrowCountdownInterval);
-        }
-
-        const unlockDate = new Date(unlockDateString);
+    function startEscrowCountdown(unlockDateString, unlockAmount) {
+        if (escrowCountdownInterval) clearInterval(escrowCountdownInterval);
+        const formattedAmount = formatBalance(unlockAmount);
 
         const updateTimer = () => {
             const now = new Date();
-            const distance = unlockDate - now;
+            const unlockDate = new Date(unlockDateString);
+            const diff = unlockDate - now;
 
-            if (distance < 0) {
+            if (diff <= 0) {
+                elements.escrowCountdownText.innerHTML = `Próximo disponible: <strong class="saldo-blue-text">¡Liberado!</strong>`;
                 clearInterval(escrowCountdownInterval);
-                elements.escrowCountdownTimer.textContent = "¡LIBERANDO!";
-                // Forzamos una recarga de datos para que el sistema procese la liberación.
-                setTimeout(loadAllData, 2000); // Pequeña espera antes de recargar
+                fetchAndDisplayBalances(); // Actualizar saldos al liberar
                 return;
             }
-
-            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-            const fDays = String(days).padStart(2, '0');
-            const fHours = String(hours).padStart(2, '0');
-            const fMinutes = String(minutes).padStart(2, '0');
-            const fSeconds = String(seconds).padStart(2, '0');
             
-            elements.escrowCountdownTimer.textContent = `${fDays}d : ${fHours}h : ${fMinutes}m : ${fSeconds}s`;
-        };
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
+            let timeUnit = '';
+            if (days > 0) { timeUnit = `${days}d`; }
+            else if (hours > 0) { timeUnit = `${hours}h`; }
+            else if (minutes > 0) { timeUnit = `${minutes}m`; }
+            else { timeUnit = `${seconds}s`; }
+
+            elements.escrowCountdownText.innerHTML = `Próximo disponible <strong class="saldo-blue-text">${formattedAmount} BLUE</strong> en <strong>${timeUnit}</strong>`;
+        };
+        
         updateTimer();
         escrowCountdownInterval = setInterval(updateTimer, 1000);
     }

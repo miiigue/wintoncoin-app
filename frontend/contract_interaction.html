@@ -50,17 +50,15 @@
             <div class="saldo-item">
                 <p>Saldo BLUE (Pendientes)</p>
                 <span id="saldoEscrowBlue">--</span>
-                <div id="escrow-countdown-container" class="escrow-countdown" style="display: none;">
-                    <p>Próximo disponible <strong id="escrow-next-amount" class="saldo-blue-text">--</strong> en:</p>
-                    <span id="escrow-countdown-timer">--:--:--:--</span>
+                <div id="escrow-countdown-container" class="countdown-container" style="display: none;">
+                    <p id="escrow-countdown-text" class="countdown-text"></p>
                 </div>
             </div>
             <div class="saldo-item">
                 <p>Saldo RED</p>
                 <span id="saldoRed">--</span>
-                <div id="debt-countdown-container" class="debt-countdown" style="display: none;">
-                    <p>Próximo vencimiento <strong id="debt-next-amount" class="saldo-red-text">--</strong> en:</p>
-                    <span id="debt-countdown-timer">--:--:--:--</span>
+                <div id="debt-countdown-container" class="countdown-container" style="display: none;">
+                    <p id="debt-countdown-text" class="countdown-text"></p>
                 </div>
             </div>
         </div>
@@ -108,20 +106,18 @@
 
     <!-- Modal de Calificación -->
     <div id="ratingModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content rating-modal-content">
             <span class="close-button rating-close-button">&times;</span>
-            <h2 id="ratingModalTitle">Calificar al Usuario</h2>
-            <p>Por favor, califica tu experiencia con el usuario.</p>
             
             <form id="ratingForm">
-                <!-- Inputs ocultos para pasar datos -->
                 <input type="hidden" id="ratingPublicationId">
                 <input type="hidden" id="ratingRaterUsername">
                 <input type="hidden" id="ratingRateeUsername">
 
-                <div class="form-group rating-stars">
-                    <label>Calificación:</label>
+                <div class="rating-form-header">
+                    <h2 id="ratingModalTitle">Calificar al Usuario</h2>
                     <div class="star-rating">
+                        <!-- Las estrellas están en orden inverso (5 a 1) para que el CSS funcione correctamente -->
                         <input type="radio" id="5-stars" name="rating" value="5" required /><label for="5-stars" class="star">&#9733;</label>
                         <input type="radio" id="4-stars" name="rating" value="4" /><label for="4-stars" class="star">&#9733;</label>
                         <input type="radio" id="3-stars" name="rating" value="3" /><label for="3-stars" class="star">&#9733;</label>
@@ -131,8 +127,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="ratingComment">Comentario (opcional):</label>
-                    <textarea id="ratingComment" name="comment" rows="4" placeholder="Describe tu experiencia..."></textarea>
+                    <textarea id="ratingComment" name="comment" rows="2" placeholder="¿Qué te pareció la experiencia? (opcional)"></textarea>
                 </div>
 
                 <button type="submit" class="action-button confirm">Enviar Calificación</button>
