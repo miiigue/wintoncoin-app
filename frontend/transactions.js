@@ -78,31 +78,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * Formatea un número para que sea positivo o negativo, añadiendo el signo,
-     * y ahora también aplicando el estilo a los decimales.
+     * y devuelve tanto el texto formateado como la clase CSS correspondiente.
      * @param {number|string} change El valor a formatear.
-     * @returns {string} El HTML formateado.
+     * @returns {{className: string, text: string}} Un objeto con la clase y el texto.
      */
     function formatChange(change) {
         const num = parseFloat(change);
+
         if (isNaN(num) || num === 0) {
-            return `<span class="no-change">0,0000</span>`;
+            return {
+                className: 'no-change',
+                text: ''
+            };
         }
 
+        // Formateamos el número absoluto a un string con 4 decimales
         const formattedString = Math.abs(num).toLocaleString('es-ES', {
             minimumFractionDigits: 4,
             maximumFractionDigits: 4
         });
         
-        let styledString = formattedString;
+        // Añadimos el span para estilizar los decimales
+        let styledText = formattedString;
         const parts = formattedString.split(',');
         if (parts.length === 2) {
-            styledString = `${parts[0]},<span class="decimal-part">${parts[1]}</span>`;
+            styledText = `${parts[0]},<span class="decimal-part">${parts[1]}</span>`;
         }
         
+        // Devolvemos el objeto con la clase y el texto con signo
         if (num > 0) {
-            return `<span class="positive-change">+${styledString}</span>`;
+            return {
+                className: 'positive-change',
+                text: `+${styledText}`
+            };
         } else {
-            return `<span class="negative-change">-${styledString}</span>`;
+            return {
+                className: 'negative-change',
+                text: `-${styledText}`
+            };
         }
     }
 }); 
