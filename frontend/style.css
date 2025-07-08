@@ -642,11 +642,14 @@ hr {
     overflow: auto;
     background-color: rgba(0,0,0,0.6);
     animation: fadeIn 0.5s;
+    /* Propiedades para centrar que se activarán cuando JS ponga 'display: flex' */
+    justify-content: center;
+    align-items: center;
 }
 
 .modal-content {
     background-color: var(--surface-color);
-    margin: 15% auto;
+    margin: 1rem; /* Cambiado de '15% auto' para permitir el centrado con Flexbox y dar un respiro */
     padding: 2rem 3rem;
     border: 1px solid #2a3b5c;
     width: 80%;
@@ -717,7 +720,7 @@ hr {
 .burn-modal-balances {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem; /* Espacio entre las líneas de saldo */
+    gap: 0.5rem; /* Espacio entre las líneas de saldo */
 }
 
 .balance-line {

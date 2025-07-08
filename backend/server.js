@@ -1682,7 +1682,8 @@ app.listen(PORT, () => {
                 const userUpdateMap = new Map();
                 for (const escrow of escrows) {
                     const currentAmount = userUpdateMap.get(escrow.username) || 0;
-                    userUpdateMap.set(escrow.username, currentAmount + escrow.amount);
+                    // Forzamos la conversión a número para evitar errores de tipo.
+                    userUpdateMap.set(escrow.username, currentAmount + parseFloat(escrow.amount));
                 }
 
                 // 3. Actualizar balances, notificaciones y transacciones por cada usuario
