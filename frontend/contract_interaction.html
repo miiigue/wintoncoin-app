@@ -80,27 +80,28 @@
     </div>
 
     <div id="burnModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content burn-modal-content">
             <span class="close-button">&times;</span>
-            <h2>Quemar Tokens</h2>
-            <p>Esta acción es irreversible y restará la cantidad especificada de tus saldos de BLUE y RED.</p>
-            
-            <div class="burn-info">
-                <span>Tu saldo actual:</span>
-                <div>
-                    <span id="burnModalBlue" class="saldo-blue-text">-- BLUE</span>
-                    <span id="burnModalRed" class="saldo-red-text">-- RED</span>
+            <div class="burn-container">
+                <h2 class="burn-title"><span class="fire-icon">🔥</span> Quemar Tokens <span class="fire-icon">🔥</span></h2>
+                <p class="burn-description">Esta acción es irreversible y restará la cantidad especificada de tus saldos de BLUE y RED.</p>
+                
+                <div class="burn-balance-info">
+                    <h4>Tu saldo actual</h4>
+                    <div id="burnModalBalances" class="burn-modal-balances">
+                        <!-- Los saldos se insertarán aquí dinámicamente con JS -->
+                    </div>
                 </div>
-            </div>
 
-            <form id="burnForm">
-                <div class="form-group">
-                    <label for="burnAmount">Cantidad a quemar:</label>
-                    <input type="text" inputmode="decimal" id="burnAmount" name="burnAmount" placeholder="Ej: 10.5000" required pattern="^[0-9]+([.,][0-9]{1,4})?$">
-                    <small class="input-hint">Usa un punto (.) o una coma (,) para los decimales.</small>
-                </div>
-                <button type="submit" class="action-button confirm">Quemar</button>
-            </form>
+                <form id="burnForm">
+                    <div class="form-group">
+                        <label for="burnAmount">Cantidad a quemar:</label>
+                        <input type="text" inputmode="decimal" id="burnAmount" name="burnAmount" placeholder="Ej: 10.5000" required pattern="^[0-9]+([.,][0-9]{1,4})?$">
+                        <small class="input-hint">Usa un punto (.) o una coma (,) para los decimales.</small>
+                    </div>
+                    <button type="submit" class="action-button burn-button">Quemar</button>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -110,9 +111,9 @@
             <span class="close-button rating-close-button">&times;</span>
             
             <form id="ratingForm">
-                <input type="hidden" id="ratingPublicationId">
-                <input type="hidden" id="ratingRaterUsername">
-                <input type="hidden" id="ratingRateeUsername">
+                <input type="hidden" id="ratingPublicationId" name="publication_id">
+                <input type="hidden" id="ratingRaterUsername" name="rater_username">
+                <input type="hidden" id="ratingRateeUsername" name="ratee_username">
 
                 <div class="rating-form-header">
                     <h2 id="ratingModalTitle">Calificar al Usuario</h2>

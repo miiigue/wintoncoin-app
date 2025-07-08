@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
         burnForm: document.getElementById('burnForm'),
         burnModalBlue: document.getElementById('burnModalBlue'),
         burnModalRed: document.getElementById('burnModalRed'),
+        burnModalBalances: document.getElementById('burnModalBalances'),
         // --- Elementos para el Modal de Calificación ---
         ratingModal: document.getElementById('ratingModal'),
         ratingForm: document.getElementById('ratingForm'),
@@ -150,8 +151,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const blueBalance = sessionStorage.getItem('blue_balance') || '0';
             const escrowBlueBalance = sessionStorage.getItem('escrow_blue_balance') || '0';
             const redBalance = sessionStorage.getItem('red_balance') || '0';
-            elements.burnModalBlue.innerHTML = `Disponible: <span class="saldo-blue-text">${formatBalance(blueBalance)} BLUE</span><br>Pendientes: <span class="saldo-escrow-text">${formatBalance(escrowBlueBalance)} BLUE</span>`;
-            elements.burnModalRed.innerHTML = `${formatBalance(redBalance)} RED`;
+            
+            elements.burnModalBalances.innerHTML = `
+                <div class="balance-line">
+                    <span>Disponible</span>
+                    <span class="saldo-blue-text">${formatBalance(blueBalance)} BLUE</span>
+                </div>
+                <div class="balance-line">
+                    <span>Pendientes</span>
+                    <span class="saldo-escrow-text">${formatBalance(escrowBlueBalance)} BLUE</span>
+                </div>
+                <div class="balance-line">
+                    <span>Deuda</span>
+                    <span class="saldo-red-text">${formatBalance(redBalance)} RED</span>
+                </div>
+            `;
             
             elements.burnModal.style.display = 'flex';
         });
@@ -741,9 +755,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 sessionStorage.setItem('escrow_blue_balance', data.escrow_blue_balance);
                 sessionStorage.setItem('red_balance', data.red_balance);
 
-                // Seteamos los saldos en el modal de quemado también.
-                document.getElementById('burnModalBlue').innerHTML = formatBalance(data.blue_balance);
-                document.getElementById('burnModalRed').innerHTML = formatBalance(data.red_balance);
+                // NO actualizamos el modal de quemado aquí. Se hará solo al abrirlo.
 
                 if (data.next_due_at && parseFloat(data.next_due_amount) > 0) {
                     elements.debtCountdownContainer.style.display = 'block';

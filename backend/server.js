@@ -41,11 +41,42 @@ async function checkDbConnection() {
     }
 }
 
+/**
+ * Aplica cambios incrementales y necesarios al esquema de la base de datos para mantenerla actualizada.
+ * Esta función es "idempotente", lo que significa que se puede ejecutar de forma segura varias veces.
+ * @param {object} client Un cliente de base de datos de 'pg' conectado.
+ */
+async function applyMigrations(client) {
+    console.log("Iniciando revisión de migraciones de base de datos...");
+
+    // Migración para renombrar la columna 'password' a 'password_hash'.
+    // Esto es CRÍTICO para solucionar el error de login "data and hash arguments required" y el de registro.
+    const checkOldPasswordColumn = await client.query(`
+        SELECT 1 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' AND column_name = 'password'
+    `);
+
+    if (checkOldPasswordColumn.rowCount > 0) {
+        console.log("MIGRACIÓN DETECTADA: Se encontró la columna obsoleta 'password'.");
+        await client.query("ALTER TABLE users RENAME COLUMN password TO password_hash");
+        await client.query("ALTER TABLE users ALTER COLUMN password_hash TYPE VARCHAR(255)");
+        console.log("MIGRACIÓN APLICADA: Columna 'password' renombrada a 'password_hash' en la tabla 'users'.");
+    }
+    
+    console.log("Revisión de migraciones finalizada.");
+}
 
 // La inicialización de la base de datos ahora crea las tablas en PostgreSQL si no existen
 async function initializeDatabase() {
-    const client = await pool.connect();
+    let client;
     try {
+        client = await pool.connect();
+        console.log('Conectado a la base de datos PostgreSQL.');
+
+        // Aplicamos las migraciones ANTES de hacer cualquier otra cosa.
+        await applyMigrations(client);
+
         await client.query('BEGIN'); // Iniciar transacción para la creación de tablas
 
         // Notar los cambios:
@@ -57,13 +88,14 @@ async function initializeDatabase() {
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(255) UNIQUE NOT NULL,
-                password TEXT NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                blue_balance NUMERIC(15, 4) DEFAULT 100.0000,
+                red_balance NUMERIC(15, 4) DEFAULT 0.0000,
+                escrow_blue_balance NUMERIC(15, 4) DEFAULT 0.0000 CHECK (escrow_blue_balance >= 0),
                 liquid_blue_balance NUMERIC(19, 4) NOT NULL DEFAULT 0,
-                escrow_blue_balance NUMERIC(19, 4) NOT NULL DEFAULT 0,
-                red_balance NUMERIC(19, 4) NOT NULL DEFAULT 0,
                 average_rating REAL NOT NULL DEFAULT 0,
                 ratings_count INTEGER NOT NULL DEFAULT 0,
-                created_at TIMESTAMPTZ DEFAULT NOW()
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             )
         `);
         console.log("Tabla 'users' asegurada.");
@@ -389,24 +421,39 @@ async function startServer() {
 // Ruta de Registro de Usuario
 app.post('/register', async (req, res) => {
     const { username, password } = req.body;
-
+    
     if (!username || !password) {
         return res.status(400).json({ message: "Usuario y contraseña son requeridos." });
     }
 
     try {
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
-                // La sintaxis de las consultas cambia a $1, $2, etc.
-                const sql = `INSERT INTO users (username, password) VALUES ($1, $2)`;
-                await pool.query(sql, [username, hashedPassword]);
-                res.status(201).json({ message: `Usuario ${username} registrado exitosamente.` });
-            } catch (error) {
-                // El código de error para violación de constraint 'unique' en PostgreSQL es '23505'
-                if (error.code === '23505') {
-                    return res.status(409).json({ message: "El nombre de usuario ya existe." });
-                }
-                console.error("Error al registrar usuario:", error);
-                res.status(500).json({ message: "Error interno del servidor." });
+        // Verificar si el usuario ya existe
+        const userCheck = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
+        if (userCheck.rows.length > 0) {
+            return res.status(409).json({ message: 'El nombre de usuario ya está en uso.' });
+        }
+
+        // Hashear la contraseña
+        const saltRounds = 10;
+        const passwordHash = await bcrypt.hash(password, saltRounds);
+        
+        // Insertar el nuevo usuario usando 'password_hash'
+        const sql = `INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username`;
+        const result = await pool.query(sql, [username, passwordHash]);
+        const newUser = result.rows[0];
+
+        res.status(201).json({ 
+            message: `Usuario '${newUser.username}' registrado con éxito.`,
+            userId: newUser.id,
+            username: newUser.username
+        });
+    } catch (error) {
+        console.error('Error al registrar usuario:', error);
+        // El código de error para violación de constraint 'unique' en PostgreSQL es '23505'
+        if (error.code === '23505') {
+            return res.status(409).json({ message: 'El nombre de usuario ya está registrado.' });
+        }
+        res.status(500).json({ message: 'Error interno del servidor al intentar registrar el usuario.' });
     }
 });
 
@@ -427,18 +474,29 @@ app.post('/register', async (req, res) => {
             return res.status(404).json({ message: "Usuario no encontrado. Por favor, regístrese primero." });
         }
 
-            const match = await bcrypt.compare(password, user.password);
-            if (match) {
-                res.status(200).json({
-                    message: "Inicio de sesión exitoso.",
-                    username: user.username,
-                    blue_balance: user.liquid_blue_balance,
-                    escrow_blue_balance: user.escrow_blue_balance,
-                    red_balance: user.red_balance
-                });
-            } else {
-                res.status(401).json({ message: "Contraseña incorrecta." });
-            }
+        // Medida de seguridad y robustez contra datos corruptos:
+        // Si el hash de la contraseña no existe en la base de datos para este usuario,
+        // significa que la cuenta se creó incorrectamente en un estado anterior de la aplicación.
+        // No podemos autenticarlo, así que lo tratamos como credenciales inválidas.
+        if (!user.password_hash) {
+            console.error(`Intento de login para el usuario '${username}' falló: la cuenta está corrupta (no tiene password_hash).`);
+            return res.status(401).json({ message: 'Credenciales inválidas. La cuenta de usuario podría estar corrupta.' });
+        }
+
+        // Comparar la contraseña enviada con el hash guardado
+        const match = await bcrypt.compare(password, user.password_hash);
+
+        if (match) {
+            res.status(200).json({
+                message: "Inicio de sesión exitoso.",
+                username: user.username,
+                blue_balance: user.liquid_blue_balance,
+                escrow_blue_balance: user.escrow_blue_balance,
+                red_balance: user.red_balance
+            });
+        } else {
+            res.status(401).json({ message: "Contraseña incorrecta." });
+        }
         } catch (error) {
                 console.error("Error en el inicio de sesión:", error);
             res.status(500).json({ message: "Error interno del servidor." });
@@ -1140,28 +1198,53 @@ app.get('/users/:username/history', async (req, res) => {
         
         // Ruta para crear una calificación
         app.post('/rate', async (req, res) => {
-            const { publicationId, raterUsername, rateeUsername, rating, comment } = req.body;
-            
+            // El frontend ahora manda 'publication_id', 'rater_username', 'ratee_username', 'rating' y 'comment'
+            // Nos aseguramos de leer todos los campos necesarios.
+            const { publication_id, rater_username, ratee_username, rating, comment } = req.body;
+
+            // --- Validación ---
+            if (!publication_id || !rater_username || !ratee_username || !rating) {
+                return res.status(400).json({ message: 'Faltan datos requeridos para guardar la calificación (ID de publicación, usuarios y puntuación son obligatorios).' });
+            }
+
             const client = await pool.connect();
             try {
                 await client.query('BEGIN');
-                
-                const sql = `INSERT INTO ratings (publication_id, rater_username, ratee_username, rating, comment) VALUES ($1, $2, $3, $4, $5)`;
-                await client.query(sql, [publicationId, raterUsername, rateeUsername, rating, comment]);
 
-                const recalcSql = `SELECT AVG(rating) as average_rating, COUNT(rating) as ratings_count FROM ratings WHERE ratee_username = $1`;
-                const recalcResult = await client.query(recalcSql, [rateeUsername]);
-                const { average_rating, ratings_count } = recalcResult.rows[0];
-                
-                const updateSql = `UPDATE users SET average_rating = $1, ratings_count = $2 WHERE username = $3`;
-                await client.query(updateSql, [average_rating, ratings_count, rateeUsername]);
+                // 1. Insertar la nueva calificación en la tabla 'ratings'
+                const insertRatingQuery = `
+                    INSERT INTO ratings (publication_id, rater_username, ratee_username, rating, comment)
+                    VALUES ($1, $2, $3, $4, $5)
+                `;
+                // Pasamos 'publication_id' como el primer parámetro.
+                await client.query(insertRatingQuery, [publication_id, rater_username, ratee_username, rating, comment || null]);
+
+                // 2. Actualizar el promedio y contador de calificaciones del usuario calificado (ratee)
+                const updateUserRatingQuery = `
+                    UPDATE users u
+                    SET 
+                        ratings_count = r.total_ratings,
+                        average_rating = r.avg_rating
+                    FROM (
+                        SELECT 
+                            ratee_username,
+                            COUNT(*) AS total_ratings,
+                            AVG(rating) AS avg_rating
+                        FROM ratings
+                        WHERE ratee_username = $1
+                        GROUP BY ratee_username
+                    ) r
+                    WHERE u.username = $1;
+                `;
+                await client.query(updateUserRatingQuery, [ratee_username]);
 
                 await client.query('COMMIT');
-                res.status(201).json({ message: "¡Gracias por tu calificación!" });
-            } catch (err) {
+                res.status(201).json({ message: `¡Gracias! Tu calificación para ${ratee_username} ha sido guardada.` });
+
+            } catch (error) {
                 await client.query('ROLLBACK');
-                console.error("Error al guardar la calificación:", err.message);
-                res.status(500).json({ message: "Error interno al guardar la calificación." });
+                console.error('Error al guardar la calificación:', error.message);
+                res.status(500).json({ message: 'Error interno al guardar la calificación.' });
             } finally {
                 client.release();
             }
