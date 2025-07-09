@@ -34,7 +34,10 @@ document.addEventListener('DOMContentLoaded', () => {
         dashboardContainer: document.getElementById('dashboard-stats'),
         usersTableContainer: document.getElementById('users-table-container'),
         userSearchInput: document.getElementById('userSearchInput'),
-        debtorsTableContainer: document.getElementById('debtors-table-container')
+        debtorsTableContainer: document.getElementById('debtors-table-container'),
+        // Nuevos elementos para la gestión de contenido
+        publicationsTableContainer: document.getElementById('publications-table-container'),
+        publicationSearchInput: document.getElementById('publicationSearchInput')
     };
 
     // --- Inicialización ---
@@ -78,6 +81,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadUsers(elements.userSearchInput.value);
             }, 300); // Espera 300ms después de la última tecla pulsada
         });
+
+        // Listener para la búsqueda de publicaciones (con debounce)
+        let pubSearchTimeout;
+        elements.publicationSearchInput.addEventListener('keyup', () => {
+            clearTimeout(pubSearchTimeout);
+            pubSearchTimeout = setTimeout(() => {
+                loadPublications(elements.publicationSearchInput.value);
+            }, 300);
+        });
+
+        // Delegación de eventos para acciones en la tabla de publicaciones
+        elements.publicationsTableContainer.addEventListener('click', handlePublicationAction);
     }
 
     function showSection(sectionId) {
@@ -104,6 +119,8 @@ document.addEventListener('DOMContentLoaded', () => {
             loadUsers();
         } else if (sectionId === 'debtors') {
             loadDebtors();
+        } else if (sectionId === 'publications') {
+            loadPublications(); // Cargar publicaciones al mostrar la sección
         }
     }
 
@@ -154,6 +171,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function loadPublications(searchTerm = '') {
+        elements.publicationsTableContainer.innerHTML = '<div class="loading-spinner"></div>';
+        try {
+            const publications = await apiFetch(`/api/admin/publications?search=${encodeURIComponent(searchTerm)}`);
+            renderPublicationsTable(publications);
+        } catch (error) {
+            elements.publicationsTableContainer.innerHTML = `<p class="error-message">Error al cargar las publicaciones: ${error.message}</p>`;
+        }
+    }
+
     async function loadDashboardData() {
         elements.dashboardContainer.innerHTML = '<div class="loading-spinner"></div>';
         try {
@@ -196,10 +223,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const key = event.target.dataset.key;
                 const value = event.target.value;
 
-                // Validacion simple
-                if (!value || isNaN(parseInt(value)) || parseInt(value) <= 0) {
-                    showCustomAlert('El valor debe ser un número positivo.');
-                    // Podríamos revertir al valor anterior si lo guardáramos
+                // Validación corregida: ahora permite 0 pero no valores negativos o vacíos.
+                if (value === '' || isNaN(parseInt(value)) || parseInt(value) < 0) {
+                    showCustomAlert('El valor debe ser un número igual o mayor a cero.');
                     return;
                 }
 
@@ -212,6 +238,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     showCustomAlert(`Error al guardar el cambio: ${error.message}`);
                 }
             }, 500); // Guardar 500ms después de que el usuario deje de teclear
+        }
+    }
+
+    async function handlePublicationAction(event) {
+        const deleteButton = event.target.closest('.action-button-admin.delete');
+
+        if (deleteButton) {
+            const pubId = deleteButton.dataset.pubId;
+            const pubTitle = deleteButton.closest('tr').querySelector('.publication-title-cell').textContent;
+            
+            showCustomConfirm(`¿Seguro que quieres eliminar la publicación "${pubTitle}"? Esta acción es irreversible y eliminará también todas las participaciones asociadas.`, async () => {
+                try {
+                    const result = await apiFetch(`/api/admin/publications/${pubId}`, {
+                        method: 'DELETE'
+                    });
+                    showCustomAlert(result.message || 'Publicación eliminada.');
+                    loadPublications(elements.publicationSearchInput.value); // Recargar la tabla
+                } catch (error) {
+                    showCustomAlert(`Error al eliminar la publicación: ${error.message}`);
+                }
+            });
         }
     }
 
@@ -264,6 +311,70 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
+    function renderPublicationsTable(publications) {
+        if (publications.length === 0) {
+            elements.publicationsTableContainer.innerHTML = '<p class="empty-message">No se encontraron publicaciones con ese criterio.</p>';
+            return;
+        }
+
+        const tableHTML = `
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Título</th>
+                        <th>Autor</th>
+                        <th>Tipo</th>
+                        <th>Valor (BLUE)</th>
+                        <th>Participantes</th>
+                        <th>Estado</th>
+                        <th>Fecha Creación</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${publications.map(pub => getPublicationRowHTML(pub)).join('')}
+                </tbody>
+            </table>
+        `;
+        elements.publicationsTableContainer.innerHTML = tableHTML;
+    }
+
+    function getPublicationRowHTML(pub) {
+        const creationDate = new Date(pub.created_at).toLocaleDateString('es-ES', {
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+
+        const typeHTML = pub.is_sell_post 
+            ? `<span class="status-badge sell">Venta</span>`
+            : `<span class="status-badge request">Solicitud</span>`;
+
+        const valueHTML = formatBalance(pub.blue_cost);
+        
+        // Muestra (completados / totales)
+        const participantsHTML = `${pub.completed_count} / ${pub.participants_count}`;
+        
+        const statusText = pub.is_paused ? 'Pausada' : pub.status;
+
+        const actionsHTML = `
+            <button class="action-button-admin delete" data-pub-id="${pub.id}" title="Eliminar publicación">Eliminar</button>
+        `;
+
+        return `
+            <tr>
+                <td class="publication-title-cell" title="${pub.title}">${pub.title}</td>
+                <td class="username-cell">
+                    <a href="profile.html?user=${pub.author_username}" target="_blank">${pub.author_username}</a>
+                </td>
+                <td>${typeHTML}</td>
+                <td class="saldo-blue-text">${valueHTML}</td>
+                <td align="center">${participantsHTML}</td>
+                <td><span class="status-badge ${statusText.toLowerCase()}">${statusText}</span></td>
+                <td>${creationDate}</td>
+                <td>${actionsHTML}</td>
+            </tr>
+        `;
+    }
+
     function renderDashboard(stats) {
         elements.dashboardContainer.innerHTML = `
             <div class="stat-card">
@@ -286,67 +397,101 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderSettings(settings) {
-        const settingsMap = {
-            'public_profiles_enabled': {
+        const settingsValues = settings.reduce((acc, s) => {
+            acc[s.setting_key] = s.setting_value;
+            return acc;
+        }, {});
+
+        // Layout de la UI de configuración. Esto nos da control total sobre el orden y la agrupación.
+        const settingsLayout = [
+            { 
+                type: 'switch', 
+                key: 'public_profiles_enabled',
                 title: 'Perfiles Públicos de Usuario',
                 description: 'Permite que cualquiera pueda ver la reputación y comentarios de otros usuarios.'
             },
-            'allow_new_registrations': {
+            { 
+                type: 'switch', 
+                key: 'allow_new_registrations',
                 title: 'Permitir Nuevos Registros',
                 description: 'Si se desactiva, nadie podrá crear una cuenta nueva en la plataforma.'
             },
-            'allow_new_publications': {
+            { 
+                type: 'switch', 
+                key: 'allow_new_publications',
                 title: 'Permitir Nuevas Publicaciones',
                 description: 'Si se desactiva, los usuarios no podrán crear nuevas tareas o servicios.'
             },
-            'debt_system_enabled': {
+            { 
+                type: 'switch', 
+                key: 'debt_system_enabled',
                 title: 'Activar Sistema de Deuda RED',
-                description: 'Activa o desactiva la mecánica de vencimiento y penalización para los tokens RED.',
-                type: 'switch'
+                description: 'Activa o desactiva la mecánica de vencimiento y penalización para los tokens RED.'
             },
-            'debt_cycle_days': {
-                title: 'Duración del Ciclo de Deuda (en días)',
-                description: 'Establece cuántos días tiene un usuario para quemar un lote de tokens RED antes de que venza.',
-                type: 'number'
+            {
+                type: 'group',
+                title: 'Duración del Ciclo de Deuda',
+                description: 'Establece cuánto tiempo tiene un usuario para quemar un lote de tokens RED antes de que venza.',
+                keys: {
+                    days: 'debt_cycle_days',
+                    hours: 'debt_cycle_hours',
+                    minutes: 'debt_cycle_minutes'
+                }
             },
-            'blue_escrow_days': {
-                title: 'Duración del Depósito BLUE (en días)',
-                description: 'Establece cuántos días permanecen los tokens BLUE en el saldo bloqueado (escrow) antes de liberarse.',
-                type: 'number'
+            {
+                type: 'group',
+                title: 'Duración del Depósito BLUE',
+                description: 'Establece cuánto tiempo permanecen los tokens BLUE en el saldo bloqueado (escrow) antes de liberarse.',
+                keys: {
+                    days: 'blue_escrow_days',
+                    hours: 'blue_escrow_hours',
+                    minutes: 'blue_escrow_minutes'
+                }
             }
-        };
+        ];
         
-        elements.settingsContainer.innerHTML = settings.map(setting => {
-            const info = settingsMap[setting.setting_key] || { title: setting.setting_key, description: '' };
-            
-            if (info.type === 'number') {
+        elements.settingsContainer.innerHTML = settingsLayout.map(item => {
+            if (item.type === 'switch') {
+                const isChecked = settingsValues[item.key] === 'true';
                 return `
                     <div class="setting-item">
                         <div class="setting-item-info">
-                            <h4>${info.title}</h4>
-                            <p>${info.description}</p>
+                            <h4>${item.title}</h4>
+                            <p>${item.description}</p>
                         </div>
-                        <div class="setting-item-control">
-                            <input type="number" class="admin-numeric-input" data-key="${setting.setting_key}" value="${setting.setting_value}" min="1">
-                        </div>
+                        <label class="switch">
+                            <input type="checkbox" data-key="${item.key}" ${isChecked ? 'checked' : ''}>
+                            <span class="slider"></span>
+                        </label>
                     </div>
                 `;
             }
 
-            // El switch es el default
-            const isChecked = setting.setting_value === 'true';
-            return `
-                <div class="setting-item">
-                    <div class="setting-item-info">
-                        <h4>${info.title}</h4>
-                        <p>${info.description}</p>
+            if (item.type === 'group') {
+                return `
+                    <div class="setting-item">
+                        <div class="setting-item-info">
+                            <h4>${item.title}</h4>
+                            <p>${item.description}</p>
+                        </div>
+                        <div class="setting-item-control-group">
+                            <div class="numeric-group-item">
+                                <label>Días</label>
+                                <input type="number" class="admin-numeric-input" data-key="${item.keys.days}" value="${settingsValues[item.keys.days] || 0}" min="0">
+                            </div>
+                            <div class="numeric-group-item">
+                                <label>Horas</label>
+                                <input type="number" class="admin-numeric-input" data-key="${item.keys.hours}" value="${settingsValues[item.keys.hours] || 0}" min="0" max="23">
+                            </div>
+                            <div class="numeric-group-item">
+                                <label>Min</label>
+                                <input type="number" class="admin-numeric-input" data-key="${item.keys.minutes}" value="${settingsValues[item.keys.minutes] || 0}" min="0" max="59">
+                            </div>
+                        </div>
                     </div>
-                    <label class="switch">
-                        <input type="checkbox" data-key="${setting.setting_key}" ${isChecked ? 'checked' : ''}>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-            `;
+                `;
+            }
+            return '';
         }).join('');
     }
 

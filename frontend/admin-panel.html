@@ -85,7 +85,14 @@
             <section id="publications-section" class="admin-section">
                 <h1>Gestión de Contenido</h1>
                 <p>Modera las publicaciones de la plataforma.</p>
-                <!-- Aquí irá la tabla de publicaciones -->
+                <!-- Un campo de búsqueda para filtrar publicaciones por título o autor -->
+                <div class="table-controls">
+                    <input type="text" id="publicationSearchInput" placeholder="Buscar por título o autor...">
+                </div>
+                <!-- El contenedor donde se renderizará la tabla de publicaciones -->
+                <div id="publications-table-container" class="table-container-admin">
+                    <div class="loading-spinner"></div>
+                </div>
             </section>
 
         </main>

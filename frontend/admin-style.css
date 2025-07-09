@@ -172,6 +172,30 @@
     flex-shrink: 0; /* Evita que el input se encoja */
 }
 
+/* --- Nuevo: Estilo para grupos de inputs numéricos --- */
+.setting-item-control-group {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end; /* Alinea los inputs y labels en la base */
+}
+
+.numeric-group-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.numeric-group-item label {
+    font-size: 0.8rem;
+    color: var(--admin-text-secondary);
+    margin-bottom: 0.25rem;
+    text-align: center;
+}
+
+.numeric-group-item .admin-numeric-input {
+    width: 70px; /* Ancho reducido para cada input */
+}
+/* --- Fin de lo nuevo --- */
+
 .admin-numeric-input {
     width: 80px;
     padding: 10px 15px;
@@ -309,6 +333,60 @@ input:checked + .slider:before {
 .admin-table .no-rating {
     color: var(--admin-text-secondary);
     font-style: italic;
+}
+
+/* --- Estilos para la tabla de publicaciones --- */
+
+.admin-table .publication-title-cell {
+    max-width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: help; /* Para indicar que se puede hacer hover y ver el título completo */
+}
+
+.admin-table .status-badge {
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: white;
+    text-transform: capitalize;
+}
+
+/* Tipo de Publicación */
+.admin-table .status-badge.sell {
+    background-color: #ffc107; /* Amarillo */
+    color: #111;
+}
+
+.admin-table .status-badge.request {
+    background-color: #17a2b8; /* Cyan */
+}
+
+/* Status de la Publicación */
+.admin-table .status-badge.open { background-color: #28a745; } /* Verde */
+.admin-table .status-badge.pausada { background-color: #6c757d; } /* Gris */
+.admin-table .status-badge.closed { background-color: #dc3545; } /* Rojo */
+
+.action-button-admin {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    border: none;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.action-button-admin:hover {
+    transform: translateY(-1px);
+    opacity: 0.9;
+}
+
+.action-button-admin.delete {
+    background-color: #dc3545;
 }
 
 /* Regla ultra-específica y autoritaria para los decimales */
