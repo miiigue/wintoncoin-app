@@ -1263,9 +1263,26 @@ hr {
     font-size: 0.8rem;
 }
 
+/* --- NUEVO: Estilo para la nota de comisión --- */
+.commission-notice {
+    margin: 1rem 0;
+    padding: 0.75rem;
+    background-color: rgba(255, 255, 255, 0.05); /* Un fondo muy sutil */
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.commission-notice p {
+    font-size: 0.85rem;
+    color: #b0b3b8; /* Texto secundario, menos prominente */
+    margin: 0;
+    text-align: center;
+}
+
 /* --- Estilos para la Página de Perfil --- */
 .profile-container {
     max-width: 800px;
+    padding-top: 2rem;
 }
 
 .profile-header {

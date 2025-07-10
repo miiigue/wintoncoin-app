@@ -1,115 +1,80 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Lógica para determinar la URL del API automáticamente
+    // --- Lógica de API y Estado ---
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
     const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
-
-    // Primero, verificamos si el usuario ha iniciado sesión.
-    const authorUsername = sessionStorage.getItem('username');
-    if (!authorUsername) {
-        showCustomAlert('Debes iniciar sesión para poder publicar.', () => {
-        window.location.href = 'index.html';
-        });
-        return;
-    }
+    const storedUsername = sessionStorage.getItem('username');
 
     // --- Elementos del DOM ---
     const publishForm = document.getElementById('publishForm');
-    const titleElement = document.querySelector('h1');
-    const subtitleElement = document.querySelector('h2');
     const costWrapper = document.getElementById('cost-wrapper');
     const sellWrapper = document.getElementById('sell-wrapper');
-    const blueCostInput = document.getElementById('blueCost');
-    const blueSellInput = document.getElementById('blueSell');
+    const noticeContainer = document.getElementById('commission-notice-container');
 
-    // --- Lógica de Formulario Dinámico ---
+    // --- Redirección y Seguridad ---
+    if (!storedUsername) {
+        showCustomAlert('Debes iniciar sesión para publicar.', () => { window.location.href = 'index.html'; });
+        return;
+    }
+
+    // --- Lógica de Inicialización del Formulario ---
+    // Determinar el tipo de publicación desde la URL (ej: ?type=request)
     const urlParams = new URLSearchParams(window.location.search);
     const publicationType = urlParams.get('type');
 
     if (publicationType === 'request') {
-        // Configuración para "Solicitar Ayudante"
-        titleElement.textContent = 'Solicitar un Servicio';
-        subtitleElement.style.display = 'none';
-        
         costWrapper.style.display = 'block';
-        costWrapper.querySelector('label').textContent = 'Pagarás (en BLUE):';
-        blueCostInput.required = true;
-        
         sellWrapper.style.display = 'none';
-        blueSellInput.required = false;
-
     } else if (publicationType === 'sell') {
-        // Configuración para "Ofrecer Venta/Servicio"
-        titleElement.textContent = 'Ofrecer un Servicio o Producto';
-        subtitleElement.style.display = 'none';
-        
-        sellWrapper.style.display = 'block';
-        sellWrapper.querySelector('label').textContent = 'Precio de Venta (en BLUE):';
-        blueSellInput.required = true;
-
         costWrapper.style.display = 'none';
-        blueCostInput.required = false;
-        
+        sellWrapper.style.display = 'block';
     } else {
-        // Redireccionar si no hay un tipo válido o se accede directamente
-        showCustomAlert("Acción no especificada. Por favor, elige una opción desde el panel principal.", () => {
-            window.location.href = 'contract_interaction.html';
-        });
+        showCustomAlert('Tipo de publicación no válido.', () => { window.location.href = 'contract_interaction.html'; });
         return;
     }
 
-    // --- Evento de Envío del Formulario ---
+    // --- Lógica para Mostrar la Nota de Comisión ---
+    // Escuchamos el evento personalizado que utils.js dispara cuando carga la configuración.
+    document.addEventListener('app-settings-loaded', () => {
+        const commissionPercentage = window.appSettings?.platform_commission_percentage || 0;
+
+        if (noticeContainer && commissionPercentage > 0) {
+            noticeContainer.innerHTML = `
+                <div class="commission-notice">
+                    <p>Nota: Al completarse, esta transacción generará una comisión del <strong>${commissionPercentage}%</strong> para la plataforma. La comisión se añade a la deuda RED del usuario que se beneficia del servicio/producto.</p>
+                </div>
+            `;
+        }
+    });
+
+    // --- Lógica de Envío del Formulario ---
     publishForm.addEventListener('submit', async (event) => {
         event.preventDefault();
 
-        const title = document.getElementById('title').value;
-        const description = document.getElementById('description').value;
-        const blueCost = blueCostInput.value;
-        const blueSell = blueSellInput.value;
-        const availableSlots = document.getElementById('availableSlots').value;
-        
-        // La validación 'required' en el input se encarga de que uno de los dos campos tenga valor.
-        // Este chequeo es una seguridad adicional.
-        if (!blueCost && !blueSell) {
-            showCustomAlert('Debes especificar un valor para la recompensa o el precio.');
-            return;
-        }
-        
-        const publishData = {
-            title,
-            description,
-            authorUsername,
-            availableSlots
-        };
-
-        // Determinamos si es una venta o una publicación normal basado en el campo que tiene valor
-        if (blueSell) {
-            publishData.blueSell = blueSell;
-        } else {
-            publishData.blueCost = blueCost;
-        }
-
-        const publishUrl = `${API_URL}/publish`;
+        // Recolectar datos del formulario
+        const formData = new FormData(publishForm);
+        const data = Object.fromEntries(formData.entries());
+        data.authorUsername = storedUsername;
 
         try {
-            const response = await fetch(publishUrl, {
+            const response = await fetch(`${API_URL}/publish`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(publishData)
+                body: JSON.stringify(data)
             });
 
             const result = await response.json();
 
             if (response.ok) {
-                showCustomAlert(result.message, () => {
-                window.location.href = 'contract_interaction.html'; // Volver al panel para ver la publicación
+                showCustomAlert(result.message || '¡Publicación creada con éxito!', () => {
+                    window.location.href = 'contract_interaction.html';
                 });
             } else {
-                showCustomAlert(`Error: ${result.message}`);
+                showCustomAlert(result.message || 'Ocurrió un error al crear la publicación.');
             }
 
         } catch (error) {
             console.error('Error de red al publicar:', error);
-            showCustomAlert('No se pudo conectar con el servidor para publicar.');
+            showCustomAlert('No se pudo conectar con el servidor. Inténtalo de nuevo.');
         }
     });
 }); 

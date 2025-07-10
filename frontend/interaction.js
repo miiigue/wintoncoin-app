@@ -430,7 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const slotsText = pub.available_slots > 0 
             ? `${pub.available_slots} cupo${pub.available_slots > 1 ? 's' : ''} disponible${pub.available_slots > 1 ? 's' : ''}`
             : `Cupos agotados`;
-
+        
         // Lógica de enlace de perfil
         const authorNameHTML = window.appSettings.public_profiles_enabled
             ? `<a href="profile.html?user=${pub.author_username}" class="profile-link">${pub.author_username}</a>`
@@ -512,6 +512,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (pub.is_sell_post) {
                 // --- VISTA PARA PUBLICACIONES DE VENTA ---
                 switch (userStatus) {
+                    case 'pending_approval':
+                        messageHTML = `<div class="status-pending">Tu solicitud de compra ha sido enviada. Esperando aprobación del vendedor.</div>`;
+                        break;
+                    case 'approved':
+                        messageHTML = `<div class="action-message">¡Aprobado! Por favor, confirma el pago una vez que hayas recibido el producto o servicio.</div>`;
+                        actionHTML = `<button class="action-button complete" data-id="${pub.id}" data-action="complete">He Recibido, Pagar</button>`;
+                        break;
                     case 'completed':
                         messageHTML = `<p class="action-message status-pending">Has marcado la compra como completada. Esperando confirmación final del vendedor.</p>`;
                         break;

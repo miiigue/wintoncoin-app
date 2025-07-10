@@ -37,7 +37,10 @@ document.addEventListener('DOMContentLoaded', () => {
         debtorsTableContainer: document.getElementById('debtors-table-container'),
         // Nuevos elementos para la gestión de contenido
         publicationsTableContainer: document.getElementById('publications-table-container'),
-        publicationSearchInput: document.getElementById('publicationSearchInput')
+        publicationSearchInput: document.getElementById('publicationSearchInput'),
+        // Nuevos elementos para la billetera de la plataforma
+        platformWalletStatsContainer: document.getElementById('platform-wallet-stats'),
+        platformCommissionLogContainer: document.getElementById('platform-commission-log-container')
     };
 
     // --- Inicialización ---
@@ -121,6 +124,8 @@ document.addEventListener('DOMContentLoaded', () => {
             loadDebtors();
         } else if (sectionId === 'publications') {
             loadPublications(); // Cargar publicaciones al mostrar la sección
+        } else if (sectionId === 'platform-wallet') {
+            loadPlatformWalletData();
         }
     }
 
@@ -178,6 +183,23 @@ document.addEventListener('DOMContentLoaded', () => {
             renderPublicationsTable(publications);
         } catch (error) {
             elements.publicationsTableContainer.innerHTML = `<p class="error-message">Error al cargar las publicaciones: ${error.message}</p>`;
+        }
+    }
+
+    async function loadPlatformWalletData() {
+        elements.platformWalletStatsContainer.innerHTML = '<div class="loading-spinner"></div>';
+        elements.platformCommissionLogContainer.innerHTML = '<div class="loading-spinner"></div>';
+        try {
+            // Cargar ambas piezas de información en paralelo para mayor eficiencia
+            const [wallet, log] = await Promise.all([
+                apiFetch('/api/admin/platform-wallet/balance'),
+                apiFetch('/api/admin/platform-wallet/log')
+            ]);
+            renderPlatformWallet(wallet);
+            renderCommissionLog(log);
+        } catch (error) {
+            elements.platformWalletStatsContainer.innerHTML = `<p class="error-message">Error al cargar datos de la billetera: ${error.message}</p>`;
+            elements.platformCommissionLogContainer.innerHTML = '';
         }
     }
 
@@ -375,6 +397,54 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
+    function renderPlatformWallet(wallet) {
+        elements.platformWalletStatsContainer.innerHTML = `
+            <div class="stat-card">
+                <h4>Comisiones Totales Ganadas</h4>
+                <p class="stat-value saldo-blue-text">${formatBalance(wallet.balance)} BLUE</p>
+            </div>
+        `;
+    }
+
+    function renderCommissionLog(log) {
+        if (log.length === 0) {
+            elements.platformCommissionLogContainer.innerHTML = '<p class="empty-message">Aún no se ha registrado ninguna comisión.</p>';
+            return;
+        }
+
+        const tableHTML = `
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Monto Comisión (BLUE)</th>
+                        <th>Transacción Origen</th>
+                        <th>Usuario Implicado</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${log.map(entry => getCommissionLogRowHTML(entry)).join('')}
+                </tbody>
+            </table>
+        `;
+        elements.platformCommissionLogContainer.innerHTML = tableHTML;
+    }
+
+    function getCommissionLogRowHTML(entry) {
+        const commissionDate = new Date(entry.created_at).toLocaleString('es-ES', {
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+
+        return `
+            <tr>
+                <td class="saldo-blue-text">${formatBalance(entry.commission_amount_blue)}</td>
+                <td><a href="#" title="Ver publicación ${entry.publication_id}">${entry.publication_title}</a></td>
+                <td class="username-cell"><a href="profile.html?user=${entry.user_who_paid}" target="_blank">${entry.user_who_paid}</a></td>
+                <td>${commissionDate}</td>
+            </tr>
+        `;
+    }
+
     function renderDashboard(stats) {
         elements.dashboardContainer.innerHTML = `
             <div class="stat-card">
@@ -392,6 +462,10 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="stat-card">
                 <h4>Total de RED en Circulación</h4>
                 <p class="stat-value saldo-red-text">${formatBalance(stats.totalRed)}</p>
+            </div>
+            <div class="stat-card">
+                <h4>Comisiones Acumuladas</h4>
+                <p class="stat-value saldo-blue-text">${formatBalance(stats.platformCommissionBalance)}</p>
             </div>
         `;
     }
@@ -447,6 +521,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     hours: 'blue_escrow_hours',
                     minutes: 'blue_escrow_minutes'
                 }
+            },
+            { 
+                type: 'numeric',
+                key: 'platform_commission_percentage',
+                title: 'Comisión de la Plataforma (%)',
+                description: 'El porcentaje de comisión que la plataforma gana en cada transacción completada.'
             }
         ];
         
@@ -486,6 +566,22 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="numeric-group-item">
                                 <label>Min</label>
                                 <input type="number" class="admin-numeric-input" data-key="${item.keys.minutes}" value="${settingsValues[item.keys.minutes] || 0}" min="0" max="59">
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (item.type === 'numeric') {
+                return `
+                    <div class="setting-item">
+                        <div class="setting-item-info">
+                            <h4>${item.title}</h4>
+                            <p>${item.description}</p>
+                        </div>
+                        <div class="setting-item-control-group">
+                             <div class="numeric-group-item">
+                                <input type="number" class="admin-numeric-input" data-key="${item.key}" value="${settingsValues[item.key] || 0}" min="0" step="0.1">
                             </div>
                         </div>
                     </div>

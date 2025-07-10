@@ -26,6 +26,7 @@
                     <li><a href="#users" class="nav-link" data-section="users">Gestión de Usuarios</a></li>
                     <li><a href="#publications" class="nav-link" data-section="publications">Gestión de Contenido</a></li>
                     <li><a href="#debtors" class="nav-link" data-section="debtors">Panel de Deudores</a></li>
+                    <li><a href="#platform-wallet" class="nav-link" data-section="platform-wallet">Billetera Plataforma</a></li>
                 </ul>
             </nav>
             <div class="sidebar-footer">
@@ -91,6 +92,23 @@
                 </div>
                 <!-- El contenedor donde se renderizará la tabla de publicaciones -->
                 <div id="publications-table-container" class="table-container-admin">
+                    <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- Nueva Sección para la Billetera de la Plataforma -->
+            <section id="platform-wallet-section" class="admin-section">
+                <h1>Billetera de la Plataforma</h1>
+                <p>Aquí se registran todas las comisiones ganadas por la plataforma.</p>
+                
+                <!-- Tarjeta con el Saldo Total -->
+                <div id="platform-wallet-stats" class="stats-container" style="margin-bottom: 2rem;">
+                    <div class="loading-spinner"></div>
+                </div>
+
+                <!-- Historial de Comisiones -->
+                <h2>Historial de Comisiones</h2>
+                <div id="platform-commission-log-container" class="table-container-admin">
                     <div class="loading-spinner"></div>
                 </div>
             </section>
