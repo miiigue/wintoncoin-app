@@ -468,21 +468,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getActionAndMessageHTML(pub, acceptorRatingData) {
         const currentUser = storedUsername;
+        const userStatus = pub.user_acceptance_status; // Esta línea es la que faltaba.
         let messageHTML = '';
         let actionHTML = '';
-        const userStatus = pub.user_acceptance_status;
 
         if (currentUser === pub.author_username) {
             // --- VISTA DEL AUTOR ---
-            if (pub.participants && pub.participants.length > 0) {
-                actionHTML += getAuthorParticipantsHTML(pub);
+            const participants = pub.participants || [];
+            const hasAnyParticipants = participants.length > 0;
+
+            if (hasAnyParticipants) {
+                actionHTML += getAuthorParticipantsHTML(pub); // Siempre mostrar la lista de participantes si existe
             } else {
                 messageHTML = `<div class="status-pending">Aún no hay solicitudes para esta tarea.</div>`;
             }
 
-            const hasAnyParticipants = pub.participants.length > 0;
-            const hasActiveParticipants = pub.participants.some(p => ['approved', 'completed'].includes(p.status));
-            const allParticipantsPaid = hasAnyParticipants && pub.participants.every(p => p.status === 'confirmed_paid');
+            const hasActiveParticipants = hasAnyParticipants && participants.some(p => ['approved', 'completed'].includes(p.status));
+            const allParticipantsPaid = hasAnyParticipants && participants.every(p => p.status === 'confirmed_paid');
             const isTaskFinished = allParticipantsPaid;
             const canDelete = !hasActiveParticipants;
             const canManagePause = !isTaskFinished;
@@ -500,8 +502,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     Eliminar Tarea
                 </button>
             `;
+
             if (!canDelete) {
-                 messageHTML += `<div class="status-info">No puedes eliminar una tarea con participantes activos.</div>`;
+                    messageHTML += `<div class="status-info">No puedes eliminar una tarea con participantes activos.</div>`;
             }
 
         } else {
@@ -902,8 +905,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const diff = dueDate - now;
 
             if (diff <= 0) {
-                elements.debtCountdownText.innerHTML = `Próximo vencimiento: <strong class="expired">¡VENCIDO!</strong>`;
+                elements.debtCountdownText.innerHTML = `<strong class="expired">URGENTE! ${formattedAmount} VENCIDOS!</strong>`;
                 clearInterval(debtCountdownInterval);
+                fetchAndDisplayBalances(); // Para asegurar consistencia de datos
                 return;
             }
 
@@ -912,13 +916,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-            let timeUnit = '';
-            if (days > 0) { timeUnit = `${days}d`; } 
-            else if (hours > 0) { timeUnit = `${hours}h`; }
-            else if (minutes > 0) { timeUnit = `${minutes}m`; }
-            else { timeUnit = `${seconds}s`; }
+            let timeString = '';
+            if (days > 0) {
+                timeString = `${days}d y ${hours}h`;
+            } else if (hours > 0) {
+                timeString = `${hours}h y ${minutes}m`;
+            } else if (minutes > 0) {
+                timeString = `${minutes}m y ${seconds}s`;
+            } else {
+                timeString = `${seconds}s`;
+            }
 
-            elements.debtCountdownText.innerHTML = `Próximo vencimiento <strong class="saldo-red-text">${formattedAmount} RED</strong> en <strong>${timeUnit}</strong>`;
+            elements.debtCountdownText.innerHTML = `próximo vencimiento <strong class="saldo-red-text">${formattedAmount}</strong> en <strong>${timeString}</strong>`;
         };
 
         updateTimer();
@@ -939,7 +948,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const diff = unlockDate - now;
 
             if (diff <= 0) {
-                elements.escrowCountdownText.innerHTML = `Próximo disponible: <strong class="saldo-blue-text">¡Liberado!</strong>`;
+                elements.escrowCountdownContainer.style.display = 'none';
                 clearInterval(escrowCountdownInterval);
                 fetchAndDisplayBalances(); // Actualizar saldos al liberar
                 return;
@@ -950,13 +959,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-            let timeUnit = '';
-            if (days > 0) { timeUnit = `${days}d`; }
-            else if (hours > 0) { timeUnit = `${hours}h`; }
-            else if (minutes > 0) { timeUnit = `${minutes}m`; }
-            else { timeUnit = `${seconds}s`; }
+            let timeString = '';
+            if (days > 0) {
+                timeString = `${days}d y ${hours}h`;
+            } else if (hours > 0) {
+                timeString = `${hours}h y ${minutes}m`;
+            } else if (minutes > 0) {
+                timeString = `${minutes}m y ${seconds}s`;
+            } else {
+                timeString = `${seconds}s`;
+            }
 
-            elements.escrowCountdownText.innerHTML = `Próximo disponible <strong class="saldo-blue-text">${formattedAmount} BLUE</strong> en <strong>${timeUnit}</strong>`;
+            elements.escrowCountdownText.innerHTML = `Disponible <strong class="saldo-blue-text">${formattedAmount}</strong> en <strong>${timeString}</strong>`;
         };
         
         updateTimer();
