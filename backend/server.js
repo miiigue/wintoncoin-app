@@ -259,6 +259,19 @@ async function runOneTimeDataMigrations(client) {
     }
 }
 
+// NUEVO: Script de limpieza para usuarios mal configurados
+async function runOneTimeCleanup(client) {
+    const badUsername = `'"Plataforma WintonCoin"'`; // Nombre exacto con comillas dobles
+    const userResult = await client.query('SELECT id FROM users WHERE username = $1', [badUsername]);
+    
+    if (userResult.rowCount > 0) {
+        console.log(`CLEANUP: Se encontró un usuario de plataforma mal configurado ('${badUsername}'). Eliminándolo...`);
+        // ON DELETE CASCADE se encargará de las dependencias.
+        await client.query('DELETE FROM users WHERE username = $1', [badUsername]);
+        console.log(`CLEANUP: Usuario mal configurado eliminado.`);
+    }
+}
+
 
 /**
  * Función principal para configurar y asegurar que todas las tablas de la DB existen.
@@ -385,6 +398,9 @@ async function initializeDatabase() {
         
         // Paso 1: Aplicar todas las migraciones de esquema.
         await applyMigrations(client);
+
+        // --- NUEVO: Ejecutar limpieza antes que nada ---
+        await runOneTimeCleanup(client);
 
         // --- NUEVO: Ejecutar migraciones de datos de un solo uso ---
         // Esto se ejecuta después de las migraciones de esquema para asegurar que todas las tablas y columnas existen.
