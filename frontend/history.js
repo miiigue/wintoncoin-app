@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Inicialización ---
     if (!storedUsername) {
         showCustomAlert('Debes iniciar sesión para ver tu historial.', () => {
-            window.location.href = 'index.html';
+        window.location.href = 'index.html';
         });
         return;
     }
@@ -152,11 +152,11 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="publication-details">
                 <h3>${pub.title}</h3>
                 <p class="pub-description">${linkify(pub.description)}</p>
-                <ul class="pub-meta-list">
+            <ul class="pub-meta-list">
                     <li>Autor: <strong>${authorNameHTML}</strong></li>
                     <li>Costo: <strong>${formatBalance(pub.blue_cost)} BLUE</strong></li>
                     <li>Estado: <span class="status-badge ${pub.user_acceptance_status}">${statusText}</span></li>
-                </ul>
+            </ul>
             </div>
             <div class="publication-actions">
                 <button class="action-button hide" data-pub-id="${pub.id}">Ocultar del Historial</button>

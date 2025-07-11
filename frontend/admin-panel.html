@@ -28,6 +28,8 @@
                     <li><a href="#debtors" class="nav-link" data-section="debtors">Panel de Deudores</a></li>
                     <li><a href="#platform-wallet" class="nav-link" data-section="platform-wallet">Billetera Plataforma</a></li>
                     <li><a href="#platform-publications" class="nav-link" data-section="platform-publications">Publicaciones Plataforma</a></li>
+                    <!-- DANGER ZONE LINK (REMOVE AFTER USE) -->
+                    <li><a href="#danger-zone" class="nav-link" data-section="danger-zone">Zona de Peligro</a></li>
                 </ul>
             </nav>
             <div class="sidebar-footer">
@@ -160,6 +162,22 @@
                     <div id="platform-management-list" class="publications-list-admin">
                         <!-- El contenido se cargará aquí dinámicamente -->
                         <div class="loading-spinner"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- DANGER ZONE SECTION (REMOVE AFTER USE) -->
+            <section id="danger-zone-section" class="admin-section">
+                <h1>Zona de Peligro</h1>
+                <p>Las acciones en esta sección son irreversibles y pueden causar la pérdida permanente de datos.</p>
+                
+                <div class="danger-zone-container">
+                    <div class="danger-item">
+                        <div class="danger-item-info">
+                            <h4>Reiniciar la Base de Datos</h4>
+                            <p>Esta acción eliminará TODOS los usuarios (excepto el de la plataforma), publicaciones, transacciones, saldos y cualquier otro dato generado. La base de datos volverá a su estado inicial. <strong>Úsese con extrema precaución.</strong></p>
+                        </div>
+                        <button id="resetDatabaseBtn" class="action-button-admin danger">Reiniciar Base de Datos</button>
                     </div>
                 </div>
             </section>

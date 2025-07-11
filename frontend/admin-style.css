@@ -389,6 +389,14 @@ input:checked + .slider:before {
     background-color: #dc3545;
 }
 
+.action-button-admin.danger {
+    background-color: #dc3545; /* Mismo color que eliminar */
+    border: 1px solid #ff7b7b;
+}
+.action-button-admin.danger:hover {
+    background-color: #c82333;
+}
+
 /* --- NUEVO: Estilos para el formulario de creación de publicaciones de la plataforma --- */
 .admin-form {
     background-color: var(--admin-surface);
@@ -518,6 +526,33 @@ input:checked + .slider:before {
     display: flex;
     align-items: center;
     gap: 1rem;
+}
+
+/* --- NUEVO: Estilos para la Zona de Peligro --- */
+.danger-zone-container {
+    margin-top: 2rem;
+    border: 2px solid #dc3545;
+    border-radius: 12px;
+    padding: 1.5rem;
+    background-color: rgba(220, 53, 69, 0.05);
+}
+
+.danger-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+}
+
+.danger-item-info h4 {
+    color: #dc3545;
+    margin: 0 0 0.5rem 0;
+    font-size: 1.2rem;
+}
+
+.danger-item-info p {
+    color: var(--admin-text);
+    max-width: 70ch;
 }
 
 

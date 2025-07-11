@@ -325,10 +325,10 @@ async function initializeDatabase() {
             id SERIAL PRIMARY KEY,
             username VARCHAR(255) NOT NULL,
             type VARCHAR(255) NOT NULL,
-            description TEXT NOT NULL,
+                description TEXT NOT NULL,
             blue_change NUMERIC(19, 4) NOT NULL DEFAULT 0,
             red_change NUMERIC(19, 4) NOT NULL DEFAULT 0,
-            related_publication_id INTEGER,
+                related_publication_id INTEGER,
             created_at TIMESTAMPTZ DEFAULT NOW()
         );`,
         `CREATE TABLE IF NOT EXISTS ratings (
@@ -504,8 +504,8 @@ async function startServer() {
                     message: `Usuario '${newUser.username}' registrado con éxito.`,
                     userId: newUser.id,
                     username: newUser.username
-                });
-            } catch (error) {
+        });
+    } catch (error) {
                 console.error('Error al registrar usuario:', error);
                 // La base de datos nos dirá exactamente qué campo falló gracias a las constraints.
                 if (error.code === '23505') { // Código de error para 'unique_violation'
@@ -522,25 +522,25 @@ async function startServer() {
                     return res.status(409).json({ message: 'Un valor que ingresaste ya está en uso.' });
                 }
                 res.status(500).json({ message: 'Error interno del servidor al intentar registrar el usuario.' });
-            }
-        });
+    }
+});
 
-        // Ruta de Inicio de Sesión
+// Ruta de Inicio de Sesión
         app.post('/login', async (req, res) => {
-            const { username, password } = req.body;
+    const { username, password } = req.body;
 
-            if (!username || !password) {
-                return res.status(400).json({ message: "Usuario y contraseña son requeridos." });
-            }
+    if (!username || !password) {
+        return res.status(400).json({ message: "Usuario y contraseña son requeridos." });
+    }
 
             try {
                 const sql = `SELECT * FROM users WHERE username = $1`;
                 const result = await pool.query(sql, [username]);
                 const user = result.rows[0];
         
-                if (!user) {
-                    return res.status(404).json({ message: "Usuario no encontrado. Por favor, regístrese primero." });
-                }
+        if (!user) {
+            return res.status(404).json({ message: "Usuario no encontrado. Por favor, regístrese primero." });
+        }
 
                 if (!user.password_hash) {
                     console.error(`Intento de login para el usuario '${username}' falló: la cuenta está corrupta (no tiene password_hash).`);
@@ -549,24 +549,24 @@ async function startServer() {
 
                 const match = await bcrypt.compare(password, user.password_hash);
 
-                if (match) {
-                    res.status(200).json({
-                        message: "Inicio de sesión exitoso.",
-                        username: user.username,
+            if (match) {
+                res.status(200).json({
+                    message: "Inicio de sesión exitoso.",
+                    username: user.username,
                         blue_balance: user.liquid_blue_balance,
                         escrow_blue_balance: user.escrow_blue_balance,
-                        red_balance: user.red_balance
-                    });
-                } else {
-                    res.status(401).json({ message: "Contraseña incorrecta." });
-                }
-            } catch (error) {
-                console.error("Error en el inicio de sesión:", error);
-                res.status(500).json({ message: "Error interno del servidor." });
+                    red_balance: user.red_balance
+                });
+            } else {
+                res.status(401).json({ message: "Contraseña incorrecta." });
             }
-        });
+        } catch (error) {
+                console.error("Error en el inicio de sesión:", error);
+            res.status(500).json({ message: "Error interno del servidor." });
+        }
+});
 
-        // Ruta para crear una nueva Publicación
+// Ruta para crear una nueva Publicación
         app.post('/publish', async (req, res) => {
             const { title, description, blueCost, blueSell, authorUsername, availableSlots } = req.body;
         
@@ -599,8 +599,8 @@ async function startServer() {
                 res.status(201).json({ message: "Publicación creada exitosamente.", publicationId: result.rows[0].id });
             } catch (error) {
                 console.error("Error al guardar la publicación:", error);
-                return res.status(500).json({ message: "Error interno del servidor." });
-            }
+            return res.status(500).json({ message: "Error interno del servidor." });
+        }
         });
 
         // Ruta para obtener publicaciones activas
@@ -608,7 +608,7 @@ async function startServer() {
             const { user: requestingUser } = req.query;
             if (!requestingUser) return res.status(400).json({ message: "Es necesario especificar un usuario." });
             
-            const sql = `
+    const sql = `
                 SELECT
                     p.*,
                     u.username as author_username,
@@ -663,14 +663,14 @@ async function startServer() {
                 res.status(200).json(publications);
             } catch (error) {
                 console.error("Error al obtener las publicaciones activas:", error);
-                return res.status(500).json({ message: "Error interno del servidor." });
-            }
+            return res.status(500).json({ message: "Error interno del servidor." });
+        }
         });
 
         // Ruta para Aceptar una publicación
         app.post('/publications/:id/accept', async (req, res) => {
             const { id } = req.params;
-            const { acceptorUsername } = req.body;
+    const { acceptorUsername } = req.body;
 
             const client = await pool.connect();
             try {
@@ -790,7 +790,7 @@ async function startServer() {
 
         // Ruta para Marcar como Culminada
         app.post('/publications/:id/complete', async (req, res) => {
-            const pubId = req.params.id;
+    const pubId = req.params.id;
             const { completerUsername } = req.body;
 
             const client = await pool.connect();
@@ -906,7 +906,7 @@ async function startServer() {
 
         // Ruta para Confirmar y Pagar
         app.post('/publications/:id/confirm-payment', async (req, res) => {
-            const pubId = req.params.id;
+    const pubId = req.params.id;
             const { confirmerUsername, workerUsername } = req.body; 
             
             const client = await pool.connect();
@@ -1006,11 +1006,11 @@ async function startServer() {
             } finally {
                 client.release();
             }
-        });
+});
 
-        // Ruta para obtener las notificaciones de un usuario
+// Ruta para obtener las notificaciones de un usuario
         app.get('/notifications/:username', async (req, res) => {
-            const { username } = req.params;
+    const { username } = req.params;
             const sql = `SELECT * FROM notifications WHERE recipient_username = $1 AND is_read = FALSE ORDER BY created_at DESC`;
             try {
                 const result = await pool.query(sql, [username]);
@@ -1018,11 +1018,11 @@ async function startServer() {
             } catch(error) {
                 res.status(500).json({ message: "Error interno del servidor." });
             }
-        });
+});
 
-        // Ruta para marcar notificaciones como leídas
+// Ruta para marcar notificaciones como leídas
         app.post('/notifications/mark-read', async (req, res) => {
-            const { username } = req.body;
+    const { username } = req.body;
             const sql = `UPDATE notifications SET is_read = TRUE WHERE recipient_username = $1 AND is_read = FALSE`;
             try {
                 const result = await pool.query(sql, [username]);
@@ -1058,14 +1058,14 @@ async function startServer() {
 
         // Ruta para QUEMAR tokens (Ahora refactorizada para usar la función central)
         app.post('/users/burn', async (req, res) => {
-            const { username, amount } = req.body;
+    const { username, amount } = req.body;
 
             const amountToBurnString = (amount || "0").toString().replace(',', '.');
             const amountToBurn = parseFloat(amountToBurnString);
 
             if (!username || !amountToBurn || amountToBurn <= 0) {
-                return res.status(400).json({ message: "La cantidad a quemar debe ser un número positivo." });
-            }
+        return res.status(400).json({ message: "La cantidad a quemar debe ser un número positivo." });
+    }
 
             const client = await pool.connect();
             try {
@@ -1178,8 +1178,8 @@ async function startServer() {
                 ]);
 
                 if (userResult.rows.length === 0) {
-                    return res.status(404).json({ message: "Usuario no encontrado." });
-                }
+            return res.status(404).json({ message: "Usuario no encontrado." });
+        }
 
                 const responseData = {
                     blue_balance: userResult.rows[0].liquid_blue_balance,
@@ -1337,8 +1337,8 @@ async function startServer() {
 
         // Ruta para obtener el perfil público de un usuario
         app.get('/users/:username/profile', async (req, res) => {
-            const { username } = req.params;
-        
+    const { username } = req.params;
+
             const client = await pool.connect();
             try {
                 const settingsResult = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'public_profiles_enabled'`);
@@ -1546,7 +1546,7 @@ async function startServer() {
 
             } catch (error) {
                 console.error("Error al obtener el log de comisiones:", error);
-                res.status(500).json({ message: "Error interno del servidor." });
+        res.status(500).json({ message: "Error interno del servidor." });
             }
         });
 
@@ -1630,8 +1630,8 @@ async function startServer() {
         
             } catch (error) {
                 console.error("Error al crear publicación de la plataforma:", error);
-                return res.status(500).json({ message: "Error interno del servidor." });
-            }
+            return res.status(500).json({ message: "Error interno del servidor." });
+        }
         });
 
         // NUEVO: Endpoint para obtener las publicaciones de la plataforma con sus participantes para gestionarlas
@@ -1956,9 +1956,9 @@ async function startServer() {
             }
         }, TOKEN_RELEASER_INTERVAL_MS);
 
-        app.listen(PORT, () => {
-            console.log(`Servidor corriendo en http://localhost:${PORT}`);
-        });
+app.listen(PORT, () => {
+    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+}); 
 
     } catch (err) {
         console.error("Error fatal al iniciar el servidor:", err);

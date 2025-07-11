@@ -38,7 +38,9 @@ document.addEventListener('DOMContentLoaded', () => {
         platformWalletStatsContainer: document.getElementById('platform-wallet-stats'),
         platformCommissionLogContainer: document.getElementById('platform-commission-log-container'),
         platformPublicationForm: document.getElementById('platformPublicationForm'),
-        platformManagementList: document.getElementById('platform-management-list')
+        platformManagementList: document.getElementById('platform-management-list'),
+        // -- DANGER ZONE (ELEMENTOS A ELIMINAR DESPUÉS DE USAR) --
+        resetDatabaseBtn: document.getElementById('resetDatabaseBtn')
     };
 
     // --- Inicialización ---
@@ -93,6 +95,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elements.platformManagementList) {
             elements.platformManagementList.addEventListener('click', handlePlatformAction);
         }
+
+        // -- DANGER ZONE (LÓGICA A ELIMINAR DESPUÉS DE USAR) --
+        if (elements.resetDatabaseBtn) {
+            elements.resetDatabaseBtn.addEventListener('click', handleResetDatabase);
+        }
     }
 
     function showSection(sectionId) {
@@ -112,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Cargar ambas partes de la sección de plataforma
             loadPlatformManagementData();
         }
+        // No se necesita cargar datos para la zona de peligro, solo mostrarla.
     }
 
     // --- Lógica de Datos (API Fetch, etc.) ---
@@ -279,6 +287,47 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             showCustomAlert(`Error al realizar la acción: ${error.message}`);
         }
+    }
+
+    // --- DANGER ZONE (FUNCIÓN A ELIMINAR DESPUÉS DE USAR) ---
+    function handleResetDatabase() {
+        const sqlCommand = `
+TRUNCATE TABLE 
+    platform_commission_log, 
+    ratings, 
+    hidden_publications, 
+    publication_acceptances, 
+    transactions, 
+    notifications, 
+    blue_token_escrows, 
+    red_token_debts, 
+    publications 
+RESTART IDENTITY CASCADE;
+
+DELETE FROM users WHERE username != 'Plataforma WintonCoin';
+
+UPDATE platform_wallet SET total_blue_commission_balance = 0.0000 WHERE id = 1;
+
+UPDATE users SET 
+    liquid_blue_balance = 100.0000, 
+    escrow_blue_balance = 0.0000, 
+    red_balance = 0.0000,
+    average_rating = 0,
+    ratings_count = 0
+WHERE username = 'Plataforma WintonCoin';
+        `.trim();
+
+        showCustomConfirm(
+            "¿Estás seguro de que quieres reiniciar la base de datos? Esta acción eliminará permanentemente todos los datos de usuarios, publicaciones y transacciones.",
+            () => {
+                showCustomConfirm(
+                    "CONFIRMACIÓN FINAL: Esta acción no se puede deshacer. ¿Estás absolutamente seguro?",
+                    () => {
+                        showCustomAlert(`ACCIÓN MANUAL REQUERIDA:\n\n1. Ve al panel de tu base de datos en Render.\n2. Abre la pestaña 'Shell'.\n3. Copia y pega el siguiente comando completo y presiona Enter:\n\n${sqlCommand}`);
+                    }
+                );
+            }
+        );
     }
 
     // --- Helpers de Renderizado ---
