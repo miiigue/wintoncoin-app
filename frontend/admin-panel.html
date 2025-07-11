@@ -27,6 +27,7 @@
                     <li><a href="#publications" class="nav-link" data-section="publications">Gestión de Contenido</a></li>
                     <li><a href="#debtors" class="nav-link" data-section="debtors">Panel de Deudores</a></li>
                     <li><a href="#platform-wallet" class="nav-link" data-section="platform-wallet">Billetera Plataforma</a></li>
+                    <li><a href="#platform-publications" class="nav-link" data-section="platform-publications">Publicaciones Plataforma</a></li>
                 </ul>
             </nav>
             <div class="sidebar-footer">
@@ -110,6 +111,56 @@
                 <h2>Historial de Comisiones</h2>
                 <div id="platform-commission-log-container" class="table-container-admin">
                     <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- Nueva Sección para Publicaciones de la Plataforma -->
+            <section id="platform-publications-section" class="admin-section">
+                <h1>Publicaciones de la Plataforma</h1>
+                <p>Crea tareas o servicios que aparecerán como si los hubiera publicado el usuario 'plataforma'.</p>
+
+                <form id="platformPublicationForm" class="admin-form">
+                    <div class="form-group-admin">
+                        <label for="platformPubTitle">Título de la Publicación:</label>
+                        <input type="text" id="platformPubTitle" required>
+                    </div>
+                    <div class="form-group-admin">
+                        <label for="platformPubDescription">Descripción:</label>
+                        <textarea id="platformPubDescription" rows="4" required></textarea>
+                    </div>
+                    
+                    <div class="form-row-admin">
+                        <div class="form-group-admin">
+                            <label>Tipo de Publicación:</label>
+                            <div class="radio-group-admin">
+                                <input type="radio" id="platformPubTypeRequest" name="platformPubType" value="request" checked>
+                                <label for="platformPubTypeRequest">Solicitud (paga BLUE)</label>
+                                <input type="radio" id="platformPubTypeSell" name="platformPubType" value="sell">
+                                <label for="platformPubTypeSell">Venta (recibe BLUE)</label>
+                            </div>
+                        </div>
+                        <div class="form-group-admin">
+                            <label for="platformPubCost">Valor (en BLUE):</label>
+                            <input type="number" id="platformPubCost" required min="0.0001" step="any">
+                        </div>
+                        <div class="form-group-admin">
+                            <label for="platformPubSlots">Cupos Disponibles:</label>
+                            <input type="number" id="platformPubSlots" required min="1" step="1" value="1">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="action-button-admin publish">Crear Publicación</button>
+                </form>
+
+                <hr class="admin-divider">
+
+                <div id="platform-publications-management">
+                    <h2>Gestionar Publicaciones Activas</h2>
+                    <p>Aquí aparecen las publicaciones creadas por la plataforma que tienen solicitudes pendientes o tareas por confirmar.</p>
+                    <div id="platform-management-list" class="publications-list-admin">
+                        <!-- El contenido se cargará aquí dinámicamente -->
+                        <div class="loading-spinner"></div>
+                    </div>
                 </div>
             </section>
 

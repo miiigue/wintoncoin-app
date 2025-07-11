@@ -185,6 +185,80 @@ async function applyMigrations(client) {
     }
 }
 
+async function runOneTimeDataMigrations(client) {
+    const oldPlatformUsername = 'plataforma';
+    const newPlatformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
+
+    // 1. Verificar si el usuario antiguo existe. Si no, no hay nada que hacer.
+    const oldUserResult = await client.query('SELECT * FROM users WHERE username = $1', [oldPlatformUsername]);
+    if (oldUserResult.rowCount === 0) {
+        // console.log("MIGRATION: El usuario antiguo 'plataforma' no fue encontrado. No se necesita migración.");
+        return;
+    }
+    const oldUser = oldUserResult.rows[0];
+    console.log(`MIGRATION: Se encontró el usuario obsoleto '${oldPlatformUsername}'. Iniciando migración de datos a '${newPlatformUsername}'.`);
+
+    // 2. Asegurarse de que el nuevo usuario exista.
+    const newUserResult = await client.query('SELECT * FROM users WHERE username = $1', [newPlatformUsername]);
+    if (newUserResult.rowCount === 0) {
+        throw new Error(`MIGRATION FAILED: El nuevo usuario de plataforma '${newPlatformUsername}' no existe. La migración no puede continuar.`);
+    }
+    const newUser = newUserResult.rows[0];
+
+    // 3. Iniciar la transacción para garantizar la atomicidad de la migración.
+    try {
+        await client.query('BEGIN');
+
+        // 4. Sumar los saldos del usuario antiguo al nuevo.
+        const newLiquidBlue = parseFloat(newUser.liquid_blue_balance) + parseFloat(oldUser.liquid_blue_balance);
+        const newEscrowBlue = parseFloat(newUser.escrow_blue_balance) + parseFloat(oldUser.escrow_blue_balance);
+        const newRed = parseFloat(newUser.red_balance) + parseFloat(oldUser.red_balance);
+
+        await client.query(
+            'UPDATE users SET liquid_blue_balance = $1, escrow_blue_balance = $2, red_balance = $3 WHERE id = $4',
+            [newLiquidBlue, newEscrowBlue, newRed, newUser.id]
+        );
+        console.log(`MIGRATION: Saldos transferidos de '${oldPlatformUsername}' a '${newPlatformUsername}'.`);
+
+        // 5. Reasignar todas las entidades relacionadas del usuario antiguo al nuevo.
+        await client.query('UPDATE publications SET author_id = $1 WHERE author_id = $2', [newUser.id, oldUser.id]);
+        console.log(`MIGRATION: Publicaciones reasignadas.`);
+        
+        await client.query('UPDATE publication_acceptances SET acceptor_username = $1 WHERE acceptor_username = $2', [newPlatformUsername, oldPlatformUsername]);
+        console.log(`MIGRATION: Aceptaciones de publicaciones reasignadas.`);
+        
+        await client.query('UPDATE notifications SET recipient_username = $1 WHERE recipient_username = $2', [newPlatformUsername, oldPlatformUsername]);
+        console.log(`MIGRATION: Notificaciones reasignadas.`);
+        
+        await client.query('UPDATE transactions SET username = $1 WHERE username = $2', [newPlatformUsername, oldPlatformUsername]);
+        console.log(`MIGRATION: Transacciones reasignadas.`);
+
+        await client.query('UPDATE ratings SET rater_username = $1 WHERE rater_username = $2', [newPlatformUsername, oldPlatformUsername]);
+        await client.query('UPDATE ratings SET ratee_username = $1 WHERE ratee_username = $2', [newPlatformUsername, oldPlatformUsername]);
+        console.log(`MIGRATION: Calificaciones reasignadas.`);
+        
+        await client.query('UPDATE red_token_debts SET username = $1 WHERE username = $2', [newPlatformUsername, oldPlatformUsername]);
+        console.log(`MIGRATION: Deudas RED reasignadas.`);
+
+        await client.query('UPDATE blue_token_escrows SET username = $1 WHERE username = $2', [newPlatformUsername, oldPlatformUsername]);
+        console.log(`MIGRATION: Depósitos BLUE reasignados.`);
+
+        // 6. Eliminar el usuario antiguo.
+        await client.query('DELETE FROM users WHERE id = $1', [oldUser.id]);
+        console.log(`MIGRATION: El usuario obsoleto '${oldPlatformUsername}' ha sido eliminado.`);
+
+        // 7. Finalizar la transacción.
+        await client.query('COMMIT');
+        console.log("MIGRATION: ¡Migración de datos completada exitosamente!");
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error("MIGRATION FAILED: Ocurrió un error durante la migración de datos. Se revirtieron todos los cambios.", error);
+        // Relanzamos el error para detener el arranque del servidor, ya que es un estado inconsistente.
+        throw error;
+    }
+}
+
 
 /**
  * Función principal para configurar y asegurar que todas las tablas de la DB existen.
@@ -312,6 +386,10 @@ async function initializeDatabase() {
         // Paso 1: Aplicar todas las migraciones de esquema.
         await applyMigrations(client);
 
+        // --- NUEVO: Ejecutar migraciones de datos de un solo uso ---
+        // Esto se ejecuta después de las migraciones de esquema para asegurar que todas las tablas y columnas existen.
+        await runOneTimeDataMigrations(client);
+
         // Paso 2: Asegurar que todas las tablas base existen.
         for (const query of tableCreationQueries) {
             await client.query(query);
@@ -327,6 +405,46 @@ async function initializeDatabase() {
         }
         console.log("Configuraciones por defecto aseguradas en 'app_settings'.");
         
+        // --- NUEVO PASO 4: Asegurar la existencia del usuario y la billetera de la plataforma ---
+        const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
+        const platformPassword = process.env.PLATFORM_USER_PASSWORD;
+
+        if (!platformPassword) {
+            console.warn(`
+                *****************************************************************
+                * ADVERTENCIA DE SEGURIDAD:                                     *
+                * La contraseña para el usuario de la plataforma no está        *
+                * configurada. Por favor, añade PLATFORM_USER_PASSWORD a tu     *
+                * archivo .env con una contraseña segura y reinicia el servidor.*
+                * Se usará una contraseña temporal insegura.                    *
+                *****************************************************************
+            `);
+        }
+        const securePassword = platformPassword || 'temporal_insegura_cambiar_urgente';
+
+        const userExists = await client.query('SELECT id FROM users WHERE username = $1', [platformUsername]);
+        if (userExists.rowCount === 0) {
+            console.log(`Creando el usuario del sistema '${platformUsername}'...`);
+            const passwordHash = await bcrypt.hash(securePassword, saltRounds);
+            
+            // Create a safe, unique identifier from the username to avoid conflicts.
+            const uniqueIdentifier = platformUsername.toLowerCase().replace(/\s+/g, '-');
+            const email = `platform-${uniqueIdentifier}@wintoncoin.io`; // Guarantees a unique email
+            const phone = `000000-${uniqueIdentifier}`; // Guarantees a unique phone placeholder
+
+            await client.query(
+                'INSERT INTO users (username, password_hash, email, phone) VALUES ($1, $2, $3, $4)',
+                [platformUsername, passwordHash, email, phone]
+            );
+            console.log(`Usuario del sistema '${platformUsername}' creado con email: ${email} y phone: ${phone}`);
+        }
+
+        const walletExists = await client.query('SELECT id FROM platform_wallet WHERE id = 1');
+        if (walletExists.rowCount === 0) {
+            await client.query('INSERT INTO platform_wallet(id, total_blue_commission_balance) VALUES (1, 0)');
+            console.log("Billetera de la plataforma inicializada.");
+        }
+
         await client.query('COMMIT');
     } catch (e) {
         await client.query('ROLLBACK');
@@ -1353,13 +1471,36 @@ async function startServer() {
 
         // --- ENDPOINTS PARA BILLETERA DE PLATAFORMA (CORRECCIÓN) ---
         app.get('/api/admin/platform-wallet/balance', verifyAdminToken, async (req, res) => {
+            const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
+            const client = await pool.connect();
             try {
-                const result = await pool.query('SELECT total_blue_commission_balance FROM platform_wallet WHERE id = 1');
-                const balance = result.rows[0]?.total_blue_commission_balance || '0';
-                res.json({ balance: parseFloat(balance) });
+                // We run both queries in parallel for efficiency
+                const [commissionResult, userResult] = await Promise.all([
+                    client.query('SELECT total_blue_commission_balance FROM platform_wallet WHERE id = 1'),
+                    client.query('SELECT liquid_blue_balance, escrow_blue_balance, red_balance FROM users WHERE username = $1', [platformUsername])
+                ]);
+
+                const commissionBalance = parseFloat(commissionResult.rows[0]?.total_blue_commission_balance || '0');
+                
+                if (userResult.rowCount === 0) {
+                    // This is a critical error, the platform user should always exist.
+                    throw new Error(`El usuario de la plataforma '${platformUsername}' no fue encontrado en la base de datos.`);
+                }
+                
+                const userBalances = userResult.rows[0];
+
+                res.json({
+                    commissionBalance: commissionBalance,
+                    liquidBlue: parseFloat(userBalances.liquid_blue_balance || '0'),
+                    escrowBlue: parseFloat(userBalances.escrow_blue_balance || '0'),
+                    redBalance: parseFloat(userBalances.red_balance || '0')
+                });
+
             } catch (error) {
-                console.error("Error al obtener el saldo de la plataforma:", error);
-                res.status(500).json({ message: "Error interno del servidor." });
+                console.error("Error al obtener el estado financiero de la plataforma:", error);
+                res.status(500).json({ message: error.message || "Error interno del servidor." });
+            } finally {
+                client.release();
             }
         });
 
@@ -1435,6 +1576,95 @@ async function startServer() {
                 res.json({ success: true, message: 'Publicación eliminada correctamente.' });
             } catch (error) {
                 console.error(`Error deleting publication ${id} for admin:`, error);
+                res.status(500).json({ message: 'Error interno del servidor.' });
+            }
+        });
+
+        // Endpoint para que un administrador cree una publicación como la plataforma
+        app.post('/api/admin/platform/create-publication', verifyAdminToken, async (req, res) => {
+            const { title, description, cost: costString, availableSlots: slotsString, isSellPost } = req.body;
+        
+            if (!title || !description || !costString) {
+                return res.status(400).json({ message: "Faltan datos: título, descripción y costo son requeridos." });
+            }
+            
+            const cost = parseFloat(costString.toString().replace(',', '.'));
+            if (isNaN(cost) || cost <= 0) {
+                return res.status(400).json({ message: "El costo debe ser un número positivo." });
+            }
+        
+            const slots = slotsString ? parseInt(slotsString, 10) : 1;
+            if (isNaN(slots) || slots < 1) {
+                return res.status(400).json({ message: "La cantidad de cupos debe ser mayor a 0." });
+            }
+        
+            const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
+        
+            try {
+                const userResult = await pool.query(`SELECT id FROM users WHERE username = $1`, [platformUsername]);
+                if (userResult.rowCount === 0) {
+                    return res.status(500).json({ message: "Error crítico: El usuario de la plataforma no se encuentra." });
+                }
+                const authorId = userResult.rows[0].id;
+        
+                const sql = `INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`;
+                const result = await pool.query(sql, [title, description, cost, !!isSellPost, authorId, slots]);
+                
+                res.status(201).json({ message: "Publicación de la plataforma creada exitosamente.", publicationId: result.rows[0].id });
+        
+            } catch (error) {
+                console.error("Error al crear publicación de la plataforma:", error);
+                return res.status(500).json({ message: "Error interno del servidor." });
+            }
+        });
+
+        // NUEVO: Endpoint para obtener las publicaciones de la plataforma con sus participantes para gestionarlas
+        app.get('/api/admin/platform/publications-with-participants', verifyAdminToken, async (req, res) => {
+            const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
+            try {
+                const query = `
+                    SELECT
+                        p.id, p.title, p.description, p.created_at, p.status, p.is_paused,
+                        u.username as author_username,
+                        (
+                            SELECT json_agg(json_build_object(
+                                'acceptor_username', pa.acceptor_username,
+                                'status', pa.status,
+                                'average_rating', u_participant.average_rating,
+                                'ratings_count', u_participant.ratings_count
+                            ))
+                            FROM publication_acceptances pa
+                            JOIN users u_participant ON pa.acceptor_username = u_participant.username
+                            WHERE pa.publication_id = p.id
+                        ) as participants
+                    FROM
+                        publications p
+                    JOIN
+                        users u ON p.author_id = u.id
+                    WHERE
+                        u.username = $1
+                    AND
+                        -- Solo incluir publicaciones que todavía tienen alguna acción pendiente
+                        EXISTS (
+                            SELECT 1
+                            FROM publication_acceptances pa_check
+                            WHERE pa_check.publication_id = p.id
+                            AND pa_check.status IN ('pending_approval', 'approved', 'completed')
+                        )
+                    ORDER BY
+                        p.created_at DESC;
+                `;
+                const result = await pool.query(query, [platformUsername]);
+
+                // Asegurarse de que el campo de participantes nunca sea nulo, sino un array vacío.
+                const publications = result.rows.map(p => ({
+                    ...p,
+                    participants: p.participants || [],
+                }));
+
+                res.json(publications);
+            } catch (error) {
+                console.error('Error fetching platform publications for admin:', error);
                 res.status(500).json({ message: 'Error interno del servidor.' });
             }
         });

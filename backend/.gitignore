@@ -4,12 +4,9 @@ node_modules/
 # Archivos de entorno - Contienen claves secretas
 .env
 
-# Archivos de base de datos
+# Archivos de base de datos locales (si los hubiera)
 *.db
 *.db-journal
 
 # Logs y archivos de debug
-*.log
-
-# Directorio del contrato de Solidity (lo manejaremos por separado)
-wintonCoin-solidity/ 
+*.log 
