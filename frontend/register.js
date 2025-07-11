@@ -20,30 +20,37 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (registerForm) {
         registerForm.addEventListener('submit', async function(event) {
+            // Prevenir el comportamiento por defecto del formulario
             event.preventDefault();
 
+            // Obtener los valores ingresados por el usuario
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
 
-            // 1. Verificar que las contraseñas coincidan
+            // Comprobación de seguridad: las contraseñas deben coincidir
             if (password !== confirmPassword) {
-                showCustomAlert('Las contraseñas no coinciden. Inténtalo de nuevo.');
-                return; // Detiene la ejecución si no coinciden
+                showCustomAlert('Las contraseñas no coinciden. Por favor, inténtalo de nuevo.');
+                return; // Detiene el envío del formulario si no coinciden
             }
 
+            // La URL a la que enviaremos la petición de registro
             const registerUrl = `${API_URL}/register`;
 
             try {
-                // 2. Hacer la petición 'fetch' al backend
+                // Hacemos la petición 'fetch' al backend
                 const response = await fetch(registerUrl, {
-                    method: 'POST',
+                    method: 'POST', // Usamos el método POST
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json' // Le decimos al servidor que enviamos JSON
                     },
-                    body: JSON.stringify({ username, password })
+                    // Convertimos todos los datos a un string JSON
+                    body: JSON.stringify({ username, password, email, phone })
                 });
 
+                // Convertimos la respuesta del servidor a un objeto JSON
                 const result = await response.json();
 
                 if (response.ok) { // Éxito (ej. código 201 Created)

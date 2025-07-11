@@ -135,6 +135,29 @@ async function applyMigrations(client) {
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transactions' AND column_name='platform_fee_blue') THEN
                 ALTER TABLE transactions ADD COLUMN platform_fee_blue NUMERIC(19, 4) NOT NULL DEFAULT 0;
             END IF;
+         END $$;`,
+        // MIGRACIÓN 7: Añadir campos de email y teléfono a la tabla de usuarios.
+        // Se hace de forma robusta para no fallar en bases de datos existentes.
+        `DO $$
+         BEGIN
+             -- Añadir columna de email si no existe
+             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='email') THEN
+                 ALTER TABLE users ADD COLUMN email VARCHAR(255);
+             END IF;
+             -- Añadir constraint de unicidad a email si no existe
+             IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_email_key' AND conrelid = 'users'::regclass) THEN
+                 -- Esta cláusula es importante: solo añade la restricción si no existe ya.
+                 ALTER TABLE users ADD CONSTRAINT users_email_key UNIQUE (email);
+             END IF;
+ 
+             -- Añadir columna de teléfono si no existe
+             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='phone') THEN
+                 ALTER TABLE users ADD COLUMN phone VARCHAR(50);
+             END IF;
+             -- Añadir constraint de unicidad a teléfono si no existe
+             IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_phone_key' AND conrelid = 'users'::regclass) THEN
+                 ALTER TABLE users ADD CONSTRAINT users_phone_key UNIQUE (phone);
+             END IF;
          END $$;`
     ];
 
@@ -325,22 +348,22 @@ async function startServer() {
 
         // Ruta de Registro de Usuario
         app.post('/register', async (req, res) => {
-            const { username, password } = req.body;
+            const { username, password, email, phone } = req.body;
             
-            if (!username || !password) {
-                return res.status(400).json({ message: "Usuario y contraseña son requeridos." });
+            if (!username || !password || !email || !phone) {
+                return res.status(400).json({ message: "Todos los campos son requeridos: usuario, contraseña, correo electrónico y teléfono." });
+            }
+
+            // Validación simple de formato de email en el servidor como una capa extra.
+            if (!/^\S+@\S+\.\S+$/.test(email)) {
+                return res.status(400).json({ message: "El formato del correo electrónico no es válido." });
             }
 
             try {
-                const userCheck = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
-                if (userCheck.rows.length > 0) {
-                    return res.status(409).json({ message: 'El nombre de usuario ya está en uso.' });
-                }
-
                 const passwordHash = await bcrypt.hash(password, saltRounds);
                 
-                const sql = `INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING id, username`;
-                const result = await pool.query(sql, [username, passwordHash]);
+                const sql = `INSERT INTO users (username, password_hash, email, phone) VALUES ($1, $2, $3, $4) RETURNING id, username`;
+                const result = await pool.query(sql, [username, passwordHash, email, phone]);
                 const newUser = result.rows[0];
 
                 res.status(201).json({ 
@@ -350,8 +373,19 @@ async function startServer() {
                 });
             } catch (error) {
                 console.error('Error al registrar usuario:', error);
-                if (error.code === '23505') {
-                    return res.status(409).json({ message: 'El nombre de usuario ya está registrado.' });
+                // La base de datos nos dirá exactamente qué campo falló gracias a las constraints.
+                if (error.code === '23505') { // Código de error para 'unique_violation'
+                    if (error.constraint === 'users_username_key') {
+                        return res.status(409).json({ message: 'El nombre de usuario ya está registrado.' });
+                    }
+                    if (error.constraint === 'users_email_key') {
+                        return res.status(409).json({ message: 'El correo electrónico ya está registrado.' });
+                    }
+                    if (error.constraint === 'users_phone_key') {
+                        return res.status(409).json({ message: 'El número de teléfono ya está registrado.' });
+                    }
+                    // Mensaje genérico si es otra restricción de unicidad no esperada.
+                    return res.status(409).json({ message: 'Un valor que ingresaste ya está en uso.' });
                 }
                 res.status(500).json({ message: 'Error interno del servidor al intentar registrar el usuario.' });
             }
@@ -996,11 +1030,17 @@ async function startServer() {
                     SELECT unlock_at, amount FROM blue_token_escrows
                     WHERE username = $1 AND is_released = FALSE ORDER BY unlock_at ASC LIMIT 1
                 `;
+
+                const penalizedDebtSql = `
+                    SELECT SUM(amount) as total_penalized_debt FROM red_token_debts
+                    WHERE username = $1 AND is_penalized = TRUE AND is_settled = FALSE
+                `;
                 
-                const [userResult, debtResult, escrowResult] = await Promise.all([
+                const [userResult, debtResult, escrowResult, penalizedDebtResult] = await Promise.all([
                     client.query(userSql, [username]),
                     client.query(debtSql, [username]),
-                    client.query(escrowSql, [username])
+                    client.query(escrowSql, [username]),
+                    client.query(penalizedDebtSql, [username])
                 ]);
 
                 if (userResult.rows.length === 0) {
@@ -1014,7 +1054,8 @@ async function startServer() {
                     next_due_at: debtResult.rows[0]?.due_at || null,
                     next_due_amount: debtResult.rows[0]?.amount || null,
                     next_unlock_at: escrowResult.rows[0]?.unlock_at || null,
-                    next_unlock_amount: escrowResult.rows[0]?.amount || null
+                    next_unlock_amount: escrowResult.rows[0]?.amount || null,
+                    penalized_debt: penalizedDebtResult.rows[0]?.total_penalized_debt || '0'
                 };
                 
                 res.status(200).json(responseData);

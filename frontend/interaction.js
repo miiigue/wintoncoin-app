@@ -151,6 +151,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const blueBalance = sessionStorage.getItem('blue_balance') || '0';
             const escrowBlueBalance = sessionStorage.getItem('escrow_blue_balance') || '0';
             const redBalance = sessionStorage.getItem('red_balance') || '0';
+            const penalizedDebt = sessionStorage.getItem('penalized_debt') || '0';
+
+            let penalizedDebtHTML = '';
+            // Solo mostramos la línea de vencidos si la cantidad es mayor a cero.
+            if (parseFloat(penalizedDebt) > 0.00009) {
+                penalizedDebtHTML = `
+                    <div class="balance-line">
+                        <span>Vencidos</span>
+                        <span class="saldo-red-text">${formatBalance(penalizedDebt)} RED</span>
+                    </div>
+                `;
+            }
             
             elements.burnModalBalances.innerHTML = `
                 <div class="balance-line">
@@ -161,10 +173,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span>Pendientes</span>
                     <span class="saldo-escrow-text">${formatBalance(escrowBlueBalance)} BLUE</span>
                 </div>
+                <hr class="burn-modal-divider">
                 <div class="balance-line">
-                    <span>Deuda</span>
+                    <span>Deuda Total</span>
                     <span class="saldo-red-text">${formatBalance(redBalance)} RED</span>
                 </div>
+                ${penalizedDebtHTML}
             `;
             
             elements.burnModal.style.display = 'flex';
@@ -764,6 +778,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 sessionStorage.setItem('blue_balance', data.blue_balance);
                 sessionStorage.setItem('escrow_blue_balance', data.escrow_blue_balance);
                 sessionStorage.setItem('red_balance', data.red_balance);
+                sessionStorage.setItem('penalized_debt', data.penalized_debt);
 
                 // NO actualizamos el modal de quemado aquí. Se hará solo al abrirlo.
 

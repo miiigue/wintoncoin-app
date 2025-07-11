@@ -59,10 +59,14 @@ label {
 
 input[type="text"],
 input[type="password"],
+input[type="email"],
+input[type="tel"],
 input[type="number"],
+input[type="search"],
 textarea {
     width: 100%;
     padding: 12px 15px;
+    margin-bottom: 10px;
     border: 1px solid #2a3b5c;
     background-color: var(--background-color);
     border-radius: 8px;
@@ -71,11 +75,6 @@ textarea {
     font-family: 'Poppins', sans-serif;
     box-sizing: border-box; /* Asegura que el padding no afecte el ancho total */
     transition: border-color 0.3s, box-shadow 0.3s;
-}
-
-textarea {
-    resize: vertical;
-    min-height: 120px;
 }
 
 input[type="text"]:focus,
@@ -736,6 +735,13 @@ hr {
 }
 .balance-line span:last-child {
     font-weight: 600;
+}
+
+.burn-modal-divider {
+    border: none;
+    height: 1px;
+    background-color: #2a3b5c; /* Coincide con el borde de los inputs */
+    margin: 0.75rem 0;
 }
 
 .burn-info > span {
