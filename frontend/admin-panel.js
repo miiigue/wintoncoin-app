@@ -735,7 +735,7 @@ WHERE username = 'Plataforma WintonCoin';
                 <thead>
                     <tr>
                         <th>Monto Comisión (BLUE)</th>
-                        <th>Transacción Origen</th>
+                        <th>Publicación de Origen</th>
                         <th>Usuario Implicado</th>
                         <th>Fecha</th>
                     </tr>
@@ -753,11 +753,19 @@ WHERE username = 'Plataforma WintonCoin';
             year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
         });
 
+        const titleHTML = entry.publication_id
+            ? `<span title="ID de Publicación: ${entry.publication_id}" style="cursor: help;">${entry.publication_title}</span>`
+            : entry.publication_title;
+
+        const userHTML = entry.user_who_paid !== '(Usuario desconocido)'
+            ? `<a href="profile.html?user=${entry.user_who_paid}" target="_blank">${entry.user_who_paid}</a>`
+            : entry.user_who_paid;
+
         return `
             <tr>
-                <td class="saldo-blue-text">${formatBalance(entry.commission_amount)} BLUE</td>
-                <td>${entry.transaction_type}</td>
-                <td>${entry.user_involved}</td>
+                <td class="saldo-blue-text">${formatBalance(entry.commission_amount_blue)} BLUE</td>
+                <td>${titleHTML}</td>
+                <td class="username-cell">${userHTML}</td>
                 <td>${commissionDate}</td>
             </tr>
         `;
