@@ -158,6 +158,13 @@ async function applyMigrations(client) {
              IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_phone_key' AND conrelid = 'users'::regclass) THEN
                  ALTER TABLE users ADD CONSTRAINT users_phone_key UNIQUE (phone);
              END IF;
+         END $$;`,
+        // MIGRACIÓN 8: Añadir la columna 'auto_approve' a la tabla de publicaciones.
+        `DO $$
+         BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='auto_approve') THEN
+                ALTER TABLE publications ADD COLUMN auto_approve BOOLEAN DEFAULT FALSE;
+            END IF;
          END $$;`
     ];
 
@@ -299,7 +306,8 @@ async function initializeDatabase() {
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             is_sell_post BOOLEAN DEFAULT FALSE,
             available_slots INT DEFAULT 1,
-            is_paused BOOLEAN DEFAULT FALSE
+            is_paused BOOLEAN DEFAULT FALSE,
+            auto_approve BOOLEAN DEFAULT FALSE
         );`,
         `CREATE TABLE IF NOT EXISTS hidden_publications (
             id SERIAL PRIMARY KEY,
@@ -568,7 +576,7 @@ async function startServer() {
 
 // Ruta para crear una nueva Publicación
         app.post('/publish', async (req, res) => {
-            const { title, description, blueCost, blueSell, authorUsername, availableSlots } = req.body;
+            const { title, description, blueCost, blueSell, authorUsername, availableSlots, autoApprove } = req.body;
         
             if (!title || !description || !authorUsername || (!blueCost && !blueSell)) {
                 return res.status(400).json({ message: "Faltan datos requeridos para la publicación." });
@@ -594,8 +602,8 @@ async function startServer() {
                 }
                 const authorId = userResult.rows[0].id;
 
-                const sql = `INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`;
-                const result = await pool.query(sql, [title, description, cost, isSellPost, authorId, slots]);
+                const sql = `INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`;
+                const result = await pool.query(sql, [title, description, cost, isSellPost, authorId, slots, !!autoApprove]);
                 res.status(201).json({ message: "Publicación creada exitosamente.", publicationId: result.rows[0].id });
             } catch (error) {
                 console.error("Error al guardar la publicación:", error);
@@ -691,13 +699,22 @@ async function startServer() {
 
                 await client.query(`UPDATE publications SET available_slots = available_slots - 1 WHERE id = $1`, [id]);
                 
-                await client.query(`INSERT INTO publication_acceptances (publication_id, acceptor_username, status) VALUES ($1, $2, 'pending_approval')`, [id, acceptorUsername]);
-                
-                const message = `El usuario ${acceptorUsername} quiere realizar la tarea "${pub.title}".`;
-                await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [pub.author_username, message]);
-
-                await client.query('COMMIT');
-                res.status(200).json({ message: "Solicitud enviada. Esperando aprobación." });
+                // --- LÓGICA DE AUTO-APROBACIÓN ---
+                if (pub.auto_approve) {
+                    // Si la auto-aprobación está activa, se aprueba directamente.
+                    await client.query(`INSERT INTO publication_acceptances (publication_id, acceptor_username, status) VALUES ($1, $2, 'approved')`, [id, acceptorUsername]);
+                    const message = `¡Has sido aprobado automáticamente para la tarea "${pub.title}"!`;
+                    await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [acceptorUsername, message]);
+                    await client.query('COMMIT');
+                    res.status(200).json({ message: "¡Aceptaste y fuiste aprobado automáticamente!" });
+                } else {
+                    // Comportamiento normal: pendiente de aprobación
+                    await client.query(`INSERT INTO publication_acceptances (publication_id, acceptor_username, status) VALUES ($1, $2, 'pending_approval')`, [id, acceptorUsername]);
+                    const message = `El usuario ${acceptorUsername} quiere realizar la tarea "${pub.title}".`;
+                    await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [pub.author_username, message]);
+                    await client.query('COMMIT');
+                    res.status(200).json({ message: "Solicitud enviada. Esperando aprobación." });
+                }
 
             } catch (error) {
                 await client.query('ROLLBACK');
@@ -1598,7 +1615,7 @@ async function startServer() {
 
         // Endpoint para que un administrador cree una publicación como la plataforma
         app.post('/api/admin/platform/create-publication', verifyAdminToken, async (req, res) => {
-            const { title, description, cost: costString, availableSlots: slotsString, isSellPost } = req.body;
+            const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove } = req.body;
         
             if (!title || !description || !costString) {
                 return res.status(400).json({ message: "Faltan datos: título, descripción y costo son requeridos." });
@@ -1623,8 +1640,8 @@ async function startServer() {
                 }
                 const authorId = userResult.rows[0].id;
         
-                const sql = `INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`;
-                const result = await pool.query(sql, [title, description, cost, !!isSellPost, authorId, slots]);
+                const sql = `INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`;
+                const result = await pool.query(sql, [title, description, cost, !!isSellPost, authorId, slots, !!autoApprove]);
                 
                 res.status(201).json({ message: "Publicación de la plataforma creada exitosamente.", publicationId: result.rows[0].id });
         
@@ -1659,14 +1676,17 @@ async function startServer() {
                         users u ON p.author_id = u.id
                     WHERE
                         u.username = $1
-                    AND
-                        -- Solo incluir publicaciones que todavía tienen alguna acción pendiente
+                    AND (
+                        -- La publicación todavía tiene cupos disponibles
+                        p.available_slots > 0
+                        OR
+                        -- O tiene participantes cuyo proceso no ha terminado (no han sido pagados)
                         EXISTS (
                             SELECT 1
                             FROM publication_acceptances pa_check
-                            WHERE pa_check.publication_id = p.id
-                            AND pa_check.status IN ('pending_approval', 'approved', 'completed')
+                            WHERE pa_check.publication_id = p.id AND pa_check.status != 'confirmed_paid'
                         )
+                    )
                     ORDER BY
                         p.created_at DESC;
                 `;

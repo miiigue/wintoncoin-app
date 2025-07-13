@@ -32,6 +32,37 @@ body {
     text-align: center;
 }
 
+.form-group-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background-color: var(--background-color);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    text-align: left;
+}
+
+.form-group-checkbox input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    accent-color: var(--primary-color);
+}
+
+.form-group-checkbox label {
+    margin-bottom: 0;
+    font-weight: 600;
+}
+
+.form-group-checkbox .input-hint {
+    font-size: 0.8rem;
+    color: var(--text-secondary-color);
+    margin-left: calc(20px + 0.75rem); /* Alinear con la descripción */
+    margin-top: -0.5rem; /* Ajuste para que quede debajo del label */
+    flex-basis: 100%;
+}
+
 h1 {
     color: var(--primary-color);
     margin-bottom: 0.5rem;

@@ -216,9 +216,149 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Lógica de Renderizado de Configuración (NUEVO) ---
+
+    const settingTitles = {
+        'public_profiles_enabled': 'Perfiles Públicos',
+        'allow_new_registrations': 'Permitir Nuevos Registros',
+        'allow_new_publications': 'Permitir Nuevas Publicaciones',
+        'debt_system_enabled': 'Sistema de Deuda',
+        'platform_commission_percentage': 'Comisión de la Plataforma (%)'
+    };
+
+    function getSettingTitle(key) {
+        return settingTitles[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    function renderSettings(settings) {
+        elements.settingsContainer.innerHTML = ''; // Limpiar contenido anterior
+
+        // Agrupar configuraciones de tiempo
+        const timeSettings = {
+            debt_cycle: { label: 'Duración del Ciclo de Deuda RED', settings: [] },
+            blue_escrow: { label: 'Duración del Depósito BLUE (Escrow)', settings: [] }
+        };
+        const otherSettings = [];
+
+        settings.forEach(setting => {
+            if (setting.setting_key.startsWith('debt_cycle_')) {
+                timeSettings.debt_cycle.settings.push(setting);
+            } else if (setting.setting_key.startsWith('blue_escrow_')) {
+                timeSettings.blue_escrow.settings.push(setting);
+            } else {
+                otherSettings.push(setting);
+            }
+        });
+
+        // Renderizar configuraciones de tiempo agrupadas
+        for (const groupKey in timeSettings) {
+            const group = timeSettings[groupKey];
+            if (group.settings.length > 0) {
+                // Ordenar por días, horas, minutos
+                group.settings.sort((a, b) => {
+                    const order = ['days', 'hours', 'minutes'];
+                    const aKey = a.setting_key.split('_').pop();
+                    const bKey = b.setting_key.split('_').pop();
+                    return order.indexOf(aKey) - order.indexOf(bKey);
+                });
+                const groupHTML = `
+                    <div class="setting-item">
+                        <div class="setting-item-info">
+                            <h4>${group.label}</h4>
+                            <p>Define el período de tiempo para esta funcionalidad.</p>
+                        </div>
+                        <div class="setting-item-control-group">
+                            ${group.settings.map(setting => {
+                                const unit = setting.setting_key.split('_').pop();
+                                return `
+                                    <div class="numeric-group-item">
+                                        <label for="setting-${setting.setting_key}">${unit.charAt(0).toUpperCase() + unit.slice(1)}</label>
+                                        <input type="number" class="admin-numeric-input" id="setting-${setting.setting_key}" data-key="${setting.setting_key}" value="${setting.setting_value}" min="0">
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+                elements.settingsContainer.innerHTML += groupHTML;
+            }
+        }
+
+        // Renderizar otras configuraciones
+        otherSettings.forEach(setting => {
+            let controlHTML;
+            if (setting.setting_value === 'true' || setting.setting_value === 'false') {
+                controlHTML = `
+                    <label class="switch">
+                        <input type="checkbox" data-key="${setting.setting_key}" ${setting.setting_value === 'true' ? 'checked' : ''}>
+                        <span class="slider"></span>
+                    </label>
+                `;
+            } else {
+                controlHTML = `
+                    <input type="number" class="admin-numeric-input" data-key="${setting.setting_key}" value="${setting.setting_value}" step="any" min="0">
+                `;
+            }
+            
+            const itemHTML = `
+                <div class="setting-item">
+                    <div class="setting-item-info">
+                        <h4>${getSettingTitle(setting.setting_key)}</h4>
+                        <p>${setting.description}</p>
+                    </div>
+                    <div class="setting-item-control">
+                        ${controlHTML}
+                    </div>
+                </div>
+            `;
+            elements.settingsContainer.innerHTML += itemHTML;
+        });
+    }
+
     // --- Handlers de Eventos ---
+    let settingChangeTimeout;
+
     async function handleSettingChange(event) {
-        // (Lógica de los settings sin cambios)
+        const control = event.target;
+        // Nos aseguramos de que el control tiene el dataset 'key' antes de proceder
+        if (!control.dataset.key) return;
+
+        const key = control.dataset.key;
+        let value;
+
+        if (control.type === 'checkbox') {
+            value = control.checked.toString(); // "true" or "false"
+        } else if (control.type === 'number') {
+            value = control.value;
+        } else {
+            return; // No-op for other types
+        }
+        
+        // Usar un debounce para los inputs de número, para no enviar una petición en cada tecla
+        if (control.type === 'number') {
+            clearTimeout(settingChangeTimeout);
+            settingChangeTimeout = setTimeout(() => {
+                updateSetting(key, value);
+            }, 500); // Esperar 500ms después de la última tecla
+        } else {
+            // Los checkboxes se actualizan al instante
+            updateSetting(key, value);
+        }
+    }
+
+    async function updateSetting(key, value) {
+        try {
+            await apiFetch('/api/admin/settings', {
+                method: 'POST',
+                body: JSON.stringify({ key, value }),
+            });
+            // Opcional: mostrar una notificación sutil de "guardado". Por ahora, log en consola.
+            console.log(`Setting '${key}' actualizado a '${value}'.`);
+        } catch (error) {
+            showCustomAlert(`Error al guardar la configuración: ${error.message}`);
+            // Revertir el cambio en la UI si falla el guardado, recargando los settings.
+            loadSettings();
+        }
     }
 
     async function handlePublicationAction(event) {
@@ -246,7 +386,8 @@ document.addEventListener('DOMContentLoaded', () => {
             description: document.getElementById('platformPubDescription').value,
             cost: document.getElementById('platformPubCost').value,
             availableSlots: document.getElementById('platformPubSlots').value,
-            isSellPost: document.querySelector('input[name="platformPubType"]:checked').value === 'sell'
+            isSellPost: document.querySelector('input[name="platformPubType"]:checked').value === 'sell',
+            autoApprove: document.getElementById('platformAutoApprove').checked
         };
         try {
             const result = await apiFetch('/api/admin/platform/create-publication', { method: 'POST', body: JSON.stringify(body) });
@@ -345,6 +486,114 @@ WHERE username = 'Plataforma WintonCoin';
     }
 
     // --- Lógica Principal de Renderizado ---
+    function renderDashboard(stats) {
+        elements.dashboardContainer.innerHTML = `
+            <div class="stat-card">
+                <h4>Usuarios Totales</h4>
+                <p class="stat-value">${stats.totalUsers || 0}</p>
+            </div>
+            <div class="stat-card">
+                <h4>Publicaciones Activas</h4>
+                <p class="stat-value">${stats.activePublications || 0}</p>
+            </div>
+            <div class="stat-card">
+                <h4>BLUE en Circulación (Total)</h4>
+                <p class="stat-value saldo-blue-text">${formatBalance(stats.totalBlue)}</p>
+            </div>
+            <div class="stat-card">
+                <h4>RED en Circulación (Deuda Total)</h4>
+                <p class="stat-value saldo-red-text">${formatBalance(stats.totalRed)}</p>
+            </div>
+            <div class="stat-card">
+                <h4>Comisiones Acumuladas</h4>
+                <p class="stat-value saldo-blue-text">${formatBalance(stats.platformCommissionBalance)}</p>
+            </div>
+        `;
+    }
+
+    function renderDebtorsTable(debtors) {
+        if (!debtors || debtors.length === 0) {
+            elements.debtorsTableContainer.innerHTML = '<p class="empty-message">No hay deudores con pagos vencidos actualmente.</p>';
+            return;
+        }
+
+        const tableHTML = `
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Deuda Vencida Total (RED)</th>
+                        <th>Nº de Deudas Vencidas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${debtors.map(debtor => getDebtorRowHTML(debtor)).join('')}
+                </tbody>
+            </table>
+        `;
+        elements.debtorsTableContainer.innerHTML = tableHTML;
+    }
+
+    function getDebtorRowHTML(debtor) {
+        return `
+            <tr>
+                <td class="username-cell">
+                    <a href="profile.html?user=${debtor.username}" target="_blank">${debtor.username}</a>
+                </td>
+                <td class="saldo-red-text">${formatBalance(debtor.total_penalized_debt)}</td>
+                <td align="center">${debtor.penalized_debts_count}</td>
+            </tr>
+        `;
+    }
+    
+    function renderPlatformPublicationsForManagement(publications) {
+        if (!publications || publications.length === 0) {
+            elements.platformManagementList.innerHTML = '<p class="empty-message">No hay publicaciones de la plataforma que requieran acción.</p>';
+            return;
+        }
+        elements.platformManagementList.innerHTML = publications.map(pub => getPlatformManagementItemHTML(pub)).join('');
+    }
+    
+    function getPlatformManagementItemHTML(pub) {
+        const participantsHTML = pub.participants && pub.participants.length > 0
+            ? `<ul class="participants-list-admin">${pub.participants.map(p => getParticipantItemForManagementHTML(pub.id, p)).join('')}</ul>`
+            : '<p class="no-participants" style="padding: 1rem; text-align: center; color: var(--admin-text-secondary);">Sin participantes por ahora.</p>';
+    
+        return `
+            <div class="history-item-admin">
+                <h3>${pub.title}</h3>
+                <p>${pub.description || 'Sin descripción.'}</p>
+                <h4>Participantes</h4>
+                ${participantsHTML}
+            </div>
+        `;
+    }
+    
+    function getParticipantItemForManagementHTML(pubId, participant) {
+        const ratingHTML = generateStarRating(participant.average_rating, participant.ratings_count);
+        const statusText = getStatusText(participant.status);
+        let actionButton = '';
+    
+        if (participant.status === 'pending_approval') {
+            actionButton = `<button class="action-button-admin approve" data-pub-id="${pubId}" data-action="approve" data-user="${participant.acceptor_username}">Aprobar</button>`;
+        } else if (participant.status === 'completed') {
+            actionButton = `<button class="action-button-admin confirm" data-pub-id="${pubId}" data-action="confirm-payment" data-user="${participant.acceptor_username}">Confirmar Pago</button>`;
+        }
+    
+        return `
+            <li class="participant-item-admin">
+                <div class="participant-info-admin">
+                    <strong><a href="profile.html?user=${participant.acceptor_username}" target="_blank">${participant.acceptor_username}</a></strong>
+                    <span class="rating-display">${ratingHTML}</span>
+                </div>
+                <div class="participant-status-admin">
+                    <span class="status-badge ${participant.status}">${statusText}</span>
+                    ${actionButton}
+                </div>
+            </li>
+        `;
+    }
+
     function renderUsersTable(users) {
         if (users.length === 0) {
             elements.usersTableContainer.innerHTML = '<p class="empty-message">No se encontraron usuarios.</p>';
@@ -375,27 +624,7 @@ WHERE username = 'Plataforma WintonCoin';
         const registrationDate = new Date(user.created_at).toLocaleDateString('es-ES', {
             year: 'numeric', month: 'long', day: 'numeric'
         });
-        const ratingHTML = user.ratings_count > 0 
-            ? `<span class="rating-cell"><span class="stars">${'★'.repeat(Math.round(user.average_rating))}${'☆'.repeat(5 - Math.round(user.average_rating))}</span> (${user.ratings_count})</span>`
-            : `<span class="no-rating">Sin calificar</span>`;
-
-        const statusMap = {
-            'open': 'Abierta',
-            'pending_approval': 'Pendiente',
-            'approved': 'Aprobada',
-            'completed': 'Culminada',
-            'confirmed_paid': 'Pagada'
-        };
-
-        function getStatusText(status) {
-            return statusMap[status] || status.charAt(0).toUpperCase() + status.slice(1);
-        }
-    
-        function generateStarRating(rating, count) {
-            if (count === 0) return '<span class="no-rating">Sin calif.</span>';
-            const stars = '★'.repeat(Math.round(rating)) + '☆'.repeat(5 - Math.round(rating));
-            return `<span class="stars" title="${parseFloat(rating).toFixed(1)} de 5">${stars}</span> <span class="rating-count">(${count})</span>`;
-        }
+        const ratingHTML = generateStarRating(user.average_rating, user.ratings_count);
 
         return `
             <tr>
@@ -526,234 +755,11 @@ WHERE username = 'Plataforma WintonCoin';
 
         return `
             <tr>
-                <td class="saldo-blue-text">${formatBalance(entry.commission_amount_blue)}</td>
-                <td><a href="#" title="Ver publicación ${entry.publication_id}">${entry.publication_title}</a></td>
-                <td class="username-cell"><a href="profile.html?user=${entry.user_who_paid}" target="_blank">${entry.user_who_paid}</a></td>
+                <td class="saldo-blue-text">${formatBalance(entry.commission_amount)} BLUE</td>
+                <td>${entry.transaction_type}</td>
+                <td>${entry.user_involved}</td>
                 <td>${commissionDate}</td>
             </tr>
         `;
     }
-
-    function renderDashboard(stats) {
-        elements.dashboardContainer.innerHTML = `
-            <div class="stat-card">
-                <h4>Usuarios Totales</h4>
-                <p class="stat-value">${stats.totalUsers}</p>
-            </div>
-            <div class="stat-card">
-                <h4>Publicaciones Activas</h4>
-                <p class="stat-value">${stats.activePublications}</p>
-            </div>
-            <div class="stat-card">
-                <h4>Total de BLUE en Circulación</h4>
-                <p class="stat-value saldo-blue-text">${formatBalance(stats.totalBlue)}</p>
-            </div>
-            <div class="stat-card">
-                <h4>Total de RED en Circulación</h4>
-                <p class="stat-value saldo-red-text">${formatBalance(stats.totalRed)}</p>
-            </div>
-            <div class="stat-card">
-                <h4>Comisiones Acumuladas</h4>
-                <p class="stat-value saldo-blue-text">${formatBalance(stats.platformCommissionBalance)}</p>
-            </div>
-        `;
-    }
-
-    function renderSettings(settings) {
-        const settingsValues = settings.reduce((acc, s) => {
-            acc[s.setting_key] = s.setting_value;
-            return acc;
-        }, {});
-
-        // Layout de la UI de configuración. Esto nos da control total sobre el orden y la agrupación.
-        const settingsLayout = [
-            { 
-                type: 'switch', 
-                key: 'public_profiles_enabled',
-                title: 'Perfiles Públicos de Usuario',
-                description: 'Permite que cualquiera pueda ver la reputación y comentarios de otros usuarios.'
-            },
-            { 
-                type: 'switch', 
-                key: 'allow_new_registrations',
-                title: 'Permitir Nuevos Registros',
-                description: 'Si se desactiva, nadie podrá crear una cuenta nueva en la plataforma.'
-            },
-            { 
-                type: 'switch', 
-                key: 'allow_new_publications',
-                title: 'Permitir Nuevas Publicaciones',
-                description: 'Si se desactiva, los usuarios no podrán crear nuevas tareas o servicios.'
-            },
-            { 
-                type: 'switch', 
-                key: 'debt_system_enabled',
-                title: 'Activar Sistema de Deuda RED',
-                description: 'Activa o desactiva la mecánica de vencimiento y penalización para los tokens RED.'
-            },
-            {
-                type: 'group',
-                title: 'Duración del Ciclo de Deuda',
-                description: 'Establece cuánto tiempo tiene un usuario para quemar un lote de tokens RED antes de que venza.',
-                keys: {
-                    days: 'debt_cycle_days',
-                    hours: 'debt_cycle_hours',
-                    minutes: 'debt_cycle_minutes'
-                }
-            },
-            {
-                type: 'group',
-                title: 'Duración del Depósito BLUE',
-                description: 'Establece cuánto tiempo permanecen los tokens BLUE en el saldo bloqueado (escrow) antes de liberarse.',
-                keys: {
-                    days: 'blue_escrow_days',
-                    hours: 'blue_escrow_hours',
-                    minutes: 'blue_escrow_minutes'
-                }
-            },
-            { 
-                type: 'numeric',
-                key: 'platform_commission_percentage',
-                title: 'Comisión de la Plataforma (%)',
-                description: 'El porcentaje de comisión que la plataforma gana en cada transacción completada.'
-            }
-        ];
-        
-        elements.settingsContainer.innerHTML = settingsLayout.map(item => {
-            if (item.type === 'switch') {
-                const isChecked = settingsValues[item.key] === 'true';
-                return `
-                    <div class="setting-item">
-                        <div class="setting-item-info">
-                            <h4>${item.title}</h4>
-                            <p>${item.description}</p>
-                        </div>
-                        <label class="switch">
-                            <input type="checkbox" data-key="${item.key}" ${isChecked ? 'checked' : ''}>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                `;
-            }
-
-            if (item.type === 'group') {
-                return `
-                    <div class="setting-item">
-                        <div class="setting-item-info">
-                            <h4>${item.title}</h4>
-                            <p>${item.description}</p>
-                        </div>
-                        <div class="setting-item-control-group">
-                            <div class="numeric-group-item">
-                                <label>Días</label>
-                                <input type="number" class="admin-numeric-input" data-key="${item.keys.days}" value="${settingsValues[item.keys.days] || 0}" min="0">
-                            </div>
-                            <div class="numeric-group-item">
-                                <label>Horas</label>
-                                <input type="number" class="admin-numeric-input" data-key="${item.keys.hours}" value="${settingsValues[item.keys.hours] || 0}" min="0" max="23">
-                            </div>
-                            <div class="numeric-group-item">
-                                <label>Min</label>
-                                <input type="number" class="admin-numeric-input" data-key="${item.keys.minutes}" value="${settingsValues[item.keys.minutes] || 0}" min="0" max="59">
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            if (item.type === 'numeric') {
-                return `
-                    <div class="setting-item">
-                        <div class="setting-item-info">
-                            <h4>${item.title}</h4>
-                            <p>${item.description}</p>
-                        </div>
-                        <div class="setting-item-control-group">
-                             <div class="numeric-group-item">
-                                <input type="number" class="admin-numeric-input" data-key="${item.key}" value="${settingsValues[item.key] || 0}" min="0" step="0.1">
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-            return '';
-        }).join('');
-    }
-
-    function renderDebtorsTable(debtors) {
-        if (debtors.length === 0) {
-            elements.debtorsTableContainer.innerHTML = '<p class="empty-message">¡Buenas noticias! No hay usuarios con deudas penalizadas en este momento.</p>';
-            return;
-        }
-
-        const tableHTML = `
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Usuario</th>
-                        <th>Deuda Penalizada Total (RED)</th>
-                        <th>Nº de Deudas Vencidas</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${debtors.map(debtor => getDebtorRowHTML(debtor)).join('')}
-                </tbody>
-            </table>
-        `;
-        elements.debtorsTableContainer.innerHTML = tableHTML;
-    }
-
-    function getDebtorRowHTML(debtor) {
-        return `
-            <tr>
-                <td class="username-cell">
-                    <a href="profile.html?user=${debtor.username}" target="_blank">${debtor.username}</a>
-                </td>
-                <td class="saldo-red-text">${formatBalance(debtor.total_penalized_debt)}</td>
-                <td>${debtor.penalized_debts_count}</td>
-            </tr>
-        `;
-    }
-
-    // --- Nuevo renderizado para la gestión ---
-    function renderPlatformPublicationsForManagement(publications) {
-        if (!elements.platformManagementList) return;
-        if (publications.length === 0) {
-            elements.platformManagementList.innerHTML = '<p class="empty-message">No hay publicaciones de la plataforma que requieran gestión.</p>';
-            return;
-        }
-        elements.platformManagementList.innerHTML = publications.map(pub => `
-            <div class="history-item-admin">
-                <h3>${pub.title}</h3>
-                <ul class="participants-list-admin">
-                    ${pub.participants.map(p => getParticipantManagementHTML(pub.id, p)).join('')}
-                </ul>
-            </div>
-        `).join('');
-    }
-
-    function getParticipantManagementHTML(pubId, participant) {
-        const ratingHTML = generateStarRating(participant.average_rating, participant.ratings_count);
-        const statusText = getStatusText(participant.status);
-        let actionButtonHTML = '';
-
-        if (participant.status === 'pending_approval') {
-            actionButtonHTML = `<button class="action-button-admin approve" data-action="approve" data-pub-id="${pubId}" data-user="${participant.acceptor_username}">Aprobar</button>`;
-        } else if (participant.status === 'completed') {
-            actionButtonHTML = `<button class="action-button-admin confirm" data-action="confirm-payment" data-pub-id="${pubId}" data-user="${participant.acceptor_username}">Confirmar Pago</button>`;
-        }
-        
-        return `
-            <li class="participant-item-admin">
-                <div class="participant-info-admin">
-                    <strong><a href="profile.html?user=${participant.acceptor_username}" target="_blank">${participant.acceptor_username}</a></strong>
-                    <span class="rating-display">${ratingHTML}</span>
-                </div>
-                <div class="participant-status-admin">
-                    <span class="status-badge ${participant.status}">${statusText}</span>
-                    ${actionButtonHTML}
-                </div>
-            </li>
-        `;
-    }
-}); 
+});

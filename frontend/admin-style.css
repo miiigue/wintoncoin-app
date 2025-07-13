@@ -389,6 +389,14 @@ input:checked + .slider:before {
     background-color: #dc3545;
 }
 
+.action-button-admin.approve {
+    background-color: #28a745; /* Verde */
+}
+
+.action-button-admin.confirm {
+    background-color: #6f42c1; /* Púrpura */
+}
+
 .action-button-admin.danger {
     background-color: #dc3545; /* Mismo color que eliminar */
     border: 1px solid #ff7b7b;
@@ -460,6 +468,32 @@ input:checked + .slider:before {
 .action-button-admin.publish {
     background-color: var(--admin-primary);
 }
+
+/* Reutilizamos los estilos de la hoja principal para la coherencia */
+.form-group-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: left;
+    background-color: var(--admin-bg);
+    margin-bottom: 1.5rem;
+}
+
+.form-group-checkbox input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    accent-color: var(--admin-primary);
+}
+
+.form-group-checkbox label {
+    margin-bottom: 0;
+    font-weight: 600;
+    color: var(--admin-text);
+}
+
 
 /* --- NUEVO: Estilos para la sección de gestión de publicaciones --- */
 .admin-divider {

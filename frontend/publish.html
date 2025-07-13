@@ -10,7 +10,6 @@
 <body>
     <div class="container">
         <h1>Crear Nueva Publicación</h1>
-        <h2>Comparte algo nuevo con la comunidad.</h2>
         
         <form id="publishForm">
             <div>
@@ -22,22 +21,28 @@
             <div>
                 <label for="description">Descripción:</label>
                 <textarea id="description" name="description" rows="4" required placeholder="Ej: Busco un diseñador para crear un logo moderno y minimalista para mi startup. Los colores principales deben ser azul y blanco..."></textarea>
-                <small class="input-hint">Detalla aquí los requisitos, el alcance y cualquier otra información relevante.</small>
+                <small class="input-hint">Detalla cualquier información relevante: características, requisitos, herramientas, lugares, horarios, habilidades, etc.</small>
             </div>
             
             <div id="cost-wrapper">
-                <label for="blueCost">Recompensa (en BLUE):</label>
-                <input type="text" inputmode="decimal" id="blueCost" name="blueCost" placeholder="Ej: 12.53" pattern="^[0-9]+([.,][0-9]{1,4})?$">
+                <label for="blueCost">Cantidad en BLUE que ofreces al culminar la tarea</label>
+                <input type="text" inputmode="decimal" id="blueCost" name="blueCost" placeholder="Ej: 12.5300" pattern="^[0-9]+([.,][0-9]{1,4})?$">
             </div>
 
             <div id="sell-wrapper">
                 <label for="blueSell">Precio de Venta (en BLUE):</label>
-                <input type="text" inputmode="decimal" id="blueSell" name="blueSell" placeholder="Ej: 50.00" pattern="^[0-9]+([.,][0-9]{1,4})?$">
+                <input type="text" inputmode="decimal" id="blueSell" name="blueSell" placeholder="Ej: 50.0000" pattern="^[0-9]+([.,][0-9]{1,4})?$">
             </div>
 
             <div>
-                <label for="availableSlots">Cupos Disponibles (cuántas personas pueden aceptar):</label>
+                <label for="availableSlots">Disponible (cuántas personas pueden aceptar):</label>
                 <input type="number" id="availableSlots" name="availableSlots" min="1" value="1">
+            </div>
+
+            <div class="form-group-checkbox">
+                <input type="checkbox" id="autoApprove" name="autoApprove">
+                <label for="autoApprove">Aprobar automáticamente a los participantes</label>
+                <small class="input-hint">Ideal para tareas que no requieren selección. El primer usuario que acepte será aprobado.</small>
             </div>
 
             <!-- Contenedor para la nota de la comisión -->

@@ -55,6 +55,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = Object.fromEntries(formData.entries());
         data.authorUsername = storedUsername;
 
+        // El valor de un checkbox no marcado no se envía, así que lo manejamos explícitamente.
+        data.autoApprove = document.getElementById('autoApprove').checked;
+
         try {
             const response = await fetch(`${API_URL}/publish`, {
                 method: 'POST',
