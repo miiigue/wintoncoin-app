@@ -439,44 +439,44 @@ document.addEventListener('DOMContentLoaded', () => {
     function getFullPublicationHTML(pub, ratingHTML, messageHTML, actionHTML) {
         const rewardText = `${formatBalance(pub.blue_cost)} BLUE`;
         const ribbonClass = pub.is_sell_post ? 'sell-ribbon' : '';
-
+    
         const slotsClass = pub.available_slots > 0 ? 'available' : 'full';
-        const slotsText = pub.available_slots > 0 
+        const slotsText = pub.available_slots > 0
             ? `${pub.available_slots} cupo${pub.available_slots > 1 ? 's' : ''} disponible${pub.available_slots > 1 ? 's' : ''}`
             : `Cupos agotados`;
-        
-        // Lógica de enlace de perfil
+    
         const authorNameHTML = window.appSettings.public_profiles_enabled
-            ? `<a href="profile.html?user=${pub.author_username}" class="profile-link">${pub.author_username}</a>`
+            ? `<a href="profile.html?user=${pub.author_username}" class="profile-link" onclick="event.stopPropagation()">${pub.author_username}</a>`
             : pub.author_username;
-
-        const costRibbon = `<div class="cost-ribbon ${ribbonClass}">${rewardText}</div>`;
-
+    
+        // Envolvemos toda la tarjeta en una etiqueta <a> para que sea un enlace.
+        // El `onclick="event.stopPropagation()"` en el enlace del perfil evita que al hacer clic en el nombre también se dispare el clic de la tarjeta.
         return `
-            <div class="publication-item" data-id="${pub.id}" data-author="${pub.author_username}">
-                <div class="cost-ribbon ${ribbonClass}">${rewardText}</div>
-                
-                <div class="publication-header">
-                    <h3>${pub.title}</h3>
-                </div>
-                
-                <p class="pub-description">${linkify(pub.description)}</p>
-                
-                <div class="publication-footer">
-                    <div class="pub-meta">
-                        <span>Por: <strong>${authorNameHTML}</strong></span>
-                        ${ratingHTML}
+            <a href="publication-detail.html?id=${pub.id}" class="publication-item-link">
+                <div class="publication-item" data-id="${pub.id}" data-author="${pub.author_username}">
+                    <div class="cost-ribbon ${ribbonClass}">${rewardText}</div>
+                    
+                    <div class="publication-header">
+                        <h3>${pub.title}</h3>
                     </div>
-                    <div class="slots-info ${slotsClass}">
-                        ${slotsText}
+                    
+                    <p class="pub-description">${linkify(pub.description)}</p>
+                    
+                    <div class="publication-footer">
+                        <div class="pub-meta">
+                            <span>Por: <strong>${authorNameHTML}</strong></span>
+                            ${ratingHTML}
+                        </div>
+                        <div class="slots-info ${slotsClass}">
+                            ${slotsText}
+                        </div>
                     </div>
+    
+                    <!-- Las acciones y mensajes ahora se mostrarán en la página de detalle, 
+                         pero podemos dejar un resumen o un indicador si es necesario. 
+                         Por ahora, lo mantenemos limpio. -->
                 </div>
-
-                <div class="publication-actions">
-                    ${messageHTML}
-                    ${actionHTML}
-                </div>
-            </div>
+            </a>
         `;
     }
 

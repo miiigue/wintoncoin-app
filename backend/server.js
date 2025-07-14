@@ -2000,3 +2000,71 @@ function verifyAdminToken(req, res, next) {
 }
 
 startServer();
+
+// --- NUEVO: Endpoint para obtener los detalles completos de UNA SOLA publicación ---
+app.get('/api/publications/:id', async (req, res) => {
+    const { id } = req.params;
+    const { user: requestingUser } = req.query; // Necesitamos saber quién está pidiendo la info
+
+    if (!requestingUser) {
+        return res.status(400).json({ message: "Se requiere el nombre de usuario que realiza la solicitud." });
+    }
+
+    const client = await pool.connect();
+    try {
+        // Una única consulta más compleja que reúne toda la información necesaria.
+        // Esto es más eficiente que hacer múltiples consultas a la base de datos.
+        const query = `
+            SELECT
+                p.id, p.title, p.description, p.blue_cost, p.status, p.created_at, p.is_paused,
+                p.is_sell_post, p.available_slots,
+                u.username as author_username,
+                u.average_rating as author_average_rating,
+                u.ratings_count as author_ratings_count,
+                -- Obtenemos el estado de aceptación del usuario que está solicitando la página
+                (
+                    SELECT pa_user.status 
+                    FROM publication_acceptances pa_user
+                    WHERE pa_user.publication_id = p.id AND pa_user.acceptor_username = $2
+                    ORDER BY pa_user.created_at DESC
+                    LIMIT 1
+                ) as user_acceptance_status,
+                -- Obtenemos un array de objetos JSON con todos los participantes y sus detalles
+                (
+                    SELECT jsonb_agg(jsonb_build_object(
+                        'username', pa_all.acceptor_username,
+                        'status', pa_all.status,
+                        'average_rating', p_user.average_rating,
+                        'ratings_count', p_user.ratings_count
+                    ))
+                    FROM publication_acceptances pa_all
+                    JOIN users p_user ON pa_all.acceptor_username = p_user.username
+                    WHERE pa_all.publication_id = p.id
+                ) as participants
+            FROM
+                publications p
+            JOIN
+                users u ON p.author_id = u.id
+            WHERE
+                p.id = $1;
+        `;
+
+        const result = await client.query(query, [id, requestingUser]);
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: "Publicación no encontrada." });
+        }
+
+        const publication = result.rows[0];
+        // Nos aseguramos de que el array de participantes nunca sea nulo
+        publication.participants = publication.participants || [];
+
+        res.status(200).json(publication);
+
+    } catch (error) {
+        console.error(`Error fetching publication details for ID ${id}:`, error);
+        res.status(500).json({ message: "Error interno del servidor al obtener los detalles de la publicación." });
+    } finally {
+        client.release();
+    }
+});

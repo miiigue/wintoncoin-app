@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle de Publicación - WintonCoin</title>
+    <link id="main-stylesheet" rel="stylesheet" href="style.css">
+    <script>document.getElementById('main-stylesheet').href = `style.css?v=${new Date().getTime()}`;</script>
+</head>
+<body>
+    <div class="container" id="publication-detail-container">
+        <!-- Enlace para volver al panel principal -->
+        <a href="contract_interaction.html" class="back-link">&larr; Volver a Todas las Publicaciones</a>
+
+        <div id="publication-content">
+            <!-- El contenido se cargará aquí dinámicamente -->
+            <div class="loading-spinner"></div>
+        </div>
+
+    </div>
+
+    <script src="utils.js"></script>
+    <script src="publication-detail.js"></script> <!-- Nuevo archivo JS -->
+
+    <!-- Modales (reutilizados de otras páginas para consistencia) -->
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+    <div id="customConfirmModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button confirm-close-button">&times;</span>
+            <p id="customConfirmMessage"></p>
+            <div class="confirm-buttons">
+                <button class="action-button cancel-button">Cancelar</button>
+                <button class="action-button confirm-button">Confirmar</button>
+            </div>
+        </div>
+    </div>
+    <div id="ratingModal" class="modal">
+        <div class="modal-content rating-modal-content">
+            <span class="close-button rating-close-button">&times;</span>
+            <form id="ratingForm">
+                <input type="hidden" id="ratingPublicationId" name="publication_id">
+                <input type="hidden" id="ratingRaterUsername" name="rater_username">
+                <input type="hidden" id="ratingRateeUsername" name="ratee_username">
+                <div class="rating-form-header">
+                    <h2 id="ratingModalTitle">Calificar al Usuario</h2>
+                    <div class="star-rating">
+                        <input type="radio" id="5-stars" name="rating" value="5" required /><label for="5-stars" class="star">&#9733;</label>
+                        <input type="radio" id="4-stars" name="rating" value="4" /><label for="4-stars" class="star">&#9733;</label>
+                        <input type="radio" id="3-stars" name="rating" value="3" /><label for="3-stars" class="star">&#9733;</label>
+                        <input type="radio" id="2-stars" name="rating" value="2" /><label for="2-stars" class="star">&#9733;</label>
+                        <input type="radio" id="1-star" name="rating" value="1" /><label for="1-star" class="star">&#9733;</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <textarea id="ratingComment" name="comment" rows="2" placeholder="¿Qué te pareció la experiencia? (opcional)"></textarea>
+                </div>
+                <button type="submit" class="action-button confirm">Enviar Calificación</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html> 

@@ -1300,6 +1300,114 @@ hr {
     font-size: 0.8rem;
 }
 
+/* --- NUEVOS ESTILOS PARA LA PÁGINA DE DETALLE DE PUBLICACIÓN --- */
+
+/* Contenedor principal de la página de detalle */
+#publication-detail-container {
+    max-width: 800px;
+}
+
+/* Envoltura de enlace para las tarjetas en la página principal */
+.publication-item-link {
+    text-decoration: none;
+    color: inherit;
+    display: block; /* Para que el enlace ocupe todo el espacio de la tarjeta */
+}
+.publication-item-link:hover {
+    text-decoration: none;
+}
+/* Al pasar el ratón sobre el enlace, el efecto se aplica a la tarjeta interna */
+.publication-item-link:hover .publication-item {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.detail-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    position: relative;
+}
+
+.detail-cost-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    padding: 8px 16px;
+    background-color: var(--primary-color);
+    color: white;
+    font-size: 1.5rem;
+    font-weight: 600;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    transform: translateY(-80%); /* La movemos hacia arriba para evitar solapamiento */
+}
+
+.detail-cost-badge.sell-ribbon {
+    background-color: #ffc107; /* Amarillo */
+    color: #111; /* Texto oscuro para contraste */
+}
+
+.detail-title {
+    font-size: 2.5rem;
+    color: var(--text-color);
+    margin: 0 0 0.5rem 0;
+}
+
+.detail-meta {
+    font-size: 1rem;
+    color: var(--text-secondary-color);
+}
+
+.detail-meta strong .profile-link {
+    color: var(--primary-color);
+}
+
+.detail-meta .detail-date {
+    margin-left: 1rem;
+    font-style: italic;
+}
+
+.detail-description {
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: var(--text-color);
+    white-space: pre-wrap; /* Respeta los saltos de línea y espacios del texto original */
+    padding: 1rem;
+}
+
+.detail-actions-section {
+    padding: 1.5rem;
+    background-color: var(--background-color);
+    border: 1px solid #2a3b5c;
+    border-radius: 10px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.detail-actions-section:empty {
+    display: none;
+}
+
+.detail-actions-section .action-button {
+    width: auto;
+    max-width: 300px;
+}
+
+.detail-participants-section {
+    margin-top: 2rem;
+}
+
+.detail-participants-section h2 {
+    color: var(--text-color);
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+
 /* --- NUEVO: Estilo para la nota de comisión --- */
 .commission-notice {
     margin: 1rem 0;
