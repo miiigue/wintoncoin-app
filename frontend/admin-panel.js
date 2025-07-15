@@ -304,7 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="setting-item">
                     <div class="setting-item-info">
                         <h4>${getSettingTitle(setting.setting_key)}</h4>
-                        <p>${setting.description}</p>
+                        <p>${setting.description || 'Activa o desactiva esta característica para toda la plataforma.'}</p>
                     </div>
                     <div class="setting-item-control">
                         ${controlHTML}
