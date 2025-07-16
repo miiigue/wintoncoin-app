@@ -1777,13 +1777,14 @@ async function startServer() {
                     SELECT
                         p.id, p.title, p.description, p.blue_cost, p.status, p.created_at, p.is_paused, p.is_sell_post, p.available_slots, p.category,
                         u.username AS author_username,
-                        (SELECT pa.status FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.acceptor_username = $1) AS user_acceptance_status
+                        (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id) AS participants_count,
+                        (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status = 'confirmed_paid') AS completed_count
                     FROM publications p
                     JOIN users u ON p.author_id = u.id
-                    WHERE p.title ILIKE $2 OR u.username ILIKE $2
+                    WHERE p.title ILIKE $1 OR u.username ILIKE $1
                     ORDER BY p.created_at DESC
                 `;
-                const result = await pool.query(query, [requestingUser, `%${searchTerm}%`]);
+                const result = await pool.query(query, [`%${searchTerm}%`]);
                 res.json(result.rows);
             } catch (error) {
                 console.error('Error fetching all publications for admin:', error);
