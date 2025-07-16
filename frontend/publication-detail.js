@@ -60,8 +60,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const { messageHTML, actionHTML } = getActionAndMessageHTML(pub);
 
-        // Añadimos la clase condicional para la cinta de costo
-        const ribbonClass = pub.is_sell_post ? 'sell-ribbon' : '';
+        // Determinamos la clase de la cinta según la categoría de la publicación
+        let ribbonClass = '';
+        if (pub.category === 'donation') {
+            ribbonClass = 'donation-ribbon';
+        } else if (pub.is_sell_post) {
+            ribbonClass = 'sell-ribbon';
+        }
 
         const publicationHTML = `
             <div class="detail-header">
@@ -171,7 +176,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } else {
             // --- VISTA DE OTROS USUARIOS ---
-            const verb = pub.is_sell_post ? 'Comprar' : 'Aceptar Tarea';
+            // Determinamos el verbo principal de la acción según la categoría
+            let verb;
+            if (pub.category === 'donation') {
+                verb = 'Donar/Ayudar';
+            } else {
+                verb = pub.is_sell_post ? 'Comprar' : 'Aceptar Tarea';
+            }
+
             const action = pub.is_sell_post ? 'comprado' : 'realizado';
 
             switch (userStatus) {
@@ -191,9 +203,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         actionHTML = `<button class="action-button accept" data-action="accept">${verb} de nuevo</button>`;
                     }
                     break;
-                default: // 'open', null, etc.
+                case 'not_participating':
+                default:
                     if (pub.available_slots > 0 && !pub.is_paused) {
-                        actionHTML += `<button class="action-button accept" data-action="accept">Aceptar/Comprar</button>`;
+                        actionHTML = `<button class="action-button accept" data-action="accept">${verb}</button>`;
                     } else if (pub.is_paused) {
                         messageHTML = `<div class="status-pending">El autor ha pausado las nuevas solicitudes para esta tarea.</div>`;
                     } else {

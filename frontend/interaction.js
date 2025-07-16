@@ -438,7 +438,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function getFullPublicationHTML(pub, ratingHTML, messageHTML, actionHTML) {
         const rewardText = `${formatBalance(pub.blue_cost)} BLUE`;
-        const ribbonClass = pub.is_sell_post ? 'sell-ribbon' : '';
+
+        // Determinamos la clase de la cinta según la categoría de la publicación
+        let ribbonClass = '';
+        if (pub.category === 'donation') {
+            ribbonClass = 'donation-ribbon';
+        } else if (pub.is_sell_post) {
+            ribbonClass = 'sell-ribbon';
+        }
     
         const slotsClass = pub.available_slots > 0 ? 'available' : 'full';
         const slotsText = pub.available_slots > 0
@@ -543,16 +550,16 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <button class="action-button accept" data-action="accept" data-id="${pub.id}">Comprar de nuevo</button>
                                 <button class="action-button hide" data-action="hide" data-id="${pub.id}">Ocultar</button>
                             `;
-                        } else {
+                } else {
                             actionHTML = `<button class="action-button hide" data-action="hide" data-id="${pub.id}">Ocultar</button>`;
-                        }
-                        break;
+                }
+                break;
                     default: // 'open', null, o cualquier otro estado.
                         if (pub.available_slots > 0 && !pub.is_paused) {
                             actionHTML += `<button class="action-button accept" data-id="${pub.id}" data-action="accept">Comprar</button>`;
                         } else if (pub.is_paused) {
                             messageHTML = `<div class="status-pending">El autor ha pausado la venta de este artículo.</div>`;
-                        } else {
+                } else {
                             messageHTML = `<div class="status-accepted">Artículo agotado.</div>`;
                         }
                         // Solo añadir ocultar si el usuario no está ya en un proceso activo
@@ -566,8 +573,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 switch (userStatus) {
                     case 'pending_approval':
                         messageHTML = `<div class="status-pending">Tu solicitud ha sido enviada. Esperando aprobación del autor.</div>`;
-                        break;
-                    case 'approved':
+                break;
+            case 'approved':
                         messageHTML = `<div class="action-message">¡Has sido aprobado! Ahora puedes completar la tarea.</div>`;
                         actionHTML = `<button class="action-button complete" data-id="${pub.id}" data-action="complete">Marcar como Culminada</button>`;
                         break;
@@ -581,16 +588,16 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <button class="action-button accept" data-action="accept" data-id="${pub.id}">Aceptar nuevamente</button>
                                 <button class="action-button hide" data-action="hide" data-id="${pub.id}">Ocultar</button>
                             `;
-                        } else {
+                } else {
                             actionHTML = `<button class="action-button hide" data-action="hide" data-id="${pub.id}">Ocultar</button>`;
-                        }
-                        break;
+                }
+                break;
                     default: // 'open' or null
                         if (pub.available_slots > 0 && !pub.is_paused) {
                             actionHTML += `<button class="action-button accept" data-id="${pub.id}" data-action="accept">Aceptar Tarea</button>`;
                         } else if (pub.is_paused) {
                             messageHTML = `<div class="status-pending">El autor ha pausado las nuevas solicitudes para esta tarea.</div>`;
-                        } else {
+                } else {
                             messageHTML = `<div class="status-accepted">Todos los cupos para esta tarea están llenos.</div>`;
                         }
                         actionHTML += `<button class="action-button hide" data-id="${pub.id}" data-action="hide">Ocultar</button>`;
@@ -669,11 +676,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${API_URL}/notifications/${storedUsername}`);
             if (!response.ok) throw new Error('Error al cargar notificaciones.');
             
-            const notifications = await response.json();
+        const notifications = await response.json();
             const dropdown = document.getElementById('notificationDropdown');
             dropdown.innerHTML = ''; // Limpiar notificaciones viejas
 
-            if (notifications.length === 0) {
+        if (notifications.length === 0) {
                 dropdown.innerHTML = '<div class="no-notifications">No tienes notificaciones nuevas.</div>';
             } else {
                 notifications.forEach(notification => {
@@ -793,7 +800,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.next_unlock_at && parseFloat(data.next_unlock_amount) > 0) {
                     elements.escrowCountdownContainer.style.display = 'block';
                     startEscrowCountdown(data.next_unlock_at, data.next_unlock_amount);
-                } else {
+            } else {
                     elements.escrowCountdownContainer.style.display = 'none';
                     if (escrowCountdownInterval) clearInterval(escrowCountdownInterval);
                 }

@@ -524,6 +524,11 @@ hr {
     color: #000; /* Texto en negro */
 }
 
+.cost-ribbon.donation-ribbon {
+    background-color: #e83e8c; /* Rosa/Magenta */
+    color: white;
+}
+
 /* --- Menús del Header --- */
 .header-menu {
     position: absolute;
@@ -1196,6 +1201,10 @@ hr {
     border-color: #ffc107; /* Amarillo que usamos en las cintas */
 }
 
+.modal-option-button.donation:hover {
+    border-color: #e83e8c; /* Rosa/Magenta para donaciones */
+}
+
 .modal-option-button h3 {
     margin: 1rem 0 0.5rem 0;
     font-size: 1.2rem;
@@ -1229,6 +1238,13 @@ hr {
 }
 .modal-option-button.sell h3 {
     color: #ffc107;
+}
+
+.modal-option-button.donation .option-icon svg {
+    color: #e83e8c; /* Rosa/Magenta */
+}
+.modal-option-button.donation h3 {
+    color: #e83e8c; /* Rosa/Magenta */
 }
 
 .publication-actions {
@@ -1345,6 +1361,11 @@ hr {
 .detail-cost-badge.sell-ribbon {
     background-color: #ffc107; /* Amarillo */
     color: #111; /* Texto oscuro para contraste */
+}
+
+.detail-cost-badge.donation-ribbon {
+    background-color: #e83e8c; /* Rosa/Magenta */
+    color: white;
 }
 
 .detail-title {

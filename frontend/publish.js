@@ -24,9 +24,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (publicationType === 'request') {
         costWrapper.style.display = 'block';
         sellWrapper.style.display = 'none';
-    } else if (publicationType === 'sell') {
+    } else if (publicationType === 'sell' || publicationType === 'donation') {
         costWrapper.style.display = 'none';
         sellWrapper.style.display = 'block';
+        // Cambiamos el texto del label si es una donación
+        if (publicationType === 'donation') {
+            const sellLabel = document.querySelector('#sell-wrapper label');
+            if (sellLabel) {
+                sellLabel.textContent = 'Monto Sugerido (en BLUE):';
+            }
+        }
     } else {
         showCustomAlert('Tipo de publicación no válido.', () => { window.location.href = 'contract_interaction.html'; });
         return;
@@ -54,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const formData = new FormData(publishForm);
         const data = Object.fromEntries(formData.entries());
         data.authorUsername = storedUsername;
+        data.publicationType = publicationType; // Añadimos el tipo para que el backend sepa qué es
 
         // El valor de un checkbox no marcado no se envía, así que lo manejamos explícitamente.
         data.autoApprove = document.getElementById('autoApprove').checked;

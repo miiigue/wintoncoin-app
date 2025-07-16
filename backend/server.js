@@ -165,6 +165,13 @@ async function applyMigrations(client) {
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='auto_approve') THEN
                 ALTER TABLE publications ADD COLUMN auto_approve BOOLEAN DEFAULT FALSE;
             END IF;
+         END $$;`,
+        // Migración para añadir la columna 'category' a 'publications' si no existe.
+        `DO $$
+         BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='category') THEN
+                ALTER TABLE publications ADD COLUMN category VARCHAR(50) NOT NULL DEFAULT 'request';
+            END IF;
          END $$;`
     ];
 
@@ -307,7 +314,8 @@ async function initializeDatabase() {
             is_sell_post BOOLEAN DEFAULT FALSE,
             available_slots INT DEFAULT 1,
             is_paused BOOLEAN DEFAULT FALSE,
-            auto_approve BOOLEAN DEFAULT FALSE
+            auto_approve BOOLEAN DEFAULT FALSE,
+            category VARCHAR(50) NOT NULL DEFAULT 'request'
         );`,
         `CREATE TABLE IF NOT EXISTS hidden_publications (
             id SERIAL PRIMARY KEY,
@@ -576,13 +584,13 @@ async function startServer() {
 
 // Ruta para crear una nueva Publicación
         app.post('/publish', async (req, res) => {
-            const { title, description, blueCost, blueSell, authorUsername, availableSlots, autoApprove } = req.body;
+            const { title, description, blueCost, blueSell, authorUsername, availableSlots, autoApprove, publicationType } = req.body;
         
             if (!title || !description || !authorUsername || (!blueCost && !blueSell)) {
                 return res.status(400).json({ message: "Faltan datos requeridos para la publicación." });
             }
         
-            const isSellPost = !!blueSell;
+            const isSellPost = publicationType === 'sell' || publicationType === 'donation';
             const costString = (blueSell || blueCost).toString().replace(',', '.');
             const cost = parseFloat(costString);
 
@@ -602,8 +610,8 @@ async function startServer() {
                 }
                 const authorId = userResult.rows[0].id;
 
-                const sql = `INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`;
-                const result = await pool.query(sql, [title, description, cost, isSellPost, authorId, slots, !!autoApprove]);
+                const sql = `INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, category) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`;
+                const result = await pool.query(sql, [title, description, cost, isSellPost, authorId, slots, !!autoApprove, publicationType]);
                 res.status(201).json({ message: "Publicación creada exitosamente.", publicationId: result.rows[0].id });
             } catch (error) {
                 console.error("Error al guardar la publicación:", error);
@@ -1573,22 +1581,15 @@ async function startServer() {
             try {
                 const query = `
                     SELECT
-                        p.id, p.title, u.username AS author_username, p.blue_cost, p.status, p.created_at,
-                        p.is_paused, p.is_sell_post, p.available_slots,
-                        COALESCE(pa_counts.participants_count, 0)::int as participants_count,
-                        COALESCE(pa_counts.completed_count, 0)::int as completed_count
+                        p.id, p.title, p.description, p.blue_cost, p.status, p.created_at, p.is_paused, p.is_sell_post, p.available_slots, p.category,
+                        u.username AS author_username,
+                        (SELECT pa.status FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.acceptor_username = $1) AS user_acceptance_status
                     FROM publications p
                     JOIN users u ON p.author_id = u.id
-                    LEFT JOIN (
-                        SELECT
-                            publication_id, COUNT(*) as participants_count,
-                            COUNT(*) FILTER (WHERE status = 'confirmed_paid') as completed_count
-                        FROM publication_acceptances GROUP BY publication_id
-                    ) pa_counts ON pa_counts.publication_id = p.id
-                    WHERE p.title ILIKE $1 OR u.username ILIKE $1
+                    WHERE p.title ILIKE $2 OR u.username ILIKE $2
                     ORDER BY p.created_at DESC
                 `;
-                const result = await pool.query(query, [`%${searchTerm}%`]);
+                const result = await pool.query(query, [requestingUser, `%${searchTerm}%`]);
                 res.json(result.rows);
             } catch (error) {
                 console.error('Error fetching all publications for admin:', error);
@@ -1978,7 +1979,7 @@ async function startServer() {
 
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
-}); 
+        });
 
     } catch (err) {
         console.error("Error fatal al iniciar el servidor:", err);
@@ -2017,7 +2018,7 @@ app.get('/api/publications/:id', async (req, res) => {
         const query = `
             SELECT
                 p.id, p.title, p.description, p.blue_cost, p.status, p.created_at, p.is_paused,
-                p.is_sell_post, p.available_slots,
+                p.is_sell_post, p.available_slots, p.category,
                 u.username as author_username,
                 u.average_rating as author_average_rating,
                 u.ratings_count as author_ratings_count,
@@ -2067,4 +2068,4 @@ app.get('/api/publications/:id', async (req, res) => {
     } finally {
         client.release();
     }
-});
+}); 
