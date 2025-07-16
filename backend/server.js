@@ -172,6 +172,40 @@ async function applyMigrations(client) {
             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='category') THEN
                 ALTER TABLE publications ADD COLUMN category VARCHAR(50) NOT NULL DEFAULT 'request';
             END IF;
+         END $$;`,
+        // MIGRACIÓN PARA EL SISTEMA DE REFERIDOS EN LA TABLA 'users'
+        `DO $$
+         BEGIN
+             -- 1. Añadir la columna 'referral_code'
+             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='referral_code') THEN
+                 ALTER TABLE users ADD COLUMN referral_code TEXT;
+             END IF;
+             -- 2. Añadir la restricción de unicidad al código de referido
+             IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_referral_code_key' AND conrelid = 'users'::regclass) THEN
+                 ALTER TABLE users ADD CONSTRAINT users_referral_code_key UNIQUE (referral_code);
+             END IF;
+         
+             -- 3. Añadir la columna 'referred_by_user_id'
+             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='referred_by_user_id') THEN
+                 ALTER TABLE users ADD COLUMN referred_by_user_id INTEGER;
+             END IF;
+             -- 4. Añadir la llave foránea a la tabla de usuarios
+             IF NOT EXISTS (
+                 SELECT 1 FROM pg_constraint 
+                 WHERE conname = 'fk_referred_by_user' AND conrelid = 'users'::regclass
+             ) THEN
+                 ALTER TABLE users ADD CONSTRAINT fk_referred_by_user 
+                 FOREIGN KEY (referred_by_user_id) 
+                 REFERENCES users(id) ON DELETE SET NULL;
+             END IF;
+         END $$;`,
+        // MIGRACIÓN PARA CORREGIR EL LOG DE COMISIONES
+        // Hacemos que related_publication_id sea opcional (NULL) para poder registrar comisiones que no vienen de una publicación, como las de referidos.
+        `DO $$
+         BEGIN
+             IF (SELECT is_nullable FROM information_schema.columns WHERE table_name='platform_commission_log' AND column_name='related_publication_id') = 'NO' THEN
+                 ALTER TABLE platform_commission_log ALTER COLUMN related_publication_id DROP NOT NULL;
+             END IF;
          END $$;`
     ];
 
@@ -270,6 +304,29 @@ async function runOneTimeDataMigrations(client) {
         console.error("MIGRATION FAILED: Ocurrió un error durante la migración de datos. Se revirtieron todos los cambios.", error);
         // Relanzamos el error para detener el arranque del servidor, ya que es un estado inconsistente.
         throw error;
+    }
+}
+
+// NUEVO: Función de migración de datos para rellenar códigos de referido faltantes.
+async function backfillReferralCodes(client) {
+    try {
+        const usersToUpdateResult = await client.query('SELECT id, username FROM users WHERE referral_code IS NULL');
+
+        if (usersToUpdateResult.rowCount > 0) {
+            console.log(`DATA MIGRATION: Se encontraron ${usersToUpdateResult.rowCount} usuarios sin código de referido. Generando ahora...`);
+            
+            for (const user of usersToUpdateResult.rows) {
+                // Reutilizamos el helper que ya creamos para generar códigos únicos.
+                const newCode = await generateUniqueReferralCode(client, user.username);
+                await client.query('UPDATE users SET referral_code = $1 WHERE id = $2', [newCode, user.id]);
+                console.log(` -> Código generado para el usuario: ${user.username}`);
+            }
+            
+            console.log('DATA MIGRATION: ¡Todos los usuarios existentes ahora tienen un código de referido!');
+        }
+    } catch (error) {
+        // No es un error fatal para el arranque, pero es importante saber que falló.
+        console.error("DATA MIGRATION: Falló el proceso de rellenar los códigos de referido.", error);
     }
 }
 
@@ -389,6 +446,13 @@ async function initializeDatabase() {
             related_user_transaction_id INT, -- El ID de la transacción de usuario que generó esta comisión
             commission_amount_blue NUMERIC(19, 4) NOT NULL,
             created_at TIMESTAMPTZ DEFAULT NOW()
+        );`,
+        // --- NUEVA TABLA PARA EL SISTEMA DE REFERIDOS ---
+        `CREATE TABLE IF NOT EXISTS referral_log (
+            id SERIAL PRIMARY KEY,
+            referrer_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+            referred_user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+            created_at TIMESTAMPTZ DEFAULT NOW()
         );`
     ];
     
@@ -405,7 +469,10 @@ async function initializeDatabase() {
         ['blue_escrow_hours', '0', 'Horas para el depósito de BLUE en escrow.'],
         ['blue_escrow_minutes', '0', 'Minutos para el depósito de BLUE en escrow.'],
         // --- NUEVA CONFIGURACIÓN DE COMISIÓN ---
-        ['platform_commission_percentage', '5', 'Porcentaje de comisión para la plataforma (ej: 5 para 5%).']
+        ['platform_commission_percentage', '5', 'Porcentaje de comisión para la plataforma (ej: 5 para 5%).'],
+        // --- NUEVAS CONFIGURACIONES DE REFERIDOS ---
+        ['referral_system_enabled', 'true', 'Activa el sistema de referidos para nuevos registros.'],
+        ['referral_reward_amount', '10', 'Cantidad de BLUE que ganan el referente y el referido al registrarse.']
     ];
 
     const client = await pool.connect();
@@ -421,6 +488,9 @@ async function initializeDatabase() {
         // --- NUEVO: Ejecutar migraciones de datos de un solo uso ---
         // Esto se ejecuta después de las migraciones de esquema para asegurar que todas las tablas y columnas existen.
         await runOneTimeDataMigrations(client);
+
+        // --- NUEVO: Rellenar códigos de referido para usuarios existentes ---
+        await backfillReferralCodes(client);
 
         // Paso 2: Asegurar que todas las tablas base existen.
         for (const query of tableCreationQueries) {
@@ -487,6 +557,32 @@ async function initializeDatabase() {
     }
 }
 
+// NUEVO: Helper profesional para generar códigos de referido únicos.
+// Se asegura de no crear colisiones en la base de datos.
+async function generateUniqueReferralCode(client, username) {
+    let referralCode;
+    let isUnique = false;
+    let attempts = 0;
+    while (!isUnique && attempts < 10) { // Limitamos los intentos para evitar bucles infinitos
+        // Genera un código de 8 caracteres alfanuméricos en mayúsculas.
+        const randomPart = Math.random().toString(36).substring(2, 10).toUpperCase();
+        referralCode = `${username.substring(0, 4).toUpperCase()}-${randomPart}`;
+        const result = await client.query('SELECT id FROM users WHERE referral_code = $1', [referralCode]);
+        if (result.rowCount === 0) {
+            isUnique = true;
+        }
+        attempts++;
+    }
+
+    if (!isUnique) {
+        // Si después de 10 intentos no encontramos uno único (extremadamente improbable),
+        // usamos un método de respaldo con el timestamp.
+        referralCode = `${username.substring(0, 4).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+    }
+
+    return referralCode;
+}
+
 // 5. Función principal asíncrona para iniciar el servidor
 async function startServer() {
     try {
@@ -496,35 +592,128 @@ async function startServer() {
 
         // --- AHORA DEFINIMOS LAS RUTAS ---
 
-        // Ruta de Registro de Usuario
+        // Ruta de Registro de Usuario (AHORA CON LÓGICA DE REFERIDOS)
         app.post('/register', async (req, res) => {
-            const { username, password, email, phone } = req.body;
-            
+            const { username, password, email, phone, referral_code } = req.body;
+        
+            // --- Validación de Entrada ---
             if (!username || !password || !email || !phone) {
                 return res.status(400).json({ message: "Todos los campos son requeridos: usuario, contraseña, correo electrónico y teléfono." });
             }
-
-            // Validación simple de formato de email en el servidor como una capa extra.
             if (!/^\S+@\S+\.\S+$/.test(email)) {
                 return res.status(400).json({ message: "El formato del correo electrónico no es válido." });
             }
-
+        
+            const client = await pool.connect();
             try {
+                // --- INICIO DE LA TRANSACCIÓN ---
+                // Esto asegura que todas las operaciones de la base de datos se completen o fallen juntas.
+                await client.query('BEGIN');
+        
+                // 1. Obtener configuraciones relevantes del sistema
+                const settingKeys = [
+                    'referral_system_enabled', 'referral_reward_amount', 'platform_commission_percentage',
+                    'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes'
+                ];
+                const settingsResult = await client.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1::text[])`, [settingKeys]);
+                const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
+                const referralsEnabled = settings.referral_system_enabled === 'true';
+        
+                // 2. Validar el código de referido (si aplica)
+                let referrer = null;
+                if (referralsEnabled && referral_code) {
+                    const referrerResult = await client.query('SELECT * FROM users WHERE referral_code = $1', [referral_code.trim().toUpperCase()]);
+                    if (referrerResult.rowCount > 0) {
+                        referrer = referrerResult.rows[0];
+                    } else {
+                        console.warn(`Código de referido "${referral_code}" no encontrado para el registro de "${username}".`);
+                    }
+                }
+        
+                // 3. Crear el nuevo usuario
                 const passwordHash = await bcrypt.hash(password, saltRounds);
-                
-                const sql = `INSERT INTO users (username, password_hash, email, phone) VALUES ($1, $2, $3, $4) RETURNING id, username`;
-                const result = await pool.query(sql, [username, passwordHash, email, phone]);
-                const newUser = result.rows[0];
+                const newReferralCode = await generateUniqueReferralCode(client, username);
+                const newUserSql = `INSERT INTO users (username, password_hash, email, phone, referral_code, referred_by_user_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
+                const newUserResult = await client.query(newUserSql, [username, passwordHash, email, phone, newReferralCode, referrer ? referrer.id : null]);
+                const newUser = newUserResult.rows[0];
+        
+                // 4. Lógica de Recompensa (si hubo un referente válido)
+                if (referrer) {
+                    const rewardAmount = parseFloat(settings.referral_reward_amount) || 0;
+                    const commissionPercentage = parseFloat(settings.platform_commission_percentage) || 0;
+                    const escrowInterval = `${settings.blue_escrow_days || 1} days ${settings.blue_escrow_hours || 0} hours ${settings.blue_escrow_minutes || 0} minutes`;
+        
+                    if (rewardAmount > 0) {
+                        const totalBlueCreated = rewardAmount * 2;
+                        const commissionAmount = totalBlueCreated * (commissionPercentage / 100);
+        
+                        // --- Actualización de Saldos (CORREGIDO: Las recompensas van a Escrow) ---
+                        // Recompensa para el referente
+                        await client.query('UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE id = $2', [rewardAmount, referrer.id]);
+                        await client.query(`INSERT INTO blue_token_escrows (username, amount, unlock_at) VALUES ($1, $2, NOW() + INTERVAL '${escrowInterval}')`, [referrer.username, rewardAmount]);
+                        
+                        // Recompensa para el nuevo usuario
+                        await client.query('UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE id = $2', [rewardAmount, newUser.id]);
+                        await client.query(`INSERT INTO blue_token_escrows (username, amount, unlock_at) VALUES ($1, $2, NOW() + INTERVAL '${escrowInterval}')`, [newUser.username, rewardAmount]);
+        
+                        // --- Ganancia y Equilibrio para la Plataforma (CORREGIDO: Comisión a la billetera de plataforma) ---
+                        const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
+                        const redForBalance = totalBlueCreated;
+                        const redForCommission = commissionAmount;
+                        const blueForCommission = commissionAmount;
+        
+                        // La plataforma recibe el RED para balancear, pero el BLUE de comisión va a la billetera.
+                        await client.query(
+                            'UPDATE users SET red_balance = red_balance + $1 WHERE username = $2',
+                            [redForBalance + redForCommission, platformUsername]
+                        );
 
+                        await client.query(
+                            `INSERT INTO platform_wallet (id, total_blue_commission_balance) VALUES (1, $1)
+                             ON CONFLICT (id) DO UPDATE SET total_blue_commission_balance = platform_wallet.total_blue_commission_balance + $1`,
+                            [blueForCommission]
+                        );
+        
+                        // --- Registros de Transacciones para Auditoría (CORREGIDO: Mensajes más claros) ---
+                        // Para el referente
+                        await client.query(`INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [referrer.username, `Recompensa (en depósito) por referir a ${newUser.username}`, rewardAmount]);
+                        
+                        // Para el nuevo usuario
+                        const newUserTxResult = await client.query(`INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3) RETURNING id`, [newUser.username, `Recompensa (en depósito) por usar el código de ${referrer.username}`, rewardAmount]);
+                        const newUserTxId = newUserTxResult.rows[0].id;
+
+                        // Para la plataforma
+                        await client.query(`INSERT INTO transactions (username, type, description, blue_change, red_change) VALUES ($1, 'referral_commission', $2, $3, $4)`, [platformUsername, `Comisión y balance por referido ${newUser.username}`, blueForCommission, redForBalance + redForCommission]);
+        
+                        // --- Registro del Vínculo de Referido ---
+                        await client.query(`INSERT INTO referral_log (referrer_user_id, referred_user_id) VALUES ($1, $2)`, [referrer.id, newUser.id]);
+                        
+                        // --- Registro de la Comisión (CORREGIDO: Ahora posible sin ID de publicación) ---
+                        await client.query(
+                            `INSERT INTO platform_commission_log (related_publication_id, related_user_transaction_id, commission_amount_blue) VALUES ($1, $2, $3)`,
+                            [null, newUserTxId, blueForCommission]
+                        );
+        
+                        // --- Notificaciones a los Usuarios (CORREGIDO: Mensajes más claros) ---
+                        await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [referrer.username, `¡Felicidades! Has ganado ${rewardAmount.toFixed(4)} BLUE (en depósito) porque ${newUser.username} se registró con tu código.`]);
+                        await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Por usar un código de referido, has ganado una recompensa de ${rewardAmount.toFixed(4)} BLUE (en depósito).`]);
+                    }
+                }
+        
+                // --- FIN DE LA TRANSACCIÓN ---
+                await client.query('COMMIT');
                 res.status(201).json({ 
                     message: `Usuario '${newUser.username}' registrado con éxito.`,
                     userId: newUser.id,
                     username: newUser.username
-        });
-    } catch (error) {
+                });
+        
+            } catch (error) {
+                // Si algo falla, revertimos todos los cambios.
+                await client.query('ROLLBACK');
                 console.error('Error al registrar usuario:', error);
-                // La base de datos nos dirá exactamente qué campo falló gracias a las constraints.
-                if (error.code === '23505') { // Código de error para 'unique_violation'
+                
+                if (error.code === '23505') { // 'unique_violation'
                     if (error.constraint === 'users_username_key') {
                         return res.status(409).json({ message: 'El nombre de usuario ya está registrado.' });
                     }
@@ -534,14 +723,19 @@ async function startServer() {
                     if (error.constraint === 'users_phone_key') {
                         return res.status(409).json({ message: 'El número de teléfono ya está registrado.' });
                     }
-                    // Mensaje genérico si es otra restricción de unicidad no esperada.
+                    if (error.constraint === 'referral_log_referred_user_id_key') {
+                        // Este es un caso de borde muy raro pero bueno manejarlo
+                        return res.status(409).json({ message: 'Este usuario ya ha sido referido.' });
+                    }
                     return res.status(409).json({ message: 'Un valor que ingresaste ya está en uso.' });
                 }
                 res.status(500).json({ message: 'Error interno del servidor al intentar registrar el usuario.' });
-    }
-});
+            } finally {
+                client.release();
+            }
+        });
 
-// Ruta de Inicio de Sesión
+        // Ruta de Inicio de Sesión
         app.post('/login', async (req, res) => {
     const { username, password } = req.body;
 
@@ -2069,3 +2263,89 @@ app.get('/api/publications/:id', async (req, res) => {
         client.release();
     }
 }); 
+
+// NUEVO ENDPOINT: Obtener el log de referidos para el panel de admin
+app.get('/api/admin/referrals/log', verifyAdminToken, async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                rl.id,
+                rl.created_at,
+                referrer.username as referrer_username,
+                referred.username as referred_username
+            FROM 
+                referral_log rl
+            JOIN 
+                users referrer ON rl.referrer_user_id = referrer.id
+            JOIN 
+                users referred ON rl.referred_user_id = referred.id
+            ORDER BY 
+                rl.created_at DESC;
+        `;
+        const result = await pool.query(query);
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error("Error al obtener el log de referidos:", error);
+        res.status(500).json({ message: "Error interno del servidor." });
+    }
+}); 
+
+// NUEVO ENDPOINT: Obtener la información de referidos para un usuario específico (su código y a quién ha referido)
+app.get('/api/users/:username/referral-info', async (req, res) => {
+    const { username } = req.params;
+    
+    if (!username) {
+        return res.status(400).json({ message: "Se requiere un nombre de usuario." });
+    }
+    
+    const client = await pool.connect();
+    try {
+        // Usamos Promise.all para ejecutar ambas consultas en paralelo para mayor eficiencia.
+        const [userResult, referredUsersResult] = await Promise.all([
+            client.query('SELECT id, referral_code FROM users WHERE username = $1', [username]),
+            client.query(`
+                SELECT
+                    u.username as referred_username,
+                    rl.created_at
+                FROM referral_log rl
+                JOIN users u ON rl.referred_user_id = u.id
+                WHERE rl.referrer_user_id = (SELECT id FROM users WHERE username = $1)
+                ORDER BY rl.created_at DESC;
+            `, [username])
+        ]);
+    
+        if (userResult.rowCount === 0) {
+            return res.status(404).json({ message: 'Usuario no encontrado.' });
+        }
+    
+        const referralCode = userResult.rows[0].referral_code;
+        const referredUsers = referredUsersResult.rows;
+    
+        res.status(200).json({
+            referral_code: referralCode,
+            referred_users: referredUsers
+        });
+    
+    } catch (error) {
+        console.error(`Error al obtener la información de referidos para ${username}:`, error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    } finally {
+        client.release();
+    }
+});
+
+app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
+    const { search = '' } = req.query;
+    try {
+        const sql = `
+            SELECT id, username, liquid_blue_balance, escrow_blue_balance, red_balance, 
+                   average_rating, ratings_count, created_at
+            FROM users WHERE username ILIKE $1 ORDER BY created_at DESC
+        `;
+        const result = await pool.query(sql, [`%${search}%`]);
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error("Error al obtener la lista de usuarios:", error);
+        res.status(500).json({ message: "Error interno del servidor." });
+    }
+});

@@ -40,7 +40,10 @@ document.addEventListener('DOMContentLoaded', () => {
         platformPublicationForm: document.getElementById('platformPublicationForm'),
         platformManagementList: document.getElementById('platform-management-list'),
         // -- DANGER ZONE (ELEMENTOS A ELIMINAR DESPUÉS DE USAR) --
-        resetDatabaseBtn: document.getElementById('resetDatabaseBtn')
+        resetDatabaseBtn: document.getElementById('resetDatabaseBtn'),
+        // --- NUEVOS ELEMENTOS PARA REFERIDOS ---
+        referralsSettingsContainer: document.getElementById('referrals-settings-container'),
+        referralsLogContainer: document.getElementById('referrals-log-container')
     };
 
     // --- Inicialización ---
@@ -118,6 +121,9 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (sectionId === 'platform-publications') {
             // Cargar ambas partes de la sección de plataforma
             loadPlatformManagementData();
+        }
+        else if (sectionId === 'referrals') {
+            loadReferralsData();
         }
         // No se necesita cargar datos para la zona de peligro, solo mostrarla.
     }
@@ -216,6 +222,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function loadReferralsData() {
+        elements.referralsSettingsContainer.innerHTML = '<div class="loading-spinner"></div>';
+        elements.referralsLogContainer.innerHTML = '<div class="loading-spinner"></div>';
+
+        try {
+            // Reutilizamos la función de cargar todas las settings,
+            // y la de renderizado se encargará de mostrar solo las de referidos.
+            const [settings, log] = await Promise.all([
+                apiFetch('/api/admin/settings'),
+                apiFetch('/api/admin/referrals/log')
+            ]);
+            
+            renderReferralSettings(settings);
+            renderReferralLog(log);
+
+        } catch (error) {
+            elements.referralsSettingsContainer.innerHTML = `<p class="error-message">Error al cargar la configuración de referidos: ${error.message}</p>`;
+            elements.referralsLogContainer.innerHTML = `<p class="error-message">Error al cargar el log de referidos: ${error.message}</p>`;
+        }
+    }
+
     // --- Lógica de Renderizado de Configuración (NUEVO) ---
 
     const settingTitles = {
@@ -223,7 +250,10 @@ document.addEventListener('DOMContentLoaded', () => {
         'allow_new_registrations': 'Permitir Nuevos Registros',
         'allow_new_publications': 'Permitir Nuevas Publicaciones',
         'debt_system_enabled': 'Sistema de Deuda',
-        'platform_commission_percentage': 'Comisión de la Plataforma (%)'
+        'platform_commission_percentage': 'Comisión de la Plataforma (%)',
+        // --- Títulos para las nuevas settings ---
+        'referral_system_enabled': 'Sistema de Referidos',
+        'referral_reward_amount': 'Recompensa por Referido (BLUE)'
     };
 
     function getSettingTitle(key) {
@@ -286,6 +316,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Renderizar otras configuraciones
         otherSettings.forEach(setting => {
+            // Omitimos las de referidos aquí porque se renderizarán en su propia función
+            if (setting.setting_key.startsWith('referral_')) {
+                return;
+            }
+
             let controlHTML;
             if (setting.setting_value === 'true' || setting.setting_value === 'false') {
                 controlHTML = `
@@ -312,6 +347,58 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
             elements.settingsContainer.innerHTML += itemHTML;
+        });
+    }
+
+    function renderReferralSettings(allSettings) {
+        const referralSettings = allSettings.filter(s => s.setting_key.startsWith('referral_'));
+        elements.referralsSettingsContainer.innerHTML = ''; // Limpiar
+
+        if (referralSettings.length === 0) {
+            elements.referralsSettingsContainer.innerHTML = `<p class="empty-message">No se encontraron configuraciones para el sistema de referidos.</p>`;
+            return;
+        }
+
+        referralSettings.forEach(setting => {
+            let controlHTML;
+             // El input numérico para la recompensa
+            if (setting.setting_key === 'referral_reward_amount') {
+                controlHTML = `
+                    <input type="number" class="admin-numeric-input" data-key="${setting.setting_key}" value="${setting.setting_value}" step="any" min="0">
+                `;
+            } else { // El interruptor para activar/desactivar
+                controlHTML = `
+                    <label class="switch">
+                        <input type="checkbox" data-key="${setting.setting_key}" ${setting.setting_value === 'true' ? 'checked' : ''}>
+                        <span class="slider"></span>
+                    </label>
+                `;
+            }
+
+            const description = setting.setting_key === 'referral_system_enabled'
+                ? 'Activa o desactiva las recompensas por referido para los nuevos registros.'
+                : 'La cantidad de BLUE que recibe tanto el referente como el referido.';
+
+            const itemHTML = `
+                <div class="setting-item">
+                    <div class="setting-item-info">
+                        <h4>${getSettingTitle(setting.setting_key)}</h4>
+                        <p>${description}</p>
+                    </div>
+                    <div class="setting-item-control">
+                        ${controlHTML}
+                    </div>
+                </div>
+            `;
+            elements.referralsSettingsContainer.innerHTML += itemHTML;
+        });
+
+        // Aseguramos que los eventos funcionen en los nuevos controles
+        elements.referralsSettingsContainer.addEventListener('change', handleSettingChange);
+        elements.referralsSettingsContainer.addEventListener('keyup', (event) => {
+            if (event.target.type === 'number') {
+                handleSettingChange(event);
+            }
         });
     }
 
@@ -767,6 +854,47 @@ WHERE username = 'Plataforma WintonCoin';
                 <td>${titleHTML}</td>
                 <td class="username-cell">${userHTML}</td>
                 <td>${commissionDate}</td>
+            </tr>
+        `;
+    }
+
+    function renderReferralLog(log) {
+        if (!log || log.length === 0) {
+            elements.referralsLogContainer.innerHTML = '<p class="empty-message">Todavía no se ha registrado ningún referido.</p>';
+            return;
+        }
+
+        const tableHTML = `
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Referido (Nuevo Usuario)</th>
+                        <th>Referente (Usuario Antiguo)</th>
+                        <th>Fecha de Registro</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${log.map(entry => getReferralLogRowHTML(entry)).join('')}
+                </tbody>
+            </table>
+        `;
+        elements.referralsLogContainer.innerHTML = tableHTML;
+    }
+
+    function getReferralLogRowHTML(entry) {
+        const registrationDate = new Date(entry.created_at).toLocaleString('es-ES', {
+            year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+
+        return `
+            <tr>
+                <td class="username-cell">
+                    <a href="profile.html?user=${entry.referred_username}" target="_blank">${entry.referred_username}</a>
+                </td>
+                <td class="username-cell">
+                    <a href="profile.html?user=${entry.referrer_username}" target="_blank">${entry.referrer_username}</a>
+                </td>
+                <td>${registrationDate}</td>
             </tr>
         `;
     }

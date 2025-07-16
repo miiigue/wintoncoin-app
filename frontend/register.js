@@ -6,6 +6,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const registerForm = document.getElementById('registerForm');
     const container = document.querySelector('.container');
 
+    // --- NUEVO: Lógica para auto-rellenar el código de referido desde la URL ---
+    const referralCodeInput = document.getElementById('referral_code');
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCodeFromUrl = urlParams.get('ref');
+
+    if (refCodeFromUrl && referralCodeInput) {
+        // Ponemos el código en mayúsculas y limpiamos espacios para consistencia
+        referralCodeInput.value = refCodeFromUrl.trim().toUpperCase();
+    }
+    // --- Fin de la nueva lógica ---
+
     // Escuchamos el evento personalizado que disparamos desde utils.js
     document.addEventListener('app-settings-loaded', () => {
         if (!window.appSettings.allow_new_registrations) {
@@ -29,6 +40,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const confirmPassword = document.getElementById('confirmPassword').value;
             const email = document.getElementById('email').value;
             const phone = document.getElementById('phone').value;
+            const referral_code = document.getElementById('referral_code').value;
 
             // Comprobación de seguridad: las contraseñas deben coincidir
             if (password !== confirmPassword) {
@@ -47,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         'Content-Type': 'application/json' // Le decimos al servidor que enviamos JSON
                     },
                     // Convertimos todos los datos a un string JSON
-                    body: JSON.stringify({ username, password, email, phone })
+                    body: JSON.stringify({ username, password, email, phone, referral_code })
                 });
 
                 // Convertimos la respuesta del servidor a un objeto JSON
