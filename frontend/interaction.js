@@ -466,9 +466,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function getFullPublicationHTML(pub, ratingHTML, statusMessageHTML) {
         const rewardText = `${formatBalance(pub.blue_cost)} BLUE`;
 
-        // Determinamos la clase de la cinta según la categoría de la publicación
+        // Determinamos la clase de la cinta según la categoría y si es de impulsor
         let ribbonClass = '';
-        if (pub.category === 'donation') {
+        if (pub.is_booster_task) {
+            ribbonClass = 'booster-ribbon';
+        } else if (pub.category === 'donation') {
             ribbonClass = 'donation-ribbon';
         } else if (pub.is_sell_post) {
             ribbonClass = 'sell-ribbon';

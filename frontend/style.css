@@ -556,6 +556,11 @@ hr {
     color: white;
 }
 
+.cost-ribbon.booster-ribbon {
+    background-color: #EBFD88; /* Amarillo claro para tareas de impulsor */
+    color: #000; /* Texto negro para mejor contraste */
+}
+
 /* NUEVO: Ajuste para cuando la cinta de costo y el banner de estado coexisten */
 .publication-status-banner + .cost-ribbon {
     top: 50px; /* Empuja la cinta hacia abajo para que no se solape con el banner */
