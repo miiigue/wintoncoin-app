@@ -593,7 +593,7 @@ async function startServer() {
         // --- AHORA DEFINIMOS LAS RUTAS ---
 
         // Ruta de Registro de Usuario (AHORA CON LÓGICA DE REFERIDOS)
-        app.post('/register', async (req, res) => {
+app.post('/register', async (req, res) => {
             const { username, password, email, phone, referral_code } = req.body;
         
             // --- Validación de Entrada ---
@@ -708,7 +708,7 @@ async function startServer() {
                     username: newUser.username
                 });
         
-            } catch (error) {
+    } catch (error) {
                 // Si algo falla, revertimos todos los cambios.
                 await client.query('ROLLBACK');
                 console.error('Error al registrar usuario:', error);
@@ -732,10 +732,10 @@ async function startServer() {
                 res.status(500).json({ message: 'Error interno del servidor al intentar registrar el usuario.' });
             } finally {
                 client.release();
-            }
-        });
+    }
+});
 
-        // Ruta de Inicio de Sesión
+// Ruta de Inicio de Sesión
         app.post('/login', async (req, res) => {
     const { username, password } = req.body;
 
@@ -1368,7 +1368,7 @@ async function startServer() {
 
         // RUTA: Obtener los saldos de un usuario
         app.get('/users/:username/balance', async (req, res) => {
-            const { username } = req.params;
+    const { username } = req.params;
             
             const client = await pool.connect();
             try {
@@ -2289,7 +2289,7 @@ app.get('/api/admin/referrals/log', verifyAdminToken, async (req, res) => {
         console.error("Error al obtener el log de referidos:", error);
         res.status(500).json({ message: "Error interno del servidor." });
     }
-}); 
+});
 
 // NUEVO ENDPOINT: Obtener la información de referidos para un usuario específico (su código y a quién ha referido)
 app.get('/api/users/:username/referral-info', async (req, res) => {
@@ -2349,4 +2349,4 @@ app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
         console.error("Error al obtener la lista de usuarios:", error);
         res.status(500).json({ message: "Error interno del servidor." });
     }
-});
+}); 

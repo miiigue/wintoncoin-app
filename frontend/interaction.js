@@ -409,21 +409,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const authorRating = userRatingsCache.get(pub.author_username);
                 const authorRatingHTML = generateStarRating(authorRating.average, authorRating.count);
 
-                // 2. Obtener calificación del ACEPTANTE (si existe)
-                let acceptorRatingData = null;
-                if (pub.accepted_by_username) {
-                    if (!userRatingsCache.has(pub.accepted_by_username)) {
-                        const ratingData = await fetchUserRating(pub.accepted_by_username);
-                        userRatingsCache.set(pub.accepted_by_username, ratingData);
-                    }
-                    acceptorRatingData = userRatingsCache.get(pub.accepted_by_username);
-                }
+                // 2. OBTENER EL MENSAJE DE ESTADO PARA LA TARJETA
+                const statusMessageHTML = getCardStatusMessageHTML(pub);
 
-                // 3. Generar HTML pasando la calificación del aceptante
-                const { messageHTML, actionHTML } = getActionAndMessageHTML(pub, acceptorRatingData);
-
-                // Pasamos la publicación completa para tener acceso a todos sus datos
-                return getFullPublicationHTML(pub, authorRatingHTML, messageHTML, actionHTML);
+                // 3. Pasamos la publicación completa y los datos generados para crear el HTML
+                return getFullPublicationHTML(pub, authorRatingHTML, statusMessageHTML);
             }));
 
             elements.publicationsList.innerHTML = publicationsHTML.join('');
@@ -435,8 +425,45 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Funciones de Renderizado ---
+
+    /**
+     * NUEVO: Genera un banner de estado para la tarjeta si el usuario actual tiene un estado específico.
+     * @param {object} pub La publicación.
+     * @returns {string} El HTML del banner o un string vacío.
+     */
+    function getCardStatusMessageHTML(pub) {
+        const userStatus = pub.user_acceptance_status;
+        let message = '';
+        let className = '';
     
-    function getFullPublicationHTML(pub, ratingHTML, messageHTML, actionHTML) {
+        if (userStatus === 'approved') {
+            // Lógica diferencial para 'Aprobado'
+            if (pub.is_sell_post) {
+                message = 'Completa el pago para recibir el producto.';
+            } else {
+                message = '¡Aprobado! Ya puedes realizar la tarea.';
+            }
+            className = 'status-approved';
+        } else if (userStatus === 'completed') {
+            // Lógica diferencial para 'Culminado'
+            if (pub.is_sell_post) {
+                message = 'Pago realizado. Esperando confirmación del vendedor.';
+            } else {
+                message = 'Tarea culminada. Esperando confirmación.';
+            }
+            className = 'status-completed';
+        } else if (userStatus === 'pending_approval') {
+            message = 'Solicitud enviada. Esperando aprobación.';
+            className = 'status-pending';
+        }
+    
+        if (message) {
+            return `<div class="publication-status-banner ${className}">${message}</div>`;
+        }
+        return '';
+    }
+    
+    function getFullPublicationHTML(pub, ratingHTML, statusMessageHTML) {
         const rewardText = `${formatBalance(pub.blue_cost)} BLUE`;
 
         // Determinamos la clase de la cinta según la categoría de la publicación
@@ -461,6 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return `
             <a href="publication-detail.html?id=${pub.id}" class="publication-item-link">
                 <div class="publication-item" data-id="${pub.id}" data-author="${pub.author_username}">
+                    ${statusMessageHTML}
                     <div class="cost-ribbon ${ribbonClass}">${rewardText}</div>
                     
                     <div class="publication-header">

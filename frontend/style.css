@@ -350,7 +350,7 @@ hr {
 #publications-list {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 1.5rem;
+    gap: 0.2rem;
 }
 
 .publication-item {
@@ -400,6 +400,33 @@ hr {
     line-clamp: 3; /* Propiedad estándar para máxima compatibilidad */
     -webkit-box-orient: vertical;
 }
+
+/* NUEVO: Banner de estado dentro de la tarjeta de publicación */
+.publication-status-banner {
+    padding: 8px 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: center;
+    color: #fff;
+    border-radius: 12px 12px 0 0;
+    /* Ajustamos el margen para que el banner ocupe todo el ancho superior de la tarjeta
+       y empuje el resto del contenido hacia abajo. */
+    margin: -1rem -1rem 1rem -1rem;
+}
+
+.publication-status-banner.status-pending {
+    background-color: #f39c12; /* Naranja */
+    color: #111;
+}
+
+.publication-status-banner.status-approved {
+    background-color: #28a745; /* Verde */
+}
+
+.publication-status-banner.status-completed {
+    background-color: #6f42c1; /* Púrpura */
+}
+/* Fin del nuevo estilo */
 
 .publication-footer {
     display: flex;
@@ -527,6 +554,11 @@ hr {
 .cost-ribbon.donation-ribbon {
     background-color: #e83e8c; /* Rosa/Magenta */
     color: white;
+}
+
+/* NUEVO: Ajuste para cuando la cinta de costo y el banner de estado coexisten */
+.publication-status-banner + .cost-ribbon {
+    top: 50px; /* Empuja la cinta hacia abajo para que no se solape con el banner */
 }
 
 /* --- Menús del Header --- */
