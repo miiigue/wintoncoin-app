@@ -8,5 +8,10 @@ node_modules/
 *.db
 *.db-journal
 
+# Backups de base de datos - Contienen datos sensibles
+backups/
+*.sql
+*.dump
+
 # Logs y archivos de debug
 *.log 

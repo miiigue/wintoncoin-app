@@ -1886,6 +1886,228 @@ app.post('/register', async (req, res) => {
             }
         });
 
+        // --- ENDPOINTS PARA GESTIÓN SEGURA DE DATOS ---
+        
+        // Endpoint para obtener estadísticas detalladas de la base de datos
+        app.get('/api/admin/database/stats', verifyAdminToken, async (req, res) => {
+            const client = await pool.connect();
+            try {
+                const stats = await client.query(`
+                    SELECT 
+                        (SELECT COUNT(*) FROM users) as total_users,
+                        (SELECT COUNT(*) FROM users WHERE username ILIKE '%test%' OR username ILIKE '%demo%') as test_users,
+                        (SELECT COUNT(*) FROM users WHERE created_at < NOW() - INTERVAL '90 days' AND liquid_blue_balance = 100.0000 AND escrow_blue_balance = 0.0000 AND red_balance = 0.0000) as inactive_users,
+                        (SELECT COUNT(*) FROM publications) as total_publications,
+                        (SELECT COUNT(*) FROM publications WHERE created_at < NOW() - INTERVAL '180 days' AND status IN ('completed', 'confirmed_paid')) as old_publications,
+                        (SELECT COUNT(*) FROM transactions) as total_transactions,
+                        (SELECT COUNT(*) FROM notifications) as total_notifications,
+                        (SELECT COUNT(*) FROM notifications WHERE created_at < NOW() - INTERVAL '30 days') as old_notifications,
+                        (SELECT COUNT(*) FROM ratings) as total_ratings,
+                        (SELECT COUNT(*) FROM red_token_debts WHERE is_settled = FALSE) as active_debts,
+                        (SELECT COUNT(*) FROM blue_token_escrows WHERE is_released = FALSE) as active_escrows,
+                        (SELECT pg_size_pretty(pg_database_size(current_database()))) as database_size
+                `);
+                
+                res.json(stats.rows[0]);
+            } catch (error) {
+                console.error('Error fetching database stats:', error);
+                res.status(500).json({ message: 'Error interno del servidor.' });
+            } finally {
+                client.release();
+            }
+        });
+
+        // Endpoint para crear backup de la base de datos
+        app.post('/api/admin/database/backup', verifyAdminToken, async (req, res) => {
+            try {
+                const { createBackup } = require('./backup-database.js');
+                const backupFile = await createBackup();
+                
+                // Obtener solo el nombre del archivo para no exponer rutas del sistema
+                const backupFileName = require('path').basename(backupFile);
+                
+                res.json({ 
+                    success: true, 
+                    message: 'Backup creado exitosamente',
+                    filename: backupFileName
+                });
+            } catch (error) {
+                console.error('Error creating backup:', error);
+                res.status(500).json({ message: 'Error al crear el backup: ' + error.message });
+            }
+        });
+
+        // Endpoint para limpiar datos de prueba
+        app.post('/api/admin/database/cleanup-test-data', verifyAdminToken, async (req, res) => {
+            const client = await pool.connect();
+            try {
+                console.log(`[ADMIN CLEANUP] Administrador inició limpieza de datos de prueba`);
+                
+                // Crear backup automático antes de la limpieza
+                const { createBackup } = require('./backup-database.js');
+                await createBackup();
+                
+                await client.query('BEGIN');
+                
+                // Eliminar usuarios de prueba
+                const testUsersResult = await client.query(`
+                    DELETE FROM users 
+                    WHERE (username ILIKE '%test%' OR username ILIKE '%demo%' OR username ILIKE '%example%')
+                    AND username NOT LIKE '%Plataforma%'
+                    RETURNING username
+                `);
+                
+                // Eliminar publicaciones de prueba
+                const testPublicationsResult = await client.query(`
+                    DELETE FROM publications 
+                    WHERE title ILIKE '%test%' OR title ILIKE '%demo%' OR title ILIKE '%example%'
+                    RETURNING id, title
+                `);
+                
+                // Limpiar notificaciones antiguas (más de 30 días)
+                const oldNotificationsResult = await client.query(`
+                    DELETE FROM notifications 
+                    WHERE created_at < NOW() - INTERVAL '30 days'
+                    RETURNING id
+                `);
+                
+                await client.query('COMMIT');
+                
+                console.log(`[ADMIN CLEANUP] Limpieza completada - Usuarios: ${testUsersResult.rowCount}, Publicaciones: ${testPublicationsResult.rowCount}, Notificaciones: ${oldNotificationsResult.rowCount}`);
+                
+                res.json({
+                    success: true,
+                    message: 'Limpieza de datos de prueba completada',
+                    results: {
+                        testUsersDeleted: testUsersResult.rowCount,
+                        testPublicationsDeleted: testPublicationsResult.rowCount,
+                        oldNotificationsDeleted: oldNotificationsResult.rowCount
+                    }
+                });
+                
+            } catch (error) {
+                await client.query('ROLLBACK');
+                console.error('[ADMIN CLEANUP] Error durante limpieza de datos de prueba:', error);
+                res.status(500).json({ message: 'Error durante la limpieza: ' + error.message });
+            } finally {
+                client.release();
+            }
+        });
+
+        // Endpoint para limpiar usuarios inactivos
+        app.post('/api/admin/database/cleanup-inactive-users', verifyAdminToken, async (req, res) => {
+            const { daysInactive = 90 } = req.body;
+            const client = await pool.connect();
+            
+            try {
+                console.log(`[ADMIN CLEANUP] Administrador inició limpieza de usuarios inactivos (${daysInactive} días)`);
+                
+                // Validación de seguridad
+                if (daysInactive < 30) {
+                    return res.status(400).json({ 
+                        message: 'Por seguridad, no se pueden eliminar usuarios con menos de 30 días de inactividad' 
+                    });
+                }
+                
+                // Crear backup automático
+                const { createBackup } = require('./backup-database.js');
+                await createBackup();
+                
+                await client.query('BEGIN');
+                
+                // Obtener usuarios inactivos para mostrar en los logs
+                const inactiveUsersQuery = await client.query(`
+                    SELECT username, created_at, liquid_blue_balance, escrow_blue_balance, red_balance
+                    FROM users 
+                    WHERE created_at < NOW() - INTERVAL '${daysInactive} days'
+                    AND username NOT LIKE '%Plataforma%'
+                    AND liquid_blue_balance = 100.0000
+                    AND escrow_blue_balance = 0.0000
+                    AND red_balance = 0.0000
+                `);
+                
+                // Eliminar usuarios inactivos
+                const deleteResult = await client.query(`
+                    DELETE FROM users 
+                    WHERE created_at < NOW() - INTERVAL '${daysInactive} days'
+                    AND username NOT LIKE '%Plataforma%'
+                    AND liquid_blue_balance = 100.0000
+                    AND escrow_blue_balance = 0.0000
+                    AND red_balance = 0.0000
+                `);
+                
+                await client.query('COMMIT');
+                
+                console.log(`[ADMIN CLEANUP] Usuarios inactivos eliminados: ${deleteResult.rowCount}`);
+                
+                res.json({
+                    success: true,
+                    message: `Limpieza de usuarios inactivos completada`,
+                    results: {
+                        usersDeleted: deleteResult.rowCount,
+                        daysInactive: daysInactive
+                    }
+                });
+                
+            } catch (error) {
+                await client.query('ROLLBACK');
+                console.error('[ADMIN CLEANUP] Error durante limpieza de usuarios inactivos:', error);
+                res.status(500).json({ message: 'Error durante la limpieza: ' + error.message });
+            } finally {
+                client.release();
+            }
+        });
+
+        // Endpoint para limpiar publicaciones antiguas
+        app.post('/api/admin/database/cleanup-old-publications', verifyAdminToken, async (req, res) => {
+            const { daysOld = 180 } = req.body;
+            const client = await pool.connect();
+            
+            try {
+                console.log(`[ADMIN CLEANUP] Administrador inició limpieza de publicaciones antiguas (${daysOld} días)`);
+                
+                // Validación de seguridad
+                if (daysOld < 90) {
+                    return res.status(400).json({ 
+                        message: 'Por seguridad, no se pueden eliminar publicaciones con menos de 90 días de antigüedad' 
+                    });
+                }
+                
+                // Crear backup automático
+                const { createBackup } = require('./backup-database.js');
+                await createBackup();
+                
+                await client.query('BEGIN');
+                
+                // Eliminar publicaciones antiguas
+                const deleteResult = await client.query(`
+                    DELETE FROM publications 
+                    WHERE created_at < NOW() - INTERVAL '${daysOld} days'
+                    AND status IN ('completed', 'confirmed_paid')
+                `);
+                
+                await client.query('COMMIT');
+                
+                console.log(`[ADMIN CLEANUP] Publicaciones antiguas eliminadas: ${deleteResult.rowCount}`);
+                
+                res.json({
+                    success: true,
+                    message: `Limpieza de publicaciones antiguas completada`,
+                    results: {
+                        publicationsDeleted: deleteResult.rowCount,
+                        daysOld: daysOld
+                    }
+                });
+                
+            } catch (error) {
+                await client.query('ROLLBACK');
+                console.error('[ADMIN CLEANUP] Error durante limpieza de publicaciones antiguas:', error);
+                res.status(500).json({ message: 'Error durante la limpieza: ' + error.message });
+            } finally {
+                client.release();
+            }
+        });
+
         // --- NUEVO: Endpoints para la gestión de Impulsores ---
         app.get('/api/admin/boosters/settings', verifyAdminToken, async (req, res) => {
             try {
