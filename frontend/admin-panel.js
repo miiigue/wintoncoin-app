@@ -145,6 +145,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // Al entrar en la sección, mostramos la primera pestaña por defecto
             showBoosterTab('boosters-dashboard');
         }
+        else if (sectionId === 'database-management') {
+            loadDatabaseStats();
+            // Reconfigurar los event listeners cuando se entra a la sección
+            setTimeout(() => {
+                setupDatabaseCleanupListeners();
+            }, 200);
+        }
         // No se necesita cargar datos para la zona de peligro, solo mostrarla.
     }
 
@@ -1139,4 +1146,355 @@ WHERE username = 'Plataforma WintonCoin';
             </tr>
         `;
     }
+
+    // --- NUEVA FUNCIONALIDAD: Gestión de Base de Datos ---
+    
+    // Configurar event listeners para los botones de limpieza
+    function setupDatabaseCleanupListeners() {
+        console.log('🔧 Configurando event listeners para gestión de base de datos...');
+        
+        // Botón para limpiar datos de prueba
+        const cleanupTestDataBtn = document.getElementById('cleanup-test-data-btn');
+        if (cleanupTestDataBtn) {
+            cleanupTestDataBtn.addEventListener('click', handleCleanupTestData);
+            console.log('✅ Event listener configurado para cleanup-test-data-btn');
+        } else {
+            console.warn('❌ No se encontró el botón cleanup-test-data-btn');
+        }
+
+        // Botón para limpiar usuarios inactivos
+        const cleanupInactiveUsersBtn = document.getElementById('cleanup-inactive-users-btn');
+        if (cleanupInactiveUsersBtn) {
+            cleanupInactiveUsersBtn.addEventListener('click', handleCleanupInactiveUsers);
+            console.log('✅ Event listener configurado para cleanup-inactive-users-btn');
+        } else {
+            console.warn('❌ No se encontró el botón cleanup-inactive-users-btn');
+        }
+
+        // Botón para limpiar publicaciones antiguas
+        const cleanupOldPublicationsBtn = document.getElementById('cleanup-old-publications-btn');
+        if (cleanupOldPublicationsBtn) {
+            cleanupOldPublicationsBtn.addEventListener('click', handleCleanupOldPublications);
+            console.log('✅ Event listener configurado para cleanup-old-publications-btn');
+        } else {
+            console.warn('❌ No se encontró el botón cleanup-old-publications-btn');
+        }
+
+        // Botón para crear backup manual
+        const createBackupBtn = document.getElementById('create-backup-btn');
+        if (createBackupBtn) {
+            createBackupBtn.addEventListener('click', handleCreateBackup);
+            console.log('✅ Event listener configurado para create-backup-btn');
+        } else {
+            console.warn('❌ No se encontró el botón create-backup-btn');
+        }
+
+        // Botón para actualizar estadísticas
+        const refreshStatsBtn = document.getElementById('refresh-db-stats');
+        if (refreshStatsBtn) {
+            refreshStatsBtn.addEventListener('click', handleRefreshStats);
+            console.log('✅ Event listener configurado para refresh-db-stats');
+        } else {
+            console.warn('❌ No se encontró el botón refresh-db-stats');
+        }
+        
+        console.log('🏁 Configuración de event listeners completada');
+    }
+
+    // Función para mostrar mensajes de estado en la interfaz
+    function showDatabaseStatus(message, isError = false) {
+        const statusContainer = document.getElementById('database-status');
+        if (statusContainer) {
+            statusContainer.innerHTML = `
+                <div class="status-message ${isError ? 'status-error' : 'status-success'}">
+                    ${message}
+                </div>
+            `;
+            // Auto-ocultar después de 10 segundos
+            setTimeout(() => {
+                statusContainer.innerHTML = '';
+            }, 10000);
+        }
+    }
+
+    // Manejador para limpiar datos de prueba
+    async function handleCleanupTestData() {
+        if (!confirm('¿Estás seguro de que quieres eliminar todos los datos de prueba? Esta acción no se puede deshacer.')) {
+            return;
+        }
+
+        const btn = document.getElementById('cleanup-test-data-btn');
+        const originalText = btn.textContent;
+        btn.textContent = 'Procesando...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(`${API_URL}/api/admin/database/cleanup-test-data`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                showDatabaseStatus(`✅ Limpieza exitosa: ${result.results.testUsersDeleted} usuarios de prueba y ${result.results.testPublicationsDeleted} publicaciones eliminadas.`);
+                loadDatabaseStats(); // Actualizar estadísticas
+            } else {
+                showDatabaseStatus(`❌ Error: ${result.message}`, true);
+            }
+        } catch (error) {
+            console.error('Error en limpieza de datos de prueba:', error);
+            showDatabaseStatus('❌ Error de conexión al realizar la limpieza', true);
+        } finally {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    // Manejador para limpiar usuarios inactivos
+    async function handleCleanupInactiveUsers() {
+        console.log('🧹 Iniciando limpieza de usuarios inactivos...');
+        const daysInput = document.getElementById('inactive-users-days');
+        const days = parseInt(daysInput ? daysInput.value : 90);
+        console.log('📅 Días de inactividad configurados:', days);
+
+        if (days < 30) {
+            showDatabaseStatus('❌ Por seguridad, no se pueden eliminar usuarios con menos de 30 días de inactividad', true);
+            return;
+        }
+
+        if (!confirm(`¿Estás seguro de que quieres eliminar usuarios inactivos por más de ${days} días? Esta acción no se puede deshacer.`)) {
+            return;
+        }
+
+        const btn = document.getElementById('cleanup-inactive-users-btn');
+        const originalText = btn.textContent;
+        btn.textContent = 'Procesando...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(`${API_URL}/api/admin/database/cleanup-inactive-users`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ daysInactive: days })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                showDatabaseStatus(`✅ Limpieza exitosa: ${result.results.usersDeleted} usuarios inactivos eliminados.`);
+                loadDatabaseStats(); // Actualizar estadísticas
+            } else {
+                showDatabaseStatus(`❌ Error: ${result.message}`, true);
+            }
+        } catch (error) {
+            console.error('Error en limpieza de usuarios inactivos:', error);
+            showDatabaseStatus('❌ Error de conexión al realizar la limpieza', true);
+        } finally {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    // Manejador para limpiar publicaciones antiguas
+    async function handleCleanupOldPublications() {
+        console.log('📝 Iniciando limpieza de publicaciones antiguas...');
+        const daysInput = document.getElementById('old-publications-days');
+        const days = parseInt(daysInput ? daysInput.value : 180);
+        console.log('📅 Días de antigüedad configurados:', days);
+
+        if (days < 90) {
+            showDatabaseStatus('❌ Por seguridad, no se pueden eliminar publicaciones con menos de 90 días de antigüedad', true);
+            return;
+        }
+
+        if (!confirm(`¿Estás seguro de que quieres eliminar publicaciones completadas hace más de ${days} días? Esta acción no se puede deshacer.`)) {
+            return;
+        }
+
+        const btn = document.getElementById('cleanup-old-publications-btn');
+        const originalText = btn.textContent;
+        btn.textContent = 'Procesando...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(`${API_URL}/api/admin/database/cleanup-old-publications`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ daysOld: days })
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                showDatabaseStatus(`✅ Limpieza exitosa: ${result.results.publicationsDeleted} publicaciones antiguas eliminadas.`);
+                loadDatabaseStats(); // Actualizar estadísticas
+            } else {
+                showDatabaseStatus(`❌ Error: ${result.message}`, true);
+            }
+        } catch (error) {
+            console.error('Error en limpieza de publicaciones antiguas:', error);
+            showDatabaseStatus('❌ Error de conexión al realizar la limpieza', true);
+        } finally {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    // Manejador para crear backup manual
+    async function handleCreateBackup() {
+        console.log('💾 Iniciando creación de backup...');
+        const btn = document.getElementById('create-backup-btn');
+        const originalText = btn.textContent;
+        btn.textContent = 'Creando...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(`${API_URL}/api/admin/database/backup`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const result = await response.json();
+            console.log('📦 Respuesta del backup:', result);
+
+            if (response.ok) {
+                showDatabaseStatus(`✅ Backup creado exitosamente: ${result.filename}`);
+            } else {
+                showDatabaseStatus(`❌ Error: ${result.message}`, true);
+            }
+        } catch (error) {
+            console.error('Error al crear backup:', error);
+            showDatabaseStatus('❌ Error de conexión al crear el backup', true);
+        } finally {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    // Manejador para actualizar estadísticas
+    async function handleRefreshStats() {
+        console.log('🔄 Actualizando estadísticas de base de datos...');
+        const btn = document.getElementById('refresh-db-stats');
+        const originalText = btn.textContent;
+        btn.textContent = '🔄 Actualizando...';
+        btn.disabled = true;
+
+        try {
+            await loadDatabaseStats();
+            showDatabaseStatus('✅ Estadísticas actualizadas correctamente');
+        } catch (error) {
+            console.error('Error al actualizar estadísticas:', error);
+            showDatabaseStatus('❌ Error al actualizar las estadísticas', true);
+        } finally {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
+    }
+
+    // Función para cargar estadísticas de la base de datos
+    async function loadDatabaseStats() {
+        console.log('📊 Cargando estadísticas de base de datos...');
+        const statsContainer = document.getElementById('database-stats-container');
+        
+        try {
+            // Mostrar spinner de carga
+            if (statsContainer) {
+                statsContainer.innerHTML = '<div class="loading-spinner"></div>';
+            }
+
+            const response = await fetch(`${API_URL}/api/admin/database/stats`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                }
+            });
+
+            if (response.ok) {
+                const stats = await response.json();
+                console.log('📈 Estadísticas recibidas:', stats);
+                updateDatabaseStatsDisplay(stats);
+            } else {
+                console.error('Error en respuesta de estadísticas:', response.status);
+                if (statsContainer) {
+                    statsContainer.innerHTML = '<p style="color: #e74c3c;">Error al cargar estadísticas</p>';
+                }
+            }
+        } catch (error) {
+            console.error('Error al cargar estadísticas de base de datos:', error);
+            if (statsContainer) {
+                statsContainer.innerHTML = '<p style="color: #e74c3c;">Error de conexión</p>';
+            }
+        }
+    }
+
+    // Función para actualizar la visualización de estadísticas
+    function updateDatabaseStatsDisplay(stats) {
+        console.log('🎨 Actualizando visualización de estadísticas...');
+        const statsContainer = document.getElementById('database-stats-container');
+        
+        if (!statsContainer) {
+            console.warn('❌ No se encontró el contenedor de estadísticas');
+            return;
+        }
+
+        // Crear el HTML de las estadísticas
+        const statsHTML = `
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-number">${stats.total_users || '0'}</div>
+                    <div class="stat-label">Usuarios Totales</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${stats.test_users || '0'}</div>
+                    <div class="stat-label">Usuarios de Prueba</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${stats.inactive_users || '0'}</div>
+                    <div class="stat-label">Usuarios Inactivos</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${stats.total_publications || '0'}</div>
+                    <div class="stat-label">Publicaciones Totales</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${stats.old_publications || '0'}</div>
+                    <div class="stat-label">Publicaciones Antiguas</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${stats.total_transactions || '0'}</div>
+                    <div class="stat-label">Transacciones</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${stats.total_notifications || '0'}</div>
+                    <div class="stat-label">Notificaciones</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${stats.database_size || 'N/A'}</div>
+                    <div class="stat-label">Tamaño de BD</div>
+                </div>
+            </div>
+        `;
+        
+        statsContainer.innerHTML = statsHTML;
+        console.log('✅ Estadísticas visualizadas correctamente');
+    }
+
+    // Llamar a la configuración cuando se carga la página
+    // Usar setTimeout para asegurar que el DOM esté completamente cargado
+    setTimeout(() => {
+        setupDatabaseCleanupListeners();
+        console.log('Database cleanup listeners configured');
+    }, 100);
 });

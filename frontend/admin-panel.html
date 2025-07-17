@@ -30,6 +30,7 @@
                     <li><a href="#platform-publications" class="nav-link" data-section="platform-publications">Publicaciones Plataforma</a></li>
                     <li><a href="#referrals" class="nav-link" data-section="referrals">Sistema de Referidos</a></li>
                     <li><a href="#boosters" class="nav-link" data-section="boosters">Gestión de Impulsores</a></li>
+                    <li><a href="#database-management" class="nav-link" data-section="database-management">Gestión de Base de Datos</a></li>
                     <!-- DANGER ZONE LINK (REMOVE AFTER USE) -->
                     <li><a href="#danger-zone" class="nav-link" data-section="danger-zone">Zona de Peligro</a></li>
                 </ul>
@@ -195,6 +196,97 @@
                 <p>Aquí puedes ver un historial de todos los usuarios que se han registrado a través de un referido.</p>
                 <div id="referrals-log-container" class="table-container-admin">
                     <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- NUEVA SECCIÓN PARA GESTIÓN DE BASE DE DATOS -->
+            <section id="database-management-section" class="admin-section">
+                <h1>Gestión de Base de Datos</h1>
+                <p>Herramientas para mantener, limpiar y respaldar la base de datos de manera segura.</p>
+                
+                <!-- Estadísticas de la Base de Datos -->
+                <div class="database-stats-card">
+                    <h2>📊 Estadísticas de la Base de Datos</h2>
+                    <div id="database-stats-container" class="stats-grid">
+                        <div class="loading-spinner"></div>
+                    </div>
+                    <button id="refresh-db-stats" class="action-button-admin">🔄 Actualizar Estadísticas</button>
+                </div>
+
+                <hr class="admin-divider">
+
+                <!-- Herramientas de Backup -->
+                <div class="backup-tools-card">
+                    <h2>💾 Herramientas de Backup</h2>
+                    <p>Crea copias de seguridad antes de realizar cualquier operación de limpieza.</p>
+                    
+                    <div class="backup-actions">
+                        <button id="create-backup-btn" class="action-button-admin backup">
+                            💾 Crear Backup Completo
+                        </button>
+                        <div id="backup-status" class="status-message"></div>
+                    </div>
+                </div>
+
+                <hr class="admin-divider">
+
+                <!-- Herramientas de Limpieza -->
+                <div class="cleanup-tools-card">
+                    <h2>🧹 Herramientas de Limpieza</h2>
+                    <p class="warning-text">⚠️ Todas las operaciones crean un backup automático antes de ejecutarse.</p>
+                    
+                    <div class="cleanup-options">
+                        <!-- Limpiar Datos de Prueba -->
+                        <div class="cleanup-option">
+                            <h3>🗑️ Limpiar Datos de Prueba</h3>
+                            <p>Elimina usuarios y publicaciones que contengan 'test', 'demo' o 'example' en el nombre.</p>
+                            <button id="cleanup-test-data-btn" class="action-button-admin cleanup">
+                                Limpiar Datos de Prueba
+                            </button>
+                        </div>
+
+                        <!-- Limpiar Usuarios Inactivos -->
+                        <div class="cleanup-option">
+                            <h3>👥 Limpiar Usuarios Inactivos</h3>
+                            <p>Elimina usuarios que no han tenido actividad y mantienen saldos por defecto.</p>
+                            <div class="input-group">
+                                <label for="inactive-users-days">Días de inactividad (mínimo 30):</label>
+                                <input type="number" id="inactive-users-days" min="30" value="90" class="number-input">
+                            </div>
+                            <button id="cleanup-inactive-users-btn" class="action-button-admin cleanup">
+                                Limpiar Usuarios Inactivos
+                            </button>
+                        </div>
+
+                        <!-- Limpiar Publicaciones Antiguas -->
+                        <div class="cleanup-option">
+                            <h3>📝 Limpiar Publicaciones Antiguas</h3>
+                            <p>Elimina publicaciones completadas que sean muy antiguas.</p>
+                            <div class="input-group">
+                                <label for="old-publications-days">Días de antigüedad (mínimo 90):</label>
+                                <input type="number" id="old-publications-days" min="90" value="180" class="number-input">
+                            </div>
+                            <button id="cleanup-old-publications-btn" class="action-button-admin cleanup">
+                                Limpiar Publicaciones Antiguas
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Contenedor para mensajes de estado -->
+                    <div id="database-status" class="status-container"></div>
+                </div>
+
+                <!-- Zona de Advertencia -->
+                <div class="warning-section">
+                    <h2>⚠️ Importante: Mejores Prácticas</h2>
+                    <ul class="best-practices-list">
+                        <li>✅ Siempre se crea un backup automático antes de cada operación</li>
+                        <li>✅ Las operaciones respetan las restricciones de integridad de la base de datos</li>
+                        <li>✅ Los usuarios de plataforma nunca son eliminados</li>
+                        <li>✅ Solo se eliminan datos que cumplan criterios específicos de seguridad</li>
+                        <li>⚠️ Las operaciones son irreversibles (excepto con restauración de backup)</li>
+                        <li>📋 Todas las acciones quedan registradas en los logs del servidor</li>
+                    </ul>
                 </div>
             </section>
 
