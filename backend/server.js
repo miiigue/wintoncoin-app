@@ -206,6 +206,22 @@ async function applyMigrations(client) {
              IF (SELECT is_nullable FROM information_schema.columns WHERE table_name='platform_commission_log' AND column_name='related_publication_id') = 'NO' THEN
                  ALTER TABLE platform_commission_log ALTER COLUMN related_publication_id DROP NOT NULL;
              END IF;
+         END $$;`,
+        // --- MIGRACIÓN PARA EL SISTEMA DE IMPULSORES ---
+        `DO $$
+         BEGIN
+             -- 1. Añadir la columna 'is_booster'
+             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_booster') THEN
+                 ALTER TABLE users ADD COLUMN is_booster BOOLEAN NOT NULL DEFAULT FALSE;
+             END IF;
+             -- 2. Añadir la columna 'booster_level'
+             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='booster_level') THEN
+                 ALTER TABLE users ADD COLUMN booster_level INTEGER NOT NULL DEFAULT 0;
+             END IF;
+             -- 3. Añadir la columna 'is_booster_task' a publications
+             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='is_booster_task') THEN
+                 ALTER TABLE publications ADD COLUMN is_booster_task BOOLEAN NOT NULL DEFAULT FALSE;
+             END IF;
          END $$;`
     ];
 
@@ -453,6 +469,28 @@ async function initializeDatabase() {
             referrer_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE SET NULL,
             referred_user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
             created_at TIMESTAMPTZ DEFAULT NOW()
+        );`,
+        // --- NUEVAS TABLAS PARA EL SISTEMA DE IMPULSORES (BOOSTERS) ---
+        `CREATE TABLE IF NOT EXISTS booster_level_settings (
+            level INTEGER PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            min_blue_required NUMERIC(19, 4) NOT NULL,
+            description TEXT
+        );`,
+        `CREATE TABLE IF NOT EXISTS booster_blue_ledger (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            amount NUMERIC(19, 4) NOT NULL,
+            source_publication_id INTEGER REFERENCES publications(id) ON DELETE SET NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );`,
+        `CREATE TABLE IF NOT EXISTS booster_payment_log (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            amount_paid NUMERIC(19, 4) NOT NULL,
+            payment_month DATE NOT NULL,
+            booster_level_at_payment INTEGER NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW()
         );`
     ];
     
@@ -472,7 +510,9 @@ async function initializeDatabase() {
         ['platform_commission_percentage', '5', 'Porcentaje de comisión para la plataforma (ej: 5 para 5%).'],
         // --- NUEVAS CONFIGURACIONES DE REFERIDOS ---
         ['referral_system_enabled', 'true', 'Activa el sistema de referidos para nuevos registros.'],
-        ['referral_reward_amount', '10', 'Cantidad de BLUE que ganan el referente y el referido al registrarse.']
+        ['referral_reward_amount', '10', 'Cantidad de BLUE que ganan el referente y el referido al registrarse.'],
+        // --- NUEVAS CONFIGURACIONES DE IMPULSORES ---
+        ['booster_system_enabled', 'true', 'Activa el sistema de Impulsores y su lógica de pagos mensuales.']
     ];
 
     const client = await pool.connect();
@@ -507,6 +547,24 @@ async function initializeDatabase() {
         }
         console.log("Configuraciones por defecto aseguradas en 'app_settings'.");
         
+        // --- NUEVO PASO 3.5: Asegurar niveles de impulsor por defecto ---
+        const boosterLevels = [
+            // Nivel, Nombre, BLUE Mínimo, Descripción
+            [1, 'Impulsor Inicial', 0, 'El primer paso en tu viaje como impulsor.'],
+            [2, 'Impulsor Bronce', 1001, 'Has demostrado un compromiso constante.'],
+            [3, 'Impulsor Plata', 10001, 'Un pilar importante en la comunidad.'],
+            [4, 'Impulsor Oro', 50001, 'Una fuerza motriz para el crecimiento de la plataforma.'],
+            [5, 'Impulsor Platino', 100001, 'Reconocido como un Socio Estratégico clave.']
+        ];
+
+        for (const level of boosterLevels) {
+            await client.query(
+                'INSERT INTO booster_level_settings (level, name, min_blue_required, description) VALUES ($1, $2, $3, $4) ON CONFLICT (level) DO NOTHING',
+                level
+            );
+        }
+        console.log("Niveles de Impulsor por defecto asegurados.");
+
         // --- NUEVO PASO 4: Asegurar la existencia del usuario y la billetera de la plataforma ---
         const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
         const platformPassword = process.env.PLATFORM_USER_PASSWORD;
@@ -1133,7 +1191,7 @@ app.post('/register', async (req, res) => {
                 await client.query('BEGIN');
 
                 const acceptanceResult = await client.query(
-                    `SELECT p.blue_cost, p.is_sell_post, p.title, u.username as author_username, pa.id as acceptance_id
+                    `SELECT p.blue_cost, p.is_sell_post, p.title, p.is_booster_task, u.username as author_username, pa.id as acceptance_id
                      FROM publications p
                      JOIN users u ON p.author_id = u.id
                      JOIN publication_acceptances pa ON p.id = pa.publication_id
@@ -1148,7 +1206,7 @@ app.post('/register', async (req, res) => {
                 const acceptance = acceptanceResult.rows[0];
                 if (!acceptance) throw { status: 404, message: "No se encontró una tarea completada válida para confirmar." };
 
-                const { blue_cost, is_sell_post, title, author_username: author, acceptance_id } = acceptance;
+                const { blue_cost, is_sell_post, title, author_username: author, acceptance_id, is_booster_task } = acceptance;
                 const cost = parseFloat(blue_cost);
 
                 // MEJORA DE CALIDAD: Esta ruta solo debe manejar 'solicitudes', no 'ventas'.
@@ -1215,6 +1273,25 @@ app.post('/register', async (req, res) => {
                 // 7. Se notifica al trabajador.
                 const notificationMessage = `¡Has recibido ${cost.toFixed(4)} BLUE (en depósito) por la tarea "${title}"!`;
                 await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [workerUsername, notificationMessage]);
+                
+                // --- NUEVA LÓGICA PARA IMPULSORES ---
+                if (is_booster_task) {
+                    console.log(`TAREA DE IMPULSOR DETECTADA: El usuario ${workerUsername} ganó ${cost} BLUE de impulsor.`);
+                    const workerResult = await client.query('SELECT id FROM users WHERE username = $1', [workerUsername]);
+                    const workerId = workerResult.rows[0].id;
+
+                    // 1. Registrar los BLUE en el libro contable de impulsores
+                    await client.query(
+                        'INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, $3)',
+                        [workerId, cost, pubId]
+                    );
+
+                    // 2. Marcar al usuario como impulsor (si no lo es ya)
+                    await client.query('UPDATE users SET is_booster = TRUE WHERE id = $1', [workerId]);
+
+                    // 3. Recalcular y actualizar el nivel del impulsor
+                    await updateUserBoosterLevel(client, workerId);
+                }
                 
                 await client.query('COMMIT');
                 res.status(200).json({ message: "Pago confirmado y tarea finalizada." });
@@ -1809,9 +1886,81 @@ app.post('/register', async (req, res) => {
             }
         });
 
+        // --- NUEVO: Endpoints para la gestión de Impulsores ---
+        app.get('/api/admin/boosters/settings', verifyAdminToken, async (req, res) => {
+            try {
+                const result = await pool.query('SELECT * FROM booster_level_settings ORDER BY level ASC');
+                res.json(result.rows);
+            } catch (error) {
+                console.error('Error fetching booster level settings:', error);
+                res.status(500).json({ message: 'Error interno del servidor.' });
+            }
+        });
+
+        app.post('/api/admin/boosters/settings', verifyAdminToken, async (req, res) => {
+            const { level, name, min_blue_required, description } = req.body;
+
+            if (!level || !name || min_blue_required === undefined) {
+                return res.status(400).json({ message: 'Faltan datos requeridos: nivel, nombre y BLUE mínimo.' });
+            }
+            try {
+                const result = await pool.query(
+                    `UPDATE booster_level_settings 
+                     SET name = $1, min_blue_required = $2, description = $3 
+                     WHERE level = $4 RETURNING *`,
+                    [name, min_blue_required, description, level]
+                );
+                if (result.rowCount === 0) {
+                    return res.status(404).json({ message: `El nivel de impulsor ${level} no fue encontrado.` });
+                }
+                res.json({ message: 'Nivel de impulsor actualizado.', setting: result.rows[0] });
+            } catch (error) {
+                console.error('Error updating booster level setting:', error);
+                res.status(500).json({ message: 'Error interno del servidor.' });
+            }
+        });
+
+        app.get('/api/admin/boosters/stats', verifyAdminToken, async (req, res) => {
+            try {
+                const statsQuery = `
+                    SELECT
+                        (SELECT COUNT(*) FROM users WHERE is_booster = TRUE) as total_boosters,
+                        (SELECT SUM(amount) FROM booster_blue_ledger) as total_booster_blue_debt,
+                        (SELECT COUNT(*) FROM booster_payment_log) as total_payments_made,
+                        (SELECT SUM(amount_paid) FROM booster_payment_log) as total_blue_paid_out
+                `;
+                const result = await pool.query(statsQuery);
+                res.json(result.rows[0]);
+            } catch (error) {
+                console.error('Error fetching booster stats:', error);
+                res.status(500).json({ message: 'Error interno del servidor.' });
+            }
+        });
+
+        app.get('/api/admin/boosters/list', verifyAdminToken, async (req, res) => {
+            try {
+                const query = `
+                    SELECT 
+                        u.id,
+                        u.username,
+                        u.is_booster,
+                        u.booster_level,
+                        (SELECT SUM(amount) FROM booster_blue_ledger WHERE user_id = u.id) as total_booster_blue
+                    FROM users u
+                    WHERE u.is_booster = TRUE
+                    ORDER BY total_booster_blue DESC
+                `;
+                const result = await pool.query(query);
+                res.json(result.rows);
+            } catch (error) {
+                console.error('Error fetching boosters list:', error);
+                res.status(500).json({ message: 'Error interno del servidor.' });
+            }
+        });
+
         // Endpoint para que un administrador cree una publicación como la plataforma
         app.post('/api/admin/platform/create-publication', verifyAdminToken, async (req, res) => {
-            const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove } = req.body;
+            const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask } = req.body;
         
             if (!title || !description || !costString) {
                 return res.status(400).json({ message: "Faltan datos: título, descripción y costo son requeridos." });
@@ -1836,8 +1985,8 @@ app.post('/register', async (req, res) => {
                 }
                 const authorId = userResult.rows[0].id;
         
-                const sql = `INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`;
-                const result = await pool.query(sql, [title, description, cost, !!isSellPost, authorId, slots, !!autoApprove]);
+                const sql = `INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, is_booster_task) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`;
+                const result = await pool.query(sql, [title, description, cost, !!isSellPost, authorId, slots, !!autoApprove, !!isBoosterTask]);
                 
                 res.status(201).json({ message: "Publicación de la plataforma creada exitosamente.", publicationId: result.rows[0].id });
         
@@ -2172,6 +2321,12 @@ app.post('/register', async (req, res) => {
             }
         }, TOKEN_RELEASER_INTERVAL_MS);
 
+        // --- PROCESO MENSUAL DE PAGO A IMPULSORES ---
+        const BOOSTER_PAYMENT_INTERVAL_MS = 24 * 60 * 60 * 1000; // Revisar cada 24 horas
+        setInterval(async () => {
+            await executeBoosterPayments();
+        }, BOOSTER_PAYMENT_INTERVAL_MS);
+
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
         });
@@ -2350,3 +2505,211 @@ app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
         res.status(500).json({ message: "Error interno del servidor." });
     }
 }); 
+
+// --- NUEVA FUNCIÓN HELPER PARA ACTUALIZAR EL NIVEL DE UN IMPULSOR ---
+async function updateUserBoosterLevel(client, userId) {
+    // 1. Calcular el total de BLUE de impulsor que tiene el usuario
+    const totalBlueResult = await client.query(
+        'SELECT SUM(amount) as total FROM booster_blue_ledger WHERE user_id = $1',
+        [userId]
+    );
+    const totalBoosterBlue = parseFloat(totalBlueResult.rows[0].total) || 0;
+
+    // 2. Encontrar el nivel más alto que el usuario ha alcanzado
+    const levelResult = await client.query(
+        'SELECT MAX(level) as current_level FROM booster_level_settings WHERE min_blue_required <= $1',
+        [totalBoosterBlue]
+    );
+    const newLevel = levelResult.rows[0].current_level || 0;
+
+    // 3. Actualizar el nivel del usuario en la tabla 'users'
+    await client.query('UPDATE users SET booster_level = $1 WHERE id = $2', [newLevel, userId]);
+    console.log(`Nivel de impulsor para el usuario ID ${userId} actualizado a ${newLevel}.`);
+}
+
+// NUEVO ENDPOINT: Obtener el perfil de impulsor de un usuario
+app.get('/api/users/:username/booster-profile', async (req, res) => {
+    const { username } = req.params;
+    if (!username) {
+        return res.status(400).json({ message: 'Se requiere un nombre de usuario.' });
+    }
+
+    const client = await pool.connect();
+    try {
+        const userQuery = `
+            SELECT id, is_booster, booster_level 
+            FROM users WHERE username = $1
+        `;
+        const userResult = await client.query(userQuery, [username]);
+
+        if (userResult.rowCount === 0) {
+            return res.status(404).json({ message: 'Usuario no encontrado.' });
+        }
+        const user = userResult.rows[0];
+
+        // Si el usuario no es impulsor, devolvemos una respuesta simple
+        if (!user.is_booster) {
+            return res.json({
+                is_booster: false,
+                message: 'Este usuario aún no forma parte del programa de impulsores.'
+            });
+        }
+
+        const a_user_id = user.id;
+
+        // Consultas para obtener todos los datos en paralelo
+        const [
+            boosterBlueResult,
+            levelSettingsResult,
+            ledgerResult
+        ] = await Promise.all([
+            // Total de BLUE de impulsor
+            client.query('SELECT SUM(amount) as total FROM booster_blue_ledger WHERE user_id = $1', [a_user_id]),
+            // Todos los niveles definidos
+            client.query('SELECT * FROM booster_level_settings ORDER BY level ASC'),
+            // Historial de ganancias
+            client.query(`
+                SELECT bl.amount, bl.created_at, p.title as publication_title
+                FROM booster_blue_ledger bl
+                LEFT JOIN publications p ON bl.source_publication_id = p.id
+                WHERE bl.user_id = $1
+                ORDER BY bl.created_at DESC
+            `, [a_user_id])
+        ]);
+
+        const totalBoosterBlue = parseFloat(boosterBlueResult.rows[0].total) || 0;
+        const allLevels = levelSettingsResult.rows;
+        
+        const currentLevelInfo = allLevels.find(l => l.level === user.booster_level) || null;
+        const nextLevelInfo = allLevels.find(l => l.level === user.booster_level + 1) || null;
+
+        res.json({
+            is_booster: true,
+            username: username,
+            booster_level: user.booster_level,
+            total_booster_blue: totalBoosterBlue,
+            current_level_info: currentLevelInfo,
+            next_level_info: nextLevelInfo,
+            booster_ledger: ledgerResult.rows.map(entry => ({
+                ...entry,
+                publication_title: entry.publication_title || '(Tarea original eliminada)'
+            }))
+        });
+
+    } catch (error) {
+        console.error(`Error fetching booster profile for ${username}:`, error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    } finally {
+        client.release();
+    }
+});
+
+// --- NUEVA LÓGICA DE PAGOS A IMPULSORES ---
+async function executeBoosterPayments() {
+    const today = new Date();
+    // El proceso se ejecuta el primer día de cada mes.
+    if (today.getDate() !== 1) {
+        // console.log('BOOSTER PAYMENTS: No es el primer día del mes, saltando ciclo.');
+        return;
+    }
+
+    console.log('BOOSTER PAYMENTS: Iniciando ciclo de pagos a impulsores...');
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const settingsResult = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'booster_system_enabled'`);
+        if (settingsResult.rows[0]?.setting_value !== 'true') {
+            console.log('BOOSTER PAYMENTS: El sistema de impulsores está desactivado. Saltando ciclo.');
+            await client.query('ROLLBACK');
+            client.release();
+            return;
+        }
+        
+        // Determinar el mes de pago (el mes anterior)
+        const paymentMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const paymentMonthString = `${paymentMonth.getFullYear()}-${(paymentMonth.getMonth() + 1).toString().padStart(2, '0')}`;
+
+        // Verificar si ya se realizó el pago para este mes
+        const lastPaymentResult = await client.query(`SELECT 1 FROM booster_payment_log WHERE to_char(payment_month, 'YYYY-MM') = $1 LIMIT 1`, [paymentMonthString]);
+        if (lastPaymentResult.rowCount > 0) {
+            console.log(`BOOSTER PAYMENTS: El pago para ${paymentMonthString} ya fue realizado. Saltando ciclo.`);
+            await client.query('ROLLBACK');
+            client.release();
+            return;
+        }
+
+        // 1. Calcular las comisiones totales del mes anterior
+        const commissionResult = await client.query(
+            `SELECT SUM(commission_amount_blue) as total FROM platform_commission_log WHERE to_char(created_at, 'YYYY-MM') = $1`,
+            [paymentMonthString]
+        );
+        let fundsAvailable = parseFloat(commissionResult.rows[0].total) || 0;
+
+        if (fundsAvailable <= 0) {
+            console.log(`BOOSTER PAYMENTS: No hay fondos de comisiones disponibles para el mes ${paymentMonthString}.`);
+            await client.query('ROLLBACK');
+            client.release();
+            return;
+        }
+        
+        console.log(`BOOSTER PAYMENTS: Fondos disponibles para ${paymentMonthString}: ${fundsAvailable.toFixed(4)} BLUE.`);
+
+        // 2. Obtener todos los niveles y todos los impulsores
+        const levelsResult = await client.query('SELECT * FROM booster_level_settings ORDER BY level ASC');
+        const boostersResult = await client.query(`
+            SELECT u.id, u.username, u.booster_level, 
+                   (SELECT SUM(amount) FROM booster_blue_ledger WHERE user_id = u.id) as total_booster_blue
+            FROM users u WHERE u.is_booster = TRUE
+        `);
+
+        // 3. Iterar por cada nivel en orden de prioridad
+        for (const level of levelsResult.rows) {
+            if (fundsAvailable <= 0) break;
+
+            const boostersInLevel = boostersResult.rows.filter(b => b.booster_level === level.level);
+            if (boostersInLevel.length === 0) continue;
+
+            const totalDebtForLevel = boostersInLevel.reduce((sum, b) => sum + parseFloat(b.total_booster_blue), 0);
+            if (totalDebtForLevel <= 0) continue;
+
+            console.log(`BOOSTER PAYMENTS: Procesando Nivel ${level.level}. Deuda total: ${totalDebtForLevel.toFixed(4)}. Fondos restantes: ${fundsAvailable.toFixed(4)}.`);
+            
+            const paymentPercentage = Math.min(1.0, fundsAvailable / totalDebtForLevel);
+
+            // 4. Pagar a cada impulsor en el nivel
+            for (const booster of boostersInLevel) {
+                const amountToPay = parseFloat(booster.total_booster_blue) * paymentPercentage;
+                if (amountToPay > 0) {
+                    // Pagar al saldo de escrow del usuario
+                    await client.query('UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE id = $2', [amountToPay, booster.id]);
+                    
+                    // Registrar la transacción de pago
+                    const paymentDescription = `Recompensa de Impulsor (Nivel ${level.level}) para el mes de ${paymentMonth.toLocaleString('es', { month: 'long', year: 'numeric' })}`;
+                    await client.query(`INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'booster_reward', $2, $3)`, [booster.username, paymentDescription, amountToPay]);
+                    
+                    // Registrar en el log de pagos de impulsores
+                    await client.query(
+                        `INSERT INTO booster_payment_log (user_id, amount_paid, payment_month, booster_level_at_payment) VALUES ($1, $2, $3, $4)`,
+                        [booster.id, amountToPay, paymentMonth, level.level]
+                    );
+
+                    // Notificar al usuario
+                    const notificationMsg = `¡Felicidades! Has recibido ${amountToPay.toFixed(4)} BLUE (en depósito) como recompensa de Impulsor.`;
+                    await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [booster.username, notificationMsg]);
+                }
+            }
+
+            fundsAvailable -= totalDebtForLevel * paymentPercentage;
+        }
+
+        await client.query('COMMIT');
+        console.log('BOOSTER PAYMENTS: Ciclo de pagos finalizado exitosamente.');
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('BOOSTER PAYMENTS: Error crítico durante el ciclo de pagos a impulsores.', error);
+    } finally {
+        if (client) client.release();
+    }
+}

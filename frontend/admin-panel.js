@@ -43,7 +43,12 @@ document.addEventListener('DOMContentLoaded', () => {
         resetDatabaseBtn: document.getElementById('resetDatabaseBtn'),
         // --- NUEVOS ELEMENTOS PARA REFERIDOS ---
         referralsSettingsContainer: document.getElementById('referrals-settings-container'),
-        referralsLogContainer: document.getElementById('referrals-log-container')
+        referralsLogContainer: document.getElementById('referrals-log-container'),
+        // --- NUEVOS ELEMENTOS PARA IMPULSORES ---
+        boosterSection: document.getElementById('boosters-section'),
+        boostersSettingsContainer: document.getElementById('boosters-settings-container'),
+        boostersDashboardStats: document.getElementById('boosters-dashboard-stats'),
+        boostersListContainer: document.getElementById('boosters-list-container')
     };
 
     // --- Inicialización ---
@@ -103,6 +108,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elements.resetDatabaseBtn) {
             elements.resetDatabaseBtn.addEventListener('click', handleResetDatabase);
         }
+
+        // --- NUEVO: Listener para las pestañas de la sección de Impulsores ---
+        if (elements.boosterSection) {
+            const tabLinks = elements.boosterSection.querySelectorAll('.tab-link');
+            tabLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    const tabId = link.dataset.tab;
+                    showBoosterTab(tabId);
+                });
+            });
+        }
     }
 
     function showSection(sectionId) {
@@ -125,7 +141,40 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (sectionId === 'referrals') {
             loadReferralsData();
         }
+        else if (sectionId === 'boosters') {
+            // Al entrar en la sección, mostramos la primera pestaña por defecto
+            showBoosterTab('boosters-dashboard');
+        }
         // No se necesita cargar datos para la zona de peligro, solo mostrarla.
+    }
+
+    // --- NUEVO: Lógica para manejar las pestañas de Impulsores ---
+    function showBoosterTab(tabId) {
+        if (!elements.boosterSection) return;
+
+        // Ocultar todos los contenidos y desactivar todos los enlaces
+        elements.boosterSection.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        elements.boosterSection.querySelectorAll('.tab-link').forEach(link => link.classList.remove('active'));
+
+        // Mostrar el contenido y activar el enlace de la pestaña seleccionada
+        document.getElementById(`${tabId}-tab`).classList.add('active');
+        document.querySelector(`.tab-link[data-tab="${tabId}"]`).classList.add('active');
+
+        // Aquí cargaremos los datos específicos para cada pestaña
+        switch (tabId) {
+            case 'boosters-dashboard':
+                loadBoosterDashboard();
+                break;
+            case 'boosters-settings':
+                loadBoosterSettings();
+                break;
+            case 'boosters-list':
+                loadBoosterList();
+                break;
+            case 'boosters-payments':
+                // loadBoosterPaymentsLog();
+                break;
+        }
     }
 
     // --- Lógica de Datos (API Fetch, etc.) ---
@@ -243,6 +292,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- NUEVO: Carga de datos para el Dashboard de Impulsores ---
+    async function loadBoosterDashboard() {
+        elements.boostersDashboardStats.innerHTML = '<div class="loading-spinner"></div>';
+        try {
+            const stats = await apiFetch('/api/admin/boosters/stats');
+            renderBoosterDashboard(stats);
+        } catch (error) {
+            elements.boostersDashboardStats.innerHTML = `<p class="error-message">Error al cargar el dashboard de impulsores: ${error.message}</p>`;
+        }
+    }
+
+    // --- NUEVO: Carga de la lista de Impulsores ---
+    async function loadBoosterList() {
+        elements.boostersListContainer.innerHTML = '<div class="loading-spinner"></div>';
+        try {
+            const boosters = await apiFetch('/api/admin/boosters/list');
+            renderBoosterList(boosters);
+        } catch (error) {
+            elements.boostersListContainer.innerHTML = `<p class="error-message">Error al cargar la lista de impulsores: ${error.message}</p>`;
+        }
+    }
+
+    // --- NUEVO: Carga de configuración de Impulsores ---
+    async function loadBoosterSettings() {
+        elements.boostersSettingsContainer.innerHTML = '<div class="loading-spinner"></div>';
+        try {
+            const [appSettings, boosterLevels] = await Promise.all([
+                apiFetch('/api/admin/settings'),
+                apiFetch('/api/admin/boosters/settings')
+            ]);
+            renderBoosterSettings(appSettings, boosterLevels);
+        } catch (error) {
+            elements.boostersSettingsContainer.innerHTML = `<p class="error-message">Error al cargar la configuración de impulsores: ${error.message}</p>`;
+        }
+    }
+
     // --- Lógica de Renderizado de Configuración (NUEVO) ---
 
     const settingTitles = {
@@ -253,7 +338,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'platform_commission_percentage': 'Comisión de la Plataforma (%)',
         // --- Títulos para las nuevas settings ---
         'referral_system_enabled': 'Sistema de Referidos',
-        'referral_reward_amount': 'Recompensa por Referido (BLUE)'
+        'referral_reward_amount': 'Recompensa por Referido (BLUE)',
+        'booster_system_enabled': 'Sistema de Impulsores'
     };
 
     function getSettingTitle(key) {
@@ -402,6 +488,125 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- NUEVO: Renderizado de la configuración de Impulsores ---
+    function renderBoosterSettings(appSettings, boosterLevels) {
+        const container = elements.boostersSettingsContainer;
+        container.innerHTML = ''; // Limpiar spinner
+
+        // 1. Renderizar el interruptor general del sistema
+        const systemEnabledSetting = appSettings.find(s => s.setting_key === 'booster_system_enabled');
+        if (systemEnabledSetting) {
+            const itemHTML = `
+                <div class="setting-item">
+                    <div class="setting-item-info">
+                        <h4>${getSettingTitle(systemEnabledSetting.setting_key)}</h4>
+                        <p>${systemEnabledSetting.description || 'Activa o desactiva el programa de impulsores y los pagos mensuales.'}</p>
+                    </div>
+                    <div class="setting-item-control">
+                        <label class="switch">
+                            <input type="checkbox" data-key="${systemEnabledSetting.setting_key}" ${systemEnabledSetting.setting_value === 'true' ? 'checked' : ''}>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            `;
+            container.innerHTML += itemHTML;
+        }
+
+        container.innerHTML += '<hr class="admin-divider">';
+
+        // 2. Renderizar la tabla de niveles
+        const tableHTML = `
+            <h2>Niveles de Impulsor</h2>
+            <p>Define los umbrales de BLUE requeridos para alcanzar cada nivel.</p>
+            <div class="table-container-admin">
+                <table class="admin-table" id="booster-levels-table">
+                    <thead>
+                        <tr>
+                            <th>Nivel</th>
+                            <th>Nombre del Nivel</th>
+                            <th>BLUE Mínimo Requerido</th>
+                            <th>Descripción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${boosterLevels.map(level => `
+                            <tr data-level="${level.level}">
+                                <td class="level-cell">${level.level}</td>
+                                <td><input type="text" class="admin-text-input" data-field="name" value="${level.name}"></td>
+                                <td><input type="number" class="admin-numeric-input" data-field="min_blue_required" value="${level.min_blue_required}" step="any"></td>
+                                <td><textarea class="admin-textarea-input" data-field="description">${level.description || ''}</textarea></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+        container.innerHTML += tableHTML;
+
+        // Añadir listeners para los cambios en la tabla
+        container.querySelectorAll('#booster-levels-table input, #booster-levels-table textarea').forEach(input => {
+            input.addEventListener('change', handleBoosterLevelChange);
+        });
+
+         // Listener para el interruptor
+        container.querySelector('input[type="checkbox"]').addEventListener('change', handleSettingChange);
+    }
+
+    // --- NUEVO: Renderizado del Dashboard de Impulsores ---
+    function renderBoosterDashboard(stats) {
+        elements.boostersDashboardStats.innerHTML = `
+            <div class="stat-card">
+                <h4>Impulsores Totales</h4>
+                <p class="stat-value">${stats.total_boosters || 0}</p>
+            </div>
+            <div class="stat-card">
+                <h4>Deuda Total (BLUE de Impulsores)</h4>
+                <p class="stat-value saldo-blue-text">${formatBalance(stats.total_booster_blue_debt)}</p>
+            </div>
+            <div class="stat-card">
+                <h4>Total Pagado (BLUE)</h4>
+                <p class="stat-value saldo-blue-text">${formatBalance(stats.total_blue_paid_out)}</p>
+            </div>
+            <div class="stat-card">
+                <h4>Pagos Mensuales Realizados</h4>
+                <p class="stat-value">${stats.total_payments_made || 0}</p>
+            </div>
+        `;
+    }
+
+    // --- NUEVO: Renderizado de la lista de Impulsores ---
+    function renderBoosterList(boosters) {
+        if (!boosters || boosters.length === 0) {
+            elements.boostersListContainer.innerHTML = '<p class="empty-message">Aún no hay usuarios impulsores en la plataforma.</p>';
+            return;
+        }
+
+        const tableHTML = `
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Nivel de Impulsor</th>
+                        <th>Total BLUE de Impulsor</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${boosters.map(booster => `
+                        <tr>
+                            <td class="username-cell">
+                                <a href="profile.html?user=${booster.username}" target="_blank">${booster.username}</a>
+                            </td>
+                            <td align="center">${booster.booster_level}</td>
+                            <td class="saldo-blue-text">${formatBalance(booster.total_booster_blue)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+        elements.boostersListContainer.innerHTML = tableHTML;
+    }
+
     // --- Handlers de Eventos ---
     let settingChangeTimeout;
 
@@ -433,6 +638,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- NUEVO: Handler para cambios en la tabla de niveles ---
+    function handleBoosterLevelChange(event) {
+        const input = event.target;
+        const row = input.closest('tr');
+        const level = row.dataset.level;
+        
+        const body = {
+            level: parseInt(level),
+            name: row.querySelector('[data-field="name"]').value,
+            min_blue_required: parseFloat(row.querySelector('[data-field="min_blue_required"]').value),
+            description: row.querySelector('[data-field="description"]').value
+        };
+
+        // Usamos un debounce para no enviar peticiones en cada tecla
+        clearTimeout(settingChangeTimeout);
+        settingChangeTimeout = setTimeout(() => {
+            updateBoosterLevel(body);
+        }, 500);
+    }
+
     async function updateSetting(key, value) {
         try {
             await apiFetch('/api/admin/settings', {
@@ -445,6 +670,21 @@ document.addEventListener('DOMContentLoaded', () => {
             showCustomAlert(`Error al guardar la configuración: ${error.message}`);
             // Revertir el cambio en la UI si falla el guardado, recargando los settings.
             loadSettings();
+        }
+    }
+
+    // --- NUEVO: Actualizar un nivel de impulsor específico ---
+    async function updateBoosterLevel(body) {
+        try {
+            await apiFetch('/api/admin/boosters/settings', {
+                method: 'POST',
+                body: JSON.stringify(body)
+            });
+            console.log(`Nivel de impulsor ${body.level} actualizado.`);
+        } catch (error) {
+            showCustomAlert(`Error al guardar el nivel ${body.level}: ${error.message}`);
+            // Recargar para revertir los cambios en la UI
+            loadBoosterSettings();
         }
     }
 
@@ -474,7 +714,8 @@ document.addEventListener('DOMContentLoaded', () => {
             cost: document.getElementById('platformPubCost').value,
             availableSlots: document.getElementById('platformPubSlots').value,
             isSellPost: document.querySelector('input[name="platformPubType"]:checked').value === 'sell',
-            autoApprove: document.getElementById('platformAutoApprove').checked
+            autoApprove: document.getElementById('platformAutoApprove').checked,
+            isBoosterTask: document.getElementById('platformIsBoosterTask').checked
         };
         try {
             const result = await apiFetch('/api/admin/platform/create-publication', { method: 'POST', body: JSON.stringify(body) });

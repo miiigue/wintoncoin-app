@@ -29,6 +29,7 @@
                     <li><a href="#platform-wallet" class="nav-link" data-section="platform-wallet">Billetera Plataforma</a></li>
                     <li><a href="#platform-publications" class="nav-link" data-section="platform-publications">Publicaciones Plataforma</a></li>
                     <li><a href="#referrals" class="nav-link" data-section="referrals">Sistema de Referidos</a></li>
+                    <li><a href="#boosters" class="nav-link" data-section="boosters">Gestión de Impulsores</a></li>
                     <!-- DANGER ZONE LINK (REMOVE AFTER USE) -->
                     <li><a href="#danger-zone" class="nav-link" data-section="danger-zone">Zona de Peligro</a></li>
                 </ul>
@@ -156,6 +157,12 @@
                         <input type="checkbox" id="platformAutoApprove">
                         <label for="platformAutoApprove">Aprobar automáticamente a los participantes</label>
                     </div>
+
+                    <div class="form-group-checkbox booster-task-checkbox">
+                        <input type="checkbox" id="platformIsBoosterTask">
+                        <label for="platformIsBoosterTask">Tarea de Impulsor (Booster)</label>
+                        <small class="input-hint">Marcar si esta tarea otorga BLUE de Impulsor y cuenta para el programa.</small>
+                    </div>
                     
                     <button type="submit" class="action-button-admin publish">Crear Publicación</button>
                 </form>
@@ -188,6 +195,51 @@
                 <p>Aquí puedes ver un historial de todos los usuarios que se han registrado a través de un referido.</p>
                 <div id="referrals-log-container" class="table-container-admin">
                     <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- NUEVA SECCIÓN PARA EL SISTEMA DE IMPULSORES -->
+            <section id="boosters-section" class="admin-section">
+                <h1>Gestión de Impulsores</h1>
+                <p>Configura, monitorea y gestiona el programa de Impulsores de la plataforma.</p>
+
+                <div class="admin-tabs">
+                    <button class="tab-link active" data-tab="boosters-dashboard">Dashboard</button>
+                    <button class="tab-link" data-tab="boosters-settings">Configuración</button>
+                    <button class="tab-link" data-tab="boosters-list">Lista de Impulsores</button>
+                    <button class="tab-link" data-tab="boosters-payments">Historial de Pagos</button>
+                </div>
+
+                <div id="boosters-dashboard-tab" class="tab-content active">
+                    <h2>Dashboard de Impulsores</h2>
+                    <p>Resumen del estado actual del programa.</p>
+                    <div id="boosters-dashboard-stats" class="stats-container">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+
+                <div id="boosters-settings-tab" class="tab-content">
+                    <h2>Configuración del Programa</h2>
+                    <p>Ajusta los parámetros del sistema de Impulsores.</p>
+                    <div id="boosters-settings-container" class="settings-container">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+
+                <div id="boosters-list-tab" class="tab-content">
+                    <h2>Lista de Impulsores</h2>
+                    <p>Todos los usuarios que participan en el programa.</p>
+                    <div id="boosters-list-container" class="table-container-admin">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+
+                <div id="boosters-payments-tab" class="tab-content">
+                    <h2>Historial de Pagos a Impulsores</h2>
+                    <p>Registro de todas las recompensas distribuidas mensualmente.</p>
+                    <div id="boosters-payments-log-container" class="table-container-admin">
+                        <div class="loading-spinner"></div>
+                    </div>
                 </div>
             </section>
 

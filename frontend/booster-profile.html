@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Perfil de Impulsor - Winton Coin</title>
+    <link id="main-stylesheet" rel="stylesheet" href="style.css">
+    <link id="booster-stylesheet" rel="stylesheet" href="booster-style.css">
+    <script>
+        document.getElementById('main-stylesheet').href = `style.css?v=${new Date().getTime()}`;
+        document.getElementById('booster-stylesheet').href = `booster-style.css?v=${new Date().getTime()}`;
+    </script>
+</head>
+<body>
+    <div class="container booster-container">
+        <a href="contract_interaction.html" class="back-link">&larr; Volver al Panel</a>
+        
+        <div id="booster-profile-content">
+            <!-- El contenido se cargará aquí dinámicamente -->
+            <div class="loading-spinner"></div>
+        </div>
+    </div>
+
+    <script src="utils.js"></script>
+    <script src="booster-profile.js"></script> <!-- Nuevo script -->
+
+    <!-- Modal de Alerta -->
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+</body>
+</html> 

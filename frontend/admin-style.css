@@ -405,6 +405,47 @@ input:checked + .slider:before {
     background-color: #c82333;
 }
 
+/* --- NUEVO: Estilos para la navegación por pestañas --- */
+.admin-tabs {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 2px solid var(--admin-border);
+    margin: 2rem 0;
+}
+
+.tab-link {
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    background-color: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--admin-text-secondary);
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    transform: translateY(2px); /* Alinear con el borde inferior */
+}
+
+.tab-link:hover {
+    background-color: var(--admin-bg);
+    color: var(--admin-text);
+}
+
+.tab-link.active {
+    color: var(--admin-primary);
+    border-bottom-color: var(--admin-primary);
+    font-weight: 600;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
 /* --- NUEVO: Estilos para el formulario de creación de publicaciones de la plataforma --- */
 .admin-form {
     background-color: var(--admin-surface);
@@ -436,6 +477,23 @@ input:checked + .slider:before {
     color: var(--admin-text);
     font-size: 1rem;
     box-sizing: border-box; /* Importante para que el padding no desborde el contenedor */
+}
+
+.admin-text-input,
+.admin-textarea-input {
+    width: 100%;
+    padding: 10px 15px;
+    border-radius: 8px;
+    background-color: var(--admin-bg);
+    border: 1px solid var(--admin-border);
+    color: var(--admin-text);
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+.admin-textarea-input {
+    resize: vertical;
+    min-height: 50px; /* Una altura mínima para que no sea tan pequeño */
 }
 
 .form-group-admin textarea {
@@ -492,6 +550,15 @@ input:checked + .slider:before {
     margin-bottom: 0;
     font-weight: 600;
     color: var(--admin-text);
+}
+
+.booster-task-checkbox {
+    background-color: rgba(106, 90, 205, 0.1);
+    border: 1px solid var(--admin-primary);
+}
+
+.booster-task-checkbox label {
+    color: var(--admin-primary);
 }
 
 
