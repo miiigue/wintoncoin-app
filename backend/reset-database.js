@@ -62,17 +62,24 @@ async function resetDatabase() {
         
         // --- Reinserción de datos esenciales ---
         console.log("👤 Re-insertando usuario 'Plataforma WintonCoin'...");
+        // Usamos una estructura de inserción mínima y dejamos que los valores por defecto de la BD se encarguen del resto.
         await client.query(`
-            INSERT INTO users (username, password_hash, email, created_at, blue_balance, red_balance, is_platform) 
-            VALUES ('Plataforma WintonCoin', 'no-login', 'platform@wintoncoin.com', NOW(), 0, 0, TRUE)
-            ON CONFLICT (username) DO NOTHING;
+            INSERT INTO users (username, password_hash, email, is_platform) 
+            VALUES ('Plataforma WintonCoin', 'no-login', 'platform@wintoncoin.com', TRUE)
+            ON CONFLICT (username) DO UPDATE SET 
+                is_platform = TRUE, 
+                blue_balance = 0, 
+                red_balance = 0, 
+                escrow_blue_balance = 0;
         `);
 
-        console.log("🚀 Re-insertando booster para 'Plataforma WintonCoin'...");
+        console.log("🚀 Re-insertando o actualizando booster para 'Plataforma WintonCoin'...");
         await client.query(`
             INSERT INTO user_booster_profiles (user_id, level, monthly_payment, last_payment_date)
             SELECT id, 0, 0, NOW() FROM users WHERE username = 'Plataforma WintonCoin'
-            ON CONFLICT (user_id) DO NOTHING;
+            ON CONFLICT (user_id) DO UPDATE SET
+                level = 0,
+                monthly_payment = 0;
         `);
         
         console.log('👑 Re-insertando usuario Administrador...');
@@ -80,7 +87,7 @@ async function resetDatabase() {
         const adminPass = process.env.ADMIN_PASS_HASH; // Debe estar hasheada
         if(adminPass) {
             await client.query(
-                'INSERT INTO users (username, password_hash, email, is_admin) VALUES ($1, $2, $3, true) ON CONFLICT (username) DO NOTHING',
+                'INSERT INTO users (username, password_hash, email, is_admin) VALUES ($1, $2, $3, true) ON CONFLICT (username) DO UPDATE SET is_admin = true;',
                 [adminUser, adminPass, 'admin@wintoncoin.com']
             );
         } else {
