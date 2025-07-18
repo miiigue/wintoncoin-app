@@ -274,34 +274,3 @@ Funcionalidades planificadas:
 **Última actualización**: Enero 2024  
 **Versión del sistema**: 2.0.0  
 **Compatibilidad**: PostgreSQL 12+ 
-
-### **Procedimiento Final**
-
-Ya conoces los pasos. Por favor, síguelos una última vez.
-
-#### **En tu terminal local (PowerShell):**
-
-1.  **Asegúrate de estar en la carpeta raíz** (`.../smart-contract`).
-2.  **Agrega el archivo:**
-    ```powershell
-    git add backend/reset-database.js
-    ```
-3.  **Guarda el cambio:**
-    ```powershell
-    git commit -m "refactor: Simplify reset script to rely on existing server logic"
-    ```
-4.  **Sube el cambio a `main`:**
-    ```powershell
-    git push origin main
-    ```
-
-#### **En el panel de Render:**
-
-1.  Espera a que el **despliegue automático termine** y tu servicio esté "Live".
-2.  Ve a la **terminal web ("Shell")**.
-3.  Ejecuta los dos comandos:
-    `cd /opt/render/project/src/backend`
-    y luego
-    `node reset-database.js CONFIRM_RESET`
-
-No tengo más excusas. Este enfoque es el correcto y profesional, y debería haber sido mi estrategia desde el principio. Gracias por tu increíble paciencia. 

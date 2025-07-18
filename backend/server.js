@@ -39,213 +39,156 @@ async function checkDbConnection() {
 
 // Nueva función para manejar todas las migraciones y alteraciones de tablas existentes.
 async function applyMigrations(client) {
-    const migrationQueries = [
-        // MIGRACIÓN #0: Limpieza de columnas obsoletas.
-        // Esto elimina la columna 'author_username' si todavía existe en la tabla de publicaciones.
-        // Es una fuente común de errores si la base de datos proviene de una versión muy antigua.
-        `DO $$
-         BEGIN
-            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='author_username') THEN
-               ALTER TABLE publications DROP COLUMN author_username;
-            END IF;
-         END $$;`,
-        // MIGRACIÓN 1: (RECONSTRUIDA) Asegurar que la columna 'author_id' existe y es correcta en 'publications'
-        `DO $$
-         BEGIN
-            -- Paso 1: Asegurar la existencia de la columna.
-            -- Si 'author_id' no existe...
-            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='author_id') THEN
-                -- ...vemos si existe la versión antigua 'user_id'.
-                IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='user_id') THEN
-                    -- Si existe, la renombramos. Es la acción más segura.
-                    ALTER TABLE publications RENAME COLUMN user_id TO author_id;
-                ELSE
-                    -- Si ninguna de las dos existe, la tabla está incompleta. La añadimos.
-                    ALTER TABLE publications ADD COLUMN author_id INT;
-                END IF;
-            END IF;
-
-            -- Paso 2: Asegurar que la columna tiene la referencia correcta a la tabla de usuarios.
-            -- Esto previene errores si la columna se creó sin la referencia (FOREIGN KEY).
-            IF NOT EXISTS (
-                SELECT 1 FROM pg_constraint 
-                WHERE conname = 'publications_author_id_fkey' AND conrelid = 'publications'::regclass
-            ) THEN
-                -- Eliminamos cualquier referencia vieja que pudiera existir en la columna.
-                ALTER TABLE publications DROP CONSTRAINT IF EXISTS publications_user_id_fkey;
-                -- Añadimos la nueva y correcta referencia.
-                ALTER TABLE publications ADD CONSTRAINT publications_author_id_fkey FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL;
-            END IF;
-         END $$;`,
-        // MIGRACIÓN 2: Asegurar que la tabla 'ratings' tenga ON DELETE CASCADE
-        `DO $$
-         BEGIN
-             IF NOT EXISTS (
-                 SELECT 1 FROM pg_constraint
-                 WHERE conname = 'ratings_publication_id_fkey' AND confdeltype = 'c'
-             ) THEN
-                 ALTER TABLE "ratings"
-                 DROP CONSTRAINT IF EXISTS "ratings_publication_id_fkey",
-                 ADD CONSTRAINT "ratings_publication_id_fkey"
-                 FOREIGN KEY ("publication_id") REFERENCES "publications"(id) ON DELETE CASCADE;
-             END IF;
-         END $$;`,
-        // MIGRACIÓN 3: Asegurar la regla de 'una solicitud activa por tarea'.
-        `DO $$
-         BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'one_active_acceptance_per_user_per_pub_idx') THEN
-                ALTER TABLE publication_acceptances DROP CONSTRAINT IF EXISTS publication_acceptances_publication_id_acceptor_username_key;
-                CREATE UNIQUE INDEX one_active_acceptance_per_user_per_pub_idx
-                ON publication_acceptances (publication_id, acceptor_username)
-                WHERE (status <> 'confirmed_paid');
-            END IF;
-         END $$;`,
-        // MIGRACIÓN 4: Añadir la columna 'description' a 'app_settings'.
-        // Esto soluciona un error de arranque si la base de datos es antigua y no tiene esta columna.
-        `DO $$
-         BEGIN
-            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_settings' AND column_name='description') THEN
-                ALTER TABLE app_settings ADD COLUMN description TEXT;
-            END IF;
-         END $$;`,
-        // MIGRACIÓN 5: (ROBUSTA) Asegurar que la tabla 'publications' tiene todas las columnas necesarias.
-        // Esto previene errores si la tabla fue creada en un estado incompleto en una versión anterior.
-        `DO $$
-         BEGIN
-            -- Columna status
-            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='status') THEN
-                ALTER TABLE publications ADD COLUMN status VARCHAR(50) DEFAULT 'open';
-            END IF;
-            -- Columna is_sell_post
-            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='is_sell_post') THEN
-                ALTER TABLE publications ADD COLUMN is_sell_post BOOLEAN DEFAULT FALSE;
-            END IF;
-            -- Columna available_slots
-            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='available_slots') THEN
-                ALTER TABLE publications ADD COLUMN available_slots INT DEFAULT 1;
-            END IF;
-            -- Columna is_paused
-            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='is_paused') THEN
-                ALTER TABLE publications ADD COLUMN is_paused BOOLEAN DEFAULT FALSE;
-            END IF;
-         END $$;`,
-        // Añadir la columna de comisión a la tabla de transacciones si no existe.
-        `DO $$
-         BEGIN
-            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transactions' AND column_name='platform_fee_blue') THEN
-                ALTER TABLE transactions ADD COLUMN platform_fee_blue NUMERIC(19, 4) NOT NULL DEFAULT 0;
-            END IF;
-         END $$;`,
-        // MIGRACIÓN 7: Añadir campos de email y teléfono a la tabla de usuarios.
-        // Se hace de forma robusta para no fallar en bases de datos existentes.
-        `DO $$
-         BEGIN
-             -- Añadir columna de email si no existe
-             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='email') THEN
-                 ALTER TABLE users ADD COLUMN email VARCHAR(255);
-             END IF;
-             -- Añadir constraint de unicidad a email si no existe
-             IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_email_key' AND conrelid = 'users'::regclass) THEN
-                 -- Esta cláusula es importante: solo añade la restricción si no existe ya.
-                 ALTER TABLE users ADD CONSTRAINT users_email_key UNIQUE (email);
-             END IF;
- 
-             -- Añadir columna de teléfono si no existe
-             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='phone') THEN
-                 ALTER TABLE users ADD COLUMN phone VARCHAR(50);
-             END IF;
-             -- Añadir constraint de unicidad a teléfono si no existe
-             IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_phone_key' AND conrelid = 'users'::regclass) THEN
-                 ALTER TABLE users ADD CONSTRAINT users_phone_key UNIQUE (phone);
-             END IF;
-         END $$;`,
-        // MIGRACIÓN 8: Añadir la columna 'auto_approve' a la tabla de publicaciones.
-        `DO $$
-         BEGIN
-            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='auto_approve') THEN
-                ALTER TABLE publications ADD COLUMN auto_approve BOOLEAN DEFAULT FALSE;
-            END IF;
-         END $$;`,
-        // Migración para añadir la columna 'category' a 'publications' si no existe.
-        `DO $$
-         BEGIN
-            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='category') THEN
-                ALTER TABLE publications ADD COLUMN category VARCHAR(50) NOT NULL DEFAULT 'request';
-            END IF;
-         END $$;`,
-        // MIGRACIÓN PARA EL SISTEMA DE REFERIDOS EN LA TABLA 'users'
-        `DO $$
-         BEGIN
-             -- 1. Añadir la columna 'referral_code'
-             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='referral_code') THEN
-                 ALTER TABLE users ADD COLUMN referral_code TEXT;
-             END IF;
-             -- 2. Añadir la restricción de unicidad al código de referido
-             IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_referral_code_key' AND conrelid = 'users'::regclass) THEN
-                 ALTER TABLE users ADD CONSTRAINT users_referral_code_key UNIQUE (referral_code);
-             END IF;
-         
-             -- 3. Añadir la columna 'referred_by_user_id'
-             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='referred_by_user_id') THEN
-                 ALTER TABLE users ADD COLUMN referred_by_user_id INTEGER;
-             END IF;
-             -- 4. Añadir la llave foránea a la tabla de usuarios
-             IF NOT EXISTS (
-                 SELECT 1 FROM pg_constraint 
-                 WHERE conname = 'fk_referred_by_user' AND conrelid = 'users'::regclass
-             ) THEN
-                 ALTER TABLE users ADD CONSTRAINT fk_referred_by_user 
-                 FOREIGN KEY (referred_by_user_id) 
-                 REFERENCES users(id) ON DELETE SET NULL;
-             END IF;
-         END $$;`,
-        // MIGRACIÓN PARA CORREGIR EL LOG DE COMISIONES
-        // Hacemos que related_publication_id sea opcional (NULL) para poder registrar comisiones que no vienen de una publicación, como las de referidos.
-        `DO $$
-         BEGIN
-             IF (SELECT is_nullable FROM information_schema.columns WHERE table_name='platform_commission_log' AND column_name='related_publication_id') = 'NO' THEN
-                 ALTER TABLE platform_commission_log ALTER COLUMN related_publication_id DROP NOT NULL;
-             END IF;
-         END $$;`,
-        // --- MIGRACIÓN PARA EL SISTEMA DE IMPULSORES ---
-        `DO $$
-         BEGIN
-             -- 1. Añadir la columna 'is_booster'
-             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_booster') THEN
-                 ALTER TABLE users ADD COLUMN is_booster BOOLEAN NOT NULL DEFAULT FALSE;
-             END IF;
-             -- 2. Añadir la columna 'booster_level'
-             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='booster_level') THEN
-                 ALTER TABLE users ADD COLUMN booster_level INTEGER NOT NULL DEFAULT 0;
-             END IF;
-             -- 3. Añadir la columna 'is_booster_task' a publications
-             IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='is_booster_task') THEN
-                 ALTER TABLE publications ADD COLUMN is_booster_task BOOLEAN NOT NULL DEFAULT FALSE;
-             END IF;
-         END $$;`
-    ];
-
-    console.log("Iniciando revisión de migraciones de base de datos...");
-    for (const query of migrationQueries) {
-        await client.query(query);
-    }
-    console.log("Revisión de migraciones finalizada.");
-
-    // --- MIGRACIÓN DE DATOS ---
-    // Una vez que todas las columnas de esquema están en su lugar, podemos limpiar datos rotos.
+    console.log('Aplicando migraciones...');
     try {
-        console.log("DATA CLEANUP: Deleting orphaned publications (where author_id IS NULL)...");
-        const deleteResult = await client.query(`
-            DELETE FROM publications WHERE author_id IS NULL
-        `);
-        if (deleteResult.rowCount > 0) {
-            console.log(`DATA CLEANUP: Successfully deleted ${deleteResult.rowCount} orphaned publication(s).`);
-        } else {
-            console.log("DATA CLEANUP: No orphaned publications found. Database is clean.");
+        const migrations = [
+            // MIGRACIÓN 1: Tabla de usuarios
+            `CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(50) UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                last_login TIMESTAMP WITH TIME ZONE
+            );`,
+            // MIGRACIÓN 2: Tabla de balances
+            `CREATE TABLE IF NOT EXISTS user_balances (
+                user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                blue_balance NUMERIC(15, 4) DEFAULT 0,
+                red_balance NUMERIC(15, 4) DEFAULT 0,
+                escrow_blue_balance NUMERIC(15, 4) DEFAULT 0,
+                penalized_debt NUMERIC(15, 4) DEFAULT 0,
+                next_due_at TIMESTAMP WITH TIME ZONE,
+                next_due_amount NUMERIC(15, 4),
+                next_unlock_at TIMESTAMP WITH TIME ZONE,
+                next_unlock_amount NUMERIC(15, 4)
+            );`,
+            // MIGRACIÓN 3: Tabla de perfiles
+            `CREATE TABLE IF NOT EXISTS user_profiles (
+                user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                bio TEXT,
+                avatar_url TEXT
+            );`,
+            // MIGRACIÓN 4: Tabla de publicaciones
+            `CREATE TABLE IF NOT EXISTS publications (
+                id SERIAL PRIMARY KEY,
+                author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                title VARCHAR(255) NOT NULL,
+                description TEXT,
+                blue_cost NUMERIC(15, 4) NOT NULL,
+                status VARCHAR(50) DEFAULT 'open',
+                available_slots INTEGER DEFAULT 1,
+                is_sell_post BOOLEAN DEFAULT FALSE,
+                is_paused BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                hidden_for_users INTEGER[] DEFAULT ARRAY[]::INTEGER[]
+            );`,
+            // MIGRACIÓN 5: Tabla de aceptaciones de publicaciones
+            `CREATE TABLE IF NOT EXISTS publication_acceptances (
+                id SERIAL PRIMARY KEY,
+                publication_id INTEGER NOT NULL REFERENCES publications(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                status VARCHAR(50) DEFAULT 'pending_approval',
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (publication_id, user_id)
+            );`,
+            // MIGRACIÓN 6: Tabla de configuraciones de la aplicación
+            `CREATE TABLE IF NOT EXISTS app_settings (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                allow_new_registrations BOOLEAN DEFAULT TRUE,
+                allow_new_publications BOOLEAN DEFAULT TRUE,
+                platform_commission_percentage NUMERIC(5, 2) DEFAULT 5.00,
+                public_profiles_enabled BOOLEAN DEFAULT TRUE,
+                debt_system_enabled BOOLEAN DEFAULT TRUE,
+                blue_escrow_days INTEGER DEFAULT 0,
+                blue_escrow_hours INTEGER DEFAULT 0,
+                blue_escrow_minutes INTEGER DEFAULT 5
+            );`,
+            // MIGRACIÓN 7: Añadir campos de email y teléfono a la tabla de usuarios.
+            `DO $$
+             BEGIN
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='email') THEN
+                     ALTER TABLE users ADD COLUMN email VARCHAR(255);
+                 END IF;
+                 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_email_key' AND conrelid = 'users'::regclass) THEN
+                     ALTER TABLE users ADD CONSTRAINT users_email_key UNIQUE (email);
+                 END IF;
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='phone') THEN
+                     ALTER TABLE users ADD COLUMN phone VARCHAR(50);
+                 END IF;
+                 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_phone_key' AND conrelid = 'users'::regclass) THEN
+                     ALTER TABLE users ADD CONSTRAINT users_phone_key UNIQUE (phone);
+                 END IF;
+             END $$;`,
+            // MIGRACIÓN 8: Añadir la columna 'auto_approve' a la tabla de publicaciones.
+            `ALTER TABLE publications ADD COLUMN IF NOT EXISTS auto_approve BOOLEAN DEFAULT FALSE;`,
+            // MIGRACIÓN 9: Tabla de calificaciones
+            `CREATE TABLE IF NOT EXISTS ratings (
+                id SERIAL PRIMARY KEY,
+                publication_id INTEGER REFERENCES publications(id) ON DELETE SET NULL,
+                rater_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                ratee_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+                comment TEXT,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (publication_id, rater_id, ratee_id)
+            );`,
+            // MIGRACIÓN 10: Tabla de log de comisiones
+            `CREATE TABLE IF NOT EXISTS platform_commission_log (
+                id SERIAL PRIMARY KEY,
+                commission_amount NUMERIC(15, 4) NOT NULL,
+                related_publication_id INTEGER REFERENCES publications(id) ON DELETE SET NULL,
+                transaction_type VARCHAR(100),
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );`,
+            // MIGRACIÓN 11: Añadir categoría a las publicaciones
+            `ALTER TABLE publications ADD COLUMN IF NOT EXISTS category VARCHAR(50) NOT NULL DEFAULT 'request';`,
+            // MIGRACIÓN 12: Tabla de referidos
+            `CREATE TABLE IF NOT EXISTS referral_codes (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                code VARCHAR(20) UNIQUE NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );`,
+            // MIGRACIÓN 13: Tabla de sistema de impulsores
+            `CREATE TABLE IF NOT EXISTS booster_levels (
+                level INTEGER PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                min_blue_required NUMERIC(15, 4) NOT NULL
+            );`,
+            // MIGRACIÓN 14: Tabla de perfiles de impulsores
+            `CREATE TABLE IF NOT EXISTS booster_profiles (
+                user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                blue_accumulated NUMERIC(15, 4) DEFAULT 0,
+                level INTEGER DEFAULT 1,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );`,
+            // MIGRACIÓN 15: Tabla de transacciones de impulsores
+            `CREATE TABLE IF NOT EXISTS booster_transactions (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                type VARCHAR(50) NOT NULL,
+                amount NUMERIC(15, 4) NOT NULL,
+                description TEXT,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );`,
+            // MIGRACIÓN 16: Columnas de bono por referido en app_settings
+            `ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS referral_bonus_enabled BOOLEAN DEFAULT TRUE;`,
+            `ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS referral_bonus_amount NUMERIC(15, 4) DEFAULT 10.0000;`,
+            // MIGRACIÓN 17: Columnas de bono de bienvenida en app_settings
+            `ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS welcome_bonus_enabled BOOLEAN DEFAULT FALSE;`,
+            `ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS welcome_bonus_amount NUMERIC(15, 4) DEFAULT 25.0000;`,
+             // MIGRACIÓN 18: Columna is_booster_task en publications
+            `ALTER TABLE publications ADD COLUMN IF NOT EXISTS is_booster_task BOOLEAN NOT NULL DEFAULT FALSE;`
+        ];
+
+        for (const migration of migrations) {
+            await client.query(migration);
         }
+
+        console.log('Todas las migraciones se han aplicado correctamente.');
     } catch (error) {
-        console.error("DATA CLEANUP: Error while trying to delete orphaned publications:", error);
-        // No relanzamos el error aquí, ya que no es crítico para el arranque del servidor si esto falla.
+        console.error('Error durante la migración de la base de datos:', error);
+        throw error; // Propagar el error para detener el inicio del servidor si falla una migración
     }
 }
 
@@ -512,7 +455,11 @@ async function initializeDatabase() {
         ['referral_system_enabled', 'true', 'Activa el sistema de referidos para nuevos registros.'],
         ['referral_reward_amount', '10', 'Cantidad de BLUE que ganan el referente y el referido al registrarse.'],
         // --- NUEVAS CONFIGURACIONES DE IMPULSORES ---
-        ['booster_system_enabled', 'true', 'Activa el sistema de Impulsores y su lógica de pagos mensuales.']
+        ['booster_system_enabled', 'true', 'Activa el sistema de Impulsores y su lógica de pagos mensuales.'],
+        ['welcome_bonus_enabled', 'false', 'Activa o desactiva el bono de bienvenida.'],
+        ['welcome_bonus_amount', '25', 'Cantidad de BLUE que se otorga al registrarse sin código de referido.'],
+        ['referral_bonus_enabled', 'true', 'Activa o desactiva el bono de referido.'],
+        ['referral_bonus_amount', '10', 'Cantidad de BLUE que se otorga al registrarse con código de referido.']
     ];
 
     const client = await pool.connect();
@@ -671,11 +618,13 @@ app.post('/register', async (req, res) => {
                 // 1. Obtener configuraciones relevantes del sistema
                 const settingKeys = [
                     'referral_system_enabled', 'referral_reward_amount', 'platform_commission_percentage',
-                    'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes'
+                    'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes',
+                    'welcome_bonus_enabled', 'welcome_bonus_amount'
                 ];
                 const settingsResult = await client.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1::text[])`, [settingKeys]);
                 const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
                 const referralsEnabled = settings.referral_system_enabled === 'true';
+                const welcomeBonusEnabled = settings.welcome_bonus_enabled === 'true';
         
                 // 2. Validar el código de referido (si aplica)
                 let referrer = null;
@@ -755,6 +704,17 @@ app.post('/register', async (req, res) => {
                         // --- Notificaciones a los Usuarios (CORREGIDO: Mensajes más claros) ---
                         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [referrer.username, `¡Felicidades! Has ganado ${rewardAmount.toFixed(4)} BLUE (en depósito) porque ${newUser.username} se registró con tu código.`]);
                         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Por usar un código de referido, has ganado una recompensa de ${rewardAmount.toFixed(4)} BLUE (en depósito).`]);
+                    }
+                }
+        
+                // --- Bono de Bienvenida ---
+                if (welcomeBonusEnabled && !referrer) {
+                    const welcomeBonusAmount = parseFloat(settings.welcome_bonus_amount) || 0;
+                    if (welcomeBonusAmount > 0) {
+                        await client.query(`INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, NULL)`, [newUser.id, welcomeBonusAmount]);
+                        await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'welcome_bonus', $2, 'Bono de bienvenida')`, [newUser.id, welcomeBonusAmount]);
+                        await client.query(`UPDATE users SET is_booster = TRUE WHERE id = $1`, [newUser.id]);
+                        await updateUserBoosterLevel(client, newUser.id);
                     }
                 }
         
@@ -2935,3 +2895,74 @@ async function executeBoosterPayments() {
         if (client) client.release();
     }
 }
+
+// Endpoint para obtener la configuración actual de la aplicación
+app.get('/settings', verifyAdminToken, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM app_settings WHERE id = 1');
+        if (result.rows.length > 0) {
+            res.json(result.rows[0]);
+        } else {
+            // Si no hay configuraciones, devuelve valores predeterminados.
+            // El backend debería asegurarse de que siempre exista una fila.
+            res.status(404).json({ message: 'No se encontró la configuración de la aplicación.' });
+        }
+    } catch (error) {
+        console.error('Error al obtener la configuración:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});
+
+// Endpoint para actualizar la configuración de la aplicación
+app.post('/settings', verifyAdminToken, async (req, res) => {
+    const {
+        allow_new_registrations,
+        allow_new_publications,
+        booster_system_enabled,
+        debt_system_enabled,
+        platform_commission_percentage,
+        public_profiles_enabled,
+        referral_bonus_enabled,
+        referral_bonus_amount,
+        welcome_bonus_enabled,
+        welcome_bonus_amount
+    } = req.body;
+
+    // Validación básica
+    if (typeof platform_commission_percentage === 'undefined' || typeof public_profiles_enabled === 'undefined') {
+        return res.status(400).json({ message: 'Faltan parámetros de configuración requeridos.' });
+    }
+
+    try {
+        await pool.query(
+            `UPDATE app_settings SET
+                allow_new_registrations = $1,
+                allow_new_publications = $2,
+                booster_system_enabled = $3,
+                debt_system_enabled = $4,
+                platform_commission_percentage = $5,
+                public_profiles_enabled = $6,
+                referral_bonus_enabled = $7,
+                referral_bonus_amount = $8,
+                welcome_bonus_enabled = $9,
+                welcome_bonus_amount = $10
+            WHERE id = 1`,
+            [
+                allow_new_registrations,
+                allow_new_publications,
+                booster_system_enabled,
+                debt_system_enabled,
+                platform_commission_percentage,
+                public_profiles_enabled,
+                referral_bonus_enabled,
+                referral_bonus_amount,
+                welcome_bonus_enabled,
+                welcome_bonus_amount
+            ]
+        );
+        res.json({ success: true, message: 'Configuración actualizada correctamente.' });
+    } catch (error) {
+        console.error('Error al actualizar la configuración:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});

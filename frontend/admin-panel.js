@@ -346,7 +346,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- Títulos para las nuevas settings ---
         'referral_system_enabled': 'Sistema de Referidos',
         'referral_reward_amount': 'Recompensa por Referido (BLUE)',
-        'booster_system_enabled': 'Sistema de Impulsores'
+        'booster_system_enabled': 'Sistema de Impulsores',
+        'referral_bonus_amount': 'Bono de Referidos (BLUE)',
+        'referral_bonus_enabled': 'Activar Bonos por Referido',
+        'welcome_bonus_amount': 'Welcome Bonus Amount',
+        'welcome_bonus_enabled': 'Welcome Bonus Enabled'
     };
 
     function getSettingTitle(key) {
