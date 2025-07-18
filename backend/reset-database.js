@@ -33,79 +33,83 @@ async function resetDatabase() {
             });
         });
 
-        console.log('\n🗑️ INICIANDO RESET COMPLETO DE LA BASE DE DATOS...\n');
+        console.log('\n🔥 Iniciando reseteo completo de la base de datos...\n');
 
-        // Desactivar temporalmente las restricciones de clave foránea
-        await client.query('SET session_replication_role = replica;');
+        await client.query('BEGIN');
+        console.log('🔑 Transacción iniciada.');
 
-        // Lista de tablas en orden inverso de dependencias
-        const tables = [
+        // Lista de tablas para limpiar. El orden es importante para las claves foráneas.
+        const tablesToDelete = [
             'user_ratings',
-            'notifications', 
+            'notifications',
             'transactions',
             'publication_participants',
+            'user_actions',
             'publications',
             'user_booster_profiles',
             'referral_codes',
-            'users',
-            'admin_settings',
             'user_sessions',
-            'publication_categories',
-            'admin_audit_log'
+            'admin_audit_log',
+            'users' 
+            // 'app_settings' y 'publication_categories' se dejan intactas intencionadamente
         ];
 
-        let totalDeleted = 0;
-
-        for (const table of tables) {
+        for (const table of tablesToDelete) {
             try {
-                const result = await client.query(`DELETE FROM ${table}`);
-                const deletedCount = result.rowCount;
-                totalDeleted += deletedCount;
-                if (deletedCount > 0) {
-                    console.log(`🗑️ ${table}: ${deletedCount} registros eliminados`);
+                const result = await client.query(`DELETE FROM public."${table}"`);
+                if (result.rowCount > 0) {
+                    console.log(`🗑️ ${table}: ${result.rowCount} registros eliminados`);
                 }
-            } catch (error) {
-                console.log(`⚠️ ${table}: Tabla no existe o ya está vacía`);
+            } catch (err) {
+                // Ignorar si la tabla no existe, para mayor robustez
+                if (err.code !== '42P01') { 
+                    throw err; // Lanzar otros errores
+                }
             }
         }
-
-        // Reiniciar secuencias de ID
-        const sequences = [
-            'users_id_seq',
-            'publications_id_seq', 
-            'transactions_id_seq',
-            'notifications_id_seq',
-            'user_ratings_id_seq',
-            'admin_audit_log_id_seq'
-        ];
-
-        for (const seq of sequences) {
-            try {
-                await client.query(`ALTER SEQUENCE ${seq} RESTART WITH 1`);
-                console.log(`🔄 Secuencia ${seq} reiniciada`);
-            } catch (error) {
-                // Silenciosamente continúa si la secuencia no existe
-            }
-        }
-
-        // Reactivar las restricciones de clave foránea
-        await client.query('SET session_replication_role = DEFAULT;');
-
-        console.log('\n✅ RESET COMPLETO FINALIZADO');
-        console.log(`📊 Total de registros eliminados: ${totalDeleted}`);
-        console.log('🔄 Todas las secuencias reiniciadas');
-        console.log('🆕 La base de datos está lista para nuevos datos');
         
-        if (process.env.NODE_ENV !== 'production') {
-            console.log('\n💡 Para crear el usuario administrador inicial:');
-            console.log('   node server.js (se creará automáticamente)');
+        console.log('✅ Todas las tablas han sido limpiadas.');
+
+        // --- Reinserción de datos esenciales ---
+        console.log("👤 Re-insertando usuario 'Plataforma WintonCoin'...");
+        await client.query(`
+            INSERT INTO users (username, password, email, created_at, last_login, blue_balance, red_balance, is_platform) 
+            VALUES ('Plataforma WintonCoin', 'no-login', 'platform@wintoncoin.com', NOW(), NOW(), 0, 0, TRUE)
+            ON CONFLICT (username) DO NOTHING;
+        `);
+
+        console.log("🚀 Re-insertando booster para 'Plataforma WintonCoin'...");
+        await client.query(`
+            INSERT INTO user_booster_profiles (user_id, level, monthly_payment, last_payment_date)
+            SELECT id, 0, 0, NOW() FROM users WHERE username = 'Plataforma WintonCoin'
+            ON CONFLICT (user_id) DO NOTHING;
+        `);
+        
+        console.log('👑 Re-insertando usuario Administrador...');
+        const adminUser = process.env.ADMIN_USER || 'admin';
+        const adminPass = process.env.ADMIN_PASS_HASH; // Debe estar hasheada
+        if(adminPass) {
+            await client.query(
+                'INSERT INTO users (username, password, email, is_admin) VALUES ($1, $2, $3, true) ON CONFLICT (username) DO NOTHING',
+                [adminUser, adminPass, 'admin@wintoncoin.com']
+            );
+        } else {
+            console.warn('⚠️ No se encontró ADMIN_PASS_HASH. No se creará el usuario admin.');
         }
 
+        await client.query('COMMIT');
+        console.log('💾 Transacción completada (COMMIT).');
+
+        console.log('\n🎉 ¡Reseteo de la base de datos completado! La base de datos está limpia y lista para empezar.');
+        
     } catch (error) {
         console.error('❌ Error durante el reset:', error);
+        await client.query('ROLLBACK');
+        console.log('⏪ Transacción revertida (ROLLBACK).');
         process.exit(1);
     } finally {
         await client.end();
+        console.log('🔌 Conexión con la base de datos cerrada.');
     }
 }
 
