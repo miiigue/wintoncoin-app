@@ -63,7 +63,7 @@ async function resetDatabase() {
         // --- Reinserción de datos esenciales ---
         console.log("👤 Re-insertando usuario 'Plataforma WintonCoin'...");
         await client.query(`
-            INSERT INTO users (username, password, email, created_at, last_login, blue_balance, red_balance, is_platform) 
+            INSERT INTO users (username, password_hash, email, created_at, last_login, blue_balance, red_balance, is_platform) 
             VALUES ('Plataforma WintonCoin', 'no-login', 'platform@wintoncoin.com', NOW(), NOW(), 0, 0, TRUE)
             ON CONFLICT (username) DO NOTHING;
         `);
@@ -80,7 +80,7 @@ async function resetDatabase() {
         const adminPass = process.env.ADMIN_PASS_HASH; // Debe estar hasheada
         if(adminPass) {
             await client.query(
-                'INSERT INTO users (username, password, email, is_admin) VALUES ($1, $2, $3, true) ON CONFLICT (username) DO NOTHING',
+                'INSERT INTO users (username, password_hash, email, is_admin) VALUES ($1, $2, $3, true) ON CONFLICT (username) DO NOTHING',
                 [adminUser, adminPass, 'admin@wintoncoin.com']
             );
         } else {
