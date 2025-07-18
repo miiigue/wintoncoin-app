@@ -38,38 +38,28 @@ async function resetDatabase() {
         await client.query('BEGIN');
         console.log('🔑 Transacción iniciada.');
 
-        // Lista de tablas para limpiar. El orden es importante para las claves foráneas.
-        const tablesToDelete = [
-            'user_ratings',
-            'notifications',
-            'transactions',
-            'publication_participants',
-            'user_actions',
-            'publications',
-            'user_booster_profiles',
-            'referral_codes',
-            'user_sessions',
-            'admin_audit_log',
-            'users' 
-            // 'app_settings' y 'publication_categories' se dejan intactas intencionadamente
-        ];
+        // Obtener todas las tablas del esquema 'public' para asegurar que limpiamos todo.
+        const tablesResult = await client.query(`
+            SELECT tablename FROM pg_tables
+            WHERE schemaname = 'public'
+              AND tablename NOT IN ('app_settings', 'publication_categories') -- No tocar estas tablas
+              AND tablename NOT LIKE 'pg_%' -- Ignorar tablas internas de PostgreSQL
+              AND tablename NOT LIKE 'sql_%'; -- Ignorar tablas de extensiones
+        `);
 
-        for (const table of tablesToDelete) {
-            try {
-                const result = await client.query(`DELETE FROM public."${table}"`);
-                if (result.rowCount > 0) {
-                    console.log(`🗑️ ${table}: ${result.rowCount} registros eliminados`);
-                }
-            } catch (err) {
-                // Ignorar si la tabla no existe, para mayor robustez
-                if (err.code !== '42P01') { 
-                    throw err; // Lanzar otros errores
-                }
-            }
+        const tablesToTruncate = tablesResult.rows.map(row => `public."${row.tablename}"`);
+
+        if (tablesToTruncate.length > 0) {
+            // Usamos TRUNCATE con CASCADE. Es más rápido y maneja las dependencias automáticamente.
+            // RESTART IDENTITY reinicia los contadores de ID.
+            const truncateQuery = `TRUNCATE TABLE ${tablesToTruncate.join(', ')} RESTART IDENTITY CASCADE;`;
+            console.log(`🗑️  Vaciando todas las tablas de usuario...`);
+            await client.query(truncateQuery);
+            console.log('✅ Todas las tablas han sido vaciadas y sus secuencias reiniciadas.');
+        } else {
+            console.log('No se encontraron tablas para vaciar.');
         }
         
-        console.log('✅ Todas las tablas han sido limpiadas.');
-
         // --- Reinserción de datos esenciales ---
         console.log("👤 Re-insertando usuario 'Plataforma WintonCoin'...");
         await client.query(`
