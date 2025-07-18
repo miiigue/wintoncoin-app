@@ -61,43 +61,22 @@ async function resetDatabase() {
         }
         
         // --- Reinserción de datos esenciales ---
-        console.log("👤 Re-insertando usuario 'Plataforma WintonCoin'...");
-        // Usamos una estructura de inserción mínima y dejamos que los valores por defecto de la BD se encarguen del resto.
+        console.log("👤 Asegurando la existencia del usuario 'Plataforma WintonCoin'...");
+        // Esta es la inserción más segura posible. Solo inserta los datos mínimos
+        // y se apoya en los valores por defecto de la base de datos para el resto.
+        // Si el usuario ya existe (lo que no debería pasar tras un TRUNCATE), no hace nada.
         await client.query(`
-            INSERT INTO users (username, password_hash, email, is_platform) 
-            VALUES ('Plataforma WintonCoin', 'no-login', 'platform@wintoncoin.com', TRUE)
-            ON CONFLICT (username) DO UPDATE SET 
-                is_platform = TRUE, 
-                blue_balance = 0, 
-                red_balance = 0, 
-                escrow_blue_balance = 0;
+            INSERT INTO users (username, password_hash, email) 
+            VALUES ('Plataforma WintonCoin', 'no-login', 'platform@wintoncoin.com')
+            ON CONFLICT (username) DO NOTHING;
         `);
-
-        console.log("🚀 Re-insertando o actualizando booster para 'Plataforma WintonCoin'...");
-        await client.query(`
-            INSERT INTO user_booster_profiles (user_id, level, monthly_payment, last_payment_date)
-            SELECT id, 0, 0, NOW() FROM users WHERE username = 'Plataforma WintonCoin'
-            ON CONFLICT (user_id) DO UPDATE SET
-                level = 0,
-                monthly_payment = 0;
-        `);
-        
-        console.log('👑 Re-insertando usuario Administrador...');
-        const adminUser = process.env.ADMIN_USER || 'admin';
-        const adminPass = process.env.ADMIN_PASS_HASH; // Debe estar hasheada
-        if(adminPass) {
-            await client.query(
-                'INSERT INTO users (username, password_hash, email, is_admin) VALUES ($1, $2, $3, true) ON CONFLICT (username) DO UPDATE SET is_admin = true;',
-                [adminUser, adminPass, 'admin@wintoncoin.com']
-            );
-        } else {
-            console.warn('⚠️ No se encontró ADMIN_PASS_HASH. No se creará el usuario admin.');
-        }
 
         await client.query('COMMIT');
         console.log('💾 Transacción completada (COMMIT).');
 
-        console.log('\n🎉 ¡Reseteo de la base de datos completado! La base de datos está limpia y lista para empezar.');
+        console.log('\n🎉 ¡Reseteo de la base de datos completado!');
+        console.log('✅ La base de datos está limpia y el usuario de la plataforma está asegurado.');
+        console.log('💡 El usuario administrador se creará o verificará automáticamente al iniciar el servidor.');
         
     } catch (error) {
         console.error('❌ Error durante el reset:', error);
