@@ -63,8 +63,8 @@ async function resetDatabase() {
         // --- Reinserción de datos esenciales ---
         console.log("👤 Re-insertando usuario 'Plataforma WintonCoin'...");
         await client.query(`
-            INSERT INTO users (username, password_hash, email, created_at, last_login, blue_balance, red_balance, is_platform) 
-            VALUES ('Plataforma WintonCoin', 'no-login', 'platform@wintoncoin.com', NOW(), NOW(), 0, 0, TRUE)
+            INSERT INTO users (username, password_hash, email, created_at, blue_balance, red_balance, is_platform) 
+            VALUES ('Plataforma WintonCoin', 'no-login', 'platform@wintoncoin.com', NOW(), 0, 0, TRUE)
             ON CONFLICT (username) DO NOTHING;
         `);
 
