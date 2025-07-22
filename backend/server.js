@@ -312,7 +312,7 @@ async function initializeDatabase() {
             id SERIAL PRIMARY KEY,
             username VARCHAR(255) UNIQUE NOT NULL,
             password_hash VARCHAR(255) NOT NULL,
-            liquid_blue_balance NUMERIC(19, 4) NOT NULL DEFAULT 100.0000,
+            liquid_blue_balance NUMERIC(19, 4) NOT NULL DEFAULT 0.0000,
             escrow_blue_balance NUMERIC(19, 4) NOT NULL DEFAULT 0.0000,
             red_balance NUMERIC(19, 4) NOT NULL DEFAULT 0.0000,
             average_rating REAL NOT NULL DEFAULT 0,
@@ -640,7 +640,7 @@ app.post('/register', async (req, res) => {
                 // 3. Crear el nuevo usuario
                 const passwordHash = await bcrypt.hash(password, saltRounds);
                 const newReferralCode = await generateUniqueReferralCode(client, username);
-                const newUserSql = `INSERT INTO users (username, password_hash, email, phone, referral_code, referred_by_user_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
+                const newUserSql = `INSERT INTO users (username, password_hash, email, phone, referral_code, referrer_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
                 const newUserResult = await client.query(newUserSql, [username, passwordHash, email, phone, newReferralCode, referrer ? referrer.id : null]);
                 const newUser = newUserResult.rows[0];
         
