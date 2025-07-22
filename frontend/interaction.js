@@ -125,11 +125,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeAllDropdowns();
                 if (isOpening) {
                     dropdown.classList.toggle('show');
-                    // Si el dropdown que se abre es el de notificaciones, márcalas como leídas.
-                    if (dropdown.id === 'notificationDropdown') {
-                        // Llamamos a la función para marcar como leído.
-                        markNotificationsAsRead();
-                    }
+                    // NOTA: Ya no marcamos automáticamente como leídas al abrir el dropdown
+                    // Las notificaciones solo se marcan como leídas cuando el usuario hace clic en la X individual
+                    // o en "Limpiar todas las notificaciones"
                 }
             });
         };
