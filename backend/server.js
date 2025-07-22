@@ -654,14 +654,18 @@ app.post('/register', async (req, res) => {
                         const totalBlueCreated = rewardAmount * 2;
                         const commissionAmount = totalBlueCreated * (commissionPercentage / 100);
         
-                        // --- Actualización de Saldos (CORREGIDO: Las recompensas van a Escrow) ---
-                        // Recompensa para el referente
-                        await client.query('UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE id = $2', [rewardAmount, referrer.id]);
-                        await client.query(`INSERT INTO blue_token_escrows (username, amount, unlock_at) VALUES ($1, $2, NOW() + INTERVAL '${escrowInterval}')`, [referrer.username, rewardAmount]);
+                        // --- CORRECCIÓN: Las recompensas van al perfil de impulsor según las reglas económicas ---
+                        // Recompensa para el referente (al perfil de impulsor)
+                        await client.query(`INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, NULL)`, [referrer.id, rewardAmount]);
+                        await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus', $2, 'Recompensa por referido')`, [referrer.id, rewardAmount]);
+                        await client.query(`UPDATE users SET is_booster = TRUE WHERE id = $1`, [referrer.id]);
+                        await updateUserBoosterLevel(client, referrer.id);
                         
-                        // Recompensa para el nuevo usuario
-                        await client.query('UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE id = $2', [rewardAmount, newUser.id]);
-                        await client.query(`INSERT INTO blue_token_escrows (username, amount, unlock_at) VALUES ($1, $2, NOW() + INTERVAL '${escrowInterval}')`, [newUser.username, rewardAmount]);
+                        // Recompensa para el nuevo usuario (al perfil de impulsor)
+                        await client.query(`INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, NULL)`, [newUser.id, rewardAmount]);
+                        await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus', $2, 'Recompensa por referido')`, [newUser.id, rewardAmount]);
+                        await client.query(`UPDATE users SET is_booster = TRUE WHERE id = $1`, [newUser.id]);
+                        await updateUserBoosterLevel(client, newUser.id);
         
                         // --- Ganancia y Equilibrio para la Plataforma (CORREGIDO: Comisión a la billetera de plataforma) ---
                         const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
@@ -681,12 +685,12 @@ app.post('/register', async (req, res) => {
                             [blueForCommission]
                         );
         
-                        // --- Registros de Transacciones para Auditoría (CORREGIDO: Mensajes más claros) ---
+                        // --- Registros de Transacciones para Auditoría (CORREGIDO: Mensajes actualizados para perfil de impulsor) ---
                         // Para el referente
-                        await client.query(`INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [referrer.username, `Recompensa (en depósito) por referir a ${newUser.username}`, rewardAmount]);
+                        await client.query(`INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [referrer.username, `Recompensa (perfil de impulsor) por referir a ${newUser.username}`, rewardAmount]);
                         
                         // Para el nuevo usuario
-                        const newUserTxResult = await client.query(`INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3) RETURNING id`, [newUser.username, `Recompensa (en depósito) por usar el código de ${referrer.username}`, rewardAmount]);
+                        const newUserTxResult = await client.query(`INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3) RETURNING id`, [newUser.username, `Recompensa (perfil de impulsor) por usar el código de ${referrer.username}`, rewardAmount]);
                         const newUserTxId = newUserTxResult.rows[0].id;
 
                         // Para la plataforma
@@ -701,13 +705,13 @@ app.post('/register', async (req, res) => {
                             [null, newUserTxId, blueForCommission]
                         );
         
-                        // --- Notificaciones a los Usuarios (CORREGIDO: Mensajes más claros) ---
-                        await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [referrer.username, `¡Felicidades! Has ganado ${rewardAmount.toFixed(4)} BLUE (en depósito) porque ${newUser.username} se registró con tu código.`]);
-                        await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Por usar un código de referido, has ganado una recompensa de ${rewardAmount.toFixed(4)} BLUE (en depósito).`]);
+                        // --- Notificaciones a los Usuarios (CORREGIDO: Mensajes actualizados para perfil de impulsor) ---
+                        await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [referrer.username, `¡Felicidades! Has ganado ${rewardAmount.toFixed(4)} BLUE en tu perfil de impulsor porque ${newUser.username} se registró con tu código.`]);
+                        await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Por usar un código de referido, has ganado ${rewardAmount.toFixed(4)} BLUE en tu perfil de impulsor.`]);
                     }
                 }
         
-                // --- Bono de Bienvenida ---
+                // --- Bono de Bienvenida (CORREGIDO: Ya cumple con las reglas económicas) ---
                 if (welcomeBonusEnabled && !referrer) {
                     const welcomeBonusAmount = parseFloat(settings.welcome_bonus_amount) || 0;
                     if (welcomeBonusAmount > 0) {
@@ -715,6 +719,9 @@ app.post('/register', async (req, res) => {
                         await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'welcome_bonus', $2, 'Bono de bienvenida')`, [newUser.id, welcomeBonusAmount]);
                         await client.query(`UPDATE users SET is_booster = TRUE WHERE id = $1`, [newUser.id]);
                         await updateUserBoosterLevel(client, newUser.id);
+                        
+                        // Notificación para el bono de bienvenida
+                        await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Has recibido ${welcomeBonusAmount.toFixed(4)} BLUE en tu perfil de impulsor como bono de bienvenida.`]);
                     }
                 }
         
