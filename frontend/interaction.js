@@ -73,13 +73,75 @@ document.addEventListener('DOMContentLoaded', () => {
     // Escuchamos el evento personalizado para actualizar la UI según los permisos
     document.addEventListener('app-settings-loaded', checkPublicationPermissions);
 
-    function checkPublicationPermissions() {
-        if (window.appSettings && elements.openPublicationModalBtn) {
-            if (window.appSettings.allow_new_publications === false) {
-                elements.openPublicationModalBtn.style.display = 'none';
-            } else {
-                elements.openPublicationModalBtn.style.display = 'inline-block';
+    // NUEVO: Almacenamiento en caché para la configuración de la plataforma
+    let platformSettingsCache = null;
+
+    async function getPlatformSettings() {
+        if (platformSettingsCache) {
+            return platformSettingsCache;
+        }
+        try {
+            const response = await fetch(`${API_URL}/api/platform-settings`);
+            if (!response.ok) throw new Error('No se pudo cargar la configuración de la plataforma.');
+            platformSettingsCache = await response.json();
+            return platformSettingsCache;
+        } catch (error) {
+            console.error(error);
+            // Devolver un objeto predeterminado en caso de error para no bloquear la UI
+            return {
+                pre_launch_mode_enabled: false,
+                allow_request_publications: true,
+                allow_sell_publications: true,
+                allow_donation_publications: true
+            };
+        }
+    }
+
+    async function checkPublicationPermissions() {
+        const settings = await getPlatformSettings();
+        const modal = document.getElementById('publicationTypeModal');
+        if (!modal) return;
+
+        // Opciones del modal
+        const requestOption = modal.querySelector('.modal-option-button.request');
+        const sellOption = modal.querySelector('.modal-option-button.sell');
+        const donationOption = modal.querySelector('.modal-option-button.donation');
+
+        // Función para habilitar/deshabilitar opciones
+        const toggleOption = (element, isEnabled) => {
+            if (element) {
+                element.classList.toggle('disabled', !isEnabled);
+                if (!isEnabled) {
+                    element.removeAttribute('onclick');
+                    element.style.cursor = 'not-allowed';
+                } else {
+                    // Restaurar el onclick si es necesario (el HTML lo tiene)
+                    const type = element.classList.contains('request') ? 'request' : (element.classList.contains('sell') ? 'sell' : 'donation');
+                    element.setAttribute('onclick', `window.location.href='publish.html?type=${type}'`);
+                    element.style.cursor = 'pointer';
+                }
             }
+        };
+
+        toggleOption(requestOption, settings.allow_request_publications);
+        toggleOption(sellOption, settings.allow_sell_publications);
+        toggleOption(donationOption, settings.allow_donation_publications);
+
+        // Mostrar un mensaje si todas están deshabilitadas
+        const noOptionsMessage = modal.querySelector('#no-options-message');
+        if (!settings.allow_request_publications && !settings.allow_sell_publications && !settings.allow_donation_publications) {
+            if (noOptionsMessage) {
+                noOptionsMessage.style.display = 'block';
+            } else {
+                const messageDiv = document.createElement('p');
+                messageDiv.id = 'no-options-message';
+                messageDiv.textContent = 'La creación de nuevas publicaciones está temporalmente desactivada.';
+                messageDiv.style.textAlign = 'center';
+                messageDiv.style.marginTop = '1rem';
+                modal.querySelector('.modal-options').appendChild(messageDiv);
+            }
+        } else {
+            if (noOptionsMessage) noOptionsMessage.style.display = 'none';
         }
     }
 
@@ -208,7 +270,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Listeners para el nuevo modal de selección de publicación
         elements.openPublicationModalBtn.addEventListener('click', (event) => {
             event.preventDefault(); // Evitar que el enlace '#' mueva la página
-            elements.publicationTypeModal.style.display = 'flex';
+            // NUEVO: Verificar permisos antes de mostrar
+            checkPublicationPermissions(); 
+            document.getElementById('publicationTypeModal').style.display = 'flex';
         });
         elements.closePublicationTypeModalBtn.addEventListener('click', () => {
             elements.publicationTypeModal.style.display = 'none';
@@ -1032,5 +1096,95 @@ document.addEventListener('DOMContentLoaded', () => {
         
         updateTimer();
         escrowCountdownInterval = setInterval(updateTimer, 1000);
+    }
+
+    /**
+     * Carga la configuración de referidos desde el backend y actualiza el monto mostrado.
+     */
+    async function loadReferralSettings() {
+        try {
+            console.log('🔄 Cargando configuración de referidos...');
+            const response = await fetch(`${API_URL}/api/referral-settings`);
+            console.log('📡 Respuesta del servidor:', response.status);
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('📊 Datos recibidos:', data);
+                
+                const amountElement = document.getElementById('referralAmount');
+                console.log('🎯 Elemento encontrado:', amountElement);
+                
+                if (amountElement && data.referral_bonus_amount) {
+                    // Intentar parsear como número
+                    const amount = parseInt(parseFloat(data.referral_bonus_amount));
+                    console.log('💰 Monto calculado:', amount);
+                    
+                    if (!isNaN(amount)) {
+                        amountElement.textContent = amount;
+                        console.log('✅ Monto actualizado en el DOM:', amount);
+                    } else {
+                        console.log('❌ Valor no es un número válido:', data.referral_bonus_amount);
+                        amountElement.textContent = '10'; // Valor por defecto
+                    }
+                } else {
+                    console.log('❌ Elemento no encontrado o datos faltantes');
+                    console.log('Elemento:', amountElement);
+                    console.log('Datos:', data);
+                }
+            } else {
+                console.log('❌ Error en la respuesta:', response.status, response.statusText);
+            }
+        } catch (error) {
+            console.error('❌ Error al cargar configuración de referidos:', error);
+        }
+    }
+
+    // Cargar configuración de referidos al inicializar
+    loadReferralSettings();
+
+    /**
+     * Función para compartir el código de referido
+     */
+    async function shareReferralCode() {
+        try {
+            const username = sessionStorage.getItem('username');
+            if (!username) {
+                showCustomAlert('Error: No se pudo obtener tu información de usuario.');
+                return;
+            }
+
+            // Obtener el código de referido del usuario actual
+            const response = await fetch(`${API_URL}/api/users/${username}/referral-info`);
+
+            if (response.ok) {
+                const data = await response.json();
+                const referralCode = data.referral_code;
+                const shareUrl = `${window.location.origin}/register.html?ref=${referralCode}`;
+                
+                // Intentar usar la API de Web Share si está disponible
+                if (navigator.share) {
+                    await navigator.share({
+                        title: '¡Únete a WintonCoin!',
+                        text: `¡Hola! Te invito a unirte a WintonCoin usando mi código de referido: ${referralCode}. Ambos ganaremos BLUE tokens.`,
+                        url: shareUrl
+                    });
+                } else {
+                    // Fallback: copiar al portapapeles
+                    await navigator.clipboard.writeText(shareUrl);
+                    showCustomAlert('¡Enlace copiado al portapapeles! Compártelo con tus amigos.');
+                }
+            } else {
+                showCustomAlert('Error al obtener tu código de referido.');
+            }
+        } catch (error) {
+            console.error('Error al compartir código de referido:', error);
+            showCustomAlert('Error al compartir el código de referido.');
+        }
+    }
+
+    // Agregar event listener para el botón de compartir
+    const shareReferralCard = document.getElementById('shareReferralCard');
+    if (shareReferralCard) {
+        shareReferralCard.addEventListener('click', shareReferralCode);
     }
 }); 

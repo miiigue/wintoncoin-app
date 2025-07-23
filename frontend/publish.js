@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const costWrapper = document.getElementById('cost-wrapper');
     const sellWrapper = document.getElementById('sell-wrapper');
     const noticeContainer = document.getElementById('commission-notice-container');
+    const preLaunchNoticeContainer = document.getElementById('prelaunch-notice-container'); // NUEVO
 
     // --- Redirección y Seguridad ---
     if (!storedUsername) {
@@ -16,8 +17,47 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    // --- NUEVO: Lógica para mostrar avisos condicionales ---
+    async function displayNotices() {
+        try {
+            const response = await fetch(`${API_URL}/api/platform-settings`);
+            if (!response.ok) return;
+            const settings = await response.json();
+
+            // Aviso de Pre-Lanzamiento
+            if (preLaunchNoticeContainer && settings.pre_launch_mode_enabled) {
+                preLaunchNoticeContainer.innerHTML = `
+                    <div class="prelaunch-notice">
+                        <h4>🚀 MODO PRE-LANZAMIENTO ACTIVO</h4>
+                        <p>¡Gracias por ser de los primeros! Las recompensas de esta tarea se acumularán en tu <strong>Perfil de Impulsor</strong>. Durante esta fase, no se generará deuda RED.</p>
+                    </div>
+                `;
+                preLaunchNoticeContainer.style.display = 'block';
+            }
+
+            // Aviso de Comisión (solo si el modo pre-lanzamiento está desactivado)
+            if (noticeContainer && !settings.pre_launch_mode_enabled) {
+                const commissionResponse = await fetch(`${API_URL}/api/settings`);
+                if (!commissionResponse.ok) return;
+                const generalSettings = await commissionResponse.json();
+                const commissionPercentage = generalSettings.platform_commission_percentage || 0;
+
+                if (commissionPercentage > 0) {
+                    noticeContainer.innerHTML = `
+                        <div class="commission-notice">
+                            <p>Nota: Al completarse, esta transacción generará una comisión del <strong>${commissionPercentage}%</strong> para la plataforma. La comisión se añade a la deuda RED del usuario que se beneficia del servicio/producto.</p>
+                        </div>
+                    `;
+                }
+            }
+
+        } catch (error) {
+            console.error("Error al cargar la configuración de la plataforma:", error);
+        }
+    }
+
     // --- Lógica de Inicialización del Formulario ---
-    // Determinar el tipo de publicación desde la URL (ej: ?type=request)
+    displayNotices(); // Llamar a la nueva función
     const urlParams = new URLSearchParams(window.location.search);
     const publicationType = urlParams.get('type');
 
@@ -38,20 +78,6 @@ document.addEventListener('DOMContentLoaded', () => {
         showCustomAlert('Tipo de publicación no válido.', () => { window.location.href = 'contract_interaction.html'; });
         return;
     }
-
-    // --- Lógica para Mostrar la Nota de Comisión ---
-    // Escuchamos el evento personalizado que utils.js dispara cuando carga la configuración.
-    document.addEventListener('app-settings-loaded', () => {
-        const commissionPercentage = window.appSettings?.platform_commission_percentage || 0;
-
-        if (noticeContainer && commissionPercentage > 0) {
-            noticeContainer.innerHTML = `
-                <div class="commission-notice">
-                    <p>Nota: Al completarse, esta transacción generará una comisión del <strong>${commissionPercentage}%</strong> para la plataforma. La comisión se añade a la deuda RED del usuario que se beneficia del servicio/producto.</p>
-                </div>
-            `;
-        }
-    });
 
     // --- Lógica de Envío del Formulario ---
     publishForm.addEventListener('submit', async (event) => {

@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sections: document.querySelectorAll('.admin-section'),
         logoutBtn: document.getElementById('adminLogoutBtn'),
         settingsContainer: document.getElementById('settings-switches'),
+        phaseManagementContainer: document.getElementById('phase-management-switches'), // NUEVO
         dashboardContainer: document.getElementById('dashboard-stats'),
         usersTableContainer: document.getElementById('users-table-container'),
         userSearchInput: document.getElementById('userSearchInput'),
@@ -72,6 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         elements.settingsContainer.addEventListener('change', handleSettingChange);
+        elements.phaseManagementContainer.addEventListener('change', handleSettingChange); // NUEVO
         elements.settingsContainer.addEventListener('keyup', (event) => {
             if (event.target.type === 'number') {
                 handleSettingChange(event);
@@ -270,6 +272,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadSettings() {
+        elements.settingsContainer.innerHTML = '<div class="loading-spinner"></div>';
+        elements.phaseManagementContainer.innerHTML = '<div class="loading-spinner"></div>'; // NUEVO
         try {
             const settings = await apiFetch('/api/admin/settings');
             renderSettings(settings);
@@ -337,166 +341,151 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Lógica de Renderizado de Configuración (NUEVO) ---
 
-    const settingTitles = {
-        'public_profiles_enabled': 'Perfiles Públicos',
-        'allow_new_registrations': 'Permitir Nuevos Registros',
-        'allow_new_publications': 'Permitir Nuevas Publicaciones',
-        'debt_system_enabled': 'Sistema de Deuda',
-        'platform_commission_percentage': 'Comisión de la Plataforma (%)',
-        // --- Títulos para las nuevas settings ---
-        'referral_system_enabled': 'Sistema de Referidos',
-        'referral_reward_amount': 'Recompensa por Referido (BLUE)',
-        'booster_system_enabled': 'Sistema de Impulsores',
-        'referral_bonus_amount': 'Bono de Referidos (BLUE)',
-        'referral_bonus_enabled': 'Activar Bonos por Referido',
-        'welcome_bonus_amount': 'Welcome Bonus Amount',
-        'welcome_bonus_enabled': 'Welcome Bonus Enabled'
-    };
+    function getSettingTitleAndDescription(key) {
+        const map = {
+            'allow_new_registrations': { title: 'Permitir Nuevos Registros', description: 'Activa o desactiva esta característica para toda la plataforma.' },
+            'public_profiles_enabled': { title: 'Perfiles Públicos', description: 'Permite que cualquiera vea los perfiles públicos de los usuarios.' },
+            'debt_system_enabled': { title: 'Sistema de Deuda (Tokens RED)', description: 'Activa o desactiva la creación y gestión de deuda RED.' },
+            'platform_commission_percentage': { title: 'Comisión de Plataforma (%)', description: 'Porcentaje de comisión para la plataforma (ej: 5 para 5%).' },
+            'booster_system_enabled': { title: 'Sistema de Impulsores', description: 'Activa el sistema de Impulsores y su lógica de pagos mensuales.' },
+            'referral_system_enabled': { title: 'Sistema de Referidos', description: 'Activa o desactiva el bono por registro con código de referido.' },
+            'referral_reward_amount': { title: 'Recompensa por Referido (BLUE)', description: 'Cantidad de BLUE que ganan referente y referido.' },
+            'welcome_bonus_enabled': { title: 'Bono de Bienvenida', description: 'Activa o desactiva el bono al registrarse sin código.' },
+            'welcome_bonus_amount': { title: 'Monto del Bono de Bienvenida (BLUE)', description: 'Cantidad de BLUE que se otorga sin código de referido.' },
+            // --- FASES ---
+            'pre_launch_mode_enabled': { title: 'Modo Pre-Lanzamiento', description: 'Todas las ganancias van al Perfil de Impulsor, no se crea RED.' },
+            'allow_request_publications': { title: 'Permitir Publicaciones de "Solicitud"', description: 'Los usuarios pueden publicar tareas para que otros las realicen.' },
+            'allow_sell_publications': { title: 'Permitir Publicaciones de "Venta"', description: 'Los usuarios pueden publicar productos o servicios para vender.' },
+            'allow_donation_publications': { title: 'Permitir Publicaciones de "Donación"', description: 'Los usuarios pueden solicitar donaciones.' }
+        };
+        return map[key] || { title: key, description: 'Sin descripción.' };
+    }
 
     function getSettingTitle(key) {
-        return settingTitles[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        // Esta función ahora es un proxy a la nueva función para mantener compatibilidad
+        // con el código antiguo de impulsores y referidos sin tener que reescribirlo todo.
+        const setting = getSettingTitleAndDescription(key);
+        return setting.title;
     }
 
     function renderSettings(settings) {
-        elements.settingsContainer.innerHTML = ''; // Limpiar contenido anterior
+        // --- Separar configuraciones por grupo ---
+        const phaseSettings = settings.filter(s => ['pre_launch_mode_enabled', 'allow_request_publications', 'allow_sell_publications', 'allow_donation_publications'].includes(s.setting_key));
+        const timeSettingsRaw = settings.filter(s => s.setting_key.startsWith('debt_cycle_') || s.setting_key.startsWith('blue_escrow_'));
+        
+        // Filtramos para obtener solo las configuraciones generales, excluyendo las de fases, tiempo y referidos.
+        const referralKeys = [
+            'referral_system_enabled', 'referral_reward_amount', 
+            'welcome_bonus_enabled', 'welcome_bonus_amount',
+            'referral_bonus_enabled', 'referral_bonus_amount' // <-- Añadimos las claves obsoletas
+        ];
+        const generalSettings = settings.filter(s => 
+            !phaseSettings.includes(s) && 
+            !timeSettingsRaw.includes(s) &&
+            !referralKeys.includes(s.setting_key)
+        );
 
-        // Agrupar configuraciones de tiempo
-        const timeSettings = {
-            debt_cycle: { label: 'Duración del Ciclo de Deuda RED', settings: [] },
-            blue_escrow: { label: 'Duración del Depósito BLUE (Escrow)', settings: [] }
+        // --- Renderizar Configuración de Fases ---
+        elements.phaseManagementContainer.innerHTML = phaseSettings.map(s => getSettingHTML(s, 'switch')).join('');
+
+        // --- Renderizar Configuración General ---
+        elements.settingsContainer.innerHTML = generalSettings.map(s => {
+            if (s.setting_key.endsWith('_enabled') || s.setting_key.endsWith('registrations')) return getSettingHTML(s, 'switch');
+            if (s.setting_key.endsWith('_amount') || s.setting_key.includes('percentage')) return getSettingHTML(s, 'number');
+            return ''; // No renderizar otros por ahora
+        }).join('');
+
+        // --- Renderizar Configuración de Tiempo Agrupada ---
+        const timeSettingsGrouped = {
+            debt_cycle: { label: 'Duración del Ciclo de Deuda RED', description: 'Define el período de tiempo para esta funcionalidad.', settings: [] },
+            blue_escrow: { label: 'Duración del Depósito BLUE (Escrow)', description: 'Define el período de tiempo para esta funcionalidad.', settings: [] }
         };
-        const otherSettings = [];
-
-        settings.forEach(setting => {
+        timeSettingsRaw.forEach(setting => {
             if (setting.setting_key.startsWith('debt_cycle_')) {
-                timeSettings.debt_cycle.settings.push(setting);
+                timeSettingsGrouped.debt_cycle.settings.push(setting);
             } else if (setting.setting_key.startsWith('blue_escrow_')) {
-                timeSettings.blue_escrow.settings.push(setting);
-            } else {
-                otherSettings.push(setting);
+                timeSettingsGrouped.blue_escrow.settings.push(setting);
             }
         });
 
-        // Renderizar configuraciones de tiempo agrupadas
-        for (const groupKey in timeSettings) {
-            const group = timeSettings[groupKey];
-            if (group.settings.length > 0) {
-                // Ordenar por días, horas, minutos
-                group.settings.sort((a, b) => {
-                    const order = ['days', 'hours', 'minutes'];
-                    const aKey = a.setting_key.split('_').pop();
-                    const bKey = b.setting_key.split('_').pop();
-                    return order.indexOf(aKey) - order.indexOf(bKey);
-                });
-                const groupHTML = `
-                    <div class="setting-item">
-                        <div class="setting-item-info">
-                            <h4>${group.label}</h4>
-                            <p>Define el período de tiempo para esta funcionalidad.</p>
-                        </div>
-                        <div class="setting-item-control-group">
-                            ${group.settings.map(setting => {
-                                const unit = setting.setting_key.split('_').pop();
-                                return `
-                                    <div class="numeric-group-item">
-                                        <label for="setting-${setting.setting_key}">${unit.charAt(0).toUpperCase() + unit.slice(1)}</label>
-                                        <input type="number" class="admin-numeric-input" id="setting-${setting.setting_key}" data-key="${setting.setting_key}" value="${setting.setting_value}" min="0">
-                                    </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    </div>
-                `;
-                elements.settingsContainer.innerHTML += groupHTML;
-            }
+        for (const groupKey in timeSettingsGrouped) {
+            elements.settingsContainer.innerHTML += getTimeGroupHTML(timeSettingsGrouped[groupKey]);
+        }
+    }
+
+    function getSettingHTML(setting, type) {
+        const { title, description } = getSettingTitleAndDescription(setting.setting_key);
+        let controlHTML = '';
+
+        if (type === 'switch') {
+            controlHTML = `
+                <label class="switch">
+                    <input type="checkbox" data-key="${setting.setting_key}" ${setting.setting_value === 'true' ? 'checked' : ''}>
+                    <span class="slider round"></span>
+                </label>
+            `;
+        } else if (type === 'number') {
+            controlHTML = `
+                <input type="number" class="admin-numeric-input" data-key="${setting.setting_key}" value="${parseFloat(setting.setting_value).toFixed(2)}" step="0.01" min="0">
+            `;
         }
 
-        // Renderizar otras configuraciones
-        otherSettings.forEach(setting => {
-            // Omitimos las de referidos aquí porque se renderizarán en su propia función
-            if (setting.setting_key.startsWith('referral_')) {
-                return;
-            }
-
-            let controlHTML;
-            if (setting.setting_value === 'true' || setting.setting_value === 'false') {
-                controlHTML = `
-                    <label class="switch">
-                        <input type="checkbox" data-key="${setting.setting_key}" ${setting.setting_value === 'true' ? 'checked' : ''}>
-                        <span class="slider"></span>
-                    </label>
-                `;
-            } else {
-                controlHTML = `
-                    <input type="number" class="admin-numeric-input" data-key="${setting.setting_key}" value="${setting.setting_value}" step="any" min="0">
-                `;
-            }
-            
-            const itemHTML = `
-                <div class="setting-item">
-                    <div class="setting-item-info">
-                        <h4>${getSettingTitle(setting.setting_key)}</h4>
-                        <p>${setting.description || 'Activa o desactiva esta característica para toda la plataforma.'}</p>
-                    </div>
-                    <div class="setting-item-control">
-                        ${controlHTML}
-                    </div>
+        return `
+            <div class="setting-item">
+                <div class="setting-item-info">
+                    <h4>${title}</h4>
+                    <p>${description}</p>
                 </div>
-            `;
-            elements.settingsContainer.innerHTML += itemHTML;
+                <div class="setting-item-control">
+                    ${controlHTML}
+                </div>
+            </div>
+        `;
+    }
+
+    function getTimeGroupHTML(group) {
+        if (group.settings.length === 0) return '';
+        
+        group.settings.sort((a, b) => {
+            const order = ['days', 'hours', 'minutes'];
+            const aKey = a.setting_key.split('_').pop();
+            const bKey = b.setting_key.split('_').pop();
+            return order.indexOf(aKey) - order.indexOf(bKey);
         });
+
+        return `
+            <div class="setting-item">
+                <div class="setting-item-info">
+                    <h4>${group.label}</h4>
+                    <p>${group.description}</p>
+                </div>
+                <div class="setting-item-control-group">
+                    ${group.settings.map(setting => {
+                        const unit = setting.setting_key.split('_').pop();
+                        return `
+                            <div class="numeric-group-item">
+                                <label for="setting-${setting.setting_key}">${unit.charAt(0).toUpperCase() + unit.slice(1)}</label>
+                                <input type="number" class="admin-numeric-input" id="setting-${setting.setting_key}" data-key="${setting.setting_key}" value="${setting.setting_value}" min="0">
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
     }
 
     function renderReferralSettings(allSettings) {
-        const referralSettings = allSettings.filter(s => s.setting_key.startsWith('referral_'));
-        elements.referralsSettingsContainer.innerHTML = ''; // Limpiar
-
-        if (referralSettings.length === 0) {
-            elements.referralsSettingsContainer.innerHTML = `<p class="empty-message">No se encontraron configuraciones para el sistema de referidos.</p>`;
-            return;
+        const referralKeys = ['referral_system_enabled', 'referral_reward_amount', 'welcome_bonus_enabled', 'welcome_bonus_amount'];
+        const referralSettings = allSettings.filter(s => referralKeys.includes(s.setting_key));
+        
+        const container = document.getElementById('referrals-settings-container');
+        if (container) {
+            container.innerHTML = referralSettings.map(s => {
+                if (s.setting_key.endsWith('_enabled')) return getSettingHTML(s, 'switch');
+                if (s.setting_key.endsWith('_amount')) return getSettingHTML(s, 'number');
+                return '';
+            }).join('');
         }
-
-        referralSettings.forEach(setting => {
-            let controlHTML;
-             // El input numérico para la recompensa
-            if (setting.setting_key === 'referral_reward_amount') {
-                controlHTML = `
-                    <input type="number" class="admin-numeric-input" data-key="${setting.setting_key}" value="${setting.setting_value}" step="any" min="0">
-                `;
-            } else { // El interruptor para activar/desactivar
-                controlHTML = `
-                    <label class="switch">
-                        <input type="checkbox" data-key="${setting.setting_key}" ${setting.setting_value === 'true' ? 'checked' : ''}>
-                        <span class="slider"></span>
-                    </label>
-                `;
-            }
-
-            const description = setting.setting_key === 'referral_system_enabled'
-                ? 'Activa o desactiva las recompensas por referido para los nuevos registros.'
-                : 'La cantidad de BLUE que recibe tanto el referente como el referido.';
-
-            const itemHTML = `
-                <div class="setting-item">
-                    <div class="setting-item-info">
-                        <h4>${getSettingTitle(setting.setting_key)}</h4>
-                        <p>${description}</p>
-                    </div>
-                    <div class="setting-item-control">
-                        ${controlHTML}
-                    </div>
-                </div>
-            `;
-            elements.referralsSettingsContainer.innerHTML += itemHTML;
-        });
-
-        // Aseguramos que los eventos funcionen en los nuevos controles
-        elements.referralsSettingsContainer.addEventListener('change', handleSettingChange);
-        elements.referralsSettingsContainer.addEventListener('keyup', (event) => {
-            if (event.target.type === 'number') {
-                handleSettingChange(event);
-            }
-        });
     }
 
     // --- NUEVO: Renderizado de la configuración de Impulsores ---
@@ -836,7 +825,7 @@ WHERE username = 'Plataforma WintonCoin';
                 <p class="stat-value">${stats.activePublications || 0}</p>
             </div>
             <div class="stat-card">
-                <h4>BLUE en Circulación (Total)</h4>
+                <h4>BLUE en Circulación (Tokens Reales)</h4>
                 <p class="stat-value saldo-blue-text">${formatBalance(stats.totalBlue)}</p>
             </div>
             <div class="stat-card">
@@ -846,6 +835,10 @@ WHERE username = 'Plataforma WintonCoin';
             <div class="stat-card">
                 <h4>Comisiones Acumuladas</h4>
                 <p class="stat-value saldo-blue-text">${formatBalance(stats.platformCommissionBalance)}</p>
+            </div>
+            <div class="stat-card">
+                <h4>Fondos de Impulsores (Deuda Futura)</h4>
+                <p class="stat-value saldo-escrow-text">${formatBalance(stats.totalBoosterFunds || 0)}</p>
             </div>
         `;
     }
@@ -1149,6 +1142,102 @@ WHERE username = 'Plataforma WintonCoin';
                 <td>${registrationDate}</td>
             </tr>
         `;
+    }
+
+    // --- LÓGICA DE RENDERIZADO MEJORADA POR SECCIONES ---
+
+    function renderSection(section, data) {
+        switch (section) {
+            case 'dashboard':
+                renderDashboard(data);
+                break;
+            case 'settings':
+                renderSettings(data);
+                break;
+            case 'users':
+                renderUsers(data);
+                break;
+            case 'debtors':
+                renderDebtors(data);
+                break;
+            case 'wallet':
+                renderPlatformWallet(data.balance, data.log);
+                break;
+            case 'publications':
+                renderAllPublications(data);
+                break;
+            case 'referrals':
+                renderReferralSettings(data.settings);
+                renderReferralLog(data.log);
+                break;
+            case 'boosters':
+                renderBoosterSettings(data.settings);
+                renderBoosterStats(data.stats);
+                renderBoostersList(data.list);
+                break;
+            case 'database':
+                renderDatabaseStats(data);
+                break;
+        }
+    }
+
+    async function loadSection(section) {
+        if (!elements.mainContent) return;
+        elements.mainContent.innerHTML = '<div class="loader"></div>';
+        try {
+            let data = {};
+            switch (section) {
+                case 'dashboard':
+                    data = await apiFetch('/api/admin/dashboard-stats');
+                    break;
+                case 'settings':
+                    data = await apiFetch('/api/admin/settings');
+                    break;
+                case 'users':
+                    data = await apiFetch('/api/admin/users');
+                    break;
+                case 'debtors':
+                    data = await apiFetch('/api/admin/debtors');
+                    break;
+                case 'wallet':
+                    const [balance, log] = await Promise.all([apiFetch('/api/admin/platform-wallet/balance'), apiFetch('/api/admin/platform-wallet/log')]);
+                    data = { balance, log };
+                    break;
+                case 'publications':
+                    data = await apiFetch('/api/admin/publications');
+                    break;
+                case 'referrals':
+                    const [referralSettings, referralLog] = await Promise.all([apiFetch('/api/admin/settings'), apiFetch('/api/admin/referrals/log')]);
+                    data = { settings: referralSettings, log: referralLog };
+                    break;
+                case 'boosters':
+                    const [boosterSettings, boosterStats, boosterList] = await Promise.all([apiFetch('/api/admin/boosters/settings'), apiFetch('/api/admin/boosters/stats'), apiFetch('/api/admin/boosters/list')]);
+                    data = { settings: boosterSettings, stats: boosterStats, list: boosterList };
+                    break;
+                case 'database':
+                    data = await apiFetch('/api/admin/database/stats');
+                    break;
+                case 'danger':
+                    // No data to load, just render static content
+                    break;
+                default:
+                    elements.mainContent.innerHTML = '<h2>Sección no encontrada</h2>';
+                    return;
+            }
+            // Actualiza la UI
+            const template = document.getElementById(`${section}-template`);
+            if (template) {
+                elements.mainContent.innerHTML = template.innerHTML;
+                bindNavEvents(); // Re-bind events for any new nav elements in the template
+                renderSection(section, data);
+            } else if (section !== 'danger') {
+                console.error(`Template no encontrado para la sección: ${section}-template`);
+            }
+
+        } catch (error) {
+            console.error(`Error al cargar la sección ${section}:`, error);
+            elements.mainContent.innerHTML = `<p class="error-message">Error al cargar ${section}: ${error.message}</p>`;
+        }
     }
 
     // --- NUEVA FUNCIONALIDAD: Gestión de Base de Datos ---

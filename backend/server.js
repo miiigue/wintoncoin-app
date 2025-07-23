@@ -456,10 +456,8 @@ async function initializeDatabase() {
         ['referral_reward_amount', '10', 'Cantidad de BLUE que ganan el referente y el referido al registrarse.'],
         // --- NUEVAS CONFIGURACIONES DE IMPULSORES ---
         ['booster_system_enabled', 'true', 'Activa el sistema de Impulsores y su lógica de pagos mensuales.'],
-        ['welcome_bonus_enabled', 'false', 'Activa o desactiva el bono de bienvenida.'],
-        ['welcome_bonus_amount', '25', 'Cantidad de BLUE que se otorga al registrarse sin código de referido.'],
-        ['referral_bonus_enabled', 'true', 'Activa o desactiva el bono de referido.'],
-        ['referral_bonus_amount', '10', 'Cantidad de BLUE que se otorga al registrarse con código de referido.']
+        ['welcome_bonus_enabled', 'true', 'Activa o desactiva el bono de bienvenida.'],
+        ['welcome_bonus_amount', '25', 'Cantidad de BLUE que se otorga al registrarse sin código de referido.']
     ];
 
     const client = await pool.connect();
@@ -805,37 +803,66 @@ app.post('/register', async (req, res) => {
         app.post('/publish', async (req, res) => {
             const { title, description, blueCost, blueSell, authorUsername, availableSlots, autoApprove, publicationType } = req.body;
         
-            if (!title || !description || !authorUsername || (!blueCost && !blueSell)) {
+            if (!title || !description || !authorUsername || (!blueCost && !blueSell) || !publicationType) {
                 return res.status(400).json({ message: "Faltan datos requeridos para la publicación." });
             }
-        
-            const isSellPost = publicationType === 'sell' || publicationType === 'donation';
-            const costString = (blueSell || blueCost).toString().replace(',', '.');
-            const cost = parseFloat(costString);
 
-            if (isNaN(cost) || cost <= 0) {
-                return res.status(400).json({ message: "El costo o recompensa debe ser un número positivo." });
-            }
-
-            const slots = availableSlots ? parseInt(availableSlots, 10) : 1;
-            if (isNaN(slots) || slots < 1) {
-                return res.status(400).json({ message: "La cantidad de cupos disponibles debe ser mayor a 0." });
-            }
-        
+            const client = await pool.connect();
             try {
-                const userResult = await pool.query(`SELECT id FROM users WHERE username = $1`, [authorUsername]);
+                // --- INICIO DE LA TRANSACCIÓN ---
+                await client.query('BEGIN');
+
+                // 1. VERIFICAR PERMISOS DE PUBLICACIÓN
+                const settingsKeys = [
+                    'allow_request_publications', 
+                    'allow_sell_publications', 
+                    'allow_donation_publications'
+                ];
+                const settingsResult = await client.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1::text[])`, [settingsKeys]);
+                const settings = settingsResult.rows.reduce((acc, row) => ({...acc, [row.setting_key]: row.setting_value === 'true' }), {});
+
+                const typePermissionMap = {
+                    'request': settings.allow_request_publications,
+                    'sell': settings.allow_sell_publications,
+                    'donation': settings.allow_donation_publications
+                };
+
+                if (!typePermissionMap[publicationType]) {
+                    throw { status: 403, message: `La creación de publicaciones de tipo "${publicationType}" está desactivada temporalmente.` };
+                }
+        
+                const isSellPost = publicationType === 'sell' || publicationType === 'donation';
+                const costString = (blueSell || blueCost).toString().replace(',', '.');
+                const cost = parseFloat(costString);
+
+                if (isNaN(cost) || cost <= 0) {
+                    throw { status: 400, message: "El costo o recompensa debe ser un número positivo." };
+                }
+
+                const slots = availableSlots ? parseInt(availableSlots, 10) : 1;
+                if (isNaN(slots) || slots < 1) {
+                    throw { status: 400, message: "La cantidad de cupos disponibles debe ser mayor a 0." };
+                }
+        
+                const userResult = await client.query(`SELECT id FROM users WHERE username = $1`, [authorUsername]);
                 if (userResult.rowCount === 0) {
-                    return res.status(404).json({ message: "El autor de la publicación no existe." });
+                    throw { status: 404, message: "El autor de la publicación no existe." };
                 }
                 const authorId = userResult.rows[0].id;
 
                 const sql = `INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, category) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`;
                 const result = await pool.query(sql, [title, description, cost, isSellPost, authorId, slots, !!autoApprove, publicationType]);
+                
+                await client.query('COMMIT');
                 res.status(201).json({ message: "Publicación creada exitosamente.", publicationId: result.rows[0].id });
+
             } catch (error) {
+                await client.query('ROLLBACK');
                 console.error("Error al guardar la publicación:", error);
-            return res.status(500).json({ message: "Error interno del servidor." });
-        }
+                res.status(error.status || 500).json({ message: error.message || "Error interno del servidor." });
+            } finally {
+                client.release();
+            }
         });
 
         // Ruta para obtener publicaciones activas
@@ -1157,111 +1184,91 @@ app.post('/register', async (req, res) => {
             try {
                 await client.query('BEGIN');
 
+                // 1. OBTENER DATOS DE LA TAREA Y LAS CONFIGURACIONES DE LA PLATAFORMA
+                const settingsResult = await client.query(`
+                    SELECT setting_key, setting_value 
+                    FROM app_settings 
+                    WHERE setting_key IN (
+                        'pre_launch_mode_enabled', 'debt_cycle_days', 'debt_cycle_hours', 'debt_cycle_minutes',
+                        'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes', 'platform_commission_percentage'
+                    )
+                `);
+                const settings = settingsResult.rows.reduce((acc, row) => ({...acc, [row.setting_key]: row.setting_value }), {});
+                const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
+
                 const acceptanceResult = await client.query(
-                    `SELECT p.blue_cost, p.is_sell_post, p.title, p.is_booster_task, u.username as author_username, pa.id as acceptance_id
+                    `SELECT p.blue_cost, p.is_sell_post, p.title, u.username as author_username, pa.id as acceptance_id
                      FROM publications p
                      JOIN users u ON p.author_id = u.id
                      JOIN publication_acceptances pa ON p.id = pa.publication_id
-                     WHERE p.id = $1 
-                       AND u.username = $2 
-                       AND pa.acceptor_username = $3
-                       AND pa.status = 'completed'
-                     FOR UPDATE`,
+                     WHERE p.id = $1 AND u.username = $2 AND pa.acceptor_username = $3 AND pa.status = 'completed' FOR UPDATE`,
                     [pubId, confirmerUsername, workerUsername]
                 );
                 
                 const acceptance = acceptanceResult.rows[0];
                 if (!acceptance) throw { status: 404, message: "No se encontró una tarea completada válida para confirmar." };
 
-                const { blue_cost, is_sell_post, title, author_username: author, acceptance_id, is_booster_task } = acceptance;
+                const { blue_cost, is_sell_post, title, author_username: author, acceptance_id } = acceptance;
                 const cost = parseFloat(blue_cost);
 
-                // MEJORA DE CALIDAD: Esta ruta solo debe manejar 'solicitudes', no 'ventas'.
                 if (is_sell_post) {
-                    console.error(`ERROR DE LÓGICA: Se intentó usar /confirm-payment para una venta (Pub ID: ${pubId}). El pago de ventas se gestiona en /complete.`);
                     throw { status: 500, message: "Error de lógica interna: Esta acción no es aplicable a publicaciones de venta." };
                 }
 
-                // --- LÓGICA PARA SOLICITUDES (El autor paga al trabajador) ---
-                const settingKeys = [
-                    'debt_cycle_days', 'debt_cycle_hours', 'debt_cycle_minutes',
-                    'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes',
-                    'platform_commission_percentage'
-                ];
-                const settingsResult = await client.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1::text[])`, [settingKeys]);
-                const settings = settingsResult.rows.reduce((acc, row) => ({...acc, [row.setting_key]: row.setting_value }), {});
-
-                const debtInterval = `${settings.debt_cycle_days || 30} days ${settings.debt_cycle_hours || 0} hours ${settings.debt_cycle_minutes || 0} minutes`;
-                const escrowInterval = `${settings.blue_escrow_days || 1} days ${settings.blue_escrow_hours || 0} hours ${settings.blue_escrow_minutes || 0} minutes`;
-
-                // --- CÁLCULO Y DISTRIBUCIÓN DE COMISIÓN ---
-                const commissionPercentage = parseFloat(settings.platform_commission_percentage || '0');
-                const commissionAmount = cost * (commissionPercentage / 100);
-                const redForAuthor = cost + commissionAmount;
-
-                // 1. El autor (confirmerUsername) recibe su deuda RED (costo + comisión).
-                await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE username = $2`, [redForAuthor, author]);
-                await client.query(`INSERT INTO red_token_debts (username, amount, due_at) VALUES ($1, $2, NOW() + INTERVAL '${debtInterval}')`, [author, redForAuthor]);
-                
-                // 2. El trabajador (workerUsername) recibe los BLUE del trabajo (costo base) en depósito.
-                await client.query(`UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE username = $2`, [cost, workerUsername]);
-                await client.query(`INSERT INTO blue_token_escrows (username, amount, unlock_at) VALUES ($1, $2, NOW() + INTERVAL '${escrowInterval}')`, [workerUsername, cost]);
-                
-                // 3. La plataforma recibe su comisión en BLUE.
-                await client.query(
-                    `INSERT INTO platform_wallet (id, total_blue_commission_balance) VALUES (1, $1)
-                     ON CONFLICT (id) DO UPDATE SET total_blue_commission_balance = platform_wallet.total_blue_commission_balance + $1`,
-                    [commissionAmount]
-                );
-                
-                // 4. Se registran las transacciones para ambos usuarios.
-                const authorTxResult = await client.query(
-                    `INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id, platform_fee_blue) 
-                     VALUES ($1, 'payment_sent', $2, 0, $3, $4, $5) RETURNING id`, 
-                    [author, `Pagaste por: "${title}"`, redForAuthor, pubId, commissionAmount]
-                );
-                const authorTxId = authorTxResult.rows[0].id;
-
-                await client.query(
-                    `INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id) 
-                     VALUES ($1, 'payment_received', $2, $3, 0, $4)`, 
-                    [workerUsername, `Realizaste: "${title}"`, cost, pubId]
-                );
-                
-                // 5. Se registra la comisión en el log de la plataforma.
-                await client.query(
-                    `INSERT INTO platform_commission_log (related_publication_id, related_user_transaction_id, commission_amount_blue) VALUES ($1, $2, $3)`,
-                    [pubId, authorTxId, commissionAmount]
-                );
-
-                // 6. Se actualiza el estado de la aceptación.
-                await client.query(`UPDATE publication_acceptances SET status = 'confirmed_paid' WHERE id = $1`, [acceptance_id]);
-                
-                // 7. Se notifica al trabajador.
-                const notificationMessage = `¡Has recibido ${cost.toFixed(4)} BLUE (en depósito) por la tarea "${title}"!`;
-                await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [workerUsername, notificationMessage]);
-                
-                // --- NUEVA LÓGICA PARA IMPULSORES ---
-                if (is_booster_task) {
-                    console.log(`TAREA DE IMPULSOR DETECTADA: El usuario ${workerUsername} ganó ${cost} BLUE de impulsor.`);
+                // 2. LÓGICA ECONÓMICA CONDICIONAL (PRE-LANZAMIENTO vs MODO NORMAL)
+                if (preLaunchMode) {
+                    // --- MODO PRE-LANZAMIENTO ---
+                    console.log(`MODO PRE-LANZAMIENTO: Acumulando ${cost} BLUE para ${workerUsername} en perfil de impulsor.`);
+                    
+                    // a. La recompensa va DIRECTO al perfil de impulsor
                     const workerResult = await client.query('SELECT id FROM users WHERE username = $1', [workerUsername]);
                     const workerId = workerResult.rows[0].id;
-
-                    // 1. Registrar los BLUE en el libro contable de impulsores
-                    await client.query(
-                        'INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, $3)',
-                        [workerId, cost, pubId]
-                    );
-
-                    // 2. Marcar al usuario como impulsor (si no lo es ya)
+                    await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, $3)', [workerId, cost, pubId]);
                     await client.query('UPDATE users SET is_booster = TRUE WHERE id = $1', [workerId]);
-
-                    // 3. Recalcular y actualizar el nivel del impulsor
                     await updateUserBoosterLevel(client, workerId);
+
+                    // b. SIN creación de RED, SIN escrow, SIN comisiones, SIN transacciones económicas.
+
+                } else {
+                    // --- MODO NORMAL ---
+                    console.log(`MODO NORMAL: Procesando pago de ${cost} BLUE para ${workerUsername}.`);
+                    const debtInterval = `${settings.debt_cycle_days || 30} days ${settings.debt_cycle_hours || 0} hours ${settings.debt_cycle_minutes || 0} minutes`;
+                    const escrowInterval = `${settings.blue_escrow_days || 1} days ${settings.blue_escrow_hours || 0} hours ${settings.blue_escrow_minutes || 0} minutes`;
+                    const commissionPercentage = parseFloat(settings.platform_commission_percentage || '0');
+                    const commissionAmount = cost * (commissionPercentage / 100);
+                    const redForAuthor = cost + commissionAmount;
+
+                    // a. Creación de RED para el autor
+                    await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE username = $2`, [redForAuthor, author]);
+                    await client.query(`INSERT INTO red_token_debts (username, amount, due_at) VALUES ($1, $2, NOW() + INTERVAL '${debtInterval}')`, [author, redForAuthor]);
+                    
+                    // b. BLUE en depósito para el trabajador
+                    await client.query(`UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE username = $2`, [cost, workerUsername]);
+                    await client.query(`INSERT INTO blue_token_escrows (username, amount, unlock_at) VALUES ($1, $2, NOW() + INTERVAL '${escrowInterval}')`, [workerUsername, cost]);
+                    
+                    // c. Comisión para la plataforma
+                    await client.query(`INSERT INTO platform_wallet (id, total_blue_commission_balance) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET total_blue_commission_balance = platform_wallet.total_blue_commission_balance + $1`, [commissionAmount]);
+                    
+                    // d. Registro de transacciones
+                    const authorTxResult = await client.query(`INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id, platform_fee_blue) VALUES ($1, 'payment_sent', $2, 0, $3, $4, $5) RETURNING id`, [author, `Pagaste por: "${title}"`, redForAuthor, pubId, commissionAmount]);
+                    const authorTxId = authorTxResult.rows[0].id;
+                    await client.query(`INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'payment_received', $2, $3, 0, $4)`, [workerUsername, `Realizaste: "${title}"`, cost, pubId]);
+                    
+                    // e. Log de comisión
+                    await client.query(`INSERT INTO platform_commission_log (related_publication_id, related_user_transaction_id, commission_amount_blue) VALUES ($1, $2, $3)`, [pubId, authorTxId, commissionAmount]);
                 }
+
+                // 3. ACTUALIZACIONES FINALES (COMUNES A AMBOS MODOS)
+                await client.query(`UPDATE publication_acceptances SET status = 'confirmed_paid' WHERE id = $1`, [acceptance_id]);
+                
+                const notificationMessage = preLaunchMode
+                    ? `¡Has acumulado ${cost.toFixed(4)} BLUE en tu Perfil de Impulsor por la tarea "${title}"!`
+                    : `¡Has recibido ${cost.toFixed(4)} BLUE (en depósito) por la tarea "${title}"!`;
+                await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [workerUsername, notificationMessage]);
                 
                 await client.query('COMMIT');
                 res.status(200).json({ message: "Pago confirmado y tarea finalizada." });
+
             } catch (error) {
                 await client.query('ROLLBACK');
                 console.error("Error en confirm-payment:", error);
@@ -1269,9 +1276,9 @@ app.post('/register', async (req, res) => {
             } finally {
                 client.release();
             }
-});
+        });
 
-// Ruta para obtener las notificaciones de un usuario
+        // Ruta para obtener las notificaciones de un usuario
         app.get('/notifications/:username', async (req, res) => {
     const { username } = req.params;
             const sql = `SELECT * FROM notifications WHERE recipient_username = $1 AND is_read = FALSE ORDER BY created_at DESC`;
@@ -1283,7 +1290,7 @@ app.post('/register', async (req, res) => {
             }
 });
 
-// Ruta para marcar notificaciones como leídas
+        // Ruta para marcar notificaciones como leídas
         app.post('/notifications/mark-read', async (req, res) => {
     const { username } = req.body;
             const sql = `UPDATE notifications SET is_read = TRUE WHERE recipient_username = $1 AND is_read = FALSE`;
@@ -1665,6 +1672,28 @@ app.post('/register', async (req, res) => {
             }
         });
 
+        // Ruta pública para obtener configuración de referidos
+        app.get('/api/referral-settings', async (req, res) => {
+            try {
+                // Intentar obtener referral_reward_amount primero, luego referral_bonus_amount como fallback
+                let result = await pool.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key = 'referral_reward_amount'`);
+                
+                if (result.rows.length === 0) {
+                    // Si no existe referral_reward_amount, intentar con referral_bonus_amount
+                    result = await pool.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key = 'referral_bonus_amount'`);
+                }
+                
+                if (result.rows.length > 0) {
+                    res.status(200).json({ referral_bonus_amount: result.rows[0].setting_value });
+                } else {
+                    res.status(404).json({ message: "Configuración de referidos no encontrada." });
+                }
+            } catch (error) {
+                console.error("Error al obtener configuración de referidos:", error);
+                res.status(500).json({ message: "Error interno del servidor." });
+            }
+        });
+
         app.post('/api/admin/settings', verifyAdminToken, async (req, res) => {
             const { key, value } = req.body;
             if (!key || typeof value !== 'string') {
@@ -1716,27 +1745,43 @@ app.post('/register', async (req, res) => {
         app.get('/api/admin/dashboard-stats', verifyAdminToken, async (req, res) => {
             const client = await pool.connect();
             try {
-                const [usersData, publicationsData, tokensData, platformWalletData] = await Promise.all([
-                    client.query('SELECT COUNT(*) AS total_users FROM users'),
+                // EXCLUIR USUARIO DE PLATAFORMA Y FONDOS DE IMPULSORES
+                const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
+                
+                const [usersData, publicationsData, tokensData, platformWalletData, boosterFundsData] = await Promise.all([
+                    client.query('SELECT COUNT(*) AS total_users FROM users WHERE username != $1', [platformUsername]),
                     client.query(`
                         SELECT COUNT(DISTINCT p.id) AS active_publications FROM publications p
                         LEFT JOIN publication_acceptances pa ON p.id = pa.publication_id
                         WHERE pa.status IS NULL OR pa.status != 'confirmed_paid'
                     `),
-                    client.query('SELECT SUM(liquid_blue_balance + escrow_blue_balance) AS users_total_blue, SUM(red_balance) AS total_red FROM users'),
-                    client.query('SELECT total_blue_commission_balance FROM platform_wallet WHERE id = 1')
+                    // SOLO tokens reales en circulación (excluyendo plataforma y fondos de impulsores)
+                    client.query(`
+                        SELECT 
+                            SUM(liquid_blue_balance + escrow_blue_balance) AS users_total_blue, 
+                            SUM(red_balance) AS total_red 
+                        FROM users 
+                        WHERE username != $1
+                    `, [platformUsername]),
+                    client.query('SELECT total_blue_commission_balance FROM platform_wallet WHERE id = 1'),
+                    // Fondos de impulsores (NO son tokens en circulación)
+                    client.query('SELECT SUM(amount) AS total_booster_funds FROM booster_blue_ledger')
                 ]);
         
                 const usersTotalBlue = parseFloat(tokensData.rows[0].users_total_blue) || 0;
                 const platformCommissionBalance = parseFloat(platformWalletData.rows[0]?.total_blue_commission_balance) || 0;
+                const totalBoosterFunds = parseFloat(boosterFundsData.rows[0]?.total_booster_funds) || 0;
+                
+                // SOLO tokens reales en circulación (excluyendo fondos de impulsores)
                 const totalBlueInSystem = usersTotalBlue + platformCommissionBalance;
         
                 const stats = {
                     totalUsers: parseInt(usersData.rows[0].total_users, 10),
                     activePublications: parseInt(publicationsData.rows[0].active_publications, 10),
-                    totalBlue: totalBlueInSystem,
+                    totalBlue: totalBlueInSystem, // SOLO tokens reales en circulación
                     totalRed: parseFloat(tokensData.rows[0].total_red) || 0,
-                    platformCommissionBalance: platformCommissionBalance
+                    platformCommissionBalance: platformCommissionBalance,
+                    totalBoosterFunds: totalBoosterFunds // Información separada (NO son tokens en circulación)
                 };
         
                 res.status(200).json(stats);
@@ -2971,5 +3016,31 @@ app.post('/settings', verifyAdminToken, async (req, res) => {
     } catch (error) {
         console.error('Error al actualizar la configuración:', error);
         res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});
+
+app.get('/api/platform-settings', async (req, res) => {
+    try {
+        const settingsKeys = [
+            'pre_launch_mode_enabled',
+            'allow_request_publications',
+            'allow_sell_publications',
+            'allow_donation_publications'
+        ];
+        const result = await pool.query(`
+            SELECT setting_key, setting_value 
+            FROM app_settings 
+            WHERE setting_key = ANY($1::text[])
+        `, [settingsKeys]);
+
+        const settings = result.rows.reduce((acc, row) => {
+            acc[row.setting_key] = row.setting_value === 'true';
+            return acc;
+        }, {});
+
+        res.status(200).json(settings);
+    } catch (error) {
+        console.error("Error al obtener la configuración de la plataforma:", error);
+        res.status(500).json({ message: "Error interno del servidor." });
     }
 });

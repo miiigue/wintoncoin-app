@@ -40,3 +40,19 @@ La quema de tokens es la eliminación simultánea de `BLUE` y `RED` del sistema.
 
 -   **Bono de Bienvenida**: Los nuevos usuarios que se registran **sin** un código de referido reciben un bono de bienvenida. Este bono se acredita directamente en su perfil de impulsor, no en su billetera principal.
 -   **Recompensa por Referido**: Cuando un usuario se registra con el código de otro, tanto el referente como el referido reciben una recompensa. Estas recompensas también se acreditan exclusivamente en sus respectivos perfiles de impulsor. 
+
+---
+
+### Anexo A: Fase de Pre-Lanzamiento (Temporal)
+
+Durante la fase inicial de pre-lanzamiento, se aplican las siguientes modificaciones temporales a las reglas económicas para fomentar la participación temprana y construir una comunidad de impulsores sólida sin afectar la economía principal de tokens. El administrador de la plataforma controla la activación de esta fase.
+
+-   **Suspensión de Creación de Tokens (`BLUE`/`RED`)**: La creación de tokens `BLUE` y `RED` por la finalización de tareas **está completamente suspendida**. Los saldos de la billetera principal (`liquid_blue_balance`, `escrow_blue_balance`, `red_balance`) de los usuarios no se verán afectados por la actividad de publicación. El balance económico del sistema se mantiene en CERO.
+
+-   **Acumulación Exclusiva en Perfil de Impulsor**: Todas las recompensas obtenidas por completar tareas (de cualquier tipo: solicitud, venta o donación) durante esta fase se acreditan **exclusivamente** al `booster_blue_ledger` del usuario beneficiario. Esto se registra como una deuda futura que la plataforma tiene con el usuario, pagadera según las reglas del sistema de impulsores.
+
+-   **No se generan Deudas `RED`**: Dado que no se crea `BLUE` circulante, el usuario que publica una tarea **no incurre en ninguna deuda `RED`**.
+
+-   **Sin Comisiones de Plataforma**: Al no haber un flujo real de tokens `BLUE` como pago, la plataforma **no cobra comisiones** por las transacciones completadas durante esta fase.
+
+-   **Control de Tipos de Publicación**: El administrador puede habilitar o deshabilitar de forma independiente la capacidad de crear tipos específicos de publicaciones (`solicitud`, `venta`, `donación`) para guiar la actividad de la plataforma durante esta fase. 

@@ -178,25 +178,202 @@ a:hover {
 }
 
 /* --- Estilos para la Página de Interacción --- */
-.saldo-container {
+/* --- Contenedor de Balances Moderno --- */
+.balances-container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
-    background-color: var(--background-color);
-    padding: 1.5rem;
-    border-radius: 10px;
     margin-bottom: 2rem;
 }
 
-.saldo-item p {
-    margin: 0;
-    color: var(--text-secondary-color);
+.balance-section {
+    background: linear-gradient(135deg, var(--surface-color) 0%, var(--background-color) 100%);
+    border-radius: 16px;
+    padding: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
 }
 
-.saldo-item span {
-    font-size: 1.5rem;
+.balance-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent 0%, currentColor 50%, transparent 100%);
+    opacity: 0.6;
+}
+
+.blue-section {
+    border-color: rgba(52, 152, 219, 0.3);
+}
+
+.blue-section::before {
+    background: linear-gradient(90deg, transparent 0%, #3498db 50%, transparent 100%);
+}
+
+.red-section {
+    border-color: rgba(231, 76, 60, 0.3);
+}
+
+.red-section::before {
+    background: linear-gradient(90deg, transparent 0%, #e74c3c 50%, transparent 100%);
+}
+
+.balance-title {
+    margin: 0 0 1rem 0;
+    font-size: 1.1rem;
     font-weight: 600;
     color: var(--text-color);
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.balance-items {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.balance-item-wrapper {
+    display: flex;
+    flex-direction: column;
+}
+
+.balance-item {
+    display: flex;
+    justify-content: center; /* Centramos el monto */
+    align-items: center;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    text-align: center;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.balance-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-1px);
+}
+
+.balance-label {
+    color: var(--text-secondary-color);
+    font-size: 0.8rem; /* Letra más pequeña */
+    font-weight: 500;
+    text-align: center; /* Centramos la etiqueta */
+    margin-bottom: 0.4rem; /* Espacio entre etiqueta y recuadro */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.balance-amount {
+    font-size: 1.3rem;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+}
+
+.blue-amount {
+    color: #3498db;
+}
+
+.escrow-amount {
+    color: #8e44ad;
+}
+
+.red-amount {
+    color: #e74c3c;
+}
+
+.burn-item {
+    justify-content: center;
+    padding: 0.5rem;
+}
+
+.burn-item .burn-trigger {
+    width: 100%;
+    max-width: 200px;
+    font-size: 0.9rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    border: none;
+    color: white;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+}
+
+.burn-item .burn-trigger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+    background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);
+}
+
+.burn-item .fire-icon {
+    font-size: 1rem;
+    animation: fire-flicker 1.5s infinite alternate;
+}
+
+/* Responsive para móviles */
+@media (max-width: 768px) {
+    .balances-container {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .balance-section {
+        padding: 1.25rem;
+    }
+    
+    .balance-amount {
+        font-size: 1.1rem;
+    }
+    
+    .balance-title {
+        font-size: 1rem;
+    }
+    
+    .balance-item {
+        padding: 0.6rem;
+    }
+    
+    .balance-label {
+        font-size: 0.85rem;
+    }
+}
+
+/* Responsive para móviles pequeños */
+@media (max-width: 480px) {
+    .balances-container {
+        gap: 0.75rem;
+    }
+    
+    .balance-section {
+        padding: 1rem;
+    }
+    
+    .balance-amount {
+        font-size: 1rem;
+    }
+    
+    .balance-title {
+        font-size: 0.95rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .balance-item {
+        padding: 0.5rem;
+    }
+    
+    .burn-item .burn-trigger {
+        font-size: 0.85rem;
+        padding: 0.6rem 0.8rem;
+    }
 }
 
 /* --- Estilos para el Contador de Deuda y Escrow (REFACTORIZADO A UNA LÍNEA) --- */
@@ -344,7 +521,7 @@ hr {
 /* --- Sección de Publicaciones --- */
 .publications-section {
     text-align: left;
-    margin-top: 2rem;
+    margin-top: 1rem;
 }
 
 #publications-list {
@@ -1640,4 +1817,184 @@ hr {
 }
 .action-button.burn-button:hover {
     background-color: #c0392b; /* Rojo más oscuro */
+}
+
+/* --- Estilos para la Sección de Motivación de Referidos (Solo en la página principal) --- */
+.referral-motivation-section {
+    margin: 1rem 0;
+}
+
+.referral-motivation-section .referral-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.25);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    user-select: none;
+}
+
+.referral-motivation-section .referral-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+    transform: translateX(-100%);
+    transition: transform 0.6s ease;
+}
+
+.referral-motivation-section .referral-card:hover::before {
+    transform: translateX(100%);
+}
+
+.referral-motivation-section .referral-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
+.referral-motivation-section .referral-card:active {
+    transform: translateY(0px);
+    box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+}
+
+.referral-motivation-section .referral-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.referral-motivation-section .referral-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+}
+
+.referral-motivation-section .referral-icon {
+    font-size: 1.5rem;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+.referral-motivation-section .referral-text {
+    color: white;
+    font-size: 0.95rem;
+    font-weight: 500;
+    line-height: 1.3;
+}
+
+.referral-motivation-section .referral-text #referralAmount {
+    font-weight: 700;
+    color: #ffd700;
+    font-size: 1rem;
+}
+
+.referral-motivation-section .referral-action {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.8rem;
+    font-weight: 400;
+    font-style: italic;
+    transition: all 0.3s ease;
+}
+
+.referral-motivation-section .share-text {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.7rem;
+    font-style: italic;
+}
+
+.referral-motivation-section .referral-card:hover .referral-action {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.referral-motivation-section .referral-card:hover .share-text {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Responsive para móviles */
+@media (max-width: 480px) {
+    .referral-motivation-section .referral-content {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.75rem;
+    }
+    
+    .referral-motivation-section .referral-header {
+        justify-content: center;
+    }
+    
+    .referral-motivation-section .referral-icon {
+        font-size: 1.25rem;
+    }
+    
+    .referral-motivation-section .referral-text {
+        font-size: 0.9rem;
+    }
+    
+    .referral-motivation-section .referral-button {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+    }
+}
+
+.modal-option-button.disabled {
+    background: #2a2a3e; /* Fondo más oscuro */
+    cursor: not-allowed;
+    opacity: 0.5;
+    transform: none; /* Sin efecto de elevación */
+}
+
+.modal-option-button.disabled:hover {
+    background: #2a2a3e; /* Mismo fondo en hover */
+    box-shadow: none; /* Sin sombra */
+    transform: none;
+}
+
+.modal-option-button.disabled .option-icon,
+.modal-option-button.disabled h3,
+.modal-option-button.disabled p {
+    color: #6a6a7e; /* Texto y icono apagados */
+}
+
+.modal-option-button.disabled .option-icon {
+    transform: none; /* Sin animación en el icono */
+}
+
+/* --- Aviso de Pre-lanzamiento --- */
+.prelaunch-notice {
+    background: linear-gradient(135deg, #3a3a5e, #1e1e2f);
+    border-left: 5px solid var(--primary-color);
+    border-radius: 8px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.prelaunch-notice h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.prelaunch-notice p {
+    margin: 0;
+    color: var(--text-secondary-color);
+    line-height: 1.6;
 }

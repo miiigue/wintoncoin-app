@@ -34,8 +34,8 @@
             <div class="dropdown-content" id="profileDropdown">
                 <a href="history.html">Historial</a>
                 <a href="transactions.html">Transacciones</a>
-                <a href="referrals.html">Mis Referidos</a>
-                <a href="booster-profile.html">Mi Perfil de Impulsor</a>
+                <a href="referrals.html">Referidos</a>
+                <a href="booster-profile.html">Perfil de Impulsor</a>
                 <a href="#" id="logoutLink">Cerrar Sesión</a>
             </div>
         </div>
@@ -44,36 +44,64 @@
     <div class="container"> <!-- Contenedor para centrar y dar estilo -->
         <h1>Billetera WintonCoin</h1>
         
-        <div class="saldo-container">
-            <div class="saldo-item">
-                <p>Saldo BLUE (Disponible)</p>
-                <span id="saldoBlue">--</span>
-            </div>
-            <div class="saldo-item">
-                <p>Saldo BLUE (Pendientes)</p>
-                <span id="saldoEscrowBlue">--</span>
-                <div id="escrow-countdown-container" class="countdown-container" style="display: none;">
-                    <p id="escrow-countdown-text" class="countdown-text"></p>
+        <div class="balances-container">
+            <!-- Sección BLUE -->
+            <div class="balance-section blue-section">
+                <h3 class="balance-title">Saldo BLUE</h3>
+                <div class="balance-items">
+                    <div class="balance-item-wrapper">
+                        <span class="balance-label">Disponibles</span>
+                        <div class="balance-item">
+                            <span id="saldoBlue" class="balance-amount blue-amount">--</span>
+                        </div>
+                    </div>
+                    <div class="balance-item-wrapper">
+                        <span class="balance-label">Pendientes</span>
+                        <div class="balance-item">
+                            <span id="saldoEscrowBlue" class="balance-amount escrow-amount">--</span>
+                            <div id="escrow-countdown-container" class="countdown-container" style="display: none;">
+                                <p id="escrow-countdown-text" class="countdown-text"></p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="saldo-item">
-                <p>Saldo RED</p>
-                <span id="saldoRed">--</span>
-                <div id="debt-countdown-container" class="countdown-container" style="display: none;">
-                    <p id="debt-countdown-text" class="countdown-text"></p>
+
+            <!-- Sección RED -->
+            <div class="balance-section red-section">
+                <h3 class="balance-title">Saldo RED</h3>
+                <div class="balance-items">
+                    <div class="balance-item-wrapper">
+                        <span class="balance-label">Saldo</span>
+                        <div class="balance-item">
+                            <span id="saldoRed" class="balance-amount red-amount">--</span>
+                            <div id="debt-countdown-container" class="countdown-container" style="display: none;">
+                                <p id="debt-countdown-text" class="countdown-text"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="balance-item burn-item">
+                        <button class="action-button burn-trigger" id="burnTriggerBtn">
+                            <span class="fire-icon">🔥</span> Quemar <span class="fire-icon">🔥</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
-        <button class="action-button burn-trigger" id="burnTriggerBtn"><span class="fire-icon">🔥</span> Quemar <span class="fire-icon">🔥</span></button>
 
-        <hr>
+        <div class="referral-motivation-section">
+            <div class="referral-card" id="shareReferralCard">
+                <div class="referral-content">
+                    <div class="referral-header">
+                        <span class="referral-icon">🎁</span>
+                        <span class="referral-text">¡Comparte tu código y gana <span id="referralAmount">10</span> BLUE por referido!</span>
+                    </div>
 
-        <div id="contractForm-placeholder"></div>
-
-        <hr>
+                </div>
+            </div>
+        </div>
 
         <div class="publications-section">
-            <h2>Últimas Publicaciones</h2>
             <a href="#" id="openPublicationModalBtn" class="button-link">Crear Nueva Publicación</a>
             <div id="publications-list">
                 <!-- Las publicaciones se cargarán aquí dinámicamente -->
