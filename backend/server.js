@@ -3128,6 +3128,7 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
 async function processDirectPaymentCompletion(client, acceptance, pubId, preLaunchMode, settings) {
     const { blue_cost, title, author_username: recipient, acceptance_id, category, completerUsername: payer } = acceptance;
     const cost = parseFloat(blue_cost);
+    let resultMessage; // Usaremos una variable para el mensaje de retorno
 
     if (preLaunchMode) {
         // --- MODO PRE-LANZAMIENTO: Transferencia desde el perfil de impulsor ---
@@ -3158,7 +3159,7 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         const recipientNotification = `Has recibido ${cost.toFixed(4)} BLUE en tu perfil de impulsor de ${payer} para "${title}".`;
         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [recipient, recipientNotification]);
 
-        return { success: true, message: "Transferencia completada exitosamente desde tu perfil de impulsor." };
+        resultMessage = "Transferencia completada exitosamente desde tu perfil de impulsor.";
     } else {
         // --- MODO NORMAL: Creación de tokens RED/BLUE ---
         const debtInterval = `${settings.debt_cycle_days || 30} days ${settings.debt_cycle_hours || 0} hours ${settings.debt_cycle_minutes || 0} minutes`;
@@ -3184,6 +3185,11 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         const recipientNotification = `¡Has recibido el pago de ${cost.toFixed(4)} BLUE (en depósito) por "${title}" de parte de ${payer}!`;
         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [recipient, recipientNotification]);
 
-        return { success: true, message: "¡Compra/Donación completada y pagada! Gracias." };
+        resultMessage = "¡Compra/Donación completada y pagada! Gracias.";
     }
+
+    // CORRECCIÓN: Actualizar el estado de la aceptación a 'confirmed_paid'
+    await client.query(`UPDATE publication_acceptances SET status = 'confirmed_paid' WHERE id = $1`, [acceptance_id]);
+
+    return { success: true, message: resultMessage };
 }
