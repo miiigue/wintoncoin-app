@@ -269,23 +269,34 @@ async function runOneTimeDataMigrations(client) {
 // NUEVO: Función de migración de datos para rellenar códigos de referido faltantes.
 async function backfillReferralCodes(client) {
     try {
-        const usersToUpdateResult = await client.query('SELECT id, username FROM users WHERE referral_code IS NULL');
-
-        if (usersToUpdateResult.rowCount > 0) {
-            console.log(`DATA MIGRATION: Se encontraron ${usersToUpdateResult.rowCount} usuarios sin código de referido. Generando ahora...`);
-            
-            for (const user of usersToUpdateResult.rows) {
-                // Reutilizamos el helper que ya creamos para generar códigos únicos.
-                const newCode = await generateUniqueReferralCode(client, user.username);
-                await client.query('UPDATE users SET referral_code = $1 WHERE id = $2', [newCode, user.id]);
-                console.log(` -> Código generado para el usuario: ${user.username}`);
-            }
-            
-            console.log('DATA MIGRATION: ¡Todos los usuarios existentes ahora tienen un código de referido!');
+        // Verificar si la columna referral_code existe antes de intentar usarla
+        const columnCheck = await client.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'users' AND column_name = 'referral_code'
+        `);
+        
+        if (columnCheck.rowCount === 0) {
+            console.log('DATA MIGRATION: La columna referral_code aún no existe, saltando relleno de códigos.');
+            return;
         }
+
+        const usersWithoutCode = await client.query(`
+            SELECT id, username FROM users 
+            WHERE referral_code IS NULL OR referral_code = ''
+        `);
+
+        for (const user of usersWithoutCode.rows) {
+            const referralCode = await generateUniqueReferralCode(client, user.username);
+            await client.query(
+                'UPDATE users SET referral_code = $1 WHERE id = $2',
+                [referralCode, user.id]
+            );
+        }
+        console.log(`DATA MIGRATION: Se generaron códigos de referido para ${usersWithoutCode.rowCount} usuarios.`);
     } catch (error) {
-        // No es un error fatal para el arranque, pero es importante saber que falló.
-        console.error("DATA MIGRATION: Falló el proceso de rellenar los códigos de referido.", error);
+        console.log('DATA MIGRATION: Falló el proceso de rellenar los códigos de referido.', error.message);
+        // No lanzar el error para evitar que falle toda la inicialización
     }
 }
 
@@ -829,20 +840,20 @@ app.post('/register', async (req, res) => {
 
                 if (!typePermissionMap[publicationType]) {
                     throw { status: 403, message: `La creación de publicaciones de tipo "${publicationType}" está desactivada temporalmente.` };
-                }
+            }
         
-                const isSellPost = publicationType === 'sell' || publicationType === 'donation';
-                const costString = (blueSell || blueCost).toString().replace(',', '.');
-                const cost = parseFloat(costString);
+            const isSellPost = publicationType === 'sell' || publicationType === 'donation';
+            const costString = (blueSell || blueCost).toString().replace(',', '.');
+            const cost = parseFloat(costString);
 
-                if (isNaN(cost) || cost <= 0) {
+            if (isNaN(cost) || cost <= 0) {
                     throw { status: 400, message: "El costo o recompensa debe ser un número positivo." };
-                }
+            }
 
-                const slots = availableSlots ? parseInt(availableSlots, 10) : 1;
-                if (isNaN(slots) || slots < 1) {
+            const slots = availableSlots ? parseInt(availableSlots, 10) : 1;
+            if (isNaN(slots) || slots < 1) {
                     throw { status: 400, message: "La cantidad de cupos disponibles debe ser mayor a 0." };
-                }
+            }
         
                 const userResult = await client.query(`SELECT id FROM users WHERE username = $1`, [authorUsername]);
                 if (userResult.rowCount === 0) {
@@ -862,7 +873,7 @@ app.post('/register', async (req, res) => {
                 res.status(error.status || 500).json({ message: error.message || "Error interno del servidor." });
             } finally {
                 client.release();
-            }
+        }
         });
 
         // Ruta para obtener publicaciones activas
@@ -1232,26 +1243,26 @@ app.post('/register', async (req, res) => {
                 } else {
                     // --- MODO NORMAL ---
                     console.log(`MODO NORMAL: Procesando pago de ${cost} BLUE para ${workerUsername}.`);
-                    const debtInterval = `${settings.debt_cycle_days || 30} days ${settings.debt_cycle_hours || 0} hours ${settings.debt_cycle_minutes || 0} minutes`;
-                    const escrowInterval = `${settings.blue_escrow_days || 1} days ${settings.blue_escrow_hours || 0} hours ${settings.blue_escrow_minutes || 0} minutes`;
-                    const commissionPercentage = parseFloat(settings.platform_commission_percentage || '0');
-                    const commissionAmount = cost * (commissionPercentage / 100);
-                    const redForAuthor = cost + commissionAmount;
+                const debtInterval = `${settings.debt_cycle_days || 30} days ${settings.debt_cycle_hours || 0} hours ${settings.debt_cycle_minutes || 0} minutes`;
+                const escrowInterval = `${settings.blue_escrow_days || 1} days ${settings.blue_escrow_hours || 0} hours ${settings.blue_escrow_minutes || 0} minutes`;
+                const commissionPercentage = parseFloat(settings.platform_commission_percentage || '0');
+                const commissionAmount = cost * (commissionPercentage / 100);
+                const redForAuthor = cost + commissionAmount;
 
                     // a. Creación de RED para el autor
-                    await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE username = $2`, [redForAuthor, author]);
-                    await client.query(`INSERT INTO red_token_debts (username, amount, due_at) VALUES ($1, $2, NOW() + INTERVAL '${debtInterval}')`, [author, redForAuthor]);
-                    
+                await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE username = $2`, [redForAuthor, author]);
+                await client.query(`INSERT INTO red_token_debts (username, amount, due_at) VALUES ($1, $2, NOW() + INTERVAL '${debtInterval}')`, [author, redForAuthor]);
+                
                     // b. BLUE en depósito para el trabajador
-                    await client.query(`UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE username = $2`, [cost, workerUsername]);
-                    await client.query(`INSERT INTO blue_token_escrows (username, amount, unlock_at) VALUES ($1, $2, NOW() + INTERVAL '${escrowInterval}')`, [workerUsername, cost]);
-                    
+                await client.query(`UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE username = $2`, [cost, workerUsername]);
+                await client.query(`INSERT INTO blue_token_escrows (username, amount, unlock_at) VALUES ($1, $2, NOW() + INTERVAL '${escrowInterval}')`, [workerUsername, cost]);
+                
                     // c. Comisión para la plataforma
                     await client.query(`INSERT INTO platform_wallet (id, total_blue_commission_balance) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET total_blue_commission_balance = platform_wallet.total_blue_commission_balance + $1`, [commissionAmount]);
                     
                     // d. Registro de transacciones
                     const authorTxResult = await client.query(`INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id, platform_fee_blue) VALUES ($1, 'payment_sent', $2, 0, $3, $4, $5) RETURNING id`, [author, `Pagaste por: "${title}"`, redForAuthor, pubId, commissionAmount]);
-                    const authorTxId = authorTxResult.rows[0].id;
+                const authorTxId = authorTxResult.rows[0].id;
                     await client.query(`INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'payment_received', $2, $3, 0, $4)`, [workerUsername, `Realizaste: "${title}"`, cost, pubId]);
                     
                     // e. Log de comisión
@@ -1276,9 +1287,9 @@ app.post('/register', async (req, res) => {
             } finally {
                 client.release();
             }
-        });
+});
 
-        // Ruta para obtener las notificaciones de un usuario
+// Ruta para obtener las notificaciones de un usuario
         app.get('/notifications/:username', async (req, res) => {
     const { username } = req.params;
             const sql = `SELECT * FROM notifications WHERE recipient_username = $1 AND is_read = FALSE ORDER BY created_at DESC`;
@@ -1290,7 +1301,7 @@ app.post('/register', async (req, res) => {
             }
 });
 
-        // Ruta para marcar notificaciones como leídas
+// Ruta para marcar notificaciones como leídas
         app.post('/notifications/mark-read', async (req, res) => {
     const { username } = req.body;
             const sql = `UPDATE notifications SET is_read = TRUE WHERE recipient_username = $1 AND is_read = FALSE`;
