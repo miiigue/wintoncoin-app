@@ -241,6 +241,16 @@ async function applyMigrations(client) {
                  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_users_referrer_id') THEN
                      CREATE INDEX idx_users_referrer_id ON users(referrer_id);
                  END IF;
+             END $$;`,
+            // MIGRACIÓN 24: Agregar columnas faltantes en ratings y transactions
+            `DO $$
+             BEGIN
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='ratings' AND column_name='rater_username') THEN
+                     ALTER TABLE ratings ADD COLUMN rater_username VARCHAR(255);
+                 END IF;
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transactions' AND column_name='platform_fee_blue') THEN
+                     ALTER TABLE transactions ADD COLUMN platform_fee_blue NUMERIC(19, 4) DEFAULT 0;
+                 END IF;
              END $$;`
         ];
 
