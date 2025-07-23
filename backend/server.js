@@ -251,6 +251,18 @@ async function applyMigrations(client) {
                  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transactions' AND column_name='platform_fee_blue') THEN
                      ALTER TABLE transactions ADD COLUMN platform_fee_blue NUMERIC(19, 4) DEFAULT 0;
                  END IF;
+             END $$;`,
+            // MIGRACIÓN 25: Corregir restricciones de platform_commission_log
+            `DO $$
+             BEGIN
+                 -- Hacer que commission_amount_blue sea NOT NULL para el modo normal
+                 IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='platform_commission_log' AND column_name='commission_amount_blue') THEN
+                     ALTER TABLE platform_commission_log ALTER COLUMN commission_amount_blue SET NOT NULL;
+                 END IF;
+                 -- Hacer que commission_amount sea nullable para el modo pre-lanzamiento
+                 IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='platform_commission_log' AND column_name='commission_amount') THEN
+                     ALTER TABLE platform_commission_log ALTER COLUMN commission_amount DROP NOT NULL;
+                 END IF;
              END $$;`
         ];
 
@@ -1306,18 +1318,46 @@ app.post('/register', async (req, res) => {
 
                 // 2. LÓGICA ECONÓMICA CONDICIONAL (PRE-LANZAMIENTO vs MODO NORMAL)
                 if (preLaunchMode) {
-                    // --- MODO PRE-LANZAMIENTO ---
-                    console.log(`MODO PRE-LANZAMIENTO: Acumulando ${cost} BLUE para ${workerUsername} en perfil de impulsor.`);
-                    
-                    // a. La recompensa va DIRECTO al perfil de impulsor
-                    const workerResult = await client.query('SELECT id FROM users WHERE username = $1', [workerUsername]);
-                    const workerId = workerResult.rows[0].id;
-                    await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, $3)', [workerId, cost, pubId]);
-                    await client.query('UPDATE users SET is_booster = TRUE WHERE id = $1', [workerId]);
-                    await updateUserBoosterLevel(client, workerId);
+                    // Fetch category
+                    const categoryResult = await client.query('SELECT category FROM publications WHERE id = $1', [pubId]);
+                    const category = categoryResult.rows[0]?.category || '';
 
-                    // b. SIN creación de RED, SIN escrow, SIN comisiones, SIN transacciones económicas.
+                    if (category === 'donation') {
+                        // Pre-launch donation transfer
+                        const donorResult = await client.query('SELECT id FROM users WHERE username = $1', [confirmerUsername]);
+                        const donorId = donorResult.rows[0].id;
 
+                        const recipientResult = await client.query('SELECT id FROM users WHERE username = $1', [workerUsername]);
+                        const recipientId = recipientResult.rows[0].id;
+
+                        const donorBalanceResult = await client.query('SELECT SUM(amount) as total FROM booster_blue_ledger WHERE user_id = $1', [donorId]);
+                        const donorBalance = parseFloat(donorBalanceResult.rows[0].total) || 0;
+
+                        if (donorBalance < cost) {
+                            throw { status: 400, message: 'Saldo insuficiente en tu perfil de impulsor para esta donación.' };
+                        }
+
+                        await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, $3)', [donorId, -cost, pubId]);
+                        await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, $3)', [recipientId, cost, pubId]);
+
+                        await client.query('INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, \'donation_sent\', $2, $3)', [donorId, -cost, `Donación a ${title}`]);
+                        await client.query('INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, \'donation_received\', $2, $3)', [recipientId, cost, `Donación de ${confirmerUsername}`]);
+
+                        await client.query('UPDATE users SET is_booster = TRUE WHERE id IN ($1, $2)', [donorId, recipientId]);
+                        await updateUserBoosterLevel(client, donorId);
+                        await updateUserBoosterLevel(client, recipientId);
+
+                        await client.query('INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)', [confirmerUsername, `Donaste ${cost.toFixed(4)} BLUE de tu perfil de impulsor para "${title}".`]);
+                        await client.query('INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)', [workerUsername, `Recibiste donación de ${cost.toFixed(4)} BLUE en tu perfil de impulsor de ${confirmerUsername}.`]);
+                    } else {
+                        // Existing pre-launch logic
+                        console.log(`MODO PRE-LANZAMIENTO: Acumulando ${cost} BLUE para ${workerUsername} en perfil de impulsor.`);
+                        const workerResult = await client.query('SELECT id FROM users WHERE username = $1', [workerUsername]);
+                        const workerId = workerResult.rows[0].id;
+                        await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, $3)', [workerId, cost, pubId]);
+                        await client.query('UPDATE users SET is_booster = TRUE WHERE id = $1', [workerId]);
+                        await updateUserBoosterLevel(client, workerId);
+                    }
                 } else {
                     // --- MODO NORMAL ---
                     console.log(`MODO NORMAL: Procesando pago de ${cost} BLUE para ${workerUsername}.`);

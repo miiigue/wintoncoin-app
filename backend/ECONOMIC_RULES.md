@@ -56,3 +56,5 @@ Durante la fase inicial de pre-lanzamiento, se aplican las siguientes modificaci
 -   **Sin Comisiones de Plataforma**: Al no haber un flujo real de tokens `BLUE` como pago, la plataforma **no cobra comisiones** por las transacciones completadas durante esta fase.
 
 -   **Control de Tipos de Publicación**: El administrador puede habilitar o deshabilitar de forma independiente la capacidad de crear tipos específicos de publicaciones (`solicitud`, `venta`, `donación`) para guiar la actividad de la plataforma durante esta fase. 
+
+-   **Donaciones y Transferencias Limitadas por Perfil de Impulsor**: En esta fase, los usuarios solo pueden donar o transferir BLUE hasta la cantidad acumulada en su perfil de impulsor. La cantidad donada se resta del perfil del donante y se suma al perfil del receptor, manteniendo el balance total del sistema en cero. 

@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!isEnabled) {
                     element.removeAttribute('onclick');
                     element.style.cursor = 'not-allowed';
-                } else {
+            } else {
                     // Restaurar el onclick si es necesario (el HTML lo tiene)
                     const type = element.classList.contains('request') ? 'request' : (element.classList.contains('sell') ? 'sell' : 'donation');
                     element.setAttribute('onclick', `window.location.href='publish.html?type=${type}'`);
@@ -907,7 +907,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.next_unlock_at && parseFloat(data.next_unlock_amount) > 0) {
                     elements.escrowCountdownContainer.style.display = 'block';
                     startEscrowCountdown(data.next_unlock_at, data.next_unlock_amount);
-                } else {
+            } else {
                     elements.escrowCountdownContainer.style.display = 'none';
                     if (escrowCountdownInterval) clearInterval(escrowCountdownInterval);
                 }
