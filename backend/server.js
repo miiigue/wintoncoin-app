@@ -177,7 +177,48 @@ async function applyMigrations(client) {
             // MIGRACIÓN 16: REMOVIDO - Ahora usamos formato key-value en app_settings
             // MIGRACIÓN 17: REMOVIDO - Ahora usamos formato key-value en app_settings
              // MIGRACIÓN 18: Columna is_booster_task en publications
-            `ALTER TABLE publications ADD COLUMN IF NOT EXISTS is_booster_task BOOLEAN NOT NULL DEFAULT FALSE;`
+            `ALTER TABLE publications ADD COLUMN IF NOT EXISTS is_booster_task BOOLEAN NOT NULL DEFAULT FALSE;`,
+            // MIGRACIÓN 19: Agregar columnas faltantes a users si no existen
+            `DO $$
+             BEGIN
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='liquid_blue_balance') THEN
+                     ALTER TABLE users ADD COLUMN liquid_blue_balance NUMERIC(19, 4) NOT NULL DEFAULT 0.0000;
+                 END IF;
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='escrow_blue_balance') THEN
+                     ALTER TABLE users ADD COLUMN escrow_blue_balance NUMERIC(19, 4) NOT NULL DEFAULT 0.0000;
+                 END IF;
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='red_balance') THEN
+                     ALTER TABLE users ADD COLUMN red_balance NUMERIC(19, 4) NOT NULL DEFAULT 0.0000;
+                 END IF;
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='average_rating') THEN
+                     ALTER TABLE users ADD COLUMN average_rating REAL NOT NULL DEFAULT 0;
+                 END IF;
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='ratings_count') THEN
+                     ALTER TABLE users ADD COLUMN ratings_count INTEGER NOT NULL DEFAULT 0;
+                 END IF;
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_booster') THEN
+                     ALTER TABLE users ADD COLUMN is_booster BOOLEAN DEFAULT FALSE;
+                 END IF;
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='booster_level') THEN
+                     ALTER TABLE users ADD COLUMN booster_level INTEGER DEFAULT 1;
+                 END IF;
+             END $$;`,
+            // MIGRACIÓN 20: Corregir publication_acceptances si usa user_id en lugar de acceptor_username
+            `DO $$
+             BEGIN
+                 IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publication_acceptances' AND column_name='user_id') 
+                 AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publication_acceptances' AND column_name='acceptor_username') THEN
+                     ALTER TABLE publication_acceptances ADD COLUMN acceptor_username VARCHAR(255);
+                     ALTER TABLE publication_acceptances DROP COLUMN user_id;
+                 END IF;
+             END $$;`,
+            // MIGRACIÓN 21: Agregar related_user_transaction_id a platform_commission_log si no existe
+            `DO $$
+             BEGIN
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='platform_commission_log' AND column_name='related_user_transaction_id') THEN
+                     ALTER TABLE platform_commission_log ADD COLUMN related_user_transaction_id INTEGER REFERENCES transactions(id) ON DELETE SET NULL;
+                 END IF;
+             END $$;`
         ];
 
         for (const migration of migrations) {
