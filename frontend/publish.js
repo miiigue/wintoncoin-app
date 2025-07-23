@@ -11,6 +11,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const noticeContainer = document.getElementById('commission-notice-container');
     const preLaunchNoticeContainer = document.getElementById('prelaunch-notice-container'); // NUEVO
 
+    // --- Elementos del formulario que cambiaremos ---
+    const pageTitle = document.querySelector('.container h1');
+    const titleLabel = document.querySelector('label[for="title"]');
+    const titleInput = document.getElementById('title');
+    const titleHint = document.querySelector('label[for="title"] + input + small');
+    const descriptionLabel = document.querySelector('label[for="description"]');
+    const descriptionInput = document.getElementById('description');
+    const descriptionHint = document.querySelector('label[for="description"] + textarea + small');
+    const submitButton = document.querySelector('#publishForm button[type="submit"]');
+
     // --- Redirección y Seguridad ---
     if (!storedUsername) {
         showCustomAlert('Debes iniciar sesión para publicar.', () => { window.location.href = 'index.html'; });
@@ -64,16 +74,38 @@ document.addEventListener('DOMContentLoaded', () => {
     if (publicationType === 'request') {
         costWrapper.style.display = 'block';
         sellWrapper.style.display = 'none';
-    } else if (publicationType === 'sell' || publicationType === 'donation') {
+        // No se necesitan cambios de texto para 'request', usa los valores por defecto.
+    } else if (publicationType === 'sell') {
         costWrapper.style.display = 'none';
         sellWrapper.style.display = 'block';
-        // Cambiamos el texto del label si es una donación
-        if (publicationType === 'donation') {
-            const sellLabel = document.querySelector('#sell-wrapper label');
-            if (sellLabel) {
-                sellLabel.textContent = 'Monto Sugerido (en BLUE):';
-            }
+        // Lógica específica para Venta
+        pageTitle.textContent = 'Poner un Artículo o Servicio a la Venta';
+        titleLabel.textContent = 'Nombre del Artículo/Servicio:';
+        titleInput.placeholder = 'Ej: Diseño de logo profesional';
+        titleHint.textContent = 'Un nombre claro y conciso para lo que ofreces.';
+        descriptionLabel.textContent = 'Descripción del Artículo/Servicio:';
+        descriptionInput.placeholder = 'Ej: Ofrezco mis servicios para crear un logo vectorial de alta calidad. Incluye 3 revisiones...';
+        descriptionHint.textContent = 'Detalla qué incluye, tus habilidades, tiempos de entrega, etc.';
+        submitButton.textContent = 'Poner a la Venta';
+
+    } else if (publicationType === 'donation') {
+        costWrapper.style.display = 'none';
+        sellWrapper.style.display = 'block';
+        // Lógica específica para Donación
+        pageTitle.textContent = 'Crear una Campaña de Donación';
+        titleLabel.textContent = 'Título de tu Causa o Campaña:';
+        titleInput.placeholder = 'Ej: Ayuda para medicinas, paraalimentos de nuestro refugio, ';
+        titleHint.textContent = 'Un título inspirador que resuma tu necesidad.';
+        descriptionLabel.textContent = 'Describe tu Causa:';
+        descriptionInput.placeholder = 'Ej: Somos un refugio de animales que necesita fondos para comprar 100kg de alimento este mes...';
+        descriptionHint.textContent = 'Explica por qué necesitas apoyo, para qué se usarán los fondos y cualquier detalle que genere confianza.';
+        
+        const sellLabel = document.querySelector('#sell-wrapper label');
+        if (sellLabel) {
+            sellLabel.textContent = 'Meta de Recaudación (en BLUE):';
         }
+        submitButton.textContent = 'Crear Campaña';
+
     } else {
         showCustomAlert('Tipo de publicación no válido.', () => { window.location.href = 'contract_interaction.html'; });
         return;
