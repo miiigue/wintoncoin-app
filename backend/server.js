@@ -93,15 +93,10 @@ async function applyMigrations(client) {
             );`,
             // MIGRACIÓN 6: Tabla de configuraciones de la aplicación
             `CREATE TABLE IF NOT EXISTS app_settings (
-                id INTEGER PRIMARY KEY CHECK (id = 1),
-                allow_new_registrations BOOLEAN DEFAULT TRUE,
-                allow_new_publications BOOLEAN DEFAULT TRUE,
-                platform_commission_percentage NUMERIC(5, 2) DEFAULT 5.00,
-                public_profiles_enabled BOOLEAN DEFAULT TRUE,
-                debt_system_enabled BOOLEAN DEFAULT TRUE,
-                blue_escrow_days INTEGER DEFAULT 0,
-                blue_escrow_hours INTEGER DEFAULT 0,
-                blue_escrow_minutes INTEGER DEFAULT 5
+                id SERIAL PRIMARY KEY,
+                setting_key VARCHAR(255) UNIQUE NOT NULL,
+                setting_value TEXT NOT NULL,
+                description TEXT
             );`,
             // MIGRACIÓN 7: Añadir campos de email y teléfono a la tabla de usuarios.
             `DO $$
@@ -171,12 +166,8 @@ async function applyMigrations(client) {
                 description TEXT,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );`,
-            // MIGRACIÓN 16: Columnas de bono por referido en app_settings
-            `ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS referral_bonus_enabled BOOLEAN DEFAULT TRUE;`,
-            `ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS referral_bonus_amount NUMERIC(15, 4) DEFAULT 10.0000;`,
-            // MIGRACIÓN 17: Columnas de bono de bienvenida en app_settings
-            `ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS welcome_bonus_enabled BOOLEAN DEFAULT FALSE;`,
-            `ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS welcome_bonus_amount NUMERIC(15, 4) DEFAULT 25.0000;`,
+            // MIGRACIÓN 16: REMOVIDO - Ahora usamos formato key-value en app_settings
+            // MIGRACIÓN 17: REMOVIDO - Ahora usamos formato key-value en app_settings
              // MIGRACIÓN 18: Columna is_booster_task en publications
             `ALTER TABLE publications ADD COLUMN IF NOT EXISTS is_booster_task BOOLEAN NOT NULL DEFAULT FALSE;`
         ];
