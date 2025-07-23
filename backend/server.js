@@ -263,6 +263,16 @@ async function applyMigrations(client) {
                  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='platform_commission_log' AND column_name='commission_amount') THEN
                      ALTER TABLE platform_commission_log ALTER COLUMN commission_amount DROP NOT NULL;
                  END IF;
+             END $$;`,
+            // MIGRACIÓN 26: Fortalecer la columna 'category' en publications
+            `DO $$
+             BEGIN
+                 -- Asegurar que la columna no sea nula
+                 ALTER TABLE publications ALTER COLUMN category SET NOT NULL;
+                 -- Añadir una restricción para asegurar que solo valores válidos sean insertados
+                 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'publications_category_check') THEN
+                     ALTER TABLE publications ADD CONSTRAINT publications_category_check CHECK (category IN ('request', 'sell', 'donation'));
+                 END IF;
              END $$;`
         ];
 
@@ -697,7 +707,7 @@ async function startServer() {
         // --- AHORA DEFINIMOS LAS RUTAS ---
 
         // Ruta de Registro de Usuario (AHORA CON LÓGICA DE REFERIDOS)
-app.post('/register', async (req, res) => {
+        app.post('/register', async (req, res) => {
             const { username, password, email, phone, referral_code } = req.body;
         
             // --- Validación de Entrada ---
@@ -1169,9 +1179,17 @@ app.post('/register', async (req, res) => {
             try {
                 await client.query('BEGIN');
 
-                // Buscamos una solicitud 'aprobada' para este usuario en esta publicación.
+                // 1. FETCH SETTINGS FIRST to check preLaunchMode
+                const settingsResult = await client.query(`
+                    SELECT setting_key, setting_value 
+                    FROM app_settings 
+                    WHERE setting_key = 'pre_launch_mode_enabled'
+                `);
+                const preLaunchMode = settingsResult.rows[0]?.setting_value === 'true';
+
+                // 2. FETCH ACCEPTANCE DATA
                 const acceptanceResult = await client.query(
-                    `SELECT p.blue_cost, p.is_sell_post, p.title, u.username as author_username, pa.id as acceptance_id
+                    `SELECT p.blue_cost, p.is_sell_post, p.title, p.category, u.username as author_username, pa.id as acceptance_id
                      FROM publications p
                      JOIN users u ON p.author_id = u.id
                      JOIN publication_acceptances pa ON p.id = pa.publication_id
@@ -1185,87 +1203,24 @@ app.post('/register', async (req, res) => {
                     throw { status: 404, message: "No se encontró una tarea o compra aprobada para procesar." };
                 }
 
-                // Aquí está la bifurcación de la lógica profesional:
-                if (acceptance.is_sell_post) {
-                    // --- LÓGICA PARA UNA VENTA: El comprador confirma y paga en un solo paso ---
-                    const { blue_cost, title, author_username: seller, acceptance_id } = acceptance;
-                    const cost = parseFloat(blue_cost);
-                    const buyer = completerUsername;
+                // Añadir completerUsername al objeto acceptance para pasarlo a los helpers
+                acceptance.completerUsername = completerUsername;
 
-                    // Obtenemos los intervalos y la nueva comisión de la configuración
-                    const settingKeys = [
-                        'debt_cycle_days', 'debt_cycle_hours', 'debt_cycle_minutes', 
-                        'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes',
-                        'platform_commission_percentage'
-                    ];
-                    const settingsResult = await client.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1::text[])`, [settingKeys]);
-                    const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
-                    const debtInterval = `${settings.debt_cycle_days || 30} days ${settings.debt_cycle_hours || 0} hours ${settings.debt_cycle_minutes || 0} minutes`;
-                    const escrowInterval = `${settings.blue_escrow_days || 1} days ${settings.blue_escrow_hours || 0} hours ${settings.blue_escrow_minutes || 0} minutes`;
-
-                    // --- CÁLCULO DE COMISIÓN ---
-                    const commissionPercentage = parseFloat(settings.platform_commission_percentage || '0');
-                    const commissionAmount = cost * (commissionPercentage / 100);
-                    const redToReceive = cost + commissionAmount; // El comprador asume la comisión en su deuda RED
-
-                    // Realizamos la transacción completa
-                    // 1. El comprador (completerUsername) recibe RED (costo + comisión) y una deuda.
-                    await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE username = $2`, [redToReceive, buyer]);
-                    await client.query(`INSERT INTO red_token_debts (username, amount, due_at) VALUES ($1, $2, NOW() + INTERVAL '${debtInterval}')`, [buyer, redToReceive]);
-                    
-                    // 2. El vendedor (author) recibe BLUE (costo base) en depósito (escrow).
-                    await client.query(`UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE username = $2`, [cost, seller]);
-                    await client.query(`INSERT INTO blue_token_escrows (username, amount, unlock_at) VALUES ($1, $2, NOW() + INTERVAL '${escrowInterval}')`, [seller, cost]);
-
-                    // --- REGISTRO DE COMISIÓN PARA LA PLATAFORMA ---
-                    // 3. Añadir la comisión a la billetera de la plataforma
-                    await client.query(
-                        `INSERT INTO platform_wallet (id, total_blue_commission_balance) VALUES (1, $1)
-                         ON CONFLICT (id) DO UPDATE SET total_blue_commission_balance = platform_wallet.total_blue_commission_balance + $1`,
-                        [commissionAmount]
-                    );
-
-                    // 4. Actualizamos el estado de la aceptación directamente a "pagado".
-                    await client.query(`UPDATE publication_acceptances SET status = 'confirmed_paid' WHERE id = $1`, [acceptance_id]);
-
-                    // 5. Se registran las transacciones para ambos usuarios.
-                    const buyerTxResult = await client.query(
-                        `INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id, platform_fee_blue) 
-                         VALUES ($1, 'purchase_completed', $2, 0, $3, $4, $5) RETURNING id`,
-                        [buyer, `Compraste: "${title}"`, redToReceive, pubId, commissionAmount]
-                    );
-                    const buyerTxId = buyerTxResult.rows[0].id;
-
-                    await client.query(
-                        `INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id) 
-                         VALUES ($1, 'sale_completed', $2, $3, 0, $4)`,
-                        [seller, `Vendiste: "${title}"`, cost, pubId]
-                    );
-                    
-                    // 6. Loguear la comisión ganada por la plataforma
-                    await client.query(
-                        `INSERT INTO platform_commission_log (related_publication_id, related_user_transaction_id, commission_amount_blue) VALUES ($1, $2, $3)`,
-                        [pubId, buyerTxId, commissionAmount]
-                    );
-
-                    // 7. Se notifica al vendedor que ha recibido el pago.
-                    const sellerNotification = `¡Has recibido el pago de ${cost.toFixed(4)} BLUE (en depósito) por "${title}" de parte de ${buyer}!`;
-                    await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [seller, sellerNotification]);
-                    
-                    await client.query('COMMIT');
-                    res.status(200).json({ message: "¡Compra completada y pagada! Gracias." });
-
-                } else {
-                    // --- LÓGICA PARA UNA SOLICITUD: El trabajador marca la tarea como finalizada ---
-                    const { title, author_username, acceptance_id } = acceptance;
-                    await client.query(`UPDATE publication_acceptances SET status = 'completed' WHERE id = $1`, [acceptance_id]);
-                    
-                    const message = `${completerUsername} ha marcado la tarea "${title}" como culminada.`;
-                    await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [author_username, message]);
-        
-                    await client.query('COMMIT');
-                    res.status(200).json({ message: "Tarea marcada como culminada. Esperando la confirmación del autor." });
+                let result;
+                switch (acceptance.category) {
+                    case 'sell':
+                    case 'donation':
+                        result = await processDirectPaymentCompletion(client, acceptance, pubId, preLaunchMode, {}); // settings no son necesarios aquí si ya están dentro
+                        break;
+                    case 'request':
+                        result = await processRequestCompletion(client, acceptance);
+                        break;
+                    default:
+                        throw { status: 400, message: "Categoría de publicación no válida." };
                 }
+                
+                await client.query('COMMIT');
+                res.status(200).json({ message: result.message });
 
             } catch (error) {
                 await client.query('ROLLBACK');
@@ -1309,95 +1264,21 @@ app.post('/register', async (req, res) => {
                 const acceptance = acceptanceResult.rows[0];
                 if (!acceptance) throw { status: 404, message: "No se encontró una tarea completada válida para confirmar." };
 
-                const { blue_cost, is_sell_post, title, author_username: author, acceptance_id } = acceptance;
-                const cost = parseFloat(blue_cost);
-
-                if (is_sell_post) {
-                    throw { status: 500, message: "Error de lógica interna: Esta acción no es aplicable a publicaciones de venta." };
+                // VALIDACIÓN: Esta ruta es solo para 'requests'
+                if (acceptance.category !== 'request') {
+                    throw { status: 400, message: "Esta acción solo es válida para publicaciones de tipo 'solicitud'." };
                 }
-
-                // 2. LÓGICA ECONÓMICA CONDICIONAL (PRE-LANZAMIENTO vs MODO NORMAL)
-                if (preLaunchMode) {
-                    // Fetch category
-                    const categoryResult = await client.query('SELECT category FROM publications WHERE id = $1', [pubId]);
-                    const category = categoryResult.rows[0]?.category || '';
-
-                    if (category === 'donation') {
-                        // Pre-launch donation transfer
-                        const donorResult = await client.query('SELECT id FROM users WHERE username = $1', [confirmerUsername]);
-                        const donorId = donorResult.rows[0].id;
-
-                        const recipientResult = await client.query('SELECT id FROM users WHERE username = $1', [workerUsername]);
-                        const recipientId = recipientResult.rows[0].id;
-
-                        const donorBalanceResult = await client.query('SELECT SUM(amount) as total FROM booster_blue_ledger WHERE user_id = $1', [donorId]);
-                        const donorBalance = parseFloat(donorBalanceResult.rows[0].total) || 0;
-
-                        if (donorBalance < cost) {
-                            throw { status: 400, message: 'Saldo insuficiente en tu perfil de impulsor para esta donación.' };
-                        }
-
-                        await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, $3)', [donorId, -cost, pubId]);
-                        await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, $3)', [recipientId, cost, pubId]);
-
-                        await client.query('INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, \'donation_sent\', $2, $3)', [donorId, -cost, `Donación a ${title}`]);
-                        await client.query('INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, \'donation_received\', $2, $3)', [recipientId, cost, `Donación de ${confirmerUsername}`]);
-
-                        await client.query('UPDATE users SET is_booster = TRUE WHERE id IN ($1, $2)', [donorId, recipientId]);
-                        await updateUserBoosterLevel(client, donorId);
-                        await updateUserBoosterLevel(client, recipientId);
-
-                        await client.query('INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)', [confirmerUsername, `Donaste ${cost.toFixed(4)} BLUE de tu perfil de impulsor para "${title}".`]);
-                        await client.query('INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)', [workerUsername, `Recibiste donación de ${cost.toFixed(4)} BLUE en tu perfil de impulsor de ${confirmerUsername}.`]);
-                    } else {
-                        // Existing pre-launch logic
-                        console.log(`MODO PRE-LANZAMIENTO: Acumulando ${cost} BLUE para ${workerUsername} en perfil de impulsor.`);
-                        const workerResult = await client.query('SELECT id FROM users WHERE username = $1', [workerUsername]);
-                        const workerId = workerResult.rows[0].id;
-                        await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, $3)', [workerId, cost, pubId]);
-                        await client.query('UPDATE users SET is_booster = TRUE WHERE id = $1', [workerId]);
-                        await updateUserBoosterLevel(client, workerId);
-                    }
-                } else {
-                    // --- MODO NORMAL ---
-                    console.log(`MODO NORMAL: Procesando pago de ${cost} BLUE para ${workerUsername}.`);
-                const debtInterval = `${settings.debt_cycle_days || 30} days ${settings.debt_cycle_hours || 0} hours ${settings.debt_cycle_minutes || 0} minutes`;
-                const escrowInterval = `${settings.blue_escrow_days || 1} days ${settings.blue_escrow_hours || 0} hours ${settings.blue_escrow_minutes || 0} minutes`;
-                const commissionPercentage = parseFloat(settings.platform_commission_percentage || '0');
-                const commissionAmount = cost * (commissionPercentage / 100);
-                const redForAuthor = cost + commissionAmount;
-
-                    // a. Creación de RED para el autor
-                await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE username = $2`, [redForAuthor, author]);
-                await client.query(`INSERT INTO red_token_debts (username, amount, due_at) VALUES ($1, $2, NOW() + INTERVAL '${debtInterval}')`, [author, redForAuthor]);
                 
-                    // b. BLUE en depósito para el trabajador
-                await client.query(`UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE username = $2`, [cost, workerUsername]);
-                await client.query(`INSERT INTO blue_token_escrows (username, amount, unlock_at) VALUES ($1, $2, NOW() + INTERVAL '${escrowInterval}')`, [workerUsername, cost]);
+                // Añadir workerUsername al objeto acceptance
+                acceptance.workerUsername = workerUsername;
                 
-                    // c. Comisión para la plataforma
-                    await client.query(`INSERT INTO platform_wallet (id, total_blue_commission_balance) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET total_blue_commission_balance = platform_wallet.total_blue_commission_balance + $1`, [commissionAmount]);
-                    
-                    // d. Registro de transacciones
-                    const authorTxResult = await client.query(`INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id, platform_fee_blue) VALUES ($1, 'payment_sent', $2, 0, $3, $4, $5) RETURNING id`, [author, `Pagaste por: "${title}"`, redForAuthor, pubId, commissionAmount]);
-                const authorTxId = authorTxResult.rows[0].id;
-                    await client.query(`INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'payment_received', $2, $3, 0, $4)`, [workerUsername, `Realizaste: "${title}"`, cost, pubId]);
-                    
-                    // e. Log de comisión
-                    await client.query(`INSERT INTO platform_commission_log (related_publication_id, related_user_transaction_id, commission_amount_blue) VALUES ($1, $2, $3)`, [pubId, authorTxId, commissionAmount]);
-                }
+                const result = await processRequestPayment(client, acceptance, pubId, preLaunchMode, settings);
+                
+                await client.query(`UPDATE publication_acceptances SET status = 'confirmed_paid' WHERE id = $1`, [acceptance.acceptance_id]);
 
-                // 3. ACTUALIZACIONES FINALES (COMUNES A AMBOS MODOS)
-                await client.query(`UPDATE publication_acceptances SET status = 'confirmed_paid' WHERE id = $1`, [acceptance_id]);
-                
-                const notificationMessage = preLaunchMode
-                    ? `¡Has acumulado ${cost.toFixed(4)} BLUE en tu Perfil de Impulsor por la tarea "${title}"!`
-                    : `¡Has recibido ${cost.toFixed(4)} BLUE (en depósito) por la tarea "${title}"!`;
-                await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [workerUsername, notificationMessage]);
-                
                 await client.query('COMMIT');
-                res.status(200).json({ message: "Pago confirmado y tarea finalizada." });
-
+                res.status(200).json({ message: result.message });
+                
             } catch (error) {
                 await client.query('ROLLBACK');
                 console.error("Error en confirm-payment:", error);
@@ -3173,3 +3054,136 @@ app.get('/api/platform-settings', async (req, res) => {
         res.status(500).json({ message: "Error interno del servidor." });
     }
 });
+
+// ===================================================================================
+// == FUNCIONES AUXILIARES DE LÓGICA DE NEGOCIO (HELPERS)
+// ===================================================================================
+
+/**
+ * Procesa la finalización de una publicación de tipo 'solicitud'.
+ * Solo actualiza el estado a 'completed' y notifica al autor.
+ */
+async function processRequestCompletion(client, acceptance) {
+    const { title, author_username, acceptance_id, completerUsername } = acceptance;
+    await client.query(`UPDATE publication_acceptances SET status = 'completed' WHERE id = $1`, [acceptance_id]);
+    
+    const message = `${completerUsername} ha marcado la tarea "${title}" como culminada.`;
+    await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [author_username, message]);
+    
+    return { success: true, message: "Tarea marcada como culminada. Esperando la confirmación del autor." };
+}
+
+/**
+ * Procesa el pago final para una publicación de tipo 'solicitud'.
+ * Maneja la lógica económica tanto para el modo normal como para el pre-lanzamiento.
+ */
+async function processRequestPayment(client, acceptance, pubId, preLaunchMode, settings) {
+    const { blue_cost, title, author_username: author, workerUsername } = acceptance;
+    const cost = parseFloat(blue_cost);
+
+    if (preLaunchMode) {
+        // --- MODO PRE-LANZAMIENTO ---
+        console.log(`MODO PRE-LANZAMIENTO: Acumulando ${cost} BLUE para ${workerUsername} en perfil de impulsor.`);
+        const workerResult = await client.query('SELECT id FROM users WHERE username = $1', [workerUsername]);
+        const workerId = workerResult.rows[0].id;
+        await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, $3)', [workerId, cost, pubId]);
+        await client.query('UPDATE users SET is_booster = TRUE WHERE id = $1', [workerId]);
+        await updateUserBoosterLevel(client, workerId);
+    } else {
+        // --- MODO NORMAL ---
+        const debtInterval = `${settings.debt_cycle_days || 30} days ${settings.debt_cycle_hours || 0} hours ${settings.debt_cycle_minutes || 0} minutes`;
+        const escrowInterval = `${settings.blue_escrow_days || 1} days ${settings.blue_escrow_hours || 0} hours ${settings.blue_escrow_minutes || 0} minutes`;
+        const commissionPercentage = parseFloat(settings.platform_commission_percentage || '0');
+        const commissionAmount = cost * (commissionPercentage / 100);
+        const redForAuthor = cost + commissionAmount;
+
+        await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE username = $2`, [redForAuthor, author]);
+        await client.query(`INSERT INTO red_token_debts (username, amount, due_at) VALUES ($1, $2, NOW() + INTERVAL '${debtInterval}')`, [author, redForAuthor]);
+        
+        await client.query(`UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE username = $2`, [cost, workerUsername]);
+        await client.query(`INSERT INTO blue_token_escrows (username, amount, unlock_at) VALUES ($1, $2, NOW() + INTERVAL '${escrowInterval}')`, [workerUsername, cost]);
+        
+        await client.query(`INSERT INTO platform_wallet (id, total_blue_commission_balance) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET total_blue_commission_balance = platform_wallet.total_blue_commission_balance + $1`, [commissionAmount]);
+        
+        const authorTxResult = await client.query(`INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id, platform_fee_blue) VALUES ($1, 'payment_sent', $2, 0, $3, $4, $5) RETURNING id`, [author, `Pagaste por: "${title}"`, redForAuthor, pubId, commissionAmount]);
+        const authorTxId = authorTxResult.rows[0].id;
+        await client.query(`INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'payment_received', $2, $3, 0, $4)`, [workerUsername, `Realizaste: "${title}"`, cost, pubId]);
+        
+        await client.query(`INSERT INTO platform_commission_log (related_publication_id, related_user_transaction_id, commission_amount_blue) VALUES ($1, $2, $3)`, [pubId, authorTxId, commissionAmount]);
+    }
+    
+    const notificationMessage = preLaunchMode
+        ? `¡Has acumulado ${cost.toFixed(4)} BLUE en tu Perfil de Impulsor por la tarea "${title}"!`
+        : `¡Has recibido ${cost.toFixed(4)} BLUE (en depósito) por la tarea "${title}"!`;
+    await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [workerUsername, notificationMessage]);
+
+    return { success: true, message: "Pago confirmado y tarea finalizada." };
+}
+
+
+/**
+ * Procesa la finalización de una publicación de tipo 'sell' o 'donation'.
+ * Maneja la lógica económica de pago en un solo paso.
+ */
+async function processDirectPaymentCompletion(client, acceptance, pubId, preLaunchMode, settings) {
+    const { blue_cost, title, author_username: recipient, acceptance_id, category, completerUsername: payer } = acceptance;
+    const cost = parseFloat(blue_cost);
+
+    if (preLaunchMode) {
+        // --- MODO PRE-LANZAMIENTO: Transferencia desde el perfil de impulsor ---
+        const payerResult = await client.query('SELECT id FROM users WHERE username = $1', [payer]);
+        const payerId = payerResult.rows[0].id;
+        const recipientResult = await client.query('SELECT id FROM users WHERE username = $1', [recipient]);
+        const recipientId = recipientResult.rows[0].id;
+
+        const payerBalanceResult = await client.query('SELECT SUM(amount) as total FROM booster_blue_ledger WHERE user_id = $1', [payerId]);
+        const payerBalance = parseFloat(payerBalanceResult.rows[0].total) || 0;
+
+        if (payerBalance < cost) {
+            throw { status: 400, message: 'Saldo insuficiente en tu perfil de impulsor para esta acción.' };
+        }
+
+        await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, $3)', [payerId, -cost, pubId]);
+        await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, $3)', [recipientId, cost, pubId]);
+        
+        await client.query('INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, $2, $3, $4)', [payerId, `${category}_sent`, -cost, `Envío para: "${title}"`]);
+        await client.query('INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, $2, $3, $4)', [recipientId, `${category}_received`, cost, `Recibido de ${payer} para: "${title}"`]);
+        
+        await client.query('UPDATE users SET is_booster = TRUE WHERE id IN ($1, $2)', [payerId, recipientId]);
+        await updateUserBoosterLevel(client, payerId);
+        await updateUserBoosterLevel(client, recipientId);
+        
+        const payerNotification = `Has transferido ${cost.toFixed(4)} BLUE de tu perfil de impulsor para "${title}".`;
+        await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [payer, payerNotification]);
+        const recipientNotification = `Has recibido ${cost.toFixed(4)} BLUE en tu perfil de impulsor de ${payer} para "${title}".`;
+        await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [recipient, recipientNotification]);
+
+        return { success: true, message: "Transferencia completada exitosamente desde tu perfil de impulsor." };
+    } else {
+        // --- MODO NORMAL: Creación de tokens RED/BLUE ---
+        const debtInterval = `${settings.debt_cycle_days || 30} days ${settings.debt_cycle_hours || 0} hours ${settings.debt_cycle_minutes || 0} minutes`;
+        const escrowInterval = `${settings.blue_escrow_days || 1} days ${settings.blue_escrow_hours || 0} hours ${settings.blue_escrow_minutes || 0} minutes`;
+        const commissionPercentage = parseFloat(settings.platform_commission_percentage || '0');
+        const commissionAmount = cost * (commissionPercentage / 100);
+        const redForPayer = cost + commissionAmount;
+
+        await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE username = $2`, [redForPayer, payer]);
+        await client.query(`INSERT INTO red_token_debts (username, amount, due_at) VALUES ($1, $2, NOW() + INTERVAL '${debtInterval}')`, [payer, redForPayer]);
+        
+        await client.query(`UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE username = $2`, [cost, recipient]);
+        await client.query(`INSERT INTO blue_token_escrows (username, amount, unlock_at) VALUES ($1, $2, NOW() + INTERVAL '${escrowInterval}')`, [recipient, cost]);
+        
+        await client.query(`INSERT INTO platform_wallet (id, total_blue_commission_balance) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET total_blue_commission_balance = platform_wallet.total_blue_commission_balance + $1`, [commissionAmount]);
+        
+        const payerTxResult = await client.query(`INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id, platform_fee_blue) VALUES ($1, 'payment_sent', $2, 0, $3, $4, $5) RETURNING id`, [payer, `Pagaste por: "${title}"`, redForPayer, pubId, commissionAmount]);
+        const payerTxId = payerTxResult.rows[0].id;
+        await client.query(`INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'payment_received', $2, $3, 0, $4)`, [recipient, `Recibiste por: "${title}"`, cost, pubId]);
+        
+        await client.query(`INSERT INTO platform_commission_log (related_publication_id, related_user_transaction_id, commission_amount_blue) VALUES ($1, $2, $3)`, [pubId, payerTxId, commissionAmount]);
+        
+        const recipientNotification = `¡Has recibido el pago de ${cost.toFixed(4)} BLUE (en depósito) por "${title}" de parte de ${payer}!`;
+        await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [recipient, recipientNotification]);
+
+        return { success: true, message: "¡Compra/Donación completada y pagada! Gracias." };
+    }
+}
