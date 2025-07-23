@@ -261,7 +261,14 @@ async function resetDatabase() {
             ['platform_commission_percentage', '5', 'Porcentaje de comisión para la plataforma (ej: 5 para 5%).'],
             ['referral_system_enabled', 'true', 'Activa el sistema de referidos para nuevos registros.'],
             ['referral_reward_amount', '10', 'Cantidad de BLUE que ganan el referente y el referido al registrarse.'],
-            ['booster_system_enabled', 'true', 'Activa el sistema de Impulsores y su lógica de pagos mensuales.']
+            ['booster_system_enabled', 'true', 'Activa el sistema de Impulsores y su lógica de pagos mensuales.'],
+            ['welcome_bonus_enabled', 'true', 'Activa o desactiva el bono de bienvenida.'],
+            ['welcome_bonus_amount', '25', 'Cantidad de BLUE que se otorga al registrarse sin código de referido.'],
+            // --- NUEVAS CONFIGURACIONES DE FASES Y PUBLICACIONES ---
+            ['pre_launch_mode_enabled', 'false', 'Activa el modo pre-lanzamiento (todas las ganancias a perfil impulsor).'],
+            ['allow_request_publications', 'true', 'Permitir crear publicaciones de tipo "Solicitud".'],
+            ['allow_sell_publications', 'true', 'Permitir crear publicaciones de tipo "Venta".'],
+            ['allow_donation_publications', 'true', 'Permitir crear publicaciones de tipo "Donación".']
         ];
         
         for (const setting of defaultSettings) {
