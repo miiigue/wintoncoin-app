@@ -61,6 +61,9 @@ document.addEventListener('DOMContentLoaded', () => {
         saldoEscrowBlue: document.getElementById('saldoEscrowBlue'),
         escrowCountdownContainer: document.getElementById('escrow-countdown-container'),
         escrowCountdownText: document.getElementById('escrow-countdown-text'),
+        // --- Elementos para el contador de disponibles ---
+        availableCountdownContainer: document.getElementById('available-countdown-container'),
+        availableCountdownText: document.getElementById('available-countdown-text'),
         authoredList: document.getElementById('authored-publications-list'),
         completedList: document.getElementById('completed-publications-list')
     };
@@ -68,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Variable global para el intervalo del contador, para poder detenerlo
     let debtCountdownInterval = null;
     let escrowCountdownInterval = null;
+    let availableCountdownInterval = null; // Nuevo intervalo para el saldo disponible
 
     // --- Lógica de Control de Funcionalidades ---
     // Escuchamos el evento personalizado para actualizar la UI según los permisos
@@ -881,6 +885,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // NO actualizamos el modal de quemado aquí. Se hará solo al abrirlo.
 
+                // --- Contador para Saldo Disponible (BLUE) ---
+                if (data.next_available_at && parseFloat(data.next_available_amount) > 0) {
+                    elements.availableCountdownContainer.style.display = 'block';
+                    startAvailableCountdown(data.next_available_at, data.next_available_amount);
+                } else {
+                    elements.availableCountdownContainer.style.display = 'none';
+                    if (availableCountdownInterval) clearInterval(availableCountdownInterval);
+                }
+
+                // --- Contador para Deuda (RED) ---
                 if (data.next_due_at && parseFloat(data.next_due_amount) > 0) {
                     elements.debtCountdownContainer.style.display = 'block';
                     startDebtCountdown(data.next_due_at, data.next_due_amount);
@@ -889,10 +903,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (debtCountdownInterval) clearInterval(debtCountdownInterval);
                 }
 
+                // --- Contador para Escrow (PENDIENTES) ---
                 if (data.next_unlock_at && parseFloat(data.next_unlock_amount) > 0) {
                     elements.escrowCountdownContainer.style.display = 'block';
                     startEscrowCountdown(data.next_unlock_at, data.next_unlock_amount);
-            } else {
+                } else {
                     elements.escrowCountdownContainer.style.display = 'none';
                     if (escrowCountdownInterval) clearInterval(escrowCountdownInterval);
                 }
@@ -900,11 +915,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Error al obtener saldos:', error);
-            // Si falla la carga, también ocultamos el contador para evitar mostrar datos incorrectos
+            // Si falla la carga, también ocultamos todos los contadores para evitar mostrar datos incorrectos
             if (debtCountdownInterval) clearInterval(debtCountdownInterval);
             if (elements.debtCountdownContainer) elements.debtCountdownContainer.style.display = 'none';
             if (escrowCountdownInterval) clearInterval(escrowCountdownInterval);
             if (elements.escrowCountdownContainer) elements.escrowCountdownContainer.style.display = 'none';
+            if (availableCountdownInterval) clearInterval(availableCountdownInterval);
+            if (elements.availableCountdownContainer) elements.availableCountdownContainer.style.display = 'none';
         }
     }
 
@@ -1096,6 +1113,49 @@ document.addEventListener('DOMContentLoaded', () => {
         
         updateTimer();
         escrowCountdownInterval = setInterval(updateTimer, 1000);
+    }
+
+    /**
+     * Inicia y actualiza el contador de saldo disponible (BLUE) cada segundo.
+     * @param {string} availableDateString La fecha de liberación en formato ISO (viene del backend).
+     */
+    function startAvailableCountdown(availableDateString, availableAmount) {
+        if (availableCountdownInterval) clearInterval(availableCountdownInterval);
+        const formattedAmount = formatBalance(availableAmount);
+
+        const updateTimer = () => {
+            const now = new Date();
+            const availableDate = new Date(availableDateString);
+            const diff = availableDate - now;
+
+            if (diff <= 0) {
+                elements.availableCountdownContainer.style.display = 'none';
+                clearInterval(availableCountdownInterval);
+                fetchAndDisplayBalances(); // Actualizar saldos al liberar
+                return;
+            }
+            
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+            let timeString = '';
+            if (days > 0) {
+                timeString = `${days}d y ${hours}h`;
+            } else if (hours > 0) {
+                timeString = `${hours}h y ${minutes}m`;
+            } else if (minutes > 0) {
+                timeString = `${minutes}m y ${seconds}s`;
+            } else {
+                timeString = `${seconds}s`;
+            }
+
+            elements.availableCountdownText.innerHTML = `Disponible <strong class="saldo-blue-text">${formattedAmount}</strong> en <strong>${timeString}</strong>`;
+        };
+        
+        updateTimer();
+        availableCountdownInterval = setInterval(updateTimer, 1000);
     }
 
     /**

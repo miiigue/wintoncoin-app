@@ -241,40 +241,39 @@ a:hover {
 .balance-item-wrapper {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .balance-item {
-    display: flex;
-    justify-content: center; /* Centramos el monto */
-    align-items: center;
-    padding: 0.75rem;
-    background: rgba(255, 255, 255, 0.05);
+    background-color: var(--background-color);
+    padding: 1rem;
     border-radius: 8px;
-    transition: all 0.3s ease;
     text-align: center;
-    width: 100%;
-    box-sizing: border-box;
+    min-width: 120px;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .balance-item:hover {
-    background: rgba(255, 255, 255, 0.08);
-    transform: translateY(-1px);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .balance-label {
+    font-size: 0.8rem;
     color: var(--text-secondary-color);
-    font-size: 0.8rem; /* Letra más pequeña */
+    margin-bottom: 0.5rem;
     font-weight: 500;
-    text-align: center; /* Centramos la etiqueta */
-    margin-bottom: 0.4rem; /* Espacio entre etiqueta y recuadro */
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 .balance-amount {
-    font-size: 1.3rem;
-    font-weight: 700;
-    font-family: 'Courier New', monospace;
+    font-size: 1.5rem;
+    font-weight: 600;
+    display: block;
+    margin-top: 0.25rem;
 }
 
 .blue-amount {
@@ -378,16 +377,17 @@ a:hover {
 
 /* --- Estilos para el Contador de Deuda y Escrow (REFACTORIZADO A UNA LÍNEA) --- */
 .countdown-container {
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
-    border-top: 1px dashed #2a3b5c; /* Usamos un color fijo para la línea */
+    margin-top: 0.5rem;
+    text-align: center;
+    width: 100%;
 }
 
 .countdown-text {
-    margin: 0;
-    font-size: 0.9rem;
-    font-weight: 300;
+    font-size: 0.75rem;
     color: var(--text-secondary-color);
+    margin: 0;
+    line-height: 1.2;
+    opacity: 0.8;
 }
 
 .countdown-text strong {
