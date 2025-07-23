@@ -47,6 +47,13 @@ async function applyMigrations(client) {
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(50) UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
+                liquid_blue_balance NUMERIC(19, 4) NOT NULL DEFAULT 0.0000,
+                escrow_blue_balance NUMERIC(19, 4) NOT NULL DEFAULT 0.0000,
+                red_balance NUMERIC(19, 4) NOT NULL DEFAULT 0.0000,
+                average_rating REAL NOT NULL DEFAULT 0,
+                ratings_count INTEGER NOT NULL DEFAULT 0,
+                is_booster BOOLEAN DEFAULT FALSE,
+                booster_level INTEGER DEFAULT 1,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 last_login TIMESTAMP WITH TIME ZONE
             );`,
@@ -86,10 +93,10 @@ async function applyMigrations(client) {
             `CREATE TABLE IF NOT EXISTS publication_acceptances (
                 id SERIAL PRIMARY KEY,
                 publication_id INTEGER NOT NULL REFERENCES publications(id) ON DELETE CASCADE,
-                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                acceptor_username VARCHAR(255) NOT NULL,
                 status VARCHAR(50) DEFAULT 'pending_approval',
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE (publication_id, user_id)
+                UNIQUE (publication_id, acceptor_username)
             );`,
             // MIGRACIÓN 6: Tabla de configuraciones de la aplicación
             `CREATE TABLE IF NOT EXISTS app_settings (
@@ -132,6 +139,7 @@ async function applyMigrations(client) {
                 id SERIAL PRIMARY KEY,
                 commission_amount NUMERIC(15, 4) NOT NULL,
                 related_publication_id INTEGER REFERENCES publications(id) ON DELETE SET NULL,
+                related_user_transaction_id INTEGER REFERENCES transactions(id) ON DELETE SET NULL,
                 transaction_type VARCHAR(100),
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );`,
