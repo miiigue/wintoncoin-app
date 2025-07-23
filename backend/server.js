@@ -218,6 +218,16 @@ async function applyMigrations(client) {
                  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='platform_commission_log' AND column_name='related_user_transaction_id') THEN
                      ALTER TABLE platform_commission_log ADD COLUMN related_user_transaction_id INTEGER REFERENCES transactions(id) ON DELETE SET NULL;
                  END IF;
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='platform_commission_log' AND column_name='commission_amount_blue') THEN
+                     ALTER TABLE platform_commission_log ADD COLUMN commission_amount_blue NUMERIC(15, 4);
+                 END IF;
+             END $$;`,
+            // MIGRACIÓN 22: Agregar referral_code a users si no existe
+            `DO $$
+             BEGIN
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='referral_code') THEN
+                     ALTER TABLE users ADD COLUMN referral_code VARCHAR(20) UNIQUE;
+                 END IF;
              END $$;`
         ];
 
