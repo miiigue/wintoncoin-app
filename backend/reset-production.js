@@ -71,7 +71,7 @@ async function resetProductionDatabase() {
                 email VARCHAR(255) UNIQUE,
                 phone VARCHAR(50) UNIQUE,
                 referral_code VARCHAR(20) UNIQUE,
-                referrer_id INTEGER REFERENCES users(id),
+                referrer_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                 is_booster BOOLEAN DEFAULT FALSE,
                 booster_level INTEGER DEFAULT 1,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

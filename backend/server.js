@@ -228,6 +228,19 @@ async function applyMigrations(client) {
                  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='referral_code') THEN
                      ALTER TABLE users ADD COLUMN referral_code VARCHAR(20) UNIQUE;
                  END IF;
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='referrer_id') THEN
+                     ALTER TABLE users ADD COLUMN referrer_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
+                 END IF;
+             END $$;`,
+            // MIGRACIÓN 23: Crear índices optimizados para sistema de referidos
+            `DO $$
+             BEGIN
+                 IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_users_referral_code') THEN
+                     CREATE INDEX idx_users_referral_code ON users(referral_code);
+                 END IF;
+                 IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_users_referrer_id') THEN
+                     CREATE INDEX idx_users_referrer_id ON users(referrer_id);
+                 END IF;
              END $$;`
         ];
 

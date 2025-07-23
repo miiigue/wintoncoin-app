@@ -411,6 +411,25 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const groupKey in timeSettingsGrouped) {
             elements.settingsContainer.innerHTML += getTimeGroupHTML(timeSettingsGrouped[groupKey]);
         }
+        
+        // --- AGREGAR EVENT LISTENERS A LOS CONTROLES GENERADOS ---
+        elements.settingsContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', handleSettingChange);
+        });
+        
+        elements.settingsContainer.querySelectorAll('input[type="number"]').forEach(input => {
+            input.addEventListener('change', handleSettingChange);
+            input.addEventListener('keyup', (event) => {
+                if (event.key === 'Enter') {
+                    handleSettingChange(event);
+                }
+            });
+        });
+        
+        // --- AGREGAR EVENT LISTENERS A LOS CONTROLES DE FASE ---
+        elements.phaseManagementContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', handleSettingChange);
+        });
     }
 
     function getSettingHTML(setting, type) {
@@ -485,6 +504,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (s.setting_key.endsWith('_amount')) return getSettingHTML(s, 'number');
                 return '';
             }).join('');
+            
+            // --- AGREGAR EVENT LISTENERS A LOS CONTROLES GENERADOS ---
+            container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', handleSettingChange);
+            });
+            
+            container.querySelectorAll('input[type="number"]').forEach(input => {
+                input.addEventListener('change', handleSettingChange);
+                input.addEventListener('keyup', (event) => {
+                    if (event.key === 'Enter') {
+                        handleSettingChange(event);
+                    }
+                });
+            });
         }
     }
 
