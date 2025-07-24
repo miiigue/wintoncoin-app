@@ -2849,6 +2849,8 @@ app.get('/api/users/:username/booster-profile', async (req, res) => {
 });
 
 // --- NUEVA LÓGICA DE PAGOS A IMPULSORES ---
+// Esta función maneja los pagos mensuales a impulsores, priorizando niveles bajos primero como beneficio
+// (usuarios con menos acumulado reciben pagos antes para incentivar participación temprana).
 async function executeBoosterPayments() {
     const today = new Date();
     // El proceso se ejecuta el primer día de cada mes.
@@ -2907,7 +2909,8 @@ async function executeBoosterPayments() {
             FROM users u WHERE u.is_booster = TRUE
         `);
 
-        // 3. Iterar por cada nivel en orden de prioridad
+        // 3. Iterar por cada nivel en orden de prioridad (bajos primero)
+        // Esto beneficia a niveles inferiores: se pagan completos si hay fondos, antes de pasar a superiores.
         for (const level of levelsResult.rows) {
             if (fundsAvailable <= 0) break;
 

@@ -26,10 +26,10 @@ La quema de tokens es la eliminación simultánea de `BLUE` y `RED` del sistema.
 
 -   **Doble Propósito**: El perfil de impulsor es tanto un sistema de reputación como una billetera de ganancias separada.
 -   **Acumulación de Fondos**: Los fondos se acumulan en la billetera del impulsor de dos maneras:
-    1.  **Recompensas por Referidos y Bonos**: Bonos de bienvenida y recompensas por referidos se acreditan aquí.
+    1.  **Recompensas por Referidos y Bonos (Solo Pre-Lanzamiento)**: Bonos de bienvenida y recompensas por referidos se acreditan aquí. Estas acumulaciones no son tokens `BLUE` reales, sino una promesa de pago futura (no líquida).
     2.  **Tareas de Impulsor**: La plataforma puede publicar tareas especiales marcadas "de impulsor". Al completarlas, la recompensa `BLUE` se paga a esta billetera, no a la principal.
 -   **Sistema Aislado**: La billetera del impulsor está **completamente separada** de la billetera principal. Los fondos no son transferibles directamente por el usuario.
--   **Pago Futuro**: Los fondos acumulados en el perfil de impulsor **son pagaderos al usuario en el futuro**, de acuerdo a un conjunto de reglas de pago que establecerá la plataforma.
+-   **Pago Futuro (Post-Lanzamiento)**: Los fondos acumulados en el perfil de impulsor **son pagaderos al usuario mensualmente tras el lanzamiento oficial de la plataforma**. El mecanismo de pago se basa en las comisiones que la plataforma recauda cada mes. Por ejemplo: si al final del mes se recaudan 2,000 `BLUE` en comisiones y la deuda total con los impulsores es de 20,000, se calcula un porcentaje de pago (2,000 / 20,000 * 100 = 10%). Este porcentaje se aplica a la deuda de cada impulsor, pagando con prioridad a los niveles más bajos primero como un beneficio para incentivar la participación temprana. Este proceso se repite mensualmente hasta saldar toda la deuda acumulada, asegurando que ningún `BLUE` se pague sin respaldo de comisiones reales.
 
 ### 4. Sistema de Comisiones de la Plataforma
 
@@ -49,7 +49,7 @@ Durante la fase inicial de pre-lanzamiento, se aplican las siguientes modificaci
 
 -   **Suspensión de Creación de Tokens (`BLUE`/`RED`)**: La creación de tokens `BLUE` y `RED` por la finalización de tareas **está completamente suspendida**. Los saldos de la billetera principal (`liquid_blue_balance`, `escrow_blue_balance`, `red_balance`) de los usuarios no se verán afectados por la actividad de publicación. El balance económico del sistema se mantiene en CERO.
 
--   **Acumulación Exclusiva en Perfil de Impulsor**: Todas las recompensas obtenidas por completar tareas (de cualquier tipo: solicitud, venta o donación) durante esta fase se acreditan **exclusivamente** al `booster_blue_ledger` del usuario beneficiario. Esto se registra como una deuda futura que la plataforma tiene con el usuario, pagadera según las reglas del sistema de impulsores.
+-   **Acumulación Exclusiva en Perfil de Impulsor**: Todas las recompensas obtenidas por completar tareas (de cualquier tipo: solicitud, venta o donación) durante esta fase se acreditan **exclusivamente** al `booster_blue_ledger` del usuario beneficiario. Esto se registra como una deuda futura (un acumulado no líquido) que la plataforma tiene con el usuario, pagadera post-lanzamiento según las reglas del sistema de impulsores (pagos mensuales basados en comisiones y con prioridad por niveles).
 
 -   **No se generan Deudas `RED`**: Dado que no se crea `BLUE` circulante, el usuario que publica una tarea **no incurre en ninguna deuda `RED`**.
 
