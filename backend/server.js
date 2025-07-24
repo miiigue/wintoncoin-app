@@ -728,12 +728,14 @@ async function startServer() {
                 const settingKeys = [
                     'referral_system_enabled', 'referral_reward_amount', 'platform_commission_percentage',
                     'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes',
-                    'welcome_bonus_enabled', 'welcome_bonus_amount'
+                    'welcome_bonus_enabled', 'welcome_bonus_amount',
+                    'pre_launch_mode_enabled' // Añadido para verificar el modo
                 ];
                 const settingsResult = await client.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1::text[])`, [settingKeys]);
                 const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
                 const referralsEnabled = settings.referral_system_enabled === 'true';
                 const welcomeBonusEnabled = settings.welcome_bonus_enabled === 'true';
+                const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
         
                 // 2. Validar el código de referido (si aplica)
                 let referrer = null;
@@ -753,8 +755,8 @@ async function startServer() {
                 const newUserResult = await client.query(newUserSql, [username, passwordHash, email, phone, newReferralCode, referrer ? referrer.id : null]);
                 const newUser = newUserResult.rows[0];
         
-                // 4. Lógica de Recompensa (si hubo un referente válido)
-                if (referrer) {
+                // 4. Lógica de Recompensa (si hubo un referente válido) - ¡SOLO EN PRE-LANZAMIENTO!
+                if (preLaunchMode && referrer) {
                     const rewardAmount = parseFloat(settings.referral_reward_amount) || 0;
                     const commissionPercentage = parseFloat(settings.platform_commission_percentage) || 0;
                     const escrowInterval = `${settings.blue_escrow_days || 1} days ${settings.blue_escrow_hours || 0} hours ${settings.blue_escrow_minutes || 0} minutes`;
@@ -820,8 +822,8 @@ async function startServer() {
                     }
                 }
         
-                // --- Bono de Bienvenida (CORREGIDO: Ya cumple con las reglas económicas) ---
-                if (welcomeBonusEnabled && !referrer) {
+                // --- Bono de Bienvenida (CORREGIDO: Ya cumple con las reglas económicas) - ¡SOLO EN PRE-LANZAMIENTO! ---
+                if (preLaunchMode && welcomeBonusEnabled && !referrer) {
                     const welcomeBonusAmount = parseFloat(settings.welcome_bonus_amount) || 0;
                     if (welcomeBonusAmount > 0) {
                         await client.query(`INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, NULL)`, [newUser.id, welcomeBonusAmount]);
