@@ -752,20 +752,6 @@ hr {
     align-items: center;
     gap: 15px;
     z-index: 100;
-    width: calc(100% - 40px); /* Ocupa todo el ancho menos los márgenes */
-    justify-content: space-between; /* Distribuye el espacio */
-}
-
-.left-header {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-.right-header {
-    display: flex;
-    align-items: center;
-    gap: 15px;
 }
 
 /* Ajustes para los menús existentes */
