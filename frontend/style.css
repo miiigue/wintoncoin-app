@@ -128,11 +128,38 @@ button {
     font-weight: 600;
     cursor: pointer;
     transition: background-color 0.3s, transform 0.2s;
+    box-sizing: border-box; /* Añadido para normalizar el tamaño */
 }
 
 button:hover {
     background-color: #5a4ab9;
     transform: translateY(-2px);
+}
+
+/* --- Botón de Acción Secundaria --- */
+.secondary-action-button {
+    display: block;
+    width: 100%;
+    padding: 15px; /* Mismo padding que el botón principal */
+    margin-top: 1rem;
+    border: none;
+    border-radius: 8px;
+    background-color: #140277; /* Azul oscuro seleccionado por el usuario */
+    color: var(--text-color); /* Texto principal para buen contraste */
+    font-size: 1.1rem; /* Mismo tamaño de fuente que el botón principal */
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.3s, color 0.3s, transform 0.2s;
+    box-sizing: border-box; /* Añadido para normalizar el tamaño */
+}
+
+.secondary-action-button:hover {
+    background-color: #2a1b8a; /* Un azul ligeramente más claro al pasar el ratón */
+    color: white;
+    transform: translateY(-2px);
+    text-decoration: none;
 }
 
 /* --- Enlaces y Párrafos --- */
