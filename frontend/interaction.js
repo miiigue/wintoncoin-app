@@ -1219,19 +1219,26 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 const data = await response.json();
                 const referralCode = data.referral_code;
-                const shareUrl = `${window.location.origin}/register.html?ref=${referralCode}`;
+                const rewardAmount = document.getElementById('referralAmount').textContent || '50';
+                const registrationUrl = `${window.location.origin}/register.html?ref=${referralCode}`;
                 
+                const textToShare = `¡Únete a WintonCoin! 🪙\n\n` +
+                                  `Usa mi código de referido y gana ${rewardAmount} BLUE al registrarte:\n` +
+                                  `*${referralCode}*\n\n` +
+                                  `¡Lo mejor es que tú también ganarás ${rewardAmount} BLUE por cada amigo que invites!\n\n` +
+                                  `Regístrate aquí: ${registrationUrl}`;
+
                 // Intentar usar la API de Web Share si está disponible
                 if (navigator.share) {
                     await navigator.share({
                         title: '¡Únete a WintonCoin!',
-                        text: `¡Hola! Te invito a unirte a WintonCoin usando mi código de referido: ${referralCode}. Ambos ganaremos BLUE tokens.`,
-                        url: shareUrl
+                        text: textToShare,
+                        url: registrationUrl
                     });
                 } else {
                     // Fallback: copiar al portapapeles
-                    await navigator.clipboard.writeText(shareUrl);
-                    showCustomAlert('¡Enlace copiado al portapapeles! Compártelo con tus amigos.');
+                    await navigator.clipboard.writeText(textToShare);
+                    showCustomAlert('¡Mensaje de invitación copiado! Compártelo con tus amigos.');
                 }
             } else {
                 showCustomAlert('Error al obtener tu código de referido.');
