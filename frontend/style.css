@@ -2025,3 +2025,35 @@ hr {
     color: var(--text-secondary-color);
     line-height: 1.6;
 }
+
+/* --- Título Principal y de Sección --- */
+.main-title {
+    font-size: 2.2rem;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.section-title {
+    text-align: left;
+    font-size: 1.5rem;
+    color: var(--text-color);
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #2a3b5c;
+    padding-bottom: 0.5rem;
+}
+
+/* --- Etiqueta Beta junto al título --- */
+.beta-tag {
+    font-size: 0.6em; /* Relativo al tamaño del título */
+    font-style: italic;
+    font-weight: 400; /* Más delgado que el título */
+    color: var(--text-secondary-color);
+    opacity: 0.7;
+    vertical-align: middle;
+    margin-left: 0.5em;
+}
+
+/* --- Etiqueta de Versión Beta --- */
+.beta-version-tag {
+    display: none; /* Ocultamos la etiqueta anterior */
+}
