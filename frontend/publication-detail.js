@@ -53,14 +53,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderPublication(pub) {
         const authorRatingHTML = generateStarRating(pub.author_average_rating, pub.author_ratings_count);
         
-        // Lógica de enlace de perfil del autor
         const authorNameHTML = window.appSettings.public_profiles_enabled
             ? `<a href="profile.html?user=${pub.author_username}" class="profile-link">${pub.author_username}</a>`
             : pub.author_username;
 
+        // Lógica para añadir el botón de compartir en la cabecera
+        // Ahora el botón se muestra siempre, permitiendo al autor compartir su propia publicación.
+        const shareButtonHTML = `<button class="action-button share share-button-header" data-action="share">🔗 Compartir</button>`;
+
         const { messageHTML, actionHTML } = getActionAndMessageHTML(pub);
 
-        // Determinamos la clase de la cinta según la categoría de la publicación
         let ribbonClass = '';
         if (pub.category === 'donation') {
             ribbonClass = 'donation-ribbon';
@@ -70,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const publicationHTML = `
             <div class="detail-header">
+                ${shareButtonHTML}
                 <span class="detail-cost-badge ${ribbonClass}">${formatBalance(pub.blue_cost)} BLUE</span>
                 <h1 class="detail-title">${pub.title}</h1>
                 <div class="detail-meta">
@@ -192,21 +195,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     break;
                 case 'approved':
                     messageHTML = `<div class="action-message">¡Has sido aprobado! Ahora puedes proceder.</div>`;
-                    actionHTML = `<button class="action-button complete" data-action="complete">${pub.is_sell_post ? 'He Recibido, Pagar' : 'Marcar como Culminada'}</button>`;
+                    actionHTML += `<button class="action-button complete" data-action="complete">${pub.is_sell_post ? 'He Recibido, Pagar' : 'Marcar como Culminada'}</button>`;
                     break;
                 case 'completed':
                     messageHTML = `<p class="action-message status-pending">Has marcado la tarea como ${action}. Esperando confirmación final del autor.</p>`;
                     break;
                 case 'confirmed_paid':
                     messageHTML = `<p class="action-message status-info">¡Transacción completada!</p>`;
+                    // Incluso si ya participó, puede volver a hacerlo si hay cupos
                     if (pub.available_slots > 0) {
-                        actionHTML = `<button class="action-button accept" data-action="accept">${verb} de nuevo</button>`;
+                        actionHTML += `<button class="action-button accept" data-action="accept">${verb} de nuevo</button>`;
                     }
                     break;
                 case 'not_participating':
                 default:
                     if (pub.available_slots > 0 && !pub.is_paused) {
-                        actionHTML = `<button class="action-button accept" data-action="accept">${verb}</button>`;
+                        actionHTML += `<button class="action-button accept" data-action="accept">${verb}</button>`;
                     } else if (pub.is_paused) {
                         messageHTML = `<div class="status-pending">El autor ha pausado las nuevas solicitudes para esta tarea.</div>`;
                     } else {
@@ -278,11 +282,64 @@ document.addEventListener('DOMContentLoaded', () => {
                 endpoint = `/publications/${publicationId}/toggle-pause`;
                 body = { username: storedUsername };
                 break;
+            case 'share':
+                await sharePublication();
+                return; // No necesita llamar a fetchFromServer
             default:
                 return;
         }
 
         await fetchFromServer(endpoint, method, body);
+    }
+
+    async function sharePublication() {
+        try {
+            // 1. Obtener la información de la publicación actual (ya la tenemos en memoria, pero la buscamos para estar seguros)
+            const pubContent = document.getElementById('publication-content');
+            const title = pubContent.querySelector('.detail-title').textContent;
+            const author = pubContent.querySelector('.detail-meta strong').textContent;
+
+            // 2. Obtener el código de referido y el monto de la recompensa del usuario actual
+            const referralResponse = await fetch(`${API_URL}/api/user/${storedUsername}/referral-code`);
+            if (!referralResponse.ok) throw new Error('No se pudo obtener tu código de referido.');
+            const referralData = await referralResponse.json();
+            const referralCode = referralData.referral_code;
+
+            // La cantidad de la recompensa la obtenemos de la configuración global de la app
+            const rewardAmount = window.appSettings.referral_bonus;
+
+            // 3. Construir el mensaje para compartir
+            const publicationUrl = window.location.href;
+            const registrationUrl = `${window.location.origin}/register.html?ref=${referralCode}`;
+            
+            const textToShare = `¡Echa un vistazo a esta publicación en WintonCoin! 🪙
+
+"${title}" por ${author}
+Puedes ver los detalles aquí:
+${publicationUrl}
+
+---
+**¿Aún no tienes cuenta?**
+¡Usa mi código, regístrate y ambos ganaremos **${rewardAmount} BLUE**! 💰
+${registrationUrl}`;
+
+            // 4. Usar la API para compartir o copiar al portapapeles
+            if (navigator.share) {
+                await navigator.share({
+                    title: `Tarea en WintonCoin: ${title}`,
+                    text: textToShare,
+                    url: publicationUrl, // URL principal a compartir
+                });
+                showCustomAlert('¡Gracias por compartir!');
+            } else {
+                await navigator.clipboard.writeText(textToShare);
+                showCustomAlert('¡Mensaje para compartir copiado al portapapeles!');
+            }
+
+        } catch (error) {
+            console.error('Error al compartir la publicación:', error);
+            showCustomAlert(error.message || 'Ocurrió un error al intentar compartir.');
+        }
     }
     
     async function confirmPaymentAndRate(pubId, authorUsername, acceptorUsername) {
