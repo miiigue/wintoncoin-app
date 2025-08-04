@@ -31,30 +31,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Inicialización ---
-    // Primero cargamos la configuración de la app y LUEGO renderizamos la publicación
+    // Carga paralela de la configuración y los datos de la publicación para optimizar la velocidad.
     async function initializePage() {
-        await window.fetchAndStoreAppSettings(); // Función global de utils.js
-        fetchAndRenderPublication();
-        setupEventListeners();
+        try {
+            // Iniciar ambas solicitudes en paralelo
+            const settingsPromise = window.fetchAndStoreAppSettings(); // de utils.js
+            const publicationPromise = fetch(`${API_URL}/api/publications/${publicationId}?user=${storedUsername}`);
+
+            // Esperar a que ambas se completen
+            const [_, publicationResponse] = await Promise.all([settingsPromise, publicationPromise]);
+
+            if (!publicationResponse.ok) {
+                const errorData = await publicationResponse.json();
+                throw new Error(errorData.message || 'Error al cargar la publicación.');
+            }
+            
+            const publication = await publicationResponse.json();
+            
+            // Ahora que tenemos todo, renderizamos la página y configuramos los eventos
+            renderPublication(publication);
+            setupEventListeners();
+
+        } catch (error) {
+            console.error('Error al inicializar la página de detalle:', error);
+            elements.content.innerHTML = `<p class="error-message">No se pudo cargar la publicación. ${error.message}</p>`;
+        }
     }
 
     initializePage();
 
-    // --- Lógica de Datos (Fetch) ---
-    async function fetchAndRenderPublication() {
-        try {
-            const response = await fetch(`${API_URL}/api/publications/${publicationId}?user=${storedUsername}`);
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Error al cargar la publicación.');
-            }
-            const publication = await response.json();
-            renderPublication(publication);
-        } catch (error) {
-            console.error('Error al cargar la publicación:', error);
-            elements.content.innerHTML = `<p class="error-message">No se pudo cargar la publicación. ${error.message}</p>`;
-        }
-    }
+    // La función fetchAndRenderPublication() ya no es necesaria, su lógica ha sido integrada en initializePage().
+
 
     // --- Lógica de Renderizado ---
     function renderPublication(pub) {
