@@ -35,11 +35,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Si el inicio de sesión es exitoso, el backend ahora devuelve más datos
                     const result = await response.json();
                     
-                    // Guardamos los datos del usuario en sessionStorage para usarlos en otras páginas
-                    sessionStorage.setItem('username', result.username);
-                    sessionStorage.setItem('blue_balance', result.blue_balance);
-                    sessionStorage.setItem('escrow_blue_balance', result.escrow_blue_balance);
-                    sessionStorage.setItem('red_balance', result.red_balance);
+                    // Guardamos los datos del usuario en localStorage para mantener la sesión abierta entre pestañas
+                localStorage.setItem('username', result.username);
+                localStorage.setItem('blue_balance', result.blue_balance);
+                localStorage.setItem('escrow_blue_balance', result.escrow_blue_balance);
+                localStorage.setItem('red_balance', result.red_balance);
 
                     // Redirigimos al usuario a la página principal de la aplicación
                     window.location.href = 'contract_interaction.html';

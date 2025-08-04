@@ -21,8 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (response.ok) {
                     // El estándar profesional es usar un token (JWT) para la autenticación.
-                    // Lo guardamos en sessionStorage.
-                    sessionStorage.setItem('adminToken', result.token);
+                    // Lo guardamos en localStorage.
+                    localStorage.setItem('adminToken', result.token);
                     // Redirigimos al futuro panel de administración.
                     window.location.href = 'admin-panel.html';
                 } else {

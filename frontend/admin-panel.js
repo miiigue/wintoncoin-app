@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Configuración y Estado ---
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
     const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
-    const adminToken = sessionStorage.getItem('adminToken');
+    const adminToken = localStorage.getItem('adminToken');
 
     if (!adminToken) {
         window.location.href = 'admin.html';
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         elements.logoutBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            sessionStorage.removeItem('adminToken');
+            localStorage.removeItem('adminToken');
             window.location.href = 'admin.html';
         });
 
@@ -193,7 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const response = await fetch(`${API_URL}${endpoint}`, { ...defaultOptions, ...options });
         if (response.status === 401 || response.status === 403) {
-            sessionStorage.removeItem('adminToken');
+            localStorage.removeItem('adminToken');
             window.location.href = 'admin.html';
             throw new Error('Autenticación fallida.');
         }
