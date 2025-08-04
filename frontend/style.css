@@ -4,9 +4,9 @@
 :root {
     --primary-color: #6a5acd; /* Un tono de violeta/azul */
     --background-color: #1a1a2e; /* Azul oscuro noche */
-    --surface-color: #16213e; /* Un poco más claro que el fondo */
-    --text-color: #e0e0e0;
-    --text-secondary-color: #a0a0a0;
+    --surface-color: #14245a; /* Un poco más claro que el fondo */
+    --text-color: #F5F5F5; /* Blanco más brillante para mejor legibilidad */
+    --text-secondary-color: #BDBDBD; /* Gris más claro para textos secundarios */
     --error-color: #ff5252;
 }
 
