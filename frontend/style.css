@@ -688,13 +688,15 @@ hr {
 .action-button.share    { background-color: #00b894; } /* Un verde azulado (teal) para compartir */
 
 /* Estilo específico para el botón de compartir en la cabecera del detalle */
-.share-button-header {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    padding: 8px 12px;
-    font-size: 0.8rem;
-    z-index: 5; /* Asegura que esté por encima de otros elementos del header */
+.share-button-container {
+    text-align: center;
+    margin: 1rem 0; /* Espacio vertical para separarlo del resto */
+}
+
+.share-button-container .action-button.share {
+    width: auto; /* El botón ocupa solo el espacio de su contenido */
+    padding: 10px 25px; /* Hacemos el botón un poco más grande y fácil de tocar */
+    font-size: 1rem;
 }
 
 /* Estilo para botones deshabilitados */

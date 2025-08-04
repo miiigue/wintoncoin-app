@@ -30,8 +30,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    fetchAndRenderPublication();
-    setupEventListeners();
+    // --- Inicialización ---
+    // Primero cargamos la configuración de la app y LUEGO renderizamos la publicación
+    async function initializePage() {
+        await window.fetchAndStoreAppSettings(); // Función global de utils.js
+        fetchAndRenderPublication();
+        setupEventListeners();
+    }
+
+    initializePage();
 
     // --- Lógica de Datos (Fetch) ---
     async function fetchAndRenderPublication() {
@@ -72,13 +79,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const publicationHTML = `
             <div class="detail-header">
-                ${shareButtonHTML}
                 <span class="detail-cost-badge ${ribbonClass}">${formatBalance(pub.blue_cost)} BLUE</span>
                 <h1 class="detail-title">${pub.title}</h1>
                 <div class="detail-meta">
                     Publicado por <strong>${authorNameHTML}</strong> ${authorRatingHTML}
                     <span class="detail-date">el ${new Date(pub.created_at).toLocaleDateString()}</span>
                 </div>
+            </div>
+
+            <div class="share-button-container">
+                ${shareButtonHTML}
             </div>
 
             <hr>
@@ -306,7 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const referralCode = referralData.referral_code;
 
             // La cantidad de la recompensa la obtenemos de la configuración global de la app
-            const rewardAmount = window.appSettings.referral_bonus;
+            const rewardAmount = window.appSettings.referral_reward_amount;
 
             // 3. Construir el mensaje para compartir
             const publicationUrl = window.location.href;
