@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
 
     // --- Estado y Elementos del DOM ---
-    const storedUsername = sessionStorage.getItem('username');
+    const storedUsername = localStorage.getItem('username');
     const elements = {
         historyUsername: document.getElementById('historyUsername'),
         authoredList: document.getElementById('authored-publications-list'),

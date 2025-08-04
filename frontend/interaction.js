@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
 
     // --- Estado Global y Elementos del DOM ---
-    const storedUsername = sessionStorage.getItem('username');
+    const storedUsername = localStorage.getItem('username');
     const elements = {
         usernameDisplay: document.getElementById('usernameDisplay'),
         profileTrigger: document.querySelector('.profile-trigger'),
@@ -161,9 +161,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Mostramos los saldos guardados en la sesión inmediatamente.
     // La función fetchAndDisplayBalances los actualizará después con los datos más recientes.
-    elements.saldoBlue.innerHTML = formatBalance(sessionStorage.getItem('blue_balance'));
-    elements.saldoEscrowBlue.innerHTML = formatBalance(sessionStorage.getItem('escrow_blue_balance'));
-    elements.saldoRed.innerHTML = formatBalance(sessionStorage.getItem('red_balance'));
+    elements.saldoBlue.innerHTML = formatBalance(localStorage.getItem('blue_balance'));
+    elements.saldoEscrowBlue.innerHTML = formatBalance(localStorage.getItem('escrow_blue_balance'));
+    elements.saldoRed.innerHTML = formatBalance(localStorage.getItem('red_balance'));
 
     // Carga inicial y configuración de listeners
     loadAllData();
@@ -212,10 +212,10 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.publicationsList.addEventListener('click', handlePublicationAction);
         elements.burnTriggerBtn.addEventListener('click', () => {
             // Actualizamos los saldos en el modal cada vez que se abre
-            const blueBalance = sessionStorage.getItem('blue_balance') || '0';
-            const escrowBlueBalance = sessionStorage.getItem('escrow_blue_balance') || '0';
-            const redBalance = sessionStorage.getItem('red_balance') || '0';
-            const penalizedDebt = sessionStorage.getItem('penalized_debt') || '0';
+            const blueBalance = localStorage.getItem('blue_balance') || '0';
+            const escrowBlueBalance = localStorage.getItem('escrow_blue_balance') || '0';
+            const redBalance = localStorage.getItem('red_balance') || '0';
+            const penalizedDebt = localStorage.getItem('penalized_debt') || '0';
 
             let penalizedDebtHTML = '';
             // Solo mostramos la línea de vencidos si la cantidad es mayor a cero.
@@ -304,10 +304,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleLogout(event) {
         event.preventDefault();
         // Limpiamos todos los datos de la sesión al salir
-        sessionStorage.removeItem('username');
-        sessionStorage.removeItem('blue_balance');
-        sessionStorage.removeItem('escrow_blue_balance');
-        sessionStorage.removeItem('red_balance');
+        localStorage.removeItem('username');
+        localStorage.removeItem('blue_balance');
+        localStorage.removeItem('escrow_blue_balance');
+        localStorage.removeItem('red_balance');
         showCustomAlert('Has cerrado la sesión.', () => {
         window.location.href = 'index.html';
         });
@@ -878,10 +878,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.saldoBlue.innerHTML = formatBalance(data.blue_balance);
                 elements.saldoEscrowBlue.innerHTML = formatBalance(data.escrow_blue_balance);
                 elements.saldoRed.innerHTML = formatBalance(data.red_balance);
-                sessionStorage.setItem('blue_balance', data.blue_balance);
-                sessionStorage.setItem('escrow_blue_balance', data.escrow_blue_balance);
-                sessionStorage.setItem('red_balance', data.red_balance);
-                sessionStorage.setItem('penalized_debt', data.penalized_debt);
+                localStorage.setItem('blue_balance', data.blue_balance);
+                localStorage.setItem('escrow_blue_balance', data.escrow_blue_balance);
+                localStorage.setItem('red_balance', data.red_balance);
+                localStorage.setItem('penalized_debt', data.penalized_debt);
 
                 // NO actualizamos el modal de quemado aquí. Se hará solo al abrirlo.
 
@@ -1207,7 +1207,7 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     async function shareReferralCode() {
         try {
-            const username = sessionStorage.getItem('username');
+            const username = localStorage.getItem('username');
             if (!username) {
                 showCustomAlert('Error: No se pudo obtener tu información de usuario.');
                 return;
