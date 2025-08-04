@@ -1496,6 +1496,21 @@ async function startServer() {
             }
         });
         
+        // Endpoint para obtener el código de referido de un usuario
+        app.get('/api/user/:username/referral-code', async (req, res) => {
+            const { username } = req.params;
+            try {
+                const result = await pool.query('SELECT referral_code FROM users WHERE username = $1', [username]);
+                if (result.rows.length === 0) {
+                    return res.status(404).json({ message: 'Usuario no encontrado.' });
+                }
+                res.json({ referral_code: result.rows[0].referral_code });
+            } catch (error) {
+                console.error('Error al obtener el código de referido:', error);
+                res.status(500).json({ message: 'Error interno del servidor.' });
+            }
+        });
+        
         // Ruta para crear una calificación
         app.post('/rate', async (req, res) => {
             const { publication_id, rater_username, ratee_username, rating, comment } = req.body;
