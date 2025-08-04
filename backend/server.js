@@ -1820,6 +1820,33 @@ async function startServer() {
             }
         });
 
+        // --- NUEVO ENDPOINT PÚBLICO PARA CONFIGURACIONES ---
+        app.get('/api/app-settings', async (req, res) => {
+            try {
+                const settingKeys = [
+                    'public_profiles_enabled',
+                    'referral_reward_amount',
+                    'welcome_bonus_amount'
+                    // Añadir aquí otras claves que el frontend necesite de forma segura
+                ];
+                const result = await pool.query(
+                    'SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1::text[])',
+                    [settingKeys]
+                );
+                
+                const settingsObject = result.rows.reduce((acc, setting) => {
+                    acc[setting.setting_key] = setting.setting_value;
+                    return acc;
+                }, {});
+
+                res.status(200).json(settingsObject);
+
+            } catch (error) {
+                console.error("Error al obtener la configuración pública de la app:", error);
+                res.status(500).json({ message: "Error interno del servidor." });
+            }
+        });
+
         // --- ENDPOINTS PARA BILLETERA DE PLATAFORMA (CORRECCIÓN) ---
         app.get('/api/admin/platform-wallet/balance', verifyAdminToken, async (req, res) => {
             const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';

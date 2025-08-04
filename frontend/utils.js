@@ -168,18 +168,12 @@ window.fetchAndStoreAppSettings = async function() {
             return;
         }
 
-        const response = await fetch(`${API_URL}/api/admin/settings`); // Usamos la ruta correcta que devuelve todos los settings
+        const response = await fetch(`${API_URL}/api/app-settings`); // APUNTAMOS A LA NUEVA RUTA SEGURA
         if (!response.ok) {
             throw new Error('No se pudo cargar la configuración de la aplicación.');
         }
-        const settingsArray = await response.json();
+        const settingsObject = await response.json();
         
-        // Convertimos el array de settings en un objeto clave-valor
-        const settingsObject = settingsArray.reduce((acc, setting) => {
-            acc[setting.setting_key] = setting.setting_value;
-            return acc;
-        }, {});
-
         window.appSettings = settingsObject;
         
         // Opcional: Disparar un evento para notificar que la configuración está lista
