@@ -2194,7 +2194,22 @@ hr {
 
 .publish-container h1 {
     margin-bottom: 1.5rem; /* Margen bajo el título ajustado */
+    text-align: center; /* Aseguramos que el título principal esté centrado */
 }
+
+.form-back-link {
+    display: block;
+    margin-bottom: 1rem;
+    color: var(--text-secondary-color);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s;
+}
+
+.form-back-link:hover {
+    color: var(--primary-color);
+}
+
 
 /* --- NUEVO: Estilos para el Interruptor (Switch) --- */
 .form-group-switch {
