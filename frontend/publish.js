@@ -24,10 +24,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitButton = document.querySelector('#publishForm button[type="submit"]');
 
     // --- Redirección y Seguridad ---
-    if (!storedUsername) {
-        showCustomAlert('Debes iniciar sesión para publicar.', () => { window.location.href = 'index.html'; });
-        return;
-    }
+    // Envolvemos la comprobación en un pequeño timeout para darle tiempo al localStorage a sincronizarse entre páginas.
+    setTimeout(() => {
+        if (!storedUsername) {
+            showCustomAlert('Debes iniciar sesión para publicar.', () => { window.location.href = 'index.html'; });
+            return;
+        }
+    }, 100); // 100ms de retraso como medida de seguridad adicional
 
     // --- Lógica para el colapsable de la vigencia ---
     expirationInputsContainer.style.display = 'none'; // Oculto por defecto con JS por si el CSS no carga
