@@ -9,17 +9,52 @@ let onAlertCloseCallback = null;
  * @param {function} [onClose] Una función opcional que se ejecutará cuando el modal se cierre.
  */
 function showCustomAlert(message, onClose) {
-    const modal = document.getElementById('customAlertModal');
-    const messageElement = document.getElementById('customAlertMessage');
+    const container = document.getElementById('custom-alert-container');
     
-    if (modal && messageElement) {
-        messageElement.textContent = message;
-        onAlertCloseCallback = typeof onClose === 'function' ? onClose : null;
+    if (container) {
+        // Limpiamos cualquier alerta anterior
+        container.innerHTML = '';
+        
+        // Creamos la estructura del modal dinámicamente
+        const modal = document.createElement('div');
+        modal.className = 'modal';
         modal.style.display = 'flex';
+        
+        const modalContent = document.createElement('div');
+        modalContent.className = 'modal-content';
+        
+        const messageElement = document.createElement('p');
+        messageElement.textContent = message;
+        
+        const closeButton = document.createElement('button');
+        closeButton.className = 'action-button';
+        closeButton.textContent = 'Cerrar';
+        
+        modalContent.appendChild(messageElement);
+        modalContent.appendChild(closeButton);
+        modal.appendChild(modalContent);
+        container.appendChild(modal);
+        
+        onAlertCloseCallback = typeof onClose === 'function' ? onClose : null;
+
+        const closeModal = () => {
+            container.innerHTML = ''; // Limpiamos al cerrar
+            if (onAlertCloseCallback) {
+                onAlertCloseCallback();
+                onAlertCloseCallback = null;
+            }
+        };
+
+        closeButton.addEventListener('click', closeModal);
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                closeModal();
+            }
+        });
+        
     } else {
-        // Fallback al alert nativo si el modal no se encuentra en el DOM
+        // Fallback al alert nativo si el contenedor no se encuentra
         alert(message);
-        // Si hay una función de callback, ejecutarla también aquí
         if (typeof onClose === 'function') {
             onClose();
         }

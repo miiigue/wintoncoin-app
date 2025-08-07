@@ -119,10 +119,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     element.removeAttribute('onclick');
                     element.style.cursor = 'not-allowed';
             } else {
-                    // Restaurar el onclick si es necesario (el HTML lo tiene)
-                    const type = element.classList.contains('request') ? 'request' : (element.classList.contains('sell') ? 'sell' : 'donation');
-                    element.setAttribute('onclick', `window.location.href='publish.html?type=${type}'`);
-                    element.style.cursor = 'pointer';
+                    // Restaurar el comportamiento de clic con un event listener más robusto
+const type = element.classList.contains('request') ? 'request' : (element.classList.contains('sell') ? 'sell' : 'donation');
+// Limpiamos cualquier listener anterior para evitar duplicados
+const newElement = element.cloneNode(true);
+element.parentNode.replaceChild(newElement, element);
+// Añadimos el nuevo listener
+newElement.addEventListener('click', () => {
+    // Pequeña demora para asegurar que el estado de la sesión se propague
+    setTimeout(() => {
+        window.location.href = `publish.html?type=${type}`;
+    }, 50); // 50ms es imperceptible para el usuario
+});
+newElement.style.cursor = 'pointer';
                 }
             }
         };
