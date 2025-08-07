@@ -273,6 +273,13 @@ async function applyMigrations(client) {
                  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'publications_category_check') THEN
                      ALTER TABLE publications ADD CONSTRAINT publications_category_check CHECK (category IN ('request', 'sell', 'donation'));
                  END IF;
+             END $$;`,
+            // MIGRACIÓN 27: Añadir fecha de expiración a las publicaciones
+            `DO $$
+             BEGIN
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='expires_at') THEN
+                     ALTER TABLE publications ADD COLUMN expires_at TIMESTAMP WITH TIME ZONE;
+                 END IF;
              END $$;`
         ];
 
@@ -914,7 +921,11 @@ async function startServer() {
 
 // Ruta para crear una nueva Publicación
         app.post('/publish', async (req, res) => {
-            const { title, description, blueCost, blueSell, authorUsername, availableSlots, autoApprove, publicationType } = req.body;
+            const { 
+                title, description, blueCost, blueSell, authorUsername, 
+                availableSlots, autoApprove, publicationType,
+                duration_days, duration_hours, duration_minutes 
+            } = req.body;
         
             if (!title || !description || !authorUsername || (!blueCost && !blueSell) || !publicationType) {
                 return res.status(400).json({ message: "Faltan datos requeridos para la publicación." });
@@ -963,8 +974,21 @@ async function startServer() {
                 }
                 const authorId = userResult.rows[0].id;
 
-                const sql = `INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, category) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`;
-                const result = await pool.query(sql, [title, description, cost, isSellPost, authorId, slots, !!autoApprove, publicationType]);
+                // --- NUEVO: Lógica para calcular la fecha de expiración ---
+                let expiresAt = null;
+                const days = parseInt(duration_days, 10) || 0;
+                const hours = parseInt(duration_hours, 10) || 0;
+                const minutes = parseInt(duration_minutes, 10) || 0;
+
+                if (days > 0 || hours > 0 || minutes > 0) {
+                    expiresAt = new Date();
+                    expiresAt.setDate(expiresAt.getDate() + days);
+                    expiresAt.setHours(expiresAt.getHours() + hours);
+                    expiresAt.setMinutes(expiresAt.getMinutes() + minutes);
+                }
+
+                const sql = `INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, category, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`;
+                const result = await pool.query(sql, [title, description, cost, isSellPost, authorId, slots, !!autoApprove, publicationType, expiresAt]);
                 
                 await client.query('COMMIT');
                 res.status(201).json({ message: "Publicación creada exitosamente.", publicationId: result.rows[0].id });
@@ -1022,7 +1046,7 @@ async function startServer() {
                 WHERE
                     p.id NOT IN (SELECT hp.publication_id FROM hidden_publications hp WHERE hp.hider_username = $1)
                     AND (
-                        (p.available_slots > 0)
+                        (p.available_slots > 0 AND (p.expires_at IS NULL OR p.expires_at > NOW()))
                         OR (u.username = $1 AND EXISTS (SELECT 1 FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status != 'confirmed_paid'))
                         OR (p.id IN (SELECT pa.publication_id FROM publication_acceptances pa WHERE pa.acceptor_username = $1 AND pa.status != 'confirmed_paid'))
                     )
@@ -2656,7 +2680,7 @@ app.get('/api/publications/:id', async (req, res) => {
         const query = `
             SELECT
                 p.id, p.title, p.description, p.blue_cost, p.status, p.created_at, p.is_paused,
-                p.is_sell_post, p.available_slots, p.category,
+                p.is_sell_post, p.available_slots, p.category, p.expires_at,
                 u.username as author_username,
                 u.average_rating as author_average_rating,
                 u.ratings_count as author_ratings_count,

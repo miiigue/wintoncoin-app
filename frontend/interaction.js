@@ -541,11 +541,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (pub.is_sell_post) {
             ribbonClass = 'sell-ribbon';
         }
-    
+
         const slotsClass = pub.available_slots > 0 ? 'available' : 'full';
         const slotsText = pub.available_slots > 0
             ? `${pub.available_slots} cupo${pub.available_slots > 1 ? 's' : ''} disponible${pub.available_slots > 1 ? 's' : ''}`
             : `Cupos agotados`;
+
+        // NUEVO: Lógica de expiración
+        const expirationInfo = getExpirationStatusHTML(pub);
     
         const authorNameHTML = window.appSettings.public_profiles_enabled
             ? `<a href="profile.html?user=${pub.author_username}" class="profile-link" onclick="event.stopPropagation()">${pub.author_username}</a>`
@@ -555,7 +558,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // El `onclick="event.stopPropagation()"` en el enlace del perfil evita que al hacer clic en el nombre también se dispare el clic de la tarjeta.
         return `
             <a href="publication-detail.html?id=${pub.id}" class="publication-item-link">
-                <div class="publication-item" data-id="${pub.id}" data-author="${pub.author_username}">
+                <div class="publication-item ${expirationInfo.isExpired ? 'expired' : ''}" data-id="${pub.id}" data-author="${pub.author_username}">
                     ${statusMessageHTML}
                     <div class="cost-ribbon ${ribbonClass}">${rewardText}</div>
                     
@@ -570,8 +573,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span>Por: <strong>${authorNameHTML}</strong></span>
                             ${ratingHTML}
                         </div>
-                        <div class="slots-info ${slotsClass}">
-                            ${slotsText}
+                        <div class="pub-meta-right">
+                            <div class="slots-info ${slotsClass}">
+                                ${slotsText}
+                            </div>
+                            ${expirationInfo.html}
                         </div>
                     </div>
     
@@ -582,6 +588,53 @@ document.addEventListener('DOMContentLoaded', () => {
             </a>
         `;
     }
+
+    /**
+     * NUEVO: Calcula y formatea el estado de expiración de una publicación.
+     * @param {object} pub La publicación.
+     * @returns {{html: string, isExpired: boolean}}
+     */
+    function getExpirationStatusHTML(pub) {
+        if (!pub.expires_at) {
+            return { html: '', isExpired: false };
+        }
+
+        const now = new Date();
+        const expirationDate = new Date(pub.expires_at);
+        const diff = expirationDate - now;
+
+        if (diff <= 0) {
+            return {
+                html: `<div class="expiration-info expired"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg> Expirada</div>`,
+                isExpired: true
+            };
+        }
+
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+        let timeLeft = '';
+        if (days > 1) {
+            timeLeft = `Vence en ${days} días`;
+        } else if (days === 1) {
+            timeLeft = `Vence en ${days} día`;
+        } else if (hours > 1) {
+            timeLeft = `Vence en ${hours} horas`;
+        } else if (hours === 1) {
+             timeLeft = `Vence en ${hours} hora`;
+        } else if (minutes > 0) {
+            timeLeft = `Vence en ${minutes} min`;
+        } else {
+            timeLeft = `Vence en <1 min`;
+        }
+
+        return {
+            html: `<div class="expiration-info"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> ${timeLeft}</div>`,
+            isExpired: false
+        };
+    }
+
 
     function getActionAndMessageHTML(pub, acceptorRatingData) {
         const currentUser = storedUsername;
