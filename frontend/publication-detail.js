@@ -71,11 +71,14 @@ document.addEventListener('DOMContentLoaded', () => {
             ? `<a href="profile.html?user=${pub.author_username}" class="profile-link">${pub.author_username}</a>`
             : pub.author_username;
 
+        // NUEVO: Obtener el estado de la vigencia
+        const expirationInfo = getExpirationStatusHTML(pub);
+
         // Lógica para añadir el botón de compartir en la cabecera
         // Ahora el botón se muestra siempre, permitiendo al autor compartir su propia publicación.
         const shareButtonHTML = `<button class="action-button share share-button-header" data-action="share">🔗 Compartir</button>`;
 
-        const { messageHTML, actionHTML } = getActionAndMessageHTML(pub);
+        const { messageHTML, actionHTML } = getActionAndMessageHTML(pub, expirationInfo.isExpired);
 
         let ribbonClass = '';
         if (pub.category === 'donation') {
@@ -91,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="detail-meta">
                     Publicado por <strong>${authorNameHTML}</strong> ${authorRatingHTML}
                     <span class="detail-date">el ${new Date(pub.created_at).toLocaleDateString()}</span>
+                    ${expirationInfo.html}
                 </div>
             </div>
 
@@ -166,7 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
-    function getActionAndMessageHTML(pub) {
+    function getActionAndMessageHTML(pub, isExpired) {
         // Esta función es muy similar a la de interaction.js, pero adaptada a la vista de detalle
         // y usando los datos de `pub` que ya están completos.
         const currentUser = storedUsername;
@@ -179,9 +183,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const hasActiveParticipants = pub.participants.some(p => ['approved', 'completed'].includes(p.status));
             const allParticipantsPaid = pub.participants.every(p => p.status === 'confirmed_paid');
             const canDelete = !hasActiveParticipants;
-            const canManagePause = !allParticipantsPaid;
+            const canManagePause = !allParticipantsPaid && !isExpired; // No se puede pausar si está expirada
 
-            if (pub.participants.length === 0) {
+            if (pub.participants.length === 0 && !isExpired) {
                  messageHTML = `<div class="status-pending">Aún no hay solicitudes para esta tarea.</div>`;
             }
              
@@ -205,6 +209,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const action = pub.is_sell_post ? 'comprado' : 'realizado';
+            
+            // Si la tarea está expirada, mostramos un mensaje y no mostramos acciones.
+            if (isExpired) {
+                messageHTML = `<div class="status-info">Esta tarea ha expirado y ya no acepta nuevos participantes.</div>`;
+                return { messageHTML, actionHTML };
+            }
 
             switch (userStatus) {
                 case 'pending_approval':
@@ -237,6 +247,41 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         return { messageHTML, actionHTML };
+    }
+
+    // --- Copiamos la función de `interaction.js` ---
+    function getExpirationStatusHTML(pub) {
+        if (!pub.expires_at) {
+            return { html: '', isExpired: false };
+        }
+
+        const now = new Date();
+        const expirationDate = new Date(pub.expires_at);
+        const diff = expirationDate - now;
+
+        if (diff <= 0) {
+            return {
+                html: `<span class="expiration-info expired"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg> Expirada</span>`,
+                isExpired: true
+            };
+        }
+
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+        let timeLeft = '';
+        if (days > 1) timeLeft = `Vence en ${days} días`;
+        else if (days === 1) timeLeft = `Vence en ${days} día`;
+        else if (hours > 1) timeLeft = `Vence en ${hours} horas`;
+        else if (hours === 1) timeLeft = `Vence en ${hours} hora`;
+        else if (minutes > 0) timeLeft = `Vence en ${minutes} min`;
+        else timeLeft = `Vence en <1 min`;
+
+        return {
+            html: `<span class="expiration-info"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> ${timeLeft}</span>`,
+            isExpired: false
+        };
     }
 
     // --- Handlers de Eventos ---

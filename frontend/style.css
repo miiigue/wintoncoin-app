@@ -204,6 +204,77 @@ a:hover {
     margin-left: 2px;
 }
 
+/* --- Estilos para la Vigencia de Tarea (Nuevo) --- */
+.form-group-collapsible {
+    background-color: var(--background-color);
+    border: 1px solid #2a3b5c;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+}
+
+.form-group-checkbox-header {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.form-group-checkbox-header label {
+    margin: 0;
+    margin-left: 10px;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.form-group-checkbox-header .input-hint {
+    margin-left: auto;
+    font-size: 0.8rem;
+    color: var(--text-secondary-color);
+    text-align: right;
+}
+
+.collapsible-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out, padding-top 0.3s ease-out;
+    padding-top: 0;
+    margin-left: 30px; /* Alinea con el texto del label del checkbox */
+}
+
+.collapsible-content.expanded {
+    max-height: 200px; /* Altura suficiente para el contenido */
+    padding-top: 15px;
+}
+
+.time-input-group {
+    display: flex;
+    gap: 15px;
+    align-items: flex-end;
+}
+
+.time-input-group > div {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.time-input-group label {
+    font-size: 0.8rem;
+    margin-bottom: 5px;
+    color: var(--text-secondary-color);
+    text-transform: uppercase;
+}
+
+.time-input-group input {
+    width: 100%;
+}
+
+input[type="checkbox"] {
+    flex-shrink: 0;
+}
+
+
 /* --- Estilos para la Página de Interacción --- */
 /* --- Contenedor de Balances Moderno --- */
 .balances-container {
@@ -2075,3 +2146,141 @@ hr {
 .beta-version-tag {
     display: none; /* Ocultamos la etiqueta anterior */
 }
+
+/* --- NUEVO: Estilos para la Vigencia de Tarea --- */
+.publication-item.expired {
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+}
+
+.publication-item.expired:hover {
+    opacity: 0.8;
+}
+
+.pub-meta-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+}
+
+.expiration-info {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary-color);
+}
+
+.expiration-info svg {
+    stroke-width: 2.5; /* Iconos un poco más gruesos */
+}
+
+.expiration-info.expired {
+    color: var(--error-color);
+    font-weight: 600;
+}
+
+/* --- NUEVO: Estilos para Compactar el Formulario de Publicación --- */
+.publish-container {
+    max-width: 550px; /* Ancho máximo más estrecho */
+    padding: 2rem 2.5rem; /* Padding horizontal reducido */
+}
+
+.publish-container form div,
+.publish-container .form-group-collapsible {
+    margin-bottom: 1rem; /* Espacio vertical entre elementos reducido AÚN MÁS */
+}
+
+.publish-container h1 {
+    margin-bottom: 1.5rem; /* Margen bajo el título ajustado */
+}
+
+/* --- NUEVO: Estilos para el Interruptor (Switch) --- */
+.form-group-switch {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--background-color);
+    border: 1px solid #2a3b5c;
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.switch-label-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.switch-label-group label {
+    margin-bottom: 0.2rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.switch-label-group .input-hint {
+    font-size: 0.8rem;
+    color: var(--text-secondary-color);
+    margin: 0;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px; /* Ancho del interruptor */
+    height: 28px; /* Alto del interruptor */
+    flex-shrink: 0;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #3c3c5c; /* Color del fondo del switch apagado */
+    transition: .4s;
+    border-radius: 28px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 20px; /* Tamaño del círculo */
+    width: 20px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: var(--primary-color);
+}
+
+input:checked + .slider:before {
+    transform: translateX(22px); /* Distancia que se mueve el círculo */
+}
+
+/* --- Ajuste para el contenido colapsable --- */
+#expiration-inputs.collapsible-content {
+    margin-left: 0; /* Ya no necesita el margen izquierdo */
+    padding: 1rem;
+    background-color: var(--background-color);
+    border: 1px solid #2a3b5c;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    margin-top: -1rem; /* Lo une visualmente con el switch de arriba */
+    margin-bottom: 1rem;
+}
+
+

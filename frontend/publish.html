@@ -8,7 +8,7 @@
     <script>document.getElementById('main-stylesheet').href = `style.css?v=${new Date().getTime()}`;</script>
 </head>
 <body>
-    <div class="container">
+    <div class="container publish-container">
         <h1>Crear Nueva Publicación</h1>
         
         <form id="publishForm">
@@ -41,10 +41,43 @@
                 <input type="number" id="availableSlots" name="availableSlots" min="1" value="1">
             </div>
 
-            <div class="form-group-checkbox">
-                <input type="checkbox" id="autoApprove" name="autoApprove">
-                <label for="autoApprove">Aprobar automáticamente a los participantes</label>
-                <small class="input-hint">Ideal para tareas que no requieren selección. El primer usuario que acepte será aprobado.</small>
+            <div class="form-group-switch">
+                <div class="switch-label-group">
+                    <label for="setExpiration">Establecer un límite de tiempo</label>
+                    <small class="input-hint">Por defecto, la tarea no expira y permanece activa hasta que se llenen los cupos.</small>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="setExpiration" name="setExpiration">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div id="expiration-inputs" class="collapsible-content">
+                <div class="time-input-group">
+                    <div>
+                        <label for="durationDays">Días:</label>
+                        <input type="number" id="durationDays" name="durationDays" min="0" value="0">
+                    </div>
+                    <div>
+                        <label for="durationHours">Horas:</label>
+                        <input type="number" id="durationHours" name="durationHours" min="0" value="0">
+                    </div>
+                    <div>
+                        <label for="durationMinutes">Minutos:</label>
+                        <input type="number" id="durationMinutes" name="durationMinutes" min="0" value="0">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group-switch">
+                 <div class="switch-label-group">
+                    <label for="autoApprove">Aprobación automática</label>
+                    <small class="input-hint">Ideal para tareas que no requieren selección. El primer usuario que acepte será aprobado.</small>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="autoApprove" name="autoApprove">
+                    <span class="slider"></span>
+                </label>
             </div>
 
             <!-- Contenedor para la nota de la comisión -->

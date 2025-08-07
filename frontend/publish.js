@@ -9,7 +9,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const costWrapper = document.getElementById('cost-wrapper');
     const sellWrapper = document.getElementById('sell-wrapper');
     const noticeContainer = document.getElementById('commission-notice-container');
-    const preLaunchNoticeContainer = document.getElementById('prelaunch-notice-container'); // NUEVO
+    const preLaunchNoticeContainer = document.getElementById('prelaunch-notice-container');
+    const setExpirationCheckbox = document.getElementById('setExpiration');
+    const expirationInputsContainer = document.getElementById('expiration-inputs');
 
     // --- Elementos del formulario que cambiaremos ---
     const pageTitle = document.querySelector('.container h1');
@@ -26,6 +28,28 @@ document.addEventListener('DOMContentLoaded', () => {
         showCustomAlert('Debes iniciar sesión para publicar.', () => { window.location.href = 'index.html'; });
         return;
     }
+
+    // --- Lógica para el colapsable de la vigencia ---
+    expirationInputsContainer.style.display = 'none'; // Oculto por defecto con JS por si el CSS no carga
+    setExpirationCheckbox.checked = false;
+
+    setExpirationCheckbox.addEventListener('change', () => {
+        const isChecked = setExpirationCheckbox.checked;
+        if (isChecked) {
+            expirationInputsContainer.style.display = 'block';
+            // Para la animación de CSS
+            setTimeout(() => {
+                expirationInputsContainer.classList.add('expanded');
+            }, 10);
+        } else {
+            expirationInputsContainer.classList.remove('expanded');
+            // Esperar a que la animación termine para ocultarlo
+            setTimeout(() => {
+                expirationInputsContainer.style.display = 'none';
+            }, 300); // 300ms es la duración de la transición en el CSS
+        }
+    });
+
 
     // --- NUEVO: Lógica para mostrar avisos condicionales ---
     async function displayNotices() {
@@ -123,6 +147,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // El valor de un checkbox no marcado no se envía, así que lo manejamos explícitamente.
         data.autoApprove = document.getElementById('autoApprove').checked;
+
+        // Añadimos la lógica de la fecha de expiración
+        if (setExpirationCheckbox.checked) {
+            data.duration_days = document.getElementById('durationDays').value || 0;
+            data.duration_hours = document.getElementById('durationHours').value || 0;
+            data.duration_minutes = document.getElementById('durationMinutes').value || 0;
+
+            // Validación simple: al menos uno debe ser mayor que cero
+            if (data.duration_days <= 0 && data.duration_hours <= 0 && data.duration_minutes <= 0) {
+                showCustomAlert('Si estableces un límite de tiempo, la duración debe ser mayor a cero.');
+                return;
+            }
+        }
 
         try {
             const response = await fetch(`${API_URL}/publish`, {
