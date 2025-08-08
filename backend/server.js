@@ -291,7 +291,18 @@ async function applyMigrations(client) {
                  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='expires_at') THEN
                      ALTER TABLE publications ADD COLUMN expires_at TIMESTAMP WITH TIME ZONE;
                  END IF;
-             END $$;`
+             END $$;`,
+
+            // MIGRACIÓN 28: Añadir campos para Venta Rápida
+            `DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='is_quick_sale') THEN
+                    ALTER TABLE publications ADD COLUMN is_quick_sale BOOLEAN DEFAULT FALSE;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='target_username') THEN
+                    ALTER TABLE publications ADD COLUMN target_username VARCHAR(255);
+                END IF;
+            END $$;`
         ];
 
         for (const migration of migrations) {
@@ -1073,11 +1084,26 @@ app.get('/publications/active', async (req, res) => {
             users u on p.author_id = u.id
         WHERE
             p.id NOT IN (SELECT hp.publication_id FROM hidden_publications hp WHERE hp.hider_username = $1)
-            AND (
-                (p.available_slots > 0 AND (p.expires_at IS NULL OR p.expires_at > NOW()))
-                OR (u.username = $1 AND EXISTS (SELECT 1 FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status != 'confirmed_paid'))
-                OR (p.id IN (SELECT pa.publication_id FROM publication_acceptances pa WHERE pa.acceptor_username = $1 AND pa.status != 'confirmed_paid'))
+                    AND (
+            -- Caso 1: Publicaciones normales que están activas o en las que el usuario participa
+            (
+                p.is_quick_sale = false AND (
+                    (p.available_slots > 0 AND (p.expires_at IS NULL OR p.expires_at > NOW()))
+                    OR 
+                    (u.username = $1 AND EXISTS (SELECT 1 FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status != 'confirmed_paid'))
+                    OR 
+                    (p.id IN (SELECT pa.publication_id FROM publication_acceptances pa WHERE pa.acceptor_username = $1 AND pa.status != 'confirmed_paid'))
+                )
             )
+            OR
+            -- Caso 2: Ventas Rápidas que están activas Y son para el usuario o del usuario
+            (
+                p.is_quick_sale = true 
+                AND (p.target_username = $1 OR u.username = $1)
+                AND p.available_slots > 0 
+                AND p.expires_at IS NOT NULL AND p.expires_at > NOW()
+            )
+        )
             ${searchCondition}
         ORDER BY
             p.created_at DESC
@@ -1093,6 +1119,186 @@ app.get('/publications/active', async (req, res) => {
     } catch (error) {
         console.error("Error al obtener las publicaciones activas:", error);
         return res.status(500).json({ message: "Error interno del servidor." });
+    }
+});
+
+// NUEVO: Endpoint para crear una Venta Rápida
+app.post('/api/quick-sale', async (req, res) => {
+    const { title, amount, authorUsername, targetUsername } = req.body;
+
+    // 1. Validaciones de entrada básicas
+    if (!title || !amount || !authorUsername) {
+        return res.status(400).json({ message: "Faltan datos requeridos: título, monto y autor son obligatorios." });
+    }
+
+    const cost = parseFloat(String(amount).replace(',', '.'));
+    if (isNaN(cost) || cost <= 0) {
+        return res.status(400).json({ message: "El monto debe ser un número positivo." });
+    }
+    
+    // Sanitización simple del título para prevenir XSS básico.
+    const sanitizedTitle = title.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 2. Verificar que el autor existe y obtener su ID
+        const authorResult = await client.query('SELECT id FROM users WHERE username = $1', [authorUsername]);
+        if (authorResult.rowCount === 0) {
+            throw { status: 404, message: 'El usuario autor no existe.' };
+        }
+        const authorId = authorResult.rows[0].id;
+
+        // 3. (OPCIONAL) Verificar que el comprador objetivo existe, si se especificó
+        if (targetUsername && targetUsername.trim() !== '') {
+            if (targetUsername === authorUsername) {
+                throw { status: 400, message: 'No puedes crearte una venta rápida a ti mismo.' };
+            }
+            const targetUserResult = await client.query('SELECT id FROM users WHERE username = $1', [targetUsername]);
+            if (targetUserResult.rowCount === 0) {
+                throw { status: 404, message: 'El usuario comprador especificado no existe.' };
+            }
+        }
+
+        // 4. Crear la publicación de Venta Rápida
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutos desde ahora
+
+        const insertQuery = `
+            INSERT INTO publications 
+            (author_id, title, description, blue_cost, status, is_sell_post, is_quick_sale, target_username, expires_at, category) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+            RETURNING id;
+        `;
+        const values = [
+            authorId,
+            sanitizedTitle,
+            'Venta Rápida', // Descripción genérica
+            cost,
+            'open',       // Estado inicial
+            true,         // Es un post de venta
+            true,         // Es una Venta Rápida
+            targetUsername && targetUsername.trim() !== '' ? targetUsername.trim() : null,
+            expiresAt,
+            'sell'        // Categoría
+        ];
+        
+        const publicationResult = await client.query(insertQuery, values);
+        const newPublicationId = publicationResult.rows[0].id;
+
+        await client.query('COMMIT');
+        
+        // 5. Devolver el ID de la nueva publicación para generar el QR
+        res.status(201).json({ 
+            message: 'Venta Rápida creada con éxito.',
+            publicationId: newPublicationId 
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error al crear la Venta Rápida:', error);
+        res.status(error.status || 500).json({ message: error.message || 'Error interno del servidor.' });
+    } finally {
+        client.release();
+    }
+});
+
+// NUEVO: Endpoint para PAGAR una Venta Rápida
+app.post('/api/quick-sale/:id/pay', async (req, res) => {
+    const { id } = req.params;
+    const { buyerUsername } = req.body;
+
+    if (!buyerUsername) {
+        return res.status(400).json({ message: "Se requiere el nombre de usuario del comprador." });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Obtener los datos de la publicación y bloquear la fila
+        const pubResult = await client.query(
+            `SELECT p.*, u.username as author_username 
+             FROM publications p
+             JOIN users u ON p.author_id = u.id
+             WHERE p.id = $1 FOR UPDATE`, 
+            [id]
+        );
+
+        if (pubResult.rowCount === 0) {
+            throw { status: 404, message: "Venta Rápida no encontrada." };
+        }
+        const publication = pubResult.rows[0];
+
+        // --- INICIO DE LAS VALIDACIONES DE PAGO CRÍTICAS ---
+        
+        // a. ¿Es realmente una Venta Rápida?
+        if (!publication.is_quick_sale) {
+            throw { status: 400, message: "Esta acción solo es válida para Ventas Rápidas." };
+        }
+
+        // b. ¿Ya ha sido pagada o está cerrada?
+        if (publication.status !== 'open') {
+            throw { status: 400, message: "Esta venta ya no está disponible para pago." };
+        }
+
+        // c. ¿Ha expirado?
+        const hasExpired = publication.expires_at && new Date(publication.expires_at) < new Date();
+        if (hasExpired) {
+            throw { status: 400, message: "Esta Venta Rápida ha expirado." };
+        }
+
+        // d. ¿El comprador es el vendedor?
+        if (publication.author_username === buyerUsername) {
+            throw { status: 400, message: "No puedes comprar tu propia venta." };
+        }
+
+        // e. Si es una venta dirigida, ¿es el comprador correcto?
+        if (publication.target_username && publication.target_username !== buyerUsername) {
+            throw { status: 403, message: "No tienes permiso para comprar esta venta." };
+        }
+
+        // --- FIN DE VALIDACIONES ---
+
+        // 2. Ejecutar la transferencia de fondos (similar a un pago de 'sell')
+        const amount = publication.blue_cost;
+        const sellerUsername = publication.author_username;
+
+        // Verificar fondos del comprador
+        const buyerBalanceResult = await client.query('SELECT liquid_blue_balance FROM users WHERE username = $1', [buyerUsername]);
+        if (buyerBalanceResult.rowCount === 0) {
+             throw { status: 404, message: 'El usuario comprador no existe.' };
+        }
+        const buyerBalance = buyerBalanceResult.rows[0].liquid_blue_balance;
+        if (buyerBalance < amount) {
+            throw { status: 402, message: 'Fondos insuficientes para realizar la compra.' };
+        }
+
+        // Deducir del comprador y añadir al vendedor
+        await client.query('UPDATE users SET liquid_blue_balance = liquid_blue_balance - $1 WHERE username = $2', [amount, buyerUsername]);
+        await client.query('UPDATE users SET liquid_blue_balance = liquid_blue_balance + $1 WHERE username = $2', [amount, sellerUsername]);
+
+        // 3. Actualizar el estado de la publicación a 'completed'
+        await client.query(`UPDATE publications SET status = 'completed', available_slots = 0 WHERE id = $1`, [id]);
+        
+        // 4. Crear notificación para el vendedor
+        const notificationMessage = `¡Venta Rápida completada! ${buyerUsername} ha pagado por tu publicación: "${publication.title}".`;
+        await client.query(`
+            INSERT INTO notifications (recipient_username, message, type, related_publication_id) 
+            VALUES ($1, $2, 'quick_sale_paid', $3)`, 
+            [sellerUsername, notificationMessage, id]
+        );
+        
+        await client.query('COMMIT');
+
+        res.status(200).json({ message: "Pago realizado con éxito." });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error(`Error al procesar el pago de la Venta Rápida ${id}:`, error);
+        res.status(error.status || 500).json({ message: error.message || "Error crítico en la transacción." });
+    } finally {
+        client.release();
     }
 });
 
@@ -2743,6 +2949,7 @@ app.get('/api/publications/:id', async (req, res) => {
             SELECT
                 p.id, p.title, p.description, p.blue_cost, p.status, p.created_at, p.is_paused,
                 p.is_sell_post, p.available_slots, p.category, p.expires_at,
+                p.is_quick_sale, p.target_username, -- CAMPOS AÑADIDOS
                 u.username as author_username,
                 u.average_rating as author_average_rating,
                 u.ratings_count as author_ratings_count,
@@ -2781,8 +2988,30 @@ app.get('/api/publications/:id', async (req, res) => {
         }
 
         const publication = result.rows[0];
-        // Nos aseguramos de que el array de participantes nunca sea nulo
-        publication.participants = publication.participants || [];
+        publication.participants = publication.participants || []; // Asegurarse de que sea un array
+
+        // --- INICIO DE LA LÓGICA DE SEGURIDAD PARA VENTA RÁPIDA ---
+        if (publication.is_quick_sale) {
+            const isAuthor = publication.author_username === requestingUser;
+            const isTargetedUser = publication.target_username === requestingUser;
+            const isPublicQuickSale = !publication.target_username;
+            const hasExpired = publication.expires_at && new Date(publication.expires_at) < new Date();
+
+            // Si ha expirado, nadie puede verla, ni siquiera el autor, para mantener la consistencia.
+            if (hasExpired) {
+                return res.status(404).json({ message: "Esta venta rápida ha expirado." });
+            }
+
+            // Reglas de acceso:
+            // 1. El autor siempre puede verla (mientras no haya expirado).
+            // 2. Si tiene un comprador específico, solo él puede verla.
+            // 3. Si es pública (sin comprador específico), cualquier usuario logueado que no sea el autor puede verla.
+            if (!isAuthor && !isTargetedUser && !(isPublicQuickSale && !isAuthor)) {
+                 // Devolvemos 404 para no revelar la existencia de la venta.
+                return res.status(404).json({ message: "Publicación no encontrada." });
+            }
+        }
+        // --- FIN DE LA LÓGICA DE SEGURIDAD ---
 
         res.status(200).json(publication);
 

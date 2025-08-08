@@ -2286,16 +2286,91 @@ input:checked + .slider:before {
     transform: translateX(22px); /* Distancia que se mueve el círculo */
 }
 
-/* --- Ajuste para el contenido colapsable --- */
-#expiration-inputs.collapsible-content {
-    margin-left: 0; /* Ya no necesita el margen izquierdo */
+/* --- Contenedor de Acciones Principales (NUEVO) --- */
+.main-actions-container {
+    display: flex;
+    gap: 1rem;
+    margin: 2rem 0;
+    justify-content: center;
+}
+
+.main-actions-container .button-link {
+    margin: 0; /* Reseteamos el margen que tenían individualmente */
+    flex: 1; /* Ocupan el espacio disponible */
+    display: flex; /* Usar flexbox para centrado perfecto */
+    justify-content: center; /* Centrado horizontal */
+    align-items: center; /* Centrado vertical */
+    gap: 0.5em; /* Espacio entre el icono y el texto */
+}
+
+/* Ajuste para el botón de acción secundaria (Venta Rápida) */
+.main-actions-container .button-link.secondary-action {
+    background-color: transparent;
+    border: 2px solid #f1c40f; /* Borde de color amarillo claro */
+    color: #f1c40f; /* Texto del mismo color que el borde */
+    font-weight: 700;
+    animation: glowing-border 2.5s ease-in-out infinite; /* Aplicamos la nueva animación */
+    transition: background-color 0.3s, color 0.3s; /* Transición suave para el hover */
+}
+
+.main-actions-container .button-link.secondary-action:hover {
+    background-color: #f1c40f; /* Al pasar el ratón, se rellena */
+    color: #111; /* El texto se vuelve oscuro */
+    animation: none; /* Pausamos la animación para que el hover sea limpio */
+}
+
+
+/* --- Estilos para el Modal de QR (NUEVO) --- */
+.qr-code-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    text-align: center;
+}
+
+#qrCodeOutput {
     padding: 1rem;
+    background-color: white;
+    border-radius: 8px;
+    line-height: 0; /* Para que no haya espacio extra bajo el QR */
+}
+
+#qrCodeOutput canvas {
+    max-width: 100%;
+    height: auto;
+}
+
+#qrCodeUrl {
+    width: 100%;
+    text-align: center;
     background-color: var(--background-color);
     border: 1px solid #2a3b5c;
-    border-top: none;
-    border-radius: 0 0 8px 8px;
-    margin-top: -1rem; /* Lo une visualmente con el switch de arriba */
-    margin-bottom: 1rem;
+    color: var(--text-secondary-color);
+    font-family: 'Courier New', Courier, monospace;
 }
+
+#copyQrCodeUrl {
+    width: auto;
+    padding: 10px 20px;
+}
+
+/* --- Animación de Brillo para Bordes (NUEVO) --- */
+@keyframes glowing-border {
+    0% {
+        border-color: #f1c40f;
+        box-shadow: 0 0 3px #f1c40f;
+    }
+    50% {
+        border-color: #f39c12;
+        box-shadow: 0 0 10px #f39c12, 0 0 5px #f39c12 inset;
+    }
+    100% {
+        border-color: #f1c40f;
+        box-shadow: 0 0 3px #f1c40f;
+    }
+}
+
+
 
 

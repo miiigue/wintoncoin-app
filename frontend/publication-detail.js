@@ -171,19 +171,72 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getActionAndMessageHTML(pub, isExpired) {
-        // Esta función es muy similar a la de interaction.js, pero adaptada a la vista de detalle
-        // y usando los datos de `pub` que ya están completos.
         const currentUser = storedUsername;
+
+        // --- LÓGICA ESPECIAL PARA VENTA RÁPIDA ---
+        if (pub.is_quick_sale) {
+            let messageHTML = '';
+            let actionHTML = '';
+
+            if (isExpired) {
+                messageHTML = `<div class="status-info">Esta Venta Rápida ha expirado.</div>`;
+                return { messageHTML, actionHTML };
+            }
+
+            const isAuthor = currentUser === pub.author_username;
+            const isTargetedBuyer = currentUser === pub.target_username;
+            const isPublicSale = !pub.target_username;
+
+            if (isAuthor) {
+                // VISTA DEL VENDEDOR: Mostrar el QR y el enlace
+                const publicationUrl = `${window.location.origin}/publication-detail.html?id=${pub.id}`;
+                actionHTML = `
+                    <div class="qr-code-container">
+                        <h2>Comparte este QR para recibir tu pago</h2>
+                        <p>El enlace de pago es válido por 5 minutos desde su creación.</p>
+                        <div id="qrCodeOutput_detail"></div>
+                        <input type="text" id="qrCodeUrl_detail" value="${publicationUrl}" readonly>
+                        <button id="copyQrCodeUrl_detail" class="action-button">Copiar Enlace</button>
+                    </div>
+                `;
+                // Usamos un setTimeout para asegurarnos de que el HTML esté en el DOM antes de generar el QR
+                setTimeout(() => {
+                    new QRCode(document.getElementById("qrCodeOutput_detail"), {
+                        text: publicationUrl,
+                        width: 200,
+                        height: 200
+                    });
+                    document.getElementById('copyQrCodeUrl_detail').addEventListener('click', () => {
+                        const urlInput = document.getElementById('qrCodeUrl_detail');
+                        urlInput.select();
+                        document.execCommand('copy');
+                        showCustomAlert('¡Enlace copiado al portapapeles!');
+                    });
+                }, 100);
+
+            } else if (isTargetedBuyer || (isPublicSale && !isAuthor)) {
+                // VISTA DEL COMPRADOR
+                messageHTML = `<div class="action-message">Estás a punto de pagar <strong>${formatBalance(pub.blue_cost)} BLUE</strong> a <strong>${pub.author_username}</strong>.</div>`;
+                actionHTML = `<button class="action-button confirm" data-action="pay-quick-sale">Pagar Ahora</button>`;
+            } else {
+                // Si alguien que no es ni el autor ni el comprador objetivo intenta acceder
+                // (aunque el backend ya debería haberlo bloqueado con un 404, esta es una capa extra)
+                 messageHTML = `<div class="status-info">No tienes permiso para ver o actuar en esta venta.</div>`;
+            }
+            return { messageHTML, actionHTML };
+        }
+        // --- FIN DE LÓGICA ESPECIAL ---
+
+        // Lógica original para publicaciones normales
         const userStatus = pub.user_acceptance_status;
         let messageHTML = '';
         let actionHTML = '';
 
         if (currentUser === pub.author_username) {
-            // --- VISTA DEL AUTOR ---
             const hasActiveParticipants = pub.participants.some(p => ['approved', 'completed'].includes(p.status));
             const allParticipantsPaid = pub.participants.every(p => p.status === 'confirmed_paid');
             const canDelete = !hasActiveParticipants;
-            const canManagePause = !allParticipantsPaid && !isExpired; // No se puede pausar si está expirada
+            const canManagePause = !allParticipantsPaid && !isExpired;
 
             if (pub.participants.length === 0 && !isExpired) {
                  messageHTML = `<div class="status-pending">Aún no hay solicitudes para esta tarea.</div>`;
@@ -199,18 +252,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
         } else {
-            // --- VISTA DE OTROS USUARIOS ---
-            // Determinamos el verbo principal de la acción según la categoría
             let verb;
             if (pub.category === 'donation') {
                 verb = 'Donar/Ayudar';
             } else {
                 verb = pub.is_sell_post ? 'Comprar' : 'Aceptar Tarea';
             }
-
             const action = pub.is_sell_post ? 'comprado' : 'realizado';
             
-            // Si la tarea está expirada, mostramos un mensaje y no mostramos acciones.
             if (isExpired) {
                 messageHTML = `<div class="status-info">Esta tarea ha expirado y ya no acepta nuevos participantes.</div>`;
                 return { messageHTML, actionHTML };
@@ -229,7 +278,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     break;
                 case 'confirmed_paid':
                     messageHTML = `<p class="action-message status-info">¡Transacción completada!</p>`;
-                    // Incluso si ya participó, puede volver a hacerlo si hay cupos
                     if (pub.available_slots > 0) {
                         actionHTML += `<button class="action-button accept" data-action="accept">${verb} de nuevo</button>`;
                     }
@@ -311,6 +359,13 @@ document.addEventListener('DOMContentLoaded', () => {
         let endpoint, body = {}, method = 'POST';
 
         switch (action) {
+            case 'pay-quick-sale':
+                showCustomConfirm(`¿Confirmas el pago de ${document.querySelector('.detail-cost-badge').innerText} a ${document.querySelector('.detail-meta strong').innerText}?`, async () => {
+                    endpoint = `/api/quick-sale/${publicationId}/pay`;
+                    body = { buyerUsername: storedUsername };
+                    await fetchFromServer(endpoint, 'POST', body);
+                });
+                return; // Importante para no continuar
             case 'accept':
                 endpoint = `/publications/${publicationId}/accept`;
                 body = { acceptorUsername: storedUsername };
