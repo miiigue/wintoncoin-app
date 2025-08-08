@@ -109,9 +109,52 @@
 
         <div class="publications-section">
             
-            <a href="#" id="openPublicationModalBtn" class="button-link">Crear Nueva Publicación</a>
+            <div class="main-actions-container">
+                <a href="#" id="openPublicationModalBtn" class="button-link primary-action">Crear Nueva Publicación</a>
+                <a href="#" id="openQuickSaleModalBtn" class="button-link secondary-action">⚡ Venta Rápida</a>
+            </div>
+
             <div id="publications-list">
                 <!-- Las publicaciones se cargarán aquí dinámicamente -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PARA VENTA RÁPIDA -->
+    <div id="quickSaleModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button quick-sale-close">&times;</span>
+            <form id="quickSaleForm">
+                <h2>⚡ Venta Rápida</h2>
+                <p>Crea un cobro directo con un enlace de pago único. Ideal para transacciones inmediatas.</p>
+                <div class="form-group">
+                    <label for="quickSaleTitle">Título / Concepto:</label>
+                    <input type="text" id="quickSaleTitle" name="title" required placeholder="Ej: Pago por diseño web">
+                </div>
+                <div class="form-group">
+                    <label for="quickSaleAmount">Monto a cobrar (BLUE):</label>
+                    <input type="text" inputmode="decimal" id="quickSaleAmount" name="amount" required placeholder="Ej: 150.50">
+                </div>
+                <div class="form-group">
+                    <label for="quickSaleTargetUsername">Comprador específico (opcional):</label>
+                    <input type="text" id="quickSaleTargetUsername" name="targetUsername" placeholder="Ej: nombredeusuario">
+                    <small class="input-hint">Si lo dejas en blanco, cualquiera con el enlace podrá pagar.</small>
+                </div>
+                <button type="submit" class="action-button confirm">Generar QR de Cobro</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL PARA MOSTRAR CÓDIGO QR -->
+    <div id="qrCodeModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button qr-code-close">&times;</span>
+            <div class="qr-code-container">
+                <h2>¡Listo! Comparte este QR para recibir tu pago</h2>
+                <p>El enlace de pago es válido por 5 minutos.</p>
+                <div id="qrCodeOutput"></div> <!-- El QR se generará aquí -->
+                <input type="text" id="qrCodeUrl" readonly>
+                <button id="copyQrCodeUrl" class="action-button">Copiar Enlace</button>
             </div>
         </div>
     </div>
@@ -241,5 +284,6 @@
     <div class="beta-version-tag" style="display: none;">
         Prototipo Alfa
     </div>
+    <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
 </body>
 </html> 
