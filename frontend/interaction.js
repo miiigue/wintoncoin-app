@@ -425,36 +425,53 @@ newElement.style.cursor = 'pointer';
     }
 
     async function postToServer(endpoint, body, options = {}) {
-        const { silent = false, reload = true } = options; // `reload` es true por defecto
+    const { silent = false, reload = true } = options;
+    try {
+        const response = await fetch(`${API_URL}${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        // Leemos la respuesta como texto para evitar errores de parseo JSON.
+        const responseText = await response.text();
+        let result;
+
         try {
-            const response = await fetch(`${API_URL}${endpoint}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-
-            const result = await response.json();
-            
-            if (!response.ok) {
-                showCustomAlert(result.message || `Error en el servidor: ${response.status}`);
-                throw new Error(result.message || `Error en el servidor`);
-            }
-
-            if (!silent && result.message) {
-                showCustomAlert(result.message);
-            }
-            
-            if (response.ok && reload) {
-                loadAllData(); // Recargar datos si la operación fue exitosa y se debe recargar
-            }
-            
-            return result;
-
-        } catch (error) {
-            console.error(`Error en postToServer (${endpoint}):`, error);
-            throw error;
+            // Intentamos interpretar el texto como JSON.
+            result = JSON.parse(responseText);
+        } catch (e) {
+            // Si falla, es que el servidor devolvió un error no-JSON (ej. HTML de error).
+            // Lo tratamos como un error y mostramos el texto.
+            console.error("Respuesta no-JSON del servidor:", responseText);
+            // Mostramos el texto del error en nuestro modal personalizado.
+            showCustomAlert(responseText || `Error inesperado del servidor.`);
+            throw new Error("Respuesta no-JSON del servidor");
         }
+
+        if (!response.ok) {
+            showCustomAlert(result.message || `Error en el servidor: ${response.status}`);
+            throw new Error(result.message || `Error en el servidor`);
+        }
+
+        if (!silent && result.message) {
+            showCustomAlert(result.message);
+        }
+
+        if (response.ok && reload) {
+            loadAllData();
+        }
+
+        return result;
+
+    } catch (error) {
+        // Este catch ahora solo se activará para errores de red o los que lanzamos nosotros.
+        // El mensaje ya se habrá mostrado al usuario.
+        console.error(`Error en postToServer (${endpoint}):`, error);
+        // Devolvemos una promesa rechazada para que las funciones que llaman a esta sepan que falló.
+        return Promise.reject(error);
     }
+}
 
     // --- Lógica de Renderizado ---
     async function fetchAndDisplayPublications() {

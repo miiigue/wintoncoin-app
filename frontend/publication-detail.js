@@ -494,7 +494,17 @@ ${registrationUrl}`;
                 options.body = JSON.stringify(body);
             }
             const response = await fetch(`${API_URL}${endpoint}`, options);
-            const result = await response.json();
+            
+            const responseText = await response.text();
+            let result;
+
+            try {
+                result = JSON.parse(responseText);
+            } catch (e) {
+                console.error("Respuesta no-JSON del servidor:", responseText);
+                showCustomAlert(responseText || `Error inesperado del servidor.`);
+                throw new Error("Respuesta no-JSON del servidor");
+            }
             
             if (!response.ok) {
                 showCustomAlert(result.message || `Error en el servidor: ${response.status}`);
@@ -505,13 +515,13 @@ ${registrationUrl}`;
                 showCustomAlert(result.message);
             }
             
-            fetchAndRenderPublication(); // Recargar siempre para reflejar el estado más reciente
+            initializePage(); // Recargar siempre para reflejar el estado más reciente
             return result;
 
         } catch (error) {
             console.error(`Error en fetchFromServer (${endpoint}):`, error);
-            // No mostramos alerta aquí porque ya se hace en el bloque `if (!response.ok)`
-            return null; // Devolvemos null para indicar que la operación falló
+            // El mensaje ya se habrá mostrado. Solo devolvemos null para indicar el fallo.
+            return null;
         }
     }
 
