@@ -47,7 +47,7 @@ Con la implementación de este proyecto, también se espera acelerar la adopció
 ## FUNCIONAMIENTO
 
 A continuación se muestra un diagrama de flujo generalizado que describe el proceso, así como los elementos que intervienen:
-
+  
 -   **Usuario A (Solicitante):**
     -   Es la persona que necesita y hace la solicitud, entra a la plataforma y describe la tarea colocando los detalles.
     -   Puede seleccionar si pagará en efectivo o en tokens.

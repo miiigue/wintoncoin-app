@@ -1381,15 +1381,11 @@ newElement.style.cursor = 'pointer';
         };
 
         try {
-            const response = await fetch(`${API_URL}/api/quick-sale`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
+            // Usamos nuestra función robusta para manejar la petición y los errores.
+            // La opción reload: false evita que se recargue toda la lista de publicaciones.
+            const result = await postToServer('/api/quick-sale', data, { reload: false });
 
-            const result = await response.json();
-
-            if (response.ok) {
+            if (result) {
                 // 1. Ocultar modal de formulario y resetearlo
                 quickSaleModal.style.display = 'none';
                 quickSaleForm.reset();
@@ -1412,13 +1408,13 @@ newElement.style.cursor = 'pointer';
 
                 qrCodeUrlInput.value = publicationUrl;
                 qrCodeModal.style.display = 'flex';
-
-            } else {
-                showCustomAlert(result.message || 'Error al crear la venta rápida.');
             }
+            // El `else` ya no es necesario, porque si hay un error, postToServer lo lanzará y será capturado abajo.
+
         } catch (error) {
-            console.error('Error en el submit de Venta Rápida:', error);
-            showCustomAlert('Error de conexión al crear la venta rápida.');
+            // El error ya fue mostrado al usuario por postToServer.
+            // Simplemente lo registramos en la consola para depuración.
+            console.error('Error al crear la Venta Rápida:', error);
         }
     });
 

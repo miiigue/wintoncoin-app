@@ -1124,11 +1124,16 @@ app.get('/publications/active', async (req, res) => {
 
 // NUEVO: Endpoint para crear una Venta Rápida
 app.post('/api/quick-sale', async (req, res) => {
-    const { title, amount, authorUsername, targetUsername } = req.body;
+    let { title, amount, authorUsername, targetUsername } = req.body;
 
     // 1. Validaciones de entrada básicas
-    if (!title || !amount || !authorUsername) {
-        return res.status(400).json({ message: "Faltan datos requeridos: título, monto y autor son obligatorios." });
+    if (!amount || !authorUsername) {
+        return res.status(400).json({ message: "Faltan datos requeridos: el monto y el autor son obligatorios." });
+    }
+
+    // Si el título viene vacío, se le asigna un valor por defecto.
+    if (!title || title.trim() === '') {
+        title = 'Venta Rápida';
     }
 
     const cost = parseFloat(String(amount).replace(',', '.'));
