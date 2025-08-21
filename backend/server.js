@@ -301,8 +301,8 @@ async function applyMigrations(client) {
                 END IF;
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='target_username') THEN
                     ALTER TABLE publications ADD COLUMN target_username VARCHAR(255);
-                END IF;
-            END $$;`
+                 END IF;
+             END $$;`
         ];
 
         for (const migration of migrations) {
@@ -866,16 +866,16 @@ async function startServer() {
                 }
         
                 // --- FIN DE LA TRANSACCIÓN ---
-await client.query('COMMIT');
+                await client.query('COMMIT');
 
 // SEGURIDAD: Nunca devolver el hash de la contraseña en la respuesta.
 const userResponse = newUser;
 delete userResponse.password_hash;
 
-res.status(201).json({ 
+                res.status(201).json({ 
     message: `Usuario '${userResponse.username}' registrado con éxito.`,
     user: userResponse
-});
+                });
         
     } catch (error) {
                 // Si algo falla, revertimos todos los cambios.
@@ -1029,10 +1029,10 @@ app.post('/login', loginLimiter, async (req, res) => {
         });
 
         // Ruta para obtener publicaciones activas
-app.get('/publications/active', async (req, res) => {
+        app.get('/publications/active', async (req, res) => {
     const { user: requestingUser, search } = req.query; // search puede ser undefined
-    if (!requestingUser) return res.status(400).json({ message: "Es necesario especificar un usuario." });
-    
+            if (!requestingUser) return res.status(400).json({ message: "Es necesario especificar un usuario." });
+            
     // FIX DE SEGURIDAD: Usar parámetros de consulta para prevenir inyección de SQL
     const queryParams = [requestingUser];
     let searchCondition = "";
@@ -1044,46 +1044,46 @@ app.get('/publications/active', async (req, res) => {
 
     // FIX FUNCIONAL: Añadido p.expires_at a la lista de campos
     const sql = `
-        SELECT
+                SELECT
             p.id, p.title, p.description, p.blue_cost, p.created_at, p.status, p.category,
             p.is_booster_task, p.is_sell_post, p.available_slots, p.expires_at,
-            u.username as author_username,
+                    u.username as author_username,
             u.average_rating as author_average_rating,
             u.ratings_count as author_ratings_count,
-            (
-                SELECT pa.status 
-                FROM publication_acceptances pa 
-                WHERE pa.publication_id = p.id AND pa.acceptor_username = $1
-                ORDER BY
-                    CASE pa.status
-                        WHEN 'approved' THEN 1
-                        WHEN 'completed' THEN 2
-                        WHEN 'pending_approval' THEN 3
-                        WHEN 'confirmed_paid' THEN 4
-                        ELSE 5
-                    END
-                LIMIT 1
-            ) as user_acceptance_status,
-            (CASE
-                WHEN u.username = $1 THEN (
-                    SELECT json_agg(json_build_object(
-                        'username', participant_user.username,
-                        'status', pa.status,
-                        'average_rating', participant_user.average_rating,
-                        'ratings_count', participant_user.ratings_count
-                    ))
-                    FROM publication_acceptances pa
-                    JOIN users participant_user ON pa.acceptor_username = participant_user.username
-                    WHERE pa.publication_id = p.id
-                )
-                ELSE NULL
-            END) as participants
-        FROM
-            publications p
-        JOIN
-            users u on p.author_id = u.id
-        WHERE
-            p.id NOT IN (SELECT hp.publication_id FROM hidden_publications hp WHERE hp.hider_username = $1)
+                    (
+                        SELECT pa.status 
+                        FROM publication_acceptances pa 
+                        WHERE pa.publication_id = p.id AND pa.acceptor_username = $1
+                        ORDER BY
+                            CASE pa.status
+                                WHEN 'approved' THEN 1
+                                WHEN 'completed' THEN 2
+                                WHEN 'pending_approval' THEN 3
+                                WHEN 'confirmed_paid' THEN 4
+                                ELSE 5
+                            END
+                        LIMIT 1
+                    ) as user_acceptance_status,
+                    (CASE
+                        WHEN u.username = $1 THEN (
+                            SELECT json_agg(json_build_object(
+                                'username', participant_user.username,
+                                'status', pa.status,
+                                'average_rating', participant_user.average_rating,
+                                'ratings_count', participant_user.ratings_count
+                            ))
+                            FROM publication_acceptances pa
+                            JOIN users participant_user ON pa.acceptor_username = participant_user.username
+                            WHERE pa.publication_id = p.id
+                        )
+                        ELSE NULL
+                    END) as participants
+                FROM
+                    publications p
+                JOIN
+                    users u on p.author_id = u.id
+                WHERE
+                    p.id NOT IN (SELECT hp.publication_id FROM hidden_publications hp WHERE hp.hider_username = $1)
                     AND (
             -- Caso 1: Publicaciones normales que están activas o en las que el usuario participa
             (
@@ -1105,22 +1105,22 @@ app.get('/publications/active', async (req, res) => {
             )
         )
             ${searchCondition}
-        ORDER BY
-            p.created_at DESC
-    `;
+                ORDER BY
+                    p.created_at DESC
+            `;
 
-    try {
+            try {
         const result = await pool.query(sql, queryParams);
-        const publications = result.rows.map(p => ({
-            ...p,
-            participants: p.participants || [],
-        }));
-        res.status(200).json(publications);
-    } catch (error) {
-        console.error("Error al obtener las publicaciones activas:", error);
-        return res.status(500).json({ message: "Error interno del servidor." });
-    }
-});
+                const publications = result.rows.map(p => ({
+                    ...p,
+                    participants: p.participants || [],
+                }));
+                res.status(200).json(publications);
+            } catch (error) {
+                console.error("Error al obtener las publicaciones activas:", error);
+            return res.status(500).json({ message: "Error interno del servidor." });
+        }
+        });
 
 // NUEVO: Endpoint para crear una Venta Rápida
 app.post('/api/quick-sale', async (req, res) => {
@@ -1499,27 +1499,27 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
         });
 
         // Ruta para Confirmar y Pagar (REFACTORIZADA PARA MÁXIMA SEGURIDAD)
-app.post('/publications/:id/confirm-payment', async (req, res) => {
+        app.post('/publications/:id/confirm-payment', async (req, res) => {
     const pubId = req.params.id;
-    const { confirmerUsername, workerUsername } = req.body; 
-
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
+            const { confirmerUsername, workerUsername } = req.body; 
+            
+            const client = await pool.connect();
+            try {
+                await client.query('BEGIN');
 
         // 1. OBTENER DATOS Y VERIFICAR PERMISOS
         // Se obtiene la publicación y se asegura que el `confirmerUsername` es el autor.
-        const acceptanceResult = await client.query(
+                const acceptanceResult = await client.query(
             `SELECT p.blue_cost, p.title, p.category, u.username as author_username, pa.id as acceptance_id
-             FROM publications p
-             JOIN users u ON p.author_id = u.id
-             JOIN publication_acceptances pa ON p.id = pa.publication_id
+                     FROM publications p
+                     JOIN users u ON p.author_id = u.id
+                     JOIN publication_acceptances pa ON p.id = pa.publication_id
              WHERE p.id = $1 AND pa.acceptor_username = $2 AND pa.status = 'completed'
              FOR UPDATE`, // FOR UPDATE bloquea la fila para evitar concurrencia
             [pubId, workerUsername]
-        );
-        
-        const acceptance = acceptanceResult.rows[0];
+                );
+                
+                const acceptance = acceptanceResult.rows[0];
         if (!acceptance) {
             throw { status: 404, message: "No se encontró una tarea completada válida para este trabajador." };
         }
@@ -1529,11 +1529,11 @@ app.post('/publications/:id/confirm-payment', async (req, res) => {
             throw { status: 403, message: "No tienes permiso para confirmar el pago de esta tarea." };
         }
 
-        // VALIDACIÓN: Esta ruta es solo para 'requests'
-        if (acceptance.category !== 'request') {
-            throw { status: 400, message: "Esta acción solo es válida para publicaciones de tipo 'solicitud'." };
-        }
-        
+                // VALIDACIÓN: Esta ruta es solo para 'requests'
+                if (acceptance.category !== 'request') {
+                    throw { status: 400, message: "Esta acción solo es válida para publicaciones de tipo 'solicitud'." };
+                }
+                
         // 3. OBTENER CONFIGURACIONES DE LA PLATAFORMA
         const settingsResult = await client.query(`
             SELECT setting_key, setting_value FROM app_settings 
@@ -1544,21 +1544,21 @@ app.post('/publications/:id/confirm-payment', async (req, res) => {
 
         // 4. PROCESAR EL PAGO
         acceptance.workerUsername = workerUsername; // Añadir para la función helper
-        const result = await processRequestPayment(client, acceptance, pubId, preLaunchMode, settings);
-        
+                const result = await processRequestPayment(client, acceptance, pubId, preLaunchMode, settings);
+                
         // 5. ACTUALIZAR ESTADO FINAL
-        await client.query(`UPDATE publication_acceptances SET status = 'confirmed_paid' WHERE id = $1`, [acceptance.acceptance_id]);
+                await client.query(`UPDATE publication_acceptances SET status = 'confirmed_paid' WHERE id = $1`, [acceptance.acceptance_id]);
 
-        await client.query('COMMIT');
-        res.status(200).json({ message: result.message });
-        
-    } catch (error) {
-        await client.query('ROLLBACK');
-        console.error("Error en confirm-payment:", error);
-        res.status(error.status || 500).json({ message: error.message || "Error crítico en la transacción." });
-    } finally {
+                await client.query('COMMIT');
+                res.status(200).json({ message: result.message });
+                
+            } catch (error) {
+                await client.query('ROLLBACK');
+                console.error("Error en confirm-payment:", error);
+                res.status(error.status || 500).json({ message: error.message || "Error crítico en la transacción." });
+            } finally {
         if(client) client.release();
-    }
+            }
 });
 
 // Ruta para obtener las notificaciones de un usuario
@@ -1862,9 +1862,9 @@ app.post('/publications/:id/confirm-payment', async (req, res) => {
         });
 
         // Ruta para PAUSAR/REANUDAR una publicación (REFACTORIZADA PARA MÁXIMA SEGURIDAD)
-app.post('/publications/:id/toggle-pause', async (req, res) => {
-    const { id } = req.params;
-    const { username } = req.body;
+        app.post('/publications/:id/toggle-pause', async (req, res) => {
+            const { id } = req.params;
+            const { username } = req.body;
 
     if (!username) {
         return res.status(400).json({ message: "Se requiere nombre de usuario." });
@@ -1905,14 +1905,14 @@ app.post('/publications/:id/toggle-pause', async (req, res) => {
         const message = newPausedState ? "Publicación pausada." : "Publicación reanudada.";
         res.status(200).json({ message, isPaused: newPausedState });
 
-    } catch (error) {
+            } catch (error) {
         await client.query('ROLLBACK');
-        console.error("Error en toggle-pause:", error);
-        res.status(500).json({ message: "Error interno del servidor." });
+                console.error("Error en toggle-pause:", error);
+                res.status(500).json({ message: "Error interno del servidor." });
     } finally {
         if(client) client.release();
-    }
-});
+            }
+        });
 
         // Ruta para OCULTAR una publicación
         app.post('/publications/:id/hide', async (req, res) => {
@@ -1974,10 +1974,10 @@ app.post('/publications/:id/toggle-pause', async (req, res) => {
         // --- Rutas de Administración ---
 
         app.post('/api/admin/login', loginLimiter, (req, res) => {
-    const { password } = req.body;
-    if (!password) {
-        return res.status(400).json({ message: "Se requiere la contraseña." });
-    }
+            const { password } = req.body;
+            if (!password) {
+                return res.status(400).json({ message: "Se requiere la contraseña." });
+            }
             if (password === process.env.ADMIN_PASSWORD) {
                 const accessToken = jwt.sign({ name: 'admin' }, process.env.ADMIN_SECRET_KEY, { expiresIn: '8h' });
                 res.json({ token: accessToken });

@@ -4,6 +4,41 @@ document.addEventListener('DOMContentLoaded', function() {
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
     const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
 
+    // --- NUEVO: Lógica para el modal de advertencia de cuenta única ---
+    const policyModal = document.getElementById('oneAccountPolicyModal');
+    const closeButtons = document.querySelectorAll('.policy-close-button');
+
+    // Función para mostrar el modal
+    const showPolicyModal = () => {
+        if (policyModal && sessionStorage.getItem('policyModalShown') !== 'true') {
+            policyModal.style.display = 'flex'; // Usamos flex para centrarlo
+            sessionStorage.setItem('policyModalShown', 'true');
+        }
+    };
+
+    // Función para cerrar el modal
+    const closePolicyModal = () => {
+        if (policyModal) {
+            policyModal.style.display = 'none';
+        }
+    };
+
+    // Mostrar el modal al cargar la página
+    showPolicyModal();
+
+    // Añadir eventos a los botones de cierre
+    closeButtons.forEach(button => {
+        button.addEventListener('click', closePolicyModal);
+    });
+
+    // Cerrar el modal si se hace clic fuera de él
+    window.addEventListener('click', (event) => {
+        if (event.target === policyModal) {
+            closePolicyModal();
+        }
+    });
+    // --- Fin de la nueva lógica ---
+
     // Obtener el formulario de login por su ID
     const loginForm = document.getElementById('loginForm');
 

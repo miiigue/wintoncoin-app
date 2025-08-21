@@ -6,6 +6,42 @@ document.addEventListener('DOMContentLoaded', function() {
     const registerForm = document.getElementById('registerForm');
     const container = document.querySelector('.container');
 
+    // --- NUEVO: Lógica para el modal de advertencia de cuenta única ---
+    const policyModal = document.getElementById('oneAccountPolicyModal');
+    const closeButtons = document.querySelectorAll('.policy-close-button');
+
+    // Función para mostrar el modal
+    const showPolicyModal = () => {
+        // Solo muestra el modal si no ha sido mostrado antes en esta sesión
+        if (policyModal && sessionStorage.getItem('policyModalShown') !== 'true') {
+            policyModal.style.display = 'flex'; // Usamos flex para centrarlo
+            sessionStorage.setItem('policyModalShown', 'true'); // Marcar como mostrado
+        }
+    };
+
+    // Función para cerrar el modal
+    const closePolicyModal = () => {
+        if (policyModal) {
+            policyModal.style.display = 'none';
+        }
+    };
+
+    // Mostrar el modal al cargar la página
+    showPolicyModal();
+
+    // Añadir eventos a los botones de cierre
+    closeButtons.forEach(button => {
+        button.addEventListener('click', closePolicyModal);
+    });
+
+    // Cerrar el modal si se hace clic fuera de él
+    window.addEventListener('click', (event) => {
+        if (event.target === policyModal) {
+            closePolicyModal();
+        }
+    });
+    // --- Fin de la nueva lógica ---
+
     // --- NUEVO: Lógica para auto-rellenar el código de referido desde la URL ---
     const referralCodeInput = document.getElementById('referral_code');
     const urlParams = new URLSearchParams(window.location.search);

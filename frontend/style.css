@@ -1344,6 +1344,40 @@ hr {
     margin-top: 1rem;
 }
 
+/* --- Estilos para el Modal de Política de Cuenta Única (NUEVO) --- */
+.policy-modal .modal-content {
+    border-left: 5px solid #f39c12; /* Un borde naranja para indicar advertencia/información */
+    padding: 2rem;
+    text-align: center;
+}
+
+.policy-modal h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #f39c12; /* Naranja */
+    font-size: 1.4rem;
+}
+
+.policy-modal p {
+    margin-bottom: 1.5rem;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: var(--text-color);
+}
+
+.policy-modal .action-button {
+    width: auto;
+    padding: 10px 30px;
+    margin-top: 1rem;
+    background-color: #f39c12; /* Botón naranja */
+    color: #111; /* Texto oscuro para contraste */
+}
+
+.policy-modal .action-button:hover {
+    background-color: #e68e0b;
+}
+
+
 /* --- Estilos para el Modal de Confirmación --- */
 #customConfirmModal .modal-content {
     padding: 2rem;
