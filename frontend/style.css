@@ -97,7 +97,7 @@ input[type="search"],
 textarea {
     width: 100%;
     padding: 12px 15px;
-    margin-bottom: 10px;
+    margin-bottom: 1px;
     border: 1px solid #2a3b5c;
     background-color: var(--background-color);
     border-radius: 8px;

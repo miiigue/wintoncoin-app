@@ -106,14 +106,19 @@ document.addEventListener('DOMContentLoaded', () => {
         costWrapper.style.display = 'none';
         sellWrapper.style.display = 'block';
         // Lógica específica para Venta
-        pageTitle.textContent = 'Poner un Artículo o Servicio a la Venta';
-        titleLabel.textContent = 'Nombre del Artículo/Servicio:';
-        titleInput.placeholder = 'Ej: Diseño de logo profesional';
+        pageTitle.textContent = 'Crear una Oferta de Venta';
+        titleLabel.textContent = '¿Qué ofreces a cambio de BLUE?';
+        titleInput.placeholder = 'Ej: 50 USD por PayPal o Ej: Diseño de logo profesional';
         titleHint.textContent = 'Un nombre claro y conciso para lo que ofreces.';
-        descriptionLabel.textContent = 'Descripción del Artículo/Servicio:';
+        descriptionLabel.textContent = 'Descripción y Condiciones:';
         descriptionInput.placeholder = 'Ej: Ofrezco mis servicios para crear un logo vectorial de alta calidad. Incluye 3 revisiones...';
-        descriptionHint.textContent = 'Detalla qué incluye, tus habilidades, tiempos de entrega, etc.';
-        submitButton.textContent = 'Poner a la Venta';
+        descriptionHint.textContent = 'Detalla tu oferta. Si ofreces dinero, especifica el método de pago (banco, etc.) y cualquier condición.';
+        
+        const sellLabel = document.querySelector('#sell-wrapper label');
+        if (sellLabel) {
+            sellLabel.textContent = 'Cantidad de BLUE que quieres recibir:';
+        }
+        submitButton.textContent = 'Crear Oferta';
 
     } else if (publicationType === 'donation') {
         costWrapper.style.display = 'none';
