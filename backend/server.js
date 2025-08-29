@@ -9,6 +9,8 @@ const cors = require('cors');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit'); // <-- SEGURIDAD: Importar rate-limit
+const cron = require('node-cron');
+require('./config'); // Carga la configuración del entorno (development o production)
 
 // 2. Configuración inicial
 const app = express();
