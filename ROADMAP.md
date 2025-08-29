@@ -84,3 +84,28 @@ Este documento describe las principales funcionalidades planificadas para futura
 *   **Sistema de Reputación (Frontend y Backend):**
     *   Tras cada transacción exitosa, permitir que comprador y vendedor se califiquen mutuamente (ej. positivo/negativo) y dejen comentarios.
     *   Mostrar estadísticas de reputación en el perfil de cada usuario (ej. % de transacciones completadas, número de calificaciones positivas).
+
+---
+
+## 3. Funcionalidad: Verificación de Identidad por Niveles (KYC)
+
+**Objetivo:** Implementar un sistema de verificación de identidad robusto y escalable para cumplir con estándares de seguridad, prevenir el fraude en el mercado P2P y generar confianza en la plataforma.
+
+### Fase 1: Verificación de Datos Personales (KYC Nivel 1)
+
+**Descripción:** Recopilar la información personal básica del usuario como primer paso de verificación. Esta fase se activará cuando un usuario intente realizar su primera operación P2P.
+
+*   **Implementación:**
+    *   **Base de Datos:** Añadir columnas a la tabla `users` para almacenar `given_name`, `family_name`, `date_of_birth`, `document_type`, `document_number` y un estado `is_verified`.
+    *   **Frontend:** Crear un formulario de "Verificación de Perfil" donde los usuarios ingresen esta información.
+    *   **Backend:** Crear un endpoint para recibir y almacenar de forma segura estos datos, y actualizar el estado del usuario a verificado (Nivel 1).
+    *   **Lógica de Acceso:** Modificar los endpoints del P2P para requerir que un usuario tenga la verificación de Nivel 1 completada antes de poder operar, posiblemente con límites transaccionales.
+
+### Fase 2: Verificación de Documentos y Prueba de Vida (KYC Nivel 2)
+
+**Descripción:** Integrar un servicio de terceros especializado para una verificación de identidad completa, que valide que los datos del Nivel 1 son auténticos.
+
+*   **Planificación:**
+    *   **Investigación:** Evaluar e investigar proveedores de servicios de KYC líderes en la industria (ej: Stripe Identity, Veriff, Onfido, Jumio).
+    *   **Integración:** Desarrollar la integración con el servicio seleccionado. El flujo implicará que el usuario suba una foto de su documento de identidad y complete una "prueba de vida" (selfie o video corto).
+    *   **Beneficios:** Al completar el Nivel 2, los usuarios obtendrán el estatus de "Totalmente Verificado", lo que les permitirá acceder a límites transaccionales más altos en el P2P y les otorgará una insignia de confianza en su perfil.

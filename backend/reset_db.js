@@ -1,12 +1,12 @@
 const { Pool } = require('pg');
-require('dotenv').config();
+require('./config'); // Carga la configuración del entorno
 
 const pool = new Pool({
-    user: 'postgres',
-    host: 'localhost',
-    database: 'wintoncoin_dev',
-    password: 'Miiiguebotbinance',
-    port: 5432,
+    // Las credenciales se leen directamente del archivo .env correspondiente
+    // gracias al gestor de configuración. No es necesario escribirlas aquí.
+    connectionString: process.env.DATABASE_URL,
+    // La configuración SSL se activa automáticamente si NODE_ENV es 'production'
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 async function resetDatabase() {
@@ -33,12 +33,25 @@ async function resetDatabase() {
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(255) UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                phone_number VARCHAR(50),
+                given_name VARCHAR(100),
+                family_name VARCHAR(100),
+                date_of_birth DATE,
+                document_type VARCHAR(50),
+                document_number VARCHAR(50),
                 liquid_blue_balance NUMERIC(19, 4) NOT NULL DEFAULT 0.0000,
                 escrow_blue_balance NUMERIC(19, 4) NOT NULL DEFAULT 0.0000,
                 red_balance NUMERIC(19, 4) NOT NULL DEFAULT 0.0000,
+                booster_blue_balance NUMERIC(19, 4) NOT NULL DEFAULT 0.0000,
+                booster_level INTEGER NOT NULL DEFAULT 1,
                 average_rating REAL NOT NULL DEFAULT 0,
                 ratings_count INTEGER NOT NULL DEFAULT 0,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                is_verified BOOLEAN DEFAULT FALSE,
+                referral_code VARCHAR(255) UNIQUE,
+                referred_by_id INTEGER REFERENCES users(id),
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                last_login TIMESTAMP WITH TIME ZONE
             );
         `);
         
