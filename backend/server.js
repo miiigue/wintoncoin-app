@@ -757,6 +757,7 @@ async function startServer() {
         
                 // 1. Obtener configuraciones relevantes del sistema
                 const settingKeys = [
+                    'allow_new_registrations', // <<< [CORRECCIÓN] Añadido para verificar si el registro está permitido
                     'referral_system_enabled', 'referral_reward_amount', 'platform_commission_percentage',
                     'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes',
                     'welcome_bonus_enabled', 'welcome_bonus_amount',
@@ -764,6 +765,14 @@ async function startServer() {
                 ];
                 const settingsResult = await client.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1::text[])`, [settingKeys]);
                 const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
+                
+                // <<< [CORRECCIÓN] Verificación de permiso para nuevos registros
+                const allowRegistrations = settings.allow_new_registrations === 'true';
+                if (!allowRegistrations) {
+                    await client.query('ROLLBACK'); // Cancelar la transacción
+                    return res.status(403).json({ message: "El registro de nuevos usuarios está desactivado temporalmente." });
+                }
+
                 const referralsEnabled = settings.referral_system_enabled === 'true';
                 const welcomeBonusEnabled = settings.welcome_bonus_enabled === 'true';
                 const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
