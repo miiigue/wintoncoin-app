@@ -23,6 +23,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const descriptionHint = document.querySelector('label[for="description"] + textarea + small');
     const submitButton = document.querySelector('#publishForm button[type="submit"]');
 
+    // --- NUEVO: Elementos del Modal de Advertencia de Donación ---
+    const donationWarningModal = document.getElementById('donationWarningModal');
+    const donationModalActions = document.querySelector('#donationWarningModal .modal-actions');
+    const donationWarningCloseButton = document.querySelector('.donation-warning-close');
+
+
     // --- Redirección y Seguridad ---
     // Envolvemos la comprobación en un pequeño timeout para darle tiempo al localStorage a sincronizarse entre páginas.
     setTimeout(() => {
@@ -138,15 +144,85 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         submitButton.textContent = 'Crear Campaña';
 
+        // --- NUEVO: Lógica del Modal de Advertencia ---
+        // 1. Mostrar advertencia inicial al entrar a la página
+        if (sessionStorage.getItem('donationWarningShown') !== 'true') {
+            showDonationWarningModal('initial');
+            sessionStorage.setItem('donationWarningShown', 'true');
+        }
+
     } else {
         showCustomAlert('Tipo de publicación no válido.', () => { window.location.href = 'contract_interaction.html'; });
         return;
     }
 
+    // --- NUEVO: Funciones para manejar el modal de advertencia ---
+    function showDonationWarningModal(mode) {
+        if (!donationWarningModal || !donationModalActions) return;
+
+        // Limpiar botones anteriores
+        donationModalActions.innerHTML = '';
+
+        if (mode === 'initial') {
+            const okButton = document.createElement('button');
+            okButton.textContent = 'Entendido';
+            okButton.className = 'ok-button';
+            okButton.onclick = hideDonationWarningModal;
+            donationModalActions.appendChild(okButton);
+        } else if (mode === 'confirm') {
+            const cancelButton = document.createElement('button');
+            cancelButton.textContent = 'Cancelar';
+            cancelButton.className = 'cancel-button';
+            cancelButton.onclick = hideDonationWarningModal;
+
+            const confirmButton = document.createElement('button');
+            confirmButton.textContent = 'Confirmar y Publicar';
+            confirmButton.className = 'confirm-button';
+            confirmButton.onclick = () => {
+                hideDonationWarningModal();
+                submitPublicationForm(); // Llama a la función que realmente envía el form
+            };
+            
+            donationModalActions.appendChild(cancelButton);
+            donationModalActions.appendChild(confirmButton);
+        }
+
+        donationWarningModal.style.display = 'flex';
+    }
+
+    function hideDonationWarningModal() {
+        if (donationWarningModal) {
+            donationWarningModal.style.display = 'none';
+        }
+    }
+
+    // Event listeners para cerrar el modal
+    if (donationWarningCloseButton) {
+        donationWarningCloseButton.addEventListener('click', hideDonationWarningModal);
+    }
+    window.addEventListener('click', (event) => {
+        if (event.target === donationWarningModal) {
+            hideDonationWarningModal();
+        }
+    });
+
+
     // --- Lógica de Envío del Formulario ---
     publishForm.addEventListener('submit', async (event) => {
         event.preventDefault();
 
+        // --- NUEVO: Interceptación para confirmación de donación ---
+        if (publicationType === 'donation') {
+            showDonationWarningModal('confirm');
+            return; // Detiene la ejecución aquí hasta que el usuario confirme
+        }
+
+        // Si no es donación, o si ya se confirmó, se llama a la función de envío
+        submitPublicationForm();
+    });
+
+    // --- NUEVO: Función refactorizada para enviar el formulario ---
+    async function submitPublicationForm() {
         // Recolectar datos del formulario
         const formData = new FormData(publishForm);
         const data = Object.fromEntries(formData.entries());
@@ -190,5 +266,5 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error de red al publicar:', error);
             showCustomAlert('No se pudo conectar con el servidor. Inténtalo de nuevo.');
         }
-    });
+    }
 }); 

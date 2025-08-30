@@ -2405,6 +2405,96 @@ input:checked + .slider:before {
     }
 }
 
+.policy-modal .modal-content h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+/* --- Estilos para el Modal de Advertencia de Donación (NUEVO) --- */
+.donation-warning-modal .modal-content {
+    border-left: 5px solid #e74c3c; /* Borde rojo para indicar advertencia crítica */
+    text-align: left;
+    max-width: 600px; /* Un poco más ancho para texto largo */
+}
+
+.donation-warning-modal .modal-content h3 {
+    color: #c0392b; /* Título en rojo oscuro */
+    margin-top: 0;
+}
+
+.donation-warning-modal .modal-content p {
+    line-height: 1.6;
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+}
+
+.donation-warning-modal .modal-actions {
+    display: flex;
+    justify-content: flex-end; /* Alinea los botones a la derecha */
+    gap: 10px; /* Espacio entre botones */
+    margin-top: 1rem;
+}
+
+.donation-warning-modal .modal-actions button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.donation-warning-modal .modal-actions .confirm-button {
+    background-color: #27ae60; /* Verde para confirmar */
+    color: white;
+}
+.donation-warning-modal .modal-actions .confirm-button:hover {
+    background-color: #2ecc71;
+    transform: translateY(-2px);
+}
+
+.donation-warning-modal .modal-actions .cancel-button {
+    background-color: #bdc3c7; /* Gris para cancelar */
+    color: #333;
+}
+.donation-warning-modal .modal-actions .cancel-button:hover {
+    background-color: #ecf0f1;
+}
+
+.donation-warning-modal .modal-actions .ok-button {
+    background-color: var(--primary-color);
+    color: white;
+    width: 100%; /* Ocupa todo el ancho cuando está solo */
+}
+
+.donation-warning-modal .modal-actions .ok-button:hover {
+    background-color: var(--primary-color-dark);
+}
+
+
+/* --- Responsive para Dispositivos Móviles --- */
+@media (max-width: 768px) {
+    .container {
+        padding: 1.25rem;
+    }
+    
+    .balance-amount {
+        font-size: 1.1rem;
+    }
+    
+    .balance-title {
+        font-size: 1rem;
+    }
+    
+    .balance-item {
+        padding: 0.6rem;
+    }
+    
+    .balance-label {
+        font-size: 0.85rem;
+    }
+}
+
 
 
 
