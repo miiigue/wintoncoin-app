@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dashboardContainer: document.getElementById('dashboard-stats'),
         usersTableContainer: document.getElementById('users-table-container'),
         userSearchInput: document.getElementById('userSearchInput'),
+        userStatusFilter: document.getElementById('userStatusFilter'), // NUEVO
         debtorsTableContainer: document.getElementById('debtors-table-container'),
         publicationsTableContainer: document.getElementById('publications-table-container'),
         publicationSearchInput: document.getElementById('publicationSearchInput'),
@@ -84,8 +85,26 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.userSearchInput.addEventListener('keyup', () => {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
-                loadUsers(elements.userSearchInput.value);
+                loadUsers(elements.userSearchInput.value, elements.userStatusFilter.value);
             }, 300);
+        });
+
+        // --- NUEVO: Listener para el filtro de estado ---
+        elements.userStatusFilter.addEventListener('change', () => {
+            loadUsers(elements.userSearchInput.value, elements.userStatusFilter.value);
+        });
+
+        // --- REFACTORIZADO: Listener para las acciones de moderación de usuarios ---
+        elements.usersTableContainer.addEventListener('click', handleUserAction);
+        
+        // --- NUEVO: Listener global para cerrar menús ---
+        document.addEventListener('click', (e) => {
+            // Si el clic no fue DENTRO de un contenedor de menú Y no fue en un botón de toggle, cierra todos los menús.
+            if (!e.target.closest('.action-menu-container') && !e.target.closest('.menu-toggle')) {
+                document.querySelectorAll('.action-menu.visible').forEach(menu => {
+                    menu.classList.remove('visible');
+                });
+            }
         });
 
         let pubSearchTimeout;
@@ -132,7 +151,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (sectionId === 'dashboard') loadDashboardData();
         else if (sectionId === 'settings') loadSettings();
-        else if (sectionId === 'users') loadUsers();
+        else if (sectionId === 'users') {
+            loadUsers(); // Carga inicial sin filtros
+        }
         else if (sectionId === 'debtors') loadDebtors();
         else if (sectionId === 'publications') loadPublications();
         else if (sectionId === 'platform-wallet') loadPlatformWalletData();
@@ -204,10 +225,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return response.json();
     }
 
-    async function loadUsers(searchTerm = '') {
+    async function loadUsers(searchTerm = '', statusFilter = '') {
         elements.usersTableContainer.innerHTML = '<div class="loading-spinner"></div>';
         try {
-            const users = await apiFetch(`/api/admin/users?search=${encodeURIComponent(searchTerm)}`);
+            const users = await apiFetch(`/api/admin/users?search=${encodeURIComponent(searchTerm)}&status=${encodeURIComponent(statusFilter)}`);
             renderUsersTable(users);
         } catch (error) {
             elements.usersTableContainer.innerHTML = `<p class="error-message">Error al cargar los usuarios: ${error.message}</p>`;
@@ -671,6 +692,70 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- REFACTORIZADO: Handler para las acciones de moderación de usuarios ---
+    async function handleUserAction(event) {
+        const toggleButton = event.target.closest('.menu-toggle');
+        
+        // Lógica para abrir/cerrar el menú
+        if (toggleButton) {
+            event.stopPropagation(); // Previene que el clic se propague al listener del documento y cierre el menú inmediatamente
+            const menu = toggleButton.nextElementSibling;
+            const isVisible = menu.classList.contains('visible');
+            
+            // Primero, cerramos todos los demás menús para que solo uno esté abierto a la vez.
+            document.querySelectorAll('.action-menu.visible').forEach(m => {
+                m.classList.remove('visible');
+            });
+
+            // Si el menú no estaba visible, lo mostramos.
+            if (!isVisible) {
+                menu.classList.add('visible');
+            }
+            return;
+        }
+
+        // Lógica para ejecutar una acción del menú (suspender, banear, etc.)
+        const actionButton = event.target.closest('.action-button-admin');
+        if (actionButton && actionButton.dataset.action) {
+            const action = actionButton.dataset.action;
+            const userRow = actionButton.closest('tr');
+            const userId = userRow.dataset.userId;
+            const username = userRow.dataset.username;
+            const currentStatus = userRow.dataset.status;
+
+            const actionTexts = {
+                suspend: { verb: "suspender", noun: "suspensión" },
+                ban: { verb: "banear", noun: "baneo" },
+                activate: { verb: "reactivar", noun: "reactivación" }
+            };
+
+            const { verb, noun } = actionTexts[action];
+
+            // Evitar acciones redundantes
+            if ((action === 'suspend' && currentStatus === 'suspended') ||
+                (action === 'ban' && currentStatus === 'banned') ||
+                (action === 'activate' && currentStatus === 'active')) {
+                showCustomAlert(`El usuario ${username} ya está en ese estado.`);
+                return;
+            }
+
+            const newStatus = action === 'activate' ? 'active' : action;
+
+            showCustomConfirm(`¿Estás seguro de que quieres ${verb} al usuario "${username}"?`, async () => {
+                try {
+                    const result = await apiFetch(`/api/admin/users/${userId}/status`, {
+                        method: 'POST',
+                        body: JSON.stringify({ status: newStatus })
+                    });
+                    showCustomAlert(result.message || 'Acción completada con éxito.');
+                    loadUsers(elements.userSearchInput.value, elements.userStatusFilter.value); // Recargar la tabla con filtros
+                } catch (error) {
+                    showCustomAlert(`Error durante la ${noun}: ${error.message}`);
+                }
+            });
+        }
+    }
+
     // --- NUEVO: Handler para cambios en la tabla de niveles ---
     function handleBoosterLevelChange(event) {
         const input = event.target;
@@ -972,9 +1057,12 @@ WHERE username = 'Plataforma WintonCoin';
                         <th>Usuario</th>
                         <th>Saldo BLUE (Disponible)</th>
                         <th>Saldo BLUE (Pendientes)</th>
+                        <th>BLUE de Impulsor (IOU)</th>
                         <th>Saldo RED</th>
                         <th>Calificación</th>
+                        <th>Estado</th>
                         <th>Fecha de Registro</th>
+                        <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -992,15 +1080,27 @@ WHERE username = 'Plataforma WintonCoin';
         const ratingHTML = generateStarRating(user.average_rating, user.ratings_count);
 
         return `
-            <tr>
+            <tr data-user-id="${user.id}" data-username="${user.username}" data-status="${user.status}">
                 <td class="username-cell">
                     <a href="profile.html?user=${user.username}" target="_blank">${user.username}</a>
                 </td>
                 <td class="saldo-blue-text">${formatBalance(user.liquid_blue_balance)}</td>
                 <td class="saldo-escrow-text">${formatBalance(user.escrow_blue_balance)}</td>
+                <td class="saldo-booster-text">${formatBalance(user.booster_blue_balance)}</td>
                 <td class="saldo-red-text">${formatBalance(user.red_balance)}</td>
                 <td>${ratingHTML}</td>
+                <td><span class="status-badge ${user.status}">${user.status}</span></td>
                 <td>${registrationDate}</td>
+                <td class="actions-cell">
+                    <div class="action-menu-container">
+                        <button class="action-button-admin menu-toggle">Acciones</button>
+                        <div class="action-menu">
+                            <button class="action-button-admin approve" data-action="activate">Reactivar</button>
+                            <button class="action-button-admin suspend" data-action="suspend">Suspender</button>
+                            <button class="action-button-admin danger" data-action="ban">Banear</button>
+                        </div>
+                    </div>
+                </td>
             </tr>
         `;
     }

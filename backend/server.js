@@ -932,6 +932,14 @@ app.post('/login', loginLimiter, async (req, res) => {
             return res.status(404).json({ message: "Usuario no encontrado. Por favor, regístrese primero." });
         }
 
+        // VERIFICACIÓN DE ESTADO DEL USUARIO
+        if (user.status === 'suspended') {
+            return res.status(403).json({ message: "Tu cuenta ha sido suspendida. Por favor, contacta a soporte." });
+        }
+        if (user.status === 'banned') {
+            return res.status(403).json({ message: "Tu cuenta ha sido baneada permanentemente." });
+        }
+
                 if (!user.password_hash) {
                     console.error(`Intento de login para el usuario '${username}' falló: la cuenta está corrupta (no tiene password_hash).`);
                     return res.status(401).json({ message: 'Credenciales inválidas. La cuenta de usuario podría estar corrupta.' });
@@ -1521,7 +1529,7 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
         // 1. OBTENER DATOS Y VERIFICAR PERMISOS
         // Se obtiene la publicación y se asegura que el `confirmerUsername` es el autor.
                 const acceptanceResult = await client.query(
-            `SELECT p.blue_cost, p.title, p.category, u.username as author_username, pa.id as acceptance_id
+            `SELECT p.blue_cost, p.title, p.category, p.is_booster_task, u.username as author_username, pa.id as acceptance_id
                      FROM publications p
                      JOIN users u ON p.author_id = u.id
                      JOIN publication_acceptances pa ON p.id = pa.publication_id
@@ -2046,18 +2054,90 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
             }
         });
         
-        app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
-            const { search = '' } = req.query;
+        // Endpoint para obtener todos los usuarios con filtros de búsqueda y estado
+       // Endpoint para obtener todos los usuarios con filtros de búsqueda y estado
+app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
+    const { search = '', status = '' } = req.query;
+    try {
+        let sql = `
+            SELECT 
+                u.id, 
+                u.username, 
+                u.liquid_blue_balance, 
+                u.escrow_blue_balance, 
+                u.red_balance, 
+                COALESCE(bbl.total_booster_blue, 0) as booster_blue_balance,
+                u.status,
+                u.average_rating, 
+                u.ratings_count, 
+                u.created_at
+            FROM 
+                users u
+            LEFT JOIN 
+                (SELECT user_id, SUM(amount) as total_booster_blue FROM booster_blue_ledger GROUP BY user_id) bbl ON u.id = bbl.user_id
+            WHERE 
+                u.username ILIKE $1`;
+        
+        const params = [`%${search}%`];
+        let paramIndex = 2;
+
+        if (status) {
+            sql += ` AND u.status = $${paramIndex++}`;
+            params.push(status);
+        }
+
+        sql += ` ORDER BY u.created_at DESC`;
+
+        const result = await pool.query(sql, params);
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error("Error al obtener la lista de usuarios:", error);
+        res.status(500).json({ message: "Error interno del servidor." });
+    }
+});
+
+        // NUEVO ENDPOINT PARA MODERACIÓN DE USUARIOS
+        app.post('/api/admin/users/:userId/status', verifyAdminToken, async (req, res) => {
+            const { userId } = req.params;
+            const { status } = req.body;
+            const validStatuses = ['active', 'suspended', 'banned'];
+
+            if (!validStatuses.includes(status)) {
+                return res.status(400).json({ message: 'Estado no válido.' });
+            }
+
             try {
-                const sql = `
-                    SELECT id, username, liquid_blue_balance, escrow_blue_balance, red_balance, 
-                           average_rating, ratings_count, created_at
-                    FROM users WHERE username ILIKE $1 ORDER BY created_at DESC
-                `;
-                const result = await pool.query(sql, [`%${search}%`]);
-                res.status(200).json(result.rows);
+                // Evitar que el admin se modifique a sí mismo o a la plataforma
+                const adminUser = await pool.query('SELECT username FROM users WHERE id = $1', [res.locals.admin.id]);
+                const targetUser = await pool.query('SELECT username FROM users WHERE id = $1', [userId]);
+                
+                if (!targetUser.rows.length) {
+                    return res.status(404).json({ message: 'Usuario no encontrado.' });
+                }
+
+                const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
+
+                if (targetUser.rows[0].username === adminUser.rows[0].username) {
+                    return res.status(403).json({ message: 'Un administrador no puede cambiar su propio estado.' });
+                }
+
+                if (targetUser.rows[0].username === platformUsername) {
+                    return res.status(403).json({ message: 'No se puede cambiar el estado de la cuenta de la plataforma.' });
+                }
+
+                const result = await pool.query(
+                    'UPDATE users SET status = $1 WHERE id = $2 RETURNING id, username, status',
+                    [status, userId]
+                );
+
+                if (result.rowCount === 0) {
+                    return res.status(404).json({ message: 'Usuario no encontrado.' });
+                }
+                
+                res.status(200).json({ message: `El estado del usuario ha sido actualizado a "${status}".`, user: result.rows[0] });
+
             } catch (error) {
-                console.error("Error al obtener la lista de usuarios:", error);
+                console.error("Error al actualizar el estado del usuario:", error);
                 res.status(500).json({ message: "Error interno del servidor." });
             }
         });
@@ -3114,6 +3194,7 @@ app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
     try {
         const sql = `
             SELECT id, username, liquid_blue_balance, escrow_blue_balance, red_balance, 
+                   booster_blue_balance, status,
                    average_rating, ratings_count, created_at
             FROM users WHERE username ILIKE $1 ORDER BY created_at DESC
         `;
@@ -3571,3 +3652,78 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
 
     return { success: true, message: resultMessage };
 }
+
+// Endpoint para obtener la configuración pública de la aplicación
+app.get('/api/public-settings', async (req, res) => {
+    try {
+        const settingKeys = [
+            'public_profiles_enabled',
+            'referral_reward_amount',
+            'welcome_bonus_amount'
+            // Añadir aquí otras claves que el frontend necesite de forma segura
+        ];
+        const result = await pool.query(
+            'SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1::text[])',
+            [settingKeys]
+        );
+        
+        const settingsObject = result.rows.reduce((acc, setting) => {
+            acc[setting.setting_key] = setting.setting_value;
+            return acc;
+        }, {});
+
+        res.status(200).json(settingsObject);
+
+    } catch (error) {
+        console.error("Error al obtener la configuración pública:", error);
+        res.status(500).json({ message: "Error interno del servidor." });
+    }
+});
+
+// VERSIÓN DE DEPURACIÓN PROFESIONAL
+app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
+    // Micrófono 1: Nos dice si esta función se está ejecutando y con qué filtros.
+    console.log(`[DEBUG] Petición recibida para /api/admin/users. Filtro de estado: '${req.query.status || 'ninguno'}'`);
+
+    const { search = '', status = '' } = req.query;
+    try {
+        let sql = `
+            SELECT 
+                u.id, 
+                u.username, 
+                u.liquid_blue_balance, 
+                u.escrow_blue_balance, 
+                u.red_balance, 
+                COALESCE(bbl.total_booster_blue, 0) as booster_blue_balance,
+                u.status,
+                u.average_rating, 
+                u.ratings_count, 
+                u.created_at
+            FROM 
+                users u
+            LEFT JOIN 
+                (SELECT user_id, SUM(amount) as total_booster_blue FROM booster_blue_ledger GROUP BY user_id) bbl ON u.id = bbl.user_id
+            WHERE 
+                u.username ILIKE $1`;
+        
+        const params = [`%${search}%`];
+        let paramIndex = 2;
+
+        if (status) {
+            sql += ` AND u.status = $${paramIndex++}`;
+            params.push(status);
+        }
+
+        sql += ` ORDER BY u.created_at DESC`;
+
+        const result = await pool.query(sql, params);
+        
+        // Micrófono 2: Nos muestra los datos EXACTOS que la base de datos devuelve, antes de enviarlos.
+        console.log('[DEBUG] Datos recibidos de la base de datos:', JSON.stringify(result.rows, null, 2));
+
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error("Error al obtener la lista de usuarios:", error);
+        res.status(500).json({ message: "Error interno del servidor." });
+    }
+});
