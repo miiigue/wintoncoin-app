@@ -1066,3 +1066,100 @@ input:checked + .slider:before {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+/* Estilos para la columna de acciones y el menú desplegable */
+.actions-cell {
+    text-align: center;
+}
+
+.action-menu-container {
+    position: static;
+}
+
+.action-menu-container .menu-toggle {
+    background: var(--admin-bg-main);
+    border: 1px solid var(--admin-border-color);
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--admin-text-primary);
+}
+
+.action-menu-container .menu-toggle:hover {
+    background: var(--admin-bg-hover);
+    border-color: #555;
+}
+
+.action-menu {
+    display: none;
+    position: absolute;
+    right: 1.5rem; /* Alineado con el padding de la celda */
+    top: calc(100% - 10px); /* Ligeramente solapado para mejor estética */
+    background-color: var(--admin-bg-light);
+    border: 1px solid var(--admin-border-color);
+    border-radius: 8px;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+    z-index: 100;
+    min-width: 180px;
+    padding: 0.5rem 0;
+    overflow: hidden;
+}
+
+.action-menu.visible {
+    display: block;
+}
+
+.action-menu .action-button-admin {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.75rem 1.25rem;
+    border: none;
+    background: none;
+    color: var(--admin-text-primary);
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.action-menu .action-button-admin:hover {
+    background-color: var(--admin-bg-hover);
+}
+
+.action-menu .action-button-admin.danger:hover {
+    background-color: #5c2a2a;
+    color: #fff;
+}
+
+
+/* --- NUEVOS ESTILOS PARA ESTADOS DE USUARIO --- */
+.status-badge.active {
+    background-color: var(--status-completed-bg);
+    color: var(--status-completed-text);
+}
+
+.status-badge.suspended {
+    background-color: #fff8e1; /* Amarillo claro */
+    color: #f57c00;
+}
+
+.status-badge.banned {
+    background-color: #fbe9e7; /* Rojo claro */
+    color: #d32f2f;
+    font-weight: bold;
+}
+
+/* Saldos */
+.saldo-blue-text {
+    color: var(--blue-token-color);
+    font-weight: 600;
+}
+
+.saldo-booster-text {
+    color: var(--escrow-token-color); /* Usamos el mismo color que escrow por consistencia */
+    font-weight: 600;
+}
+
+.saldo-escrow-text {
+    color: var(--escrow-token-color);
+}

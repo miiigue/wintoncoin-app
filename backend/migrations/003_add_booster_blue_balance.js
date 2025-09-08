@@ -1,12 +1,12 @@
-// Migración 001: Añadir campos de verificación de identidad a la tabla de usuarios.
-// Este script está diseñado para ser ejecutado UNA SOLA VEZ en la base de datos de producción.
-// Su propósito es modificar la tabla 'users' añadiendo nuevas columnas sin eliminar datos existentes.
+// Migración 003: Añadir el campo booster_blue_balance a la tabla de usuarios.
+// Este script está diseñado para ser ejecutado UNA SOLA VEZ.
+// Su propósito es corregir un olvido en el desarrollo, añadiendo la columna
+// necesaria para que el panel de administración funcione correctamente.
 
 const { Pool } = require('pg');
 require('../config'); // Carga la configuración del entorno (development o production)
 
 // Configuración de la conexión a la base de datos.
-// El connectionString es cargado por config.js desde el archivo .env correspondiente.
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
@@ -14,22 +14,17 @@ const pool = new Pool({
 
 const migrationQuery = `
     ALTER TABLE users
-    ADD COLUMN IF NOT EXISTS given_name VARCHAR(100),
-    ADD COLUMN IF NOT EXISTS family_name VARCHAR(100),
-    ADD COLUMN IF NOT EXISTS date_of_birth DATE,
-    ADD COLUMN IF NOT EXISTS document_type VARCHAR(50),
-    ADD COLUMN IF NOT EXISTS document_number VARCHAR(50),
-    ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;
+    ADD COLUMN IF NOT EXISTS booster_blue_balance NUMERIC(18, 4) DEFAULT 0.0000;
 `;
 
 async function runMigration() {
     const client = await pool.connect();
-    console.log('🚀 Iniciando migración: 001_add_user_verification_fields');
+    console.log('🚀 Iniciando migración: 003_add_booster_blue_balance');
     
     try {
         await client.query('BEGIN'); // Iniciar transacción
 
-        console.log('ALTERANDO la tabla "users" para añadir nuevos campos...');
+        console.log('ALTERANDO la tabla "users" para añadir la columna "booster_blue_balance"...');
         await client.query(migrationQuery);
         console.log('✅ La tabla "users" ha sido modificada exitosamente.');
 
