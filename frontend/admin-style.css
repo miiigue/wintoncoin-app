@@ -1073,7 +1073,7 @@ input:checked + .slider:before {
 }
 
 .action-menu-container {
-    position: static;
+    position: relative; /* <-- CORRECCIÓN: De static a relative */
 }
 
 .action-menu-container .menu-toggle {
@@ -1094,8 +1094,9 @@ input:checked + .slider:before {
 .action-menu {
     display: none;
     position: absolute;
-    right: 1.5rem; /* Alineado con el padding de la celda */
-    top: calc(100% - 10px); /* Ligeramente solapado para mejor estética */
+    right: 0; /* Alineado a la derecha del contenedor */
+    top: 100%; /* Justo debajo del botón */
+    margin-top: 8px; /* Pequeño espacio para que no esté pegado */
     background-color: var(--admin-bg-light);
     border: 1px solid var(--admin-border-color);
     border-radius: 8px;
