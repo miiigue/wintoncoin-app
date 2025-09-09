@@ -2055,46 +2055,55 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
         });
         
         // Endpoint para obtener todos los usuarios con filtros de búsqueda y estado
-       // Endpoint para obtener todos los usuarios con filtros de búsqueda y estado
-app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
-    const { search = '', status = '' } = req.query;
-    try {
-        let sql = `
-            SELECT 
-                u.id, 
-                u.username, 
-                u.liquid_blue_balance, 
-                u.escrow_blue_balance, 
-                u.red_balance, 
-                COALESCE(bbl.total_booster_blue, 0) as booster_blue_balance,
-                u.status,
-                u.average_rating, 
-                u.ratings_count, 
-                u.created_at
-            FROM 
-                users u
-            LEFT JOIN 
-                (SELECT user_id, SUM(amount) as total_booster_blue FROM booster_blue_ledger GROUP BY user_id) bbl ON u.id = bbl.user_id
-            WHERE 
-                u.username ILIKE $1`;
-        
-        const params = [`%${search}%`];
-        let paramIndex = 2;
-
-        if (status) {
-            sql += ` AND u.status = $${paramIndex++}`;
-            params.push(status);
+        // VERSIÓN DE DEPURACIÓN PROFESIONAL
+    app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
+        // Micrófono 1: Nos dice si esta función se está ejecutando y con qué filtros.
+        console.log(`[DEBUG] Petición recibida para /api/admin/users. Filtro de estado: '${req.query.status || 'ninguno'}'`);
+    
+        const { search = '', status = '' } = req.query;
+        try {
+            let sql = `
+                SELECT 
+                    u.id, 
+                    u.username, 
+                    u.liquid_blue_balance, 
+                    u.escrow_blue_balance, 
+                    u.red_balance, 
+                    u.status,
+                    u.average_rating, 
+                    u.ratings_count, 
+                    u.created_at,
+                    COALESCE(SUM(bbl.amount), 0) as booster_blue_balance
+                FROM 
+                    users u
+                LEFT JOIN 
+                    booster_blue_ledger bbl ON u.id = bbl.user_id
+                WHERE 
+                    u.username ILIKE $1`;
+            
+            const params = [`%${search}%`];
+            let paramIndex = 2;
+    
+            if (status) {
+                // Se añade la condición al WHERE antes del GROUP BY
+                sql += ` AND u.status = $${paramIndex++}`;
+                params.push(status);
+            }
+    
+            // Se agrupa por el ID del usuario, que es la clave primaria
+            sql += ` GROUP BY u.id ORDER BY u.created_at DESC`;
+    
+            const result = await pool.query(sql, params);
+            
+            // Micrófono 2: Nos muestra los datos EXACTOS que la base de datos devuelve, antes de enviarlos.
+            console.log('[DEBUG] Datos recibidos de la base de datos:', JSON.stringify(result.rows, null, 2));
+    
+            res.status(200).json(result.rows);
+        } catch (error) {
+            console.error("Error al obtener la lista de usuarios:", error);
+            res.status(500).json({ message: "Error interno del servidor." });
         }
-
-        sql += ` ORDER BY u.created_at DESC`;
-
-        const result = await pool.query(sql, params);
-        res.status(200).json(result.rows);
-    } catch (error) {
-        console.error("Error al obtener la lista de usuarios:", error);
-        res.status(500).json({ message: "Error interno del servidor." });
-    }
-});
+    });
 
         // NUEVO ENDPOINT PARA MODERACIÓN DE USUARIOS
         app.post('/api/admin/users/:userId/status', verifyAdminToken, async (req, res) => {
@@ -3188,7 +3197,7 @@ app.get('/api/users/:username/referral-info', async (req, res) => {
         client.release();
     }
 });
-
+/*
 app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
     const { search = '' } = req.query;
     try {
@@ -3204,7 +3213,7 @@ app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
         console.error("Error al obtener la lista de usuarios:", error);
         res.status(500).json({ message: "Error interno del servidor." });
     }
-}); 
+}); */
 
 // --- NUEVA FUNCIÓN HELPER PARA ACTUALIZAR EL NIVEL DE UN IMPULSOR ---
 async function updateUserBoosterLevel(client, userId) {
@@ -3680,8 +3689,8 @@ app.get('/api/public-settings', async (req, res) => {
     }
 });
 
-// VERSIÓN DE DEPURACIÓN PROFESIONAL
-app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
+//VERSIÓN DE DEPURACIÓN PROFESIONAL
+/*app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
     // Micrófono 1: Nos dice si esta función se está ejecutando y con qué filtros.
     console.log(`[DEBUG] Petición recibida para /api/admin/users. Filtro de estado: '${req.query.status || 'ninguno'}'`);
 
@@ -3694,15 +3703,15 @@ app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
                 u.liquid_blue_balance, 
                 u.escrow_blue_balance, 
                 u.red_balance, 
-                COALESCE(bbl.total_booster_blue, 0) as booster_blue_balance,
                 u.status,
                 u.average_rating, 
                 u.ratings_count, 
-                u.created_at
+                u.created_at,
+                COALESCE(SUM(bbl.amount), 0) as booster_blue_balance
             FROM 
                 users u
             LEFT JOIN 
-                (SELECT user_id, SUM(amount) as total_booster_blue FROM booster_blue_ledger GROUP BY user_id) bbl ON u.id = bbl.user_id
+                booster_blue_ledger bbl ON u.id = bbl.user_id
             WHERE 
                 u.username ILIKE $1`;
         
@@ -3710,11 +3719,13 @@ app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
         let paramIndex = 2;
 
         if (status) {
+            // Se añade la condición al WHERE antes del GROUP BY
             sql += ` AND u.status = $${paramIndex++}`;
             params.push(status);
         }
 
-        sql += ` ORDER BY u.created_at DESC`;
+        // Se agrupa por el ID del usuario, que es la clave primaria
+        sql += ` GROUP BY u.id ORDER BY u.created_at DESC`;
 
         const result = await pool.query(sql, params);
         
@@ -3726,4 +3737,4 @@ app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
         console.error("Error al obtener la lista de usuarios:", error);
         res.status(500).json({ message: "Error interno del servidor." });
     }
-});
+}); */
