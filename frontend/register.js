@@ -3,60 +3,48 @@ document.addEventListener('DOMContentLoaded', function() {
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
     const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
     
+    // Referencias a los elementos del DOM
     const registerForm = document.getElementById('registerForm');
+    const verifyForm = document.getElementById('verifyForm');
+    const step1Div = document.getElementById('registration-step-1');
+    const step2Div = document.getElementById('verification-step-2');
     const container = document.querySelector('.container');
 
-    // --- NUEVO: Lógica para el modal de advertencia de cuenta única ---
+    // --- Lógica para el modal de advertencia de cuenta única ---
     const policyModal = document.getElementById('oneAccountPolicyModal');
     const closeButtons = document.querySelectorAll('.policy-close-button');
 
-    // Función para mostrar el modal
     const showPolicyModal = () => {
-        // Solo muestra el modal si no ha sido mostrado antes en esta sesión
         if (policyModal && sessionStorage.getItem('policyModalShown') !== 'true') {
-            policyModal.style.display = 'flex'; // Usamos flex para centrarlo
-            sessionStorage.setItem('policyModalShown', 'true'); // Marcar como mostrado
+            policyModal.style.display = 'flex';
+            sessionStorage.setItem('policyModalShown', 'true');
         }
     };
 
-    // Función para cerrar el modal
     const closePolicyModal = () => {
         if (policyModal) {
             policyModal.style.display = 'none';
         }
     };
 
-    // Mostrar el modal al cargar la página
     showPolicyModal();
-
-    // Añadir eventos a los botones de cierre
-    closeButtons.forEach(button => {
-        button.addEventListener('click', closePolicyModal);
-    });
-
-    // Cerrar el modal si se hace clic fuera de él
+    closeButtons.forEach(button => button.addEventListener('click', closePolicyModal));
     window.addEventListener('click', (event) => {
-        if (event.target === policyModal) {
-            closePolicyModal();
-        }
+        if (event.target === policyModal) closePolicyModal();
     });
-    // --- Fin de la nueva lógica ---
 
-    // --- NUEVO: Lógica para auto-rellenar el código de referido desde la URL ---
+    // --- Lógica para auto-rellenar el código de referido desde la URL ---
     const referralCodeInput = document.getElementById('referral_code');
     const urlParams = new URLSearchParams(window.location.search);
     const refCodeFromUrl = urlParams.get('ref');
 
     if (refCodeFromUrl && referralCodeInput) {
-        // Ponemos el código en mayúsculas y limpiamos espacios para consistencia
         referralCodeInput.value = refCodeFromUrl.trim().toUpperCase();
     }
-    // --- Fin de la nueva lógica ---
 
-    // Escuchamos el evento personalizado que disparamos desde utils.js
+    // --- Lógica para deshabilitar si los registros están cerrados ---
     document.addEventListener('app-settings-loaded', () => {
         if (!window.appSettings.allow_new_registrations) {
-            // Deshabilitar completamente la funcionalidad si los registros están cerrados
             container.innerHTML = `
                 <h1>Registro Cerrado</h1>
                 <p>En este momento no se aceptan nuevos registros. Por favor, inténtalo de nuevo más tarde.</p>
@@ -65,48 +53,40 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // --- PASO 1: Manejar el envío del formulario de registro inicial ---
     if (registerForm) {
         registerForm.addEventListener('submit', async function(event) {
-            // Prevenir el comportamiento por defecto del formulario
             event.preventDefault();
 
-            // Obtener los valores ingresados por el usuario
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
             const email = document.getElementById('email').value;
             const phone = document.getElementById('phone').value;
-            const referral_code = document.getElementById('referral_code').value;
 
-            // Comprobación de seguridad: las contraseñas deben coincidir
             if (password !== confirmPassword) {
                 showCustomAlert('Las contraseñas no coinciden. Por favor, inténtalo de nuevo.');
-                return; // Detiene el envío del formulario si no coinciden
+                return;
             }
 
-            // La URL a la que enviaremos la petición de registro
-            const registerUrl = `${API_URL}/register`;
+            const registerUrl = `${API_URL}/api/register-request`;
 
             try {
-                // Hacemos la petición 'fetch' al backend
                 const response = await fetch(registerUrl, {
-                    method: 'POST', // Usamos el método POST
-                    headers: {
-                        'Content-Type': 'application/json' // Le decimos al servidor que enviamos JSON
-                    },
-                    // Convertimos todos los datos a un string JSON
-                    body: JSON.stringify({ username, password, email, phone, referral_code })
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password, email, phone })
                 });
 
-                // Convertimos la respuesta del servidor a un objeto JSON
                 const result = await response.json();
 
-                if (response.ok) { // Éxito (ej. código 201 Created)
-                    // Pasamos la redirección como callback
-                    showCustomAlert(result.message + ' Ahora puedes iniciar sesión.', () => {
-                        window.location.href = 'index.html'; // 4. Redirigir a la página de login
-                    });
-                } else { // Error (ej. 409 Conflict - usuario ya existe)
+                if (response.ok) {
+                    showCustomAlert(result.message);
+                    // Transición al paso 2
+                    document.getElementById('hiddenPhone').value = phone;
+                    step1Div.style.display = 'none';
+                    step2Div.style.display = 'block';
+                } else {
                     showCustomAlert(`Error: ${result.message}`);
                 }
             } catch (error) {
@@ -114,7 +94,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 showCustomAlert('No se pudo conectar con el servidor. Asegúrate de que está en funcionamiento.');
             }
         });
-    } else {
-        console.error('El formulario con id "registerForm" no fue encontrado.');
+    }
+
+    // --- PASO 2: Manejar el envío del formulario de verificación ---
+    if (verifyForm) {
+        verifyForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const verificationCode = document.getElementById('verificationCode').value;
+            const phone = document.getElementById('hiddenPhone').value;
+            const referral_code = document.getElementById('referral_code').value; // Lo obtenemos del primer formulario
+
+            const verifyUrl = `${API_URL}/api/register-verify`;
+
+            try {
+                const response = await fetch(verifyUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone, verificationCode, referral_code })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showCustomAlert(result.message + ' Serás redirigido para iniciar sesión.', () => {
+                        window.location.href = 'index.html';
+                    });
+                } else {
+                    showCustomAlert(`Error: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error de red o al conectar con el servidor:', error);
+                showCustomAlert('No se pudo conectar con el servidor.');
+            }
+        });
     }
 }); 
