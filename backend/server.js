@@ -12,6 +12,10 @@ const rateLimit = require('express-rate-limit'); // <-- SEGURIDAD: Importar rate
 const cron = require('node-cron');
 require('./config'); // Carga la configuración del entorno (development o production)
 
+// Configuración de Twilio para el envío de SMS de verificación
+const twilio = require('twilio');
+const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+
 // 2. Configuración inicial
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -304,7 +308,30 @@ async function applyMigrations(client) {
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='target_username') THEN
                     ALTER TABLE publications ADD COLUMN target_username VARCHAR(255);
                  END IF;
-             END $$;`
+             END $$;`,
+            `
+            CREATE TABLE IF NOT EXISTS platform_wallet (
+                id SERIAL PRIMARY KEY,
+                balance NUMERIC(20, 8) NOT NULL DEFAULT 0.00,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+        `,
+        `
+            CREATE TABLE IF NOT EXISTS pending_verifications (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) UNIQUE NOT NULL,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                phone_number VARCHAR(50) UNIQUE NOT NULL,
+                verification_code VARCHAR(10) NOT NULL,
+                expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+        `,
+        `
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+        `
         ];
 
         for (const migration of migrations) {
@@ -737,191 +764,211 @@ async function startServer() {
 
         // --- AHORA DEFINIMOS LAS RUTAS ---
 
-        // Ruta de Registro de Usuario (AHORA CON LÓGICA DE REFERIDOS)
-        app.post('/register', async (req, res) => {
-            const { username, password, email, phone, referral_code } = req.body;
-        
-            // --- Validación de Entrada ---
+        // =================================================================================
+        // ==  NUEVO FLUJO DE REGISTRO CON VERIFICACIÓN POR SMS (FASE 1: SOLICITUD)  ==
+        // =================================================================================
+        app.post('/api/register-request', async (req, res) => {
+            const { username, password, email, phone } = req.body;
+
+            // --- 1. Validación de Entrada ---
             if (!username || !password || !email || !phone) {
-                return res.status(400).json({ message: "Todos los campos son requeridos: usuario, contraseña, correo electrónico y teléfono." });
+                return res.status(400).json({ message: "Todos los campos son requeridos: usuario, contraseña, correo y teléfono." });
             }
             if (!/^\S+@\S+\.\S+$/.test(email)) {
                 return res.status(400).json({ message: "El formato del correo electrónico no es válido." });
             }
-        
+            // Puedes añadir una validación más robusta para el número de teléfono aquí si lo deseas
+            
             const client = await pool.connect();
             try {
-                // --- INICIO DE LA TRANSACCIÓN ---
-                // Esto asegura que todas las operaciones de la base de datos se completen o fallen juntas.
                 await client.query('BEGIN');
-        
-                // 1. Obtener configuraciones relevantes del sistema
+
+                // --- 2. Verificar que el usuario, email o teléfono no estén ya en uso (en users o pending) ---
+                const existingUserCheck = await client.query(
+                    `SELECT 1 FROM users WHERE username = $1 OR email = $2 OR phone = $3
+                     UNION
+                     SELECT 1 FROM pending_verifications WHERE username = $1 OR email = $2 OR phone_number = $3`,
+                    [username, email, phone]
+                );
+
+                if (existingUserCheck.rowCount > 0) {
+                    await client.query('ROLLBACK');
+                    return res.status(409).json({ message: 'El nombre de usuario, email o teléfono ya está en uso o pendiente de verificación.' });
+                }
+
+                // --- 3. Generar Código de Verificación y Fecha de Expiración ---
+                const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // Código de 6 dígitos
+                const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos de validez
+
+                // --- 4. Encriptar Contraseña y Guardar en Pendientes ---
+                const passwordHash = await bcrypt.hash(password, saltRounds);
+                await client.query(
+                    `INSERT INTO pending_verifications (username, email, password_hash, phone_number, verification_code, expires_at)
+                     VALUES ($1, $2, $3, $4, $5, $6)`,
+                    [username, email, passwordHash, phone, verificationCode, expiresAt]
+                );
+
+                // --- 5. Enviar el SMS usando Twilio ---
+                try {
+                    await twilioClient.messages.create({
+                        body: `Tu código de verificación para WintonCoin es: ${verificationCode}`,
+                        from: process.env.TWILIO_PHONE_NUMBER,
+                        to: phone 
+                    });
+                } catch (twilioError) {
+                    console.error("Error al enviar SMS con Twilio:", twilioError);
+                    await client.query('ROLLBACK');
+                    // No reveles detalles del error interno al usuario por seguridad
+                    return res.status(500).json({ message: 'No se pudo enviar el código de verificación. Por favor, revisa el número de teléfono.' });
+                }
+
+                await client.query('COMMIT');
+                res.status(200).json({ message: 'Se ha enviado un código de verificación a tu teléfono.' });
+
+            } catch (error) {
+                await client.query('ROLLBACK');
+                console.error('Error en la solicitud de registro:', error);
+                res.status(500).json({ message: 'Error interno del servidor.' });
+            } finally {
+                client.release();
+            }
+        });
+
+        // =================================================================================
+        // ==  NUEVO FLUJO DE REGISTRO CON VERIFICACIÓN POR SMS (FASE 2: VERIFICACIÓN)  ==
+        // =================================================================================
+        app.post('/api/register-verify', async (req, res) => {
+            const { phone, verificationCode, referral_code } = req.body;
+
+            if (!phone || !verificationCode) {
+                return res.status(400).json({ message: "El teléfono y el código de verificación son requeridos." });
+            }
+
+            const client = await pool.connect();
+            try {
+                await client.query('BEGIN');
+
+                // --- 1. Buscar la solicitud de registro pendiente y validarla ---
+                const pendingResult = await client.query(
+                    'SELECT * FROM pending_verifications WHERE phone_number = $1 AND verification_code = $2',
+                    [phone, verificationCode]
+                );
+
+                if (pendingResult.rowCount === 0) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({ message: 'Código de verificación incorrecto.' });
+                }
+
+                const pendingUser = pendingResult.rows[0];
+
+                // Verificar si el código ha expirado
+                if (new Date() > new Date(pendingUser.expires_at)) {
+                    // Opcional: Limpiar códigos expirados
+                    await client.query('DELETE FROM pending_verifications WHERE id = $1', [pendingUser.id]);
+                    await client.query('COMMIT'); // Guardar la eliminación
+                    return res.status(400).json({ message: 'El código de verificación ha expirado. Por favor, solicita uno nuevo.' });
+                }
+
+                // --- 2. Mover el usuario de "pendientes" a la tabla "users" ---
+                const newReferralCode = await generateUniqueReferralCode(client, pendingUser.username);
+                // La lógica de referidos se aplicará a continuación
+                const newUserSql = `INSERT INTO users (username, password_hash, email, phone, referral_code) 
+                                  VALUES ($1, $2, $3, $4, $5) RETURNING *`;
+                const newUserResult = await client.query(newUserSql, [
+                    pendingUser.username,
+                    pendingUser.password_hash,
+                    pendingUser.email,
+                    pendingUser.phone_number,
+                    newReferralCode
+                ]);
+                const newUser = newUserResult.rows[0];
+
+                // --- 3. [LÓGICA REINTEGRADA] Aplicar bonos de bienvenida y referidos ---
                 const settingKeys = [
-                    'allow_new_registrations', // <<< [CORRECCIÓN] Añadido para verificar si el registro está permitido
-                    'referral_system_enabled', 'referral_reward_amount', 'platform_commission_percentage',
-                    'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes',
+                    'referral_system_enabled', 'referral_reward_amount',
                     'welcome_bonus_enabled', 'welcome_bonus_amount',
-                    'pre_launch_mode_enabled' // Añadido para verificar el modo
+                    'pre_launch_mode_enabled'
                 ];
                 const settingsResult = await client.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1::text[])`, [settingKeys]);
                 const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
-                
-                // <<< [CORRECCIÓN] Verificación de permiso para nuevos registros
-                const allowRegistrations = settings.allow_new_registrations === 'true';
-                if (!allowRegistrations) {
-                    await client.query('ROLLBACK'); // Cancelar la transacción
-                    return res.status(403).json({ message: "El registro de nuevos usuarios está desactivado temporalmente." });
-                }
 
+                const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
                 const referralsEnabled = settings.referral_system_enabled === 'true';
                 const welcomeBonusEnabled = settings.welcome_bonus_enabled === 'true';
-                const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
-        
-                // 2. Validar el código de referido (si aplica)
+                
                 let referrer = null;
                 if (referralsEnabled && referral_code) {
                     const referrerResult = await client.query('SELECT * FROM users WHERE referral_code = $1', [referral_code.trim().toUpperCase()]);
                     if (referrerResult.rowCount > 0) {
                         referrer = referrerResult.rows[0];
-                    } else {
-                        console.warn(`Código de referido "${referral_code}" no encontrado para el registro de "${username}".`);
                     }
                 }
-        
-                // 3. Crear el nuevo usuario
-                const passwordHash = await bcrypt.hash(password, saltRounds);
-                const newReferralCode = await generateUniqueReferralCode(client, username);
-                const newUserSql = `INSERT INTO users (username, password_hash, email, phone, referral_code, referrer_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
-                const newUserResult = await client.query(newUserSql, [username, passwordHash, email, phone, newReferralCode, referrer ? referrer.id : null]);
-                const newUser = newUserResult.rows[0];
-        
-                // 4. Lógica de Recompensa (si hubo un referente válido) - ¡SOLO EN PRE-LANZAMIENTO!
+
+                // Lógica de Recompensa por Referido (solo en modo pre-lanzamiento)
                 if (preLaunchMode && referrer) {
                     const rewardAmount = parseFloat(settings.referral_reward_amount) || 0;
-                    const commissionPercentage = parseFloat(settings.platform_commission_percentage) || 0;
-                    const escrowInterval = `${settings.blue_escrow_days || 1} days ${settings.blue_escrow_hours || 0} hours ${settings.blue_escrow_minutes || 0} minutes`;
-        
                     if (rewardAmount > 0) {
-                        const totalBlueCreated = rewardAmount * 2;
-                        const commissionAmount = totalBlueCreated * (commissionPercentage / 100);
-        
-                        // --- CORRECCIÓN: Las recompensas van al perfil de impulsor según las reglas económicas ---
-                        // Recompensa para el referente (al perfil de impulsor)
-                        await client.query(`INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, NULL)`, [referrer.id, rewardAmount]);
-                        await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus', $2, 'Recompensa por referido')`, [referrer.id, rewardAmount]);
-                        await client.query(`UPDATE users SET is_booster = TRUE WHERE id = $1`, [referrer.id]);
-                        await updateUserBoosterLevel(client, referrer.id);
-                        
-                        // Recompensa para el nuevo usuario (al perfil de impulsor)
-                        await client.query(`INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, NULL)`, [newUser.id, rewardAmount]);
-                        await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus', $2, 'Recompensa por referido')`, [newUser.id, rewardAmount]);
-                        await client.query(`UPDATE users SET is_booster = TRUE WHERE id = $1`, [newUser.id]);
-                        await updateUserBoosterLevel(client, newUser.id);
-        
-                        // --- Ganancia y Equilibrio para la Plataforma (CORREGIDO: Comisión a la billetera de plataforma) ---
-                        const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
-                        const redForBalance = totalBlueCreated;
-                        const redForCommission = commissionAmount;
-                        const blueForCommission = commissionAmount;
-        
-                        // La plataforma recibe el RED para balancear, pero el BLUE de comisión va a la billetera.
-                        await client.query(
-                            'UPDATE users SET red_balance = red_balance + $1 WHERE username = $2',
-                            [redForBalance + redForCommission, platformUsername]
-                        );
-
-                        await client.query(
-                            `INSERT INTO platform_wallet (id, total_blue_commission_balance) VALUES (1, $1)
-                             ON CONFLICT (id) DO UPDATE SET total_blue_commission_balance = platform_wallet.total_blue_commission_balance + $1`,
-                            [blueForCommission]
-                        );
-        
-                        // --- Registros de Transacciones para Auditoría (CORREGIDO: Mensajes actualizados para perfil de impulsor) ---
-                        // Para el referente
-                        await client.query(`INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [referrer.username, `Recompensa (perfil de impulsor) por referir a ${newUser.username}`, rewardAmount]);
-                        
-                        // Para el nuevo usuario
-                        const newUserTxResult = await client.query(`INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3) RETURNING id`, [newUser.username, `Recompensa (perfil de impulsor) por usar el código de ${referrer.username}`, rewardAmount]);
-                        const newUserTxId = newUserTxResult.rows[0].id;
-
-                        // Para la plataforma
-                        await client.query(`INSERT INTO transactions (username, type, description, blue_change, red_change) VALUES ($1, 'referral_commission', $2, $3, $4)`, [platformUsername, `Comisión y balance por referido ${newUser.username}`, blueForCommission, redForBalance + redForCommission]);
-        
-                        // --- Registro del Vínculo de Referido ---
-                        await client.query(`INSERT INTO referral_log (referrer_user_id, referred_user_id) VALUES ($1, $2)`, [referrer.id, newUser.id]);
-                        
-                        // --- Registro de la Comisión (CORREGIDO: Ahora posible sin ID de publicación) ---
-                        await client.query(
-                            `INSERT INTO platform_commission_log (related_publication_id, related_user_transaction_id, commission_amount_blue) VALUES ($1, $2, $3)`,
-                            [null, newUserTxId, blueForCommission]
-                        );
-        
-                        // --- Notificaciones a los Usuarios (CORREGIDO: Mensajes actualizados para perfil de impulsor) ---
+                        // Recompensa para el referente
+                        await client.query(`INSERT INTO booster_blue_ledger (user_id, amount) VALUES ($1, $2)`, [referrer.id, rewardAmount]);
+                        await client.query(`INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [referrer.username, `Recompensa (perfil impulsor) por referir a ${newUser.username}`, rewardAmount]);
                         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [referrer.username, `¡Felicidades! Has ganado ${rewardAmount.toFixed(4)} BLUE en tu perfil de impulsor porque ${newUser.username} se registró con tu código.`]);
+                        
+                        // Recompensa para el nuevo usuario
+                        await client.query(`INSERT INTO booster_blue_ledger (user_id, amount) VALUES ($1, $2)`, [newUser.id, rewardAmount]);
+                        await client.query(`INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [newUser.username, `Recompensa (perfil impulsor) por usar el código de ${referrer.username}`, rewardAmount]);
                         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Por usar un código de referido, has ganado ${rewardAmount.toFixed(4)} BLUE en tu perfil de impulsor.`]);
                     }
                 }
-        
-                // --- Bono de Bienvenida (CORREGIDO: Ya cumple con las reglas económicas) - ¡SOLO EN PRE-LANZAMIENTO! ---
-                if (preLaunchMode && welcomeBonusEnabled && !referrer) {
+                // Lógica de Bono de Bienvenida (si no hay referente, solo en modo pre-lanzamiento)
+                else if (preLaunchMode && welcomeBonusEnabled) {
                     const welcomeBonusAmount = parseFloat(settings.welcome_bonus_amount) || 0;
                     if (welcomeBonusAmount > 0) {
-                        await client.query(`INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, NULL)`, [newUser.id, welcomeBonusAmount]);
-                        await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'welcome_bonus', $2, 'Bono de bienvenida')`, [newUser.id, welcomeBonusAmount]);
-                        await client.query(`UPDATE users SET is_booster = TRUE WHERE id = $1`, [newUser.id]);
-                        await updateUserBoosterLevel(client, newUser.id);
-                        
-                        // Notificación para el bono de bienvenida
+                        await client.query(`INSERT INTO booster_blue_ledger (user_id, amount) VALUES ($1, $2)`, [newUser.id, welcomeBonusAmount]);
+                        await client.query(`INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.username, 'Bono de bienvenida (perfil impulsor)', welcomeBonusAmount]);
                         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Has recibido ${welcomeBonusAmount.toFixed(4)} BLUE en tu perfil de impulsor como bono de bienvenida.`]);
                     }
                 }
-        
-                // --- FIN DE LA TRANSACCIÓN ---
+
+                // --- 4. Limpiar la tabla de pendientes ---
+                await client.query('DELETE FROM pending_verifications WHERE id = $1', [pendingUser.id]);
+
                 await client.query('COMMIT');
 
-// SEGURIDAD: Nunca devolver el hash de la contraseña en la respuesta.
-const userResponse = newUser;
-delete userResponse.password_hash;
+                // --- 5. Crear token de sesión y responder ---
+                // (Opcional, pero recomendado para una buena experiencia de usuario)
+                // Por ahora, solo confirmamos el éxito.
+                const userResponse = { ...newUser };
+                delete userResponse.password_hash; // ¡Nunca devolver el hash!
 
-                res.status(201).json({ 
-    message: `Usuario '${userResponse.username}' registrado con éxito.`,
-    user: userResponse
+                res.status(201).json({
+                    message: `¡Usuario '${userResponse.username}' registrado y verificado con éxito!`,
+                    user: userResponse
                 });
-        
-    } catch (error) {
-                // Si algo falla, revertimos todos los cambios.
+
+            } catch (error) {
                 await client.query('ROLLBACK');
-                console.error('Error al registrar usuario:', error);
-                
-                if (error.code === '23505') { // 'unique_violation'
-                    if (error.constraint === 'users_username_key') {
-                        return res.status(409).json({ message: 'El nombre de usuario ya está registrado.' });
-                    }
-                    if (error.constraint === 'users_email_key') {
-                        return res.status(409).json({ message: 'El correo electrónico ya está registrado.' });
-                    }
-                    if (error.constraint === 'users_phone_key') {
-                        return res.status(409).json({ message: 'El número de teléfono ya está registrado.' });
-                    }
-                    if (error.constraint === 'referral_log_referred_user_id_key') {
-                        // Este es un caso de borde muy raro pero bueno manejarlo
-                        return res.status(409).json({ message: 'Este usuario ya ha sido referido.' });
-                    }
-                    return res.status(409).json({ message: 'Un valor que ingresaste ya está en uso.' });
+                console.error('Error en la verificación de registro:', error);
+                // Manejar violación de unicidad si, por alguna rara casualidad, 
+                // otro usuario se registró con los mismos datos entre la fase 1 y 2.
+                if (error.code === '23505') {
+                    return res.status(409).json({ message: 'Los datos de usuario ya han sido registrados. Intenta iniciar sesión.' });
                 }
-                res.status(500).json({ message: 'Error interno del servidor al intentar registrar el usuario.' });
+                res.status(500).json({ message: 'Error interno del servidor.' });
             } finally {
                 client.release();
-    }
-});
+            }
+        });
 
-// Ruta de Inicio de Sesión
-app.post('/login', loginLimiter, async (req, res) => {
-    const { username, password } = req.body;
+        // La antigua ruta de registro se eliminará y su lógica se moverá a la nueva ruta de verificación.
+        // app.post('/register', async (req, res) => { ... });
 
-    if (!username || !password) {
-        return res.status(400).json({ message: "Usuario y contraseña son requeridos." });
-    }
+        // Ruta de Inicio de Sesión
+        app.post('/login', loginLimiter, async (req, res) => {
+            const { username, password } = req.body;
+
+            if (!username || !password) {
+                return res.status(400).json({ message: "Usuario y contraseña son requeridos." });
+            }
 
             try {
                 const sql = `SELECT * FROM users WHERE username = $1`;
