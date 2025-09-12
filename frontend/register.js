@@ -10,6 +10,26 @@ document.addEventListener('DOMContentLoaded', function() {
     const step2Div = document.getElementById('verification-step-2');
     const container = document.querySelector('.container');
 
+    // --- Lógica para el manejo de los acuerdos y el botón de registro ---
+    const termsGeneralCheck = document.getElementById('terms-general');
+    const termsEconomicCheck = document.getElementById('terms-economic');
+    const termsPublicDebtCheck = document.getElementById('terms-public-debt');
+    const registerRequestBtn = document.getElementById('register-request-btn');
+
+    // Comprobar si los elementos existen para evitar errores si no estamos en la página de registro
+    if (termsGeneralCheck && termsEconomicCheck && termsPublicDebtCheck && registerRequestBtn) {
+        const allCheckboxes = [termsGeneralCheck, termsEconomicCheck, termsPublicDebtCheck];
+
+        function checkAgreements() {
+            const allChecked = allCheckboxes.every(checkbox => checkbox.checked);
+            registerRequestBtn.disabled = !allChecked;
+        }
+
+        allCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', checkAgreements);
+        });
+    }
+
     // --- Lógica para el modal de advertencia de cuenta única ---
     const policyModal = document.getElementById('oneAccountPolicyModal');
     const closeButtons = document.querySelectorAll('.policy-close-button');

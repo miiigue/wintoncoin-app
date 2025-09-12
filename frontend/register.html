@@ -6,10 +6,55 @@
     <title>Registro - Interfaz Smart Contract</title>
     <link id="main-stylesheet" rel="stylesheet" href="style.css">
     <script>document.getElementById('main-stylesheet').href = `style.css?v=${new Date().getTime()}`;</script>
+    <style>
+        .agreements {
+            margin-top: 15px;
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .agreements h3 {
+            margin-top: 0;
+            font-size: 1em;
+            color: #333;
+        }
+        .agreement-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .agreement-item input[type="checkbox"] {
+            margin-top: 3px;
+            margin-right: 10px;
+        }
+        .agreement-item label {
+            font-size: 0.9em;
+            color: #555;
+            text-align: left;
+        }
+        .agreement-item a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .agreement-item a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Estilo para botones deshabilitados */
+        button:disabled {
+            background-color: #cccccc;
+            border-color: #cccccc;
+            color: #666666;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1>Crear Nueva Cuenta</h1>
+        <h1>Crear Cuenta</h1>
 
         <!-- PASO 1: Formulario de Registro Inicial -->
         <div id="registration-step-1">
@@ -39,8 +84,26 @@
                     <label for="referral_code">Código de Referido (Opcional):</label>
                     <input type="text" id="referral_code" name="referral_code" placeholder="Ej: JUAN-A1B2C3D4">
                 </div>
+                
+                <!-- Condiciones para el Registro -->
+                <div class="agreements">
+                    <h3>Condiciones para el Registro</h3>
+                    <div class="agreement-item">
+                        <input type="checkbox" id="terms-general" name="terms-general" required>
+                        <label for="terms-general">Acepto los <a href="/terms.html" target="_blank">Términos y Condiciones</a> y la <a href="/privacy.html" target="_blank">Política de Privacidad</a>.</label>
+                    </div>
+                    <div class="agreement-item">
+                        <input type="checkbox" id="terms-economic" name="terms-economic" required>
+                        <label for="terms-economic">Entiendo que WintonCoin es un sistema con valor económico real y acepto la responsabilidad de mis compromisos.</label>
+                    </div>
+                    <div class="agreement-item">
+                        <input type="checkbox" id="terms-public-debt" name="terms-public-debt" required>
+                        <label for="terms-public-debt">He sido informado y acepto que, en caso de deuda vencida, mi <strong>nombre de usuario</strong> será publicado en un registro público, según se detalla en los Términos.</label>
+                    </div>
+                </div>
+
                 <div>
-                    <button type="submit">Registrarse</button>
+                    <button type="submit" id="register-request-btn" class="btn" disabled>Registrarse</button>
                 </div>
             </form>
         </div>
