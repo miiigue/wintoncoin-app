@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // Lógica para determinar la URL del API automáticamente
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
     const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
@@ -9,6 +9,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const step1Div = document.getElementById('registration-step-1');
     const step2Div = document.getElementById('verification-step-2');
     const container = document.querySelector('.container');
+
+    // --- NUEVO: Comprobar el estado de autenticación al cargar la página ---
+    const session = await window.checkAuthStatus();
+
+    // Si el usuario está logueado pero no verificado, saltar directamente al paso 2
+    if (session.isAuthenticated && !session.is_verified) {
+        showCustomAlert('Hemos detectado que tienes una verificación pendiente. Por favor, introduce el código que te enviamos.');
+        
+        // Ocultamos el paso 1 y mostramos el paso 2
+        step1Div.style.display = 'none';
+        step2Div.style.display = 'block';
+
+        // Guardamos el email para la función de reenviar código
+        // Asumimos que el email está en el token, lo cual necesita ser añadido en el backend
+        // Por ahora, lo guardamos si lo tenemos. El username ya lo devuelve el status.
+        // Una mejora futura sería que /api/auth/status devuelva también el email.
+        localStorage.setItem('pending_verification_email', session.email || ''); // Ajustar si el backend no devuelve email
+
+    } else if (session.isAuthenticated && session.is_verified) {
+        // Si ya está verificado y logueado, lo redirigimos al perfil.
+        window.location.href = 'profile.html';
+        return; // Detenemos la ejecución para evitar que se muestre el formulario.
+    }
+
 
     // --- Lógica para el manejo de los acuerdos y el botón de registro ---
     const termsGeneralCheck = document.getElementById('terms-general');
@@ -146,6 +170,80 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch (error) {
                 console.error('Error de red o al conectar con el servidor:', error);
                 showCustomAlert('No se pudo conectar con el servidor.');
+            }
+        });
+    }
+
+    // --- NUEVO: Lógica para el reenvío de código de verificación ---
+    const resendBtn = document.getElementById('resend-code-btn');
+    const resendTimerSpan = document.getElementById('resend-timer');
+    let countdown;
+    let timer = 60;
+
+    function startResendTimer() {
+        resendBtn.disabled = true;
+        timer = 60;
+        resendTimerSpan.textContent = `(espera ${timer}s)`;
+
+        countdown = setInterval(() => {
+            timer--;
+            resendTimerSpan.textContent = `(espera ${timer}s)`;
+            if (timer <= 0) {
+                clearInterval(countdown);
+                resendTimerSpan.textContent = '';
+                resendBtn.disabled = false;
+            }
+        }, 1000);
+    }
+
+    // Iniciar el temporizador si el paso 2 es visible al cargar la página
+    if (step2Div.style.display === 'block') {
+        startResendTimer();
+    }
+    
+    // Iniciar el temporizador cuando se pasa del paso 1 al 2
+    registerForm.addEventListener('submit', async function(event) {
+        // ... (código existente del submit)
+        // Buscamos si la transición al paso 2 fue exitosa antes de iniciar
+        const originalFetch = fetch;
+        fetch = async (...args) => {
+            const response = await originalFetch(...args);
+            if (args[0] === `${API_URL}/api/register-request` && response.ok) {
+                startResendTimer();
+            }
+            return response;
+        };
+    });
+
+
+    if (resendBtn) {
+        resendBtn.addEventListener('click', async () => {
+            // Para reenviar, necesitamos el email que el usuario introdujo en el paso 1.
+            const email = document.getElementById('email').value || localStorage.getItem('pending_verification_email');
+            
+            if (!email) {
+                showCustomAlert('No se pudo encontrar el email para reenviar el código. Por favor, recarga la página e inténtalo de nuevo.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/auth/resend-code`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showCustomAlert(result.message);
+                    startResendTimer(); // Reiniciar el temporizador
+                } else {
+                    showCustomAlert(`Error: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error de red al reenviar el código:', error);
+                showCustomAlert('No se pudo conectar con el servidor para reenviar el código.');
             }
         });
     }
