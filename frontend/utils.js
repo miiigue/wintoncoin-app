@@ -219,4 +219,57 @@ window.fetchAndStoreAppSettings = async function() {
         // En caso de error, podríamos querer manejarlo de alguna forma, 
         // por ahora solo lo mostraremos en la consola.
     }
+};
+
+// --- Gestión de Autenticación ---
+
+// Variable global para almacenar la sesión del usuario.
+window.userSession = {
+    isAuthenticated: false,
+    is_verified: false,
+    username: null
+};
+
+/**
+ * Verifica el estado de autenticación del usuario contra el backend.
+ * Almacena el resultado en window.userSession.
+ * @returns {Promise<object>} El estado de la sesión del usuario.
+ */
+window.checkAuthStatus = async function() {
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
+    const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+    const token = localStorage.getItem('token');
+
+    try {
+        const response = await fetch(`${API_URL}/api/auth/status`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            // Si la respuesta no es OK (ej. 500), asumimos no autenticado.
+            throw new Error('Error del servidor al verificar el estado.');
+        }
+
+        const status = await response.json();
+        
+        // Actualizamos la sesión global
+        window.userSession = { ...status };
+
+        // Disparamos un evento para que otras partes de la UI puedan reaccionar
+        document.dispatchEvent(new CustomEvent('auth-status-checked', { detail: window.userSession }));
+
+        return window.userSession;
+
+    } catch (error) {
+        console.error('Error al verificar el estado de autenticación:', error);
+        
+        // En caso de cualquier error, reseteamos al estado por defecto.
+        window.userSession = { isAuthenticated: false, is_verified: false, username: null };
+        document.dispatchEvent(new CustomEvent('auth-status-checked', { detail: window.userSession }));
+
+        return window.userSession;
+    }
 }; 

@@ -109,3 +109,22 @@ Este documento describe las principales funcionalidades planificadas para futura
     *   **Investigación:** Evaluar e investigar proveedores de servicios de KYC líderes en la industria (ej: Stripe Identity, Veriff, Onfido, Jumio).
     *   **Integración:** Desarrollar la integración con el servicio seleccionado. El flujo implicará que el usuario suba una foto de su documento de identidad y complete una "prueba de vida" (selfie o video corto).
     *   **Beneficios:** Al completar el Nivel 2, los usuarios obtendrán el estatus de "Totalmente Verificado", lo que les permitirá acceder a límites transaccionales más altos en el P2P y les otorgará una insignia de confianza en su perfil.
+
+---
+
+## 4. Funcionalidad: Mejoras de Experiencia de Usuario (UX)
+
+**Objetivo:** Implementar mejoras continuas en la aplicación para hacerla más intuitiva, robusta y fácil de usar, respondiendo a las necesidades y problemas encontrados por los usuarios.
+
+### Fase 1: Flujo de Registro y Verificación Robusto
+
+**Descripción:** Mejorar el proceso de registro para manejar casos donde el usuario no recibe el código de verificación inicial y se queda bloqueado.
+
+*   **Botón de "Reenviar Código" (Frontend y Backend):**
+    *   **Frontend:** En la pantalla de verificación de SMS, añadir un botón "Reenviar código de verificación". Este botón debería tener un temporizador (ej. 60 segundos) para prevenir el spam, solo activándose después de que haya pasado el tiempo.
+    *   **Backend:** Crear un nuevo endpoint (ej. `POST /auth/resend-verification-code`) que reciba el email o teléfono del usuario.
+    *   **Lógica:** El endpoint debe buscar al usuario no verificado, generar un **nuevo** código de verificación, actualizarlo en la base de datos (con una nueva fecha de expiración) y enviarlo nuevamente a través de Twilio.
+
+*   **Redirección Automática a Verificación (Frontend y Backend):**
+    *   **Backend:** En el endpoint que verifica el estado de autenticación de un usuario (ej. `/auth/status` o similar), además de devolver si está logueado, se debe incluir el estado de verificación (`is_verified`).
+    *   **Frontend:** Al cargar la aplicación, si el backend informa que el usuario está autenticado pero no verificado (`isAuthenticated: true`, `is_verified: false`), la aplicación debe redirigir automáticamente al usuario a la pantalla/modal de verificación de SMS, impidiendo el acceso a otras partes de la aplicación.

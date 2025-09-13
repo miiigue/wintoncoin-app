@@ -1011,6 +1011,97 @@ async function startServer() {
         }
 });
 
+// NUEVO: Endpoint para verificar el estado de autenticación y verificación del usuario
+app.get('/api/auth/status', async (req, res) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        return res.status(200).json({ isAuthenticated: false });
+    }
+
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, async (err, user) => {
+        if (err) {
+            return res.status(200).json({ isAuthenticated: false });
+        }
+
+        try {
+            const client = await pool.connect();
+            try {
+                const dbUser = await client.query('SELECT is_verified FROM users WHERE id = $1', [user.userId]);
+                if (dbUser.rows.length === 0) {
+                    return res.status(200).json({ isAuthenticated: false });
+                }
+
+                res.status(200).json({
+                    isAuthenticated: true,
+                    is_verified: dbUser.rows[0].is_verified,
+                    username: user.username 
+                });
+            } finally {
+                client.release();
+            }
+        } catch (error) {
+            console.error('Error al consultar el estado del usuario:', error);
+            res.status(500).json({ message: 'Error interno del servidor' });
+        }
+    });
+});
+
+// NUEVO: Endpoint para reenviar el código de verificación
+app.post('/api/auth/resend-code', async (req, res) => {
+    const { email } = req.body;
+    if (!email) {
+        return res.status(400).json({ message: 'El email es requerido.' });
+    }
+
+    const client = await pool.connect();
+    try {
+        const userResult = await client.query('SELECT id, phone_number, is_verified FROM users WHERE email = $1', [email]);
+        if (userResult.rows.length === 0) {
+            // Nota: No revelamos si el email existe o no por seguridad.
+            return res.status(200).json({ message: 'Si existe una cuenta asociada a este email y no está verificada, se ha enviado un nuevo código.' });
+        }
+
+        const user = userResult.rows[0];
+        if (user.is_verified) {
+            return res.status(400).json({ message: 'Esta cuenta ya ha sido verificada.' });
+        }
+
+        // Generar nuevo código y expiración
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos desde ahora
+
+        // Actualizar usuario en la BD
+        await client.query(
+            'UPDATE users SET verification_code = $1, verification_code_expires_at = $2 WHERE id = $3',
+            [verificationCode, expiresAt, user.id]
+        );
+
+        // Enviar SMS con Twilio
+        try {
+            await twilioClient.messages.create({
+                body: `Tu nuevo código de verificación para WintonCoin es: ${verificationCode}`,
+                from: process.env.TWILIO_PHONE_NUMBER,
+                to: user.phone_number
+            });
+            res.status(200).json({ message: 'Se ha enviado un nuevo código de verificación.' });
+        } catch (error) {
+            console.error('Error al enviar SMS con Twilio:', error);
+            // Aunque falle el SMS, no queremos que el frontend sepa que hubo un error interno.
+            // La lógica anterior ya confirmó al usuario que "si todo está bien, se enviará".
+            // Esto evita que un atacante pueda usar este endpoint para descubrir qué usuarios existen.
+            res.status(200).json({ message: 'Si existe una cuenta asociada a este email y no está verificada, se ha enviado un nuevo código.' });
+        }
+
+    } catch (error) {
+        console.error('Error en /api/auth/resend-code:', error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    } finally {
+        client.release();
+    }
+});
+
 // Ruta para crear una nueva Publicación
         app.post('/publish', async (req, res) => {
             const { 
@@ -3293,7 +3384,7 @@ app.get('/api/users/:username/booster-profile', async (req, res) => {
     const client = await pool.connect();
     try {
         const userQuery = `
-            SELECT id, is_booster, booster_level 
+            SELECT id, booster_level, booster_blue_balance 
             FROM users WHERE username = $1
         `;
         const userResult = await client.query(userQuery, [username]);
@@ -3302,9 +3393,10 @@ app.get('/api/users/:username/booster-profile', async (req, res) => {
             return res.status(404).json({ message: 'Usuario no encontrado.' });
         }
         const user = userResult.rows[0];
+        const totalBoosterBlue = parseFloat(user.booster_blue_balance) || 0;
 
-        // Si el usuario no es impulsor, devolvemos una respuesta simple
-        if (!user.is_booster) {
+        // LÓGICA CORREGIDA: Un usuario es impulsor si su saldo de impulsor es mayor a cero.
+        if (totalBoosterBlue <= 0) {
             return res.json({
                 is_booster: false,
                 message: 'Este usuario aún no forma parte del programa de impulsores.'
@@ -3315,12 +3407,9 @@ app.get('/api/users/:username/booster-profile', async (req, res) => {
 
         // Consultas para obtener todos los datos en paralelo
         const [
-            boosterBlueResult,
             levelSettingsResult,
             ledgerResult
         ] = await Promise.all([
-            // Total de BLUE de impulsor
-            client.query('SELECT SUM(amount) as total FROM booster_blue_ledger WHERE user_id = $1', [a_user_id]),
             // Todos los niveles definidos
             client.query('SELECT * FROM booster_level_settings ORDER BY level ASC'),
             // Historial de ganancias
@@ -3333,11 +3422,10 @@ app.get('/api/users/:username/booster-profile', async (req, res) => {
             `, [a_user_id])
         ]);
 
-        const totalBoosterBlue = parseFloat(boosterBlueResult.rows[0].total) || 0;
         const allLevels = levelSettingsResult.rows;
         
-        const currentLevelInfo = allLevels.find(l => l.level === user.booster_level) || null;
-        const nextLevelInfo = allLevels.find(l => l.level === user.booster_level + 1) || null;
+        const currentLevelInfo = allLevels.find(l => l.level === user.booster_level) || allLevels[0] || null;
+        const nextLevelInfo = allLevels.find(l => l.level === (user.booster_level || 0) + 1) || null;
 
         res.json({
             is_booster: true,
