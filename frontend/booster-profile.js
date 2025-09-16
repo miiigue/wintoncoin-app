@@ -57,13 +57,13 @@ document.addEventListener('DOMContentLoaded', () => {
             current_level_info,
             next_level_info,
             total_booster_blue,
-            booster_ledger
+            transactions // <-- CORRECCIÓN: Usar 'transactions' en lugar de 'booster_ledger'
         } = data;
 
         const headerHTML = getHeaderHTML(current_level_info);
-        const statsHTML = getStatsHTML(total_booster_blue, booster_ledger.length);
+        const statsHTML = getStatsHTML(total_booster_blue, transactions.length);
         const progressHTML = getProgressHTML(total_booster_blue, current_level_info, next_level_info);
-        const historyHTML = getHistoryHTML(booster_ledger);
+        const historyHTML = getHistoryHTML(transactions);
 
         elements.content.innerHTML = `
             ${headerHTML}
@@ -126,15 +126,20 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
     
-    function getHistoryHTML(ledger) {
-        if (!ledger || ledger.length === 0) {
-            return '';
+    function getHistoryHTML(transactions) { // <-- CORRECCIÓN: El parámetro ahora es 'transactions'
+        if (!transactions || transactions.length === 0) {
+            return `
+                <div class="history-section">
+                    <h2>Historial de Actividades</h2>
+                    <p class="empty-message">Aún no hay actividades registradas.</p>
+                </div>
+            `;
         }
 
-        const historyRows = ledger.map(entry => `
+        const historyRows = transactions.map(entry => `
             <tr>
                 <td>${new Date(entry.created_at).toLocaleDateString('es-ES')}</td>
-                <td>${entry.publication_title}</td>
+                <td>${entry.description || '(Sin descripción)'}</td>
                 <td class="saldo-blue-text">+${formatBalance(entry.amount)}</td>
             </tr>
         `).join('');
@@ -147,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <thead>
                             <tr>
                                 <th>Fecha</th>
-                                <th>Tarea de Origen</th>
+                                <th>Descripción</th>
                                 <th>BLUE Ganado</th>
                             </tr>
                         </thead>
