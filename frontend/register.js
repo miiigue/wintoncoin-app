@@ -10,6 +10,21 @@ document.addEventListener('DOMContentLoaded', async function() {
     const step2Div = document.getElementById('verification-step-2');
     const container = document.querySelector('.container');
 
+    // --- NUEVO: Lógica para recordar el estado de verificación pendiente ---
+    const pendingPhone = localStorage.getItem('pendingVerificationPhone');
+    if (pendingPhone) {
+        // Si encontramos un teléfono en localStorage, significa que hay una verificación pendiente.
+        // Saltamos directamente al paso 2.
+        step1Div.style.display = 'none';
+        step2Div.style.display = 'block';
+        document.getElementById('hiddenPhone').value = pendingPhone;
+        // También intentamos restaurar el email para la función de reenviar código
+        const pendingEmail = localStorage.getItem('pendingVerificationEmail');
+        if (pendingEmail) {
+            document.getElementById('email').value = pendingEmail;
+        }
+    }
+
     // --- NUEVO: Comprobar el estado de autenticación al cargar la página ---
     const session = await window.checkAuthStatus();
 
@@ -132,6 +147,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                     // Guardamos el teléfono en un campo oculto para usarlo en el paso 2
                     document.getElementById('hiddenPhone').value = phone;
 
+                    // --- NUEVO: Guardamos el estado en localStorage para persistir la recarga ---
+                    localStorage.setItem('pendingVerificationPhone', phone);
+                    localStorage.setItem('pendingVerificationEmail', email);
+
                     // Ocultamos el paso 1 y mostramos el paso 2
                     step1Div.style.display = 'none';
                     step2Div.style.display = 'block';
@@ -168,10 +187,15 @@ document.addEventListener('DOMContentLoaded', async function() {
 
                 if (response.ok) {
                     // LÓGICA PROFESIONAL CORRECTA PARA EL PASO 2:
-                    // Al verificar, guardamos la sesión y redirigimos al perfil.
+                    // Al verificar, guardamos la sesión y redirigimos.
                     showCustomAlert(result.message + ' Has iniciado sesión correctamente.');
                     localStorage.setItem('token', result.token);
                     localStorage.setItem('username', result.username);
+
+                    // --- NUEVO: Limpiamos el estado de localStorage al completar el registro ---
+                    localStorage.removeItem('pendingVerificationPhone');
+                    localStorage.removeItem('pendingVerificationEmail');
+                    
                     window.location.href = 'contract_interaction.html';
                 } else {
                     showCustomAlert(`Error: ${result.message}`);
