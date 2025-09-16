@@ -3576,7 +3576,8 @@ async function updateUserBoosterLevel(client, userId) {
     console.log(`Nivel de impulsor para el usuario ID ${userId} actualizado a ${newLevel}.`);
 }
 
-// NUEVO ENDPOINT: Obtener el perfil de impulsor de un usuario
+// --- ENDPOINT CORREGIDO Y PROFESIONAL PARA PERFIL DE IMPULSOR ---
+// Devuelve tanto el perfil del usuario como su historial completo de transacciones de impulsor.
 app.get('/api/users/:username/booster-profile', async (req, res) => {
     const { username } = req.params;
     if (!username) {
@@ -3585,8 +3586,9 @@ app.get('/api/users/:username/booster-profile', async (req, res) => {
 
     const client = await pool.connect();
     try {
+        // 1. Obtener los datos principales del usuario.
         const userQuery = `
-            SELECT id, booster_level, booster_blue_balance 
+            SELECT id, username, is_booster, booster_level, booster_blue_balance 
             FROM users WHERE username = $1
         `;
         const userResult = await client.query(userQuery, [username]);
@@ -3594,56 +3596,43 @@ app.get('/api/users/:username/booster-profile', async (req, res) => {
         if (userResult.rowCount === 0) {
             return res.status(404).json({ message: 'Usuario no encontrado.' });
         }
+        
         const user = userResult.rows[0];
-        const totalBoosterBlue = parseFloat(user.booster_blue_balance) || 0;
 
-        // LÓGICA CORREGIDA: Un usuario es impulsor si su saldo de impulsor es mayor a cero.
-        if (totalBoosterBlue <= 0) {
+        // 2. Si no es un impulsor o su saldo es cero, no necesitamos buscar más.
+        if (!user.is_booster || parseFloat(user.booster_blue_balance) <= 0) {
             return res.json({
                 is_booster: false,
                 message: 'Este usuario aún no forma parte del programa de impulsores.'
             });
         }
 
-        const a_user_id = user.id;
-
-        // Consultas para obtener todos los datos en paralelo
-        const [
-            levelSettingsResult,
-            ledgerResult
-        ] = await Promise.all([
-            // Todos los niveles definidos
-            client.query('SELECT * FROM booster_level_settings ORDER BY level ASC'),
-            // Historial de ganancias
-            client.query(`
-                SELECT bl.amount, bl.created_at, p.title as publication_title
-                FROM booster_blue_ledger bl
-                LEFT JOIN publications p ON bl.source_publication_id = p.id
-                WHERE bl.user_id = $1
-                ORDER BY bl.created_at DESC
-            `, [a_user_id])
+        // 3. Obtener el historial de transacciones del impulsor y los niveles en paralelo.
+        const [transactionsResult, levelSettingsResult] = await Promise.all([
+            client.query(
+                'SELECT * FROM booster_transactions WHERE user_id = $1 ORDER BY created_at DESC', 
+                [user.id]
+            ),
+            client.query('SELECT * FROM booster_level_settings ORDER BY level ASC')
         ]);
 
         const allLevels = levelSettingsResult.rows;
-        
-        const currentLevelInfo = allLevels.find(l => l.level === user.booster_level) || allLevels[0] || null;
+        const currentLevelInfo = allLevels.find(l => l.level === user.booster_level);
         const nextLevelInfo = allLevels.find(l => l.level === (user.booster_level || 0) + 1) || null;
 
+        // 4. Enviar la respuesta completa con el perfil y el historial.
         res.json({
             is_booster: true,
-            username: username,
+            username: user.username,
             booster_level: user.booster_level,
-            total_booster_blue: totalBoosterBlue,
+            total_booster_blue: parseFloat(user.booster_blue_balance),
             current_level_info: currentLevelInfo,
             next_level_info: nextLevelInfo,
-            booster_ledger: ledgerResult.rows.map(entry => ({
-                ...entry,
-                publication_title: entry.publication_title || '(Tarea original eliminada)'
-            }))
+            transactions: transactionsResult.rows
         });
 
     } catch (error) {
-        console.error(`Error fetching booster profile for ${username}:`, error);
+        console.error(`Error al obtener el perfil de impulsor para ${username}:`, error);
         res.status(500).json({ message: 'Error interno del servidor.' });
     } finally {
         client.release();
