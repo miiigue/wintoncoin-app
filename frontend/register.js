@@ -10,20 +10,48 @@ document.addEventListener('DOMContentLoaded', async function() {
     const step2Div = document.getElementById('verification-step-2');
     const container = document.querySelector('.container');
 
-    // --- NUEVO: Lógica para recordar el estado de verificación pendiente ---
+    // --- LÓGICA MEJORADA Y ROBUSTA PARA MANEJAR ESTADO PENDIENTE ---
     const pendingPhone = localStorage.getItem('pendingVerificationPhone');
-    if (pendingPhone) {
-        // Si encontramos un teléfono en localStorage, significa que hay una verificación pendiente.
-        // Saltamos directamente al paso 2.
-        step1Div.style.display = 'none';
-        step2Div.style.display = 'block';
-        document.getElementById('hiddenPhone').value = pendingPhone;
-        // También intentamos restaurar el email para la función de reenviar código
-        const pendingEmail = localStorage.getItem('pendingVerificationEmail');
-        if (pendingEmail) {
-            document.getElementById('email').value = pendingEmail;
+    const pendingEmail = localStorage.getItem('pendingVerificationEmail');
+
+    async function validateAndSetInitialStep() {
+        if (pendingPhone && pendingEmail) {
+            // Encontramos datos en localStorage. No confiamos ciegamente, validamos con el backend.
+            try {
+                const response = await fetch(`${API_URL}/api/auth/pending-status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone: pendingPhone, email: pendingEmail })
+                });
+
+                if (!response.ok) { // Maneja errores de red o del servidor
+                    throw new Error('Respuesta no válida del servidor');
+                }
+                
+                const data = await response.json();
+
+                if (data.isValid) {
+                    // El backend confirma que la verificación es válida. Mostramos el paso 2.
+                    step1Div.style.display = 'none';
+                    step2Div.style.display = 'block';
+                    document.getElementById('hiddenPhone').value = pendingPhone;
+                    document.getElementById('email').value = pendingEmail; // Restauramos el email
+                } else {
+                    // El backend dice que no es válida. El localStorage está desactualizado.
+                    // Limpiamos el localStorage y mostramos el paso 1.
+                    localStorage.removeItem('pendingVerificationPhone');
+                    localStorage.removeItem('pendingVerificationEmail');
+                }
+            } catch (error) {
+                console.error('Error al validar el estado pendiente:', error);
+                // En caso de error, es más seguro limpiar y empezar de cero para no bloquear al usuario.
+                localStorage.removeItem('pendingVerificationPhone');
+                localStorage.removeItem('pendingVerificationEmail');
+            }
         }
     }
+
+    validateAndSetInitialStep();
 
     // --- NUEVO: Comprobar el estado de autenticación al cargar la página ---
     const session = await window.checkAuthStatus();
