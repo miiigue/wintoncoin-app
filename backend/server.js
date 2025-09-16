@@ -1211,46 +1211,52 @@ app.post('/api/auth/resend-code', async (req, res) => {
 
     const client = await pool.connect();
     try {
-        // Corregido: Buscar por la columna 'phone' en lugar de 'phone_number'
-        const userResult = await client.query('SELECT id, phone, is_verified FROM users WHERE email = $1', [email]);
-        if (userResult.rows.length === 0) {
-            // Nota: No revelamos si el email existe o no por seguridad.
-            return res.status(200).json({ message: 'Si existe una cuenta asociada a este email y no está verificada, se ha enviado un nuevo código.' });
-        }
+        await client.query('BEGIN');
 
-        const user = userResult.rows[0];
-        if (user.is_verified) {
-            return res.status(400).json({ message: 'Esta cuenta ya ha sido verificada.' });
-        }
-
-        // Generar nuevo código y expiración
-        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos desde ahora
-
-        // Actualizar usuario en la BD
-        await client.query(
-            'UPDATE users SET verification_code = $1, verification_code_expires_at = $2 WHERE id = $3',
-            [verificationCode, expiresAt, user.id]
+        // 1. Buscar al usuario en la tabla de verificaciones pendientes.
+        const pendingUserResult = await client.query(
+            'SELECT * FROM pending_verifications WHERE email = $1',
+            [email]
         );
 
-        // Enviar SMS con Twilio
+        // Si no se encuentra, enviamos una respuesta genérica para no revelar si el email existe.
+        // Esto previene que alguien pueda usar esta función para descubrir qué emails están registrados.
+        if (pendingUserResult.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(200).json({ message: 'Si tu email está pendiente de verificación, hemos enviado un nuevo código.' });
+        }
+        
+        const pendingUser = pendingUserResult.rows[0];
+
+        // 2. Generar un nuevo código de verificación y una nueva fecha de expiración.
+        const newVerificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const newExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos de validez
+
+        // 3. Actualizar el registro en la base de datos con los nuevos datos.
+        await client.query(
+            'UPDATE pending_verifications SET verification_code = $1, expires_at = $2 WHERE email = $3',
+            [newVerificationCode, newExpiresAt, email]
+        );
+
+        // 4. Enviar el nuevo código por SMS a través de Twilio.
         try {
             await twilioClient.messages.create({
-                body: `Tu nuevo código de verificación para WintonCoin es: ${verificationCode}`,
-                from: process.env.TWILIO_PHONE_NUMBER,
-                // Corregido: Usar la variable correcta 'user.phone'
-                to: user.phone
+                body: `Tu nuevo código de verificación para WintonCoin es: ${newVerificationCode}`,
+                from: twilioPhoneNumber,
+                to: pendingUser.phone_number
             });
-            res.status(200).json({ message: 'Se ha enviado un nuevo código de verificación.' });
-        } catch (error) {
-            console.error('Error al enviar SMS con Twilio:', error);
-            // Aunque falle el SMS, no queremos que el frontend sepa que hubo un error interno.
-            // La lógica anterior ya confirmó al usuario que "si todo está bien, se enviará".
-            // Esto evita que un atacante pueda usar este endpoint para descubrir qué usuarios existen.
-            res.status(200).json({ message: 'Si existe una cuenta asociada a este email y no está verificada, se ha enviado un nuevo código.' });
+        } catch (twilioError) {
+            console.error("Error al reenviar SMS con Twilio:", twilioError);
+            await client.query('ROLLBACK');
+            return res.status(500).json({ message: 'No se pudo enviar el nuevo código de verificación. Por favor, inténtalo de nuevo más tarde.' });
         }
 
+        // 5. Si todo ha ido bien, confirmamos la transacción.
+        await client.query('COMMIT');
+        res.status(200).json({ message: 'Se ha enviado un nuevo código de verificación a tu teléfono.' });
+
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('Error en /api/auth/resend-code:', error);
         res.status(500).json({ message: 'Error interno del servidor.' });
     } finally {
