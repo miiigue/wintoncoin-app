@@ -472,7 +472,33 @@ async function applyMigrations(client) {
             payment_month DATE NOT NULL,
             booster_level_at_payment INTEGER NOT NULL,
             created_at TIMESTAMPTZ DEFAULT NOW()
-        );`
+        );`,
+        // --- NUEVO: Tabla para el historial de transacciones del perfil de impulsor ---
+        `CREATE TABLE IF NOT EXISTS booster_transactions (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            type VARCHAR(50) NOT NULL, -- ej: 'welcome_bonus', 'referral_bonus', 'publication_reward'
+            amount NUMERIC(19, 4) NOT NULL,
+            description TEXT,
+            related_publication_id INTEGER,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );`,
+        // --- MIGRACIÓN: Asegurar que booster_blue_balance sea robusto ---
+        // Esta migración corrige un problema crítico donde el balance podía ser NULL.
+        `DO $$
+        BEGIN
+            -- Solo se ejecuta si la columna existe para evitar errores.
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='booster_blue_balance') THEN
+                -- 1. Corrige los datos existentes: Convierte cualquier NULL a 0.
+                UPDATE users SET booster_blue_balance = 0.0000 WHERE booster_blue_balance IS NULL;
+
+                -- 2. Establece un valor por defecto para todos los nuevos registros.
+                ALTER TABLE users ALTER COLUMN booster_blue_balance SET DEFAULT 0.0000;
+
+                -- 3. Impide que la columna vuelva a ser NULL en el futuro.
+                ALTER TABLE users ALTER COLUMN booster_blue_balance SET NOT NULL;
+            END IF;
+        END $$;`
         ];
 
         for (const migration of migrations) {
@@ -753,6 +779,16 @@ async function initializeDatabase() {
             amount_paid NUMERIC(19, 4) NOT NULL,
             payment_month DATE NOT NULL,
             booster_level_at_payment INTEGER NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );`,
+        // --- NUEVO: Tabla para el historial de transacciones del perfil de impulsor ---
+        `CREATE TABLE IF NOT EXISTS booster_transactions (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            type VARCHAR(50) NOT NULL, -- ej: 'welcome_bonus', 'referral_bonus', 'publication_reward'
+            amount NUMERIC(19, 4) NOT NULL,
+            description TEXT,
+            related_publication_id INTEGER,
             created_at TIMESTAMPTZ DEFAULT NOW()
         );`
     ];
@@ -1065,13 +1101,15 @@ async function startServer() {
                 if (preLaunchMode && referrer) {
                     const rewardAmount = parseFloat(settings.referral_reward_amount) || 0;
                     if (rewardAmount > 0) {
-                        // Recompensa para el referente
-                        await client.query(`INSERT INTO booster_blue_ledger (user_id, amount) VALUES ($1, $2)`, [referrer.id, rewardAmount]);
+                        // Recompensa para el referente: Actualiza balance, estado y loguea la transacción.
+                        await client.query('UPDATE users SET booster_blue_balance = booster_blue_balance + $1, is_booster = true WHERE id = $2', [rewardAmount, referrer.id]);
+                        await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_sent', $2, $3)`, [referrer.id, rewardAmount, `Bono por referir a ${newUser.username}`]);
                         await client.query(`INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [referrer.username, `Recompensa (perfil impulsor) por referir a ${newUser.username}`, rewardAmount]);
                         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [referrer.username, `¡Felicidades! Has ganado ${rewardAmount.toFixed(4)} BLUE en tu perfil de impulsor porque ${newUser.username} se registró con tu código.`]);
                         
-                        // Recompensa para el nuevo usuario
-                        await client.query(`INSERT INTO booster_blue_ledger (user_id, amount) VALUES ($1, $2)`, [newUser.id, rewardAmount]);
+                        // Recompensa para el nuevo usuario: Actualiza balance, estado y loguea la transacción.
+                        await client.query('UPDATE users SET booster_blue_balance = booster_blue_balance + $1, is_booster = true WHERE id = $2', [rewardAmount, newUser.id]);
+                        await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_received', $2, $3)`, [newUser.id, rewardAmount, `Bono por usar el código de ${referrer.username}`]);
                         await client.query(`INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [newUser.username, `Recompensa (perfil impulsor) por usar el código de ${referrer.username}`, rewardAmount]);
                         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Por usar un código de referido, has ganado ${rewardAmount.toFixed(4)} BLUE en tu perfil de impulsor.`]);
                     }
@@ -1080,7 +1118,9 @@ async function startServer() {
                 else if (preLaunchMode && welcomeBonusEnabled) {
                     const welcomeBonusAmount = parseFloat(settings.welcome_bonus_amount) || 0;
                     if (welcomeBonusAmount > 0) {
-                        await client.query(`INSERT INTO booster_blue_ledger (user_id, amount) VALUES ($1, $2)`, [newUser.id, welcomeBonusAmount]);
+                        // Bono para el nuevo usuario: Actualiza balance, estado y loguea la transacción.
+                        await client.query('UPDATE users SET booster_blue_balance = booster_blue_balance + $1, is_booster = true WHERE id = $2', [welcomeBonusAmount, newUser.id]);
+                        await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, welcomeBonusAmount, 'Bono de Bienvenida por registro']);
                         await client.query(`INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.username, 'Bono de bienvenida (perfil impulsor)', welcomeBonusAmount]);
                         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Has recibido ${welcomeBonusAmount.toFixed(4)} BLUE en tu perfil de impulsor como bono de bienvenida.`]);
                     }
