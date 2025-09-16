@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
 
     const urlParams = new URLSearchParams(window.location.search);
-    const username = urlParams.get('user');
+    const username = urlParams.get('username');
 
     const elements = {
         profileHeader: document.getElementById('profile-header'),
