@@ -125,11 +125,17 @@ document.addEventListener('DOMContentLoaded', async function() {
                 const result = await response.json();
 
                 if (response.ok) {
+                    // LÓGICA PROFESIONAL CORRECTA PARA EL PASO 1:
+                    // Simplemente mostramos el mensaje y cambiamos la vista al paso 2.
                     showCustomAlert(result.message);
-                    // Transición al paso 2
+                    
+                    // Guardamos el teléfono en un campo oculto para usarlo en el paso 2
                     document.getElementById('hiddenPhone').value = phone;
+
+                    // Ocultamos el paso 1 y mostramos el paso 2
                     step1Div.style.display = 'none';
                     step2Div.style.display = 'block';
+
                 } else {
                     showCustomAlert(`Error: ${result.message}`);
                 }
@@ -161,9 +167,12 @@ document.addEventListener('DOMContentLoaded', async function() {
                 const result = await response.json();
 
                 if (response.ok) {
-                    showCustomAlert(result.message + ' Serás redirigido para iniciar sesión.', () => {
-                        window.location.href = 'index.html';
-                    });
+                    // LÓGICA PROFESIONAL CORRECTA PARA EL PASO 2:
+                    // Al verificar, guardamos la sesión y redirigimos al perfil.
+                    showCustomAlert(result.message + ' Has iniciado sesión correctamente.');
+                    localStorage.setItem('token', result.token);
+                    localStorage.setItem('username', result.username);
+                    window.location.href = 'contract_interaction.html';
                 } else {
                     showCustomAlert(`Error: ${result.message}`);
                 }

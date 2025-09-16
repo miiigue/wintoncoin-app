@@ -14,7 +14,49 @@ require('./config'); // Carga la configuración del entorno (development o produ
 
 // Configuración de Twilio para el envío de SMS de verificación
 const twilio = require('twilio');
-const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+
+// --- NUEVO: Gestión profesional de la clave secreta de JWT ---
+// Buscamos la clave secreta en las variables de entorno.
+const jwtSecret = process.env.JWT_SECRET;
+
+// En un entorno de producción, es CRÍTICO que la clave secreta esté definida.
+// Si no lo está, la aplicación no debe arrancar para evitar correr en un estado inseguro.
+if (!jwtSecret) {
+    console.error(`
+        *******************************************************************************
+        * ERROR FATAL: La variable de entorno JWT_SECRET no está definida.            *
+        *                                                                             *
+        * Para iniciar la aplicación de forma segura, crea un archivo .env           *
+        * en el directorio 'backend' y añade la siguiente línea:                      *
+        * JWT_SECRET=tu_clave_secreta_muy_larga_y_dificil_de_adivinar                 *
+        *                                                                             *
+        * El servidor no se iniciará hasta que esta variable esté configurada.        *
+        *******************************************************************************
+    `);
+    process.exit(1); // Detiene la ejecución con un código de error.
+}
+
+// Configuración de Twilio
+// Es importante verificar también estas credenciales
+const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
+const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
+const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
+
+if (!twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber) {
+    console.error(`
+        *******************************************************************************
+        * ERROR FATAL: Las credenciales de Twilio no están completamente configuradas. *
+        *                                                                             *
+        * Asegúrate de que las variables TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, y      *
+        * TWILIO_PHONE_NUMBER estén definidas en tu archivo .env.                     *
+        *                                                                             *
+        * El servidor no se iniciará hasta que estas variables estén configuradas.    *
+        *******************************************************************************
+    `);
+    process.exit(1);
+}
+
+const twilioClient = twilio(twilioAccountSid, twilioAuthToken);
 
 // 2. Configuración inicial
 const app = express();
@@ -136,6 +178,12 @@ async function applyMigrations(client) {
                  END IF;
                  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_phone_key' AND conrelid = 'users'::regclass) THEN
                      ALTER TABLE users ADD CONSTRAINT users_phone_key UNIQUE (phone);
+                 END IF;
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='phone_number') THEN
+                     ALTER TABLE users ADD COLUMN phone_number VARCHAR(50);
+                 END IF;
+                 IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_phone_number_key' AND conrelid = 'users'::regclass) THEN
+                     ALTER TABLE users ADD CONSTRAINT users_phone_number_key UNIQUE (phone_number);
                  END IF;
              END $$;`,
             // MIGRACIÓN 8: Añadir la columna 'auto_approve' a la tabla de publicaciones.
@@ -325,13 +373,106 @@ async function applyMigrations(client) {
                 phone_number VARCHAR(50) UNIQUE NOT NULL,
                 verification_code VARCHAR(10) NOT NULL,
                 expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                referral_code VARCHAR(255)
             );
         `,
         `
             ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
-        `
+            
+        `,
+        // MIGRACIÓN 11: Asegurar que la tabla pending_verifications tiene la columna referral_code
+        `ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS referral_code VARCHAR(255);`,
+        
+        // MIGRACIÓN 12: Tabla de notificaciones
+        `CREATE TABLE IF NOT EXISTS notifications (
+                id SERIAL PRIMARY KEY,
+                recipient_username VARCHAR(255) NOT NULL,
+                message TEXT NOT NULL,
+                is_read BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );`,
+        `CREATE TABLE IF NOT EXISTS transactions (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(255) NOT NULL,
+            type VARCHAR(255) NOT NULL,
+                description TEXT NOT NULL,
+            blue_change NUMERIC(19, 4) NOT NULL DEFAULT 0,
+            red_change NUMERIC(19, 4) NOT NULL DEFAULT 0,
+                related_publication_id INTEGER,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );`,
+        `CREATE TABLE IF NOT EXISTS ratings (
+            id SERIAL PRIMARY KEY,
+            publication_id INTEGER NOT NULL REFERENCES publications(id),
+            rater_username VARCHAR(255) NOT NULL,
+            ratee_username VARCHAR(255) NOT NULL,
+            rating INTEGER NOT NULL,
+            comment TEXT,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );`,
+        `CREATE TABLE IF NOT EXISTS red_token_debts (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(255) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+            amount NUMERIC(19, 4) NOT NULL,
+            due_at TIMESTAMPTZ NOT NULL,
+            is_settled BOOLEAN NOT NULL DEFAULT FALSE,
+            is_penalized BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );`,
+        `CREATE TABLE IF NOT EXISTS app_settings (
+            setting_key VARCHAR(255) PRIMARY KEY,
+            setting_value TEXT NOT NULL,
+            description TEXT
+        );`,
+        `CREATE TABLE IF NOT EXISTS blue_token_escrows (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(255) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+            amount NUMERIC(19, 4) NOT NULL,
+            unlock_at TIMESTAMPTZ NOT NULL,
+            is_released BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );`,
+        // --- NUEVAS TABLAS PARA LA BILLETERA DE LA PLATAFORMA ---
+        `CREATE TABLE IF NOT EXISTS platform_wallet (
+            id INT PRIMARY KEY DEFAULT 1, -- Solo habrá una fila
+            total_blue_commission_balance NUMERIC(19, 4) NOT NULL DEFAULT 0.0000
+        );`,
+        `CREATE TABLE IF NOT EXISTS platform_commission_log (
+            id SERIAL PRIMARY KEY,
+            related_publication_id INT NOT NULL,
+            related_user_transaction_id INT, -- El ID de la transacción de usuario que generó esta comisión
+            commission_amount_blue NUMERIC(19, 4) NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );`,
+        // --- NUEVA TABLA PARA EL SISTEMA DE REFERIDOS ---
+        `CREATE TABLE IF NOT EXISTS referral_log (
+            id SERIAL PRIMARY KEY,
+            referrer_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+            referred_user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );`,
+        // --- NUEVAS TABLAS PARA EL SISTEMA DE IMPULSORES (BOOSTERS) ---
+        `CREATE TABLE IF NOT EXISTS booster_level_settings (
+            level INTEGER PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            min_blue_required NUMERIC(19, 4) NOT NULL,
+            description TEXT
+        );`,
+        `CREATE TABLE IF NOT EXISTS booster_blue_ledger (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            amount NUMERIC(19, 4) NOT NULL,
+            source_publication_id INTEGER REFERENCES publications(id) ON DELETE SET NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );`,
+        `CREATE TABLE IF NOT EXISTS booster_payment_log (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            amount_paid NUMERIC(19, 4) NOT NULL,
+            payment_month DATE NOT NULL,
+            booster_level_at_payment INTEGER NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );`
         ];
 
         for (const migration of migrations) {
@@ -476,12 +617,27 @@ async function initializeDatabase() {
             id SERIAL PRIMARY KEY,
             username VARCHAR(255) UNIQUE NOT NULL,
             password_hash VARCHAR(255) NOT NULL,
+            email VARCHAR(255) UNIQUE NOT NULL,
+            phone_number VARCHAR(50) UNIQUE,
             liquid_blue_balance NUMERIC(19, 4) NOT NULL DEFAULT 0.0000,
             escrow_blue_balance NUMERIC(19, 4) NOT NULL DEFAULT 0.0000,
             red_balance NUMERIC(19, 4) NOT NULL DEFAULT 0.0000,
             average_rating REAL NOT NULL DEFAULT 0,
             ratings_count INTEGER NOT NULL DEFAULT 0,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            verification_code VARCHAR(10),
+            verification_code_expires_at TIMESTAMPTZ,
+            referral_code VARCHAR(255) UNIQUE
+        );`,
+        `CREATE TABLE IF NOT EXISTS pending_verifications (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(255) UNIQUE NOT NULL,
+            email VARCHAR(255) UNIQUE NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            phone_number VARCHAR(50) UNIQUE NOT NULL,
+            verification_code VARCHAR(10) NOT NULL,
+            expires_at TIMESTAMPTZ NOT NULL,
+            referral_code VARCHAR(255)
         );`,
         `CREATE TABLE IF NOT EXISTS publications (
             id SERIAL PRIMARY KEY,
@@ -768,10 +924,10 @@ async function startServer() {
         // ==  NUEVO FLUJO DE REGISTRO CON VERIFICACIÓN POR SMS (FASE 1: SOLICITUD)  ==
         // =================================================================================
         app.post('/api/register-request', async (req, res) => {
-            const { username, password, email, phone } = req.body;
+            const { username, email, password, phone } = req.body;
 
             // --- 1. Validación de Entrada ---
-            if (!username || !password || !email || !phone) {
+            if (!username || !email || !password || !phone) {
                 return res.status(400).json({ message: "Todos los campos son requeridos: usuario, contraseña, correo y teléfono." });
             }
             if (!/^\S+@\S+\.\S+$/.test(email)) {
@@ -784,14 +940,14 @@ async function startServer() {
                 await client.query('BEGIN');
 
                 // --- 2. Verificar que el usuario, email o teléfono no estén ya en uso (en users o pending) ---
-                const existingUserCheck = await client.query(
-                    `SELECT 1 FROM users WHERE username = $1 OR email = $2 OR phone = $3
-                     UNION
-                     SELECT 1 FROM pending_verifications WHERE username = $1 OR email = $2 OR phone_number = $3`,
-                    [username, email, phone]
-                );
+                const existingUserQuery = `
+                    SELECT 1 FROM users WHERE username = $1 OR email = $2 OR phone_number = $3
+                    UNION
+                    SELECT 1 FROM pending_verifications WHERE username = $1 OR email = $2 OR phone_number = $3
+                `;
+                const existingUser = await client.query(existingUserQuery, [username, email, phone]);
 
-                if (existingUserCheck.rowCount > 0) {
+                if (existingUser.rows.length > 0) {
                     await client.query('ROLLBACK');
                     return res.status(409).json({ message: 'El nombre de usuario, email o teléfono ya está en uso o pendiente de verificación.' });
                 }
@@ -803,9 +959,9 @@ async function startServer() {
                 // --- 4. Encriptar Contraseña y Guardar en Pendientes ---
                 const passwordHash = await bcrypt.hash(password, saltRounds);
                 await client.query(
-                    `INSERT INTO pending_verifications (username, email, password_hash, phone_number, verification_code, expires_at)
-                     VALUES ($1, $2, $3, $4, $5, $6)`,
-                    [username, email, passwordHash, phone, verificationCode, expiresAt]
+                    `INSERT INTO pending_verifications (username, email, password_hash, phone_number, referral_code, verification_code, expires_at)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                    [username, email, passwordHash, phone, null, verificationCode, expiresAt]
                 );
 
                 // --- 5. Enviar el SMS usando Twilio ---
@@ -849,6 +1005,7 @@ async function startServer() {
                 await client.query('BEGIN');
 
                 // --- 1. Buscar la solicitud de registro pendiente y validarla ---
+                // ESTANDARIZADO: Se usa la columna 'phone' para coincidir con la DB.
                 const pendingResult = await client.query(
                     'SELECT * FROM pending_verifications WHERE phone_number = $1 AND verification_code = $2',
                     [phone, verificationCode]
@@ -872,7 +1029,7 @@ async function startServer() {
                 // --- 2. Mover el usuario de "pendientes" a la tabla "users" ---
                 const newReferralCode = await generateUniqueReferralCode(client, pendingUser.username);
                 // La lógica de referidos se aplicará a continuación
-                const newUserSql = `INSERT INTO users (username, password_hash, email, phone, referral_code) 
+                const newUserSql = `INSERT INTO users (username, password_hash, email, phone_number, referral_code) 
                                   VALUES ($1, $2, $3, $4, $5) RETURNING *`;
                 const newUserResult = await client.query(newUserSql, [
                     pendingUser.username,
@@ -932,27 +1089,24 @@ async function startServer() {
                 // --- 4. Limpiar la tabla de pendientes ---
                 await client.query('DELETE FROM pending_verifications WHERE id = $1', [pendingUser.id]);
 
+                // --- 5. [LÓGICA CORREGIDA] Generar token de sesión y devolver datos del usuario ---
+                const token = jwt.sign(
+                    { userId: newUser.id, username: newUser.username },
+                    jwtSecret,
+                    { expiresIn: '7d' } 
+                );
+
                 await client.query('COMMIT');
 
-                // --- 5. Crear token de sesión y responder ---
-                // (Opcional, pero recomendado para una buena experiencia de usuario)
-                // Por ahora, solo confirmamos el éxito.
-                const userResponse = { ...newUser };
-                delete userResponse.password_hash; // ¡Nunca devolver el hash!
-
-                res.status(201).json({
-                    message: `¡Usuario '${userResponse.username}' registrado y verificado con éxito!`,
-                    user: userResponse
+                res.status(200).json({
+                    message: '¡Verificación completada con éxito!',
+                    token: token,
+                    username: newUser.username
                 });
 
             } catch (error) {
                 await client.query('ROLLBACK');
-                console.error('Error en la verificación de registro:', error);
-                // Manejar violación de unicidad si, por alguna rara casualidad, 
-                // otro usuario se registró con los mismos datos entre la fase 1 y 2.
-                if (error.code === '23505') {
-                    return res.status(409).json({ message: 'Los datos de usuario ya han sido registrados. Intenta iniciar sesión.' });
-                }
+                console.error('Error durante la verificación del registro:', error);
                 res.status(500).json({ message: 'Error interno del servidor.' });
             } finally {
                 client.release();
@@ -1057,7 +1211,8 @@ app.post('/api/auth/resend-code', async (req, res) => {
 
     const client = await pool.connect();
     try {
-        const userResult = await client.query('SELECT id, phone_number, is_verified FROM users WHERE email = $1', [email]);
+        // Corregido: Buscar por la columna 'phone' en lugar de 'phone_number'
+        const userResult = await client.query('SELECT id, phone, is_verified FROM users WHERE email = $1', [email]);
         if (userResult.rows.length === 0) {
             // Nota: No revelamos si el email existe o no por seguridad.
             return res.status(200).json({ message: 'Si existe una cuenta asociada a este email y no está verificada, se ha enviado un nuevo código.' });
@@ -1083,7 +1238,8 @@ app.post('/api/auth/resend-code', async (req, res) => {
             await twilioClient.messages.create({
                 body: `Tu nuevo código de verificación para WintonCoin es: ${verificationCode}`,
                 from: process.env.TWILIO_PHONE_NUMBER,
-                to: user.phone_number
+                // Corregido: Usar la variable correcta 'user.phone'
+                to: user.phone
             });
             res.status(200).json({ message: 'Se ha enviado un nuevo código de verificación.' });
         } catch (error) {
@@ -3873,3 +4029,61 @@ app.get('/api/public-settings', async (req, res) => {
         res.status(500).json({ message: "Error interno del servidor." });
     }
 }); */
+
+// =================================================================================
+// ==  PERFIL PÚBLICO DE IMPULSOR (BOOSTER)                                       ==
+// =================================================================================
+app.get('/api/users/:username/booster-profile', async (req, res) => {
+    const { username } = req.params;
+    const client = await pool.connect();
+    try {
+        const userResult = await client.query('SELECT id FROM users WHERE username = $1', [username]);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ message: 'Usuario no encontrado.' });
+        }
+        const userId = userResult.rows[0].id;
+
+        console.log(`[DEBUG] Buscando saldo de impulsor para userId: ${userId}`); // LOG 1
+
+        const boosterBalanceResult = await client.query(
+            'SELECT SUM(amount) as total FROM booster_blue_ledger WHERE user_id = $1',
+            [userId]
+        );
+    
+        const totalBoosterBlue = parseFloat(boosterBalanceResult.rows[0].total) || 0;
+
+        console.log(`[DEBUG] Saldo total de impulsor encontrado: ${totalBoosterBlue}`); // LOG 2
+
+        // Lógica corregida: Un usuario es impulsor si su balance de impulsor es > 0
+        if (totalBoosterBlue > 0) {
+            const publicationsResult = await client.query(
+                `SELECT p.id, p.title, p.description, p.blue_cost, p.status, p.created_at, u.username as author_username
+                 FROM publications p
+                 JOIN users u ON p.author_id = u.id
+                 WHERE p.author_id = $1 AND p.status = 'open'
+                 ORDER BY p.created_at DESC`,
+                [userId]
+            );
+
+            res.json({
+                is_booster: true,
+                username: username,
+                booster_blue_balance: totalBoosterBlue,
+                publications: publicationsResult.rows
+            });
+        } else {
+            res.json({
+                is_booster: false,
+                message: 'Este usuario aún no forma parte del programa de impulsores.'
+            });
+        }
+    } catch (error) {
+        console.error('Error al obtener el perfil de impulsor:', error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    } finally {
+        client.release();
+    }
+});
+
+// =================================================================================
+// ==  OBTENER PUBLICACIONES DE UN USUARIO (PARA SU PERFIL PÚBLICO)               ==

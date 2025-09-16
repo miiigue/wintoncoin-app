@@ -4,24 +4,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
     const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
     
-    const storedUsername = localStorage.getItem('username');
+    // Lógica mejorada para obtener el nombre de usuario
+    const urlParams = new URLSearchParams(window.location.search);
+    const usernameFromUrl = urlParams.get('username');
+    const usernameFromStorage = localStorage.getItem('username');
+
+    const profileUsername = usernameFromUrl || usernameFromStorage; // Prioriza la URL
 
     const elements = {
         content: document.getElementById('booster-profile-content')
     };
 
     // --- Inicialización ---
-    if (!storedUsername) {
-        showCustomAlert('Debes iniciar sesión para ver esta página.', () => { window.location.href = 'index.html'; });
+    if (!profileUsername) {
+        // Ahora el mensaje es más genérico, puede que no haya iniciado sesión o falte el username en la URL
+        elements.content.innerHTML = `<p class="error-message">No se pudo determinar el perfil a mostrar. Asegúrate de haber iniciado sesión o de que la URL sea correcta.</p>`;
+        showCustomAlert('No se pudo determinar qué perfil mostrar.', () => { window.location.href = 'index.html'; });
         return;
     }
 
-    fetchBoosterProfile();
+    fetchBoosterProfile(profileUsername);
 
     // --- Lógica de Datos ---
-    async function fetchBoosterProfile() {
+    async function fetchBoosterProfile(username) {
         try {
-            const response = await fetch(`${API_URL}/api/users/${storedUsername}/booster-profile`);
+            const response = await fetch(`${API_URL}/api/users/${username}/booster-profile`);
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Error al cargar el perfil de impulsor.');
