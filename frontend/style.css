@@ -1,5 +1,7 @@
 /* --- Estilos Globales --- */
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap');
 
 :root {
     --primary-color: #6a5acd; /* Un tono de violeta/azul */
@@ -1966,7 +1968,7 @@ hr {
 
 /* --- Estilos para la Sección de Motivación de Referidos (Solo en la página principal) --- */
 .referral-motivation-section {
-    margin: 1rem 0;
+    margin: 1rem 0 0.5rem 0; /* AJUSTE: Margen inferior reducido */
 }
 
 .referral-motivation-section .referral-card {
@@ -2151,7 +2153,7 @@ hr {
 }
 
 .main-title {
-    font-size: 2.2rem;
+    font-size: 1.1rem; /* CORRECCIÓN: Tamaño reducido al 50% */
     margin: 0;
 }
 
@@ -2324,7 +2326,7 @@ input:checked + .slider:before {
 .main-actions-container {
     display: flex;
     gap: 1rem;
-    margin: 2rem 0;
+    margin: 0.5rem 0 2rem 0; /* AJUSTE: Margen superior reducido */
     justify-content: center;
 }
 
@@ -2493,6 +2495,53 @@ input:checked + .slider:before {
     .balance-label {
         font-size: 0.85rem;
     }
+}
+
+/* --- NUEVO: Banner de Valor Estable (Versión Definitiva - Corregida) --- */
+.value-banner {
+    width: 100%;
+    background: none;
+    color: var(--text-color);
+    padding: 0 1rem;
+    font-size: 1.1rem; /* Mantenemos tu ajuste de tamaño */
+    font-weight: 300; /* NUEVO: Fuente delgada y elegante */
+    font-family: 'Montserrat', sans-serif; /* NUEVO: Fuente moderna y limpia */
+    font-style: normal; /* CORRECCIÓN: Quitamos la cursiva */
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: none;
+    margin: 0.5rem 0; /* AJUSTE: Margen vertical uniforme y mínimo */
+    box-sizing: border-box;
+}
+
+.banner-main-content {
+    display: flex;
+    align-items: center;
+}
+
+@keyframes aurora-enhanced {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.value-banner .shimmer-text {
+    background: linear-gradient(
+        90deg, 
+        #004d40, /* Verde Esmeralda Oscuro */
+        #00796b, /* Verde Intermedio */
+        #ffffff, /* Destello de Plata Pura */
+        #00796b, /* Verde Intermedio */
+        #004d40  /* Repite para un bucle perfecto */
+    ); /* NUEVO: Paleta de colores Ejecutiva */
+    background-size: 400% 400%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: aurora-enhanced 4s ease-in-out infinite;
+    font-weight: 400; /* Un poco más de grosor para el efecto */
 }
 
 

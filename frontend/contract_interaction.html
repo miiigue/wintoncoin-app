@@ -3,12 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactuar con Smart Contract</title>
+    <title>WintonCoin</title>
     <link id="main-stylesheet" rel="stylesheet" href="style.css"> <!-- ID para poder modificarlo por script -->
     <script>document.getElementById('main-stylesheet').href = `style.css?v=${new Date().getTime()}`;</script>
+    <!-- NUEVO: Importación de la fuente Poppins desde Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 </head>
 <body>
-
     <div class="header-menu">
         <!-- Menú de Perfil del Usuario -->
         <div class="profile-menu">
@@ -43,7 +46,7 @@
 
     <div class="container"> <!-- Contenedor para centrar y dar estilo -->
         <div class="main-title-container">
-            <h1 class="main-title">Billetera WintonCoin</h1>
+            <h1 class="main-title">WintonCoin</h1>
             <div class="beta-tag">Prototipo Alfa</div>
         </div>
         
@@ -106,6 +109,17 @@
                 </div>
             </div>
         </div>
+        
+        <!-- =============================================================== -->
+        <!-- ==           UBICACIÓN DEFINITIVA DEL BANNER DE VALOR        == -->
+        <!-- =============================================================== -->
+        <div id="value-banner" class="value-banner" style="display: none;">
+            <div class="banner-main-content">
+                <span id="banner-text-container">
+                    <!-- El texto dinámico se insertará aquí -->
+                </span>
+            </div>
+        </div>
 
         <div class="publications-section">
             
@@ -118,6 +132,7 @@
                 <!-- Las publicaciones se cargarán aquí dinámicamente -->
             </div>
         </div>
+
     </div>
 
     <!-- MODAL PARA VENTA RÁPIDA -->

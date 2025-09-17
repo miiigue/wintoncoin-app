@@ -273,3 +273,56 @@ window.checkAuthStatus = async function() {
         return window.userSession;
     }
 }; 
+
+// --- Banner de Valor Estable ---
+// Se inicializa siempre, ya que no hay botón de cierre.
+initializeValueBanner();
+
+
+async function initializeValueBanner() {
+    const banner = document.getElementById('value-banner');
+    const bannerTextContainer = document.getElementById('banner-text-container');
+
+    if (!banner || !bannerTextContainer) {
+        return;
+    }
+
+    try {
+        // 1. Detectar la moneda local del usuario
+        const userLocale = navigator.language || 'en-US';
+        const currencyOptions = new Intl.NumberFormat(userLocale, { style: 'currency', currency: 'USD' }).resolvedOptions();
+        const localCurrency = currencyOptions.currency || 'USD';
+        
+        // CORRECCIÓN LÓGICA: Ahora el texto se construye en una variable
+        let bannerText = '';
+
+        if (localCurrency === 'USD') {
+            bannerText = `$ VALOR ESTABLE: 1 BLUE = 1 USD`;
+        } else {
+            // 3. Obtener la tasa de cambio
+            const response = await fetch('https://open.er-api.com/v6/latest/USD');
+            if (!response.ok) throw new Error('No se pudo obtener la tasa de cambio.');
+            
+            const data = await response.json();
+            const exchangeRate = data.rates[localCurrency];
+
+            if (!exchangeRate) {
+                bannerText = `$ VALOR ESTABLE: 1 BLUE = 1 USD`;
+            } else {
+                const localValue = (1 * exchangeRate).toFixed(2);
+                // 4. Construir el texto final con la conversión
+                bannerText = `$ VALOR ESTABLE: 1 BLUE = 1 USD ≈ ${localValue} ${localCurrency}`;
+            }
+        }
+        
+        // El texto final se envuelve en el span con la clase para el efecto
+        bannerTextContainer.innerHTML = `<span class="shimmer-text">${bannerText}</span>`;
+        banner.style.display = 'flex';
+
+    } catch (error) {
+        console.error('Error al inicializar el banner de valor:', error);
+        // Fallback unificado
+        bannerTextContainer.innerHTML = `<span class="shimmer-text">$ VALOR ESTABLE: 1 BLUE = 1 USD</span>`;
+        banner.style.display = 'flex';
+    }
+} 
