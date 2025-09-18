@@ -3034,10 +3034,12 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                                 'acceptor_username', pa.acceptor_username,
                                 'status', pa.status,
                                 'average_rating', u_participant.average_rating,
-                                'ratings_count', u_participant.ratings_count
+                                'ratings_count', u_participant.ratings_count,
+                                'phone_number', p_user.phone_number -- AÑADIDO: Incluimos el teléfono
                             ))
                             FROM publication_acceptances pa
                             JOIN users u_participant ON pa.acceptor_username = u_participant.username
+                            JOIN users p_user ON p_user.username = u_participant.username
                             WHERE pa.publication_id = p.id
                         ) as participants
                     FROM
@@ -3412,7 +3414,8 @@ app.get('/api/publications/:id', async (req, res) => {
                         'username', pa_all.acceptor_username,
                         'status', pa_all.status,
                         'average_rating', p_user.average_rating,
-                        'ratings_count', p_user.ratings_count
+                        'ratings_count', p_user.ratings_count,
+                        'phone_number', p_user.phone_number -- AÑADIDO: Incluimos el teléfono
                     ))
                     FROM publication_acceptances pa_all
                     JOIN users p_user ON pa_all.acceptor_username = p_user.username

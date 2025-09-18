@@ -2544,6 +2544,27 @@ input:checked + .slider:before {
     font-weight: 400; /* Un poco más de grosor para el efecto */
 }
 
+/* Estilos para el nuevo botón de WhatsApp */
+.whatsapp-button {
+    background-color: #25D366; /* Color oficial de WhatsApp */
+    color: white;
+    border-color: #25D366;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px; /* Espacio entre el ícono y el texto */
+    text-decoration: none; /* Quitar subrayado del enlace */
+}
+
+.whatsapp-button:hover {
+    background-color: #128C7E; /* Un tono más oscuro para el hover */
+    border-color: #128C7E;
+    color: white;
+}
+
+.whatsapp-button svg {
+    stroke: white; /* Asegurarse de que el ícono sea blanco */
+}
+
 
 
 
