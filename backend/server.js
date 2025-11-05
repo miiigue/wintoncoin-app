@@ -357,6 +357,47 @@ async function applyMigrations(client) {
                     ALTER TABLE publications ADD COLUMN target_username VARCHAR(255);
                  END IF;
              END $$;`,
+            // MIGRACIÓN 29: Añadir columna status a la tabla users para moderación
+            `DO $$
+             BEGIN
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='status') THEN
+                     ALTER TABLE users ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'active';
+                 END IF;
+             END $$;`,
+            // MIGRACIÓN 30: Añadir columna user_id a red_token_debts y actualizar registros existentes
+            `DO $$
+             BEGIN
+                 -- Si la columna no existe, crearla
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='red_token_debts' AND column_name='user_id') THEN
+                     ALTER TABLE red_token_debts ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+                 END IF;
+                 -- Actualizar los registros existentes con el user_id correspondiente (por si acaso hay NULLs)
+                 UPDATE red_token_debts rtd
+                 SET user_id = u.id
+                 FROM users u
+                 WHERE rtd.username = u.username AND (rtd.user_id IS NULL OR rtd.user_id IS DISTINCT FROM u.id);
+                 -- Hacer la columna NOT NULL después de actualizar los datos (si no lo es ya)
+                 IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='red_token_debts' AND column_name='user_id' AND is_nullable='YES') THEN
+                     ALTER TABLE red_token_debts ALTER COLUMN user_id SET NOT NULL;
+                 END IF;
+             END $$;`,
+            // MIGRACIÓN 31: Añadir columna user_id a blue_token_escrows y actualizar registros existentes
+            `DO $$
+             BEGIN
+                 -- Si la columna no existe, crearla
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='blue_token_escrows' AND column_name='user_id') THEN
+                     ALTER TABLE blue_token_escrows ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+                 END IF;
+                 -- Actualizar los registros existentes con el user_id correspondiente (por si acaso hay NULLs)
+                 UPDATE blue_token_escrows bte
+                 SET user_id = u.id
+                 FROM users u
+                 WHERE bte.username = u.username AND (bte.user_id IS NULL OR bte.user_id IS DISTINCT FROM u.id);
+                 -- Hacer la columna NOT NULL después de actualizar los datos (si no lo es ya)
+                 IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='blue_token_escrows' AND column_name='user_id' AND is_nullable='YES') THEN
+                     ALTER TABLE blue_token_escrows ALTER COLUMN user_id SET NOT NULL;
+                 END IF;
+             END $$;`,
             `
             CREATE TABLE IF NOT EXISTS platform_wallet (
                 id SERIAL PRIMARY KEY,
@@ -393,12 +434,13 @@ async function applyMigrations(client) {
             );`,
         `CREATE TABLE IF NOT EXISTS transactions (
             id SERIAL PRIMARY KEY,
-            username VARCHAR(255) NOT NULL,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             type VARCHAR(255) NOT NULL,
                 description TEXT NOT NULL,
             blue_change NUMERIC(19, 4) NOT NULL DEFAULT 0,
             red_change NUMERIC(19, 4) NOT NULL DEFAULT 0,
                 related_publication_id INTEGER,
+            platform_fee_blue NUMERIC(19, 4) DEFAULT 0,
             created_at TIMESTAMPTZ DEFAULT NOW()
         );`,
         `CREATE TABLE IF NOT EXISTS ratings (
@@ -498,6 +540,46 @@ async function applyMigrations(client) {
                 -- 3. Impide que la columna vuelva a ser NULL en el futuro.
                 ALTER TABLE users ALTER COLUMN booster_blue_balance SET NOT NULL;
             END IF;
+        END $$;`,
+        // MIGRACIÓN 32: Añadir columna user_id a transactions y actualizar registros existentes
+        // Esta migración sigue buenas prácticas de bases de datos usando IDs en lugar de username
+        `DO $$
+        BEGIN
+            -- Si la columna no existe, crearla
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transactions' AND column_name='user_id') THEN
+                ALTER TABLE transactions ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+            END IF;
+            -- Actualizar los registros existentes con el user_id correspondiente
+            -- SOLO si la columna username existe (para bases de datos antiguas que aún la tienen)
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transactions' AND column_name='username') THEN
+                UPDATE transactions t
+                SET user_id = u.id
+                FROM users u
+                WHERE t.username = u.username AND (t.user_id IS NULL OR t.user_id IS DISTINCT FROM u.id);
+            END IF;
+            -- Hacer la columna NOT NULL después de actualizar los datos
+            -- Solo si no hay registros con user_id NULL
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transactions' AND column_name='user_id' AND is_nullable='YES') THEN
+                -- Verificar que no haya registros con user_id NULL antes de hacer NOT NULL
+                IF NOT EXISTS (SELECT 1 FROM transactions WHERE user_id IS NULL) THEN
+                    ALTER TABLE transactions ALTER COLUMN user_id SET NOT NULL;
+                END IF;
+            END IF;
+            -- Crear índice para optimizar consultas por user_id
+            IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_transactions_user_id') THEN
+                CREATE INDEX idx_transactions_user_id ON transactions(user_id);
+            END IF;
+        END $$;`,
+        // MIGRACIÓN 33: Eliminar columna username de transactions después de migrar a user_id
+        // Esto completa la migración siguiendo buenas prácticas de bases de datos
+        `DO $$
+        BEGIN
+            -- Solo eliminar la columna si existe y user_id ya está establecido
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transactions' AND column_name='username')
+               AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='transactions' AND column_name='user_id')
+               AND NOT EXISTS (SELECT 1 FROM transactions WHERE user_id IS NULL) THEN
+                ALTER TABLE transactions DROP COLUMN username;
+            END IF;
         END $$;`
         ];
 
@@ -557,7 +639,8 @@ async function runOneTimeDataMigrations(client) {
         await client.query('UPDATE notifications SET recipient_username = $1 WHERE recipient_username = $2', [newPlatformUsername, oldPlatformUsername]);
         console.log(`MIGRATION: Notificaciones reasignadas.`);
         
-        await client.query('UPDATE transactions SET username = $1 WHERE username = $2', [newPlatformUsername, oldPlatformUsername]);
+        // Las transacciones ahora usan user_id, así que actualizamos por user_id
+        await client.query('UPDATE transactions SET user_id = $1 WHERE user_id = $2', [newUser.id, oldUser.id]);
         console.log(`MIGRATION: Transacciones reasignadas.`);
 
         await client.query('UPDATE ratings SET rater_username = $1 WHERE rater_username = $2', [newPlatformUsername, oldPlatformUsername]);
@@ -701,12 +784,13 @@ async function initializeDatabase() {
         );`,
         `CREATE TABLE IF NOT EXISTS transactions (
             id SERIAL PRIMARY KEY,
-            username VARCHAR(255) NOT NULL,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             type VARCHAR(255) NOT NULL,
                 description TEXT NOT NULL,
             blue_change NUMERIC(19, 4) NOT NULL DEFAULT 0,
             red_change NUMERIC(19, 4) NOT NULL DEFAULT 0,
                 related_publication_id INTEGER,
+            platform_fee_blue NUMERIC(19, 4) DEFAULT 0,
             created_at TIMESTAMPTZ DEFAULT NOW()
         );`,
         `CREATE TABLE IF NOT EXISTS ratings (
@@ -1104,13 +1188,13 @@ async function startServer() {
                         // Recompensa para el referente: Actualiza balance, estado y loguea la transacción.
                         await client.query('UPDATE users SET booster_blue_balance = booster_blue_balance + $1, is_booster = true WHERE id = $2', [rewardAmount, referrer.id]);
                         await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_sent', $2, $3)`, [referrer.id, rewardAmount, `Bono por referir a ${newUser.username}`]);
-                        await client.query(`INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [referrer.username, `Recompensa (perfil impulsor) por referir a ${newUser.username}`, rewardAmount]);
+                        await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [referrer.id, `Recompensa (perfil impulsor) por referir a ${newUser.username}`, rewardAmount]);
                         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [referrer.username, `¡Felicidades! Has ganado ${rewardAmount.toFixed(4)} BLUE en tu perfil de impulsor porque ${newUser.username} se registró con tu código.`]);
                         
                         // Recompensa para el nuevo usuario: Actualiza balance, estado y loguea la transacción.
                         await client.query('UPDATE users SET booster_blue_balance = booster_blue_balance + $1, is_booster = true WHERE id = $2', [rewardAmount, newUser.id]);
                         await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_received', $2, $3)`, [newUser.id, rewardAmount, `Bono por usar el código de ${referrer.username}`]);
-                        await client.query(`INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [newUser.username, `Recompensa (perfil impulsor) por usar el código de ${referrer.username}`, rewardAmount]);
+                        await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [newUser.id, `Recompensa (perfil impulsor) por usar el código de ${referrer.username}`, rewardAmount]);
                         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Por usar un código de referido, has ganado ${rewardAmount.toFixed(4)} BLUE en tu perfil de impulsor.`]);
                     }
                 }
@@ -1121,7 +1205,7 @@ async function startServer() {
                         // Bono para el nuevo usuario: Actualiza balance, estado y loguea la transacción.
                         await client.query('UPDATE users SET booster_blue_balance = booster_blue_balance + $1, is_booster = true WHERE id = $2', [welcomeBonusAmount, newUser.id]);
                         await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, welcomeBonusAmount, 'Bono de Bienvenida por registro']);
-                        await client.query(`INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.username, 'Bono de bienvenida (perfil impulsor)', welcomeBonusAmount]);
+                        await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, 'Bono de bienvenida (perfil impulsor)', welcomeBonusAmount]);
                         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Has recibido ${welcomeBonusAmount.toFixed(4)} BLUE en tu perfil de impulsor como bono de bienvenida.`]);
                     }
                 }
@@ -1189,12 +1273,17 @@ async function startServer() {
                 const match = await bcrypt.compare(password, user.password_hash);
 
             if (match) {
+                // PASO 1: Generar un token de sesión seguro (JWT) al iniciar sesión.
+                const token = jwt.sign(
+                    { userId: user.id, username: user.username },
+                    jwtSecret,
+                    { expiresIn: '7d' } 
+                );
+
                 res.status(200).json({
                     message: "Inicio de sesión exitoso.",
-                    username: user.username,
-                        blue_balance: user.liquid_blue_balance,
-                        escrow_blue_balance: user.escrow_blue_balance,
-                    red_balance: user.red_balance
+                    token: token, // Se devuelve el token al cliente.
+                    username: user.username
                 });
             } else {
                 res.status(401).json({ message: "Contraseña incorrecta." });
@@ -2049,7 +2138,13 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
         // Ruta: Obtener las transacciones de un usuario
         app.get('/users/:username/transactions', async (req, res) => {
             const { username } = req.params;
-            const sql = `SELECT * FROM transactions WHERE username = $1 ORDER BY created_at DESC`;
+            const sql = `
+                SELECT t.*, u.username 
+                FROM transactions t 
+                JOIN users u ON t.user_id = u.id 
+                WHERE u.username = $1 
+                ORDER BY t.created_at DESC
+            `;
             try {
                 const result = await pool.query(sql, [username]);
                 res.status(200).json(result.rows);
@@ -2554,6 +2649,32 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                 res.status(500).json({ message: "Error interno del servidor." });
             } finally {
                 client.release();
+            }
+        });
+
+        // ENDPOINT PÚBLICO: Lista de Obligaciones Vencidas (LOVE)
+        app.get('/api/love-list', async (req, res) => {
+            try {
+                const sql = `
+                    SELECT
+                        username,
+                        SUM(amount) AS total_overdue_amount,
+                        MIN(due_at) AS overdue_since,
+                        COUNT(*) AS recurrence_count
+                    FROM
+                        red_token_debts
+                    WHERE
+                        is_penalized = TRUE AND is_settled = FALSE
+                    GROUP BY
+                        username
+                    ORDER BY
+                        overdue_since ASC;
+                `;
+                const result = await pool.query(sql);
+                res.status(200).json(result.rows);
+            } catch (error) {
+                console.error("Error al obtener la Lista de Obligaciones Vencidas (LOVE):", error);
+                res.status(500).json({ message: "Error interno del servidor." });
             }
         });
 
@@ -3115,7 +3236,7 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
 
             // 1. Obtener saldos y deudas del usuario dentro de una transacción
             const userResult = await client.query(
-                `SELECT liquid_blue_balance, escrow_blue_balance, red_balance FROM users WHERE username = $1 FOR UPDATE`,
+                `SELECT id, liquid_blue_balance, escrow_blue_balance, red_balance FROM users WHERE username = $1 FOR UPDATE`,
                 [username]
             );
 
@@ -3124,6 +3245,7 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
             }
 
             const user = userResult.rows[0];
+            const userId = user.id;
             const liquidBlue = parseFloat(user.liquid_blue_balance);
             const escrowBlue = parseFloat(user.escrow_blue_balance);
             const totalBlueAvailable = liquidBlue + escrowBlue;
@@ -3200,8 +3322,8 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
             // 6. Registrar la transacción
             const burnDesc = `Quemaste ${actualAmountToBurn.toFixed(4)} tokens. Se usaron ${burnedFromLiquid.toFixed(4)} BLUE (disponible) y ${burnedFromEscrow.toFixed(4)} BLUE (pendiente).`;
             await client.query(
-                `INSERT INTO transactions (username, type, description, blue_change, red_change) VALUES ($1, 'burn', $2, $3, $4)`,
-                [username, burnDesc, -actualAmountToBurn, -actualAmountToBurn]
+                `INSERT INTO transactions (user_id, type, description, blue_change, red_change) VALUES ($1, 'burn', $2, $3, $4)`,
+                [userId, burnDesc, -actualAmountToBurn, -actualAmountToBurn]
             );
             
             return { success: true, message: `Se han quemado ${actualAmountToBurn.toFixed(4)} tokens exitosamente.`, actualAmountBurned: actualAmountToBurn };
@@ -3285,12 +3407,13 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                 // 1. Obtener todos los depósitos vencidos y no liberados, agrupados por usuario
                 const overdueEscrowsResult = await client.query(`
                     SELECT 
+                        user_id,
                         username, 
                         SUM(amount) as total_to_release,
                         array_agg(id) as escrow_ids
                     FROM blue_token_escrows
                     WHERE unlock_at <= NOW() AND is_released = FALSE
-                    GROUP BY username
+                    GROUP BY user_id, username
                 `);
 
                 if (overdueEscrowsResult.rowCount === 0) {
@@ -3303,7 +3426,7 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
 
                 // 2. Procesar cada usuario con depósitos a liberar
                 for (const userEscrow of overdueEscrowsResult.rows) {
-                    const { username, total_to_release, escrow_ids } = userEscrow;
+                    const { user_id, username, total_to_release, escrow_ids } = userEscrow;
                     const amountToRelease = parseFloat(total_to_release);
 
                     if (amountToRelease <= 0) continue;
@@ -3328,8 +3451,8 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                     // 5. Crear una transacción para el historial
                     const releaseDesc = `Se han liberado ${amountToRelease.toFixed(4)} BLUE que estaban en depósito.`;
                     await client.query(
-                        `INSERT INTO transactions (username, type, description, blue_change, red_change) VALUES ($1, 'escrow_release', $2, $3, 0)`,
-                        [username, releaseDesc, amountToRelease]
+                        `INSERT INTO transactions (user_id, type, description, blue_change, red_change) VALUES ($1, 'escrow_release', $2, $3, 0)`,
+                        [user_id, releaseDesc, amountToRelease]
                     );
 
                     // 6. Enviar notificación al usuario
@@ -3727,7 +3850,7 @@ async function executeBoosterPayments() {
                     
                     // Registrar la transacción de pago
                     const paymentDescription = `Recompensa de Impulsor (Nivel ${level.level}) para el mes de ${paymentMonth.toLocaleString('es', { month: 'long', year: 'numeric' })}`;
-                    await client.query(`INSERT INTO transactions (username, type, description, blue_change) VALUES ($1, 'booster_reward', $2, $3)`, [booster.username, paymentDescription, amountToPay]);
+                    await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'booster_reward', $2, $3)`, [booster.id, paymentDescription, amountToPay]);
                     
                     // Registrar en el log de pagos de impulsores
                     await client.query(
@@ -3894,17 +4017,31 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         const commissionAmount = cost * (commissionPercentage / 100);
         const redForAuthor = cost + commissionAmount;
 
+        // Obtener el user_id del autor para insertarlo en red_token_debts
+        const authorResult = await client.query('SELECT id FROM users WHERE username = $1', [author]);
+        if (!authorResult.rows.length) {
+            throw new Error(`Usuario no encontrado: ${author}`);
+        }
+        const authorId = authorResult.rows[0].id;
+
         await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE username = $2`, [redForAuthor, author]);
-        await client.query(`INSERT INTO red_token_debts (username, amount, due_at) VALUES ($1, $2, NOW() + INTERVAL '${debtInterval}')`, [author, redForAuthor]);
+        await client.query(`INSERT INTO red_token_debts (user_id, username, amount, due_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${debtInterval}')`, [authorId, author, redForAuthor]);
+        
+        // Obtener el user_id del trabajador para insertarlo en blue_token_escrows
+        const workerResult = await client.query('SELECT id FROM users WHERE username = $1', [workerUsername]);
+        if (!workerResult.rows.length) {
+            throw new Error(`Usuario no encontrado: ${workerUsername}`);
+        }
+        const workerId = workerResult.rows[0].id;
         
         await client.query(`UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE username = $2`, [cost, workerUsername]);
-        await client.query(`INSERT INTO blue_token_escrows (username, amount, unlock_at) VALUES ($1, $2, NOW() + INTERVAL '${escrowInterval}')`, [workerUsername, cost]);
+        await client.query(`INSERT INTO blue_token_escrows (user_id, username, amount, unlock_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${escrowInterval}')`, [workerId, workerUsername, cost]);
         
         await client.query(`INSERT INTO platform_wallet (id, total_blue_commission_balance) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET total_blue_commission_balance = platform_wallet.total_blue_commission_balance + $1`, [commissionAmount]);
         
-        const authorTxResult = await client.query(`INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id, platform_fee_blue) VALUES ($1, 'payment_sent', $2, 0, $3, $4, $5) RETURNING id`, [author, `Pagaste por: "${title}"`, redForAuthor, pubId, commissionAmount]);
+        const authorTxResult = await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id, platform_fee_blue) VALUES ($1, 'payment_sent', $2, 0, $3, $4, $5) RETURNING id`, [authorId, `Pagaste por: "${title}"`, redForAuthor, pubId, commissionAmount]);
         const authorTxId = authorTxResult.rows[0].id;
-        await client.query(`INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'payment_received', $2, $3, 0, $4)`, [workerUsername, `Realizaste: "${title}"`, cost, pubId]);
+        await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'payment_received', $2, $3, 0, $4)`, [workerId, `Realizaste: "${title}"`, cost, pubId]);
         
         await client.query(`INSERT INTO platform_commission_log (related_publication_id, related_user_transaction_id, commission_amount_blue) VALUES ($1, $2, $3)`, [pubId, authorTxId, commissionAmount]);
     }
@@ -3965,17 +4102,31 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         const commissionAmount = cost * (commissionPercentage / 100);
         const redForPayer = cost + commissionAmount;
 
+        // Obtener el user_id del pagador para insertarlo en red_token_debts
+        const payerResult = await client.query('SELECT id FROM users WHERE username = $1', [payer]);
+        if (!payerResult.rows.length) {
+            throw new Error(`Usuario no encontrado: ${payer}`);
+        }
+        const payerId = payerResult.rows[0].id;
+
         await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE username = $2`, [redForPayer, payer]);
-        await client.query(`INSERT INTO red_token_debts (username, amount, due_at) VALUES ($1, $2, NOW() + INTERVAL '${debtInterval}')`, [payer, redForPayer]);
+        await client.query(`INSERT INTO red_token_debts (user_id, username, amount, due_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${debtInterval}')`, [payerId, payer, redForPayer]);
+        
+        // Obtener el user_id del recipiente para insertarlo en blue_token_escrows
+        const recipientResult = await client.query('SELECT id FROM users WHERE username = $1', [recipient]);
+        if (!recipientResult.rows.length) {
+            throw new Error(`Usuario no encontrado: ${recipient}`);
+        }
+        const recipientId = recipientResult.rows[0].id;
         
         await client.query(`UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE username = $2`, [cost, recipient]);
-        await client.query(`INSERT INTO blue_token_escrows (username, amount, unlock_at) VALUES ($1, $2, NOW() + INTERVAL '${escrowInterval}')`, [recipient, cost]);
+        await client.query(`INSERT INTO blue_token_escrows (user_id, username, amount, unlock_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${escrowInterval}')`, [recipientId, recipient, cost]);
         
         await client.query(`INSERT INTO platform_wallet (id, total_blue_commission_balance) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET total_blue_commission_balance = platform_wallet.total_blue_commission_balance + $1`, [commissionAmount]);
         
-        const payerTxResult = await client.query(`INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id, platform_fee_blue) VALUES ($1, 'payment_sent', $2, 0, $3, $4, $5) RETURNING id`, [payer, `Pagaste por: "${title}"`, redForPayer, pubId, commissionAmount]);
+        const payerTxResult = await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id, platform_fee_blue) VALUES ($1, 'payment_sent', $2, 0, $3, $4, $5) RETURNING id`, [payerId, `Pagaste por: "${title}"`, redForPayer, pubId, commissionAmount]);
         const payerTxId = payerTxResult.rows[0].id;
-        await client.query(`INSERT INTO transactions (username, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'payment_received', $2, $3, 0, $4)`, [recipient, `Recibiste por: "${title}"`, cost, pubId]);
+        await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'payment_received', $2, $3, 0, $4)`, [recipientId, `Recibiste por: "${title}"`, cost, pubId]);
         
         await client.query(`INSERT INTO platform_commission_log (related_publication_id, related_user_transaction_id, commission_amount_blue) VALUES ($1, $2, $3)`, [pubId, payerTxId, commissionAmount]);
         

@@ -67,17 +67,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // 'response.ok' es true si el código de estado es 2xx (ej. 200 OK)
                 if (response.ok) {
-                    // Si el inicio de sesión es exitoso, el backend ahora devuelve más datos
                     const result = await response.json();
                     
-                    // Guardamos los datos del usuario en localStorage para mantener la sesión abierta entre pestañas
-                localStorage.setItem('username', result.username);
-                localStorage.setItem('blue_balance', result.blue_balance);
-                localStorage.setItem('escrow_blue_balance', result.escrow_blue_balance);
-                localStorage.setItem('red_balance', result.red_balance);
+                    // PASO 2: Guardar la credencial (token) en la memoria compartida del navegador.
+                    if (result.token && result.username) {
+                        localStorage.setItem('token', result.token);
+                        localStorage.setItem('username', result.username);
+                        
+                        // Redirigimos al usuario a la página principal de la aplicación
+                        window.location.href = 'contract_interaction.html';
+                    } else {
+                        showCustomAlert('Error: La respuesta del servidor no incluyó un token de sesión.');
+                    }
 
-                    // Redirigimos al usuario a la página principal de la aplicación
-                    window.location.href = 'contract_interaction.html';
                 } else {
                     // Si hay un error (ej. 401 credenciales inválidas)
                     const errorResult = await response.json();

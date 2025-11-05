@@ -104,12 +104,13 @@ async function resetDatabase() {
         await client.query(`
             CREATE TABLE IF NOT EXISTS transactions (
                 id SERIAL PRIMARY KEY,
-                username VARCHAR(255) NOT NULL,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 type VARCHAR(255) NOT NULL,
                 description TEXT NOT NULL,
                 blue_change NUMERIC(19, 4) NOT NULL DEFAULT 0,
                 red_change NUMERIC(19, 4) NOT NULL DEFAULT 0,
                 related_publication_id INTEGER,
+                platform_fee_blue NUMERIC(19, 4) DEFAULT 0,
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );
         `);

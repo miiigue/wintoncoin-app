@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Página LOVE</title>
+    <link rel="stylesheet" href="style.css"> <!-- Reutilizamos los estilos principales -->
+</head>
+<body>
+    <header>
+        <h1>Página LOVE</h1>
+        <div class="user-menu-container">
+            <a href="contract_interaction.html" class="back-button">Volver a la página principal</a>
+        </div>
+    </header>
+
+    <main>
+        <section id="love-section">
+            <h2>Lista de Obligaciones Vencidas</h2>
+            <p>Esta es una lista pública de todos los usuarios con deudas de tokens RED que han sido penalizadas y aún no se han saldado.</p>
+            
+            <div id="loading" class="loading-spinner" style="display: none;"></div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Deuda Vencida (RED)</th>
+                            <th>Vencido Desde</th>
+                            <th>Reincidencias</th>
+                        </tr>
+                    </thead>
+                    <tbody id="love-table-body">
+                        <!-- Las filas se insertarán aquí dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script src="love.js"></script>
+</body>
+</html>

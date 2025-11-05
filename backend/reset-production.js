@@ -123,7 +123,7 @@ async function resetProductionDatabase() {
         await client.query(`
             CREATE TABLE IF NOT EXISTS transactions (
                 id SERIAL PRIMARY KEY,
-                username VARCHAR(255) NOT NULL,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 type VARCHAR(255) NOT NULL,
                 description TEXT NOT NULL,
                 blue_change NUMERIC(19, 4) NOT NULL DEFAULT 0,
