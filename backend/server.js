@@ -1185,14 +1185,16 @@ async function startServer() {
                 if (preLaunchMode && referrer) {
                     const rewardAmount = parseFloat(settings.referral_reward_amount) || 0;
                     if (rewardAmount > 0) {
-                        // Recompensa para el referente: Actualiza balance, estado y loguea la transacción.
-                        await client.query('UPDATE users SET booster_blue_balance = booster_blue_balance + $1, is_booster = true WHERE id = $2', [rewardAmount, referrer.id]);
+                        // Recompensa para el referente: Registra en booster_blue_ledger (cumple reglas económicas)
+                        await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, NULL)', [referrer.id, rewardAmount]);
+                        await client.query('UPDATE users SET is_booster = true WHERE id = $1', [referrer.id]);
                         await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_sent', $2, $3)`, [referrer.id, rewardAmount, `Bono por referir a ${newUser.username}`]);
                         await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [referrer.id, `Recompensa (perfil impulsor) por referir a ${newUser.username}`, rewardAmount]);
                         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [referrer.username, `¡Felicidades! Has ganado ${rewardAmount.toFixed(4)} BLUE en tu perfil de impulsor porque ${newUser.username} se registró con tu código.`]);
                         
-                        // Recompensa para el nuevo usuario: Actualiza balance, estado y loguea la transacción.
-                        await client.query('UPDATE users SET booster_blue_balance = booster_blue_balance + $1, is_booster = true WHERE id = $2', [rewardAmount, newUser.id]);
+                        // Recompensa para el nuevo usuario: Registra en booster_blue_ledger (cumple reglas económicas)
+                        await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, NULL)', [newUser.id, rewardAmount]);
+                        await client.query('UPDATE users SET is_booster = true WHERE id = $1', [newUser.id]);
                         await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_received', $2, $3)`, [newUser.id, rewardAmount, `Bono por usar el código de ${referrer.username}`]);
                         await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [newUser.id, `Recompensa (perfil impulsor) por usar el código de ${referrer.username}`, rewardAmount]);
                         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Por usar un código de referido, has ganado ${rewardAmount.toFixed(4)} BLUE en tu perfil de impulsor.`]);
@@ -1202,8 +1204,9 @@ async function startServer() {
                 else if (preLaunchMode && welcomeBonusEnabled) {
                     const welcomeBonusAmount = parseFloat(settings.welcome_bonus_amount) || 0;
                     if (welcomeBonusAmount > 0) {
-                        // Bono para el nuevo usuario: Actualiza balance, estado y loguea la transacción.
-                        await client.query('UPDATE users SET booster_blue_balance = booster_blue_balance + $1, is_booster = true WHERE id = $2', [welcomeBonusAmount, newUser.id]);
+                        // Bono para el nuevo usuario: Registra en booster_blue_ledger (cumple reglas económicas)
+                        await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, NULL)', [newUser.id, welcomeBonusAmount]);
+                        await client.query('UPDATE users SET is_booster = true WHERE id = $1', [newUser.id]);
                         await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, welcomeBonusAmount, 'Bono de Bienvenida por registro']);
                         await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, 'Bono de bienvenida (perfil impulsor)', welcomeBonusAmount]);
                         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Has recibido ${welcomeBonusAmount.toFixed(4)} BLUE en tu perfil de impulsor como bono de bienvenida.`]);
@@ -1713,38 +1716,46 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
 
         // --- FIN DE VALIDACIONES ---
 
-        // 2. Ejecutar la transferencia de fondos (similar a un pago de 'sell')
-        const amount = publication.blue_cost;
+        // 2. Obtener configuración del sistema (pre-lanzamiento, comisiones, etc.)
+        const settingsResult = await client.query(`
+            SELECT setting_key, setting_value 
+            FROM app_settings 
+            WHERE setting_key IN ('pre_launch_mode_enabled', 'debt_cycle_days', 'debt_cycle_hours', 'debt_cycle_minutes', 'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes', 'platform_commission_percentage')
+        `);
+        const settings = {};
+        settingsResult.rows.forEach(row => {
+            settings[row.setting_key] = row.setting_value;
+        });
+        const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
+
+        // 3. Procesar el pago usando la misma lógica que las otras publicaciones (cumple reglas económicas)
+        // Esto crea tokens RED/BLUE según las reglas, no transfiere tokens existentes
+        const cost = parseFloat(publication.blue_cost);
         const sellerUsername = publication.author_username;
 
-        // Verificar fondos del comprador
-        const buyerBalanceResult = await client.query('SELECT liquid_blue_balance FROM users WHERE username = $1', [buyerUsername]);
-        if (buyerBalanceResult.rowCount === 0) {
-             throw { status: 404, message: 'El usuario comprador no existe.' };
-        }
-        const buyerBalance = buyerBalanceResult.rows[0].liquid_blue_balance;
-        if (buyerBalance < amount) {
-            throw { status: 402, message: 'Fondos insuficientes para realizar la compra.' };
-        }
+        // Crear un objeto acceptance similar al que usa processDirectPaymentCompletion
+        const acceptance = {
+            blue_cost: cost,
+            title: publication.title,
+            author_username: sellerUsername,
+            acceptance_id: null, // No hay acceptance para venta rápida
+            category: 'sell',
+            completerUsername: buyerUsername
+        };
 
-        // Deducir del comprador y añadir al vendedor
-        await client.query('UPDATE users SET liquid_blue_balance = liquid_blue_balance - $1 WHERE username = $2', [amount, buyerUsername]);
-        await client.query('UPDATE users SET liquid_blue_balance = liquid_blue_balance + $1 WHERE username = $2', [amount, sellerUsername]);
+        // Procesar el pago según las reglas económicas
+        const result = await processDirectPaymentCompletion(client, acceptance, id, preLaunchMode, settings);
 
-        // 3. Actualizar el estado de la publicación a 'completed'
+        // 4. Actualizar el estado de la publicación a 'completed'
         await client.query(`UPDATE publications SET status = 'completed', available_slots = 0 WHERE id = $1`, [id]);
         
-        // 4. Crear notificación para el vendedor
+        // 5. Crear notificación para el vendedor
         const notificationMessage = `¡Venta Rápida completada! ${buyerUsername} ha pagado por tu publicación: "${publication.title}".`;
-        await client.query(`
-            INSERT INTO notifications (recipient_username, message, type, related_publication_id) 
-            VALUES ($1, $2, 'quick_sale_paid', $3)`, 
-            [sellerUsername, notificationMessage, id]
-        );
+        await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [sellerUsername, notificationMessage]);
         
         await client.query('COMMIT');
 
-        res.status(200).json({ message: "Pago realizado con éxito." });
+        res.status(200).json({ message: result.message || "Pago realizado con éxito." });
 
     } catch (error) {
         await client.query('ROLLBACK');
@@ -3276,8 +3287,9 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                 const newDebtAmount = parseFloat(debt.amount) - amountFromThisDebt;
                 
                 if (newDebtAmount < 0.0001) {
-                    // CORRECCIÓN: Si la deuda se paga por completo, la eliminamos de la tabla.
-                    // La lógica anterior intentaba poner el monto a 0, lo que violaba la restricción de la DB.
+                    // CORRECCIÓN: Si la deuda se paga por completo, la marcamos como saldada antes de eliminarla.
+                    // Esto cumple con las reglas económicas y permite auditoría adecuada.
+                    await client.query(`UPDATE red_token_debts SET is_settled = TRUE WHERE id = $1`, [debt.id]);
                     await client.query(`DELETE FROM red_token_debts WHERE id = $1`, [debt.id]);
                 } else {
                     // Si el pago es parcial, solo actualizamos el monto restante.
@@ -4037,6 +4049,18 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         await client.query(`UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE username = $2`, [cost, workerUsername]);
         await client.query(`INSERT INTO blue_token_escrows (user_id, username, amount, unlock_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${escrowInterval}')`, [workerId, workerUsername, cost]);
         
+        // Asignar comisión a la plataforma como tokens BLUE reales (cumple reglas económicas)
+        const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
+        if (commissionAmount > 0) {
+            const platformResult = await client.query('SELECT id FROM users WHERE username = $1', [platformUsername]);
+            if (platformResult.rows.length > 0) {
+                const platformId = platformResult.rows[0].id;
+                // La plataforma recibe la comisión directamente como BLUE líquido (no en escrow)
+                await client.query(`UPDATE users SET liquid_blue_balance = liquid_blue_balance + $1 WHERE username = $2`, [commissionAmount, platformUsername]);
+                await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'commission_received', $2, $3, 0, $4)`, [platformId, `Comisión por: "${title}"`, commissionAmount, pubId]);
+            }
+        }
+        
         await client.query(`INSERT INTO platform_wallet (id, total_blue_commission_balance) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET total_blue_commission_balance = platform_wallet.total_blue_commission_balance + $1`, [commissionAmount]);
         
         const authorTxResult = await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id, platform_fee_blue) VALUES ($1, 'payment_sent', $2, 0, $3, $4, $5) RETURNING id`, [authorId, `Pagaste por: "${title}"`, redForAuthor, pubId, commissionAmount]);
@@ -4122,6 +4146,18 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         await client.query(`UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE username = $2`, [cost, recipient]);
         await client.query(`INSERT INTO blue_token_escrows (user_id, username, amount, unlock_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${escrowInterval}')`, [recipientId, recipient, cost]);
         
+        // Asignar comisión a la plataforma como tokens BLUE reales (cumple reglas económicas)
+        const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
+        if (commissionAmount > 0) {
+            const platformResult = await client.query('SELECT id FROM users WHERE username = $1', [platformUsername]);
+            if (platformResult.rows.length > 0) {
+                const platformId = platformResult.rows[0].id;
+                // La plataforma recibe la comisión directamente como BLUE líquido (no en escrow)
+                await client.query(`UPDATE users SET liquid_blue_balance = liquid_blue_balance + $1 WHERE username = $2`, [commissionAmount, platformUsername]);
+                await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'commission_received', $2, $3, 0, $4)`, [platformId, `Comisión por: "${title}"`, commissionAmount, pubId]);
+            }
+        }
+        
         await client.query(`INSERT INTO platform_wallet (id, total_blue_commission_balance) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET total_blue_commission_balance = platform_wallet.total_blue_commission_balance + $1`, [commissionAmount]);
         
         const payerTxResult = await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id, platform_fee_blue) VALUES ($1, 'payment_sent', $2, 0, $3, $4, $5) RETURNING id`, [payerId, `Pagaste por: "${title}"`, redForPayer, pubId, commissionAmount]);
@@ -4136,8 +4172,10 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         resultMessage = "¡Compra/Donación completada y pagada! Gracias.";
     }
 
-    // CORRECCIÓN: Actualizar el estado de la aceptación a 'confirmed_paid'
-    await client.query(`UPDATE publication_acceptances SET status = 'confirmed_paid' WHERE id = $1`, [acceptance_id]);
+    // Actualizar el estado de la aceptación a 'confirmed_paid' (solo si existe acceptance_id)
+    if (acceptance_id) {
+        await client.query(`UPDATE publication_acceptances SET status = 'confirmed_paid' WHERE id = $1`, [acceptance_id]);
+    }
 
     return { success: true, message: resultMessage };
 }
