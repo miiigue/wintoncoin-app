@@ -1905,13 +1905,14 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
             try {
                 await client.query('BEGIN');
 
-                // 1. FETCH SETTINGS FIRST to check preLaunchMode
+                // 1. OBTENER CONFIGURACIONES DE LA PLATAFORMA (incluyendo comisiones)
                 const settingsResult = await client.query(`
                     SELECT setting_key, setting_value 
                     FROM app_settings 
-                    WHERE setting_key = 'pre_launch_mode_enabled'
+                    WHERE setting_key IN ('pre_launch_mode_enabled', 'debt_cycle_days', 'debt_cycle_hours', 'debt_cycle_minutes', 'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes', 'platform_commission_percentage')
                 `);
-                const preLaunchMode = settingsResult.rows[0]?.setting_value === 'true';
+                const settings = settingsResult.rows.reduce((acc, row) => ({...acc, [row.setting_key]: row.setting_value }), {});
+                const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
 
                 // 2. FETCH ACCEPTANCE DATA
                 const acceptanceResult = await client.query(
@@ -1936,7 +1937,7 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                 switch (acceptance.category) {
                     case 'sell':
                     case 'donation':
-                        result = await processDirectPaymentCompletion(client, acceptance, pubId, preLaunchMode, {}); // settings no son necesarios aquí si ya están dentro
+                        result = await processDirectPaymentCompletion(client, acceptance, pubId, preLaunchMode, settings);
                         break;
                     case 'request':
                         result = await processRequestCompletion(client, acceptance);
