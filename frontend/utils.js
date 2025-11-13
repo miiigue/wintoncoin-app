@@ -319,10 +319,123 @@ async function initializeValueBanner() {
         bannerTextContainer.innerHTML = `<span class="shimmer-text">${bannerText}</span>`;
         banner.style.display = 'flex';
 
+        // Inicializar funcionalidad del tooltip
+        initializeValueTooltip();
+
     } catch (error) {
         console.error('Error al inicializar el banner de valor:', error);
         // Fallback unificado
         bannerTextContainer.innerHTML = `<span class="shimmer-text">$ VALOR ESTABLE: 1 BLUE = 1 USD</span>`;
         banner.style.display = 'flex';
+        
+        // Inicializar funcionalidad del tooltip incluso en caso de error
+        initializeValueTooltip();
     }
+}
+
+// --- Funcionalidad del Tooltip del Banner de Valor ---
+function initializeValueTooltip() {
+    const bannerText = document.getElementById('banner-text-container');
+    const tooltip = document.getElementById('value-tooltip');
+    
+    if (!bannerText || !tooltip) {
+        return;
+    }
+
+    // Detectar si es dispositivo táctil
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    
+    let tooltipTimeout = null;
+    let isTooltipVisible = false;
+
+    // Función para mostrar tooltip
+    function showTooltip() {
+        if (tooltipTimeout) {
+            clearTimeout(tooltipTimeout);
+        }
+        tooltip.setAttribute('aria-hidden', 'false');
+        tooltip.classList.add('show');
+        isTooltipVisible = true;
+    }
+
+    // Función para ocultar tooltip
+    function hideTooltip() {
+        tooltipTimeout = setTimeout(() => {
+            tooltip.setAttribute('aria-hidden', 'true');
+            tooltip.classList.remove('show');
+            isTooltipVisible = false;
+        }, 100); // Pequeño delay para permitir hover
+    }
+
+    // Función para toggle tooltip (para móviles)
+    function toggleTooltip() {
+        if (isTooltipVisible) {
+            hideTooltip();
+        } else {
+            showTooltip();
+        }
+    }
+
+    if (isTouchDevice) {
+        // Dispositivo táctil: usar click/tap
+        bannerText.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleTooltip();
+        });
+    } else {
+        // Desktop: usar hover - el tooltip permanece visible sobre el texto y sobre el tooltip mismo
+        bannerText.addEventListener('mouseenter', showTooltip);
+        bannerText.addEventListener('mouseleave', () => {
+            // No cerrar inmediatamente, esperar a ver si el mouse va al tooltip
+            tooltipTimeout = setTimeout(() => {
+                // Solo cerrar si el mouse no está sobre el tooltip
+                if (!tooltip.matches(':hover')) {
+                    hideTooltip();
+                }
+            }, 200);
+        });
+        bannerText.addEventListener('focus', showTooltip);
+        bannerText.addEventListener('blur', () => {
+            // Solo cerrar si no hay focus en el tooltip
+            if (!tooltip.contains(document.activeElement)) {
+                hideTooltip();
+            }
+        });
+        
+        // Mantener tooltip visible cuando el mouse está sobre él
+        tooltip.addEventListener('mouseenter', () => {
+            if (tooltipTimeout) {
+                clearTimeout(tooltipTimeout);
+            }
+            showTooltip();
+        });
+        
+        tooltip.addEventListener('mouseleave', hideTooltip);
+    }
+
+    // Cerrar tooltip al hacer click fuera (solo en móvil o cuando se hace click explícitamente fuera)
+    document.addEventListener('click', (e) => {
+        if (isTooltipVisible && !tooltip.contains(e.target) && !bannerText.contains(e.target)) {
+            hideTooltip();
+        }
+    });
+
+    // Manejar teclado: Enter para toggle, Escape para cerrar
+    bannerText.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleTooltip();
+        } else if (e.key === 'Escape' && isTooltipVisible) {
+            hideTooltip();
+            bannerText.blur();
+        }
+    });
+
+    // Cerrar tooltip al presionar Escape en cualquier parte
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && isTooltipVisible) {
+            hideTooltip();
+            bannerText.blur();
+        }
+    });
 } 

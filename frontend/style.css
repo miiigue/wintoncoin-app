@@ -2507,7 +2507,7 @@ input:checked + .slider:before {
     font-weight: 300; /* NUEVO: Fuente delgada y elegante */
     font-family: 'Montserrat', sans-serif; /* NUEVO: Fuente moderna y limpia */
     font-style: normal; /* CORRECCIÓN: Quitamos la cursiva */
-    position: relative;
+    position: relative; /* Necesario para posicionar el tooltip */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -2542,6 +2542,119 @@ input:checked + .slider:before {
     -webkit-text-fill-color: transparent;
     animation: aurora-enhanced 4s ease-in-out infinite;
     font-weight: 400; /* Un poco más de grosor para el efecto */
+}
+
+/* --- Texto Clickable del Banner de Valor --- */
+.banner-text-clickable {
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.2s ease;
+    display: inline-block;
+}
+
+.banner-text-clickable:hover {
+    opacity: 0.8;
+}
+
+.banner-text-clickable:focus {
+    outline: 2px solid rgba(255, 255, 255, 0.5);
+    outline-offset: 4px;
+    border-radius: 4px;
+}
+
+.banner-text-clickable:active {
+    opacity: 0.7;
+}
+
+/* --- Tooltip del Banner de Valor --- */
+.value-tooltip {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 12px 16px;
+    min-width: 280px;
+    max-width: 90vw;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+    margin-top: 8px;
+}
+
+.value-tooltip::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-bottom-color: #ffffff;
+}
+
+.value-tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 7px solid transparent;
+    border-bottom-color: #e0e0e0;
+    margin-bottom: -1px;
+}
+
+.value-tooltip.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
+}
+
+.value-tooltip p {
+    margin: 0 0 10px 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: #000000;
+    font-weight: 500;
+}
+
+.value-tooltip p strong {
+    color: #003d32;
+    font-weight: 700;
+}
+
+.value-tooltip .tooltip-link {
+    color: #00695c;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: inline-block;
+    transition: color 0.2s ease;
+}
+
+.value-tooltip .tooltip-link:hover {
+    color: #003d32;
+    text-decoration: underline;
+}
+
+/* Responsive: Ajustar tooltip en móviles */
+@media (max-width: 768px) {
+    .value-tooltip {
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%) translateY(8px);
+        min-width: calc(100vw - 32px);
+        max-width: 400px;
+    }
+    
+    .value-tooltip.show {
+        transform: translateX(-50%) translateY(0);
+    }
 }
 
 /* Estilos para el nuevo botón de WhatsApp */
