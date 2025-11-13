@@ -292,7 +292,7 @@ input[type="checkbox"] {
     padding: 1.5rem;
     border: 1px solid rgba(255, 255, 255, 0.1);
     position: relative;
-    overflow: hidden;
+    overflow: visible; /* Cambiado de hidden a visible para que los tooltips se muestren */
 }
 
 .balance-section::before {
@@ -2653,6 +2653,145 @@ input:checked + .slider:before {
     }
     
     .value-tooltip.show {
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* --- Estilos para Tooltips Informativos (Reutilizando estilo del banner) --- */
+.info-text-clickable {
+    cursor: pointer;
+    user-select: none;
+    transition: opacity 0.2s ease;
+    display: inline-block;
+    position: relative;
+}
+
+.info-text-clickable:hover {
+    opacity: 0.8;
+}
+
+.info-text-clickable:focus {
+    outline: 2px solid rgba(255, 255, 255, 0.5);
+    outline-offset: 4px;
+    border-radius: 4px;
+}
+
+.info-text-clickable:active {
+    opacity: 0.7;
+}
+
+/* Tooltip informativo genérico */
+.info-tooltip {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%) translateY(0);
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 12px 16px;
+    min-width: 280px;
+    max-width: 90vw;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+}
+
+.info-tooltip::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-bottom-color: #ffffff;
+}
+
+.info-tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 7px solid transparent;
+    border-bottom-color: #e0e0e0;
+    margin-bottom: -1px;
+}
+
+.info-tooltip.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateX(-50%) translateY(0);
+}
+
+.info-tooltip p {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: #000000;
+    font-weight: 500;
+}
+
+.info-tooltip p strong {
+    color: #003d32;
+    font-weight: 700;
+}
+
+/* Ajustes específicos para tooltips en diferentes posiciones */
+.balance-title {
+    position: relative;
+}
+
+.balance-title .info-tooltip {
+    top: 100%;
+    left: 50%;
+    margin-top: 8px;
+}
+
+.balance-label {
+    position: relative;
+}
+
+.balance-label .info-tooltip {
+    top: 100%;
+    left: 50%;
+    margin-top: 4px;
+}
+
+.countdown-container {
+    position: relative;
+}
+
+.countdown-text.info-text-clickable {
+    display: block;
+    width: 100%;
+}
+
+.countdown-container .info-tooltip {
+    top: 100%;
+    left: 50%;
+    margin-top: 4px;
+}
+
+.balance-item-wrapper {
+    position: relative;
+}
+
+/* Responsive: Ajustar tooltips informativos en móviles */
+@media (max-width: 768px) {
+    .info-tooltip {
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%) translateY(8px);
+        min-width: calc(100vw - 32px);
+        max-width: 400px;
+    }
+    
+    .info-tooltip.show {
         transform: translateX(-50%) translateY(0);
     }
 }
