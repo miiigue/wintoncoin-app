@@ -32,6 +32,8 @@ body {
     width: 100%;
     max-width: 450px;
     text-align: center;
+    position: relative; /* Necesario para posicionar la banda diagonal */
+    overflow: hidden; /* Ocultar partes que salen del contenedor */
 }
 
 .form-group-checkbox {
@@ -2793,6 +2795,148 @@ input:checked + .slider:before {
     
     .info-tooltip.show {
         transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* --- Banda Diagonal de Pre-lanzamiento --- */
+.pre-launch-ribbon {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 150px;
+    height: 150px;
+    overflow: hidden;
+    z-index: 999;
+    pointer-events: none;
+    clip-path: polygon(0 0, 150px 0, 0 150px);
+}
+
+/* Banda diagonal principal */
+.pre-launch-ribbon::before {
+    content: '';
+    position: absolute;
+    top: 25px;
+    left: -45px;
+    width: 180px;
+    height: 32px;
+    background: linear-gradient(
+        135deg,
+        rgba(106, 90, 205, 0.5) 0%,
+        rgba(106, 90, 205, 0.65) 50%,
+        rgba(106, 90, 205, 0.5) 100%
+    );
+    backdrop-filter: blur(10px) saturate(180%);
+    -webkit-backdrop-filter: blur(10px) saturate(180%);
+    transform: rotate(-45deg);
+    transform-origin: center;
+    box-shadow: 
+        0 2px 8px rgba(0, 0, 0, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.25);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Efecto de doblez/sombra en la esquina para efecto enrollado */
+.pre-launch-ribbon::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(
+        135deg,
+        rgba(106, 90, 205, 0.4) 0%,
+        rgba(106, 90, 205, 0.25) 50%,
+        transparent 100%
+    );
+    clip-path: polygon(0 0, 50px 0, 0 50px);
+    z-index: 1;
+    box-shadow: 
+        inset 2px 2px 4px rgba(0, 0, 0, 0.2),
+        0 0 10px rgba(106, 90, 205, 0.3);
+}
+
+.pre-launch-text {
+    position: absolute;
+    top: 25px;
+    left: -45px;
+    width: 180px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 0.7rem;
+    font-weight: 600;
+    font-family: 'Poppins', sans-serif;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    text-shadow: 
+        0 1px 3px rgba(0, 0, 0, 0.6),
+        0 0 8px rgba(106, 90, 205, 0.5);
+    transform: rotate(-45deg);
+    transform-origin: center;
+    z-index: 2;
+    line-height: 1;
+}
+
+/* Responsive: Ajustar banda en móviles */
+@media (max-width: 768px) {
+    .pre-launch-ribbon {
+        width: 130px;
+        height: 130px;
+    }
+    
+    .pre-launch-ribbon::before {
+        top: 22px;
+        left: -40px;
+        width: 160px;
+        height: 30px;
+    }
+    
+    .pre-launch-ribbon::after {
+        width: 45px;
+        height: 45px;
+    }
+    
+    .pre-launch-text {
+        top: 22px;
+        left: -40px;
+        width: 160px;
+        height: 30px;
+        font-size: 0.65rem;
+        letter-spacing: 1px;
+    }
+}
+
+/* Ajuste para pantallas muy pequeñas */
+@media (max-width: 480px) {
+    .pre-launch-ribbon {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .pre-launch-ribbon::before {
+        top: 20px;
+        left: -38px;
+        width: 150px;
+        height: 28px;
+    }
+    
+    .pre-launch-ribbon::after {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .pre-launch-text {
+        top: 20px;
+        left: -38px;
+        width: 150px;
+        height: 28px;
+        font-size: 0.6rem;
+        letter-spacing: 0.8px;
     }
 }
 
