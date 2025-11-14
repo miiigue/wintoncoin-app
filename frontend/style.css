@@ -2835,6 +2835,34 @@ input:checked + .slider:before {
         inset 0 -1px 0 rgba(0, 0, 0, 0.1);
     border-top: 1px solid rgba(255, 255, 255, 0.25);
     border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    overflow: hidden;
+}
+
+/* Efecto de brillo animado que recorre la banda */
+.ribbon-shine-overlay {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.25),
+        transparent
+    );
+    animation: ribbon-shine 3s ease-in-out infinite;
+    z-index: 1;
+    pointer-events: none;
+}
+
+@keyframes ribbon-shine {
+    0% {
+        left: -100%;
+    }
+    50%, 100% {
+        left: 100%;
+    }
 }
 
 /* Efecto de doblez/sombra en la esquina para efecto enrollado */
@@ -2880,6 +2908,13 @@ input:checked + .slider:before {
     transform-origin: center;
     z-index: 2;
     line-height: 1;
+    overflow: hidden;
+}
+
+/* Asegurar que el texto esté por encima del overlay de brillo */
+.ribbon-text-content {
+    position: relative;
+    z-index: 2;
 }
 
 /* Responsive: Ajustar banda en móviles */
