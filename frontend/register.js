@@ -109,9 +109,62 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
 
+    // --- Lógica para el modal de código de referido ---
+    const referralModal = document.getElementById('referralCodeModal');
+    const referralCloseButtons = document.querySelectorAll('.referral-close-button');
+    const getReferralCodeBtn = document.getElementById('getReferralCodeBtn');
+    let policyModalTimeout = null;
+
+    const showReferralModal = () => {
+        if (referralModal && sessionStorage.getItem('referralModalShown') !== 'true') {
+            referralModal.style.display = 'flex';
+            sessionStorage.setItem('referralModalShown', 'true');
+        }
+    };
+
+    const closeReferralModal = () => {
+        if (referralModal) {
+            referralModal.style.display = 'none';
+            // Después de cerrar el modal de código, esperar 10 segundos antes de mostrar el de política
+            if (policyModalTimeout) {
+                clearTimeout(policyModalTimeout);
+            }
+            policyModalTimeout = setTimeout(() => {
+                showPolicyModal();
+            }, 10000); // 10 segundos de delay
+        }
+    };
+
+    // Botón "Conseguir Código" - abre www.wintoncoin.com en nueva pestaña y cierra el modal
+    if (getReferralCodeBtn) {
+        getReferralCodeBtn.addEventListener('click', () => {
+            window.open('https://www.wintoncoin.com', '_blank', 'noopener,noreferrer');
+            closeReferralModal();
+        });
+    }
+
+    // Cerrar modal con botones de cerrar
+    referralCloseButtons.forEach(button => button.addEventListener('click', closeReferralModal));
+    
+    // Cerrar modal al hacer clic fuera del contenido
+    if (referralModal) {
+        window.addEventListener('click', (event) => {
+            if (event.target === referralModal) {
+                closeReferralModal();
+            }
+        });
+    }
+
+    // Cerrar modal con tecla ESC
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && referralModal && referralModal.style.display === 'flex') {
+            closeReferralModal();
+        }
+    });
+
     // --- Lógica para el modal de advertencia de cuenta única ---
     const policyModal = document.getElementById('oneAccountPolicyModal');
-    const closeButtons = document.querySelectorAll('.policy-close-button');
+    const policyCloseButtons = document.querySelectorAll('.policy-close-button');
 
     const showPolicyModal = () => {
         if (policyModal && sessionStorage.getItem('policyModalShown') !== 'true') {
@@ -123,14 +176,49 @@ document.addEventListener('DOMContentLoaded', async function() {
     const closePolicyModal = () => {
         if (policyModal) {
             policyModal.style.display = 'none';
+            // Cancelar el timeout si existe (por si el usuario cierra el modal antes de que aparezca)
+            if (policyModalTimeout) {
+                clearTimeout(policyModalTimeout);
+                policyModalTimeout = null;
+            }
         }
     };
 
-    showPolicyModal();
-    closeButtons.forEach(button => button.addEventListener('click', closePolicyModal));
+    policyCloseButtons.forEach(button => button.addEventListener('click', closePolicyModal));
     window.addEventListener('click', (event) => {
         if (event.target === policyModal) closePolicyModal();
     });
+
+    // --- Lógica para decidir qué modal mostrar al cargar la página ---
+    // Verificar si hay código de referido en la URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCodeFromUrl = urlParams.get('ref');
+
+    // Auto-rellenar el campo de código de referido si viene en la URL
+    const referralCodeInput = document.getElementById('referral_code');
+    if (refCodeFromUrl && referralCodeInput) {
+        referralCodeInput.value = refCodeFromUrl.trim().toUpperCase();
+    }
+
+    // Si NO hay código en la URL, mostrar el modal de código de referido
+    // Si SÍ hay código, mostrar solo el modal de política
+    if (!refCodeFromUrl) {
+        // No hay código → verificar si ya vio el modal de código
+        const referralModalShown = sessionStorage.getItem('referralModalShown') === 'true';
+        const policyModalShown = sessionStorage.getItem('policyModalShown') === 'true';
+        
+        if (!referralModalShown) {
+            // No ha visto el modal de código → mostrarlo primero
+            showReferralModal();
+        } else if (!policyModalShown) {
+            // Ya vio el modal de código pero no el de política → mostrar política inmediatamente
+            showPolicyModal();
+        }
+        // Si ya vio ambos modales, no mostrar nada
+    } else {
+        // Hay código → mostrar solo modal de política (sin delay)
+        showPolicyModal();
+    }
 
     // --- Lógica para mostrar/ocultar campos de menor según fecha de nacimiento ---
     const dateOfBirthInput = document.getElementById('date_of_birth');
@@ -161,15 +249,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
 
         dateOfBirthInput.addEventListener('change', checkAgeAndShowMinorFields);
-    }
-
-    // --- Lógica para auto-rellenar el código de referido desde la URL ---
-    const referralCodeInput = document.getElementById('referral_code');
-    const urlParams = new URLSearchParams(window.location.search);
-    const refCodeFromUrl = urlParams.get('ref');
-
-    if (refCodeFromUrl && referralCodeInput) {
-        referralCodeInput.value = refCodeFromUrl.trim().toUpperCase();
     }
 
     // --- Lógica para deshabilitar si los registros están cerrados ---

@@ -2411,7 +2411,75 @@ input:checked + .slider:before {
 
 .policy-modal .modal-content h3 {
     margin-top: 0;
-    color: #333;
+    color: var(--text-color);
+    font-weight: 600;
+    font-size: 1.3rem;
+}
+
+.policy-modal .modal-content p {
+    color: var(--text-secondary-color);
+    line-height: 1.6;
+}
+
+/* Estilos para el modal de código de referido */
+.referral-modal .modal-content h3 {
+    margin-top: 0;
+    color: var(--text-color);
+    font-weight: 600;
+    font-size: 1.3rem;
+}
+
+.referral-modal .modal-content p {
+    color: var(--text-secondary-color);
+    line-height: 1.6;
+}
+
+.referral-modal .modal-content a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.referral-modal .modal-content a:hover {
+    color: #8b7dd8;
+    text-decoration: underline;
+}
+
+.referral-modal .modal-content p {
+    margin: 1rem 0;
+}
+
+.referral-modal .modal-content p:has(a) {
+    text-align: center;
+}
+
+.referral-modal .modal-content .action-button {
+    flex: 1;
+    min-width: 150px;
+}
+
+.referral-modal .modal-content > div:last-child {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+#getReferralCodeBtn {
+    background-color: #28a745;
+}
+
+#getReferralCodeBtn:hover {
+    background-color: #218838;
+}
+
+.referral-modal .referral-close-button {
+    background-color: #6c757d;
+}
+
+.referral-modal .referral-close-button:hover {
+    background-color: #5a6268;
 }
 
 /* --- Estilos para el Modal de Advertencia de Donación (NUEVO) --- */
