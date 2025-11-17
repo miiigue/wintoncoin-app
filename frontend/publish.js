@@ -27,6 +27,80 @@ document.addEventListener('DOMContentLoaded', () => {
     const donationWarningModal = document.getElementById('donationWarningModal');
     const donationModalActions = document.querySelector('#donationWarningModal .modal-actions');
     const donationWarningCloseButton = document.querySelector('.donation-warning-close');
+    
+    // --- NUEVO: Modal para Solicitar Tutor (Menores de Edad) ---
+    const tutorModal = document.getElementById('tutorRequiredModal');
+    const tutorForm = document.getElementById('addTutorForm');
+    const tutorCloseButtons = document.querySelectorAll('.tutor-modal-close');
+    
+    function showTutorRequiredModal() {
+        if (tutorModal) {
+            tutorModal.style.display = 'flex';
+        }
+    }
+    
+    function closeTutorModal() {
+        if (tutorModal) {
+            tutorModal.style.display = 'none';
+            if (tutorForm) tutorForm.reset();
+        }
+    }
+    
+    tutorCloseButtons.forEach(button => {
+        button.addEventListener('click', closeTutorModal);
+    });
+    
+    if (tutorModal) {
+        window.addEventListener('click', (event) => {
+            if (event.target === tutorModal) closeTutorModal();
+        });
+    }
+    
+    // Manejar envío del formulario de tutor
+    if (tutorForm) {
+        tutorForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            
+            const tutorUsernameOrEmail = document.getElementById('tutorUsernameOrEmail').value;
+            const username = localStorage.getItem('username');
+            
+            if (!username) {
+                showCustomAlert('Error: No se pudo obtener tu nombre de usuario. Por favor, inicia sesión nuevamente.');
+                return;
+            }
+            
+            if (!tutorUsernameOrEmail) {
+                showCustomAlert('Por favor, ingresa el usuario o email del tutor.');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/minor/add-tutor`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        minorUsername: username,
+                        tutorUsernameOrEmail: tutorUsernameOrEmail.trim()
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showCustomAlert(result.message || 'Tutor agregado exitosamente. Ahora puedes realizar transacciones.', () => {
+                        closeTutorModal();
+                        // Recargar la página para actualizar el estado
+                        window.location.reload();
+                    });
+                } else {
+                    showCustomAlert(result.message || 'Error al agregar tutor. Por favor, verifica que el tutor tenga una cuenta activa.');
+                }
+            } catch (error) {
+                console.error('Error al agregar tutor:', error);
+                showCustomAlert('No se pudo conectar con el servidor. Inténtalo de nuevo.');
+            }
+        });
+    }
 
 
     // --- Redirección y Seguridad ---
@@ -259,7 +333,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.location.href = 'contract_interaction.html';
                 });
             } else {
-                showCustomAlert(result.message || 'Ocurrió un error al crear la publicación.');
+                // Verificar si requiere tutor
+                if (result.requires_tutor && result.is_minor) {
+                    showTutorRequiredModal();
+                } else {
+                    showCustomAlert(result.message || 'Ocurrió un error al crear la publicación.');
+                }
             }
 
         } catch (error) {

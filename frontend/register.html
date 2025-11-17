@@ -84,21 +84,53 @@
                     <label for="referral_code">Código de Referido (Opcional):</label>
                     <input type="text" id="referral_code" name="referral_code" placeholder="Ej: JUAN-A1B2C3D4">
                 </div>
+                <div>
+                    <label for="date_of_birth">Fecha de Nacimiento:</label>
+                    <input type="date" id="date_of_birth" name="date_of_birth" required>
+                    <small style="display: block; color: #666; font-size: 0.85em; margin-top: 5px;">
+                        Debes tener al menos 13 años para registrarte. Los menores de 13 años no pueden utilizar la plataforma.
+                    </small>
+                </div>
+                
+                <!-- Campos condicionales para menores (se muestran si es menor de 18) -->
+                <div id="minor-fields" style="display: none; margin-top: 15px; padding: 15px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 5px;">
+                    <h4 style="margin-top: 0; color: #856404;">Información para Menores de Edad</h4>
+                    <p style="font-size: 0.9em; color: #856404; margin-bottom: 10px;">
+                        Por ser menor de edad, puedes registrarte y recibir bonos, pero necesitarás la autorización de un tutor (padre, madre o tutor legal) para realizar transacciones que generen obligaciones financieras.
+                    </p>
+                    <p style="font-size: 0.85em; color: #856404; font-style: italic;">
+                        El tutor se solicitará cuando intentes crear publicaciones, realizar transferencias o aceptar trabajos. Por ahora, puedes continuar con el registro normalmente.
+                    </p>
+                </div>
                 
                 <!-- Condiciones para el Registro -->
                 <div class="agreements">
                     <h3>Condiciones para el Registro</h3>
+                    <p style="font-size: 0.85em; color: #666; margin-bottom: 15px;">Al registrarte, aceptas los siguientes términos. Por favor, lee cuidadosamente cada punto antes de continuar.</p>
+                    
                     <div class="agreement-item">
                         <input type="checkbox" id="terms-general" name="terms-general" required>
-                        <label for="terms-general">Acepto los <a href="/terms.html" target="_blank">Términos y Condiciones</a> y la <a href="/privacy.html" target="_blank">Política de Privacidad</a>.</label>
+                        <label for="terms-general">He leído y acepto los <a href="terms.html" target="_blank">Términos y Condiciones</a> de WintonCoin.</label>
                     </div>
+                    
+                    <div class="agreement-item">
+                        <input type="checkbox" id="terms-pre-launch" name="terms-pre-launch" required>
+                        <label for="terms-pre-launch">Acepto que las recompensas en pre-lanzamiento se acumulan en mi Perfil de Impulsor y serán pagadas post-lanzamiento según el <a href="https://boosters.wintoncoin.com/" target="_blank" rel="noopener noreferrer">programa de impulsores</a>.</label>
+                    </div>
+                    
                     <div class="agreement-item">
                         <input type="checkbox" id="terms-economic" name="terms-economic" required>
-                        <label for="terms-economic">Entiendo que WintonCoin es un sistema con valor económico real y acepto la responsabilidad de mis compromisos.</label>
+                        <label for="terms-economic">Comprendo que WintonCoin es un sistema económico donde los tokens BLUE (activo) y RED (deuda) se crean al realizar pagos, y acepto la responsabilidad total de mis compromisos y obligaciones de pago.</label>
                     </div>
+                    
                     <div class="agreement-item">
-                        <input type="checkbox" id="terms-public-debt" name="terms-public-debt" required>
-                        <label for="terms-public-debt">He sido informado y acepto que, en caso de deuda vencida, mi <strong>nombre de usuario</strong> será publicado en un registro público, según se detalla en los Términos.</label>
+                        <input type="checkbox" id="terms-debt" name="terms-debt" required>
+                        <label for="terms-debt">Acepto que las deudas RED vencen y, si no las saldo, el sistema las quemará con mis tokens BLUE. Mi <strong>nombre de usuario</strong> será publicado en la Lista de Obligaciones Vencidas (LOVE) si no tengo suficientes BLUE.</label>
+                    </div>
+                    
+                    <div class="agreement-item">
+                        <input type="checkbox" id="terms-risk" name="terms-risk" required>
+                        <label for="terms-risk">Reconozco los riesgos asociados con el uso de la plataforma y entiendo que las transacciones se realizan bajo mi propio riesgo. Durante el pre-lanzamiento, los tokens no tienen valor monetario real.</label>
                     </div>
                 </div>
 

@@ -364,6 +364,34 @@ async function applyMigrations(client) {
                      ALTER TABLE users ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'active';
                  END IF;
              END $$;`,
+            // MIGRACIÓN 34: Añadir campos para sistema de menores y tutores
+            `DO $$
+             BEGIN
+                 -- Agregar date_of_birth a users si no existe
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='date_of_birth') THEN
+                     ALTER TABLE users ADD COLUMN date_of_birth DATE;
+                 END IF;
+                 -- Agregar is_minor a users si no existe
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_minor') THEN
+                     ALTER TABLE users ADD COLUMN is_minor BOOLEAN DEFAULT FALSE;
+                 END IF;
+                 -- Agregar tutor_user_id a users si no existe
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='tutor_user_id') THEN
+                     ALTER TABLE users ADD COLUMN tutor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
+                 END IF;
+                 -- Agregar account_status a users si no existe (diferente de status que es para moderación)
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='account_status') THEN
+                     ALTER TABLE users ADD COLUMN account_status VARCHAR(50) DEFAULT 'active';
+                 END IF;
+                 -- Agregar date_of_birth a pending_verifications si no existe
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='pending_verifications' AND column_name='date_of_birth') THEN
+                     ALTER TABLE pending_verifications ADD COLUMN date_of_birth DATE;
+                 END IF;
+                 -- Agregar is_minor a pending_verifications si no existe
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='pending_verifications' AND column_name='is_minor') THEN
+                     ALTER TABLE pending_verifications ADD COLUMN is_minor BOOLEAN DEFAULT FALSE;
+                 END IF;
+             END $$;`,
             // MIGRACIÓN 30: Añadir columna user_id a red_token_debts y actualizar registros existentes
             `DO $$
              BEGIN
@@ -414,7 +442,9 @@ async function applyMigrations(client) {
                 phone_number VARCHAR(50) UNIQUE NOT NULL,
                 verification_code VARCHAR(10) NOT NULL,
                 expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-                referral_code VARCHAR(255)
+                referral_code VARCHAR(255),
+                date_of_birth DATE,
+                is_minor BOOLEAN DEFAULT FALSE
             );
         `,
         `
@@ -1044,15 +1074,35 @@ async function startServer() {
         // ==  NUEVO FLUJO DE REGISTRO CON VERIFICACIÓN POR SMS (FASE 1: SOLICITUD)  ==
         // =================================================================================
         app.post('/api/register-request', async (req, res) => {
-            const { username, email, password, phone } = req.body;
+            const { username, email, password, phone, date_of_birth } = req.body;
 
             // --- 1. Validación de Entrada ---
-            if (!username || !email || !password || !phone) {
-                return res.status(400).json({ message: "Todos los campos son requeridos: usuario, contraseña, correo y teléfono." });
+            if (!username || !email || !password || !phone || !date_of_birth) {
+                return res.status(400).json({ message: "Todos los campos son requeridos: usuario, contraseña, correo, teléfono y fecha de nacimiento." });
             }
             if (!/^\S+@\S+\.\S+$/.test(email)) {
                 return res.status(400).json({ message: "El formato del correo electrónico no es válido." });
             }
+            
+            // Validar fecha de nacimiento y calcular edad
+            const birthDate = new Date(date_of_birth);
+            if (isNaN(birthDate.getTime())) {
+                return res.status(400).json({ message: "La fecha de nacimiento no es válida." });
+            }
+            
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+            
+            // Validar edad mínima
+            if (age < 13) {
+                return res.status(400).json({ message: "Debes tener al menos 13 años para registrarte. Los menores de 13 años no pueden utilizar la plataforma." });
+            }
+            
+            const isMinor = age >= 13 && age < 18;
             // Puedes añadir una validación más robusta para el número de teléfono aquí si lo deseas
             
             const client = await pool.connect();
@@ -1079,9 +1129,9 @@ async function startServer() {
                 // --- 4. Encriptar Contraseña y Guardar en Pendientes ---
                 const passwordHash = await bcrypt.hash(password, saltRounds);
                 await client.query(
-                    `INSERT INTO pending_verifications (username, email, password_hash, phone_number, referral_code, verification_code, expires_at)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                    [username, email, passwordHash, phone, null, verificationCode, expiresAt]
+                    `INSERT INTO pending_verifications (username, email, password_hash, phone_number, referral_code, verification_code, expires_at, date_of_birth, is_minor)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                    [username, email, passwordHash, phone, null, verificationCode, expiresAt, date_of_birth, isMinor]
                 );
 
                 // --- 5. Enviar el SMS usando Twilio ---
@@ -1148,15 +1198,33 @@ async function startServer() {
 
                 // --- 2. Mover el usuario de "pendientes" a la tabla "users" ---
                 const newReferralCode = await generateUniqueReferralCode(client, pendingUser.username);
+                
+                // Calcular edad y determinar si es menor
+                const birthDate = pendingUser.date_of_birth ? new Date(pendingUser.date_of_birth) : null;
+                let isMinor = false;
+                if (birthDate) {
+                    const today = new Date();
+                    let age = today.getFullYear() - birthDate.getFullYear();
+                    const monthDiff = today.getMonth() - birthDate.getMonth();
+                    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                        age--;
+                    }
+                    isMinor = age >= 13 && age < 18;
+                }
+                
                 // La lógica de referidos se aplicará a continuación
-                const newUserSql = `INSERT INTO users (username, password_hash, email, phone_number, referral_code) 
-                                  VALUES ($1, $2, $3, $4, $5) RETURNING *`;
+                const newUserSql = `INSERT INTO users (username, password_hash, email, phone_number, referral_code, date_of_birth, is_minor, account_status) 
+                                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`;
+                const accountStatus = isMinor ? 'pending_tutor' : 'active';
                 const newUserResult = await client.query(newUserSql, [
                     pendingUser.username,
                     pendingUser.password_hash,
                     pendingUser.email,
                     pendingUser.phone_number,
-                    newReferralCode
+                    newReferralCode,
+                    pendingUser.date_of_birth || null,
+                    isMinor,
+                    accountStatus
                 ]);
                 const newUser = newUserResult.rows[0];
 
@@ -1396,6 +1464,104 @@ app.post('/api/auth/resend-code', async (req, res) => {
     }
 });
 
+// NUEVO: Endpoint para agregar tutor a cuenta de menor
+app.post('/api/minor/add-tutor', async (req, res) => {
+    const { minorUsername, tutorUsernameOrEmail } = req.body;
+    
+    if (!minorUsername || !tutorUsernameOrEmail) {
+        return res.status(400).json({ message: "Se requiere el nombre de usuario del menor y el usuario o email del tutor." });
+    }
+    
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        
+        // 1. Verificar que el menor existe y es realmente menor
+        const minorResult = await client.query(
+            `SELECT id, username, is_minor, tutor_user_id, account_status FROM users WHERE username = $1`,
+            [minorUsername]
+        );
+        
+        if (minorResult.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: "Usuario menor no encontrado." });
+        }
+        
+        const minor = minorResult.rows[0];
+        
+        if (!minor.is_minor) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: "Este usuario no es menor de edad." });
+        }
+        
+        if (minor.tutor_user_id) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: "Este usuario ya tiene un tutor asignado." });
+        }
+        
+        // 2. Buscar el tutor por username o email
+        const tutorResult = await client.query(
+            `SELECT id, username, email FROM users WHERE username = $1 OR email = $2`,
+            [tutorUsernameOrEmail, tutorUsernameOrEmail]
+        );
+        
+        if (tutorResult.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: "Tutor no encontrado. El tutor debe tener una cuenta activa en WintonCoin." });
+        }
+        
+        const tutor = tutorResult.rows[0];
+        
+        // 3. Verificar que el tutor no es el mismo que el menor
+        if (tutor.id === minor.id) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: "No puedes ser tu propio tutor." });
+        }
+        
+        // 4. Verificar que el tutor no es menor
+        const tutorIsMinorResult = await client.query(
+            `SELECT is_minor FROM users WHERE id = $1`,
+            [tutor.id]
+        );
+        
+        if (tutorIsMinorResult.rows[0].is_minor) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: "El tutor no puede ser menor de edad." });
+        }
+        
+        // 5. Asignar tutor al menor
+        await client.query(
+            `UPDATE users SET tutor_user_id = $1, account_status = 'active' WHERE id = $2`,
+            [tutor.id, minor.id]
+        );
+        
+        // 6. Crear notificación para el tutor
+        await client.query(
+            `INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`,
+            [tutor.username, `Has sido asignado como tutor responsable de la cuenta de ${minor.username}. Serás responsable de todas las obligaciones financieras generadas por esta cuenta.`]
+        );
+        
+        // 7. Crear notificación para el menor
+        await client.query(
+            `INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`,
+            [minor.username, `Tu cuenta ha sido activada con ${tutor.username} como tutor responsable. Ahora puedes realizar transacciones en la plataforma.`]
+        );
+        
+        await client.query('COMMIT');
+        res.status(200).json({ 
+            message: `Tutor agregado exitosamente. ${tutor.username} es ahora responsable de tu cuenta.`,
+            tutor_username: tutor.username
+        });
+        
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error al agregar tutor:', error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    } finally {
+        client.release();
+    }
+});
+
 // Ruta para crear una nueva Publicación
         app.post('/publish', async (req, res) => {
             const { 
@@ -1445,11 +1611,22 @@ app.post('/api/auth/resend-code', async (req, res) => {
                     throw { status: 400, message: "La cantidad de cupos disponibles debe ser mayor a 0." };
             }
         
-                const userResult = await client.query(`SELECT id FROM users WHERE username = $1`, [authorUsername]);
+                const userResult = await client.query(`SELECT id, is_minor, tutor_user_id, account_status FROM users WHERE username = $1`, [authorUsername]);
                 if (userResult.rowCount === 0) {
                     throw { status: 404, message: "El autor de la publicación no existe." };
                 }
-                const authorId = userResult.rows[0].id;
+                const author = userResult.rows[0];
+                const authorId = author.id;
+                
+                // Verificar si es menor sin tutor
+                if (author.is_minor && (!author.tutor_user_id || author.account_status === 'pending_tutor')) {
+                    await client.query('ROLLBACK');
+                    return res.status(403).json({ 
+                        message: "Por ser menor de edad, necesitas la autorización de un tutor para crear publicaciones. Por favor, agrega un tutor a tu cuenta primero.",
+                        requires_tutor: true,
+                        is_minor: true
+                    });
+                }
 
                 // --- NUEVO: Lógica para calcular la fecha de expiración ---
                 let expiresAt = null;
@@ -1686,6 +1863,29 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
         }
         const publication = pubResult.rows[0];
 
+        // Verificar si el comprador es menor sin tutor
+        const buyerResult = await client.query(
+            `SELECT id, is_minor, tutor_user_id, account_status FROM users WHERE username = $1`,
+            [buyerUsername]
+        );
+        
+        if (buyerResult.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: "Usuario comprador no encontrado." });
+        }
+        
+        const buyer = buyerResult.rows[0];
+        
+        // Verificar si es menor sin tutor (las ventas rápidas generan deuda RED)
+        if (buyer.is_minor && (!buyer.tutor_user_id || buyer.account_status === 'pending_tutor')) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ 
+                message: "Por ser menor de edad, necesitas la autorización de un tutor para realizar pagos que generen deuda RED. Por favor, agrega un tutor a tu cuenta primero.",
+                requires_tutor: true,
+                is_minor: true
+            });
+        }
+        
         // --- INICIO DE LAS VALIDACIONES DE PAGO CRÍTICAS ---
         
         // a. ¿Es realmente una Venta Rápida?
@@ -1775,6 +1975,20 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
             try {
                 await client.query('BEGIN');
                 
+                // Verificar si el aceptante es menor sin tutor (solo para publicaciones que generan deuda)
+                const acceptorResult = await client.query(
+                    `SELECT id, is_minor, tutor_user_id, account_status FROM users WHERE username = $1`,
+                    [acceptorUsername]
+                );
+                
+                if (acceptorResult.rowCount === 0) {
+                    await client.query('ROLLBACK');
+                    return res.status(404).json({ message: "Usuario no encontrado." });
+                }
+                
+                const acceptor = acceptorResult.rows[0];
+                
+                // Verificar publicación para determinar si genera deuda
                 const pubResult = await client.query(`SELECT p.*, u.username as author_username FROM publications p JOIN users u ON p.author_id = u.id WHERE p.id = $1 FOR UPDATE`, [id]);
                 const pub = pubResult.rows[0];
 
@@ -1786,6 +2000,17 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                 }
                 if (pub.available_slots <= 0) {
                     throw { status: 400, message: "Lo sentimos, ya no quedan cupos disponibles." };
+                }
+                
+                // Si es una publicación de tipo 'sell' o 'donation', el aceptante pagará (genera deuda)
+                // Si es 'request', el autor pagará (no genera deuda para el aceptante)
+                if ((pub.category === 'sell' || pub.category === 'donation') && acceptor.is_minor && (!acceptor.tutor_user_id || acceptor.account_status === 'pending_tutor')) {
+                    await client.query('ROLLBACK');
+                    return res.status(403).json({ 
+                        message: "Por ser menor de edad, necesitas la autorización de un tutor para aceptar publicaciones que generen deuda RED. Por favor, agrega un tutor a tu cuenta primero.",
+                        requires_tutor: true,
+                        is_minor: true
+                    });
                 }
 
                 await client.query(`UPDATE publications SET available_slots = available_slots - 1 WHERE id = $1`, [id]);
@@ -3993,6 +4218,50 @@ app.get('/api/platform-settings', async (req, res) => {
 // ===================================================================================
 
 /**
+ * Helper para determinar el usuario responsable de la deuda RED
+ * Si es menor, la deuda se asigna al tutor; si no, al usuario mismo
+ */
+async function getDebtResponsibleUser(client, username) {
+    const userResult = await client.query(
+        `SELECT id, username, is_minor, tutor_user_id FROM users WHERE username = $1`,
+        [username]
+    );
+    
+    if (userResult.rowCount === 0) {
+        throw new Error(`Usuario no encontrado: ${username}`);
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Si es menor y tiene tutor, la deuda es del tutor
+    if (user.is_minor && user.tutor_user_id) {
+        const tutorResult = await client.query(
+            `SELECT id, username FROM users WHERE id = $1`,
+            [user.tutor_user_id]
+        );
+        
+        if (tutorResult.rowCount === 0) {
+            throw new Error(`Tutor no encontrado para el menor: ${username}`);
+        }
+        
+        return {
+            user_id: tutorResult.rows[0].id,
+            username: tutorResult.rows[0].username,
+            is_tutor: true,
+            minor_username: username
+        };
+    }
+    
+    // Si no es menor o no tiene tutor, la deuda es del usuario mismo
+    return {
+        user_id: user.id,
+        username: user.username,
+        is_tutor: false,
+        minor_username: null
+    };
+}
+
+/**
  * Procesa la finalización de una publicación de tipo 'solicitud'.
  * Solo actualiza el estado a 'completed' y notifica al autor.
  */
@@ -4030,15 +4299,20 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         const commissionAmount = cost * (commissionPercentage / 100);
         const redForAuthor = cost + commissionAmount;
 
-        // Obtener el user_id del autor para insertarlo en red_token_debts
-        const authorResult = await client.query('SELECT id FROM users WHERE username = $1', [author]);
-        if (!authorResult.rows.length) {
-            throw new Error(`Usuario no encontrado: ${author}`);
+        // Determinar quién es responsable de la deuda (tutor si es menor)
+        const debtResponsible = await getDebtResponsibleUser(client, author);
+        
+        // Actualizar saldo RED del responsable (tutor si es menor, autor si no)
+        await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE id = $2`, [redForAuthor, debtResponsible.user_id]);
+        await client.query(`INSERT INTO red_token_debts (user_id, username, amount, due_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${debtInterval}')`, [debtResponsible.user_id, debtResponsible.username, redForAuthor]);
+        
+        // Si la deuda es del tutor (menor con tutor), notificar al tutor
+        if (debtResponsible.is_tutor) {
+            await client.query(
+                `INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`,
+                [debtResponsible.username, `Se ha generado una deuda RED de ${redForAuthor.toFixed(4)} asociada a la cuenta del menor ${debtResponsible.minor_username} por la tarea "${acceptance.title}". Tú eres responsable de esta deuda como tutor.`]
+            );
         }
-        const authorId = authorResult.rows[0].id;
-
-        await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE username = $2`, [redForAuthor, author]);
-        await client.query(`INSERT INTO red_token_debts (user_id, username, amount, due_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${debtInterval}')`, [authorId, author, redForAuthor]);
         
         // Obtener el user_id del trabajador para insertarlo en blue_token_escrows
         const workerResult = await client.query('SELECT id FROM users WHERE username = $1', [workerUsername]);
@@ -4064,7 +4338,7 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         
         await client.query(`INSERT INTO platform_wallet (id, total_blue_commission_balance) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET total_blue_commission_balance = platform_wallet.total_blue_commission_balance + $1`, [commissionAmount]);
         
-        const authorTxResult = await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id, platform_fee_blue) VALUES ($1, 'payment_sent', $2, 0, $3, $4, $5) RETURNING id`, [authorId, `Pagaste por: "${title}"`, redForAuthor, pubId, commissionAmount]);
+        const authorTxResult = await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id, platform_fee_blue) VALUES ($1, 'payment_sent', $2, 0, $3, $4, $5) RETURNING id`, [debtResponsible.user_id, `Pagaste por: "${title}"${debtResponsible.is_tutor ? ` (como tutor de ${debtResponsible.minor_username})` : ''}`, redForAuthor, pubId, commissionAmount]);
         const authorTxId = authorTxResult.rows[0].id;
         await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'payment_received', $2, $3, 0, $4)`, [workerId, `Realizaste: "${title}"`, cost, pubId]);
         
@@ -4127,15 +4401,20 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         const commissionAmount = cost * (commissionPercentage / 100);
         const redForPayer = cost + commissionAmount;
 
-        // Obtener el user_id del pagador para insertarlo en red_token_debts
-        const payerResult = await client.query('SELECT id FROM users WHERE username = $1', [payer]);
-        if (!payerResult.rows.length) {
-            throw new Error(`Usuario no encontrado: ${payer}`);
+        // Determinar quién es responsable de la deuda (tutor si es menor)
+        const debtResponsible = await getDebtResponsibleUser(client, payer);
+        
+        // Actualizar saldo RED del responsable (tutor si es menor, pagador si no)
+        await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE id = $2`, [redForPayer, debtResponsible.user_id]);
+        await client.query(`INSERT INTO red_token_debts (user_id, username, amount, due_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${debtInterval}')`, [debtResponsible.user_id, debtResponsible.username, redForPayer]);
+        
+        // Si la deuda es del tutor (menor con tutor), notificar al tutor
+        if (debtResponsible.is_tutor) {
+            await client.query(
+                `INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`,
+                [debtResponsible.username, `Se ha generado una deuda RED de ${redForPayer.toFixed(4)} asociada a la cuenta del menor ${debtResponsible.minor_username} por "${acceptance.title}". Tú eres responsable de esta deuda como tutor.`]
+            );
         }
-        const payerId = payerResult.rows[0].id;
-
-        await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE username = $2`, [redForPayer, payer]);
-        await client.query(`INSERT INTO red_token_debts (user_id, username, amount, due_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${debtInterval}')`, [payerId, payer, redForPayer]);
         
         // Obtener el user_id del recipiente para insertarlo en blue_token_escrows
         const recipientResult = await client.query('SELECT id FROM users WHERE username = $1', [recipient]);
@@ -4161,7 +4440,7 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         
         await client.query(`INSERT INTO platform_wallet (id, total_blue_commission_balance) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET total_blue_commission_balance = platform_wallet.total_blue_commission_balance + $1`, [commissionAmount]);
         
-        const payerTxResult = await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id, platform_fee_blue) VALUES ($1, 'payment_sent', $2, 0, $3, $4, $5) RETURNING id`, [payerId, `Pagaste por: "${title}"`, redForPayer, pubId, commissionAmount]);
+        const payerTxResult = await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id, platform_fee_blue) VALUES ($1, 'payment_sent', $2, 0, $3, $4, $5) RETURNING id`, [debtResponsible.user_id, `Pagaste por: "${title}"${debtResponsible.is_tutor ? ` (como tutor de ${debtResponsible.minor_username})` : ''}`, redForPayer, pubId, commissionAmount]);
         const payerTxId = payerTxResult.rows[0].id;
         await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'payment_received', $2, $3, 0, $4)`, [recipientId, `Recibiste por: "${title}"`, cost, pubId]);
         
