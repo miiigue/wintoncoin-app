@@ -113,6 +113,33 @@
     </div>
     <!-- ============================================================= -->
 
+    <!-- ========= Modal para Solicitar Tutor (Menores de Edad) ========= -->
+    <div id="tutorRequiredModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <span class="close-button tutor-modal-close">&times;</span>
+            <h3>Autorización de Tutor Requerida</h3>
+            <div class="info-box" style="margin: 15px 0; background-color: #fff3cd; border-left-color: #ffc107; color: #856404;">
+                <strong>Por ser menor de edad</strong>, necesitas la autorización de un tutor (padre, madre o tutor legal) para realizar transacciones que generen obligaciones financieras.
+            </div>
+            <p>El tutor debe tener una cuenta activa en WintonCoin y será responsable de todas las deudas RED generadas por tu cuenta.</p>
+            
+            <form id="addTutorForm" style="margin-top: 20px;">
+                <div>
+                    <label for="tutorUsernameOrEmail">Usuario o Email del Tutor:</label>
+                    <input type="text" id="tutorUsernameOrEmail" name="tutorUsernameOrEmail" required placeholder="Ej: tutor123 o tutor@email.com">
+                    <small style="display: block; color: #666; font-size: 0.85em; margin-top: 5px;">
+                        El tutor debe tener una cuenta activa en WintonCoin. Se le enviará una notificación para confirmar.
+                    </small>
+                </div>
+                <div style="margin-top: 20px;">
+                    <button type="submit" class="btn" style="width: 100%;">Agregar Tutor</button>
+                    <button type="button" class="btn tutor-modal-close" style="width: 100%; margin-top: 10px; background-color: #6c757d;">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- ============================================================= -->
+
 
     <script src="utils.js"></script>
     <script src="publish.js"></script>

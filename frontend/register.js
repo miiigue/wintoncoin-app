@@ -79,18 +79,30 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // --- Lógica para el manejo de los acuerdos y el botón de registro ---
     const termsGeneralCheck = document.getElementById('terms-general');
+    const termsPreLaunchCheck = document.getElementById('terms-pre-launch');
     const termsEconomicCheck = document.getElementById('terms-economic');
-    const termsPublicDebtCheck = document.getElementById('terms-public-debt');
+    const termsDebtCheck = document.getElementById('terms-debt');
+    const termsRiskCheck = document.getElementById('terms-risk');
     const registerRequestBtn = document.getElementById('register-request-btn');
 
     // Comprobar si los elementos existen para evitar errores si no estamos en la página de registro
-    if (termsGeneralCheck && termsEconomicCheck && termsPublicDebtCheck && registerRequestBtn) {
-        const allCheckboxes = [termsGeneralCheck, termsEconomicCheck, termsPublicDebtCheck];
+    if (termsGeneralCheck && termsPreLaunchCheck && termsEconomicCheck && termsDebtCheck && 
+        termsRiskCheck && registerRequestBtn) {
+        const allCheckboxes = [
+            termsGeneralCheck, 
+            termsPreLaunchCheck, 
+            termsEconomicCheck, 
+            termsDebtCheck,
+            termsRiskCheck
+        ];
 
         function checkAgreements() {
             const allChecked = allCheckboxes.every(checkbox => checkbox.checked);
             registerRequestBtn.disabled = !allChecked;
         }
+
+        // Verificar estado inicial
+        checkAgreements();
 
         allCheckboxes.forEach(checkbox => {
             checkbox.addEventListener('change', checkAgreements);
@@ -119,6 +131,37 @@ document.addEventListener('DOMContentLoaded', async function() {
     window.addEventListener('click', (event) => {
         if (event.target === policyModal) closePolicyModal();
     });
+
+    // --- Lógica para mostrar/ocultar campos de menor según fecha de nacimiento ---
+    const dateOfBirthInput = document.getElementById('date_of_birth');
+    const minorFieldsDiv = document.getElementById('minor-fields');
+
+    if (dateOfBirthInput && minorFieldsDiv) {
+        function checkAgeAndShowMinorFields() {
+            const dateOfBirth = dateOfBirthInput.value;
+            if (!dateOfBirth) {
+                minorFieldsDiv.style.display = 'none';
+                return;
+            }
+
+            const birthDate = new Date(dateOfBirth);
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+
+            // Mostrar campos informativos si es menor de 18 años
+            if (age >= 13 && age < 18) {
+                minorFieldsDiv.style.display = 'block';
+            } else {
+                minorFieldsDiv.style.display = 'none';
+            }
+        }
+
+        dateOfBirthInput.addEventListener('change', checkAgeAndShowMinorFields);
+    }
 
     // --- Lógica para auto-rellenar el código de referido desde la URL ---
     const referralCodeInput = document.getElementById('referral_code');
@@ -150,9 +193,31 @@ document.addEventListener('DOMContentLoaded', async function() {
             const confirmPassword = document.getElementById('confirmPassword').value;
             const email = document.getElementById('email').value;
             const phone = document.getElementById('phone').value;
+            const dateOfBirth = document.getElementById('date_of_birth').value;
 
             if (password !== confirmPassword) {
                 showCustomAlert('Las contraseñas no coinciden. Por favor, inténtalo de nuevo.');
+                return;
+            }
+
+            // Validar fecha de nacimiento
+            if (!dateOfBirth) {
+                showCustomAlert('Por favor, proporciona tu fecha de nacimiento.');
+                return;
+            }
+
+            // Calcular edad
+            const birthDate = new Date(dateOfBirth);
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+
+            // Validar edad mínima
+            if (age < 13) {
+                showCustomAlert('Debes tener al menos 13 años para registrarte en WintonCoin. Los menores de 13 años no pueden utilizar la plataforma.');
                 return;
             }
 
@@ -162,7 +227,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 const response = await fetch(registerUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password, email, phone })
+                    body: JSON.stringify({ username, password, email, phone, date_of_birth: dateOfBirth })
                 });
 
                 const result = await response.json();
