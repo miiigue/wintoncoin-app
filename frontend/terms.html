@@ -527,8 +527,11 @@
     </div>
 
     <script>
-        // Establecer fecha de última actualización
-        document.getElementById('lastUpdatedDate').textContent = new Date().toLocaleDateString('es-ES', { 
+        // Fecha de última actualización del contenido
+        // IMPORTANTE: Actualizar esta fecha manualmente cuando se modifique el contenido del documento
+        const lastUpdateDate = new Date('2025-11-14'); // Formato: YYYY-MM-DD
+        
+        document.getElementById('lastUpdatedDate').textContent = lastUpdateDate.toLocaleDateString('es-ES', { 
             year: 'numeric', 
             month: 'long', 
             day: 'numeric' 
