@@ -371,6 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'booster_system_enabled': { title: 'Sistema de Impulsores', description: 'Activa el sistema de Impulsores y su lógica de pagos mensuales.' },
             'referral_system_enabled': { title: 'Sistema de Referidos', description: 'Activa o desactiva el bono por registro con código de referido.' },
             'referral_reward_amount': { title: 'Recompensa por Referido (BLUE)', description: 'Cantidad de BLUE que ganan referente y referido.' },
+            'referral_codes_expiry_date': { title: 'Vigencia hasta', description: 'Fecha de expiración de los códigos de referido (formato: YYYY-MM-DD). Después de esta fecha, los códigos no otorgarán recompensas.' },
             'welcome_bonus_enabled': { title: 'Bono de Bienvenida', description: 'Activa o desactiva el bono al registrarse sin código.' },
             'welcome_bonus_amount': { title: 'Monto del Bono de Bienvenida (BLUE)', description: 'Cantidad de BLUE que se otorga sin código de referido.' },
             // --- FASES ---
@@ -468,6 +469,10 @@ document.addEventListener('DOMContentLoaded', () => {
             controlHTML = `
                 <input type="number" class="admin-numeric-input" data-key="${setting.setting_key}" value="${parseFloat(setting.setting_value).toFixed(2)}" step="0.01" min="0">
             `;
+        } else if (type === 'date') {
+            controlHTML = `
+                <input type="date" class="admin-date-input" data-key="${setting.setting_key}" value="${setting.setting_value || ''}">
+            `;
         }
 
         return `
@@ -515,7 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderReferralSettings(allSettings) {
-        const referralKeys = ['referral_system_enabled', 'referral_reward_amount', 'welcome_bonus_enabled', 'welcome_bonus_amount'];
+        const referralKeys = ['referral_system_enabled', 'referral_reward_amount', 'referral_codes_expiry_date', 'welcome_bonus_enabled', 'welcome_bonus_amount'];
         const referralSettings = allSettings.filter(s => referralKeys.includes(s.setting_key));
         
         const container = document.getElementById('referrals-settings-container');
@@ -523,6 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
             container.innerHTML = referralSettings.map(s => {
                 if (s.setting_key.endsWith('_enabled')) return getSettingHTML(s, 'switch');
                 if (s.setting_key.endsWith('_amount')) return getSettingHTML(s, 'number');
+                if (s.setting_key === 'referral_codes_expiry_date') return getSettingHTML(s, 'date');
                 return '';
             }).join('');
             
@@ -538,6 +544,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         handleSettingChange(event);
                     }
                 });
+            });
+
+            container.querySelectorAll('input[type="date"]').forEach(input => {
+                input.addEventListener('change', handleSettingChange);
             });
         }
     }
@@ -676,16 +686,28 @@ document.addEventListener('DOMContentLoaded', () => {
             value = control.checked.toString(); // "true" or "false"
         } else if (control.type === 'number') {
             value = control.value;
+        } else if (control.type === 'date') {
+            value = control.value;
+            // Validar que la fecha sea válida
+            if (value) {
+                const dateObj = new Date(value);
+                if (isNaN(dateObj.getTime())) {
+                    showCustomAlert('Fecha inválida. Por favor, ingresa una fecha válida.');
+                    // Recargar settings para revertir el cambio
+                    loadSettings();
+                    return;
+                }
+            }
         } else {
             return; // No-op for other types
         }
         
-        // Usar un debounce para los inputs de número, para no enviar una petición en cada tecla
-        if (control.type === 'number') {
+        // Usar un debounce para los inputs de número y fecha, para no enviar una petición en cada cambio
+        if (control.type === 'number' || control.type === 'date') {
             clearTimeout(settingChangeTimeout);
             settingChangeTimeout = setTimeout(() => {
                 updateSetting(key, value);
-            }, 500); // Esperar 500ms después de la última tecla
+            }, 500); // Esperar 500ms después del último cambio
         } else {
             // Los checkboxes se actualizan al instante
             updateSetting(key, value);

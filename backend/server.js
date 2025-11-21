@@ -924,6 +924,7 @@ async function initializeDatabase() {
         // --- NUEVAS CONFIGURACIONES DE REFERIDOS ---
         ['referral_system_enabled', 'true', 'Activa el sistema de referidos para nuevos registros.'],
         ['referral_reward_amount', '10', 'Cantidad de BLUE que ganan el referente y el referido al registrarse.'],
+        ['referral_codes_expiry_date', '2026-04-30', 'Fecha de vigencia de los códigos de referido (formato: YYYY-MM-DD). Después de esta fecha, los códigos no otorgarán recompensas.'],
         // --- NUEVAS CONFIGURACIONES DE IMPULSORES ---
         ['booster_system_enabled', 'true', 'Activa el sistema de Impulsores y su lógica de pagos mensuales.'],
         ['welcome_bonus_enabled', 'true', 'Activa o desactiva el bono de bienvenida.'],
@@ -1232,7 +1233,7 @@ async function startServer() {
                 const settingKeys = [
                     'referral_system_enabled', 'referral_reward_amount',
                     'welcome_bonus_enabled', 'welcome_bonus_amount',
-                    'pre_launch_mode_enabled'
+                    'pre_launch_mode_enabled', 'referral_codes_expiry_date'
                 ];
                 const settingsResult = await client.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1::text[])`, [settingKeys]);
                 const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
@@ -1242,10 +1243,62 @@ async function startServer() {
                 const welcomeBonusEnabled = settings.welcome_bonus_enabled === 'true';
                 
                 let referrer = null;
+                let referralCodeExpired = false;
                 if (referralsEnabled && referral_code) {
                     const referrerResult = await client.query('SELECT * FROM users WHERE referral_code = $1', [referral_code.trim().toUpperCase()]);
                     if (referrerResult.rowCount > 0) {
-                        referrer = referrerResult.rows[0];
+                        // Validar fecha de vigencia del programa de referidos
+                        const expiryDateStr = settings.referral_codes_expiry_date;
+                        if (expiryDateStr) {
+                            const expiryDate = new Date(expiryDateStr);
+                            // Validar que la fecha sea válida
+                            if (!isNaN(expiryDate.getTime())) {
+                                const today = new Date();
+                                today.setHours(0, 0, 0, 0); // Normalizar a medianoche para comparación de fechas
+                                expiryDate.setHours(0, 0, 0, 0);
+                                
+                                if (today > expiryDate) {
+                                    // Código expirado: no aplicar recompensa pero permitir registro
+                                    referralCodeExpired = true;
+                                } else {
+                                    // Código válido y vigente
+                                    referrer = referrerResult.rows[0];
+                                }
+                            } else {
+                                // Fecha inválida: tratar como si no hubiera fecha (código válido)
+                                console.warn(`Fecha de vigencia inválida: ${expiryDateStr}. Tratando como código válido.`);
+                                referrer = referrerResult.rows[0];
+                            }
+                        } else {
+                            // Si no hay fecha de expiración configurada, el código es válido
+                            referrer = referrerResult.rows[0];
+                        }
+                    }
+                }
+
+                // Notificar si el código de referido estaba expirado
+                if (referralCodeExpired && referral_code) {
+                    const expiryDateStr = settings.referral_codes_expiry_date;
+                    if (expiryDateStr) {
+                        const expiryDate = new Date(expiryDateStr);
+                        // Validar que la fecha sea válida antes de formatear
+                        if (!isNaN(expiryDate.getTime())) {
+                            const formattedDate = expiryDate.toLocaleDateString('es-ES', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                            });
+                            await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [
+                                newUser.username, 
+                                `El código de referido que usaste expiró el ${formattedDate}. Te has registrado exitosamente y recibirás el bono de bienvenida.`
+                            ]);
+                        } else {
+                            // Si la fecha es inválida, enviar mensaje genérico
+                            await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [
+                                newUser.username, 
+                                `El código de referido que usaste ha expirado. Te has registrado exitosamente y recibirás el bono de bienvenida.`
+                            ]);
+                        }
                     }
                 }
 
@@ -2705,6 +2758,22 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                 }
             } catch (error) {
                 console.error("Error al obtener configuración de referidos:", error);
+                res.status(500).json({ message: "Error interno del servidor." });
+            }
+        });
+
+        // Ruta pública para obtener la fecha de vigencia de códigos de referido
+        app.get('/api/referral-expiry-date', async (req, res) => {
+            try {
+                const result = await pool.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'referral_codes_expiry_date'`);
+                
+                if (result.rows.length > 0 && result.rows[0].setting_value) {
+                    res.status(200).json({ expiry_date: result.rows[0].setting_value });
+                } else {
+                    res.status(404).json({ message: "Fecha de vigencia no configurada." });
+                }
+            } catch (error) {
+                console.error("Error al obtener fecha de vigencia:", error);
                 res.status(500).json({ message: "Error interno del servidor." });
             }
         });

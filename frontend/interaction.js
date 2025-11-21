@@ -1292,18 +1292,45 @@ newElement.style.cursor = 'pointer';
                 return;
             }
 
-            // Obtener el código de referido del usuario actual
-            const response = await fetch(`${API_URL}/api/users/${username}/referral-info`);
+            // Obtener el código de referido del usuario actual y la fecha de vigencia
+            const [referralResponse, expiryResponse] = await Promise.all([
+                fetch(`${API_URL}/api/users/${username}/referral-info`),
+                fetch(`${API_URL}/api/referral-expiry-date`)
+            ]);
 
-            if (response.ok) {
-                const data = await response.json();
+            if (referralResponse.ok) {
+                const data = await referralResponse.json();
                 const referralCode = data.referral_code;
                 const rewardAmount = document.getElementById('referralAmount').textContent || '50';
                 const registrationUrl = `${window.location.origin}/register.html?ref=${referralCode}`;
                 
+                // Formatear fecha de vigencia si está disponible
+                let expiryText = '';
+                if (expiryResponse.ok) {
+                    try {
+                        const expiryData = await expiryResponse.json();
+                        if (expiryData.expiry_date) {
+                            const expiryDate = new Date(expiryData.expiry_date);
+                            // Validar que la fecha sea válida antes de formatear
+                            if (!isNaN(expiryDate.getTime())) {
+                                const formattedDate = expiryDate.toLocaleDateString('es-ES', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                });
+                                expiryText = `\n⏰ Válido hasta el ${formattedDate}\n`;
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('Error al formatear fecha de vigencia:', error);
+                        // Continuar sin fecha si hay error
+                    }
+                }
+                
                 const textToShare = `¡Únete a WintonCoin! 🪙\n\n` +
                                   `Usa mi código de referido y gana ${rewardAmount} BLUE al registrarte:\n` +
-                                  `*${referralCode}*\n\n` +
+                                  `*${referralCode}*` +
+                                  expiryText + `\n` +
                                   `¡Lo mejor es que tú también ganarás ${rewardAmount} BLUE por cada amigo que invites!\n\n` +
                                   `Regístrate aquí: ${registrationUrl}`;
 
