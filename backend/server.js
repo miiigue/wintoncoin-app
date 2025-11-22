@@ -1015,7 +1015,7 @@ async function initializeDatabase() {
             const phone = `000000-${uniqueIdentifier}`; // Guarantees a unique phone placeholder
 
             await client.query(
-                'INSERT INTO users (username, password_hash, email, phone) VALUES ($1, $2, $3, $4)',
+                'INSERT INTO users (username, password_hash, email, phone_number) VALUES ($1, $2, $3, $4)',
                 [platformUsername, passwordHash, email, phone]
             );
             console.log(`Usuario del sistema '${platformUsername}' creado con email: ${email} y phone: ${phone}`);
