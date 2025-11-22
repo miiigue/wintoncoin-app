@@ -14,6 +14,10 @@ async function resetDatabase() {
     try {
         console.log('🔄 Reseteando base de datos local...');
         
+        // 0. Habilitar extensiones necesarias para criptografía y UUIDs
+        await client.query(`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`);
+        await client.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`);
+
         // 1. Eliminar todas las tablas existentes
         await client.query(`
             DO $$ DECLARE
@@ -22,12 +26,17 @@ async function resetDatabase() {
                 FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
                     EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
                 END LOOP;
+                
+                -- Eliminar tipos enum si existen (limpieza completa)
+                DROP TYPE IF EXISTS user_role CASCADE; 
             END $$;
         `);
         
         console.log('✅ Todas las tablas eliminadas');
         
-        // 2. Recrear las tablas con la estructura correcta
+        // 2. Recrear las tablas con la estructura correcta y SEGURIDAD (Event Sourcing)
+        
+        // --- TABLAS BASE ---
         await client.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -53,7 +62,227 @@ async function resetDatabase() {
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 last_login TIMESTAMP WITH TIME ZONE
             );
+
+            CREATE TABLE IF NOT EXISTS pending_verifications (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) UNIQUE NOT NULL,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                phone_number VARCHAR(50) UNIQUE NOT NULL,
+                verification_code VARCHAR(10) NOT NULL,
+                expires_at TIMESTAMPTZ NOT NULL,
+                referral_code VARCHAR(255),
+                date_of_birth DATE
+            );
         `);
+
+        // --- TABLAS DE EVENTOS (EVENT SOURCING) ---
+        
+        // Eventos principales (Post-Lanzamiento)
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS balance_events (
+                id BIGSERIAL PRIMARY KEY,
+                event_id UUID UNIQUE DEFAULT gen_random_uuid(),
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                event_type VARCHAR(50) NOT NULL, -- 'credit', 'debit', 'transfer', 'burn', 'fee'
+                balance_type VARCHAR(20) NOT NULL, -- 'liquid_blue', 'escrow_blue', 'red'
+                amount NUMERIC(19, 4) NOT NULL,
+                previous_balance NUMERIC(19, 4) NOT NULL,
+                new_balance NUMERIC(19, 4) NOT NULL,
+                related_transaction_id INTEGER, -- Referencia opcional a transactions
+                event_hash TEXT NOT NULL, -- SHA-256
+                previous_event_hash TEXT, -- Chain validation
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                metadata JSONB
+            );
+            
+            CREATE INDEX idx_balance_events_user_id ON balance_events(user_id);
+            CREATE INDEX idx_balance_events_chain ON balance_events(user_id, balance_type, created_at);
+        `);
+
+        // Eventos de Booster (Pre-Lanzamiento)
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS booster_events (
+                id BIGSERIAL PRIMARY KEY,
+                event_id UUID UNIQUE DEFAULT gen_random_uuid(),
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                event_type VARCHAR(50) NOT NULL, -- 'bonus', 'task_reward', 'referral_reward'
+                amount NUMERIC(19, 4) NOT NULL,
+                previous_balance NUMERIC(19, 4) NOT NULL,
+                new_balance NUMERIC(19, 4) NOT NULL,
+                source_publication_id INTEGER, -- Referencia opcional
+                event_hash TEXT NOT NULL,
+                previous_event_hash TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                metadata JSONB
+            );
+             CREATE INDEX idx_booster_events_user_id ON booster_events(user_id);
+        `);
+
+        // --- FUNCIONES Y TRIGGERS DE SEGURIDAD ---
+
+        // Función para calcular Hash SHA-256
+        await client.query(`
+            CREATE OR REPLACE FUNCTION calculate_event_hash(
+                p_user_id INTEGER,
+                p_amount NUMERIC,
+                p_prev_hash TEXT,
+                p_timestamp TIMESTAMPTZ
+            ) RETURNS TEXT AS $$
+            BEGIN
+                RETURN encode(digest(
+                    p_user_id::text || p_amount::text || COALESCE(p_prev_hash, 'GENESIS') || p_timestamp::text,
+                    'sha256'
+                ), 'hex');
+            END;
+            $$ LANGUAGE plpgsql;
+        `);
+
+        // Función: Registrar Evento Principal (Actualiza users automáticamente)
+        await client.query(`
+            CREATE OR REPLACE FUNCTION record_balance_event(
+                p_user_id INTEGER,
+                p_event_type VARCHAR,
+                p_balance_type VARCHAR,
+                p_amount NUMERIC,
+                p_related_tx_id INTEGER DEFAULT NULL
+            ) RETURNS VOID AS $$
+            DECLARE
+                v_prev_balance NUMERIC(19, 4) := 0;
+                v_new_balance NUMERIC(19, 4);
+                v_prev_hash TEXT := NULL;
+                v_hash TEXT;
+            BEGIN
+                -- 0. AUTORIZACIÓN: Usar la "llave maestra" para permitir el update
+                PERFORM set_config('app.allow_balance_update', 'true', true);
+
+                -- 1. Obtener último estado
+                SELECT new_balance, event_hash INTO v_prev_balance, v_prev_hash
+                FROM balance_events
+                WHERE user_id = p_user_id AND balance_type = p_balance_type
+                ORDER BY id DESC LIMIT 1;
+                
+                IF v_prev_balance IS NULL THEN v_prev_balance := 0; END IF;
+
+                -- 2. Calcular nuevo balance
+                IF p_event_type IN ('credit', 'deposit', 'payment_received', 'bonus') THEN
+                    v_new_balance := v_prev_balance + p_amount;
+                ELSIF p_event_type IN ('debit', 'payment_sent', 'withdrawal', 'fee', 'burn') THEN
+                    v_new_balance := v_prev_balance - p_amount;
+                ELSE
+                    RAISE EXCEPTION 'Tipo de evento desconocido: %', p_event_type;
+                END IF;
+
+                -- 3. Generar Hash
+                v_hash := calculate_event_hash(p_user_id, p_amount, v_prev_hash, NOW());
+
+                -- 4. Insertar Evento (Inmutable)
+                INSERT INTO balance_events (
+                    user_id, event_type, balance_type, amount, 
+                    previous_balance, new_balance, related_transaction_id, 
+                    event_hash, previous_event_hash
+                ) VALUES (
+                    p_user_id, p_event_type, p_balance_type, p_amount,
+                    v_prev_balance, v_new_balance, p_related_tx_id,
+                    v_hash, v_prev_hash
+                );
+
+                -- 5. Actualizar Cache en Tabla Users (Trigger manual optimizado)
+                IF p_balance_type = 'liquid_blue' THEN
+                    UPDATE users SET liquid_blue_balance = v_new_balance WHERE id = p_user_id;
+                ELSIF p_balance_type = 'escrow_blue' THEN
+                    UPDATE users SET escrow_blue_balance = v_new_balance WHERE id = p_user_id;
+                ELSIF p_balance_type = 'red' THEN
+                    UPDATE users SET red_balance = v_new_balance WHERE id = p_user_id;
+                END IF;
+            END;
+            $$ LANGUAGE plpgsql;
+        `);
+
+        // Función: Registrar Evento Booster (Actualiza users automáticamente)
+        await client.query(`
+            CREATE OR REPLACE FUNCTION record_booster_event(
+                p_user_id INTEGER,
+                p_event_type VARCHAR,
+                p_amount NUMERIC,
+                p_source_pub_id INTEGER DEFAULT NULL
+            ) RETURNS VOID AS $$
+            DECLARE
+                v_prev_balance NUMERIC(19, 4) := 0;
+                v_new_balance NUMERIC(19, 4);
+                v_prev_hash TEXT := NULL;
+                v_hash TEXT;
+            BEGIN
+                -- 0. AUTORIZACIÓN: Usar la "llave maestra"
+                PERFORM set_config('app.allow_balance_update', 'true', true);
+
+                SELECT new_balance, event_hash INTO v_prev_balance, v_prev_hash
+                FROM booster_events
+                WHERE user_id = p_user_id
+                ORDER BY id DESC LIMIT 1;
+                
+                IF v_prev_balance IS NULL THEN v_prev_balance := 0; END IF;
+                
+                v_new_balance := v_prev_balance + p_amount; -- Booster siempre suma o resta directo
+                v_hash := calculate_event_hash(p_user_id, p_amount, v_prev_hash, NOW());
+
+                INSERT INTO booster_events (
+                    user_id, event_type, amount, 
+                    previous_balance, new_balance, source_publication_id, 
+                    event_hash, previous_event_hash
+                ) VALUES (
+                    p_user_id, p_event_type, p_amount,
+                    v_prev_balance, v_new_balance, p_source_pub_id,
+                    v_hash, v_prev_hash
+                );
+
+                -- Actualizar Cache
+                UPDATE users SET booster_blue_balance = v_new_balance WHERE id = p_user_id;
+            END;
+            $$ LANGUAGE plpgsql;
+        `);
+
+        // --- CANDADO FINAL: TRIGGER DE BLOQUEO MANUAL ---
+        await client.query(`
+            CREATE OR REPLACE FUNCTION prevent_manual_balance_update() RETURNS TRIGGER AS $$
+            BEGIN
+                -- Si alguien intenta cambiar saldos y NO tiene la "llave maestra" activada...
+                IF (OLD.liquid_blue_balance IS DISTINCT FROM NEW.liquid_blue_balance OR
+                    OLD.escrow_blue_balance IS DISTINCT FROM NEW.escrow_blue_balance OR
+                    OLD.red_balance IS DISTINCT FROM NEW.red_balance OR
+                    OLD.booster_blue_balance IS DISTINCT FROM NEW.booster_blue_balance) 
+                   AND current_setting('app.allow_balance_update', true) IS DISTINCT FROM 'true' THEN
+                    
+                    RAISE EXCEPTION 'ACCESO DENEGADO: No puedes modificar los saldos manualmente. Debes usar funciones de Event Sourcing (record_balance_event).';
+                END IF;
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+
+            CREATE TRIGGER trg_prevent_manual_balance_update
+            BEFORE UPDATE ON users
+            FOR EACH ROW
+            EXECUTE FUNCTION prevent_manual_balance_update();
+        `);
+
+        // --- CANDADO DE INMUTABILIDAD: PROHIBIR MODIFICAR EVENTOS ---
+        await client.query(`
+            CREATE OR REPLACE FUNCTION prevent_event_modification() RETURNS TRIGGER AS $$
+            BEGIN
+                RAISE EXCEPTION 'INMUTABILIDAD VIOLADA: No se permite modificar ni borrar eventos históricos. Solo se permiten nuevos registros (Append-Only).';
+            END;
+            $$ LANGUAGE plpgsql;
+
+            CREATE TRIGGER trg_immutable_balance_events
+            BEFORE UPDATE OR DELETE ON balance_events
+            FOR EACH ROW EXECUTE FUNCTION prevent_event_modification();
+
+            CREATE TRIGGER trg_immutable_booster_events
+            BEFORE UPDATE OR DELETE ON booster_events
+            FOR EACH ROW EXECUTE FUNCTION prevent_event_modification();
+        `);
+
+        // --- RESTO DE TABLAS (Sin cambios estructurales mayores, solo dependencias) ---
         
         await client.query(`
             CREATE TABLE IF NOT EXISTS publications (
@@ -158,6 +387,31 @@ async function resetDatabase() {
             );
         `);
         
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS booster_blue_ledger (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                amount NUMERIC(19, 4) NOT NULL,
+                source_publication_id INTEGER REFERENCES publications(id) ON DELETE SET NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            -- Trigger para sincronizar legacy inserts a booster_blue_ledger con Event Sourcing
+            -- Esto asegura que el código viejo siga funcionando pero alimente el sistema nuevo
+            CREATE OR REPLACE FUNCTION sync_booster_legacy_insert() RETURNS TRIGGER AS $$
+            BEGIN
+                -- Llamar a la función de evento nueva
+                PERFORM record_booster_event(NEW.user_id, 'legacy_insert', NEW.amount, NEW.source_publication_id);
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+
+            CREATE TRIGGER trg_sync_booster_legacy
+            AFTER INSERT ON booster_blue_ledger
+            FOR EACH ROW
+            EXECUTE FUNCTION sync_booster_legacy_insert();
+        `);
+
         await client.query(`
             CREATE TABLE IF NOT EXISTS platform_wallet (
                 id INT PRIMARY KEY DEFAULT 1,
