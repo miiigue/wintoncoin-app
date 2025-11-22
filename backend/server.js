@@ -3742,14 +3742,11 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
 
                     console.log(`TOKEN RELEASER: Liberando ${amountToRelease.toFixed(4)} BLUE para el usuario ${username}.`);
 
-                    // 3. Actualizar saldos del usuario
-                    await client.query(
-                        `UPDATE users 
-                         SET liquid_blue_balance = liquid_blue_balance + $1,
-                             escrow_blue_balance = escrow_blue_balance - $1
-                         WHERE username = $2`,
-                        [amountToRelease, username]
-                    );
+                    // 3. Actualizar saldos del usuario (Event Sourcing)
+                    // Restar de Escrow (usamos 'withdrawal' que resta)
+                    await client.query(`SELECT record_balance_event($1, 'withdrawal', 'escrow_blue', $2, NULL)`, [user_id, amountToRelease]);
+                    // Sumar a Líquido (usamos 'deposit' que suma)
+                    await client.query(`SELECT record_balance_event($1, 'deposit', 'liquid_blue', $2, NULL)`, [user_id, amountToRelease]);
 
                     // 4. Marcar los depósitos como liberados
                     await client.query(
