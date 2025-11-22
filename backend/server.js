@@ -916,7 +916,7 @@ async function initializeDatabase() {
         ['debt_cycle_days', '30', 'Días para el ciclo de deuda RED.'],
         ['debt_cycle_hours', '0', 'Horas para el ciclo de deuda RED.'],
         ['debt_cycle_minutes', '0', 'Minutos para el ciclo de deuda RED.'],
-        ['blue_escrow_days', '1', 'Días para el depósito de BLUE en escrow.'],
+        ['blue_escrow_days', '30', 'Días para el depósito de BLUE en escrow.'],
         ['blue_escrow_hours', '0', 'Horas para el depósito de BLUE en escrow.'],
         ['blue_escrow_minutes', '0', 'Minutos para el depósito de BLUE en escrow.'],
         // --- NUEVA CONFIGURACIÓN DE COMISIÓN ---
@@ -941,17 +941,18 @@ async function initializeDatabase() {
         await client.query('BEGIN');
         
         // Paso 1: Aplicar todas las migraciones de esquema.
-        await applyMigrations(client);
+        // COMENTADO TEMPORALMENTE PARA EL LANZAMIENTO LIMPIO CON BASE DE DATOS RESETEADA
+        // await applyMigrations(client);
 
         // --- NUEVO: Ejecutar limpieza antes que nada ---
-        await runOneTimeCleanup(client);
+        // await runOneTimeCleanup(client);
 
         // --- NUEVO: Ejecutar migraciones de datos de un solo uso ---
         // Esto se ejecuta después de las migraciones de esquema para asegurar que todas las tablas y columnas existen.
-        await runOneTimeDataMigrations(client);
+        // await runOneTimeDataMigrations(client);
 
         // --- NUEVO: Rellenar códigos de referido para usuarios existentes ---
-        await backfillReferralCodes(client);
+        // await backfillReferralCodes(client);
 
         // Paso 2: Asegurar que todas las tablas base existen.
         for (const query of tableCreationQueries) {
