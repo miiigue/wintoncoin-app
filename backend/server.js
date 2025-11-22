@@ -1307,14 +1307,14 @@ async function startServer() {
                     const rewardAmount = parseFloat(settings.referral_reward_amount) || 0;
                     if (rewardAmount > 0) {
                         // Recompensa para el referente: Registra en booster_blue_ledger (cumple reglas económicas)
-                        await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, NULL)', [referrer.id, rewardAmount]);
+                        await client.query('SELECT record_booster_event($1, \'referral_reward\', $2, NULL)', [referrer.id, rewardAmount]);
                         await client.query('UPDATE users SET is_booster = true WHERE id = $1', [referrer.id]);
                         await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_sent', $2, $3)`, [referrer.id, rewardAmount, `Bono por referir a ${newUser.username}`]);
                         await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [referrer.id, `Recompensa (perfil impulsor) por referir a ${newUser.username}`, rewardAmount]);
                         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [referrer.username, `¡Felicidades! Has ganado ${rewardAmount.toFixed(4)} BLUE en tu perfil de impulsor porque ${newUser.username} se registró con tu código.`]);
                         
                         // Recompensa para el nuevo usuario: Registra en booster_blue_ledger (cumple reglas económicas)
-                        await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, NULL)', [newUser.id, rewardAmount]);
+                        await client.query('SELECT record_booster_event($1, \'referral_reward\', $2, NULL)', [newUser.id, rewardAmount]);
                         await client.query('UPDATE users SET is_booster = true WHERE id = $1', [newUser.id]);
                         await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_received', $2, $3)`, [newUser.id, rewardAmount, `Bono por usar el código de ${referrer.username}`]);
                         await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [newUser.id, `Recompensa (perfil impulsor) por usar el código de ${referrer.username}`, rewardAmount]);
@@ -1326,7 +1326,7 @@ async function startServer() {
                     const welcomeBonusAmount = parseFloat(settings.welcome_bonus_amount) || 0;
                     if (welcomeBonusAmount > 0) {
                         // Bono para el nuevo usuario: Registra en booster_blue_ledger (cumple reglas económicas)
-                        await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, NULL)', [newUser.id, welcomeBonusAmount]);
+                        await client.query('SELECT record_booster_event($1, \'welcome_bonus\', $2, NULL)', [newUser.id, welcomeBonusAmount]);
                         await client.query('UPDATE users SET is_booster = true WHERE id = $1', [newUser.id]);
                         await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, welcomeBonusAmount, 'Bono de Bienvenida por registro']);
                         await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, 'Bono de bienvenida (perfil impulsor)', welcomeBonusAmount]);
@@ -3616,15 +3616,16 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                 }
             }
 
-            // 5. Actualizar los saldos principales del usuario
-            await client.query(
-                `UPDATE users 
-                 SET liquid_blue_balance = liquid_blue_balance - $1,
-                     escrow_blue_balance = escrow_blue_balance - $2, 
-                     red_balance = red_balance - $3 
-                 WHERE username = $4`,
-                [burnedFromLiquid, burnedFromEscrow, actualAmountToBurn, username]
-            );
+            // 5. Actualizar los saldos principales del usuario (Event Sourcing)
+            if (burnedFromLiquid > 0) {
+                await client.query(`SELECT record_balance_event($1, 'burn', 'liquid_blue', $2, NULL)`, [userId, burnedFromLiquid]);
+            }
+            if (burnedFromEscrow > 0) {
+                await client.query(`SELECT record_balance_event($1, 'burn', 'escrow_blue', $2, NULL)`, [userId, burnedFromEscrow]);
+            }
+            if (actualAmountToBurn > 0) {
+                await client.query(`SELECT record_balance_event($1, 'burn', 'red', $2, NULL)`, [userId, actualAmountToBurn]);
+            }
 
             // 6. Registrar la transacción
             const burnDesc = `Quemaste ${actualAmountToBurn.toFixed(4)} tokens. Se usaron ${burnedFromLiquid.toFixed(4)} BLUE (disponible) y ${burnedFromEscrow.toFixed(4)} BLUE (pendiente).`;
@@ -4357,7 +4358,7 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         console.log(`MODO PRE-LANZAMIENTO: Acumulando ${cost} BLUE para ${workerUsername} en perfil de impulsor.`);
         const workerResult = await client.query('SELECT id FROM users WHERE username = $1', [workerUsername]);
         const workerId = workerResult.rows[0].id;
-        await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, $3)', [workerId, cost, pubId]);
+        await client.query('SELECT record_booster_event($1, \'task_reward\', $2, $3)', [workerId, cost, pubId]);
         await client.query('UPDATE users SET is_booster = TRUE WHERE id = $1', [workerId]);
         await updateUserBoosterLevel(client, workerId);
     } else {
@@ -4372,7 +4373,8 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         const debtResponsible = await getDebtResponsibleUser(client, author);
         
         // Actualizar saldo RED del responsable (tutor si es menor, autor si no)
-        await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE id = $2`, [redForAuthor, debtResponsible.user_id]);
+        // Usamos 'credit' para AUMENTAR el balance de deuda (RED)
+        await client.query(`SELECT record_balance_event($1, 'credit', 'red', $2, NULL)`, [debtResponsible.user_id, redForAuthor]);
         await client.query(`INSERT INTO red_token_debts (user_id, username, amount, due_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${debtInterval}')`, [debtResponsible.user_id, debtResponsible.username, redForAuthor]);
         
         // Si la deuda es del tutor (menor con tutor), notificar al tutor
@@ -4390,7 +4392,8 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         }
         const workerId = workerResult.rows[0].id;
         
-        await client.query(`UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE username = $2`, [cost, workerUsername]);
+        // Usamos 'payment_received' para AUMENTAR el balance en escrow (BLUE)
+        await client.query(`SELECT record_balance_event($1, 'payment_received', 'escrow_blue', $2, NULL)`, [workerId, cost]);
         await client.query(`INSERT INTO blue_token_escrows (user_id, username, amount, unlock_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${escrowInterval}')`, [workerId, workerUsername, cost]);
         
         // Asignar comisión a la plataforma como tokens BLUE reales (cumple reglas económicas)
@@ -4400,7 +4403,8 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
             if (platformResult.rows.length > 0) {
                 const platformId = platformResult.rows[0].id;
                 // La plataforma recibe la comisión directamente como BLUE líquido (no en escrow)
-                await client.query(`UPDATE users SET liquid_blue_balance = liquid_blue_balance + $1 WHERE username = $2`, [commissionAmount, platformUsername]);
+                // Usamos 'payment_received' para AUMENTAR el balance líquido (BLUE)
+                await client.query(`SELECT record_balance_event($1, 'payment_received', 'liquid_blue', $2, NULL)`, [platformId, commissionAmount]);
                 await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'commission_received', $2, $3, 0, $4)`, [platformId, `Comisión por: "${title}"`, commissionAmount, pubId]);
             }
         }
@@ -4446,8 +4450,8 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
             throw { status: 400, message: 'Saldo insuficiente en tu perfil de impulsor para esta acción.' };
         }
 
-        await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, $3)', [payerId, -cost, pubId]);
-        await client.query('INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id) VALUES ($1, $2, $3)', [recipientId, cost, pubId]);
+        await client.query('SELECT record_booster_event($1, \'payment_sent\', $2, $3)', [payerId, -cost, pubId]);
+        await client.query('SELECT record_booster_event($1, \'payment_received\', $2, $3)', [recipientId, cost, pubId]);
         
         await client.query('INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, $2, $3, $4)', [payerId, `${category}_sent`, -cost, `Envío para: "${title}"`]);
         await client.query('INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, $2, $3, $4)', [recipientId, `${category}_received`, cost, `Recibido de ${payer} para: "${title}"`]);
@@ -4474,7 +4478,8 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         const debtResponsible = await getDebtResponsibleUser(client, payer);
         
         // Actualizar saldo RED del responsable (tutor si es menor, pagador si no)
-        await client.query(`UPDATE users SET red_balance = red_balance + $1 WHERE id = $2`, [redForPayer, debtResponsible.user_id]);
+        // Usamos 'credit' para AUMENTAR el balance de deuda (RED)
+        await client.query(`SELECT record_balance_event($1, 'credit', 'red', $2, NULL)`, [debtResponsible.user_id, redForPayer]);
         await client.query(`INSERT INTO red_token_debts (user_id, username, amount, due_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${debtInterval}')`, [debtResponsible.user_id, debtResponsible.username, redForPayer]);
         
         // Si la deuda es del tutor (menor con tutor), notificar al tutor
@@ -4492,7 +4497,8 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         }
         const recipientId = recipientResult.rows[0].id;
         
-        await client.query(`UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE username = $2`, [cost, recipient]);
+        // Usamos 'payment_received' para AUMENTAR el balance en escrow (BLUE)
+        await client.query(`SELECT record_balance_event($1, 'payment_received', 'escrow_blue', $2, NULL)`, [recipientId, cost]);
         await client.query(`INSERT INTO blue_token_escrows (user_id, username, amount, unlock_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${escrowInterval}')`, [recipientId, recipient, cost]);
         
         // Asignar comisión a la plataforma como tokens BLUE reales (cumple reglas económicas)
@@ -4502,7 +4508,8 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
             if (platformResult.rows.length > 0) {
                 const platformId = platformResult.rows[0].id;
                 // La plataforma recibe la comisión directamente como BLUE líquido (no en escrow)
-                await client.query(`UPDATE users SET liquid_blue_balance = liquid_blue_balance + $1 WHERE username = $2`, [commissionAmount, platformUsername]);
+                // Usamos 'payment_received' para AUMENTAR el balance líquido (BLUE)
+                await client.query(`SELECT record_balance_event($1, 'payment_received', 'liquid_blue', $2, NULL)`, [platformId, commissionAmount]);
                 await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'commission_received', $2, $3, 0, $4)`, [platformId, `Comisión por: "${title}"`, commissionAmount, pubId]);
             }
         }
