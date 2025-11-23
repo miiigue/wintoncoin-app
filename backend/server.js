@@ -970,6 +970,34 @@ async function initializeDatabase() {
         console.log("Configuraciones por defecto aseguradas en 'app_settings'.");
         
         // --- NUEVO PASO 3.5: Asegurar niveles de impulsor por defecto ---
+        
+        // AUTO-MIGRACIÓN: Asegurar que la tabla 'booster_level_settings' tenga las columnas correctas
+        try {
+            await client.query(`
+                DO $$ 
+                BEGIN 
+                    -- Si existe la columna vieja 'min_balance', renombrarla a 'min_blue_required'
+                    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='booster_level_settings' AND column_name='min_balance') THEN
+                        ALTER TABLE booster_level_settings RENAME COLUMN min_balance TO min_blue_required;
+                    END IF;
+
+                    -- Si existe la columna vieja 'benefits', renombrarla a 'description'
+                    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='booster_level_settings' AND column_name='benefits') THEN
+                        ALTER TABLE booster_level_settings RENAME COLUMN benefits TO description;
+                    END IF;
+
+                    -- Asegurar que existan las columnas finales (si la tabla estaba vacía o es nueva)
+                    ALTER TABLE booster_level_settings ADD COLUMN IF NOT EXISTS min_blue_required NUMERIC(19, 4);
+                    ALTER TABLE booster_level_settings ADD COLUMN IF NOT EXISTS description TEXT;
+                    ALTER TABLE booster_level_settings ADD COLUMN IF NOT EXISTS name VARCHAR(50);
+                END $$;
+            `);
+            console.log("Auto-migración de estructura 'booster_level_settings' completada.");
+        } catch (err) {
+            console.warn("Advertencia al migrar booster_level_settings:", err.message);
+            // No lanzamos error fatal, intentamos seguir
+        }
+
         const boosterLevels = [
             // Nivel, Nombre, BLUE Mínimo, Descripción
             [1, 'Impulsor Inicial', 0, 'El primer paso en tu viaje como impulsor.'],
