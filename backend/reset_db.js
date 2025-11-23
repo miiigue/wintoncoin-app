@@ -57,6 +57,9 @@ async function resetDatabase() {
                 average_rating REAL NOT NULL DEFAULT 0,
                 ratings_count INTEGER NOT NULL DEFAULT 0,
                 is_verified BOOLEAN DEFAULT FALSE,
+                is_minor BOOLEAN DEFAULT FALSE,
+                account_status VARCHAR(50) DEFAULT 'active',
+                is_booster BOOLEAN DEFAULT FALSE,
                 referral_code VARCHAR(255) UNIQUE,
                 referred_by_id INTEGER REFERENCES users(id),
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -72,7 +75,8 @@ async function resetDatabase() {
                 verification_code VARCHAR(10) NOT NULL,
                 expires_at TIMESTAMPTZ NOT NULL,
                 referral_code VARCHAR(255),
-                date_of_birth DATE
+                date_of_birth DATE,
+                is_minor BOOLEAN DEFAULT FALSE
             );
         `);
 
@@ -297,7 +301,11 @@ async function resetDatabase() {
                 available_slots INT DEFAULT 1,
                 is_paused BOOLEAN DEFAULT FALSE,
                 auto_approve BOOLEAN DEFAULT FALSE,
-                category VARCHAR(50) NOT NULL DEFAULT 'request'
+                category VARCHAR(50) NOT NULL DEFAULT 'request',
+                is_booster_task BOOLEAN DEFAULT FALSE,
+                is_quick_sale BOOLEAN DEFAULT FALSE,
+                target_username VARCHAR(255),
+                expires_at TIMESTAMPTZ
             );
         `);
         
@@ -380,6 +388,7 @@ async function resetDatabase() {
             CREATE TABLE IF NOT EXISTS blue_token_escrows (
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(255) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+                user_id INTEGER REFERENCES users(id),
                 amount NUMERIC(19, 4) NOT NULL,
                 unlock_at TIMESTAMPTZ NOT NULL,
                 is_released BOOLEAN NOT NULL DEFAULT FALSE,
@@ -395,6 +404,29 @@ async function resetDatabase() {
                 source_publication_id INTEGER REFERENCES publications(id) ON DELETE SET NULL,
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );
+
+            CREATE TABLE IF NOT EXISTS booster_transactions (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                amount NUMERIC(19, 4) NOT NULL,
+                type VARCHAR(50),
+                description TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
+            CREATE TABLE IF NOT EXISTS booster_level_settings (
+                level INTEGER PRIMARY KEY,
+                name VARCHAR(50) NOT NULL,
+                min_balance NUMERIC(19, 4) NOT NULL,
+                benefits TEXT
+            );
+
+            -- Insertar niveles por defecto
+            INSERT INTO booster_level_settings (level, name, min_balance, benefits) VALUES
+            (1, 'Iniciado', 0, 'Acceso básico al programa de impulsores'),
+            (2, 'Avanzado', 1000, 'Mejores recompensas en tareas'),
+            (3, 'Elite', 5000, 'Acceso prioritario a nuevas funciones')
+            ON CONFLICT (level) DO NOTHING;
 
             -- Trigger para sincronizar legacy inserts a booster_blue_ledger con Event Sourcing
             -- Esto asegura que el código viejo siga funcionando pero alimente el sistema nuevo
@@ -452,11 +484,15 @@ async function resetDatabase() {
             ('debt_cycle_days', '30', 'Días del ciclo de deuda'),
             ('debt_cycle_hours', '0', 'Horas del ciclo de deuda'),
             ('debt_cycle_minutes', '0', 'Minutos del ciclo de deuda'),
-            ('referral_bonus_enabled', 'true', 'Habilitar bonos por referidos'),
+            ('referral_system_enabled', 'true', 'Habilitar sistema de referidos completo'),
+            ('referral_bonus_enabled', 'true', 'Habilitar bonos por referidos (Legacy)'),
             ('referral_bonus_amount', '10.0000', 'Cantidad del bono por referido'),
-            ('welcome_bonus_enabled', 'false', 'Habilitar bono de bienvenida'),
-            ('welcome_bonus_amount', '25.0000', 'Cantidad del bono de bienvenida')
-            ON CONFLICT (setting_key) DO NOTHING;
+            ('welcome_bonus_enabled', 'true', 'Habilitar bono de bienvenida'),
+            ('welcome_bonus_amount', '25.0000', 'Cantidad del bono de bienvenida'),
+            ('pre_launch_mode_enabled', 'true', 'Modo Prelanzamiento (Impulsores y Recompensas)'),
+            ('referral_codes_expiry_date', '2025-12-31T23:59:59Z', 'Fecha de expiración de códigos de referido')
+            ON CONFLICT (setting_key) DO UPDATE 
+            SET setting_value = EXCLUDED.setting_value;
         `);
         
         console.log('✅ Base de datos reseteada correctamente');
