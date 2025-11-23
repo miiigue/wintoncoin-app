@@ -417,16 +417,21 @@ async function resetDatabase() {
             CREATE TABLE IF NOT EXISTS booster_level_settings (
                 level INTEGER PRIMARY KEY,
                 name VARCHAR(50) NOT NULL,
-                min_balance NUMERIC(19, 4) NOT NULL,
-                benefits TEXT
+                min_blue_required NUMERIC(19, 4) NOT NULL,
+                description TEXT
             );
 
             -- Insertar niveles por defecto
-            INSERT INTO booster_level_settings (level, name, min_balance, benefits) VALUES
-            (1, 'Iniciado', 0, 'Acceso básico al programa de impulsores'),
-            (2, 'Avanzado', 1000, 'Mejores recompensas en tareas'),
-            (3, 'Elite', 5000, 'Acceso prioritario a nuevas funciones')
-            ON CONFLICT (level) DO NOTHING;
+            INSERT INTO booster_level_settings (level, name, min_blue_required, description) VALUES
+            (1, 'Impulsor Inicial', 0, 'El primer paso en tu viaje como impulsor.'),
+            (2, 'Impulsor Bronce', 1001, 'Has demostrado un compromiso constante.'),
+            (3, 'Impulsor Plata', 10001, 'Un pilar importante en la comunidad.'),
+            (4, 'Impulsor Oro', 50001, 'Una fuerza motriz para el crecimiento de la plataforma.'),
+            (5, 'Impulsor Platino', 100001, 'Reconocido como un Socio Estratégico clave.')
+            ON CONFLICT (level) DO UPDATE 
+            SET min_blue_required = EXCLUDED.min_blue_required,
+                description = EXCLUDED.description,
+                name = EXCLUDED.name;
 
             -- Trigger para sincronizar legacy inserts a booster_blue_ledger con Event Sourcing
             -- Esto asegura que el código viejo siga funcionando pero alimente el sistema nuevo
