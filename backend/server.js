@@ -2839,7 +2839,7 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                     u.liquid_blue_balance, 
                     u.escrow_blue_balance, 
                     u.red_balance, 
-                    u.status,
+                    u.account_status as status,
                     u.average_rating, 
                     u.ratings_count, 
                     u.created_at,
