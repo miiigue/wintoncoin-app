@@ -3084,10 +3084,11 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                         pcl.created_at,
                         p.id as publication_id,
                         p.title as publication_title,
-                        t.username as user_who_paid
+                        u.username as user_who_paid
                     FROM platform_commission_log pcl
                     LEFT JOIN publications p ON pcl.related_publication_id = p.id
                     LEFT JOIN transactions t ON pcl.related_user_transaction_id = t.id
+                    LEFT JOIN users u ON t.user_id = u.id
                     ORDER BY pcl.created_at DESC
                 `;
                 const result = await pool.query(query);
