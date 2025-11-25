@@ -1103,7 +1103,55 @@ async function startServer() {
         // =================================================================================
         // ==  NUEVO FLUJO DE REGISTRO CON VERIFICACIÓN POR SMS (FASE 1: SOLICITUD)  ==
         // =================================================================================
-        app.post('/api/register-request', async (req, res) => {
+        // Endpoint to check if username exists (Industry Standard for UX)
+    app.get('/api/check-username/:username', async (req, res) => {
+        const { username } = req.params;
+        
+        // Validation for safety
+        if (!username) {
+            return res.status(400).json({ error: 'Username is required' });
+        }
+
+        try {
+            // Check case-insensitive to avoid "User" vs "user" duplicates
+            // Using PostgreSQL syntax with pool
+            const result = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
+            
+            if (result.rows.length > 0) {
+                return res.json({ available: false, message: 'Este nombre de usuario ya está en uso.' });
+            } else {
+                return res.json({ available: true, message: 'Nombre de usuario disponible.' });
+            }
+        } catch (err) {
+            console.error('Error checking username:', err.message);
+            return res.status(500).json({ error: 'Database error' });
+        }
+    });
+
+    // Endpoint to check if email exists (UX Improvement)
+    app.get('/api/check-email/:email', async (req, res) => {
+        const { email } = req.params;
+        
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required' });
+        }
+
+        try {
+            const result = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+            
+            if (result.rows.length > 0) {
+                return res.json({ available: false, message: 'Este correo electrónico ya está registrado.' });
+            } else {
+                return res.json({ available: true, message: 'Correo disponible.' });
+            }
+        } catch (err) {
+            console.error('Error checking email:', err.message);
+            return res.status(500).json({ error: 'Database error' });
+        }
+    });
+
+    // --- Registration Routes ---
+    app.post('/api/register-request', async (req, res) => {
             const { username, email, password, phone, date_of_birth } = req.body;
 
             // --- 1. Validación de Entrada ---
