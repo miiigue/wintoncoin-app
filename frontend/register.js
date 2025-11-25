@@ -84,6 +84,15 @@ document.addEventListener('DOMContentLoaded', async function() {
     const termsDebtCheck = document.getElementById('terms-debt');
     const termsRiskCheck = document.getElementById('terms-risk');
     const registerRequestBtn = document.getElementById('register-request-btn');
+    
+    // Nuevos elementos para validación de usuario y email
+    const usernameInput = document.getElementById('username');
+    const usernameFeedback = document.getElementById('username-feedback');
+    const emailInput = document.getElementById('email');
+    const emailFeedback = document.getElementById('email-feedback');
+    
+    let isUsernameTaken = false;
+    let isEmailTaken = false;
 
     // Comprobar si los elementos existen para evitar errores si no estamos en la página de registro
     if (termsGeneralCheck && termsPreLaunchCheck && termsEconomicCheck && termsDebtCheck && 
@@ -98,7 +107,8 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         function checkAgreements() {
             const allChecked = allCheckboxes.every(checkbox => checkbox.checked);
-            registerRequestBtn.disabled = !allChecked;
+            // El botón se deshabilita si no se aceptan los términos O si el usuario/email están en uso
+            registerRequestBtn.disabled = !allChecked || isUsernameTaken || isEmailTaken;
         }
 
         // Verificar estado inicial
@@ -107,6 +117,128 @@ document.addEventListener('DOMContentLoaded', async function() {
         allCheckboxes.forEach(checkbox => {
             checkbox.addEventListener('change', checkAgreements);
         });
+        
+        // --- INTEGRACIÓN: Validación de usuario en tiempo real ---
+        if (usernameInput && usernameFeedback) {
+            usernameInput.addEventListener('blur', async () => {
+                const username = usernameInput.value.trim();
+                
+                // Resetear estado visual
+                usernameFeedback.style.display = 'none';
+                usernameInput.style.borderColor = ''; 
+                
+                if (!username) return;
+
+                // Validación básica
+                if (username.length < 3) {
+                    usernameFeedback.textContent = 'El usuario debe tener al menos 3 caracteres.';
+                    usernameFeedback.style.color = '#dc3545';
+                    usernameFeedback.style.display = 'block';
+                    return;
+                }
+
+                try {
+                    // Consultar al backend
+                    const response = await fetch(`${API_URL}/api/check-username/${username}`);
+                    if (!response.ok) throw new Error('Error de red');
+                    
+                    const data = await response.json();
+
+                    if (!data.available) {
+                        // Usuario NO disponible
+                        usernameFeedback.textContent = data.message;
+                        usernameFeedback.style.color = '#dc3545';
+                        usernameFeedback.style.display = 'block';
+                        usernameFeedback.style.fontWeight = 'bold';
+                        usernameInput.style.borderColor = '#dc3545';
+                        
+                        isUsernameTaken = true;
+                    } else {
+                        // Usuario disponible
+                        usernameFeedback.textContent = '¡Usuario disponible!';
+                        usernameFeedback.style.color = '#28a745';
+                        usernameFeedback.style.display = 'block';
+                        usernameFeedback.style.fontWeight = 'bold';
+                        usernameInput.style.borderColor = '#28a745';
+                        
+                        isUsernameTaken = false;
+                    }
+                    // Actualizar estado del botón
+                    checkAgreements();
+
+                } catch (error) {
+                    console.error('Error verificando usuario:', error);
+                }
+            });
+
+            // Limpiar error al escribir
+            usernameInput.addEventListener('input', () => {
+                if (isUsernameTaken) {
+                    isUsernameTaken = false; 
+                    usernameFeedback.style.display = 'none';
+                    usernameInput.style.borderColor = '';
+                    checkAgreements(); 
+                }
+            });
+        }
+
+        // --- INTEGRACIÓN: Validación de email en tiempo real ---
+        if (emailInput && emailFeedback) {
+            emailInput.addEventListener('blur', async () => {
+                const email = emailInput.value.trim();
+                
+                emailFeedback.style.display = 'none';
+                emailInput.style.borderColor = '';
+                
+                if (!email) return;
+
+                // Validación formato básico frontend
+                if (!/^\S+@\S+\.\S+$/.test(email)) {
+                    emailFeedback.textContent = 'Formato de correo inválido.';
+                    emailFeedback.style.color = '#dc3545';
+                    emailFeedback.style.display = 'block';
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${API_URL}/api/check-email/${encodeURIComponent(email)}`);
+                    if (!response.ok) throw new Error('Error de red');
+                    
+                    const data = await response.json();
+
+                    if (!data.available) {
+                        emailFeedback.textContent = data.message;
+                        emailFeedback.style.color = '#dc3545';
+                        emailFeedback.style.display = 'block';
+                        emailFeedback.style.fontWeight = 'bold';
+                        emailInput.style.borderColor = '#dc3545';
+                        
+                        isEmailTaken = true;
+                    } else {
+                        emailFeedback.textContent = 'Correo disponible.';
+                        emailFeedback.style.color = '#28a745';
+                        emailFeedback.style.display = 'block';
+                        emailFeedback.style.fontWeight = 'bold';
+                        emailInput.style.borderColor = '#28a745';
+                        
+                        isEmailTaken = false;
+                    }
+                    checkAgreements();
+
+                } catch (error) {
+                    console.error('Error verificando email:', error);
+                }
+            });
+
+            emailInput.addEventListener('input', () => {
+                if (isEmailTaken) {
+                    isEmailTaken = false;
+                    emailFeedback.style.display = 'none';
+                    emailInput.style.borderColor = '';
+                    checkAgreements();
+                }
+            });
+        }
     }
 
     // --- Lógica para el modal de código de referido ---
