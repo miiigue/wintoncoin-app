@@ -1150,6 +1150,30 @@ async function startServer() {
         }
     });
 
+    // Endpoint to check if phone exists (UX Improvement)
+    app.get('/api/check-phone/:phone', async (req, res) => {
+        const { phone } = req.params;
+        
+        if (!phone) {
+            return res.status(400).json({ error: 'Phone number is required' });
+        }
+
+        try {
+            // NOTE: Ideally we should normalize phone numbers (e.g. remove spaces, dashes) before checking.
+            // For now, we check exact match as stored in DB.
+            const result = await pool.query('SELECT id FROM users WHERE phone_number = $1', [phone]);
+            
+            if (result.rows.length > 0) {
+                return res.json({ available: false, message: 'Este número de teléfono ya está registrado.' });
+            } else {
+                return res.json({ available: true, message: 'Teléfono disponible.' });
+            }
+        } catch (err) {
+            console.error('Error checking phone:', err.message);
+            return res.status(500).json({ error: 'Database error' });
+        }
+    });
+
     // --- Registration Routes ---
     app.post('/api/register-request', async (req, res) => {
             const { username, email, password, phone, date_of_birth } = req.body;

@@ -85,14 +85,17 @@ document.addEventListener('DOMContentLoaded', async function() {
     const termsRiskCheck = document.getElementById('terms-risk');
     const registerRequestBtn = document.getElementById('register-request-btn');
     
-    // Nuevos elementos para validación de usuario y email
+    // Nuevos elementos para validación de usuario, email y teléfono
     const usernameInput = document.getElementById('username');
     const usernameFeedback = document.getElementById('username-feedback');
     const emailInput = document.getElementById('email');
     const emailFeedback = document.getElementById('email-feedback');
+    const phoneInput = document.getElementById('phone');
+    const phoneFeedback = document.getElementById('phone-feedback');
     
     let isUsernameTaken = false;
     let isEmailTaken = false;
+    let isPhoneTaken = false;
 
     // Comprobar si los elementos existen para evitar errores si no estamos en la página de registro
     if (termsGeneralCheck && termsPreLaunchCheck && termsEconomicCheck && termsDebtCheck && 
@@ -107,8 +110,8 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         function checkAgreements() {
             const allChecked = allCheckboxes.every(checkbox => checkbox.checked);
-            // El botón se deshabilita si no se aceptan los términos O si el usuario/email están en uso
-            registerRequestBtn.disabled = !allChecked || isUsernameTaken || isEmailTaken;
+            // El botón se deshabilita si no se aceptan los términos O si alguno de los campos únicos ya existe
+            registerRequestBtn.disabled = !allChecked || isUsernameTaken || isEmailTaken || isPhoneTaken;
         }
 
         // Verificar estado inicial
@@ -235,6 +238,65 @@ document.addEventListener('DOMContentLoaded', async function() {
                     isEmailTaken = false;
                     emailFeedback.style.display = 'none';
                     emailInput.style.borderColor = '';
+                    checkAgreements();
+                }
+            });
+        }
+
+        // --- INTEGRACIÓN: Validación de teléfono en tiempo real ---
+        if (phoneInput && phoneFeedback) {
+            phoneInput.addEventListener('blur', async () => {
+                const phone = phoneInput.value.trim();
+                
+                phoneFeedback.style.display = 'none';
+                phoneInput.style.borderColor = '';
+                
+                if (!phone) return;
+
+                // Validación básica de longitud para teléfono (al menos 7 dígitos)
+                if (phone.length < 7) {
+                    phoneFeedback.textContent = 'El teléfono parece demasiado corto.';
+                    phoneFeedback.style.color = '#dc3545';
+                    phoneFeedback.style.display = 'block';
+                    return;
+                }
+
+                try {
+                    // IMPORTANTE: encodeURIComponent es vital aquí porque los teléfonos tienen '+'
+                    const response = await fetch(`${API_URL}/api/check-phone/${encodeURIComponent(phone)}`);
+                    if (!response.ok) throw new Error('Error de red');
+                    
+                    const data = await response.json();
+
+                    if (!data.available) {
+                        phoneFeedback.textContent = data.message;
+                        phoneFeedback.style.color = '#dc3545';
+                        phoneFeedback.style.display = 'block';
+                        phoneFeedback.style.fontWeight = 'bold';
+                        phoneInput.style.borderColor = '#dc3545';
+                        
+                        isPhoneTaken = true;
+                    } else {
+                        phoneFeedback.textContent = 'Teléfono disponible.';
+                        phoneFeedback.style.color = '#28a745';
+                        phoneFeedback.style.display = 'block';
+                        phoneFeedback.style.fontWeight = 'bold';
+                        phoneInput.style.borderColor = '#28a745';
+                        
+                        isPhoneTaken = false;
+                    }
+                    checkAgreements();
+
+                } catch (error) {
+                    console.error('Error verificando teléfono:', error);
+                }
+            });
+
+            phoneInput.addEventListener('input', () => {
+                if (isPhoneTaken) {
+                    isPhoneTaken = false;
+                    phoneFeedback.style.display = 'none';
+                    phoneInput.style.borderColor = '';
                     checkAgreements();
                 }
             });
