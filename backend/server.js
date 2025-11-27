@@ -610,7 +610,20 @@ async function applyMigrations(client) {
                AND NOT EXISTS (SELECT 1 FROM transactions WHERE user_id IS NULL) THEN
                 ALTER TABLE transactions DROP COLUMN username;
             END IF;
-        END $$;`
+        END $$;`,
+        // MIGRACIÓN 35 (FIX): Asegurar columnas de tutores y menores (Ejecución forzada)
+        `DO $$
+             BEGIN
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='tutor_user_id') THEN
+                     ALTER TABLE users ADD COLUMN tutor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
+                 END IF;
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_minor') THEN
+                     ALTER TABLE users ADD COLUMN is_minor BOOLEAN DEFAULT FALSE;
+                 END IF;
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='account_status') THEN
+                     ALTER TABLE users ADD COLUMN account_status VARCHAR(50) DEFAULT 'active';
+                 END IF;
+             END $$;`
         ];
 
         for (const migration of migrations) {
