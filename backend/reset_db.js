@@ -62,6 +62,7 @@ async function resetDatabase() {
                 is_booster BOOLEAN DEFAULT FALSE,
                 referral_code VARCHAR(255) UNIQUE,
                 referred_by_id INTEGER REFERENCES users(id),
+                tutor_user_id INTEGER REFERENCES users(id),
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 last_login TIMESTAMP WITH TIME ZONE
             );
