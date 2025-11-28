@@ -1187,6 +1187,41 @@ async function startServer() {
         }
     });
 
+    // Endpoint to check if a user has a pending verification (Recovery Logic)
+    app.post('/api/auth/pending-status', async (req, res) => {
+        const { phone, email } = req.body;
+
+        if (!phone || !email) {
+            return res.status(400).json({ isValid: false, message: 'Datos incompletos.' });
+        }
+
+        try {
+            // Check if there is a pending verification matching BOTH phone and email
+            const result = await pool.query(
+                'SELECT * FROM pending_verifications WHERE phone_number = $1 AND email = $2',
+                [phone, email]
+            );
+
+            if (result.rows.length > 0) {
+                const pendingUser = result.rows[0];
+                
+                // Check expiration
+                if (new Date() > new Date(pendingUser.expires_at)) {
+                     // Expired - delete it to allow re-registration
+                     await pool.query('DELETE FROM pending_verifications WHERE id = $1', [pendingUser.id]);
+                     return res.json({ isValid: false, message: 'La solicitud ha expirado.' });
+                }
+
+                return res.json({ isValid: true, message: 'Verificación pendiente encontrada.' });
+            } else {
+                return res.json({ isValid: false, message: 'No se encontró ninguna verificación pendiente.' });
+            }
+        } catch (error) {
+            console.error('Error checking pending status:', error);
+            return res.status(500).json({ error: 'Database error' });
+        }
+    });
+
     // --- Registration Routes ---
     app.post('/api/register-request', async (req, res) => {
             const { username, email, password, phone, date_of_birth } = req.body;
