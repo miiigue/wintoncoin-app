@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const pendingEmail = localStorage.getItem('pendingVerificationEmail');
 
     async function validateAndSetInitialStep() {
+        // Solo intentamos validar si tenemos AMBOS datos
         if (pendingPhone && pendingEmail) {
             // Encontramos datos en localStorage. No confiamos ciegamente, validamos con el backend.
             try {
@@ -24,33 +25,47 @@ document.addEventListener('DOMContentLoaded', async function() {
                     body: JSON.stringify({ phone: pendingPhone, email: pendingEmail })
                 });
 
-                if (!response.ok) { // Maneja errores de red o del servidor
-                    throw new Error('Respuesta no válida del servidor');
-                }
+                // Si el servidor devuelve 404 o 500, puede que no esté listo, pero no borramos
+                // a menos que sea una respuesta explícita de "inválido".
                 
-                const data = await response.json();
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.isValid) {
+                         console.log("Recuperando sesión de verificación pendiente...");
+                        // El backend confirma que la verificación es válida. Mostramos el paso 2.
+                        step1Div.style.display = 'none';
+                        step2Div.style.display = 'block';
+                        
+                        // Restaurar valores en los inputs
+                        const hiddenPhoneInput = document.getElementById('hiddenPhone');
+                        const emailInputVal = document.getElementById('email');
+                        
+                        if(hiddenPhoneInput) hiddenPhoneInput.value = pendingPhone;
+                        if(emailInputVal) emailInputVal.value = pendingEmail;
 
-                if (data.isValid) {
-                    // El backend confirma que la verificación es válida. Mostramos el paso 2.
-                    step1Div.style.display = 'none';
-                    step2Div.style.display = 'block';
-                    document.getElementById('hiddenPhone').value = pendingPhone;
-                    document.getElementById('email').value = pendingEmail; // Restauramos el email
+                    } else {
+                        // El backend dice explícitamente que NO es válido (ej. expiró).
+                        console.log("Sesión pendiente expirada o inválida según backend.");
+                        localStorage.removeItem('pendingVerificationPhone');
+                        localStorage.removeItem('pendingVerificationEmail');
+                        // Nos aseguramos que se vea el paso 1
+                        step1Div.style.display = 'block';
+                        step2Div.style.display = 'none';
+                    }
                 } else {
-                    // El backend dice que no es válida. El localStorage está desactualizado.
-                    // Limpiamos el localStorage y mostramos el paso 1.
-                    localStorage.removeItem('pendingVerificationPhone');
-                    localStorage.removeItem('pendingVerificationEmail');
+                     // Si hay error de servidor (no de lógica), mejor no borrar para que el usuario pueda reintentar F5
+                     console.warn("Servidor retornó error al verificar estado pendiente:", response.status);
                 }
+
             } catch (error) {
-                console.error('Error al validar el estado pendiente:', error);
-                // En caso de error, es más seguro limpiar y empezar de cero para no bloquear al usuario.
-                localStorage.removeItem('pendingVerificationPhone');
-                localStorage.removeItem('pendingVerificationEmail');
+                console.error('Error de conexión al validar estado pendiente:', error);
+                // Si no hay conexión, no borramos nada para que al volver pueda intentar.
             }
         }
     }
 
+    // Llamamos a la validación, pero NO esperamos a que termine para seguir ejecutando el resto
+    // Esto evita que la UI se congele si el backend tarda.
     validateAndSetInitialStep();
 
     // --- NUEVO: Comprobar el estado de autenticación al cargar la página ---
