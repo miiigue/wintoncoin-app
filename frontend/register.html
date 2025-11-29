@@ -50,6 +50,17 @@
             cursor: not-allowed;
             opacity: 0.6;
         }
+
+        /* Estilo para el enlace de iniciar sesión */
+        .login-link-text {
+            color: #4facfe; /* Azul claro/cian para alto contraste en fondo oscuro */
+            font-weight: bold;
+            text-decoration: none;
+        }
+        .login-link-text:hover {
+            color: #00f2fe; /* Un tono aún más brillante al pasar el mouse */
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -162,10 +173,14 @@
                 <button id="resend-code-btn" class="link-button" disabled>Reenviar código</button>
                 <span id="resend-timer">(espera 60s)</span>
             </div>
+            <p style="margin-top: 20px; font-size: 0.85em; color: #ffffff; border-top: 1px solid #444; padding-top: 10px; font-style: italic;">
+                ¿Datos incorrectos? <br>
+                Espera 10 min para reiniciar el registro.
+            </p>
         </div>
 
         <br>
-        <p>¿Ya tienes una cuenta? <a href="index.html">Inicia sesión aquí</a>.</p>
+        <p>¿Ya tienes una cuenta? <a href="index.html" class="login-link-text">Inicia sesión aquí</a>.</p>
     </div>
 
     <script src="utils.js"></script>
