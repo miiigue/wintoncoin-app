@@ -477,6 +477,35 @@ async function resetDatabase() {
         `);
         
         await client.query(`
+            CREATE TABLE IF NOT EXISTS user_agreements_log (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                document_type VARCHAR(50) NOT NULL, -- 'terms_and_conditions', 'privacy_policy'
+                document_version VARCHAR(20) NOT NULL,
+                document_hash TEXT NOT NULL, -- SHA-256 del texto
+                ip_address VARCHAR(45),
+                user_agent TEXT,
+                accepted_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            
+            CREATE TABLE IF NOT EXISTS legal_documents (
+                id SERIAL PRIMARY KEY,
+                type VARCHAR(50) NOT NULL,
+                version VARCHAR(20) NOT NULL,
+                content TEXT NOT NULL,
+                content_hash TEXT NOT NULL,
+                is_active BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE(type, version)
+            );
+
+            -- Insertar documentos legales iniciales (v1.0)
+            -- NOTA: Estos son los textos base. El hash se calculará automáticamente.
+            INSERT INTO legal_documents (type, version, content, content_hash, is_active) VALUES
+            ('terms_and_conditions', 'v1.0', 'Contenido inicial de Términos y Condiciones...', encode(digest('Contenido inicial de Términos y Condiciones...', 'sha256'), 'hex'), TRUE),
+            ('privacy_policy', 'v1.0', 'Contenido inicial de Política de Privacidad...', encode(digest('Contenido inicial de Política de Privacidad...', 'sha256'), 'hex'), TRUE)
+            ON CONFLICT (type, version) DO NOTHING;
+
             CREATE TABLE IF NOT EXISTS referral_log (
                 id SERIAL PRIMARY KEY,
                 referrer_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
