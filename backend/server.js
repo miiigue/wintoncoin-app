@@ -657,9 +657,12 @@ async function runOneTimeDataMigrations(client) {
     }
     const newUser = newUserResult.rows[0];
 
-    // 3. Iniciar la transacción para garantizar la atomicidad de la migración.
+        // 3. Iniciar la transacción para garantizar la atomicidad de la migración.
     try {
         await client.query('BEGIN');
+        
+        // FIX: Permitir actualización de saldos durante la migración (Llave Maestra)
+        await client.query("SELECT set_config('app.allow_balance_update', 'true', true)");
 
         // 4. Sumar los saldos del usuario antiguo al nuevo.
         const newLiquidBlue = parseFloat(newUser.liquid_blue_balance) + parseFloat(oldUser.liquid_blue_balance);
@@ -1456,8 +1459,13 @@ async function startServer() {
                     const rewardAmount = parseFloat(settings.referral_reward_amount) || 0;
                     if (rewardAmount > 0) {
                         // Recompensa para el referente: Registra en booster_blue_ledger (cumple reglas económicas)
-                        await client.query('SELECT record_booster_event($1, \'referral_reward\', $2, NULL)', [referrer.id, rewardAmount]);
+                        await client.query("SELECT record_booster_event($1, 'referral_reward', $2, NULL)", [referrer.id, rewardAmount]);
                         await client.query('UPDATE users SET is_booster = true WHERE id = $1', [referrer.id]);
+                        
+                        // VINCULACIÓN DE DATOS (FIX): Guardar la relación de referido en la tabla users y logs
+                        await client.query('UPDATE users SET referred_by_id = $1 WHERE id = $2', [referrer.id, newUser.id]);
+                        await client.query('INSERT INTO referral_log (referrer_user_id, referred_user_id) VALUES ($1, $2)', [referrer.id, newUser.id]);
+
                         await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_sent', $2, $3)`, [referrer.id, rewardAmount, `Bono por referir a ${newUser.username}`]);
                         await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [referrer.id, `Recompensa (perfil impulsor) por referir a ${newUser.username}`, rewardAmount]);
                         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [referrer.username, `¡Felicidades! Has ganado ${rewardAmount.toFixed(4)} BLUE en tu perfil de impulsor porque ${newUser.username} se registró con tu código.`]);
@@ -4300,8 +4308,8 @@ async function executeBoosterPayments() {
             for (const booster of boostersInLevel) {
                 const amountToPay = parseFloat(booster.total_booster_blue) * paymentPercentage;
                 if (amountToPay > 0) {
-                    // Pagar al saldo de escrow del usuario
-                    await client.query('UPDATE users SET escrow_blue_balance = escrow_blue_balance + $1 WHERE id = $2', [amountToPay, booster.id]);
+                    // Pagar al saldo de escrow del usuario usando Event Sourcing (FIX: Evitar bloqueo de trigger)
+                    await client.query("SELECT record_balance_event($1, 'deposit', 'escrow_blue', $2, NULL)", [booster.id, amountToPay]);
                     
                     // Registrar la transacción de pago
                     const paymentDescription = `Recompensa de Impulsor (Nivel ${level.level}) para el mes de ${paymentMonth.toLocaleString('es', { month: 'long', year: 'numeric' })}`;

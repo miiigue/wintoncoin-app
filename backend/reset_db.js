@@ -406,6 +406,15 @@ async function resetDatabase() {
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );
 
+            CREATE TABLE IF NOT EXISTS booster_payment_log (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                amount_paid NUMERIC(19, 4) NOT NULL,
+                payment_month DATE NOT NULL,
+                booster_level_at_payment INTEGER NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+
             CREATE TABLE IF NOT EXISTS booster_transactions (
                 id SERIAL PRIMARY KEY,
                 user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
