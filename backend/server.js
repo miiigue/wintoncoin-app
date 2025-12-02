@@ -1381,6 +1381,29 @@ async function startServer() {
                 ]);
                 const newUser = newUserResult.rows[0];
 
+                // --- 2.1 REGISTRO DE EVIDENCIA FORENSE (LEGAL AUDIT) ---
+                // Capturar IP y User Agent para el registro legal
+                const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '0.0.0.0';
+                const userAgent = req.headers['user-agent'] || 'Unknown';
+
+                // Obtenemos la última versión activa de los documentos legales
+                const docsQuery = `SELECT type, version, content_hash FROM legal_documents WHERE is_active = TRUE`;
+                const docsResult = await client.query(docsQuery);
+                
+                if (docsResult.rows.length > 0) {
+                    for (const doc of docsResult.rows) {
+                        await client.query(
+                            `INSERT INTO user_agreements_log 
+                            (user_id, document_type, document_version, document_hash, ip_address, user_agent)
+                            VALUES ($1, $2, $3, $4, $5, $6)`,
+                            [newUser.id, doc.type, doc.version, doc.content_hash, ipAddress, userAgent]
+                        );
+                    }
+                    console.log(`[AUDIT] Evidencia legal registrada para usuario ${newUser.username} (IP: ${ipAddress})`);
+                } else {
+                    console.warn(`[AUDIT WARNING] El usuario ${newUser.username} se registró pero NO se encontraron documentos legales activos para firmar.`);
+                }
+
                 // --- 3. [LÓGICA REINTEGRADA] Aplicar bonos de bienvenida y referidos ---
                 const settingKeys = [
                     'referral_system_enabled', 'referral_reward_amount',

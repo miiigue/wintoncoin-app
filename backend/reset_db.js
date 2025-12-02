@@ -512,6 +512,15 @@ async function resetDatabase() {
                 referred_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
+
+            -- TRIGGERS DE SEGURIDAD (Movidos al final para asegurar que las tablas existen)
+            CREATE TRIGGER trg_immutable_user_agreements
+            BEFORE UPDATE OR DELETE ON user_agreements_log
+            FOR EACH ROW EXECUTE FUNCTION prevent_event_modification();
+
+            CREATE TRIGGER trg_immutable_legal_documents
+            BEFORE UPDATE OR DELETE ON legal_documents
+            FOR EACH ROW EXECUTE FUNCTION prevent_event_modification();
         `);
         
         // Insertar configuraciones por defecto
