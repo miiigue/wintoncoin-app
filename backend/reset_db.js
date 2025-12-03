@@ -1,4 +1,6 @@
 const { Pool } = require('pg');
+const fs = require('fs');
+const path = require('path');
 require('./config'); // Carga la configuración del entorno
 
 const pool = new Pool({
@@ -500,12 +502,9 @@ async function resetDatabase() {
             );
 
             -- Insertar documentos legales iniciales (v1.0)
-            -- NOTA: Estos son los textos base. El hash se calculará automáticamente.
-            INSERT INTO legal_documents (type, version, content, content_hash, is_active) VALUES
-            ('terms_and_conditions', 'v1.0', 'Contenido inicial de Términos y Condiciones...', encode(digest('Contenido inicial de Términos y Condiciones...', 'sha256'), 'hex'), TRUE),
-            ('privacy_policy', 'v1.0', 'Contenido inicial de Política de Privacidad...', encode(digest('Contenido inicial de Política de Privacidad...', 'sha256'), 'hex'), TRUE)
-            ON CONFLICT (type, version) DO NOTHING;
-
+            -- NOTA: Se insertan mediante parámetros desde los archivos físicos
+            -- para garantizar que coinciden exactamente con la web.
+            
             CREATE TABLE IF NOT EXISTS referral_log (
                 id SERIAL PRIMARY KEY,
                 referrer_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -522,6 +521,38 @@ async function resetDatabase() {
             BEFORE UPDATE OR DELETE ON legal_documents
             FOR EACH ROW EXECUTE FUNCTION prevent_event_modification();
         `);
+
+        // 3. Insertar Documentos Legales Reales (Leyendo archivos)
+        try {
+            const termsPath = path.join(__dirname, '../frontend/terms.html');
+            const privacyPath = path.join(__dirname, '../frontend/privacy.html');
+            
+            let termsContent = 'Contenido no encontrado';
+            let privacyContent = 'Contenido no encontrado';
+
+            if (fs.existsSync(termsPath)) {
+                termsContent = fs.readFileSync(termsPath, 'utf8');
+                console.log('📄 Leído terms.html');
+            }
+            if (fs.existsSync(privacyPath)) {
+                privacyContent = fs.readFileSync(privacyPath, 'utf8');
+                console.log('📄 Leído privacy.html');
+            }
+
+            await client.query(`
+                INSERT INTO legal_documents (type, version, content, content_hash, is_active) VALUES
+                ($1, 'v1.0', $2, encode(digest($2, 'sha256'), 'hex'), TRUE),
+                ($3, 'v1.0', $4, encode(digest($4, 'sha256'), 'hex'), TRUE)
+                ON CONFLICT (type, version) DO UPDATE 
+                SET content = EXCLUDED.content, 
+                    content_hash = EXCLUDED.content_hash; -- Permitir actualizar si es la misma versión durante desarrollo
+            `, ['terms_and_conditions', termsContent, 'privacy_policy', privacyContent]);
+            
+            console.log('⚖️ Documentos legales insertados/actualizados correctamente');
+
+        } catch (fileError) {
+            console.error('⚠️ Advertencia: No se pudieron leer los archivos HTML de legales:', fileError.message);
+        }
         
         // Insertar configuraciones por defecto
         await client.query(`
