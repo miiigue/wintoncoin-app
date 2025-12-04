@@ -162,3 +162,24 @@ El proyecto carece de un archivo de ejemplo para las variables de entorno y tien
 *   **Unificar Rutas Duplicadas**:
     - Durante la refactorización del backend, identificar y unificar endpoints que cumplen la misma función (ej. se encontraron varias rutas para `/api/admin/users`).
     - **Beneficio:** Se reduce la duplicación de código y se crea una única fuente de verdad, simplificando el mantenimiento.
+
+---
+
+## 8. Sistema de Alias Público para Referidos (Vanity Codes)
+
+**Prioridad: Media/Futura**
+
+**Problema Actual:**
+Los códigos de referido actuales son generados aleatoriamente o mezclados con parte del nombre de usuario. Si bien esto es seguro, no es amigable para el marketing personal. Por otro lado, usar el `username` de login directamente como código de referido es un riesgo de seguridad grave.
+
+**Solución Propuesta:**
+Implementar un sistema de "Alias Público" que permita a los usuarios personalizar su código de referido después del registro.
+
+*   **Desacoplamiento:** Mantener el `username` (login) estrictamente privado y usar el campo `referral_code` como el identificador público.
+*   **Personalización:** Crear un endpoint `POST /api/user/update-referral-code` que permita al usuario elegir un alias (ej. `JUANPRO`) si está disponible.
+*   **Validaciones:** Asegurar unicidad global y aplicar filtros de palabras prohibidas.
+
+**Beneficios:**
+- **Seguridad:** Se mantiene protegida la credencial de inicio de sesión.
+- **Experiencia de Usuario:** Facilita compartir el enlace con un nombre fácil de recordar y personal.
+- **Marketing:** Fomenta que los usuarios compartan más su enlace al sentirse identificados con él.
