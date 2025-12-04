@@ -949,7 +949,8 @@ async function initializeDatabase() {
         ['pre_launch_mode_enabled', 'false', 'Activa el modo pre-lanzamiento (todas las ganancias a perfil impulsor).'],
         ['allow_request_publications', 'true', 'Permitir crear publicaciones de tipo "Solicitud".'],
         ['allow_sell_publications', 'true', 'Permitir crear publicaciones de tipo "Venta".'],
-        ['allow_donation_publications', 'true', 'Permitir crear publicaciones de tipo "Donación".']
+        ['allow_donation_publications', 'true', 'Permitir crear publicaciones de tipo "Donación".'],
+        ['allow_quick_sale_publications', 'true', 'Permitir crear publicaciones de tipo "Venta Rápida".']
     ];
 
     const client = await pool.connect();
@@ -1987,7 +1988,17 @@ app.post('/api/minor/add-tutor', async (req, res) => {
 app.post('/api/quick-sale', async (req, res) => {
     let { title, amount, authorUsername, targetUsername } = req.body;
 
-    // 1. Validaciones de entrada básicas
+    const client = await pool.connect();
+    try {
+        // 0. VERIFICAR PERMISO GLOBAL
+        const settingsResult = await client.query("SELECT setting_value FROM app_settings WHERE setting_key = 'allow_quick_sale_publications'");
+        const allowQuickSale = settingsResult.rows.length > 0 && settingsResult.rows[0].setting_value === 'true';
+
+        if (!allowQuickSale) {
+            return res.status(403).json({ message: "La creación de Ventas Rápidas está desactivada temporalmente." });
+        }
+
+        // 1. Validaciones de entrada básicas
     if (!amount || !authorUsername) {
         return res.status(400).json({ message: "Faltan datos requeridos: el monto y el autor son obligatorios." });
     }
@@ -2005,8 +2016,8 @@ app.post('/api/quick-sale', async (req, res) => {
     // Sanitización simple del título para prevenir XSS básico.
     const sanitizedTitle = title.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-    const client = await pool.connect();
-    try {
+    // const client = await pool.connect(); // ELIMINADO
+    // try { // ELIMINADO
         await client.query('BEGIN');
 
         // 2. Verificar que el autor existe y obtener su ID
@@ -4441,7 +4452,8 @@ app.get('/api/platform-settings', async (req, res) => {
             'pre_launch_mode_enabled',
             'allow_request_publications',
             'allow_sell_publications',
-            'allow_donation_publications'
+            'allow_donation_publications',
+            'allow_quick_sale_publications'
         ];
         const result = await pool.query(`
             SELECT setting_key, setting_value 
