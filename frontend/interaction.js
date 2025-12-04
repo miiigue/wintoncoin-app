@@ -103,58 +103,70 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function checkPublicationPermissions() {
         const settings = await getPlatformSettings();
+        
+        // 1. Manejo del Modal de Nueva Publicación (Solicitud, Venta, Donación)
         const modal = document.getElementById('publicationTypeModal');
-        if (!modal) return;
-
-        // Opciones del modal
-        const requestOption = modal.querySelector('.modal-option-button.request');
-        const sellOption = modal.querySelector('.modal-option-button.sell');
-        const donationOption = modal.querySelector('.modal-option-button.donation');
-
-        // Función para habilitar/deshabilitar opciones
-        const toggleOption = (element, isEnabled) => {
-            if (element) {
-                element.classList.toggle('disabled', !isEnabled);
-                if (!isEnabled) {
-                    element.removeAttribute('onclick');
-                    element.style.cursor = 'not-allowed';
-            } else {
-                    // Restaurar el comportamiento de clic con un event listener más robusto
-const type = element.classList.contains('request') ? 'request' : (element.classList.contains('sell') ? 'sell' : 'donation');
-// Limpiamos cualquier listener anterior para evitar duplicados
-const newElement = element.cloneNode(true);
-element.parentNode.replaceChild(newElement, element);
-// Añadimos el nuevo listener
-newElement.addEventListener('click', () => {
-    // Pequeña demora para asegurar que el estado de la sesión se propague
-    setTimeout(() => {
-        window.location.href = `publish.html?type=${type}`;
-    }, 50); // 50ms es imperceptible para el usuario
-});
-newElement.style.cursor = 'pointer';
+        if (modal) {
+            // Opciones del modal
+            const requestOption = modal.querySelector('.modal-option-button.request');
+            const sellOption = modal.querySelector('.modal-option-button.sell');
+            const donationOption = modal.querySelector('.modal-option-button.donation');
+    
+            // Función para habilitar/deshabilitar opciones
+            const toggleOption = (element, isEnabled) => {
+                if (element) {
+                    element.classList.toggle('disabled', !isEnabled);
+                    if (!isEnabled) {
+                        element.removeAttribute('onclick');
+                        element.style.cursor = 'not-allowed';
+                    } else {
+                        // Restaurar el comportamiento de clic con un event listener más robusto
+                        const type = element.classList.contains('request') ? 'request' : (element.classList.contains('sell') ? 'sell' : 'donation');
+                        // Limpiamos cualquier listener anterior para evitar duplicados
+                        const newElement = element.cloneNode(true);
+                        element.parentNode.replaceChild(newElement, element);
+                        // Añadimos el nuevo listener
+                        newElement.addEventListener('click', () => {
+                            // Pequeña demora para asegurar que el estado de la sesión se propague
+                            setTimeout(() => {
+                                window.location.href = `publish.html?type=${type}`;
+                            }, 50); // 50ms es imperceptible para el usuario
+                        });
+                        newElement.style.cursor = 'pointer';
+                    }
                 }
-            }
-        };
-
-        toggleOption(requestOption, settings.allow_request_publications);
-        toggleOption(sellOption, settings.allow_sell_publications);
-        toggleOption(donationOption, settings.allow_donation_publications);
-
-        // Mostrar un mensaje si todas están deshabilitadas
-        const noOptionsMessage = modal.querySelector('#no-options-message');
-        if (!settings.allow_request_publications && !settings.allow_sell_publications && !settings.allow_donation_publications) {
-            if (noOptionsMessage) {
-                noOptionsMessage.style.display = 'block';
+            };
+    
+            toggleOption(requestOption, settings.allow_request_publications);
+            toggleOption(sellOption, settings.allow_sell_publications);
+            toggleOption(donationOption, settings.allow_donation_publications);
+    
+            // Mostrar un mensaje si todas están deshabilitadas
+            const noOptionsMessage = modal.querySelector('#no-options-message');
+            if (!settings.allow_request_publications && !settings.allow_sell_publications && !settings.allow_donation_publications) {
+                if (noOptionsMessage) {
+                    noOptionsMessage.style.display = 'block';
+                } else {
+                    const messageDiv = document.createElement('p');
+                    messageDiv.id = 'no-options-message';
+                    messageDiv.textContent = 'La creación de nuevas publicaciones está temporalmente desactivada.';
+                    messageDiv.style.textAlign = 'center';
+                    messageDiv.style.marginTop = '1rem';
+                    modal.querySelector('.modal-options').appendChild(messageDiv);
+                }
             } else {
-                const messageDiv = document.createElement('p');
-                messageDiv.id = 'no-options-message';
-                messageDiv.textContent = 'La creación de nuevas publicaciones está temporalmente desactivada.';
-                messageDiv.style.textAlign = 'center';
-                messageDiv.style.marginTop = '1rem';
-                modal.querySelector('.modal-options').appendChild(messageDiv);
+                if (noOptionsMessage) noOptionsMessage.style.display = 'none';
             }
-        } else {
-            if (noOptionsMessage) noOptionsMessage.style.display = 'none';
+        }
+
+        // 2. Manejo del Botón de Venta Rápida
+        const quickSaleBtn = document.getElementById('openQuickSaleModalBtn');
+        if (quickSaleBtn) {
+            if (settings.allow_quick_sale_publications === false) {
+                quickSaleBtn.style.display = 'none';
+            } else {
+                quickSaleBtn.style.display = 'inline-flex'; // O 'flex' según el CSS original, inline-flex suele ser seguro para botones
+            }
         }
     }
 
