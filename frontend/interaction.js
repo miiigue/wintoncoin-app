@@ -1340,7 +1340,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 
                 const textToShare = `¡Únete a WintonCoin! 🪙\n\n` +
-                                  `Usa mi código de referido y gana ${rewardAmount} BLUE al registrarte:\n` +
+                                  `Entra a mi enlace de referidos y acumula ${rewardAmount} BLUE (IOU) al registrarte:\n` +
                                   `*${referralCode}*` +
                                   expiryText + `\n` +
                                   `¡Lo mejor es que tú también ganarás ${rewardAmount} BLUE por cada amigo que invites!\n\n` +
