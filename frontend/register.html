@@ -26,8 +26,12 @@
             margin-bottom: 10px;
         }
         .agreement-item input[type="checkbox"] {
-            margin-top: 3px;
-            margin-right: 10px;
+            margin-top: 0px; /* Alineación ajustada */
+            margin-right: 12px;
+            width: 25px; /* Tamaño aumentado */
+            height: 25px; /* Tamaño aumentado */
+            accent-color: var(--primary-color); /* Usar el color primario si es posible, o un azul estándar */
+            cursor: pointer;
         }
         .agreement-item label {
             font-size: 0.9em;
@@ -80,7 +84,7 @@
                     <label for="password">Contraseña:</label>
                     <div class="password-wrapper">
                         <input type="password" id="password" name="password" required>
-                        <span class="password-toggle-icon" onclick="togglePasswordVisibility('password')">
+                        <span class="password-toggle-icon" onclick="togglePasswordVisibility('password', this)">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-eye"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                         </span>
                     </div>
@@ -89,7 +93,7 @@
                     <label for="confirmPassword">Confirmar Contraseña:</label>
                     <div class="password-wrapper">
                         <input type="password" id="confirmPassword" name="confirmPassword" required>
-                        <span class="password-toggle-icon" onclick="togglePasswordVisibility('confirmPassword')">
+                        <span class="password-toggle-icon" onclick="togglePasswordVisibility('confirmPassword', this)">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-eye"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                         </span>
                     </div>
@@ -130,7 +134,7 @@
                 <!-- Condiciones para el Registro -->
                 <div class="agreements">
                     <h3>Condiciones para el Registro</h3>
-                    <p style="font-size: 0.85em; color: #666; margin-bottom: 15px;">Al registrarte, aceptas los siguientes términos. Por favor, lee cuidadosamente cada punto antes de continuar.</p>
+                    <p style="font-size: 0.85em; color: #666; margin-bottom: 15px;">Por favor, lee cuidadosamente cada punto, selecciona las casillas para aceptar antes de continuar.</p>
                     
                     <div class="agreement-item">
                         <input type="checkbox" id="terms-general" name="terms-general" required>
