@@ -1998,7 +1998,7 @@ app.post('/api/quick-sale', async (req, res) => {
             return res.status(403).json({ message: "La creación de Ventas Rápidas está desactivada temporalmente." });
         }
 
-        // 1. Validaciones de entrada básicas
+    // 1. Validaciones de entrada básicas
     if (!amount || !authorUsername) {
         return res.status(400).json({ message: "Faltan datos requeridos: el monto y el autor son obligatorios." });
     }
