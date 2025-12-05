@@ -20,7 +20,12 @@
             
             <div>
                 <label for="password">Contraseña:</label>
-                <input type="password" id="password" name="password" required>
+                <div class="password-wrapper">
+                    <input type="password" id="password" name="password" required>
+                    <span class="password-toggle-icon" onclick="togglePasswordVisibility('password', this)">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-eye"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    </span>
+                </div>
             </div>
             
             <div>
@@ -33,6 +38,7 @@
 
     <script src="utils.js"></script>
     <script src="login.js"></script>
+    <script src="password-toggle.js"></script>
 
     <!-- Modal de Alerta Personalizado -->
     <div id="customAlertModal" class="modal">
