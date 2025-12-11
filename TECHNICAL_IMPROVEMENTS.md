@@ -1,6 +1,32 @@
-# Mejoras Técnicas Propuestas para el Proyecto WintonCoin (Priorizadas)
+ok pero borra "gener# Mejoras Técnicas Propuestas para el Proyecto WintonCoin (Priorizadas)
 
 Este documento describe una serie de mejoras técnicas y de arquitectura sugeridas para fortalecer el código base del proyecto, mejorar su mantenibilidad, escalabilidad y seguridad. Las tareas están **ordenadas por prioridad**, desde la más crítica a la más recomendable.
+
+---
+
+## 0. Blindar Configuraciones Críticas con RBAC + MFA
+
+**Prioridad: Urgente (primer paso)**
+
+**Problema Actual:**
+- Existen rutas que confían únicamente en un `username` recibido desde el cuerpo de la petición para ejecutar acciones sensibles. Ejemplo: `/notifications/mark-read` y `/users/burn` aceptan `username` sin verificar que pertenezca al usuario autenticado, lo que abre la puerta a suplantaciones (`backend/server.js`).
+- Las páginas administrativas (`frontend/admin*.html/js`) no cuentan con un guardado robusto en el backend; cualquier cliente que conozca la ruta puede intentar consumir los endpoints y modificar configuraciones, saldos o notificaciones.
+
+**Solución Propuesta (primer paso a implementar):**
+1. **Crear Roles y Permisos Claros:** Añadir columnas como `role` o `is_admin` en `users` (o una tabla `user_roles`). Solo estos usuarios pueden tocar configuraciones o funciones administrativas.
+2. **JWT + Middleware RBAC:** Generar un JWT al iniciar sesión, incluir el rol dentro del token y crear middleware tipo `requireAuth` + `requireRole('admin')` que verifique:
+   - Token válido firmado con `JWT_SECRET`.
+   - Usuario activo y sin bloqueo.
+   - Rol con permisos para la ruta solicitada.
+3. **MFA para Acciones Sensibles:** Antes de permitir cambios de configuración (por ejemplo, mutar `app_settings` o ejecutar scripts de balance), solicitar un segundo factor (OTP via Twilio o WebAuthn) y validar que fue completado en los últimos minutos.
+4. **Just-in-Time Access:** Para tareas operativas críticas, emitir sesiones privilegiadas que expiren tras unos minutos y que se aprueben mediante un flujo tipo “four-eyes” (al menos dos operadores).
+5. **Registro Inmutable y Alertas:** Loggear cada cambio administrativo en una tabla append-only (`admin_audit_log`) y enviar eventos a un SIEM/SOC cuando se modifique una configuración.
+6. **Endurecer el Frontend:** Eliminar cualquier lógica administrativa del lado del cliente que dependa solo de `localStorage`. Todos los formularios administrativos deben consumir APIs protegidas por el middleware anterior.
+
+**Beneficios:**
+- Garantiza que solo usuarios autenticados y autorizados tocan configuraciones o saldos.
+- Ofrece trazabilidad para auditorías y respuesta a incidentes.
+- Sienta las bases para controles adicionales (aprobaciones duales, firmas digitales) sin rehacer la arquitectura.
 
 ---
 

@@ -41,6 +41,12 @@ La quema de tokens es la eliminación simultánea de `BLUE` y `RED` del sistema.
 -   **Bono de Bienvenida**: Los nuevos usuarios que se registran **sin** un código de referido reciben un bono de bienvenida. Este bono se acredita directamente en su perfil de impulsor, no en su billetera principal.
 -   **Recompensa por Referido**: Cuando un usuario se registra con el código de otro, tanto el referente como el referido reciben una recompensa. Estas recompensas también se acreditan exclusivamente en sus respectivos perfiles de impulsor. 
 
+### 6. Control de Endeudamiento y Plazos (Reglas de Bloqueo)
+
+-   **Límite de Deuda Dinámico**: El límite de endeudamiento en tokens `RED` no es fijo. Se inicia con un valor base y **aumenta progresivamente** conforme el usuario demuestra actividad positiva y mantiene una buena reputación. A mayor confianza generada, mayor capacidad de crédito otorga el sistema.
+-   **Plazos de Pago Estrictos**: Todas las deudas contraídas tienen un límite de tiempo definido para ser saldadas.
+-   **Bloqueo de Solicitudes**: Si un usuario incumple un plazo de pago (deuda vencida), el sistema **bloqueará automáticamente** la creación de nuevas solicitudes. El usuario no podrá generar nueva deuda hasta que regularice su situación.
+
 ---
 
 ### Anexo A: Fase de Pre-Lanzamiento (Temporal)
@@ -57,4 +63,5 @@ Durante la fase inicial de pre-lanzamiento, se aplican las siguientes modificaci
 
 -   **Control de Tipos de Publicación**: El administrador puede habilitar o deshabilitar de forma independiente la capacidad de crear tipos específicos de publicaciones (`solicitud`, `venta`, `donación`) para guiar la actividad de la plataforma durante esta fase. 
 
--   **Donaciones y Transferencias Limitadas por Perfil de Impulsor**: En esta fase, los usuarios solo pueden donar o transferir BLUE hasta la cantidad acumulada en su perfil de impulsor. La cantidad donada se resta del perfil del donante y se suma al perfil del receptor, manteniendo el balance total del sistema en cero. 
+-   **Donaciones y Transferencias Limitadas por Perfil de Impulsor**: En esta fase, los usuarios solo pueden donar o transferir BLUE hasta la cantidad acumulada en su perfil de impulsor. La cantidad donada se resta del perfil del donante y se suma al perfil del receptor, manteniendo el balance total del sistema en cero.
+-   **Requisito de Perfil Aprobado**: Para realizar cualquier publicación o transferencia, el usuario debe tener su perfil **aprobado**. Esta medida es obligatoria para garantizar que cada cuenta pertenezca a una persona real y evitar estafas mediante la creación de múltiples cuentas falsas.
