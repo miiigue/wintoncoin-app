@@ -1816,7 +1816,8 @@ app.post('/api/minor/add-tutor', async (req, res) => {
             const { 
                 title, description, blueCost, blueSell, authorUsername, 
                 availableSlots, autoApprove, publicationType,
-                duration_days, duration_hours, duration_minutes 
+                duration_days, duration_hours, duration_minutes,
+                allowRepeatParticipation
             } = req.body;
         
             if (!title || !description || !authorUsername || (!blueCost && !blueSell) || !publicationType) {
@@ -1890,8 +1891,25 @@ app.post('/api/minor/add-tutor', async (req, res) => {
                     expiresAt.setMinutes(expiresAt.getMinutes() + minutes);
                 }
 
-                const sql = `INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, category, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`;
-                const result = await pool.query(sql, [title, description, cost, isSellPost, authorId, slots, !!autoApprove, publicationType, expiresAt]);
+                const sql = `
+                    INSERT INTO publications
+                        (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, category, expires_at, allow_repeat_participation)
+                    VALUES
+                        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                    RETURNING id
+                `;
+                const result = await pool.query(sql, [
+                    title,
+                    description,
+                    cost,
+                    isSellPost,
+                    authorId,
+                    slots,
+                    !!autoApprove,
+                    publicationType,
+                    expiresAt,
+                    !!allowRepeatParticipation
+                ]);
                 
                 await client.query('COMMIT');
                 res.status(201).json({ message: "Publicación creada exitosamente.", publicationId: result.rows[0].id });
@@ -1919,11 +1937,11 @@ app.post('/api/minor/add-tutor', async (req, res) => {
         queryParams.push(`%${search}%`);
     }
 
-    // FIX FUNCIONAL: Añadido p.expires_at a la lista de campos
+    // FIX FUNCIONAL: Añadido p.expires_at y p.allow_repeat_participation a la lista de campos
     const sql = `
                 SELECT
             p.id, p.title, p.description, p.blue_cost, p.created_at, p.status, p.category,
-            p.is_booster_task, p.is_sell_post, p.available_slots, p.expires_at,
+            p.is_booster_task, p.is_sell_post, p.available_slots, p.expires_at, p.allow_repeat_participation,
                     u.username as author_username,
             u.average_rating as author_average_rating,
             u.ratings_count as author_ratings_count,
@@ -1931,16 +1949,15 @@ app.post('/api/minor/add-tutor', async (req, res) => {
                         SELECT pa.status 
                         FROM publication_acceptances pa 
                         WHERE pa.publication_id = p.id AND pa.acceptor_username = $1
-                        ORDER BY
-                            CASE pa.status
-                                WHEN 'approved' THEN 1
-                                WHEN 'completed' THEN 2
-                                WHEN 'pending_approval' THEN 3
-                                WHEN 'confirmed_paid' THEN 4
-                                ELSE 5
-                            END
-                        LIMIT 1
+                        ORDER BY created_at DESC LIMIT 1
                     ) as user_acceptance_status,
+                    (
+                        SELECT COUNT(*)
+                        FROM publication_acceptances pa
+                        WHERE pa.publication_id = p.id 
+                        AND pa.acceptor_username = $1 
+                        AND pa.status = 'confirmed_paid'
+                    ) as successful_participations,
                     (CASE
                         WHEN u.username = $1 THEN (
                             SELECT json_agg(json_build_object(
@@ -1961,6 +1978,26 @@ app.post('/api/minor/add-tutor', async (req, res) => {
                     users u on p.author_id = u.id
                 WHERE
                     p.id NOT IN (SELECT hp.publication_id FROM hidden_publications hp WHERE hp.hider_username = $1)
+                    -- NUEVO (UX + seguridad de negocio): Si la publicación NO es repetible y el usuario ya la completó/pagó,
+                    -- entonces NO debe aparecer como "disponible" para ese usuario.
+                    AND NOT (
+                        COALESCE(p.allow_repeat_participation, FALSE) = FALSE
+                        AND EXISTS (
+                            SELECT 1
+                            FROM publication_acceptances pa_done
+                            WHERE pa_done.publication_id = p.id
+                              AND pa_done.acceptor_username = $1
+                              AND pa_done.status = 'confirmed_paid'
+                        )
+                    )
+                    -- NUEVO (Hard Reject): Si el usuario fue rechazado alguna vez en esta publicación, ocultarla del feed.
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM publication_acceptances pa_rej
+                        WHERE pa_rej.publication_id = p.id
+                          AND pa_rej.acceptor_username = $1
+                          AND pa_rej.status = 'rejected'
+                    )
                     AND (
             -- Caso 1: Publicaciones normales que están activas o en las que el usuario participa
             (
@@ -2260,6 +2297,40 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                 if (pub.available_slots <= 0) {
                     throw { status: 400, message: "Lo sentimos, ya no quedan cupos disponibles." };
                 }
+                if (pub.is_paused) {
+                    throw { status: 400, message: "Esta publicación está pausada y no acepta nuevas solicitudes." };
+                }
+
+                // --- NUEVO: Política profesional anti-repetición + Hard Reject (regla de negocio en backend) ---
+                // Cargamos TODAS las participaciones históricas del usuario en esta publicación.
+                const prev = await client.query(
+                    `SELECT status FROM publication_acceptances WHERE publication_id = $1 AND acceptor_username = $2`,
+                    [id, acceptorUsername]
+                );
+
+                if (prev.rows.length > 0) {
+                    const statuses = prev.rows.map(r => r.status);
+
+                    // Hard Reject: si fue rechazado alguna vez, no puede volver a intentar nunca más.
+                    if (statuses.includes('rejected')) {
+                        throw { status: 403, message: "Tu solicitud para esta tarea fue rechazada anteriormente. No puedes volver a postularte." };
+                    }
+
+                    // Bloqueo de concurrencia: no permitir una segunda solicitud si ya hay una activa.
+                    // Nota: 'completed' aquí significa "culminada esperando confirmación/pago", sigue siendo activa.
+                    const activeStatuses = ['pending_approval', 'approved', 'completed'];
+                    if (statuses.some(s => activeStatuses.includes(s))) {
+                        throw { status: 409, message: "Ya tienes una solicitud activa para esta tarea. Complétala antes de iniciar otra." };
+                    }
+
+                    // Si NO se permite repetir y ya tuvo una finalización exitosa, bloquear.
+                    const successfulStatuses = ['completed', 'confirmed_paid'];
+                    const hasSuccessful = statuses.some(s => successfulStatuses.includes(s));
+                    const allowRepeat = !!pub.allow_repeat_participation;
+                    if (!allowRepeat && hasSuccessful) {
+                        throw { status: 409, message: "Ya completaste esta tarea y no se permite repetirla." };
+                    }
+                }
                 
                 // Si es una publicación de tipo 'sell' o 'donation', el aceptante pagará (genera deuda)
                 // Si es 'request', el autor pagará (no genera deuda para el aceptante)
@@ -2272,6 +2343,7 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                     });
                 }
 
+                // Descontar cupo SOLO después de pasar validaciones de repetición/concurrencia
                 await client.query(`UPDATE publications SET available_slots = available_slots - 1 WHERE id = $1`, [id]);
                 
                 // --- LÓGICA DE AUTO-APROBACIÓN ---
