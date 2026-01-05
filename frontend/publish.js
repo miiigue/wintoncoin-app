@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const publishForm = document.getElementById('publishForm');
     const costWrapper = document.getElementById('cost-wrapper');
     const sellWrapper = document.getElementById('sell-wrapper');
+    const repeatWrapper = document.getElementById('repeat-wrapper');
     const noticeContainer = document.getElementById('commission-notice-container');
     const preLaunchNoticeContainer = document.getElementById('prelaunch-notice-container');
     const setExpirationCheckbox = document.getElementById('setExpiration');
@@ -185,6 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (publicationType === 'sell') {
         costWrapper.style.display = 'none';
         sellWrapper.style.display = 'block';
+        if (repeatWrapper) repeatWrapper.style.display = 'none'; // No tiene sentido repetir compras
         // Lógica específica para Venta
         pageTitle.textContent = 'Crear una Oferta de Venta';
         titleLabel.textContent = '¿Qué ofreces a cambio de BLUE?';
@@ -203,6 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (publicationType === 'donation') {
         costWrapper.style.display = 'none';
         sellWrapper.style.display = 'block';
+        if (repeatWrapper) repeatWrapper.style.display = 'none'; // No tiene sentido repetir donaciones en este contexto
         // Lógica específica para Donación
         pageTitle.textContent = 'Crear una Campaña de Donación';
         titleLabel.textContent = 'Título de tu Causa o Campaña:';
@@ -305,6 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // El valor de un checkbox no marcado no se envía, así que lo manejamos explícitamente.
         data.autoApprove = document.getElementById('autoApprove').checked;
+        data.allowRepeatParticipation = document.getElementById('allowRepeatParticipation').checked;
 
         // Añadimos la lógica de la fecha de expiración
         if (setExpirationCheckbox.checked) {

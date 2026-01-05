@@ -865,6 +865,7 @@ document.addEventListener('DOMContentLoaded', () => {
             availableSlots: document.getElementById('platformPubSlots').value,
             isSellPost: document.querySelector('input[name="platformPubType"]:checked').value === 'sell',
             autoApprove: document.getElementById('platformAutoApprove').checked,
+            allowRepeatParticipation: document.getElementById('platformAllowRepeatParticipation').checked,
             isBoosterTask: document.getElementById('platformIsBoosterTask').checked
         };
         try {
