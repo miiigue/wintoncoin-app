@@ -94,6 +94,55 @@ const pool = new Pool({
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
+// =================================================================================
+// == AUDIT LOG (Bank-grade traceability) =========================================
+// =================================================================================
+// Append-only audit events. Do NOT store secrets (passwords/tokens/private keys).
+// Retention: 48 months (cleanup job below).
+async function logAuditEvent(clientOrPool, req, {
+    eventType,
+    actorUsername = null,
+    targetUsername = null,
+    publicationId = null,
+    category = null,
+    metadata = {}
+}) {
+    try {
+        const ipAddress = req?.clientIp || req?.ip || null; // request-ip middleware sets req.clientIp
+        const userAgent = req?.headers?.['user-agent'] || null;
+        const sql = `
+            INSERT INTO audit_log
+                (event_type, actor_username, target_username, publication_id, category, ip_address, user_agent, metadata)
+            VALUES
+                ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+        `;
+        const params = [
+            eventType,
+            actorUsername,
+            targetUsername,
+            publicationId,
+            category,
+            ipAddress,
+            userAgent,
+            JSON.stringify(metadata || {})
+        ];
+        await clientOrPool.query(sql, params);
+    } catch (err) {
+        // Never break business logic due to logging failures, but record server-side.
+        console.error('[AUDIT_LOG] Failed to write audit event:', err);
+    }
+}
+
+// Retention cleanup (48 months): run daily at 03:15 server time
+cron.schedule('15 3 * * *', async () => {
+    try {
+        const retentionMonths = 48;
+        await pool.query(`DELETE FROM audit_log WHERE created_at < NOW() - ($1 || ' months')::interval`, [retentionMonths]);
+    } catch (err) {
+        console.error('[AUDIT_LOG] Retention cleanup failed:', err);
+    }
+});
+
 // Función para verificar la conexión
 async function checkDbConnection() {
     try {
@@ -1898,7 +1947,7 @@ app.post('/api/minor/add-tutor', async (req, res) => {
                         ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                     RETURNING id
                 `;
-                const result = await pool.query(sql, [
+                const result = await client.query(sql, [
                     title,
                     description,
                     cost,
@@ -1910,6 +1959,20 @@ app.post('/api/minor/add-tutor', async (req, res) => {
                     expiresAt,
                     !!allowRepeatParticipation
                 ]);
+
+                await logAuditEvent(client, req, {
+                    eventType: 'publication.created',
+                    actorUsername: authorUsername,
+                    publicationId: result.rows[0].id,
+                    category: publicationType,
+                    metadata: {
+                        blue_cost: cost,
+                        available_slots: slots,
+                        auto_approve: !!autoApprove,
+                        allow_repeat_participation: !!allowRepeatParticipation,
+                        expires_at: expiresAt ? expiresAt.toISOString() : null
+                    }
+                });
                 
                 await client.query('COMMIT');
                 res.status(201).json({ message: "Publicación creada exitosamente.", publicationId: result.rows[0].id });
@@ -2115,6 +2178,18 @@ app.post('/api/quick-sale', async (req, res) => {
         const publicationResult = await client.query(insertQuery, values);
         const newPublicationId = publicationResult.rows[0].id;
 
+        await logAuditEvent(client, req, {
+            eventType: 'quick_sale.created',
+            actorUsername: authorUsername,
+            targetUsername: targetUsername && targetUsername.trim() !== '' ? targetUsername.trim() : null,
+            publicationId: newPublicationId,
+            category: 'quick_sale',
+            metadata: {
+                amount: cost,
+                expires_at: expiresAt.toISOString()
+            }
+        });
+
         await client.query('COMMIT');
         
         // 5. Devolver el ID de la nueva publicación para generar el QR
@@ -2248,6 +2323,18 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
         // 5. Crear notificación para el vendedor
         const notificationMessage = `¡Venta Rápida completada! ${buyerUsername} ha pagado por tu publicación: "${publication.title}".`;
         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [sellerUsername, notificationMessage]);
+
+        await logAuditEvent(client, req, {
+            eventType: 'quick_sale.paid',
+            actorUsername: buyerUsername,
+            targetUsername: sellerUsername,
+            publicationId: parseInt(id, 10),
+            category: 'quick_sale',
+            metadata: {
+                amount: cost,
+                publication_title: publication.title
+            }
+        });
         
         await client.query('COMMIT');
 
@@ -2352,6 +2439,19 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                     await client.query(`INSERT INTO publication_acceptances (publication_id, acceptor_username, status) VALUES ($1, $2, 'approved')`, [id, acceptorUsername]);
                     const message = `¡Has sido aprobado automáticamente para la tarea "${pub.title}"!`;
                     await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [acceptorUsername, message]);
+
+                    await logAuditEvent(client, req, {
+                        eventType: 'publication.accepted',
+                        actorUsername: acceptorUsername,
+                        publicationId: parseInt(id, 10),
+                        category: pub.category,
+                        metadata: {
+                            initial_status: 'approved',
+                            auto_approve: true,
+                            allow_repeat_participation: !!pub.allow_repeat_participation
+                        }
+                    });
+
                     await client.query('COMMIT');
                     res.status(200).json({ message: "¡Aceptaste y fuiste aprobado automáticamente!" });
                 } else {
@@ -2359,6 +2459,19 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                     await client.query(`INSERT INTO publication_acceptances (publication_id, acceptor_username, status) VALUES ($1, $2, 'pending_approval')`, [id, acceptorUsername]);
                     const message = `El usuario ${acceptorUsername} quiere realizar la tarea "${pub.title}".`;
                     await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [pub.author_username, message]);
+
+                    await logAuditEvent(client, req, {
+                        eventType: 'publication.accepted',
+                        actorUsername: acceptorUsername,
+                        publicationId: parseInt(id, 10),
+                        category: pub.category,
+                        metadata: {
+                            initial_status: 'pending_approval',
+                            auto_approve: false,
+                            allow_repeat_participation: !!pub.allow_repeat_participation
+                        }
+                    });
+
                     await client.query('COMMIT');
                     res.status(200).json({ message: "Solicitud enviada. Esperando aprobación." });
                 }
@@ -2390,22 +2503,42 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                     throw { status: 403, message: "No tienes permiso para gestionar esta tarea." };
                 }
         
-                const deleteResult = await client.query(
-                    `DELETE FROM publication_acceptances WHERE publication_id = $1 AND acceptor_username = $2 AND status = 'pending_approval' RETURNING *`,
+                // ✅ Enfoque profesional: NO borramos el historial.
+                // En su lugar marcamos la solicitud como 'rejected' (Hard Reject).
+                const updateResult = await client.query(
+                    `UPDATE publication_acceptances
+                     SET status = 'rejected'
+                     WHERE publication_id = $1
+                       AND acceptor_username = $2
+                       AND status = 'pending_approval'
+                     RETURNING *`,
                     [id, userToDiscard]
                 );
                 
-                if (deleteResult.rowCount === 0) {
+                if (updateResult.rowCount === 0) {
                     throw { status: 404, message: "No se encontró una solicitud pendiente para este usuario." };
                 }
         
+                // Devolver el cupo (la solicitud ya no ocupa un slot)
                 await client.query(`UPDATE publications SET available_slots = available_slots + 1 WHERE id = $1`, [id]);
         
-                const message = `Tu solicitud para la tarea "${pub.title}" no fue seleccionada. ¡Gracias por tu interés!`;
+                const message = `Tu solicitud para la tarea "${pub.title}" fue rechazada.`;
                 await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [userToDiscard, message]);
+
+                await logAuditEvent(client, req, {
+                    eventType: 'publication.rejected',
+                    actorUsername: discarderUsername,
+                    targetUsername: userToDiscard,
+                    publicationId: parseInt(id, 10),
+                    category: pub.category,
+                    metadata: {
+                        from_status: 'pending_approval',
+                        to_status: 'rejected'
+                    }
+                });
         
                 await client.query('COMMIT');
-                res.status(200).json({ message: `Has descartado la solicitud de ${userToDiscard}.` });
+                res.status(200).json({ message: `Has rechazado la solicitud de ${userToDiscard}.` });
         
             } catch (error) {
                 await client.query('ROLLBACK');
@@ -2440,6 +2573,18 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
 
                 const message = `¡Has sido aprobado para la tarea "${pub.title}"!`;
                 await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [userToApprove, message]);
+
+                await logAuditEvent(client, req, {
+                    eventType: 'publication.approved',
+                    actorUsername: approverUsername,
+                    targetUsername: userToApprove,
+                    publicationId: parseInt(id, 10),
+                    category: pub.category,
+                    metadata: {
+                        from_status: 'pending_approval',
+                        to_status: 'approved'
+                    }
+                });
                 
                 await client.query('COMMIT');
                 res.status(200).json({ message: `Has aprobado a ${userToApprove}.` });
@@ -2501,6 +2646,16 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                     default:
                         throw { status: 400, message: "Categoría de publicación no válida." };
                 }
+
+                await logAuditEvent(client, req, {
+                    eventType: 'publication.completed',
+                    actorUsername: completerUsername,
+                    publicationId: parseInt(pubId, 10),
+                    category: acceptance.category,
+                    metadata: {
+                        acceptance_id: acceptance.acceptance_id
+                    }
+                });
                 
                 await client.query('COMMIT');
                 res.status(200).json({ message: result.message });
@@ -2564,6 +2719,19 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                 
         // 5. ACTUALIZAR ESTADO FINAL
                 await client.query(`UPDATE publication_acceptances SET status = 'confirmed_paid' WHERE id = $1`, [acceptance.acceptance_id]);
+
+                await logAuditEvent(client, req, {
+                    eventType: 'publication.confirmed_paid',
+                    actorUsername: confirmerUsername,
+                    targetUsername: workerUsername,
+                    publicationId: parseInt(pubId, 10),
+                    category: 'request',
+                    metadata: {
+                        acceptance_id: acceptance.acceptance_id,
+                        blue_cost: acceptance.blue_cost,
+                        is_booster_task: !!acceptance.is_booster_task
+                    }
+                });
 
                 await client.query('COMMIT');
                 res.status(200).json({ message: result.message });
@@ -3081,6 +3249,18 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                 if (result.rowCount === 0) {
                     return res.status(404).json({ message: `Clave de configuración '${key}' no encontrada.` });
                 }
+
+                await logAuditEvent(pool, req, {
+                    eventType: 'admin.settings.updated',
+                    actorUsername: 'admin',
+                    publicationId: null,
+                    category: 'admin',
+                    metadata: {
+                        setting_key: key,
+                        new_value: value
+                    }
+                });
+
                 res.status(200).json({ message: `Configuración '${key}' actualizada.`, setting: result.rows[0] });
             } catch (error) {
                 console.error("Error al actualizar la configuración:", error);
