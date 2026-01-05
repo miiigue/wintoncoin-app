@@ -1,4 +1,19 @@
+// admin-panel.js - Versión Segura
+
 document.addEventListener('DOMContentLoaded', () => {
+
+    // --- Función de Utilidad para Escapar HTML (Sanitización) ---
+    // Esta es una práctica estándar en la industria para prevenir XSS.
+    // Convierte caracteres peligrosos en sus entidades HTML seguras.
+    function escapeHtml(text) {
+        if (text === null || text === undefined) return '';
+        return String(text)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
 
     // --- Función de Utilidad para Formatear Saldos ---
     function formatBalance(value) {
@@ -8,6 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
             maximumFractionDigits: 4
         });
         const parts = formattedString.split(',');
+        // Nota: escapeHtml no es necesario aquí porque controlamos la entrada (es un número formateado)
+        // pero el HTML dentro de la función es estático y seguro.
         if (parts.length === 2) {
             return `${parts[0]},<span class="decimal-part">${parts[1]}</span>`;
         }
@@ -17,23 +34,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Configuración y Estado ---
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
     const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
-    const adminToken = localStorage.getItem('adminToken');
-
-    if (!adminToken) {
-        window.location.href = 'admin.html';
-        return;
-    }
+    
+    // CAMBIO SEGURIDAD: Ya no leemos el token de localStorage. 
+    // La autenticación se verifica mediante la cookie HttpOnly al hacer la petición al backend.
+    // Si la cookie no existe o expiró, el backend devolverá 401 y redirigiremos.
 
     const elements = {
         navLinks: document.querySelectorAll('.nav-link'),
         sections: document.querySelectorAll('.admin-section'),
         logoutBtn: document.getElementById('adminLogoutBtn'),
         settingsContainer: document.getElementById('settings-switches'),
-        phaseManagementContainer: document.getElementById('phase-management-switches'), // NUEVO
+        phaseManagementContainer: document.getElementById('phase-management-switches'), 
         dashboardContainer: document.getElementById('dashboard-stats'),
         usersTableContainer: document.getElementById('users-table-container'),
         userSearchInput: document.getElementById('userSearchInput'),
-        userStatusFilter: document.getElementById('userStatusFilter'), // NUEVO
+        userStatusFilter: document.getElementById('userStatusFilter'), 
         debtorsTableContainer: document.getElementById('debtors-table-container'),
         publicationsTableContainer: document.getElementById('publications-table-container'),
         publicationSearchInput: document.getElementById('publicationSearchInput'),
@@ -55,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Inicialización ---
     setupEventListeners();
+    // Intentamos cargar el dashboard. Si falla por auth, apiFetch redirigirá.
     showSection('dashboard');
 
     // --- Lógica de la Interfaz ---
@@ -67,14 +83,19 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        elements.logoutBtn.addEventListener('click', (e) => {
+        elements.logoutBtn.addEventListener('click', async (e) => {
             e.preventDefault();
-            localStorage.removeItem('adminToken');
+            try {
+                // Petición al backend para limpiar la cookie
+                await fetch(`${API_URL}/api/admin/logout`, { method: 'POST', credentials: 'include' });
+            } catch (err) {
+                console.error("Error al cerrar sesión", err);
+            }
             window.location.href = 'admin.html';
         });
 
         elements.settingsContainer.addEventListener('change', handleSettingChange);
-        elements.phaseManagementContainer.addEventListener('change', handleSettingChange); // NUEVO
+        elements.phaseManagementContainer.addEventListener('change', handleSettingChange); 
         elements.settingsContainer.addEventListener('keyup', (event) => {
             if (event.target.type === 'number') {
                 handleSettingChange(event);
@@ -85,21 +106,18 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.userSearchInput.addEventListener('keyup', () => {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
+                // El valor del input se pasa tal cual, el backend debe sanitizar SQL y el renderizado sanitizar HTML.
                 loadUsers(elements.userSearchInput.value, elements.userStatusFilter.value);
             }, 300);
         });
 
-        // --- NUEVO: Listener para el filtro de estado ---
         elements.userStatusFilter.addEventListener('change', () => {
             loadUsers(elements.userSearchInput.value, elements.userStatusFilter.value);
         });
 
-        // --- REFACTORIZADO: Listener para las acciones de moderación de usuarios ---
         elements.usersTableContainer.addEventListener('click', handleUserAction);
         
-        // --- NUEVO: Listener global para cerrar menús ---
         document.addEventListener('click', (e) => {
-            // Si el clic no fue DENTRO de un contenedor de menú Y no fue en un botón de toggle, cierra todos los menús.
             if (!e.target.closest('.action-menu-container') && !e.target.closest('.menu-toggle')) {
                 document.querySelectorAll('.action-menu.visible').forEach(menu => {
                     menu.classList.remove('visible');
@@ -125,12 +143,11 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.platformManagementList.addEventListener('click', handlePlatformAction);
         }
 
-        // -- DANGER ZONE (LÓGICA A ELIMINAR DESPUÉS DE USAR) --
+        // -- DANGER ZONE --
         if (elements.resetDatabaseBtn) {
             elements.resetDatabaseBtn.addEventListener('click', handleResetDatabase);
         }
 
-        // --- NUEVO: Listener para las pestañas de la sección de Impulsores ---
         if (elements.boosterSection) {
             const tabLinks = elements.boosterSection.querySelectorAll('.tab-link');
             tabLinks.forEach(link => {
@@ -146,51 +163,49 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.sections.forEach(section => section.classList.remove('active-section'));
         elements.navLinks.forEach(link => link.classList.remove('active'));
 
-        document.getElementById(`${sectionId}-section`).classList.add('active-section');
-        document.querySelector(`.nav-link[data-section="${sectionId}"]`).classList.add('active');
+        const sectionEl = document.getElementById(`${sectionId}-section`);
+        const navEl = document.querySelector(`.nav-link[data-section="${sectionId}"]`);
+        
+        if (sectionEl) sectionEl.classList.add('active-section');
+        if (navEl) navEl.classList.add('active');
 
         if (sectionId === 'dashboard') loadDashboardData();
         else if (sectionId === 'settings') loadSettings();
         else if (sectionId === 'users') {
-            loadUsers(); // Carga inicial sin filtros
+            loadUsers(); 
         }
         else if (sectionId === 'debtors') loadDebtors();
         else if (sectionId === 'publications') loadPublications();
         else if (sectionId === 'platform-wallet') loadPlatformWalletData();
         else if (sectionId === 'platform-publications') {
-            // Cargar ambas partes de la sección de plataforma
             loadPlatformManagementData();
         }
         else if (sectionId === 'referrals') {
             loadReferralsData();
         }
         else if (sectionId === 'boosters') {
-            // Al entrar en la sección, mostramos la primera pestaña por defecto
             showBoosterTab('boosters-dashboard');
         }
         else if (sectionId === 'database-management') {
             loadDatabaseStats();
-            // Reconfigurar los event listeners cuando se entra a la sección
             setTimeout(() => {
                 setupDatabaseCleanupListeners();
             }, 200);
         }
-        // No se necesita cargar datos para la zona de peligro, solo mostrarla.
     }
 
-    // --- NUEVO: Lógica para manejar las pestañas de Impulsores ---
     function showBoosterTab(tabId) {
         if (!elements.boosterSection) return;
 
-        // Ocultar todos los contenidos y desactivar todos los enlaces
         elements.boosterSection.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
         elements.boosterSection.querySelectorAll('.tab-link').forEach(link => link.classList.remove('active'));
 
-        // Mostrar el contenido y activar el enlace de la pestaña seleccionada
-        document.getElementById(`${tabId}-tab`).classList.add('active');
-        document.querySelector(`.tab-link[data-tab="${tabId}"]`).classList.add('active');
+        const tabContent = document.getElementById(`${tabId}-tab`);
+        const tabLink = document.querySelector(`.tab-link[data-tab="${tabId}"]`);
 
-        // Aquí cargaremos los datos específicos para cada pestaña
+        if (tabContent) tabContent.classList.add('active');
+        if (tabLink) tabLink.classList.add('active');
+
         switch (tabId) {
             case 'boosters-dashboard':
                 loadBoosterDashboard();
@@ -202,27 +217,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadBoosterList();
                 break;
             case 'boosters-payments':
-                // loadBoosterPaymentsLog();
                 break;
         }
     }
 
-    // --- Lógica de Datos (API Fetch, etc.) ---
+    // --- Lógica de Datos (API Fetch Segura) ---
     async function apiFetch(endpoint, options = {}) {
         const defaultOptions = {
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` }
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include' // CRÍTICO: Envía las cookies automáticamente
         };
-        const response = await fetch(`${API_URL}${endpoint}`, { ...defaultOptions, ...options });
-        if (response.status === 401 || response.status === 403) {
-            localStorage.removeItem('adminToken');
-            window.location.href = 'admin.html';
-            throw new Error('Autenticación fallida.');
+        
+        // Fusionar headers si existen en options
+        if (options.headers) {
+            defaultOptions.headers = { ...defaultOptions.headers, ...options.headers };
+            delete options.headers;
         }
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || `Error del servidor: ${response.status}`);
+
+        try {
+            const response = await fetch(`${API_URL}${endpoint}`, { ...defaultOptions, ...options });
+            
+            if (response.status === 401 || response.status === 403) {
+                // Si el servidor rechaza la cookie (expirada o inválida), redirigimos al login
+                window.location.href = 'admin.html';
+                throw new Error('Sesión expirada o no autorizada.');
+            }
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `Error del servidor: ${response.status}`);
+            }
+            
+            return response.json();
+        } catch (error) {
+            // Manejo silencioso de redirecciones para no saturar la consola si es solo auth
+            if (error.message === 'Sesión expirada o no autorizada.') {
+                throw error;
+            }
+            console.error(`Error en apiFetch a ${endpoint}:`, error);
+            throw error;
         }
-        return response.json();
     }
 
     async function loadUsers(searchTerm = '', statusFilter = '') {
@@ -231,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const users = await apiFetch(`/api/admin/users?search=${encodeURIComponent(searchTerm)}&status=${encodeURIComponent(statusFilter)}`);
             renderUsersTable(users);
         } catch (error) {
-            elements.usersTableContainer.innerHTML = `<p class="error-message">Error al cargar los usuarios: ${error.message}</p>`;
+            elements.usersTableContainer.innerHTML = `<p class="error-message">Error al cargar los usuarios: ${escapeHtml(error.message)}</p>`;
         }
     }
 
@@ -241,7 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const debtors = await apiFetch(`/api/admin/debtors`);
             renderDebtorsTable(debtors);
         } catch (error) {
-            elements.debtorsTableContainer.innerHTML = `<p class="error-message">Error al cargar los deudores: ${error.message}</p>`;
+            elements.debtorsTableContainer.innerHTML = `<p class="error-message">Error al cargar los deudores: ${escapeHtml(error.message)}</p>`;
         }
     }
 
@@ -251,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const publications = await apiFetch(`/api/admin/publications?search=${encodeURIComponent(searchTerm)}`);
             renderPublicationsTable(publications);
         } catch (error) {
-            elements.publicationsTableContainer.innerHTML = `<p class="error-message">Error al cargar las publicaciones: ${error.message}</p>`;
+            elements.publicationsTableContainer.innerHTML = `<p class="error-message">Error al cargar las publicaciones: ${escapeHtml(error.message)}</p>`;
         }
     }
 
@@ -266,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderPlatformWallet(walletData);
             renderCommissionLog(log);
         } catch (error) {
-            elements.platformWalletStatsContainer.innerHTML = `<p class="error-message">Error al cargar datos de la billetera: ${error.message}</p>`;
+            elements.platformWalletStatsContainer.innerHTML = `<p class="error-message">Error al cargar datos de la billetera: ${escapeHtml(error.message)}</p>`;
             elements.platformCommissionLogContainer.innerHTML = '';
         }
     }
@@ -278,7 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const publications = await apiFetch('/api/admin/platform/publications-with-participants');
             renderPlatformPublicationsForManagement(publications);
         } catch (error) {
-            elements.platformManagementList.innerHTML = `<p class="error-message">Error al cargar las publicaciones de la plataforma: ${error.message}</p>`;
+            elements.platformManagementList.innerHTML = `<p class="error-message">Error al cargar las publicaciones de la plataforma: ${escapeHtml(error.message)}</p>`;
         }
     }
 
@@ -288,13 +322,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const stats = await apiFetch('/api/admin/dashboard-stats');
             renderDashboard(stats);
         } catch (error) {
-            elements.dashboardContainer.innerHTML = `<p class="error-message">Error al cargar el dashboard: ${error.message}</p>`;
+            elements.dashboardContainer.innerHTML = `<p class="error-message">Error al cargar el dashboard: ${escapeHtml(error.message)}</p>`;
         }
     }
 
     async function loadSettings() {
         elements.settingsContainer.innerHTML = '<div class="loading-spinner"></div>';
-        elements.phaseManagementContainer.innerHTML = '<div class="loading-spinner"></div>'; // NUEVO
+        elements.phaseManagementContainer.innerHTML = '<div class="loading-spinner"></div>'; 
         try {
             const settings = await apiFetch('/api/admin/settings');
             renderSettings(settings);
@@ -308,8 +342,6 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.referralsLogContainer.innerHTML = '<div class="loading-spinner"></div>';
 
         try {
-            // Reutilizamos la función de cargar todas las settings,
-            // y la de renderizado se encargará de mostrar solo las de referidos.
             const [settings, log] = await Promise.all([
                 apiFetch('/api/admin/settings'),
                 apiFetch('/api/admin/referrals/log')
@@ -319,34 +351,31 @@ document.addEventListener('DOMContentLoaded', () => {
             renderReferralLog(log);
 
         } catch (error) {
-            elements.referralsSettingsContainer.innerHTML = `<p class="error-message">Error al cargar la configuración de referidos: ${error.message}</p>`;
-            elements.referralsLogContainer.innerHTML = `<p class="error-message">Error al cargar el log de referidos: ${error.message}</p>`;
+            elements.referralsSettingsContainer.innerHTML = `<p class="error-message">Error al cargar la configuración de referidos: ${escapeHtml(error.message)}</p>`;
+            elements.referralsLogContainer.innerHTML = `<p class="error-message">Error al cargar el log de referidos: ${escapeHtml(error.message)}</p>`;
         }
     }
 
-    // --- NUEVO: Carga de datos para el Dashboard de Impulsores ---
     async function loadBoosterDashboard() {
         elements.boostersDashboardStats.innerHTML = '<div class="loading-spinner"></div>';
         try {
             const stats = await apiFetch('/api/admin/boosters/stats');
             renderBoosterDashboard(stats);
         } catch (error) {
-            elements.boostersDashboardStats.innerHTML = `<p class="error-message">Error al cargar el dashboard de impulsores: ${error.message}</p>`;
+            elements.boostersDashboardStats.innerHTML = `<p class="error-message">Error al cargar el dashboard de impulsores: ${escapeHtml(error.message)}</p>`;
         }
     }
 
-    // --- NUEVO: Carga de la lista de Impulsores ---
     async function loadBoosterList() {
         elements.boostersListContainer.innerHTML = '<div class="loading-spinner"></div>';
         try {
             const boosters = await apiFetch('/api/admin/boosters/list');
             renderBoosterList(boosters);
         } catch (error) {
-            elements.boostersListContainer.innerHTML = `<p class="error-message">Error al cargar la lista de impulsores: ${error.message}</p>`;
+            elements.boostersListContainer.innerHTML = `<p class="error-message">Error al cargar la lista de impulsores: ${escapeHtml(error.message)}</p>`;
         }
     }
 
-    // --- NUEVO: Carga de configuración de Impulsores ---
     async function loadBoosterSettings() {
         elements.boostersSettingsContainer.innerHTML = '<div class="loading-spinner"></div>';
         try {
@@ -356,11 +385,11 @@ document.addEventListener('DOMContentLoaded', () => {
             ]);
             renderBoosterSettings(appSettings, boosterLevels);
         } catch (error) {
-            elements.boostersSettingsContainer.innerHTML = `<p class="error-message">Error al cargar la configuración de impulsores: ${error.message}</p>`;
+            elements.boostersSettingsContainer.innerHTML = `<p class="error-message">Error al cargar la configuración de impulsores: ${escapeHtml(error.message)}</p>`;
         }
     }
 
-    // --- Lógica de Renderizado de Configuración (NUEVO) ---
+    // --- Lógica de Renderizado de Configuración ---
 
     function getSettingTitleAndDescription(key) {
         const map = {
@@ -385,22 +414,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getSettingTitle(key) {
-        // Esta función ahora es un proxy a la nueva función para mantener compatibilidad
-        // con el código antiguo de impulsores y referidos sin tener que reescribirlo todo.
         const setting = getSettingTitleAndDescription(key);
         return setting.title;
     }
 
     function renderSettings(settings) {
-        // --- Separar configuraciones por grupo ---
         const phaseSettings = settings.filter(s => ['pre_launch_mode_enabled', 'allow_request_publications', 'allow_sell_publications', 'allow_donation_publications', 'allow_quick_sale_publications'].includes(s.setting_key));
         const timeSettingsRaw = settings.filter(s => s.setting_key.startsWith('debt_cycle_') || s.setting_key.startsWith('blue_escrow_'));
         
-        // Filtramos para obtener solo las configuraciones generales, excluyendo las de fases, tiempo y referidos.
         const referralKeys = [
             'referral_system_enabled', 'referral_reward_amount', 
             'welcome_bonus_enabled', 'welcome_bonus_amount',
-            'referral_bonus_enabled', 'referral_bonus_amount' // <-- Añadimos las claves obsoletas
+            'referral_bonus_enabled', 'referral_bonus_amount' 
         ];
         const generalSettings = settings.filter(s => 
             !phaseSettings.includes(s) && 
@@ -408,17 +433,14 @@ document.addEventListener('DOMContentLoaded', () => {
             !referralKeys.includes(s.setting_key)
         );
 
-        // --- Renderizar Configuración de Fases ---
         elements.phaseManagementContainer.innerHTML = phaseSettings.map(s => getSettingHTML(s, 'switch')).join('');
 
-        // --- Renderizar Configuración General ---
         elements.settingsContainer.innerHTML = generalSettings.map(s => {
             if (s.setting_key.endsWith('_enabled') || s.setting_key.endsWith('registrations')) return getSettingHTML(s, 'switch');
             if (s.setting_key.endsWith('_amount') || s.setting_key.includes('percentage')) return getSettingHTML(s, 'number');
-            return ''; // No renderizar otros por ahora
+            return ''; 
         }).join('');
 
-        // --- Renderizar Configuración de Tiempo Agrupada ---
         const timeSettingsGrouped = {
             debt_cycle: { label: 'Duración del Ciclo de Deuda RED', description: 'Define el período de tiempo para esta funcionalidad.', settings: [] },
             blue_escrow: { label: 'Duración del Depósito BLUE (Escrow)', description: 'Define el período de tiempo para esta funcionalidad.', settings: [] }
@@ -435,7 +457,6 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.settingsContainer.innerHTML += getTimeGroupHTML(timeSettingsGrouped[groupKey]);
         }
         
-        // --- AGREGAR EVENT LISTENERS A LOS CONTROLES GENERADOS ---
         elements.settingsContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
             checkbox.addEventListener('change', handleSettingChange);
         });
@@ -449,7 +470,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
         
-        // --- AGREGAR EVENT LISTENERS A LOS CONTROLES DE FASE ---
         elements.phaseManagementContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
             checkbox.addEventListener('change', handleSettingChange);
         });
@@ -457,30 +477,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getSettingHTML(setting, type) {
         const { title, description } = getSettingTitleAndDescription(setting.setting_key);
+        // Sanitizamos los datos que vienen del servidor, aunque sean "confiables", por principio de defensa en profundidad.
+        const safeKey = escapeHtml(setting.setting_key);
+        const safeValue = escapeHtml(setting.setting_value);
+        const safeTitle = escapeHtml(title);
+        const safeDescription = escapeHtml(description);
+        
         let controlHTML = '';
 
         if (type === 'switch') {
             controlHTML = `
                 <label class="switch">
-                    <input type="checkbox" data-key="${setting.setting_key}" ${setting.setting_value === 'true' ? 'checked' : ''}>
+                    <input type="checkbox" data-key="${safeKey}" ${setting.setting_value === 'true' ? 'checked' : ''}>
                     <span class="slider round"></span>
                 </label>
             `;
         } else if (type === 'number') {
             controlHTML = `
-                <input type="number" class="admin-numeric-input" data-key="${setting.setting_key}" value="${parseFloat(setting.setting_value).toFixed(2)}" step="0.01" min="0">
+                <input type="number" class="admin-numeric-input" data-key="${safeKey}" value="${parseFloat(setting.setting_value).toFixed(2)}" step="0.01" min="0">
             `;
         } else if (type === 'date') {
             controlHTML = `
-                <input type="date" class="admin-date-input" data-key="${setting.setting_key}" value="${setting.setting_value || ''}">
+                <input type="date" class="admin-date-input" data-key="${safeKey}" value="${safeValue || ''}">
             `;
         }
 
         return `
             <div class="setting-item">
                 <div class="setting-item-info">
-                    <h4>${title}</h4>
-                    <p>${description}</p>
+                    <h4>${safeTitle}</h4>
+                    <p>${safeDescription}</p>
                 </div>
                 <div class="setting-item-control">
                     ${controlHTML}
@@ -502,16 +528,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return `
             <div class="setting-item">
                 <div class="setting-item-info">
-                    <h4>${group.label}</h4>
-                    <p>${group.description}</p>
+                    <h4>${escapeHtml(group.label)}</h4>
+                    <p>${escapeHtml(group.description)}</p>
                 </div>
                 <div class="setting-item-control-group">
                     ${group.settings.map(setting => {
                         const unit = setting.setting_key.split('_').pop();
+                        const safeKey = escapeHtml(setting.setting_key);
+                        const safeValue = escapeHtml(setting.setting_value);
                         return `
                             <div class="numeric-group-item">
-                                <label for="setting-${setting.setting_key}">${unit.charAt(0).toUpperCase() + unit.slice(1)}</label>
-                                <input type="number" class="admin-numeric-input" id="setting-${setting.setting_key}" data-key="${setting.setting_key}" value="${setting.setting_value}" min="0">
+                                <label for="setting-${safeKey}">${unit.charAt(0).toUpperCase() + unit.slice(1)}</label>
+                                <input type="number" class="admin-numeric-input" id="setting-${safeKey}" data-key="${safeKey}" value="${safeValue}" min="0">
                             </div>
                         `;
                     }).join('')}
@@ -533,7 +561,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return '';
             }).join('');
             
-            // --- AGREGAR EVENT LISTENERS A LOS CONTROLES GENERADOS ---
             container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
                 checkbox.addEventListener('change', handleSettingChange);
             });
@@ -553,23 +580,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- NUEVO: Renderizado de la configuración de Impulsores ---
     function renderBoosterSettings(appSettings, boosterLevels) {
         const container = elements.boostersSettingsContainer;
-        container.innerHTML = ''; // Limpiar spinner
+        container.innerHTML = ''; 
 
-        // 1. Renderizar el interruptor general del sistema
         const systemEnabledSetting = appSettings.find(s => s.setting_key === 'booster_system_enabled');
         if (systemEnabledSetting) {
+            const title = getSettingTitle(systemEnabledSetting.setting_key);
+            const safeKey = escapeHtml(systemEnabledSetting.setting_key);
+            const description = systemEnabledSetting.description || 'Activa o desactiva el programa de impulsores y los pagos mensuales.';
+            
             const itemHTML = `
                 <div class="setting-item">
                     <div class="setting-item-info">
-                        <h4>${getSettingTitle(systemEnabledSetting.setting_key)}</h4>
-                        <p>${systemEnabledSetting.description || 'Activa o desactiva el programa de impulsores y los pagos mensuales.'}</p>
+                        <h4>${escapeHtml(title)}</h4>
+                        <p>${escapeHtml(description)}</p>
                     </div>
                     <div class="setting-item-control">
                         <label class="switch">
-                            <input type="checkbox" data-key="${systemEnabledSetting.setting_key}" ${systemEnabledSetting.setting_value === 'true' ? 'checked' : ''}>
+                            <input type="checkbox" data-key="${safeKey}" ${systemEnabledSetting.setting_value === 'true' ? 'checked' : ''}>
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -580,7 +609,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         container.innerHTML += '<hr class="admin-divider">';
 
-        // 2. Renderizar la tabla de niveles
         const tableHTML = `
             <h2>Niveles de Impulsor</h2>
             <p>Define los umbrales de BLUE requeridos para alcanzar cada nivel.</p>
@@ -596,11 +624,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     </thead>
                     <tbody>
                         ${boosterLevels.map(level => `
-                            <tr data-level="${level.level}">
-                                <td class="level-cell">${level.level}</td>
-                                <td><input type="text" class="admin-text-input" data-field="name" value="${level.name}"></td>
-                                <td><input type="number" class="admin-numeric-input" data-field="min_blue_required" value="${level.min_blue_required}" step="any"></td>
-                                <td><textarea class="admin-textarea-input" data-field="description">${level.description || ''}</textarea></td>
+                            <tr data-level="${escapeHtml(level.level)}">
+                                <td class="level-cell">${escapeHtml(level.level)}</td>
+                                <td><input type="text" class="admin-text-input" data-field="name" value="${escapeHtml(level.name)}"></td>
+                                <td><input type="number" class="admin-numeric-input" data-field="min_blue_required" value="${escapeHtml(level.min_blue_required)}" step="any"></td>
+                                <td><textarea class="admin-textarea-input" data-field="description">${escapeHtml(level.description || '')}</textarea></td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -609,21 +637,19 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         container.innerHTML += tableHTML;
 
-        // Añadir listeners para los cambios en la tabla
         container.querySelectorAll('#booster-levels-table input, #booster-levels-table textarea').forEach(input => {
             input.addEventListener('change', handleBoosterLevelChange);
         });
 
-         // Listener para el interruptor
-        container.querySelector('input[type="checkbox"]').addEventListener('change', handleSettingChange);
+        const chk = container.querySelector('input[type="checkbox"]');
+        if(chk) chk.addEventListener('change', handleSettingChange);
     }
 
-    // --- NUEVO: Renderizado del Dashboard de Impulsores ---
     function renderBoosterDashboard(stats) {
         elements.boostersDashboardStats.innerHTML = `
             <div class="stat-card">
                 <h4>Impulsores Totales</h4>
-                <p class="stat-value">${stats.total_boosters || 0}</p>
+                <p class="stat-value">${escapeHtml(stats.total_boosters || 0)}</p>
             </div>
             <div class="stat-card">
                 <h4>Deuda Total (BLUE de Impulsores)</h4>
@@ -635,12 +661,11 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="stat-card">
                 <h4>Pagos Mensuales Realizados</h4>
-                <p class="stat-value">${stats.total_payments_made || 0}</p>
+                <p class="stat-value">${escapeHtml(stats.total_payments_made || 0)}</p>
             </div>
         `;
     }
 
-    // --- NUEVO: Renderizado de la lista de Impulsores ---
     function renderBoosterList(boosters) {
         if (!boosters || boosters.length === 0) {
             elements.boostersListContainer.innerHTML = '<p class="empty-message">Aún no hay usuarios impulsores en la plataforma.</p>';
@@ -660,9 +685,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${boosters.map(booster => `
                         <tr>
                             <td class="username-cell">
-                                <a href="profile.html?user=${booster.username}" target="_blank">${booster.username}</a>
+                                <a href="profile.html?user=${escapeHtml(booster.username)}" target="_blank">${escapeHtml(booster.username)}</a>
                             </td>
-                            <td align="center">${booster.booster_level}</td>
+                            <td align="center">${escapeHtml(booster.booster_level)}</td>
                             <td class="saldo-blue-text">${formatBalance(booster.total_booster_blue)}</td>
                         </tr>
                     `).join('')}
@@ -677,67 +702,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleSettingChange(event) {
         const control = event.target;
-        // Nos aseguramos de que el control tiene el dataset 'key' antes de proceder
         if (!control.dataset.key) return;
 
         const key = control.dataset.key;
         let value;
 
         if (control.type === 'checkbox') {
-            value = control.checked.toString(); // "true" or "false"
+            value = control.checked.toString(); 
         } else if (control.type === 'number') {
             value = control.value;
         } else if (control.type === 'date') {
             value = control.value;
-            // Validar que la fecha sea válida
             if (value) {
                 const dateObj = new Date(value);
                 if (isNaN(dateObj.getTime())) {
                     showCustomAlert('Fecha inválida. Por favor, ingresa una fecha válida.');
-                    // Recargar settings para revertir el cambio
                     loadSettings();
                     return;
                 }
             }
         } else {
-            return; // No-op for other types
+            return; 
         }
         
-        // Usar un debounce para los inputs de número y fecha, para no enviar una petición en cada cambio
         if (control.type === 'number' || control.type === 'date') {
             clearTimeout(settingChangeTimeout);
             settingChangeTimeout = setTimeout(() => {
                 updateSetting(key, value);
-            }, 500); // Esperar 500ms después del último cambio
+            }, 500); 
         } else {
-            // Los checkboxes se actualizan al instante
             updateSetting(key, value);
         }
     }
 
-    // --- REFACTORIZADO: Handler para las acciones de moderación de usuarios ---
     async function handleUserAction(event) {
         const toggleButton = event.target.closest('.menu-toggle');
         
-        // Lógica para abrir/cerrar el menú
         if (toggleButton) {
-            event.stopPropagation(); // Previene que el clic se propague al listener del documento y cierre el menú inmediatamente
+            event.stopPropagation(); 
             const menu = toggleButton.nextElementSibling;
             const isVisible = menu.classList.contains('visible');
             
-            // Primero, cerramos todos los demás menús para que solo uno esté abierto a la vez.
             document.querySelectorAll('.action-menu.visible').forEach(m => {
                 m.classList.remove('visible');
             });
 
-            // Si el menú no estaba visible, lo mostramos.
             if (!isVisible) {
                 menu.classList.add('visible');
             }
             return;
         }
 
-        // Lógica para ejecutar una acción del menú (suspender, banear, etc.)
         const actionButton = event.target.closest('.action-button-admin');
         if (actionButton && actionButton.dataset.action) {
             const action = actionButton.dataset.action;
@@ -754,24 +769,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const { verb, noun } = actionTexts[action];
 
-            // Evitar acciones redundantes
             if ((action === 'suspend' && currentStatus === 'suspended') ||
                 (action === 'ban' && currentStatus === 'banned') ||
                 (action === 'activate' && currentStatus === 'active')) {
-                showCustomAlert(`El usuario ${username} ya está en ese estado.`);
+                showCustomAlert(`El usuario ${escapeHtml(username)} ya está en ese estado.`);
                 return;
             }
 
             const newStatus = action === 'activate' ? 'active' : action;
 
-            showCustomConfirm(`¿Estás seguro de que quieres ${verb} al usuario "${username}"?`, async () => {
+            showCustomConfirm(`¿Estás seguro de que quieres ${verb} al usuario "${escapeHtml(username)}"?`, async () => {
                 try {
                     const result = await apiFetch(`/api/admin/users/${userId}/status`, {
                         method: 'POST',
                         body: JSON.stringify({ status: newStatus })
                     });
                     showCustomAlert(result.message || 'Acción completada con éxito.');
-                    loadUsers(elements.userSearchInput.value, elements.userStatusFilter.value); // Recargar la tabla con filtros
+                    loadUsers(elements.userSearchInput.value, elements.userStatusFilter.value); 
                 } catch (error) {
                     showCustomAlert(`Error durante la ${noun}: ${error.message}`);
                 }
@@ -779,7 +793,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- NUEVO: Handler para cambios en la tabla de niveles ---
     function handleBoosterLevelChange(event) {
         const input = event.target;
         const row = input.closest('tr');
@@ -792,7 +805,6 @@ document.addEventListener('DOMContentLoaded', () => {
             description: row.querySelector('[data-field="description"]').value
         };
 
-        // Usamos un debounce para no enviar peticiones en cada tecla
         clearTimeout(settingChangeTimeout);
         settingChangeTimeout = setTimeout(() => {
             updateBoosterLevel(body);
@@ -805,26 +817,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 body: JSON.stringify({ key, value }),
             });
-            // Opcional: mostrar una notificación sutil de "guardado". Por ahora, log en consola.
-            console.log(`Setting '${key}' actualizado a '${value}'.`);
+            console.log(`Setting actualizado.`);
         } catch (error) {
             showCustomAlert(`Error al guardar la configuración: ${error.message}`);
-            // Revertir el cambio en la UI si falla el guardado, recargando los settings.
             loadSettings();
         }
     }
 
-    // --- NUEVO: Actualizar un nivel de impulsor específico ---
     async function updateBoosterLevel(body) {
         try {
             await apiFetch('/api/admin/boosters/settings', {
                 method: 'POST',
                 body: JSON.stringify(body)
             });
-            console.log(`Nivel de impulsor ${body.level} actualizado.`);
+            console.log(`Nivel de impulsor actualizado.`);
         } catch (error) {
-            showCustomAlert(`Error al guardar el nivel ${body.level}: ${error.message}`);
-            // Recargar para revertir los cambios en la UI
+            showCustomAlert(`Error al guardar el nivel: ${error.message}`);
             loadBoosterSettings();
         }
     }
@@ -833,8 +841,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const deleteButton = event.target.closest('.action-button-admin.delete');
         if (deleteButton) {
             const pubId = deleteButton.dataset.pubId;
+            // Aseguramos que tomamos texto, no HTML
             const pubTitle = deleteButton.closest('tr').querySelector('.publication-title-cell').textContent;
-            showCustomConfirm(`¿Seguro que quieres eliminar la publicación "${pubTitle}"? Esta acción es irreversible.`, async () => {
+            showCustomConfirm(`¿Seguro que quieres eliminar la publicación "${escapeHtml(pubTitle)}"? Esta acción es irreversible.`, async () => {
                 try {
                     const result = await apiFetch(`/api/admin/publications/${pubId}`, { method: 'DELETE' });
                     showCustomAlert(result.message || 'Publicación eliminada.');
@@ -899,7 +908,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- DANGER ZONE (FUNCIÓN A ELIMINAR DESPUÉS DE USAR) ---
+    // --- DANGER ZONE ---
     function handleResetDatabase() {
         const sqlCommand = `
 TRUNCATE TABLE 
@@ -951,19 +960,20 @@ WHERE username = 'Plataforma WintonCoin';
     function generateStarRating(rating, count) {
         if (count === 0) return '<span class="no-rating">Sin calif.</span>';
         const stars = '★'.repeat(Math.round(rating)) + '☆'.repeat(5 - Math.round(rating));
+        // Safe because stars are hardcoded characters and numbers
         return `<span class="stars" title="${parseFloat(rating).toFixed(1)} de 5">${stars}</span> <span class="rating-count">(${count})</span>`;
     }
 
-    // --- Lógica Principal de Renderizado ---
+    // --- Lógica Principal de Renderizado (Con Sanitización de HTML) ---
     function renderDashboard(stats) {
         elements.dashboardContainer.innerHTML = `
             <div class="stat-card">
                 <h4>Usuarios Totales</h4>
-                <p class="stat-value">${stats.totalUsers || 0}</p>
+                <p class="stat-value">${escapeHtml(stats.totalUsers || 0)}</p>
             </div>
             <div class="stat-card">
                 <h4>Publicaciones Activas</h4>
-                <p class="stat-value">${stats.activePublications || 0}</p>
+                <p class="stat-value">${escapeHtml(stats.activePublications || 0)}</p>
             </div>
             <div class="stat-card">
                 <h4>BLUE en Circulación (Tokens Reales)</h4>
@@ -1011,10 +1021,10 @@ WHERE username = 'Plataforma WintonCoin';
         return `
             <tr>
                 <td class="username-cell">
-                    <a href="profile.html?user=${debtor.username}" target="_blank">${debtor.username}</a>
+                    <a href="profile.html?user=${escapeHtml(debtor.username)}" target="_blank">${escapeHtml(debtor.username)}</a>
                 </td>
                 <td class="saldo-red-text">${formatBalance(debtor.total_penalized_debt)}</td>
-                <td align="center">${debtor.penalized_debts_count}</td>
+                <td align="center">${escapeHtml(debtor.penalized_debts_count)}</td>
             </tr>
         `;
     }
@@ -1034,8 +1044,8 @@ WHERE username = 'Plataforma WintonCoin';
     
         return `
             <div class="history-item-admin">
-                <h3>${pub.title}</h3>
-                <p>${pub.description || 'Sin descripción.'}</p>
+                <h3>${escapeHtml(pub.title)}</h3>
+                <p>${escapeHtml(pub.description || 'Sin descripción.')}</p>
                 <h4>Participantes</h4>
                 ${participantsHTML}
             </div>
@@ -1046,21 +1056,22 @@ WHERE username = 'Plataforma WintonCoin';
         const ratingHTML = generateStarRating(participant.average_rating, participant.ratings_count);
         const statusText = getStatusText(participant.status);
         let actionButton = '';
-    
+        
+        // Data attributes are safe if values are properly quoted, but escaping is better practice for user content
         if (participant.status === 'pending_approval') {
-            actionButton = `<button class="action-button-admin approve" data-pub-id="${pubId}" data-action="approve" data-user="${participant.acceptor_username}">Aprobar</button>`;
+            actionButton = `<button class="action-button-admin approve" data-pub-id="${escapeHtml(pubId)}" data-action="approve" data-user="${escapeHtml(participant.acceptor_username)}">Aprobar</button>`;
         } else if (participant.status === 'completed') {
-            actionButton = `<button class="action-button-admin confirm" data-pub-id="${pubId}" data-action="confirm-payment" data-user="${participant.acceptor_username}">Confirmar Pago</button>`;
+            actionButton = `<button class="action-button-admin confirm" data-pub-id="${escapeHtml(pubId)}" data-action="confirm-payment" data-user="${escapeHtml(participant.acceptor_username)}">Confirmar Pago</button>`;
         }
     
         return `
             <li class="participant-item-admin">
                 <div class="participant-info-admin">
-                    <strong><a href="profile.html?user=${participant.acceptor_username}" target="_blank">${participant.acceptor_username}</a></strong>
+                    <strong><a href="profile.html?user=${escapeHtml(participant.acceptor_username)}" target="_blank">${escapeHtml(participant.acceptor_username)}</a></strong>
                     <span class="rating-display">${ratingHTML}</span>
                 </div>
                 <div class="participant-status-admin">
-                    <span class="status-badge ${participant.status}">${statusText}</span>
+                    <span class="status-badge ${escapeHtml(participant.status)}">${escapeHtml(statusText)}</span>
                     ${actionButton}
                 </div>
             </li>
@@ -1103,16 +1114,16 @@ WHERE username = 'Plataforma WintonCoin';
         const ratingHTML = generateStarRating(user.average_rating, user.ratings_count);
 
         return `
-            <tr data-user-id="${user.id}" data-username="${user.username}" data-status="${user.status}">
+            <tr data-user-id="${escapeHtml(user.id)}" data-username="${escapeHtml(user.username)}" data-status="${escapeHtml(user.status)}">
                 <td class="username-cell">
-                    <a href="profile.html?user=${user.username}" target="_blank">${user.username}</a>
+                    <a href="profile.html?user=${escapeHtml(user.username)}" target="_blank">${escapeHtml(user.username)}</a>
                 </td>
                 <td class="saldo-blue-text">${formatBalance(user.liquid_blue_balance)}</td>
                 <td class="saldo-escrow-text">${formatBalance(user.escrow_blue_balance)}</td>
                 <td class="saldo-booster-text">${formatBalance(user.booster_blue_balance)}</td>
                 <td class="saldo-red-text">${formatBalance(user.red_balance)}</td>
                 <td>${ratingHTML}</td>
-                <td><span class="status-badge ${user.status}">${user.status}</span></td>
+                <td><span class="status-badge ${escapeHtml(user.status)}">${escapeHtml(user.status)}</span></td>
                 <td>${registrationDate}</td>
                 <td class="actions-cell">
                     <div class="action-menu-container">
@@ -1166,25 +1177,23 @@ WHERE username = 'Plataforma WintonCoin';
             : `<span class="status-badge request">Solicitud</span>`;
 
         const valueHTML = formatBalance(pub.blue_cost);
-        
         const participantsHTML = `${pub.completed_count} / ${pub.participants_count}`;
-        
         const statusText = pub.is_paused ? 'Pausada' : pub.status;
 
         const actionsHTML = `
-            <button class="action-button-admin delete" data-pub-id="${pub.id}" title="Eliminar publicación">Eliminar</button>
+            <button class="action-button-admin delete" data-pub-id="${escapeHtml(pub.id)}" title="Eliminar publicación">Eliminar</button>
         `;
 
         return `
             <tr>
-                <td class="publication-title-cell" title="${pub.title}">${pub.title}</td>
+                <td class="publication-title-cell" title="${escapeHtml(pub.title)}">${escapeHtml(pub.title)}</td>
                 <td class="username-cell">
-                    <a href="profile.html?user=${pub.author_username}" target="_blank">${pub.author_username}</a>
+                    <a href="profile.html?user=${escapeHtml(pub.author_username)}" target="_blank">${escapeHtml(pub.author_username)}</a>
                 </td>
                 <td>${typeHTML}</td>
                 <td class="saldo-blue-text">${valueHTML}</td>
                 <td align="center">${participantsHTML}</td>
-                <td><span class="status-badge ${statusText.toLowerCase()}">${statusText}</span></td>
+                <td><span class="status-badge ${escapeHtml(statusText).toLowerCase()}">${escapeHtml(statusText)}</span></td>
                 <td>${creationDate}</td>
                 <td>${actionsHTML}</td>
             </tr>
@@ -1242,12 +1251,12 @@ WHERE username = 'Plataforma WintonCoin';
         });
 
         const titleHTML = entry.publication_id
-            ? `<span title="ID de Publicación: ${entry.publication_id}" style="cursor: help;">${entry.publication_title}</span>`
-            : entry.publication_title;
+            ? `<span title="ID de Publicación: ${escapeHtml(entry.publication_id)}" style="cursor: help;">${escapeHtml(entry.publication_title)}</span>`
+            : escapeHtml(entry.publication_title);
 
         const userHTML = entry.user_who_paid !== '(Usuario desconocido)'
-            ? `<a href="profile.html?user=${entry.user_who_paid}" target="_blank">${entry.user_who_paid}</a>`
-            : entry.user_who_paid;
+            ? `<a href="profile.html?user=${escapeHtml(entry.user_who_paid)}" target="_blank">${escapeHtml(entry.user_who_paid)}</a>`
+            : escapeHtml(entry.user_who_paid);
 
         return `
             <tr>
@@ -1290,187 +1299,51 @@ WHERE username = 'Plataforma WintonCoin';
         return `
             <tr>
                 <td class="username-cell">
-                    <a href="profile.html?user=${entry.referred_username}" target="_blank">${entry.referred_username}</a>
+                    <a href="profile.html?user=${escapeHtml(entry.referred_username)}" target="_blank">${escapeHtml(entry.referred_username)}</a>
                 </td>
                 <td class="username-cell">
-                    <a href="profile.html?user=${entry.referrer_username}" target="_blank">${entry.referrer_username}</a>
+                    <a href="profile.html?user=${escapeHtml(entry.referrer_username)}" target="_blank">${escapeHtml(entry.referrer_username)}</a>
                 </td>
                 <td>${registrationDate}</td>
             </tr>
         `;
     }
 
-    // --- LÓGICA DE RENDERIZADO MEJORADA POR SECCIONES ---
-
-    function renderSection(section, data) {
-        switch (section) {
-            case 'dashboard':
-                renderDashboard(data);
-                break;
-            case 'settings':
-                renderSettings(data);
-                break;
-            case 'users':
-                renderUsers(data);
-                break;
-            case 'debtors':
-                renderDebtors(data);
-                break;
-            case 'wallet':
-                renderPlatformWallet(data.balance, data.log);
-                break;
-            case 'publications':
-                renderAllPublications(data);
-                break;
-            case 'referrals':
-                renderReferralSettings(data.settings);
-                renderReferralLog(data.log);
-                break;
-            case 'boosters':
-                renderBoosterSettings(data.settings);
-                renderBoosterStats(data.stats);
-                renderBoostersList(data.list);
-                break;
-            case 'database':
-                renderDatabaseStats(data);
-                break;
-        }
-    }
-
-    async function loadSection(section) {
-        if (!elements.mainContent) return;
-        elements.mainContent.innerHTML = '<div class="loader"></div>';
-        try {
-            let data = {};
-            switch (section) {
-                case 'dashboard':
-                    data = await apiFetch('/api/admin/dashboard-stats');
-                    break;
-                case 'settings':
-                    data = await apiFetch('/api/admin/settings');
-                    break;
-                case 'users':
-                    data = await apiFetch('/api/admin/users');
-                    break;
-                case 'debtors':
-                    data = await apiFetch('/api/admin/debtors');
-                    break;
-                case 'wallet':
-                    const [balance, log] = await Promise.all([apiFetch('/api/admin/platform-wallet/balance'), apiFetch('/api/admin/platform-wallet/log')]);
-                    data = { balance, log };
-                    break;
-                case 'publications':
-                    data = await apiFetch('/api/admin/publications');
-                    break;
-                case 'referrals':
-                    const [referralSettings, referralLog] = await Promise.all([apiFetch('/api/admin/settings'), apiFetch('/api/admin/referrals/log')]);
-                    data = { settings: referralSettings, log: referralLog };
-                    break;
-                case 'boosters':
-                    const [boosterSettings, boosterStats, boosterList] = await Promise.all([apiFetch('/api/admin/boosters/settings'), apiFetch('/api/admin/boosters/stats'), apiFetch('/api/admin/boosters/list')]);
-                    data = { settings: boosterSettings, stats: boosterStats, list: boosterList };
-                    break;
-                case 'database':
-                    data = await apiFetch('/api/admin/database/stats');
-                    break;
-                case 'danger':
-                    // No data to load, just render static content
-                    break;
-                default:
-                    elements.mainContent.innerHTML = '<h2>Sección no encontrada</h2>';
-                    return;
-            }
-            // Actualiza la UI
-            const template = document.getElementById(`${section}-template`);
-            if (template) {
-                elements.mainContent.innerHTML = template.innerHTML;
-                bindNavEvents(); // Re-bind events for any new nav elements in the template
-                renderSection(section, data);
-            } else if (section !== 'danger') {
-                console.error(`Template no encontrado para la sección: ${section}-template`);
-            }
-
-        } catch (error) {
-            console.error(`Error al cargar la sección ${section}:`, error);
-            elements.mainContent.innerHTML = `<p class="error-message">Error al cargar ${section}: ${error.message}</p>`;
-        }
-    }
-
-    // --- NUEVA FUNCIONALIDAD: Gestión de Base de Datos ---
+    // --- NUEVA FUNCIONALIDAD: Gestión de Base de Datos (Mantenida igual pero integrada) ---
     
-    // Configurar event listeners para los botones de limpieza
     function setupDatabaseCleanupListeners() {
-        console.log('🔧 Configurando event listeners para gestión de base de datos...');
-        
-        // Botón para limpiar datos de prueba
         const cleanupTestDataBtn = document.getElementById('cleanup-test-data-btn');
-        if (cleanupTestDataBtn) {
-            cleanupTestDataBtn.addEventListener('click', handleCleanupTestData);
-            console.log('✅ Event listener configurado para cleanup-test-data-btn');
-        } else {
-            console.warn('❌ No se encontró el botón cleanup-test-data-btn');
-        }
+        if (cleanupTestDataBtn) cleanupTestDataBtn.addEventListener('click', handleCleanupTestData);
 
-        // Botón para limpiar usuarios inactivos
         const cleanupInactiveUsersBtn = document.getElementById('cleanup-inactive-users-btn');
-        if (cleanupInactiveUsersBtn) {
-            cleanupInactiveUsersBtn.addEventListener('click', handleCleanupInactiveUsers);
-            console.log('✅ Event listener configurado para cleanup-inactive-users-btn');
-        } else {
-            console.warn('❌ No se encontró el botón cleanup-inactive-users-btn');
-        }
+        if (cleanupInactiveUsersBtn) cleanupInactiveUsersBtn.addEventListener('click', handleCleanupInactiveUsers);
 
-        // Botón para limpiar publicaciones antiguas
         const cleanupOldPublicationsBtn = document.getElementById('cleanup-old-publications-btn');
-        if (cleanupOldPublicationsBtn) {
-            cleanupOldPublicationsBtn.addEventListener('click', handleCleanupOldPublications);
-            console.log('✅ Event listener configurado para cleanup-old-publications-btn');
-        } else {
-            console.warn('❌ No se encontró el botón cleanup-old-publications-btn');
-        }
+        if (cleanupOldPublicationsBtn) cleanupOldPublicationsBtn.addEventListener('click', handleCleanupOldPublications);
 
-        // Botón para crear backup manual
         const createBackupBtn = document.getElementById('create-backup-btn');
-        if (createBackupBtn) {
-            createBackupBtn.addEventListener('click', handleCreateBackup);
-            console.log('✅ Event listener configurado para create-backup-btn');
-        } else {
-            console.warn('❌ No se encontró el botón create-backup-btn');
-        }
+        if (createBackupBtn) createBackupBtn.addEventListener('click', handleCreateBackup);
 
-        // Botón para actualizar estadísticas
         const refreshStatsBtn = document.getElementById('refresh-db-stats');
-        if (refreshStatsBtn) {
-            refreshStatsBtn.addEventListener('click', handleRefreshStats);
-            console.log('✅ Event listener configurado para refresh-db-stats');
-        } else {
-            console.warn('❌ No se encontró el botón refresh-db-stats');
-        }
-        
-        console.log('🏁 Configuración de event listeners completada');
+        if (refreshStatsBtn) refreshStatsBtn.addEventListener('click', handleRefreshStats);
     }
 
-    // Función para mostrar mensajes de estado en la interfaz
     function showDatabaseStatus(message, isError = false) {
         const statusContainer = document.getElementById('database-status');
         if (statusContainer) {
             statusContainer.innerHTML = `
                 <div class="status-message ${isError ? 'status-error' : 'status-success'}">
-                    ${message}
+                    ${escapeHtml(message)}
                 </div>
             `;
-            // Auto-ocultar después de 10 segundos
             setTimeout(() => {
                 statusContainer.innerHTML = '';
             }, 10000);
         }
     }
 
-    // Manejador para limpiar datos de prueba
     async function handleCleanupTestData() {
-        if (!confirm('¿Estás seguro de que quieres eliminar todos los datos de prueba? Esta acción no se puede deshacer.')) {
-            return;
-        }
+        if (!confirm('¿Estás seguro de que quieres eliminar todos los datos de prueba? Esta acción no se puede deshacer.')) return;
 
         const btn = document.getElementById('cleanup-test-data-btn');
         const originalText = btn.textContent;
@@ -1478,46 +1351,27 @@ WHERE username = 'Plataforma WintonCoin';
         btn.disabled = true;
 
         try {
-            const response = await fetch(`${API_URL}/api/admin/database/cleanup-test-data`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            const result = await response.json();
-
-            if (response.ok) {
-                showDatabaseStatus(`✅ Limpieza exitosa: ${result.results.testUsersDeleted} usuarios de prueba y ${result.results.testPublicationsDeleted} publicaciones eliminadas.`);
-                loadDatabaseStats(); // Actualizar estadísticas
-            } else {
-                showDatabaseStatus(`❌ Error: ${result.message}`, true);
-            }
+            const response = await apiFetch('/api/admin/database/cleanup-test-data', { method: 'POST' });
+            showDatabaseStatus(`✅ Limpieza exitosa: ${response.results.testUsersDeleted} usuarios de prueba y ${response.results.testPublicationsDeleted} publicaciones eliminadas.`);
+            loadDatabaseStats();
         } catch (error) {
-            console.error('Error en limpieza de datos de prueba:', error);
-            showDatabaseStatus('❌ Error de conexión al realizar la limpieza', true);
+            showDatabaseStatus(`❌ Error: ${error.message}`, true);
         } finally {
             btn.textContent = originalText;
             btn.disabled = false;
         }
     }
 
-    // Manejador para limpiar usuarios inactivos
     async function handleCleanupInactiveUsers() {
-        console.log('🧹 Iniciando limpieza de usuarios inactivos...');
         const daysInput = document.getElementById('inactive-users-days');
         const days = parseInt(daysInput ? daysInput.value : 90);
-        console.log('📅 Días de inactividad configurados:', days);
 
         if (days < 30) {
             showDatabaseStatus('❌ Por seguridad, no se pueden eliminar usuarios con menos de 30 días de inactividad', true);
             return;
         }
 
-        if (!confirm(`¿Estás seguro de que quieres eliminar usuarios inactivos por más de ${days} días? Esta acción no se puede deshacer.`)) {
-            return;
-        }
+        if (!confirm(`¿Estás seguro de que quieres eliminar usuarios inactivos por más de ${days} días? Esta acción no se puede deshacer.`)) return;
 
         const btn = document.getElementById('cleanup-inactive-users-btn');
         const originalText = btn.textContent;
@@ -1525,47 +1379,30 @@ WHERE username = 'Plataforma WintonCoin';
         btn.disabled = true;
 
         try {
-            const response = await fetch(`${API_URL}/api/admin/database/cleanup-inactive-users`, {
+            const result = await apiFetch('/api/admin/database/cleanup-inactive-users', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
-                    'Content-Type': 'application/json'
-                },
                 body: JSON.stringify({ daysInactive: days })
             });
-
-            const result = await response.json();
-
-            if (response.ok) {
-                showDatabaseStatus(`✅ Limpieza exitosa: ${result.results.usersDeleted} usuarios inactivos eliminados.`);
-                loadDatabaseStats(); // Actualizar estadísticas
-            } else {
-                showDatabaseStatus(`❌ Error: ${result.message}`, true);
-            }
+            showDatabaseStatus(`✅ Limpieza exitosa: ${result.results.usersDeleted} usuarios inactivos eliminados.`);
+            loadDatabaseStats();
         } catch (error) {
-            console.error('Error en limpieza de usuarios inactivos:', error);
-            showDatabaseStatus('❌ Error de conexión al realizar la limpieza', true);
+            showDatabaseStatus(`❌ Error: ${error.message}`, true);
         } finally {
             btn.textContent = originalText;
             btn.disabled = false;
         }
     }
 
-    // Manejador para limpiar publicaciones antiguas
     async function handleCleanupOldPublications() {
-        console.log('📝 Iniciando limpieza de publicaciones antiguas...');
         const daysInput = document.getElementById('old-publications-days');
         const days = parseInt(daysInput ? daysInput.value : 180);
-        console.log('📅 Días de antigüedad configurados:', days);
 
         if (days < 90) {
             showDatabaseStatus('❌ Por seguridad, no se pueden eliminar publicaciones con menos de 90 días de antigüedad', true);
             return;
         }
 
-        if (!confirm(`¿Estás seguro de que quieres eliminar publicaciones completadas hace más de ${days} días? Esta acción no se puede deshacer.`)) {
-            return;
-        }
+        if (!confirm(`¿Estás seguro de que quieres eliminar publicaciones completadas hace más de ${days} días? Esta acción no se puede deshacer.`)) return;
 
         const btn = document.getElementById('cleanup-old-publications-btn');
         const originalText = btn.textContent;
@@ -1573,69 +1410,38 @@ WHERE username = 'Plataforma WintonCoin';
         btn.disabled = true;
 
         try {
-            const response = await fetch(`${API_URL}/api/admin/database/cleanup-old-publications`, {
+            const result = await apiFetch('/api/admin/database/cleanup-old-publications', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
-                    'Content-Type': 'application/json'
-                },
                 body: JSON.stringify({ daysOld: days })
             });
-
-            const result = await response.json();
-
-            if (response.ok) {
-                showDatabaseStatus(`✅ Limpieza exitosa: ${result.results.publicationsDeleted} publicaciones antiguas eliminadas.`);
-                loadDatabaseStats(); // Actualizar estadísticas
-            } else {
-                showDatabaseStatus(`❌ Error: ${result.message}`, true);
-            }
+            showDatabaseStatus(`✅ Limpieza exitosa: ${result.results.publicationsDeleted} publicaciones antiguas eliminadas.`);
+            loadDatabaseStats();
         } catch (error) {
-            console.error('Error en limpieza de publicaciones antiguas:', error);
-            showDatabaseStatus('❌ Error de conexión al realizar la limpieza', true);
+            showDatabaseStatus(`❌ Error: ${error.message}`, true);
         } finally {
             btn.textContent = originalText;
             btn.disabled = false;
         }
     }
 
-    // Manejador para crear backup manual
     async function handleCreateBackup() {
-        console.log('💾 Iniciando creación de backup...');
         const btn = document.getElementById('create-backup-btn');
         const originalText = btn.textContent;
         btn.textContent = 'Creando...';
         btn.disabled = true;
 
         try {
-            const response = await fetch(`${API_URL}/api/admin/database/backup`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            const result = await response.json();
-            console.log('📦 Respuesta del backup:', result);
-
-            if (response.ok) {
-                showDatabaseStatus(`✅ Backup creado exitosamente: ${result.filename}`);
-            } else {
-                showDatabaseStatus(`❌ Error: ${result.message}`, true);
-            }
+            const result = await apiFetch('/api/admin/database/backup', { method: 'POST' });
+            showDatabaseStatus(`✅ Backup creado exitosamente: ${result.filename}`);
         } catch (error) {
-            console.error('Error al crear backup:', error);
-            showDatabaseStatus('❌ Error de conexión al crear el backup', true);
+            showDatabaseStatus(`❌ Error: ${error.message}`, true);
         } finally {
             btn.textContent = originalText;
             btn.disabled = false;
         }
     }
 
-    // Manejador para actualizar estadísticas
     async function handleRefreshStats() {
-        console.log('🔄 Actualizando estadísticas de base de datos...');
         const btn = document.getElementById('refresh-db-stats');
         const originalText = btn.textContent;
         btn.textContent = '🔄 Actualizando...';
@@ -1645,7 +1451,6 @@ WHERE username = 'Plataforma WintonCoin';
             await loadDatabaseStats();
             showDatabaseStatus('✅ Estadísticas actualizadas correctamente');
         } catch (error) {
-            console.error('Error al actualizar estadísticas:', error);
             showDatabaseStatus('❌ Error al actualizar las estadísticas', true);
         } finally {
             btn.textContent = originalText;
@@ -1653,97 +1458,61 @@ WHERE username = 'Plataforma WintonCoin';
         }
     }
 
-    // Función para cargar estadísticas de la base de datos
     async function loadDatabaseStats() {
-        console.log('📊 Cargando estadísticas de base de datos...');
         const statsContainer = document.getElementById('database-stats-container');
         
         try {
-            // Mostrar spinner de carga
-            if (statsContainer) {
-                statsContainer.innerHTML = '<div class="loading-spinner"></div>';
-            }
+            if (statsContainer) statsContainer.innerHTML = '<div class="loading-spinner"></div>';
 
-            const response = await fetch(`${API_URL}/api/admin/database/stats`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-                }
-            });
-
-            if (response.ok) {
-                const stats = await response.json();
-                console.log('📈 Estadísticas recibidas:', stats);
-                updateDatabaseStatsDisplay(stats);
-            } else {
-                console.error('Error en respuesta de estadísticas:', response.status);
-                if (statsContainer) {
-                    statsContainer.innerHTML = '<p style="color: #e74c3c;">Error al cargar estadísticas</p>';
-                }
-            }
+            const stats = await apiFetch('/api/admin/database/stats');
+            updateDatabaseStatsDisplay(stats);
         } catch (error) {
             console.error('Error al cargar estadísticas de base de datos:', error);
-            if (statsContainer) {
-                statsContainer.innerHTML = '<p style="color: #e74c3c;">Error de conexión</p>';
-            }
+            if (statsContainer) statsContainer.innerHTML = '<p style="color: #e74c3c;">Error de conexión</p>';
         }
     }
 
-    // Función para actualizar la visualización de estadísticas
     function updateDatabaseStatsDisplay(stats) {
-        console.log('🎨 Actualizando visualización de estadísticas...');
         const statsContainer = document.getElementById('database-stats-container');
-        
-        if (!statsContainer) {
-            console.warn('❌ No se encontró el contenedor de estadísticas');
-            return;
-        }
+        if (!statsContainer) return;
 
-        // Crear el HTML de las estadísticas
         const statsHTML = `
             <div class="stats-grid">
                 <div class="stat-item">
-                    <div class="stat-number">${stats.total_users || '0'}</div>
+                    <div class="stat-number">${escapeHtml(stats.total_users || '0')}</div>
                     <div class="stat-label">Usuarios Totales</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number">${stats.test_users || '0'}</div>
+                    <div class="stat-number">${escapeHtml(stats.test_users || '0')}</div>
                     <div class="stat-label">Usuarios de Prueba</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number">${stats.inactive_users || '0'}</div>
+                    <div class="stat-number">${escapeHtml(stats.inactive_users || '0')}</div>
                     <div class="stat-label">Usuarios Inactivos</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number">${stats.total_publications || '0'}</div>
+                    <div class="stat-number">${escapeHtml(stats.total_publications || '0')}</div>
                     <div class="stat-label">Publicaciones Totales</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number">${stats.old_publications || '0'}</div>
+                    <div class="stat-number">${escapeHtml(stats.old_publications || '0')}</div>
                     <div class="stat-label">Publicaciones Antiguas</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number">${stats.total_transactions || '0'}</div>
+                    <div class="stat-number">${escapeHtml(stats.total_transactions || '0')}</div>
                     <div class="stat-label">Transacciones</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number">${stats.total_notifications || '0'}</div>
+                    <div class="stat-number">${escapeHtml(stats.total_notifications || '0')}</div>
                     <div class="stat-label">Notificaciones</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number">${stats.database_size || 'N/A'}</div>
+                    <div class="stat-number">${escapeHtml(stats.database_size || 'N/A')}</div>
                     <div class="stat-label">Tamaño de BD</div>
                 </div>
             </div>
         `;
         
         statsContainer.innerHTML = statsHTML;
-        console.log('✅ Estadísticas visualizadas correctamente');
     }
-
-    // Llamar a la configuración cuando se carga la página
-    // Usar setTimeout para asegurar que el DOM esté completamente cargado
-    setTimeout(() => {
-        setupDatabaseCleanupListeners();
-        console.log('Database cleanup listeners configured');
-    }, 100);
 });
