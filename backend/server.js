@@ -76,12 +76,21 @@ const loginLimiter = rateLimit({
 
 // 3. Middlewares
 // Configuración de CORS segura para permitir cookies
+const ALLOWED_ORIGINS = [
+    'http://localhost:5500',
+    'http://127.0.0.1:5500',
+    'https://wintoncoin-frontend.onrender.com',
+    'https://sc.wintoncoin.com', // Hostinger (producción)
+    'https://www.sc.wintoncoin.com'
+];
+
 app.use(cors({
-    origin: [
-        'http://localhost:5500', 
-        'http://127.0.0.1:5500', 
-        'https://wintoncoin-frontend.onrender.com' // Ajusta esto a tu dominio real de frontend
-    ],
+    origin: (origin, callback) => {
+        // Permitir requests sin Origin (ej: health checks, curl, server-to-server)
+        if (!origin) return callback(null, true);
+        if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+        return callback(new Error(`CORS bloqueado para el origen: ${origin}`));
+    },
     credentials: true // CRÍTICO: Permite cookies entre dominios
 }));
 app.use(express.json());
@@ -3175,7 +3184,9 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                 res.cookie('admin_token', accessToken, {
                     httpOnly: true, // No accesible vía JavaScript del navegador (previene XSS robo de token)
                     secure: process.env.NODE_ENV === 'production', // Solo HTTPS en producción
-                    sameSite: 'Strict', // Protección CSRF estricta
+                    // Para frontend en Hostinger (dominio distinto al backend), necesitamos cookies cross-site:
+                    // SameSite=None + Secure=true (estándar moderno).
+                    sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
                     maxAge: 8 * 60 * 60 * 1000 // 8 horas en milisegundos
                 });
 
