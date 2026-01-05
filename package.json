@@ -16,6 +16,7 @@
     "api"
   ],
   "dependencies": {
+    "cookie-parser": "^1.4.7",
     "node-cron": "^4.2.1",
     "twilio": "^5.9.0"
   },

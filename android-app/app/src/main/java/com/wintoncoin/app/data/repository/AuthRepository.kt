@@ -1,9 +1,10 @@
 package com.wintoncoin.app.data.repository
 
+import WintonApi
+import com.wintoncoin.app.data.remote.WintonApi
 import com.wintoncoin.app.data.local.SessionManager
 import com.wintoncoin.app.data.model.LoginRequest
 import com.wintoncoin.app.data.model.RegisterRequest
-import com.wintoncoin.app.data.remote.WintonApi
 import javax.inject.Inject
 import javax.inject.Singleton
 

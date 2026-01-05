@@ -1,21 +1,23 @@
-package com.wintoncoin.app.data.model
-
 import com.google.gson.annotations.SerializedName
 
+/**
+ * Represents the data sent to the API to create a new publication.
+ * The fields here should match the expected JSON body of your "/publish" endpoint.
+ *
+ * Example JSON:
+ * {
+ *   "publication_title": "My First Post",
+ *   "publication_content": "Hello, world!"
+ * }
+ */
 data class PublicationRequest(
-    @SerializedName("type") val type: String, // 'request', 'sell', 'donation'
-    @SerializedName("title") val title: String,
-    @SerializedName("description") val description: String,
-    @SerializedName("blue_cost") val blueCost: String?, // Para Solicitudes/Donaciones
-    @SerializedName("blue_sell") val blueSell: String?, // Para Ventas
-    @SerializedName("available_slots") val availableSlots: Int,
-    @SerializedName("auto_approve") val autoApprove: Boolean,
-    @SerializedName("expiration_time") val expirationTime: String? // ISO String o null
-)
+    // Use @SerializedName if the JSON key from the API is different from the variable name
+    @SerializedName("publication_title")
+    val title: String,
 
-data class PublicationResponse(
-    @SerializedName("id") val id: Int,
-    @SerializedName("status") val status: String,
-    @SerializedName("message") val message: String
-)
+    @SerializedName("publication_content")
+    val content: String
 
+    // Add any other fields your API requires, like authorId, etc.
+    // val authorId: String
+)

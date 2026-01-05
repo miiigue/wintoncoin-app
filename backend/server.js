@@ -6,6 +6,7 @@ const express = require('express');
 const { Pool } = require('pg'); // Importamos el Pool de pg
 const bcrypt = require('bcrypt');
 const cors = require('cors');
+const cookieParser = require('cookie-parser'); // NECESARIO PARA COOKIES
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit'); // <-- SEGURIDAD: Importar rate-limit
@@ -74,8 +75,17 @@ const loginLimiter = rateLimit({
 
 
 // 3. Middlewares
-app.use(cors());
+// Configuración de CORS segura para permitir cookies
+app.use(cors({
+    origin: [
+        'http://localhost:5500', 
+        'http://127.0.0.1:5500', 
+        'https://wintoncoin-frontend.onrender.com' // Ajusta esto a tu dominio real de frontend
+    ],
+    credentials: true // CRÍTICO: Permite cookies entre dominios
+}));
 app.use(express.json());
+app.use(cookieParser()); // CRÍTICO: Parsea las cookies de las peticiones
 app.use(express.static(path.join(__dirname, '../frontend')));
 
 // 4. Conectar a la Base de Datos PostgreSQL
@@ -1230,8 +1240,13 @@ async function startServer() {
     app.post('/api/register-request', async (req, res) => {
             const { username, email, password, phone, date_of_birth } = req.body;
 
-            // --- 1. Validación de Entrada ---
-            if (!username || !email || !password || !phone || !date_of_birth) {
+    // --- Validación Estricta de Usuario para Prevenir XSS ---
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        return res.status(400).json({ message: "El nombre de usuario solo puede contener letras, números y guiones bajos (sin espacios ni caracteres especiales)." });
+    }
+
+    // --- 1. Validación de Entrada ---
+    if (!username || !email || !password || !phone || !date_of_birth) {
                 return res.status(400).json({ message: "Todos los campos son requeridos: usuario, contraseña, correo, teléfono y fecha de nacimiento." });
             }
             if (!/^\S+@\S+\.\S+$/.test(email)) {
@@ -2915,10 +2930,25 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
             }
             if (password === process.env.ADMIN_PASSWORD) {
                 const accessToken = jwt.sign({ name: 'admin' }, process.env.ADMIN_SECRET_KEY, { expiresIn: '8h' });
-                res.json({ token: accessToken });
+                
+                // SEGURIDAD: Enviar el token como una cookie HttpOnly
+                res.cookie('admin_token', accessToken, {
+                    httpOnly: true, // No accesible vía JavaScript del navegador (previene XSS robo de token)
+                    secure: process.env.NODE_ENV === 'production', // Solo HTTPS en producción
+                    sameSite: 'Strict', // Protección CSRF estricta
+                    maxAge: 8 * 60 * 60 * 1000 // 8 horas en milisegundos
+                });
+
+                res.json({ message: "Login exitoso" });
             } else {
                 res.status(401).json({ message: "Contraseña incorrecta." });
             }
+        });
+
+        // NUEVO: Endpoint para Logout (Borrar cookie)
+        app.post('/api/admin/logout', (req, res) => {
+            res.clearCookie('admin_token');
+            res.json({ message: "Logout exitoso" });
         });
         
         app.get('/api/admin/settings', verifyAdminToken, async (req, res) => {
@@ -3984,18 +4014,19 @@ app.listen(PORT, () => {
     }
 }
 
-function verifyAdminToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+        // Middleware de verificación de token de administrador (MODIFICADO PARA COOKIES)
+        function verifyAdminToken(req, res, next) {
+            // Buscamos el token en la cookie firmada 'admin_token'
+            const token = req.cookies.admin_token;
 
-    if (!token) return res.sendStatus(401);
+            if (!token) return res.status(401).json({ message: "No autorizado. Token no encontrado." });
 
-    jwt.verify(token, process.env.ADMIN_SECRET_KEY, (err, user) => {
-        if (err) return res.sendStatus(403);
-        req.user = user;
-        next();
-    });
-}
+            jwt.verify(token, process.env.ADMIN_SECRET_KEY, (err, user) => {
+                if (err) return res.status(403).json({ message: "Token inválido o expirado." });
+                req.user = user;
+                next();
+            });
+        }
 
 startServer();
 
