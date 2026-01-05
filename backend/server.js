@@ -64,6 +64,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const saltRounds = 10;
 
+// Render (y la mayoría de PaaS) usa un proxy inverso que añade X-Forwarded-For.
+// Para que express-rate-limit y req.ip funcionen correctamente en producción:
+app.set('trust proxy', 1);
+
 // Middleware de seguridad para limitar intentos de login
 const loginLimiter = rateLimit({
 	windowMs: 15 * 60 * 1000, // 15 minutos
