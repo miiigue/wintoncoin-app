@@ -732,7 +732,8 @@ newElement.style.cursor = 'pointer';
                         break;
                     case 'confirmed_paid':
                         messageHTML = `<p class="action-message status-info">¡Compra completada!</p>`;
-                        if (pub.available_slots > 0) {
+                        // Solo permitir "comprar de nuevo" si la publicación permite repetición
+                        if (pub.available_slots > 0 && pub.allow_repeat_participation) {
                             actionHTML = `
                                 <button class="action-button accept" data-action="accept" data-id="${pub.id}">Comprar de nuevo</button>
                                 <button class="action-button hide" data-action="hide" data-id="${pub.id}">Ocultar</button>
@@ -770,7 +771,8 @@ newElement.style.cursor = 'pointer';
                         break;
                     case 'confirmed_paid':
                         messageHTML = `<p class="action-message status-info">Felicidades, te pagaron.</p>`;
-                        if (pub.available_slots > 0) {
+                        // Solo permitir "aceptar nuevamente" si la publicación permite repetición
+                        if (pub.available_slots > 0 && pub.allow_repeat_participation) {
                             actionHTML = `
                                 <button class="action-button accept" data-action="accept" data-id="${pub.id}">Aceptar nuevamente</button>
                                 <button class="action-button hide" data-action="hide" data-id="${pub.id}">Ocultar</button>
