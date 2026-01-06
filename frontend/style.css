@@ -1219,6 +1219,20 @@ hr {
 .status-badge.completed        { background-color: #6f42c1; }
 .status-badge.confirmed_paid   { background-color: #28a745; }
 
+/* --- Estados de Publicación (historial) --- */
+.status-badge.active   { background-color: #28a745; }
+.status-badge.pausada  { background-color: #6c757d; }
+.status-badge.expired  { background-color: #fd7e14; } /* Naranja */
+.status-badge.deleted  { background-color: #dc3545; } /* Rojo */
+
+/* Badges en historial */
+.history-badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 0.5rem 0 0.75rem 0;
+}
+
 /* --- Nuevos Estilos para la Vista de Autor en el Historial --- */
 .history-item {
     background-color: var(--background-color);

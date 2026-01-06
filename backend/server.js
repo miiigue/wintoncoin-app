@@ -102,6 +102,13 @@ app.use(cors({
     origin: (origin, callback) => {
         // Permitir requests sin Origin (ej: health checks, curl, server-to-server)
         if (!origin) return callback(null, true);
+        // ✅ Dev convenience (sin bajar seguridad en producción):
+        // Permitimos cualquier localhost/127.0.0.1 con cualquier puerto SOLO fuera de producción.
+        // Esto evita bloqueos cuando el frontend local corre en 3000/5173/5500, etc.
+        if (process.env.NODE_ENV !== 'production') {
+            const isLocalhostOrigin = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+            if (isLocalhostOrigin) return callback(null, true);
+        }
         if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
         return callback(new Error(`CORS bloqueado para el origen: ${origin}`));
     },
@@ -2875,20 +2882,45 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
         app.get('/users/:username/history', async (req, res) => {
             const { username } = req.params;
             try {
+                // Historial "completo" (fintech/banca): no ocultamos publicaciones eliminadas.
+                // Las marcamos con flags para que el frontend muestre badges (ELIMINADA/EXPIRADA/COMPLETADA).
                 const authoredSql = `
-                    SELECT p.*, u.username as author_username
+                    SELECT
+                        p.*,
+                        u.username as author_username,
+                        (p.deleted_at IS NOT NULL) AS is_deleted,
+                        (p.expires_at IS NOT NULL AND p.expires_at < NOW()) AS is_expired,
+                        (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id) AS participants_count,
+                        (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status = 'confirmed_paid') AS completed_count,
+                        (
+                            CASE
+                                WHEN COALESCE(p.is_quick_sale, FALSE) = TRUE THEN (p.status <> 'open')
+                                ELSE (
+                                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id) > 0
+                                    AND
+                                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status = 'confirmed_paid')
+                                    =
+                                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id)
+                                )
+                            END
+                        ) AS is_completed_publication
                     FROM publications p
                     JOIN users u ON p.author_id = u.id
-                    WHERE u.username = $1 AND p.deleted_at IS NULL
+                    WHERE u.username = $1
                     ORDER BY p.created_at DESC
                 `;
 
                 const completedSql = `
-                    SELECT p.*, u.username as author_username, pa.status as user_acceptance_status
+                    SELECT
+                        p.*,
+                        u.username as author_username,
+                        pa.status as user_acceptance_status,
+                        (p.deleted_at IS NOT NULL) AS is_deleted,
+                        (p.expires_at IS NOT NULL AND p.expires_at < NOW()) AS is_expired
                     FROM publications p
                     JOIN users u ON p.author_id = u.id
                     JOIN publication_acceptances pa ON p.id = pa.publication_id
-                    WHERE pa.acceptor_username = $1 AND pa.status = 'confirmed_paid' AND p.deleted_at IS NULL
+                    WHERE pa.acceptor_username = $1 AND pa.status = 'confirmed_paid'
                     ORDER BY p.created_at DESC
                 `;
 
@@ -3627,23 +3659,111 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
         // Endpoint para obtener todas las publicaciones para el panel de administración
         app.get('/api/admin/publications', verifyAdminToken, async (req, res) => {
             const searchTerm = req.query.search || '';
+            const filter = String(req.query.filter || 'active').toLowerCase();
             try {
+                // Allowlist de filtros (evita inyecciones y comportamientos inesperados)
+                const allowedFilters = new Set(['active', 'deleted', 'expired', 'completed', 'all']);
+                const safeFilter = allowedFilters.has(filter) ? filter : 'active';
+
+                let filterCondition = '';
+                if (safeFilter === 'active') {
+                    filterCondition = `AND p.deleted_at IS NULL AND (p.expires_at IS NULL OR p.expires_at >= NOW())`;
+                } else if (safeFilter === 'deleted') {
+                    filterCondition = `AND p.deleted_at IS NOT NULL`;
+                } else if (safeFilter === 'expired') {
+                    filterCondition = `AND p.deleted_at IS NULL AND p.expires_at IS NOT NULL AND p.expires_at < NOW()`;
+                } else if (safeFilter === 'completed') {
+                    // Definición práctica:
+                    // - Quick sale: status != 'open'
+                    // - Otros: todos los participantes (si existen) están confirmed_paid
+                    filterCondition = `
+                        AND p.deleted_at IS NULL
+                        AND (
+                            (COALESCE(p.is_quick_sale, FALSE) = TRUE AND p.status <> 'open')
+                            OR
+                            (
+                                (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id) > 0
+                                AND
+                                (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status = 'confirmed_paid')
+                                =
+                                (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id)
+                            )
+                        )
+                    `;
+                } else if (safeFilter === 'all') {
+                    filterCondition = ''; // Sin filtro extra
+                }
+
                 const query = `
                     SELECT
                         p.id, p.title, p.description, p.blue_cost, p.status, p.created_at, p.is_paused, p.is_sell_post, p.available_slots, p.category,
+                        p.expires_at, p.deleted_at, p.deleted_by_username, p.is_quick_sale,
                         u.username AS author_username,
                         (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id) AS participants_count,
-                        (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status = 'confirmed_paid') AS completed_count
+                        (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status = 'confirmed_paid') AS completed_count,
+                        (p.deleted_at IS NOT NULL) AS is_deleted,
+                        (p.expires_at IS NOT NULL AND p.expires_at < NOW()) AS is_expired,
+                        (
+                            CASE
+                                WHEN COALESCE(p.is_quick_sale, FALSE) = TRUE THEN (p.status <> 'open')
+                                ELSE (
+                                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id) > 0
+                                    AND
+                                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status = 'confirmed_paid')
+                                    =
+                                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id)
+                                )
+                            END
+                        ) AS is_completed_publication
                     FROM publications p
                     JOIN users u ON p.author_id = u.id
                     WHERE (p.title ILIKE $1 OR u.username ILIKE $1)
-                      AND p.deleted_at IS NULL
+                    ${filterCondition}
                     ORDER BY p.created_at DESC
                 `;
                 const result = await pool.query(query, [`%${searchTerm}%`]);
                 res.json(result.rows);
             } catch (error) {
                 console.error('Error fetching all publications for admin:', error);
+                res.status(500).json({ message: 'Error interno del servidor.' });
+            }
+        });
+
+        // Restaurar (undelete) una publicación eliminada (soft delete) - Solo Admin
+        app.post('/api/admin/publications/:id/restore', verifyAdminToken, async (req, res) => {
+            const { id } = req.params;
+            try {
+                const pubResult = await pool.query(
+                    `SELECT id, category, deleted_at FROM publications WHERE id = $1`,
+                    [id]
+                );
+
+                if (pubResult.rowCount === 0) {
+                    return res.status(404).json({ message: 'Publicación no encontrada.' });
+                }
+
+                if (!pubResult.rows[0].deleted_at) {
+                    return res.status(200).json({ success: true, message: 'La publicación no está eliminada.' });
+                }
+
+                await pool.query(
+                    `UPDATE publications
+                     SET deleted_at = NULL, deleted_by_username = NULL
+                     WHERE id = $1`,
+                    [id]
+                );
+
+                await logAuditEvent(pool, req, {
+                    eventType: 'admin.publication.restored',
+                    actorUsername: 'admin',
+                    publicationId: parseInt(id, 10),
+                    category: pubResult.rows[0].category,
+                    metadata: { soft_delete: false, restored: true }
+                });
+
+                return res.json({ success: true, message: 'Publicación restaurada correctamente.' });
+            } catch (error) {
+                console.error(`Error restoring publication ${id} for admin:`, error);
                 res.status(500).json({ message: 'Error interno del servidor.' });
             }
         });

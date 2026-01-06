@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
         debtorsTableContainer: document.getElementById('debtors-table-container'),
         publicationsTableContainer: document.getElementById('publications-table-container'),
         publicationSearchInput: document.getElementById('publicationSearchInput'),
+        publicationStatusFilter: document.getElementById('publicationStatusFilter'),
         platformWalletStatsContainer: document.getElementById('platform-wallet-stats'),
         platformCommissionLogContainer: document.getElementById('platform-commission-log-container'),
         platformPublicationForm: document.getElementById('platformPublicationForm'),
@@ -129,9 +130,15 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.publicationSearchInput.addEventListener('keyup', () => {
             clearTimeout(pubSearchTimeout);
             pubSearchTimeout = setTimeout(() => {
-                loadPublications(elements.publicationSearchInput.value);
+                loadPublications(elements.publicationSearchInput.value, elements.publicationStatusFilter?.value || 'active');
             }, 300);
         });
+
+        if (elements.publicationStatusFilter) {
+            elements.publicationStatusFilter.addEventListener('change', () => {
+                loadPublications(elements.publicationSearchInput.value, elements.publicationStatusFilter.value);
+            });
+        }
 
         elements.publicationsTableContainer.addEventListener('click', handlePublicationAction);
     
@@ -279,10 +286,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function loadPublications(searchTerm = '') {
+    async function loadPublications(searchTerm = '', filter = 'active') {
         elements.publicationsTableContainer.innerHTML = '<div class="loading-spinner"></div>';
         try {
-            const publications = await apiFetch(`/api/admin/publications?search=${encodeURIComponent(searchTerm)}`);
+            const publications = await apiFetch(`/api/admin/publications?search=${encodeURIComponent(searchTerm)}&filter=${encodeURIComponent(filter)}`);
             renderPublicationsTable(publications);
         } catch (error) {
             elements.publicationsTableContainer.innerHTML = `<p class="error-message">Error al cargar las publicaciones: ${escapeHtml(error.message)}</p>`;
@@ -847,9 +854,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const result = await apiFetch(`/api/admin/publications/${pubId}`, { method: 'DELETE' });
                     showCustomAlert(result.message || 'Publicación eliminada.');
-                    loadPublications(elements.publicationSearchInput.value);
+                    loadPublications(elements.publicationSearchInput.value, elements.publicationStatusFilter?.value || 'active');
                 } catch (error) {
                     showCustomAlert(`Error al eliminar: ${error.message}`);
+                }
+            });
+        }
+
+        const restoreButton = event.target.closest('.action-button-admin.restore');
+        if (restoreButton) {
+            const pubId = restoreButton.dataset.pubId;
+            const pubTitle = restoreButton.closest('tr').querySelector('.publication-title-cell').textContent;
+            showCustomConfirm(`¿Seguro que quieres restaurar la publicación "${escapeHtml(pubTitle)}"?`, async () => {
+                try {
+                    const result = await apiFetch(`/api/admin/publications/${pubId}/restore`, { method: 'POST' });
+                    showCustomAlert(result.message || 'Publicación restaurada.');
+                    loadPublications(elements.publicationSearchInput.value, elements.publicationStatusFilter?.value || 'active');
+                } catch (error) {
+                    showCustomAlert(`Error al restaurar: ${error.message}`);
                 }
             });
         }
@@ -1179,11 +1201,12 @@ WHERE username = 'Plataforma WintonCoin';
 
         const valueHTML = formatBalance(pub.blue_cost);
         const participantsHTML = `${pub.completed_count} / ${pub.participants_count}`;
-        const statusText = pub.is_paused ? 'Pausada' : pub.status;
+        const statusText = getPublicationStatusText(pub);
+        const statusClass = getPublicationStatusClass(pub);
 
-        const actionsHTML = `
-            <button class="action-button-admin delete" data-pub-id="${escapeHtml(pub.id)}" title="Eliminar publicación">Eliminar</button>
-        `;
+        const actionsHTML = pub.is_deleted
+            ? `<button class="action-button-admin restore" data-pub-id="${escapeHtml(pub.id)}" title="Restaurar publicación">Restaurar</button>`
+            : `<button class="action-button-admin delete" data-pub-id="${escapeHtml(pub.id)}" title="Eliminar publicación">Eliminar</button>`;
 
         return `
             <tr>
@@ -1194,11 +1217,27 @@ WHERE username = 'Plataforma WintonCoin';
                 <td>${typeHTML}</td>
                 <td class="saldo-blue-text">${valueHTML}</td>
                 <td align="center">${participantsHTML}</td>
-                <td><span class="status-badge ${escapeHtml(statusText).toLowerCase()}">${escapeHtml(statusText)}</span></td>
+                <td><span class="status-badge ${escapeHtml(statusClass)}">${escapeHtml(statusText)}</span></td>
                 <td>${creationDate}</td>
                 <td>${actionsHTML}</td>
             </tr>
         `;
+    }
+
+    function getPublicationStatusText(pub) {
+        if (pub.is_deleted) return 'Eliminada';
+        if (pub.is_expired) return 'Expirada';
+        if (pub.is_completed_publication) return 'Completada';
+        if (pub.is_paused) return 'Pausada';
+        return getStatusText(pub.status || 'open');
+    }
+
+    function getPublicationStatusClass(pub) {
+        if (pub.is_deleted) return 'deleted';
+        if (pub.is_expired) return 'expired';
+        if (pub.is_completed_publication) return 'completed';
+        if (pub.is_paused) return 'pausada';
+        return String(pub.status || 'open').toLowerCase();
     }
 
     function renderPlatformWallet(walletData) {

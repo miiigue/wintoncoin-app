@@ -12,6 +12,10 @@ document.addEventListener('DOMContentLoaded', () => {
         completedList: document.getElementById('completed-publications-list'),
     };
 
+    // Mapa para poder saber si una publicación del historial del autor está eliminada/expirada
+    // cuando renderizamos participantes y acciones.
+    const authoredById = new Map();
+
     // --- Inicialización ---
     if (!storedUsername) {
         showCustomAlert('Debes iniciar sesión para ver tu historial.', () => {
@@ -51,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         publications.forEach(pub => {
+            authoredById.set(String(pub.id), pub);
             const item = document.createElement('div');
             item.className = 'publication-item history-item';
             // Se inyecta un placeholder para los participantes, que se llenará de forma asíncrona
@@ -100,8 +105,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- HTML TEMPLATES ---
     function getAuthoredPublicationHTML(pub) {
+        const badgesHTML = getPublicationBadgesHTML(pub, { view: 'authored' });
         return `
             <h3>${pub.title}</h3>
+            <div class="history-badges">${badgesHTML}</div>
             <p class="pub-description">${linkify(pub.description)}</p>
             <div class="participants-section">
                 <h4>Participantes</h4>
@@ -114,13 +121,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const rating = generateStarRating(participant.average_rating, participant.ratings_count);
         const statusText = getStatusText(participant.status);
         let actionButton = '';
+        const pub = authoredById.get(String(pubId));
+        const isPubDeleted = !!pub?.is_deleted;
 
         // Lógica de enlace de perfil
         const participantNameHTML = window.appSettings.public_profiles_enabled
             ? `<a href="profile.html?user=${participant.acceptor_username}" class="profile-link">${participant.acceptor_username}</a>`
             : participant.acceptor_username;
 
-        if (participant.status === 'pending_approval') {
+        // Si la publicación fue eliminada, no permitimos acciones (aprobación/pago) desde el historial.
+        if (isPubDeleted) {
+            actionButton = '';
+        } else if (participant.status === 'pending_approval') {
             actionButton = `<button class="action-button approve" data-pub-id="${pubId}" data-user-to-approve="${participant.acceptor_username}">Aprobar</button>`;
         } else if (participant.status === 'completed') {
             actionButton = `<button class="action-button confirm" data-pub-id="${pubId}" data-worker-username="${participant.acceptor_username}">Confirmar Pago</button>`;
@@ -142,6 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getCompletedPublicationHTML(pub) {
         const statusText = getStatusText(pub.user_acceptance_status);
+        const badgesHTML = getPublicationBadgesHTML(pub, { view: 'completed' });
 
         // Lógica de enlace de perfil
         const authorNameHTML = window.appSettings.public_profiles_enabled
@@ -151,6 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return `
             <div class="publication-details">
                 <h3>${pub.title}</h3>
+                <div class="history-badges">${badgesHTML}</div>
                 <p class="pub-description">${linkify(pub.description)}</p>
             <ul class="pub-meta-list">
                     <li>Autor: <strong>${authorNameHTML}</strong></li>
@@ -187,6 +201,28 @@ document.addEventListener('DOMContentLoaded', () => {
             'confirmed_paid': 'Finalizada y Pagada'
         };
         return statusMap[status] || status;
+    }
+
+    // Badges de historial (nivel fintech): mostramos estados del objeto publicación sin ocultar nada.
+    function getPublicationBadgesHTML(pub, { view }) {
+        const badges = [];
+        const isDeleted = !!pub.is_deleted || !!pub.deleted_at;
+        const isExpired = !!pub.is_expired || (pub.expires_at && new Date(pub.expires_at) < new Date());
+        const isCompletedPublication = !!pub.is_completed_publication;
+        const isPaused = !!pub.is_paused;
+
+        if (isDeleted) badges.push(`<span class="status-badge deleted">ELIMINADA</span>`);
+        else if (isExpired) badges.push(`<span class="status-badge expired">EXPIRADA</span>`);
+        else if (isCompletedPublication) badges.push(`<span class="status-badge completed">COMPLETADA</span>`);
+        else if (isPaused) badges.push(`<span class="status-badge pausada">PAUSADA</span>`);
+        else badges.push(`<span class="status-badge active">ACTIVA</span>`);
+
+        // En "completed" (tareas realizadas) también mostramos si fue eliminada luego, para transparencia.
+        if (view === 'completed' && isDeleted) {
+            // Ya está el badge de ELIMINADA arriba, no agregamos duplicado.
+        }
+
+        return badges.join(' ');
     }
 
     function generateStarRating(rating, count) {

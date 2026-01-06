@@ -113,6 +113,13 @@
                 <!-- Un campo de búsqueda para filtrar publicaciones por título o autor -->
                 <div class="table-controls">
                     <input type="text" id="publicationSearchInput" placeholder="Buscar por título o autor...">
+                    <select id="publicationStatusFilter">
+                        <option value="active">Activas</option>
+                        <option value="deleted">Eliminadas</option>
+                        <option value="expired">Expiradas</option>
+                        <option value="completed">Completadas</option>
+                        <option value="all">Todas</option>
+                    </select>
                 </div>
                 <!-- El contenedor donde se renderizará la tabla de publicaciones -->
                 <div id="publications-table-container" class="table-container-admin">

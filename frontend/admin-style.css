@@ -368,6 +368,9 @@ input:checked + .slider:before {
 .admin-table .status-badge.open { background-color: #28a745; } /* Verde */
 .admin-table .status-badge.pausada { background-color: #6c757d; } /* Gris */
 .admin-table .status-badge.closed { background-color: #dc3545; } /* Rojo */
+.admin-table .status-badge.completed { background-color: #6f42c1; } /* Morado */
+.admin-table .status-badge.expired { background-color: #fd7e14; } /* Naranja */
+.admin-table .status-badge.deleted { background-color: #dc3545; } /* Rojo */
 
 .action-button-admin {
     padding: 6px 12px;

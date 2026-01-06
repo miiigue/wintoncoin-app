@@ -106,3 +106,16 @@ La plataforma tiene una base de seguridad decente gracias al uso de `bcrypt` y c
 4.  **Bajo:** Ocultar el hash de la contraseña en la respuesta de registro.
 
 Este informe debe servir como una guía para fortalecer la seguridad de la aplicación antes de su lanzamiento.
+
+---
+
+### Recomendaciones Futuras (Roadmap estilo fintech/banca)
+
+Estas recomendaciones complementan los hallazgos anteriores y están orientadas a auditorías más estrictas (defensa en profundidad):
+
+- **CSRF en Admin (si hay cookies HttpOnly y cross-site)**: implementar tokens CSRF o validación estricta de `Origin/Referer` en endpoints administrativos con efecto (POST/DELETE/PUT).
+- **Admins individuales + RBAC**: sustituir “admin genérico” por cuentas con roles y permisos por endpoint (segregación de funciones).
+- **Correlation ID / Request ID**: generar un identificador único por request y registrarlo en logs y en `audit_log` para trazabilidad total.
+- **Audit log reforzado**: registrar `success/fail`, `error_code`, `reason` (sin PII sensible) y evaluar envío a SIEM centralizado.
+- **Logs tamper-evident / WORM**: para evidenciar que el audit log no fue alterado (hash encadenado o almacenamiento WORM externo).
+- **Arquitectura de dominios**: mover API a `api.wintoncoin.com` para reducir dependencia de third‑party cookies y endurecer política `SameSite`.

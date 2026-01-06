@@ -209,3 +209,16 @@ Implementar un sistema de "Alias Público" que permita a los usuarios personaliz
 - **Seguridad:** Se mantiene protegida la credencial de inicio de sesión.
 - **Experiencia de Usuario:** Facilita compartir el enlace con un nombre fácil de recordar y personal.
 - **Marketing:** Fomenta que los usuarios compartan más su enlace al sentirse identificados con él.
+
+---
+
+## 9. Roadmap de Seguridad y Auditoría (Pendiente / Futuro)
+
+Estas mejoras **no son obligatorias para que el sistema funcione hoy**, pero son recomendaciones típicas para endurecer la plataforma hacia estándares más estrictos (fintech/banca) y auditorías profundas.
+
+- **CSRF para Admin (crítico si usas cookies cross-site)**: agregar protección anti-CSRF para todas las acciones administrativas (POST/DELETE/PUT), ya sea con tokens CSRF o validación estricta de `Origin/Referer` + token.
+- **Admins individuales + RBAC**: evitar “admin genérico” y crear cuentas admin con roles (`support`, `moderator`, `finance`, `superadmin`) y permisos por endpoint.
+- **Correlation ID (request_id)**: generar un `request_id` por petición y propagarlo a logs/errores/audit log para trazabilidad.
+- **Audit log más fuerte**: añadir campos de `success/fail`, `error_code`, `reason` (sin datos sensibles) y/o envío a SIEM (Splunk/Elastic/Datadog) para centralizar monitoreo.
+- **Log tamper-evident / WORM**: para auditorías estrictas, diseñar un esquema de inmutabilidad (hash encadenado) o almacenamiento WORM externo.
+- **Dominio propio para API**: migrar a `api.wintoncoin.com` para reducir dependencia de third-party cookies y permitir `SameSite` más estricto.
