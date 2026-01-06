@@ -2064,6 +2064,7 @@ app.post('/api/minor/add-tutor', async (req, res) => {
                     users u on p.author_id = u.id
                 WHERE
                     p.id NOT IN (SELECT hp.publication_id FROM hidden_publications hp WHERE hp.hider_username = $1)
+                    AND p.deleted_at IS NULL
                     -- NUEVO (UX + seguridad de negocio): Si la publicación NO es repetible y el usuario ya la completó/pagó,
                     -- entonces NO debe aparecer como "disponible" para ese usuario.
                     AND NOT (
@@ -2395,7 +2396,14 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                 const acceptor = acceptorResult.rows[0];
                 
                 // Verificar publicación para determinar si genera deuda
-                const pubResult = await client.query(`SELECT p.*, u.username as author_username FROM publications p JOIN users u ON p.author_id = u.id WHERE p.id = $1 FOR UPDATE`, [id]);
+                const pubResult = await client.query(
+                    `SELECT p.*, u.username as author_username
+                     FROM publications p
+                     JOIN users u ON p.author_id = u.id
+                     WHERE p.id = $1 AND p.deleted_at IS NULL
+                     FOR UPDATE`,
+                    [id]
+                );
                 const pub = pubResult.rows[0];
 
                 if (!pub) {
@@ -2520,7 +2528,14 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
             try {
                 await client.query('BEGIN');
         
-                const pubResult = await client.query(`SELECT p.*, u.username as author_username FROM publications p JOIN users u ON p.author_id = u.id WHERE p.id = $1 AND u.username = $2 FOR UPDATE`, [id, discarderUsername]);
+                const pubResult = await client.query(
+                    `SELECT p.*, u.username as author_username
+                     FROM publications p
+                     JOIN users u ON p.author_id = u.id
+                     WHERE p.id = $1 AND u.username = $2 AND p.deleted_at IS NULL
+                     FOR UPDATE`,
+                    [id, discarderUsername]
+                );
                 const pub = pubResult.rows[0];
                 if (!pub) {
                     throw { status: 403, message: "No tienes permiso para gestionar esta tarea." };
@@ -2581,7 +2596,13 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
             try {
                 await client.query('BEGIN');
 
-                const pubResult = await client.query(`SELECT p.*, u.username as author_username FROM publications p JOIN users u ON p.author_id = u.id WHERE p.id = $1 AND u.username = $2`, [id, approverUsername]);
+                const pubResult = await client.query(
+                    `SELECT p.*, u.username as author_username
+                     FROM publications p
+                     JOIN users u ON p.author_id = u.id
+                     WHERE p.id = $1 AND u.username = $2 AND p.deleted_at IS NULL`,
+                    [id, approverUsername]
+                );
                 const pub = pubResult.rows[0];
                 if (!pub) throw { status: 403, message: "No tienes permiso para aprobar solicitudes." };
 
@@ -2854,14 +2875,20 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
         app.get('/users/:username/history', async (req, res) => {
             const { username } = req.params;
             try {
-                const authoredSql = `SELECT p.*, u.username as author_username FROM publications p JOIN users u ON p.author_id = u.id WHERE u.username = $1 ORDER BY p.created_at DESC`;
+                const authoredSql = `
+                    SELECT p.*, u.username as author_username
+                    FROM publications p
+                    JOIN users u ON p.author_id = u.id
+                    WHERE u.username = $1 AND p.deleted_at IS NULL
+                    ORDER BY p.created_at DESC
+                `;
 
                 const completedSql = `
                     SELECT p.*, u.username as author_username, pa.status as user_acceptance_status
                     FROM publications p
                     JOIN users u ON p.author_id = u.id
                     JOIN publication_acceptances pa ON p.id = pa.publication_id
-                    WHERE pa.acceptor_username = $1 AND pa.status = 'confirmed_paid'
+                    WHERE pa.acceptor_username = $1 AND pa.status = 'confirmed_paid' AND p.deleted_at IS NULL
                     ORDER BY p.created_at DESC
                 `;
 
@@ -3047,10 +3074,18 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
             try {
                 await client.query('BEGIN');
 
-                const pubResult = await client.query(`SELECT p.*, u.username as author_username FROM publications p JOIN users u ON p.author_id = u.id WHERE p.id = $1 FOR UPDATE`, [id]);
+                const pubResult = await client.query(
+                    `SELECT p.*, u.username as author_username
+                     FROM publications p
+                     JOIN users u ON p.author_id = u.id
+                     WHERE p.id = $1
+                     FOR UPDATE`,
+                    [id]
+                );
                 const pub = pubResult.rows[0];
 
                 if (!pub) throw { status: 404, message: "La publicación no existe." };
+                if (pub.deleted_at) throw { status: 400, message: "La publicación ya fue eliminada." };
                 if (pub.author_username !== deleterUsername) throw { status: 403, message: "No tienes permiso para eliminar esto." };
 
                 const participantsCheck = await client.query(
@@ -3061,10 +3096,24 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                     throw { status: 403, message: "No se puede eliminar una tarea con participantes activos." };
                 }
                 
-                await client.query(`DELETE FROM publications WHERE id = $1`, [id]);
+                // ✅ Soft delete (no rompe FKs y mantiene historial/auditoría)
+                await client.query(
+                    `UPDATE publications
+                     SET deleted_at = NOW(), deleted_by_username = $2
+                     WHERE id = $1`,
+                    [id, deleterUsername]
+                );
+
+                await logAuditEvent(client, req, {
+                    eventType: 'publication.deleted',
+                    actorUsername: deleterUsername,
+                    publicationId: parseInt(id, 10),
+                    category: pub.category,
+                    metadata: { soft_delete: true }
+                });
                 
                 await client.query('COMMIT');
-                res.status(200).json({ message: "Publicación eliminada correctamente." });
+                res.status(200).json({ message: "Publicación eliminada (soft delete) correctamente." });
             } catch(err) {
                 await client.query('ROLLBACK');
                 console.error("Error al eliminar publicación:", err.message);
@@ -3587,7 +3636,8 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                         (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status = 'confirmed_paid') AS completed_count
                     FROM publications p
                     JOIN users u ON p.author_id = u.id
-                    WHERE p.title ILIKE $1 OR u.username ILIKE $1
+                    WHERE (p.title ILIKE $1 OR u.username ILIKE $1)
+                      AND p.deleted_at IS NULL
                     ORDER BY p.created_at DESC
                 `;
                 const result = await pool.query(query, [`%${searchTerm}%`]);
@@ -3602,13 +3652,40 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
         app.delete('/api/admin/publications/:id', verifyAdminToken, async (req, res) => {
             const { id } = req.params;
             try {
-                const deleteResult = await pool.query('DELETE FROM publications WHERE id = $1', [id]);
+                const pubResult = await pool.query(
+                    `SELECT id, category, deleted_at FROM publications WHERE id = $1`,
+                    [id]
+                );
 
-                if (deleteResult.rowCount === 0) {
+                if (pubResult.rowCount === 0) {
                     return res.status(404).json({ message: 'Publicación no encontrada.' });
                 }
+
+                if (pubResult.rows[0].deleted_at) {
+                    return res.status(200).json({ success: true, message: 'La publicación ya estaba eliminada.' });
+                }
+
+                // Soft delete en modo admin (sin romper integridad referencial)
+                const updateResult = await pool.query(
+                    `UPDATE publications
+                     SET deleted_at = NOW(), deleted_by_username = 'admin'
+                     WHERE id = $1`,
+                    [id]
+                );
+
+                if (updateResult.rowCount === 0) {
+                    return res.status(404).json({ message: 'Publicación no encontrada.' });
+                }
+
+                await logAuditEvent(pool, req, {
+                    eventType: 'admin.publication.deleted',
+                    actorUsername: 'admin',
+                    publicationId: parseInt(id, 10),
+                    category: pubResult.rows[0].category,
+                    metadata: { soft_delete: true }
+                });
                 
-                res.json({ success: true, message: 'Publicación eliminada correctamente.' });
+                res.json({ success: true, message: 'Publicación eliminada (soft delete) correctamente.' });
             } catch (error) {
                 console.error(`Error deleting publication ${id} for admin:`, error);
                 res.status(500).json({ message: 'Error interno del servidor.' });
