@@ -80,13 +80,23 @@ const loginLimiter = rateLimit({
 
 // 3. Middlewares
 // Configuración de CORS segura para permitir cookies
+// CORS allowlist:
+// - En producción: solo dominios reales (Hostinger/Render)
+// - En desarrollo: además localhost para permitir trabajar sin abrir CORS globalmente
 const ALLOWED_ORIGINS = [
-    'http://localhost:5500',
-    'http://127.0.0.1:5500',
     'https://wintoncoin-frontend.onrender.com',
     'https://sc.wintoncoin.com', // Hostinger (producción)
     'https://www.sc.wintoncoin.com'
 ];
+
+if (process.env.NODE_ENV !== 'production') {
+    ALLOWED_ORIGINS.push(
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:5500',
+        'http://127.0.0.1:5500'
+    );
+}
 
 app.use(cors({
     origin: (origin, callback) => {
