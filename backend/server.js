@@ -1066,6 +1066,161 @@ async function initializeDatabase() {
         }
         console.log("Todas las tablas han sido aseguradas en PostgreSQL.");
 
+        // ---------------------------------------------------------------------------------
+        // AUTO-MIGRACIÓN (compatibilidad): booster_transactions.related_publication_id
+        // Algunas BD antiguas no tienen esta columna, pero el perfil de impulsor la usa para
+        // enlazar/describir correctamente eventos asociados a publicaciones.
+        // ---------------------------------------------------------------------------------
+        await client.query(`
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_name='booster_transactions'
+                      AND column_name='related_publication_id'
+                ) THEN
+                    ALTER TABLE booster_transactions ADD COLUMN related_publication_id INTEGER;
+                END IF;
+
+                IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_booster_transactions_user_related_pub') THEN
+                    CREATE INDEX idx_booster_transactions_user_related_pub
+                    ON booster_transactions (user_id, related_publication_id, created_at);
+                END IF;
+            END $$;
+        `);
+
+        // ---------------------------------------------------------------------------------
+        // FIX PROFESIONAL (ledger) SIN RECURSIÓN:
+        // En algunas BD ya existe un trigger legacy (sync_booster_legacy_insert) que llama record_booster_event
+        // al insertar en booster_blue_ledger, causando recursión infinita si record_booster_event inserta al ledger.
+        //
+        // Solución (sin asumir y respetando reglas DB):
+        // - Borrar trigger/función legacy recursiva si existe
+        // - NO tocar balances en users (hay trigger prevent_manual_balance_update en tu DB que lo bloquea)
+        // - Definir record_booster_event como wrapper que SOLO inserta en el ledger (fuente de verdad)
+        // ---------------------------------------------------------------------------------
+        // Eliminación segura (sin suposiciones): borrar cualquier trigger en booster_blue_ledger
+        // que apunte a la función legacy sync_booster_legacy_insert() para evitar recursión.
+        await client.query(`
+            DO $$
+            DECLARE r RECORD;
+            BEGIN
+                FOR r IN
+                    SELECT t.tgname
+                    FROM pg_trigger t
+                    JOIN pg_class c ON c.oid = t.tgrelid
+                    JOIN pg_proc p ON p.oid = t.tgfoid
+                    WHERE c.relname = 'booster_blue_ledger'
+                      AND t.tgisinternal = FALSE
+                      AND p.proname = 'sync_booster_legacy_insert'
+                LOOP
+                    EXECUTE format('DROP TRIGGER IF EXISTS %I ON booster_blue_ledger', r.tgname);
+                END LOOP;
+            END $$;
+        `);
+
+        // Ahora sí, ya sin dependencias, podemos eliminar/recrear funciones con seguridad.
+        // Usamos CASCADE para cubrir objetos legacy desconocidos (y luego recreamos lo necesario).
+        await client.query(`DROP FUNCTION IF EXISTS sync_booster_legacy_insert() CASCADE;`);
+        await client.query(`DROP FUNCTION IF EXISTS record_booster_event(integer,text,numeric,integer) CASCADE;`);
+
+        // Nota: NO recreamos sync_booster_legacy_insert como trigger porque tu DB tiene
+        // prevent_manual_balance_update y bloquearía UPDATE users.booster_blue_balance.
+        // A partir de ahora, el ledger es la única fuente de verdad para "total_booster_blue".
+
+        await client.query(`
+            CREATE OR REPLACE FUNCTION record_booster_event(
+                p_user_id INTEGER,
+                p_type TEXT,
+                p_amount NUMERIC,
+                p_publication_id INTEGER
+            )
+            RETURNS VOID
+            LANGUAGE plpgsql
+            AS $$
+            BEGIN
+                INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id)
+                VALUES (p_user_id, p_amount, p_publication_id);
+            END;
+            $$;
+        `);
+
+        // ---------------------------------------------------------------------------------
+        // BACKFILL PROFESIONAL (local/prod-safe):
+        // Objetivo: que el historial muestre cada actividad real cuando exista evidencia (booster_transactions),
+        // y solo usar una línea "histórica" residual si falta detalle.
+        //
+        // Restricción real de tu DB: prevent_manual_balance_update() bloquea UPDATE de balances, así que aquí
+        // NO hacemos UPDATE a users.booster_blue_balance; solo leemos e insertamos en el ledger.
+        // ---------------------------------------------------------------------------------
+        await client.query(`
+            DO $$
+            DECLARE r RECORD;
+            DECLARE legacy_col_exists BOOLEAN;
+            DECLARE sum_bt NUMERIC;
+            DECLARE diff NUMERIC;
+            BEGIN
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_name = 'users' AND column_name = 'booster_blue_balance'
+                ) INTO legacy_col_exists;
+
+                IF legacy_col_exists THEN
+                    FOR r IN
+                        SELECT u.id AS user_id, u.booster_blue_balance AS legacy_total
+                        FROM users u
+                        WHERE u.booster_blue_balance > 0
+                          AND NOT EXISTS (SELECT 1 FROM booster_blue_ledger bbl WHERE bbl.user_id = u.id)
+                    LOOP
+                        -- 1) Si existen eventos detallados, insertarlos al ledger preservando created_at.
+                        INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id, created_at)
+                        SELECT bt.user_id, bt.amount, bt.related_publication_id, bt.created_at
+                        FROM booster_transactions bt
+                        WHERE bt.user_id = r.user_id
+                        ORDER BY bt.created_at ASC;
+
+                        SELECT COALESCE(SUM(bt.amount), 0)
+                        INTO sum_bt
+                        FROM booster_transactions bt
+                        WHERE bt.user_id = r.user_id;
+
+                        -- 2) Si NO hay detalle en booster_transactions, hacemos un backfill único (como legacy).
+                        IF sum_bt = 0 THEN
+                            INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id)
+                            VALUES (r.user_id, r.legacy_total, NULL);
+
+                            INSERT INTO booster_transactions (user_id, type, amount, description, related_publication_id)
+                            VALUES (
+                                r.user_id,
+                                'legacy_backfill',
+                                r.legacy_total,
+                                'Backfill: balance legacy de perfil impulsor (booster_blue_balance) al ledger (sin detalle histórico)',
+                                NULL
+                            );
+                        ELSE
+                            -- 3) Si sí hay detalle, reconciliar contra el total legacy con una línea residual si hace falta.
+                            diff := r.legacy_total - sum_bt;
+                            IF diff > 0.00009 THEN
+                                INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id)
+                                VALUES (r.user_id, diff, NULL);
+
+                                INSERT INTO booster_transactions (user_id, type, amount, description, related_publication_id)
+                                VALUES (
+                                    r.user_id,
+                                    'legacy_backfill',
+                                    diff,
+                                    'Backfill: saldo histórico no detallado (diferencia vs booster_transactions)',
+                                    NULL
+                                );
+                            END IF;
+                        END IF;
+                    END LOOP;
+                END IF;
+            END $$;
+        `);
+
         // Paso 3: Asegurar que todas las configuraciones por defecto existen.
         for (const setting of defaultSettings) {
             await client.query(
@@ -1702,7 +1857,9 @@ app.get('/api/auth/status', async (req, res) => {
         return res.status(200).json({ isAuthenticated: false });
     }
 
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, async (err, user) => {
+    // FIX PROFESIONAL: verificamos con la misma clave con la que firmamos el JWT (JWT_SECRET).
+    // Si esto no coincide, el frontend verá "isAuthenticated=false" aunque tenga un token válido.
+    jwt.verify(token, jwtSecret, async (err, user) => {
         if (err) {
             return res.status(200).json({ isAuthenticated: false });
         }
@@ -2808,6 +2965,21 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
             }
 });
 
+// --- ENDPOINT PROFESIONAL: Notificaciones del usuario autenticado ---
+app.get('/api/me/notifications', verifyUserToken, async (req, res) => {
+    const username = req.user?.username;
+    if (!username) {
+        return res.status(401).json({ message: "No autenticado." });
+    }
+    const sql = `SELECT * FROM notifications WHERE recipient_username = $1 AND is_read = FALSE ORDER BY created_at DESC`;
+    try {
+        const result = await pool.query(sql, [username]);
+        res.status(200).json(result.rows);
+    } catch (error) {
+        res.status(500).json({ message: "Error interno del servidor." });
+    }
+});
+
 // Ruta para marcar notificaciones como leídas
         app.post('/notifications/mark-read', async (req, res) => {
     const { username } = req.body;
@@ -2819,6 +2991,21 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                 res.status(500).json({ message: "Error al marcar notificaciones como leídas." });
             }
         });
+
+// --- ENDPOINT PROFESIONAL: marcar notificaciones como leídas (usuario autenticado) ---
+app.post('/api/me/notifications/mark-read', verifyUserToken, async (req, res) => {
+    const username = req.user?.username;
+    if (!username) {
+        return res.status(401).json({ message: "No autenticado." });
+    }
+    const sql = `UPDATE notifications SET is_read = TRUE WHERE recipient_username = $1 AND is_read = FALSE`;
+    try {
+        const result = await pool.query(sql, [username]);
+        res.status(200).json({ success: true, count: result.rowCount });
+    } catch (error) {
+        res.status(500).json({ message: "Error al marcar notificaciones como leídas." });
+    }
+});
 
         // Ruta para descartar una notificación INDIVIDUAL
         app.post('/notifications/:id/dismiss', async (req, res) => {
@@ -2843,6 +3030,27 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                 res.status(500).json({ message: "Error interno del servidor." });
             }
         });
+
+// --- ENDPOINT PROFESIONAL: descartar notificación individual (usuario autenticado) ---
+app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) => {
+    const { id } = req.params;
+    const username = req.user?.username;
+    if (!username) {
+        return res.status(401).json({ message: "No autenticado." });
+    }
+    try {
+        const sql = `UPDATE notifications SET is_read = TRUE WHERE id = $1 AND recipient_username = $2 AND is_read = FALSE RETURNING id`;
+        const result = await pool.query(sql, [id, username]);
+        if (result.rowCount > 0) {
+            res.status(200).json({ message: "Notificación descartada." });
+        } else {
+            res.status(200).json({ message: "La notificación no necesitaba ser descartada." });
+        }
+    } catch (error) {
+        console.error('Error al descartar notificación (me):', error);
+        res.status(500).json({ message: "Error interno del servidor." });
+    }
+});
 
         // Ruta para QUEMAR tokens (Ahora refactorizada para usar la función central)
         app.post('/users/burn', async (req, res) => {
@@ -3020,6 +3228,70 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                 res.status(200).json(responseData);
             } catch (err) {
                 console.error("Error al obtener balance y deuda:", err);
+                return res.status(500).json({ message: "Error interno del servidor." });
+            } finally {
+                client.release();
+            }
+        });
+
+        // --- ENDPOINT PROFESIONAL: Obtener los saldos del usuario autenticado ---
+        // Fuente de verdad: JWT (userId). Evita que el cliente "spoofee" otro username.
+        app.get('/api/me/balance', verifyUserToken, async (req, res) => {
+            const userId = req.user?.userId;
+            if (!userId) {
+                return res.status(401).json({ message: "No autenticado." });
+            }
+
+            const client = await pool.connect();
+            try {
+                // 1) Obtener balances desde users por ID (estándar profesional)
+                const userResult = await client.query(
+                    `SELECT username, liquid_blue_balance, escrow_blue_balance, red_balance
+                     FROM users
+                     WHERE id = $1`,
+                    [userId]
+                );
+
+                if (userResult.rows.length === 0) {
+                    return res.status(404).json({ message: "Usuario no encontrado." });
+                }
+
+                const username = userResult.rows[0].username;
+
+                // 2) Tablas legacy por username (migración gradual)
+                const debtSql = `
+                    SELECT due_at, amount FROM red_token_debts 
+                    WHERE username = $1 AND is_settled = FALSE ORDER BY due_at ASC LIMIT 1
+                `;
+                const escrowSql = `
+                    SELECT unlock_at, amount FROM blue_token_escrows
+                    WHERE username = $1 AND is_released = FALSE ORDER BY unlock_at ASC LIMIT 1
+                `;
+                const penalizedDebtSql = `
+                    SELECT SUM(amount) as total_penalized_debt FROM red_token_debts
+                    WHERE username = $1 AND is_penalized = TRUE AND is_settled = FALSE
+                `;
+
+                const [debtResult, escrowResult, penalizedDebtResult] = await Promise.all([
+                    client.query(debtSql, [username]),
+                    client.query(escrowSql, [username]),
+                    client.query(penalizedDebtSql, [username])
+                ]);
+
+                const responseData = {
+                    blue_balance: userResult.rows[0].liquid_blue_balance,
+                    escrow_blue_balance: userResult.rows[0].escrow_blue_balance,
+                    red_balance: userResult.rows[0].red_balance,
+                    next_due_at: debtResult.rows[0]?.due_at || null,
+                    next_due_amount: debtResult.rows[0]?.amount || null,
+                    next_unlock_at: escrowResult.rows[0]?.unlock_at || null,
+                    next_unlock_amount: escrowResult.rows[0]?.amount || null,
+                    penalized_debt: penalizedDebtResult.rows[0]?.total_penalized_debt || '0'
+                };
+
+                res.status(200).json(responseData);
+            } catch (err) {
+                console.error("Error al obtener balance y deuda (me):", err);
                 return res.status(500).json({ message: "Error interno del servidor." });
             } finally {
                 client.release();
@@ -3351,6 +3623,44 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                 return res.status(400).json({ message: "Se requiere 'key' y 'value'." });
             }
             try {
+                // ------------------------------------------------------------
+                // FINTECH GUARD (fail-closed):
+                // Si se intenta desactivar pre-launch, validamos que el esquema
+                // soporte el flujo normal (usa user_id en red_token_debts y blue_token_escrows).
+                //
+                // Motivo: evitar que un toggle de feature rompa pagos en producción
+                // por deriva de esquema (schema drift). Este guard NO modifica datos.
+                // ------------------------------------------------------------
+                if (key === 'pre_launch_mode_enabled' && value === 'false') {
+                    const missing = [];
+
+                    const rtdUserIdCol = await pool.query(
+                        `SELECT 1
+                         FROM information_schema.columns
+                         WHERE table_name = 'red_token_debts' AND column_name = 'user_id'
+                         LIMIT 1`
+                    );
+                    if (rtdUserIdCol.rowCount === 0) missing.push('red_token_debts.user_id');
+
+                    const bteUserIdCol = await pool.query(
+                        `SELECT 1
+                         FROM information_schema.columns
+                         WHERE table_name = 'blue_token_escrows' AND column_name = 'user_id'
+                         LIMIT 1`
+                    );
+                    if (bteUserIdCol.rowCount === 0) missing.push('blue_token_escrows.user_id');
+
+                    if (missing.length > 0) {
+                        return res.status(409).json({
+                            message:
+                                `No se puede desactivar pre-launch todavía: faltan columnas requeridas (${missing.join(', ')}). ` +
+                                `Aplica primero las migraciones de esquema (MIGRACIÓN 30 y 31) para evitar fallos al confirmar pagos.`,
+                            missing_columns: missing,
+                            required_migrations: ['30 (red_token_debts.user_id)', '31 (blue_token_escrows.user_id)']
+                        });
+                    }
+                }
+
                 const result = await pool.query(`UPDATE app_settings SET setting_value = $1 WHERE setting_key = $2 RETURNING *`, [value, key]);
                 if (result.rowCount === 0) {
                     return res.status(404).json({ message: `Clave de configuración '${key}' no encontrada.` });
@@ -4106,6 +4416,146 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
             }
         });
 
+        // --- NUEVO (PROFESIONAL): Rebuild de ledger/historial de impulsor para un usuario ---
+        // Caso de uso: corregir historiales legacy que quedaron como "1 sola línea backfill".
+        // Principio: NO inventar datos. Reconstruimos desde evidencia (booster_transactions) y, si falta,
+        // añadimos solo una línea residual "saldo histórico no detallado".
+        app.post('/api/admin/boosters/rebuild-ledger/:username', verifyAdminToken, async (req, res) => {
+            const { username } = req.params;
+            if (!username) {
+                return res.status(400).json({ message: 'Se requiere username.' });
+            }
+
+            const client = await pool.connect();
+            try {
+                await client.query('BEGIN');
+
+                const userResult = await client.query('SELECT id, username FROM users WHERE username = $1', [username]);
+                if (userResult.rowCount === 0) {
+                    await client.query('ROLLBACK');
+                    return res.status(404).json({ message: 'Usuario no encontrado.' });
+                }
+                const userId = userResult.rows[0].id;
+
+                // 1) Leer total legacy (si existe) sin asumir (y sin actualizar balances).
+                const legacyColResult = await client.query(`
+                    SELECT EXISTS(
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name='users' AND column_name='booster_blue_balance'
+                    ) AS exists
+                `);
+                const legacyColExists = !!legacyColResult.rows[0]?.exists;
+                let legacyTotal = null;
+                if (legacyColExists) {
+                    const legacyTotalResult = await client.query(
+                        'SELECT booster_blue_balance FROM users WHERE id = $1',
+                        [userId]
+                    );
+                    legacyTotal = parseFloat(legacyTotalResult.rows[0]?.booster_blue_balance || '0') || 0;
+                }
+
+                // 2) Limpiar solo “backfills” artificiales en booster_transactions (no borramos evidencia real).
+                // Nota: si tienes tipos legacy diferentes, los agregamos aquí.
+                const deleteLegacyTx = await client.query(
+                    `DELETE FROM booster_transactions
+                     WHERE user_id = $1 AND type IN ('legacy_backfill', 'legacy_backfill_residual')`,
+                    [userId]
+                );
+
+                // 3) Rebuild total del ledger desde booster_transactions (evidencia real)
+                const deletedLedger = await client.query('DELETE FROM booster_blue_ledger WHERE user_id = $1', [userId]);
+
+                const insertedFromTx = await client.query(
+                    `
+                    INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id, created_at)
+                    SELECT
+                        bt.user_id,
+                        bt.amount,
+                        bt.related_publication_id,
+                        bt.created_at
+                    FROM booster_transactions bt
+                    WHERE bt.user_id = $1
+                    ORDER BY bt.created_at ASC
+                    RETURNING id
+                    `,
+                    [userId]
+                );
+
+                const sumTxResult = await client.query(
+                    'SELECT COALESCE(SUM(amount), 0) AS total FROM booster_transactions WHERE user_id = $1',
+                    [userId]
+                );
+                const sumTx = parseFloat(sumTxResult.rows[0]?.total || '0') || 0;
+
+                // 4) Si el total legacy existe y es mayor que lo evidenciado, añadimos residual (1 línea) y lo registramos
+                // para que el usuario vea claramente que es histórico no detallado.
+                let residualAdded = 0;
+                if (legacyColExists && legacyTotal !== null) {
+                    const diff = legacyTotal - sumTx;
+                    if (diff > 0.00009) {
+                        const residualTx = await client.query(
+                            `INSERT INTO booster_transactions (user_id, type, amount, description, related_publication_id)
+                             VALUES ($1, 'legacy_backfill_residual', $2, $3, NULL)
+                             RETURNING id, created_at`,
+                            [userId, diff, 'Saldo histórico no detallado (diferencia vs evidencia histórica)']
+                        );
+
+                        await client.query(
+                            `INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id, created_at)
+                             VALUES ($1, $2, NULL, $3)`,
+                            [userId, diff, residualTx.rows[0].created_at]
+                        );
+                        residualAdded = diff;
+                    }
+                }
+
+                const newLedgerTotalResult = await client.query(
+                    'SELECT COALESCE(SUM(amount), 0) AS total FROM booster_blue_ledger WHERE user_id = $1',
+                    [userId]
+                );
+                const newLedgerTotal = parseFloat(newLedgerTotalResult.rows[0]?.total || '0') || 0;
+
+                await logAuditEvent(client, req, {
+                    eventType: 'booster.ledger_rebuilt',
+                    actorUsername: 'admin',
+                    targetUsername: username,
+                    category: 'admin',
+                    metadata: {
+                        user_id: userId,
+                        legacy_total: legacyTotal,
+                        sum_transactions: sumTx,
+                        new_ledger_total: newLedgerTotal,
+                        deleted_ledger_rows: deletedLedger.rowCount,
+                        inserted_ledger_rows: insertedFromTx.rowCount + (residualAdded > 0 ? 1 : 0),
+                        deleted_legacy_transactions: deleteLegacyTx.rowCount,
+                        residual_added: residualAdded
+                    }
+                });
+
+                await client.query('COMMIT');
+                res.status(200).json({
+                    success: true,
+                    message: `Ledger reconstruido para ${username}.`,
+                    results: {
+                        user_id: userId,
+                        legacy_total: legacyTotal,
+                        sum_transactions: sumTx,
+                        new_ledger_total: newLedgerTotal,
+                        deleted_ledger_rows: deletedLedger.rowCount,
+                        inserted_ledger_rows: insertedFromTx.rowCount + (residualAdded > 0 ? 1 : 0),
+                        deleted_legacy_transactions: deleteLegacyTx.rowCount,
+                        residual_added: residualAdded
+                    }
+                });
+            } catch (error) {
+                await client.query('ROLLBACK');
+                console.error('Error rebuild-ledger:', error);
+                res.status(500).json({ message: 'Error interno del servidor.' });
+            } finally {
+                client.release();
+            }
+        });
+
         // Endpoint para que un administrador cree una publicación como la plataforma
         app.post('/api/admin/platform/create-publication', verifyAdminToken, async (req, res) => {
             const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation } = req.body;
@@ -4506,6 +4956,29 @@ app.listen(PORT, () => {
             });
         }
 
+        /**
+         * Middleware profesional para autenticar usuarios finales (no-admin) vía JWT.
+         * - Fuente de verdad: Authorization: Bearer <token>
+         * - El token contiene { userId, username } (firmado con JWT_SECRET)
+         *
+         * Importante (fintech): NO confiar en req.body.username / req.query.user para autorizar.
+         */
+        function verifyUserToken(req, res, next) {
+            const authHeader = req.headers['authorization'] || '';
+            const token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null;
+            if (!token) {
+                return res.status(401).json({ message: 'No autenticado. Token no proporcionado.' });
+            }
+
+            jwt.verify(token, jwtSecret, (err, decoded) => {
+                if (err || !decoded) {
+                    return res.status(401).json({ message: 'No autenticado. Token inválido o expirado.' });
+                }
+                req.user = decoded; // { userId, username }
+                next();
+            });
+        }
+
 startServer();
 
 // --- NUEVO: Endpoint para obtener los detalles completos de UNA SOLA publicación ---
@@ -4718,12 +5191,11 @@ app.get('/api/users/:username/booster-profile', async (req, res) => {
 
     const client = await pool.connect();
     try {
-        // 1. Obtener los datos principales del usuario.
-        const userQuery = `
-            SELECT id, username, is_booster, booster_level, booster_blue_balance 
-            FROM users WHERE username = $1
-        `;
-        const userResult = await client.query(userQuery, [username]);
+        // 1. Obtener el usuario.
+        const userResult = await client.query(
+            `SELECT id, username FROM users WHERE username = $1`,
+            [username]
+        );
 
         if (userResult.rowCount === 0) {
             return res.status(404).json({ message: 'Usuario no encontrado.' });
@@ -4731,40 +5203,202 @@ app.get('/api/users/:username/booster-profile', async (req, res) => {
         
         const user = userResult.rows[0];
 
-        // 2. Si no es un impulsor o su saldo es cero, no necesitamos buscar más.
-        if (!user.is_booster || parseFloat(user.booster_blue_balance) <= 0) {
+        // 2. Fuente de verdad: el total del perfil de impulsor es la suma del ledger.
+        const totalResult = await client.query(
+            'SELECT COALESCE(SUM(amount), 0) AS total FROM booster_blue_ledger WHERE user_id = $1',
+            [user.id]
+        );
+        const totalBoosterBlue = parseFloat(totalResult.rows[0].total) || 0;
+
+        if (totalBoosterBlue <= 0) {
             return res.json({
                 is_booster: false,
                 message: 'Este usuario aún no forma parte del programa de impulsores.'
             });
         }
 
-        // 3. Obtener el historial de transacciones del impulsor y los niveles en paralelo.
-        const [transactionsResult, levelSettingsResult] = await Promise.all([
+        // 3. Obtener niveles, historial (fuente de verdad) y métricas en paralelo.
+        // En fintech, el "extracto" debe venir del ledger para que SIEMPRE cuadre con el total.
+        const [ledgerHistoryResult, levelSettingsResult, currentLevelResult, tasksCountResult] = await Promise.all([
+            // Historial: booster_blue_ledger (source of truth) + descripción (si existe) desde booster_transactions
             client.query(
-                'SELECT * FROM booster_transactions WHERE user_id = $1 ORDER BY created_at DESC', 
+                `
+                SELECT
+                    bbl.id,
+                    bbl.amount,
+                    bbl.created_at,
+                    bbl.source_publication_id AS related_publication_id,
+                    COALESCE(bt_pick.type,
+                        CASE
+                            WHEN bbl.source_publication_id IS NOT NULL AND bbl.amount > 0 THEN 'task_reward'
+                            WHEN bbl.amount < 0 THEN 'debit'
+                            ELSE 'credit'
+                        END
+                    ) AS type,
+                    COALESCE(
+                        bt_pick.description,
+                        CASE
+                            WHEN p.title IS NOT NULL THEN 'Actividad de Impulsor: \"' || p.title || '\"'
+                            ELSE 'Actividad de Impulsor (legacy)'
+                        END
+                    ) AS description
+                FROM booster_blue_ledger bbl
+                LEFT JOIN publications p ON p.id = bbl.source_publication_id
+                LEFT JOIN LATERAL (
+                    SELECT bt.type, bt.description
+                    FROM booster_transactions bt
+                    WHERE bt.user_id = bbl.user_id
+                      AND bt.amount = bbl.amount
+                      AND bt.related_publication_id IS NOT DISTINCT FROM bbl.source_publication_id
+                      AND bt.created_at BETWEEN (bbl.created_at - INTERVAL '2 minutes') AND (bbl.created_at + INTERVAL '2 minutes')
+                    ORDER BY bt.created_at DESC
+                    LIMIT 1
+                ) bt_pick ON TRUE
+                WHERE bbl.user_id = $1
+                ORDER BY bbl.created_at DESC
+                `,
                 [user.id]
             ),
-            client.query('SELECT * FROM booster_level_settings ORDER BY level ASC')
+            client.query('SELECT * FROM booster_level_settings ORDER BY level ASC'),
+            // Nivel calculado directamente desde el total (no depende de "cache" en users)
+            client.query(
+                'SELECT MAX(level) AS current_level FROM booster_level_settings WHERE min_blue_required <= $1',
+                [totalBoosterBlue]
+            ),
+            // Conteo de "tareas/actividades" asociadas a publicaciones (sin exigir is_booster_task)
+            client.query(
+                `SELECT COUNT(DISTINCT bbl.source_publication_id) AS tasks_completed
+                 FROM booster_blue_ledger bbl
+                 WHERE bbl.user_id = $1 AND bbl.amount > 0 AND bbl.source_publication_id IS NOT NULL`,
+                [user.id]
+            )
         ]);
 
         const allLevels = levelSettingsResult.rows;
-        const currentLevelInfo = allLevels.find(l => l.level === user.booster_level);
-        const nextLevelInfo = allLevels.find(l => l.level === (user.booster_level || 0) + 1) || null;
+        const currentLevel = currentLevelResult.rows[0].current_level || 0;
+        const currentLevelInfo = allLevels.find(l => l.level === currentLevel) || null;
+        const nextLevelInfo = allLevels.find(l => l.level === (currentLevel || 0) + 1) || null;
+
+        const tasksCompleted = parseInt(tasksCountResult.rows[0]?.tasks_completed || '0', 10);
 
         // 4. Enviar la respuesta completa con el perfil y el historial.
         res.json({
             is_booster: true,
             username: user.username,
-            booster_level: user.booster_level,
-            total_booster_blue: parseFloat(user.booster_blue_balance),
+            booster_level: currentLevel,
+            total_booster_blue: totalBoosterBlue,
             current_level_info: currentLevelInfo,
             next_level_info: nextLevelInfo,
-            transactions: transactionsResult.rows
+            booster_tasks_completed_count: tasksCompleted,
+            transactions: ledgerHistoryResult.rows
         });
 
     } catch (error) {
         console.error(`Error al obtener el perfil de impulsor para ${username}:`, error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    } finally {
+        client.release();
+    }
+});
+
+// --- ENDPOINT PROFESIONAL: Perfil de impulsor del usuario autenticado ---
+// Fuente de verdad de identidad: JWT (req.user.userId / req.user.username)
+// Esto evita que alguien consulte/forje el username de otra persona para ver su historial.
+app.get('/api/me/booster-profile', verifyUserToken, async (req, res) => {
+    const userId = req.user?.userId;
+    const username = req.user?.username;
+
+    if (!userId) {
+        return res.status(401).json({ message: 'No autenticado.' });
+    }
+
+    const client = await pool.connect();
+    try {
+        // 1) Total (source of truth)
+        const totalResult = await client.query(
+            'SELECT COALESCE(SUM(amount), 0) AS total FROM booster_blue_ledger WHERE user_id = $1',
+            [userId]
+        );
+        const totalBoosterBlue = parseFloat(totalResult.rows[0].total) || 0;
+
+        if (totalBoosterBlue <= 0) {
+            return res.json({
+                is_booster: false,
+                message: 'Este usuario aún no forma parte del programa de impulsores.'
+            });
+        }
+
+        // 2) Niveles + historial + conteos (igual que el endpoint por username)
+        const [ledgerHistoryResult, levelSettingsResult, currentLevelResult, tasksCountResult] = await Promise.all([
+            client.query(
+                `
+                SELECT
+                    bbl.id,
+                    bbl.amount,
+                    bbl.created_at,
+                    bbl.source_publication_id AS related_publication_id,
+                    COALESCE(bt_pick.type,
+                        CASE
+                            WHEN bbl.source_publication_id IS NOT NULL AND bbl.amount > 0 THEN 'task_reward'
+                            WHEN bbl.amount < 0 THEN 'debit'
+                            ELSE 'credit'
+                        END
+                    ) AS type,
+                    COALESCE(
+                        bt_pick.description,
+                        CASE
+                            WHEN p.title IS NOT NULL THEN 'Actividad de Impulsor: \"' || p.title || '\"'
+                            ELSE 'Actividad de Impulsor (legacy)'
+                        END
+                    ) AS description
+                FROM booster_blue_ledger bbl
+                LEFT JOIN publications p ON p.id = bbl.source_publication_id
+                LEFT JOIN LATERAL (
+                    SELECT bt.type, bt.description
+                    FROM booster_transactions bt
+                    WHERE bt.user_id = bbl.user_id
+                      AND bt.amount = bbl.amount
+                      AND bt.related_publication_id IS NOT DISTINCT FROM bbl.source_publication_id
+                      AND bt.created_at BETWEEN (bbl.created_at - INTERVAL '2 minutes') AND (bbl.created_at + INTERVAL '2 minutes')
+                    ORDER BY bt.created_at DESC
+                    LIMIT 1
+                ) bt_pick ON TRUE
+                WHERE bbl.user_id = $1
+                ORDER BY bbl.created_at DESC
+                `,
+                [userId]
+            ),
+            client.query('SELECT * FROM booster_level_settings ORDER BY level ASC'),
+            client.query(
+                'SELECT MAX(level) AS current_level FROM booster_level_settings WHERE min_blue_required <= $1',
+                [totalBoosterBlue]
+            ),
+            client.query(
+                `SELECT COUNT(DISTINCT bbl.source_publication_id) AS tasks_completed
+                 FROM booster_blue_ledger bbl
+                 WHERE bbl.user_id = $1 AND bbl.amount > 0 AND bbl.source_publication_id IS NOT NULL`,
+                [userId]
+            )
+        ]);
+
+        const allLevels = levelSettingsResult.rows;
+        const currentLevel = currentLevelResult.rows[0].current_level || 0;
+        const currentLevelInfo = allLevels.find(l => l.level === currentLevel) || null;
+        const nextLevelInfo = allLevels.find(l => l.level === (currentLevel || 0) + 1) || null;
+        const tasksCompleted = parseInt(tasksCountResult.rows[0]?.tasks_completed || '0', 10);
+
+        res.json({
+            is_booster: true,
+            username: username || null,
+            booster_level: currentLevel,
+            total_booster_blue: totalBoosterBlue,
+            current_level_info: currentLevelInfo,
+            next_level_info: nextLevelInfo,
+            booster_tasks_completed_count: tasksCompleted,
+            transactions: ledgerHistoryResult.rows
+        });
+    } catch (error) {
+        console.error(`Error al obtener el perfil de impulsor (me) para ${username}:`, error);
         res.status(500).json({ message: 'Error interno del servidor.' });
     } finally {
         client.release();
@@ -5058,6 +5692,13 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         const workerResult = await client.query('SELECT id FROM users WHERE username = $1', [workerUsername]);
         const workerId = workerResult.rows[0].id;
         await client.query('SELECT record_booster_event($1, \'task_reward\', $2, $3)', [workerId, cost, pubId]);
+        // ✅ FIX: Registrar también en booster_transactions para que el "Historial de Ganancias" cuadre con el total.
+        // Antes: el total subía (ledger) pero el historial solo mostraba bonos/referrals.
+        await client.query(
+            `INSERT INTO booster_transactions (user_id, type, amount, description, related_publication_id)
+             VALUES ($1, 'task_reward', $2, $3, $4)`,
+            [workerId, cost, `Tarea de Impulsor: "${title}"`, pubId]
+        );
         await client.query('UPDATE users SET is_booster = TRUE WHERE id = $1', [workerId]);
         await updateUserBoosterLevel(client, workerId);
     } else {
@@ -5315,57 +5956,8 @@ app.get('/api/public-settings', async (req, res) => {
 // =================================================================================
 // ==  PERFIL PÚBLICO DE IMPULSOR (BOOSTER)                                       ==
 // =================================================================================
-app.get('/api/users/:username/booster-profile', async (req, res) => {
-    const { username } = req.params;
-    const client = await pool.connect();
-    try {
-        const userResult = await client.query('SELECT id FROM users WHERE username = $1', [username]);
-        if (userResult.rows.length === 0) {
-            return res.status(404).json({ message: 'Usuario no encontrado.' });
-        }
-        const userId = userResult.rows[0].id;
-
-        console.log(`[DEBUG] Buscando saldo de impulsor para userId: ${userId}`); // LOG 1
-
-        const boosterBalanceResult = await client.query(
-            'SELECT SUM(amount) as total FROM booster_blue_ledger WHERE user_id = $1',
-            [userId]
-        );
-    
-        const totalBoosterBlue = parseFloat(boosterBalanceResult.rows[0].total) || 0;
-
-        console.log(`[DEBUG] Saldo total de impulsor encontrado: ${totalBoosterBlue}`); // LOG 2
-
-        // Lógica corregida: Un usuario es impulsor si su balance de impulsor es > 0
-        if (totalBoosterBlue > 0) {
-            const publicationsResult = await client.query(
-                `SELECT p.id, p.title, p.description, p.blue_cost, p.status, p.created_at, u.username as author_username
-                 FROM publications p
-                 JOIN users u ON p.author_id = u.id
-                 WHERE p.author_id = $1 AND p.status = 'open'
-                 ORDER BY p.created_at DESC`,
-                [userId]
-            );
-
-            res.json({
-                is_booster: true,
-                username: username,
-                booster_blue_balance: totalBoosterBlue,
-                publications: publicationsResult.rows
-            });
-        } else {
-            res.json({
-                is_booster: false,
-                message: 'Este usuario aún no forma parte del programa de impulsores.'
-            });
-        }
-    } catch (error) {
-        console.error('Error al obtener el perfil de impulsor:', error);
-        res.status(500).json({ message: 'Error interno del servidor.' });
-    } finally {
-        client.release();
-    }
-});
+// NOTA: Este endpoint se implementa arriba con historial completo y nivel calculado.
+// La versión anterior duplicada fue removida para evitar inconsistencias.
 
 // =================================================================================
 // ==  OBTENER PUBLICACIONES DE UN USUARIO (PARA SU PERFIL PÚBLICO)               ==

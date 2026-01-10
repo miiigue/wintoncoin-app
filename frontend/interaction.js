@@ -439,9 +439,14 @@ newElement.style.cursor = 'pointer';
     async function postToServer(endpoint, body, options = {}) {
     const { silent = false, reload = true } = options;
     try {
+        // Profesional: adjuntar el token si existe para que el backend use userId como fuente de verdad.
+        const token = localStorage.getItem('token');
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
         const response = await fetch(`${API_URL}${endpoint}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify(body)
         });
 
@@ -862,7 +867,11 @@ newElement.style.cursor = 'pointer';
 
     async function fetchNotifications() {
         try {
-            const response = await fetch(`${API_URL}/notifications/${storedUsername}`);
+            // Profesional: traer mis notificaciones vía token (no por username en URL).
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/api/me/notifications`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
             if (!response.ok) throw new Error('Error al cargar notificaciones.');
             
         const notifications = await response.json();
@@ -915,7 +924,7 @@ newElement.style.cursor = 'pointer';
 
         try {
             // Llamada silenciosa y sin recarga de toda la página
-            await postToServer('/notifications/mark-read', { username: storedUsername }, { silent: true, reload: false });
+            await postToServer('/api/me/notifications/mark-read', {}, { silent: true, reload: false });
             updateNotificationBadge(0); // Ocultar la pastilla roja inmediatamente
         } catch (error) {
             console.error("Error al marcar notificaciones como leídas:", error);
@@ -942,7 +951,7 @@ newElement.style.cursor = 'pointer';
         
         try {
             // Llamada silenciosa y sin recarga
-            await postToServer(`/notifications/${notificationId}/dismiss`, { username: storedUsername }, { silent: true, reload: false });
+            await postToServer(`/api/me/notifications/${notificationId}/dismiss`, {}, { silent: true, reload: false });
         } catch (error) {
             console.error("Error al descartar la notificación en el servidor:", error);
         }
@@ -951,7 +960,7 @@ newElement.style.cursor = 'pointer';
     async function clearAllNotifications() {
         try {
             // Llamada silenciosa y sin recarga
-            const response = await postToServer('/notifications/mark-read', { username: storedUsername }, { silent: true, reload: false });
+            const response = await postToServer('/api/me/notifications/mark-read', {}, { silent: true, reload: false });
             if (response.success) {
                 const dropdown = document.getElementById('notificationDropdown');
                 dropdown.innerHTML = '<div class="no-notifications">No tienes notificaciones nuevas.</div>';
@@ -964,8 +973,11 @@ newElement.style.cursor = 'pointer';
 
     async function fetchAndDisplayBalances() {
         try {
+            const token = localStorage.getItem('token');
             // Añadimos un parámetro que cambia con el tiempo para evitar la caché del navegador.
-            const response = await fetch(`${API_URL}/users/${storedUsername}/balance?t=${new Date().getTime()}`);
+            const response = await fetch(`${API_URL}/api/me/balance?t=${new Date().getTime()}`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
             if (response.ok) {
                 const data = await response.json();
                 elements.saldoBlue.innerHTML = formatBalance(data.blue_balance);

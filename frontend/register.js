@@ -10,6 +10,51 @@ document.addEventListener('DOMContentLoaded', async function() {
     const step2Div = document.getElementById('verification-step-2');
     const container = document.querySelector('.container');
 
+    // --- NUEVO (Fintech UX): Banner de sesión activa / verificación pendiente ---
+    const sessionBanner = document.getElementById('session-banner');
+    const sessionBannerTitle = document.getElementById('session-banner-title');
+    const sessionBannerMessage = document.getElementById('session-banner-message');
+    const sessionPrimaryBtn = document.getElementById('session-action-primary');
+    const sessionSecondaryBtn = document.getElementById('session-action-secondary');
+    const sessionLogoutBtn = document.getElementById('session-action-logout');
+
+    function safeShow(el) {
+        if (el) el.style.display = 'block';
+    }
+    function safeHide(el) {
+        if (el) el.style.display = 'none';
+    }
+
+    function clearRegisterClientState() {
+        // Limpieza explícita para pruebas + comportamiento profesional (evita estados fantasma)
+        localStorage.removeItem('token');
+        localStorage.removeItem('username');
+        localStorage.removeItem('pendingVerificationPhone');
+        localStorage.removeItem('pendingVerificationEmail');
+        localStorage.removeItem('pending_verification_email');
+    }
+
+    function configureSessionBanner({ title, message, primaryText, onPrimary, secondaryText, onSecondary }) {
+        if (!sessionBanner) return;
+
+        sessionBannerTitle.textContent = title || 'Sesión detectada';
+        sessionBannerMessage.textContent = message || '';
+
+        sessionPrimaryBtn.textContent = primaryText || 'Continuar';
+        sessionSecondaryBtn.textContent = secondaryText || 'Ir al perfil';
+
+        // Reasignamos handlers sin acumular listeners
+        sessionPrimaryBtn.onclick = typeof onPrimary === 'function' ? onPrimary : null;
+        sessionSecondaryBtn.onclick = typeof onSecondary === 'function' ? onSecondary : () => { window.location.href = 'profile.html'; };
+        sessionLogoutBtn.onclick = () => {
+            clearRegisterClientState();
+            // Recargamos para volver al paso 1 limpio
+            window.location.reload();
+        };
+
+        safeShow(sessionBanner);
+    }
+
     // --- LÓGICA MEJORADA Y ROBUSTA PARA MANEJAR ESTADO PENDIENTE ---
     const pendingPhone = localStorage.getItem('pendingVerificationPhone');
     const pendingEmail = localStorage.getItem('pendingVerificationEmail');
@@ -71,24 +116,44 @@ document.addEventListener('DOMContentLoaded', async function() {
     // --- NUEVO: Comprobar el estado de autenticación al cargar la página ---
     const session = await window.checkAuthStatus();
 
-    // Si el usuario está logueado pero no verificado, saltar directamente al paso 2
-    if (session.isAuthenticated && !session.is_verified) {
-        showCustomAlert('Hemos detectado que tienes una verificación pendiente. Por favor, introduce el código que te enviamos.');
-        
-        // Ocultamos el paso 1 y mostramos el paso 2
-        step1Div.style.display = 'none';
-        step2Div.style.display = 'block';
+    // --- Gate profesional: si hay sesión activa, NO mostramos el registro (evita confusión y cumple antifraude) ---
+    if (session.isAuthenticated) {
+        // Ocultamos ambos pasos por defecto; el usuario debe elegir (ir al perfil / continuar verificación / logout).
+        safeHide(step1Div);
+        safeHide(step2Div);
 
-        // Guardamos el email para la función de reenviar código
-        // Asumimos que el email está en el token, lo cual necesita ser añadido en el backend
-        // Por ahora, lo guardamos si lo tenemos. El username ya lo devuelve el status.
-        // Una mejora futura sería que /api/auth/status devuelva también el email.
-        localStorage.setItem('pending_verification_email', session.email || ''); // Ajustar si el backend no devuelve email
+        const username = session.username || 'tu cuenta';
 
-    } else if (session.isAuthenticated && session.is_verified) {
-        // Si ya está verificado y logueado, lo redirigimos al perfil.
-        window.location.href = 'profile.html';
-        return; // Detenemos la ejecución para evitar que se muestre el formulario.
+        if (!session.is_verified) {
+            // Caso: sesión iniciada pero sin verificación completa
+            configureSessionBanner({
+                title: 'Verificación pendiente',
+                message: `Tienes una sesión activa como "${username}" pero tu cuenta aún no está verificada. Para mantener seguridad y auditoría (estándar fintech), debes completar la verificación o cerrar sesión antes de crear otra cuenta.`,
+                primaryText: 'Continuar verificación',
+                onPrimary: () => {
+                    // Mostramos el paso 2 (código) de manera explícita
+                    safeHide(step1Div);
+                    safeShow(step2Div);
+                    // También mostramos un aviso (usando modal custom si está disponible)
+                    showCustomAlert('Introduce el código de verificación que te enviamos para completar tu registro.');
+                },
+                secondaryText: 'Ir al perfil',
+                onSecondary: () => { window.location.href = 'profile.html'; }
+            });
+        } else {
+            // Caso: sesión completa y verificada (no se debe registrar otra cuenta sin logout)
+            configureSessionBanner({
+                title: 'Sesión activa',
+                message: `Ya tienes una sesión iniciada como "${username}". Por estándar profesional, el registro se bloquea mientras exista una sesión activa. Puedes ir a tu perfil o cerrar sesión para registrar otra cuenta de prueba.`,
+                primaryText: 'Ir al perfil',
+                onPrimary: () => { window.location.href = 'profile.html'; },
+                secondaryText: 'Volver al inicio',
+                onSecondary: () => { window.location.href = 'index.html'; }
+            });
+        }
+
+        // Salimos para evitar que se muestre el formulario de registro debajo.
+        return;
     }
 
 
@@ -576,6 +641,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     // --- NUEVO: Limpiamos el estado de localStorage al completar el registro ---
                     localStorage.removeItem('pendingVerificationPhone');
                     localStorage.removeItem('pendingVerificationEmail');
+                    localStorage.removeItem('pending_verification_email');
                     
                     window.location.href = 'contract_interaction.html';
                 } else {

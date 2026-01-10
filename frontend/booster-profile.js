@@ -28,7 +28,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Lógica de Datos ---
     async function fetchBoosterProfile(username) {
         try {
-            const response = await fetch(`${API_URL}/api/users/${username}/booster-profile`);
+            const token = localStorage.getItem('token');
+            const loggedUsername = localStorage.getItem('username');
+
+            // Profesional: si estoy viendo MI perfil, uso /api/me (id del JWT) y mando Authorization.
+            // Si estoy viendo otro perfil vía URL, usamos el endpoint público por username (compatibilidad).
+            const isMe = loggedUsername && username === loggedUsername && token;
+            const url = isMe
+                ? `${API_URL}/api/me/booster-profile`
+                : `${API_URL}/api/users/${username}/booster-profile`;
+
+            const response = await fetch(url, {
+                headers: isMe ? { 'Authorization': `Bearer ${token}` } : {}
+            });
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Error al cargar el perfil de impulsor.');
@@ -57,11 +69,12 @@ document.addEventListener('DOMContentLoaded', () => {
             current_level_info,
             next_level_info,
             total_booster_blue,
-            transactions // <-- CORRECCIÓN: Usar 'transactions' en lugar de 'booster_ledger'
+            booster_tasks_completed_count,
+            transactions // Historial (bonos + tareas + pagos)
         } = data;
 
         const headerHTML = getHeaderHTML(current_level_info);
-        const statsHTML = getStatsHTML(total_booster_blue, transactions.length);
+        const statsHTML = getStatsHTML(total_booster_blue, booster_tasks_completed_count || 0);
         const progressHTML = getProgressHTML(total_booster_blue, current_level_info, next_level_info);
         const historyHTML = getHistoryHTML(transactions);
 
@@ -136,13 +149,18 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
 
-        const historyRows = transactions.map(entry => `
+        const historyRows = transactions.map(entry => {
+            const amount = Number(entry.amount) || 0;
+            const sign = amount >= 0 ? '+' : '−';
+            const absAmount = Math.abs(amount);
+            return `
             <tr>
                 <td>${new Date(entry.created_at).toLocaleDateString('es-ES')}</td>
                 <td>${entry.description || '(Sin descripción)'}</td>
-                <td class="saldo-blue-text">+${formatBalance(entry.amount)}</td>
+                <td class="saldo-blue-text">${sign}${formatBalance(absAmount)}</td>
             </tr>
-        `).join('');
+        `;
+        }).join('');
 
         return `
             <div class="history-section">
