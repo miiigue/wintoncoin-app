@@ -1147,7 +1147,7 @@ async function initializeDatabase() {
         `);
 
         // ---------------------------------------------------------------------------------
-        // BACKFILL PROFESIONAL (local/prod-safe):
+        // BACKFILL / RECONCILIACIÓN (local/prod-safe):
         // Objetivo: que el historial muestre cada actividad real cuando exista evidencia (booster_transactions),
         // y solo usar una línea "histórica" residual si falta detalle.
         //
@@ -1196,7 +1196,7 @@ async function initializeDatabase() {
                                 r.user_id,
                                 'legacy_backfill',
                                 r.legacy_total,
-                                'Backfill: balance legacy de perfil impulsor (booster_blue_balance) al ledger (sin detalle histórico)',
+                                'Ajuste de saldo histórico (sin detalle disponible)',
                                 NULL
                             );
                         ELSE
@@ -1211,7 +1211,7 @@ async function initializeDatabase() {
                                     r.user_id,
                                     'legacy_backfill',
                                     diff,
-                                    'Backfill: saldo histórico no detallado (diferencia vs booster_transactions)',
+                                    'Ajuste de saldo histórico (sin detalle disponible)',
                                     NULL
                                 );
                             END IF;

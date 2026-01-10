@@ -153,10 +153,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const amount = Number(entry.amount) || 0;
             const sign = amount >= 0 ? '+' : '−';
             const absAmount = Math.abs(amount);
+            // Profesional: nunca mostrar jerga interna tipo "Backfill" al usuario final.
+            // Si existen registros antiguos en la DB con ese texto, los normalizamos aquí.
+            const rawDescription = (entry.description || '').toString();
+            const description = rawDescription.startsWith('Backfill:')
+                ? 'Ajuste de saldo histórico (sin detalle disponible)'
+                : (rawDescription || '(Sin descripción)');
             return `
             <tr>
                 <td>${new Date(entry.created_at).toLocaleDateString('es-ES')}</td>
-                <td>${entry.description || '(Sin descripción)'}</td>
+                <td>${description}</td>
                 <td class="saldo-blue-text">${sign}${formatBalance(absAmount)}</td>
             </tr>
         `;
