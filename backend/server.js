@@ -184,7 +184,7 @@ async function sendOtpEmail({ toEmail, otp, context = {} }) {
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                   <tr>
                     <td align="left" style="font-family: Arial, sans-serif;">
-                      ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="${safeBrandName}" height="28" style="display:block; height:28px; max-height:28px;">` : `<div style="font-size:16px; font-weight:700; color:#0B1220;">${safeBrandName}</div>`}
+                      ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="${safeBrandName}" height="96" style="display:block; height:96px; width:96px; max-height:96px; max-width:96px;">` : `<div style="font-size:16px; font-weight:700; color:#0B1220;">${safeBrandName}</div>`}
                     </td>
                     <td align="right" style="font-family: Arial, sans-serif; font-size:12px; color:#667085;">
                       Verificación de cuenta

@@ -202,10 +202,11 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**:
   - Onboarding más alineado a fintech: verificación por email como primera capa y teléfono como futura segunda capa.
   - Seguridad mejorada: OTP no se almacena en claro y hay mitigaciones de fuerza bruta/reintentos.
-  - Operación: guía de configuración de SES (DNS DKIM/SPF/DMARC, MAIL FROM, sandbox → producción) y posibilidad de personalizar branding (logo/color).
+  - Operación: guía de configuración de SES (DNS DKIM/SPF/DMARC, MAIL FROM, sandbox → producción) y posibilidad de personalizar branding (logo/color) vía variables de entorno.
 - **Evidencia**:
   - Commit de implementación inicial: `c3a9e56`.
   - Documento: `docs/AWS_SES_SETUP.md`.
+  - Nota UX: ajuste de cabecera del correo para mostrar el logo de forma más visible (tamaño mayor) sin depender del cliente de correo.
 
 ## Observaciones de manager (deuda técnica / riesgos)
 
