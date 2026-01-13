@@ -11,10 +11,9 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const rateLimit = require('express-rate-limit'); // <-- SEGURIDAD: Importar rate-limit
 const cron = require('node-cron');
+const crypto = require('crypto');
+const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
 require('./config'); // Carga la configuración del entorno (development o production)
-
-// Configuración de Twilio para el envío de SMS de verificación
-const twilio = require('twilio');
 
 // --- NUEVO: Gestión profesional de la clave secreta de JWT ---
 // Buscamos la clave secreta en las variables de entorno.
@@ -37,27 +36,232 @@ if (!jwtSecret) {
     process.exit(1); // Detiene la ejecución con un código de error.
 }
 
-// Configuración de Twilio
-// Es importante verificar también estas credenciales
-const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
-const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
-const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
+// =================================================================================
+// == OTP por Email (AWS SES) - Estándar banca/fintech ==============================
+// =================================================================================
+// Objetivo: verificación de cuenta por email con OTP (One-Time Password) de 6 dígitos.
+// - NO guardamos el OTP en texto plano (almacenamos hash HMAC).
+// - Expira rápido (10 min).
+// - Límite de intentos y reenvíos (anti-fraude).
+// - En producción, el servidor NO debe arrancar si faltan secretos/configuración.
+const isProduction = process.env.NODE_ENV === 'production';
+const AWS_REGION = process.env.AWS_REGION;
+const SES_FROM_EMAIL = process.env.SES_FROM_EMAIL;
+const SES_FROM_NAME = process.env.SES_FROM_NAME || 'WintonCoin';
+const OTP_SECRET = process.env.OTP_SECRET; // Recomendado: secreto dedicado (no reutilizar JWT_SECRET)
 
-if (!twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber) {
-    console.error(`
-        *******************************************************************************
-        * ERROR FATAL: Las credenciales de Twilio no están completamente configuradas. *
-        *                                                                             *
-        * Asegúrate de que las variables TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, y      *
-        * TWILIO_PHONE_NUMBER estén definidas en tu archivo .env.                     *
-        *                                                                             *
-        * El servidor no se iniciará hasta que estas variables estén configuradas.    *
-        *******************************************************************************
-    `);
-    process.exit(1);
+if (isProduction) {
+    if (!AWS_REGION || !SES_FROM_EMAIL) {
+        console.error(`
+            *******************************************************************************
+            * ERROR FATAL: AWS SES no está configurado para producción.                  *
+            *                                                                             *
+            * Define AWS_REGION y SES_FROM_EMAIL (email verificado en SES).               *
+            * El servidor no se iniciará hasta que estas variables estén configuradas.   *
+            *******************************************************************************
+        `);
+        process.exit(1);
+    }
+    if (!OTP_SECRET) {
+        console.error(`
+            *******************************************************************************
+            * ERROR FATAL: OTP_SECRET no está definida.                                   *
+            *                                                                             *
+            * Para seguridad tipo fintech, el OTP debe firmarse/hashearse con un secreto  *
+            * dedicado, separado de JWT_SECRET.                                            *
+            *******************************************************************************
+        `);
+        process.exit(1);
+    }
+} else {
+    // En desarrollo: avisamos, pero permitimos arrancar para no bloquear al dev.
+    if (!AWS_REGION || !SES_FROM_EMAIL) {
+        console.warn('[DEV WARNING] AWS_REGION o SES_FROM_EMAIL no están definidos. El OTP se mostrará en consola en vez de enviarse por email.');
+    }
+    if (!OTP_SECRET) {
+        console.warn('[DEV WARNING] OTP_SECRET no está definido. Se usará JWT_SECRET como fallback (NO recomendado en producción).');
+    }
 }
 
-const twilioClient = twilio(twilioAccountSid, twilioAuthToken);
+let _sesClient = null;
+function getSesClient() {
+    if (_sesClient) return _sesClient;
+    _sesClient = new SESClient({ region: AWS_REGION });
+    return _sesClient;
+}
+
+function normalizeEmail(email) {
+    return String(email || '').trim().toLowerCase();
+}
+
+function generateOtp6() {
+    // crypto.randomInt es criptográficamente seguro (mejor que Math.random para OTP).
+    const n = crypto.randomInt(0, 1000000);
+    return String(n).padStart(6, '0');
+}
+
+function hashOtpForEmail(email, otp) {
+    // Atamos el OTP al email para evitar reutilización cruzada.
+    const secret = OTP_SECRET || jwtSecret; // fallback solo para dev
+    return crypto.createHmac('sha256', secret).update(`${normalizeEmail(email)}:${otp}`).digest('hex');
+}
+
+function safeEqualHex(a, b) {
+    if (!a || !b) return false;
+    const bufA = Buffer.from(String(a), 'hex');
+    const bufB = Buffer.from(String(b), 'hex');
+    if (bufA.length !== bufB.length) return false;
+    return crypto.timingSafeEqual(bufA, bufB);
+}
+
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || SES_FROM_EMAIL || 'support@wintoncoin.com';
+const BRAND_PRIMARY_COLOR = process.env.BRAND_PRIMARY_COLOR || '#0B5FFF'; // azul fintech
+const BRAND_LOGO_URL = process.env.BRAND_LOGO_URL || ''; // opcional: logo público (https)
+
+function escapeHtml(input) {
+    return String(input || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+async function sendOtpEmail({ toEmail, otp, context = {} }) {
+    const email = normalizeEmail(toEmail);
+
+    // Dev fallback: si SES no está configurado, no bloqueamos el registro.
+    if (!AWS_REGION || !SES_FROM_EMAIL) {
+        console.warn(`[DEV OTP] Email: ${email} OTP: ${otp} (SES no configurado)`);
+        return;
+    }
+
+    const brandName = SES_FROM_NAME || 'WintonCoin';
+    const subject = `Tu código de verificación de ${brandName}`;
+    const safeSupportEmail = escapeHtml(SUPPORT_EMAIL);
+    const safeBrandPrimary = escapeHtml(BRAND_PRIMARY_COLOR);
+    const safeBrandName = escapeHtml(brandName);
+    const safeOtp = escapeHtml(otp);
+    const safeLogoUrl = BRAND_LOGO_URL ? escapeHtml(BRAND_LOGO_URL) : '';
+
+    // Contexto opcional (ayuda anti-phishing y “fintech feel”)
+    const requestedIp = context.ip ? escapeHtml(context.ip) : '';
+    const requestedAt = context.requestedAt ? escapeHtml(context.requestedAt) : '';
+
+    const textBody =
+        `Tu código de verificación para ${brandName} es: ${otp}\n\n` +
+        `Este código expira en 10 minutos.\n\n` +
+        (requestedAt ? `Solicitud: ${requestedAt}\n` : '') +
+        (requestedIp ? `IP aproximada: ${requestedIp}\n\n` : '\n') +
+        `Seguridad: ${brandName} nunca te pedirá este código por teléfono, chat o redes sociales.\n\n` +
+        `Si no solicitaste este código, ignora este correo o contacta a soporte: ${SUPPORT_EMAIL}`;
+
+    // HTML “fintech grade” (compatibilidad alta con clientes de correo: tablas + estilos inline)
+    const preheader = `Tu código de verificación es ${otp}. Expira en 10 minutos.`;
+    const htmlBody = `
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="supported-color-schemes" content="light">
+    <title>${safeBrandName}</title>
+  </head>
+  <body style="margin:0; padding:0; background:#F5F7FB;">
+    <!-- Preheader (texto oculto) -->
+    <div style="display:none; font-size:1px; color:#F5F7FB; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden;">
+      ${escapeHtml(preheader)}
+    </div>
+
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F5F7FB;">
+      <tr>
+        <td align="center" style="padding:24px 12px;">
+
+          <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:600px; max-width:600px; background:#FFFFFF; border-radius:14px; overflow:hidden; box-shadow:0 6px 24px rgba(16,24,40,0.08);">
+            <tr>
+              <td style="padding:22px 24px; border-bottom:1px solid #EEF2F6;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td align="left" style="font-family: Arial, sans-serif;">
+                      ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="${safeBrandName}" height="28" style="display:block; height:28px; max-height:28px;">` : `<div style="font-size:16px; font-weight:700; color:#0B1220;">${safeBrandName}</div>`}
+                    </td>
+                    <td align="right" style="font-family: Arial, sans-serif; font-size:12px; color:#667085;">
+                      Verificación de cuenta
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:24px; font-family: Arial, sans-serif; color:#0B1220;">
+                <h1 style="margin:0 0 10px 0; font-size:20px; line-height:28px; font-weight:700;">Tu código de verificación</h1>
+                <p style="margin:0 0 18px 0; font-size:14px; line-height:22px; color:#344054;">
+                  Usa este código para completar la verificación de tu cuenta en <strong>${safeBrandName}</strong>.
+                </p>
+
+                <div style="margin:0 0 16px 0; padding:16px; background:#F8FAFC; border:1px solid #EEF2F6; border-radius:12px; text-align:center;">
+                  <div style="font-size:28px; line-height:36px; letter-spacing:6px; font-weight:800; color:${safeBrandPrimary}; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">
+                    ${safeOtp}
+                  </div>
+                  <div style="margin-top:8px; font-size:12px; line-height:18px; color:#667085;">
+                    Expira en 10 minutos
+                  </div>
+                </div>
+
+                ${(requestedAt || requestedIp) ? `
+                <div style="margin:0 0 16px 0; font-size:12px; line-height:18px; color:#667085;">
+                  ${requestedAt ? `<div><strong>Solicitud:</strong> ${requestedAt}</div>` : ''}
+                  ${requestedIp ? `<div><strong>IP aproximada:</strong> ${requestedIp}</div>` : ''}
+                </div>
+                ` : ''}
+
+                <div style="margin:0; padding:14px 16px; background:#FFF7ED; border:1px solid #FFEDD5; border-radius:12px;">
+                  <p style="margin:0; font-size:12px; line-height:18px; color:#9A3412;">
+                    <strong>Consejo de seguridad:</strong> ${safeBrandName} nunca te pedirá este código por teléfono, chat o redes sociales.
+                    Si no solicitaste este correo, ignóralo o contacta a soporte.
+                  </p>
+                </div>
+
+                <p style="margin:18px 0 0 0; font-size:12px; line-height:18px; color:#667085;">
+                  Soporte: <a href="mailto:${safeSupportEmail}" style="color:${safeBrandPrimary}; text-decoration:none;">${safeSupportEmail}</a>
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:16px 24px; background:#F8FAFC; border-top:1px solid #EEF2F6; font-family: Arial, sans-serif; font-size:11px; line-height:16px; color:#667085;">
+                Este correo fue enviado automáticamente. No respondas a este mensaje.
+              </td>
+            </tr>
+          </table>
+
+          <div style="max-width:600px; margin-top:14px; font-family: Arial, sans-serif; font-size:11px; line-height:16px; color:#98A2B3;">
+            © ${new Date().getFullYear()} ${safeBrandName}. Todos los derechos reservados.
+          </div>
+
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+    `.trim();
+
+    const cmd = new SendEmailCommand({
+        Source: `${SES_FROM_NAME} <${SES_FROM_EMAIL}>`,
+        Destination: { ToAddresses: [email] },
+        Message: {
+            Subject: { Data: subject, Charset: 'UTF-8' },
+            Body: {
+                Text: { Data: textBody, Charset: 'UTF-8' },
+                Html: { Data: htmlBody, Charset: 'UTF-8' }
+            }
+        }
+    });
+
+    await getSesClient().send(cmd);
+}
 
 // 2. Configuración inicial
 const app = express();
@@ -75,6 +279,32 @@ const loginLimiter = rateLimit({
 	standardHeaders: true, // Devuelve información del límite en los headers `RateLimit-*`
 	legacyHeaders: false, // Deshabilita los headers `X-RateLimit-*`
     message: 'Demasiados intentos de inicio de sesión desde esta IP. Por favor, inténtelo de nuevo en 15 minutos.'
+});
+
+// Rate limits específicos para OTP (anti-fraude / anti-bruteforce)
+// Nota: estos límites son por IP. Además, controlamos intentos por usuario en DB.
+const registerRequestLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10, // solicitudes de OTP (por IP)
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: 'Demasiadas solicitudes de registro desde esta IP. Por favor, inténtalo más tarde.'
+});
+
+const registerVerifyLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 30, // intentos de verificación (por IP)
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: 'Demasiados intentos de verificación desde esta IP. Por favor, inténtalo más tarde.'
+});
+
+const resendOtpLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10, // reenvíos (por IP) + cooldown server-side
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: 'Demasiadas solicitudes de reenvío desde esta IP. Por favor, inténtalo más tarde.'
 });
 
 
@@ -529,7 +759,15 @@ async function applyMigrations(client) {
                 email VARCHAR(255) UNIQUE NOT NULL,
                 password_hash VARCHAR(255) NOT NULL,
                 phone_number VARCHAR(50) UNIQUE NOT NULL,
-                verification_code VARCHAR(10) NOT NULL,
+                -- LEGACY (SMS): antes se guardaba el OTP en texto plano. Ya no se usa para validar.
+                -- Lo dejamos como columna opcional para compatibilidad y migración progresiva.
+                verification_code VARCHAR(10),
+                -- NUEVO (Email OTP): hash HMAC del OTP (nunca guardar OTP en texto plano).
+                verification_code_hash TEXT,
+                -- Controles anti-fraude / anti-bruteforce (estándar fintech)
+                verification_attempts INTEGER NOT NULL DEFAULT 0,
+                resend_count INTEGER NOT NULL DEFAULT 0,
+                last_sent_at TIMESTAMPTZ,
                 expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
                 referral_code VARCHAR(255),
                 date_of_birth DATE,
@@ -542,6 +780,29 @@ async function applyMigrations(client) {
         `,
         // MIGRACIÓN 11: Asegurar que la tabla pending_verifications tiene la columna referral_code
         `ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS referral_code VARCHAR(255);`,
+
+        // MIGRACIÓN OTP (Email): asegurar columnas y constraints para verificación por correo
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;`,
+        `ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS verification_code_hash TEXT;`,
+        `ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS verification_attempts INTEGER NOT NULL DEFAULT 0;`,
+        `ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS resend_count INTEGER NOT NULL DEFAULT 0;`,
+        `ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS last_sent_at TIMESTAMPTZ;`,
+        `DO $$
+         BEGIN
+             -- Hacemos la columna legacy opcional para poder dejar de guardar OTP en texto plano.
+             IF EXISTS (
+                 SELECT 1 FROM information_schema.columns
+                 WHERE table_name='pending_verifications' AND column_name='verification_code'
+             ) THEN
+                 -- Si todavía es NOT NULL, lo relajamos.
+                 BEGIN
+                     ALTER TABLE pending_verifications ALTER COLUMN verification_code DROP NOT NULL;
+                 EXCEPTION WHEN others THEN
+                     -- Si falla por cualquier razón, no rompemos el arranque.
+                     NULL;
+                 END;
+             END IF;
+         END $$;`,
         
         // MIGRACIÓN 12: Tabla de notificaciones
         `CREATE TABLE IF NOT EXISTS notifications (
@@ -871,6 +1132,7 @@ async function initializeDatabase() {
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             verification_code VARCHAR(10),
             verification_code_expires_at TIMESTAMPTZ,
+            is_verified BOOLEAN DEFAULT FALSE,
             referral_code VARCHAR(255) UNIQUE
         );`,
         `CREATE TABLE IF NOT EXISTS pending_verifications (
@@ -879,7 +1141,14 @@ async function initializeDatabase() {
             email VARCHAR(255) UNIQUE NOT NULL,
             password_hash VARCHAR(255) NOT NULL,
             phone_number VARCHAR(50) UNIQUE NOT NULL,
-            verification_code VARCHAR(10) NOT NULL,
+            -- LEGACY (SMS): antes se guardaba el OTP en texto plano. Ya no se usa para validar.
+            verification_code VARCHAR(10),
+            -- NUEVO (Email OTP): hash HMAC del OTP (nunca guardar OTP en texto plano).
+            verification_code_hash TEXT,
+            -- Controles anti-fraude / anti-bruteforce
+            verification_attempts INTEGER NOT NULL DEFAULT 0,
+            resend_count INTEGER NOT NULL DEFAULT 0,
+            last_sent_at TIMESTAMPTZ,
             expires_at TIMESTAMPTZ NOT NULL,
             referral_code VARCHAR(255)
         );`,
@@ -1438,8 +1707,9 @@ async function startServer() {
     // Endpoint to check if a user has a pending verification (Recovery Logic)
     app.post('/api/auth/pending-status', async (req, res) => {
         const { phone, email } = req.body;
+        const normalizedEmail = normalizeEmail(email);
 
-        if (!phone || !email) {
+        if (!phone || !normalizedEmail) {
             return res.status(400).json({ isValid: false, message: 'Datos incompletos.' });
         }
 
@@ -1447,7 +1717,7 @@ async function startServer() {
             // Check if there is a pending verification matching BOTH phone and email
             const result = await pool.query(
                 'SELECT * FROM pending_verifications WHERE phone_number = $1 AND email = $2',
-                [phone, email]
+                [phone, normalizedEmail]
             );
 
             if (result.rows.length > 0) {
@@ -1470,9 +1740,10 @@ async function startServer() {
         }
     });
 
-    // --- Registration Routes ---
-    app.post('/api/register-request', async (req, res) => {
+    // --- Registration Routes (Email OTP / Fintech) ---
+    app.post('/api/register-request', registerRequestLimiter, async (req, res) => {
             const { username, email, password, phone, date_of_birth } = req.body;
+            const normalizedEmail = normalizeEmail(email);
 
     // --- Validación Estricta de Usuario para Prevenir XSS ---
     if (!/^[a-zA-Z0-9_]+$/.test(username)) {
@@ -1483,7 +1754,7 @@ async function startServer() {
     if (!username || !email || !password || !phone || !date_of_birth) {
                 return res.status(400).json({ message: "Todos los campos son requeridos: usuario, contraseña, correo, teléfono y fecha de nacimiento." });
             }
-            if (!/^\S+@\S+\.\S+$/.test(email)) {
+            if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
                 return res.status(400).json({ message: "El formato del correo electrónico no es válido." });
             }
             
@@ -1518,41 +1789,47 @@ async function startServer() {
                     UNION
                     SELECT 1 FROM pending_verifications WHERE username = $1 OR email = $2 OR phone_number = $3
                 `;
-                const existingUser = await client.query(existingUserQuery, [username, email, phone]);
+                const existingUser = await client.query(existingUserQuery, [username, normalizedEmail, phone]);
 
                 if (existingUser.rows.length > 0) {
                     await client.query('ROLLBACK');
                     return res.status(409).json({ message: 'El nombre de usuario, email o teléfono ya está en uso o pendiente de verificación.' });
                 }
 
-                // --- 3. Generar Código de Verificación y Fecha de Expiración ---
-                const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // Código de 6 dígitos
+                // --- 3. Generar OTP (Email) y Fecha de Expiración ---
+                const verificationCode = generateOtp6(); // Código de 6 dígitos (crypto-secure)
+                const verificationCodeHash = hashOtpForEmail(normalizedEmail, verificationCode);
                 const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos de validez
+                const lastSentAt = new Date();
 
                 // --- 4. Encriptar Contraseña y Guardar en Pendientes ---
                 const passwordHash = await bcrypt.hash(password, saltRounds);
                 await client.query(
-                    `INSERT INTO pending_verifications (username, email, password_hash, phone_number, referral_code, verification_code, expires_at, date_of_birth, is_minor)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-                    [username, email, passwordHash, phone, null, verificationCode, expiresAt, date_of_birth, isMinor]
+                    `INSERT INTO pending_verifications (
+                        username, email, password_hash, phone_number, referral_code,
+                        verification_code, verification_code_hash,
+                        verification_attempts, resend_count, last_sent_at,
+                        expires_at, date_of_birth, is_minor
+                    )
+                     VALUES ($1, $2, $3, $4, $5, NULL, $6, 0, 0, $7, $8, $9, $10)`,
+                    [username, normalizedEmail, passwordHash, phone, null, verificationCodeHash, lastSentAt, expiresAt, date_of_birth, isMinor]
                 );
 
-                // --- 5. Enviar el SMS usando Twilio ---
+                // --- 5. Enviar el OTP por Email usando AWS SES ---
                 try {
-                    await twilioClient.messages.create({
-                        body: `Tu código de verificación para WintonCoin es: ${verificationCode}`,
-                        from: process.env.TWILIO_PHONE_NUMBER,
-                        to: phone 
-                    });
-                } catch (twilioError) {
-                    console.error("Error al enviar SMS con Twilio:", twilioError);
+                    const ipRaw = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString();
+                    const ip = ipRaw.split(',')[0].trim();
+                    const requestedAt = new Date().toISOString();
+                    await sendOtpEmail({ toEmail: normalizedEmail, otp: verificationCode, context: { ip, requestedAt } });
+                } catch (emailError) {
+                    console.error("Error al enviar OTP por email (SES):", emailError);
                     await client.query('ROLLBACK');
-                    // No reveles detalles del error interno al usuario por seguridad
-                    return res.status(500).json({ message: 'No se pudo enviar el código de verificación. Por favor, revisa el número de teléfono.' });
+                    // No revelamos detalles internos por seguridad
+                    return res.status(500).json({ message: 'No se pudo enviar el código de verificación. Por favor, intenta de nuevo más tarde.' });
                 }
 
                 await client.query('COMMIT');
-                res.status(200).json({ message: 'Se ha enviado un código de verificación a tu teléfono.' });
+                res.status(200).json({ message: 'Se ha enviado un código de verificación a tu correo electrónico.' });
 
             } catch (error) {
                 await client.query('ROLLBACK');
@@ -1564,13 +1841,14 @@ async function startServer() {
         });
 
         // =================================================================================
-        // ==  NUEVO FLUJO DE REGISTRO CON VERIFICACIÓN POR SMS (FASE 2: VERIFICACIÓN)  ==
+        // ==  NUEVO FLUJO DE REGISTRO CON OTP POR EMAIL (FASE 2: VERIFICACIÓN)  ==
         // =================================================================================
-        app.post('/api/register-verify', async (req, res) => {
-            const { phone, verificationCode, referral_code } = req.body;
+        app.post('/api/register-verify', registerVerifyLimiter, async (req, res) => {
+            const { email, verificationCode, referral_code } = req.body;
+            const normalizedEmail = normalizeEmail(email);
 
-            if (!phone || !verificationCode) {
-                return res.status(400).json({ message: "El teléfono y el código de verificación son requeridos." });
+            if (!normalizedEmail || !verificationCode) {
+                return res.status(400).json({ message: "El correo y el código de verificación son requeridos." });
             }
 
             const client = await pool.connect();
@@ -1578,10 +1856,9 @@ async function startServer() {
                 await client.query('BEGIN');
 
                 // --- 1. Buscar la solicitud de registro pendiente y validarla ---
-                // ESTANDARIZADO: Se usa la columna 'phone' para coincidir con la DB.
                 const pendingResult = await client.query(
-                    'SELECT * FROM pending_verifications WHERE phone_number = $1 AND verification_code = $2',
-                    [phone, verificationCode]
+                    'SELECT * FROM pending_verifications WHERE email = $1',
+                    [normalizedEmail]
                 );
 
                 if (pendingResult.rowCount === 0) {
@@ -1591,12 +1868,36 @@ async function startServer() {
 
                 const pendingUser = pendingResult.rows[0];
 
+                // Anti-bruteforce: límite de intentos por solicitud
+                if ((pendingUser.verification_attempts || 0) >= 5) {
+                    await client.query('DELETE FROM pending_verifications WHERE id = $1', [pendingUser.id]);
+                    await client.query('COMMIT');
+                    return res.status(429).json({ message: 'Demasiados intentos. Solicita un nuevo código.' });
+                }
+
                 // Verificar si el código ha expirado
                 if (new Date() > new Date(pendingUser.expires_at)) {
                     // Opcional: Limpiar códigos expirados
                     await client.query('DELETE FROM pending_verifications WHERE id = $1', [pendingUser.id]);
                     await client.query('COMMIT'); // Guardar la eliminación
                     return res.status(400).json({ message: 'El código de verificación ha expirado. Por favor, solicita uno nuevo.' });
+                }
+
+                // Validar OTP (preferimos hash; fallback legacy si existe verification_code)
+                const expectedHash = hashOtpForEmail(normalizedEmail, String(verificationCode).trim());
+                const hasHash = !!pendingUser.verification_code_hash;
+                const otpIsValid = hasHash
+                    ? safeEqualHex(pendingUser.verification_code_hash, expectedHash)
+                    : (String(pendingUser.verification_code || '').trim() === String(verificationCode).trim());
+
+                if (!otpIsValid) {
+                    // Incrementar intentos y devolver error genérico
+                    await client.query(
+                        'UPDATE pending_verifications SET verification_attempts = verification_attempts + 1 WHERE id = $1',
+                        [pendingUser.id]
+                    );
+                    await client.query('COMMIT');
+                    return res.status(400).json({ message: 'Código de verificación incorrecto.' });
                 }
 
                 // --- 2. Mover el usuario de "pendientes" a la tabla "users" ---
@@ -1630,6 +1931,9 @@ async function startServer() {
                     accountStatus
                 ]);
                 const newUser = newUserResult.rows[0];
+                
+                // Marcamos la cuenta como verificada (email verificado)
+                await client.query('UPDATE users SET is_verified = TRUE WHERE id = $1', [newUser.id]);
 
                 // --- 2.1 REGISTRO DE EVIDENCIA FORENSE (LEGAL AUDIT) ---
                 // Capturar IP y User Agent para el registro legal
@@ -1888,9 +2192,10 @@ app.get('/api/auth/status', async (req, res) => {
 });
 
 // NUEVO: Endpoint para reenviar el código de verificación
-app.post('/api/auth/resend-code', async (req, res) => {
+app.post('/api/auth/resend-code', resendOtpLimiter, async (req, res) => {
     const { email } = req.body;
-    if (!email) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
         return res.status(400).json({ message: 'El email es requerido.' });
     }
 
@@ -1901,7 +2206,7 @@ app.post('/api/auth/resend-code', async (req, res) => {
         // 1. Buscar al usuario en la tabla de verificaciones pendientes.
         const pendingUserResult = await client.query(
             'SELECT * FROM pending_verifications WHERE email = $1',
-            [email]
+            [normalizedEmail]
         );
 
         // Si no se encuentra, enviamos una respuesta genérica para no revelar si el email existe.
@@ -1913,32 +2218,54 @@ app.post('/api/auth/resend-code', async (req, res) => {
         
         const pendingUser = pendingUserResult.rows[0];
 
-        // 2. Generar un nuevo código de verificación y una nueva fecha de expiración.
-        const newVerificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+        // 2. Enforce cooldown + límite de reenvíos (anti-abuso)
+        const now = new Date();
+        const lastSentAt = pendingUser.last_sent_at ? new Date(pendingUser.last_sent_at) : null;
+        const secondsSinceLastSend = lastSentAt ? Math.floor((now.getTime() - lastSentAt.getTime()) / 1000) : null;
+
+        // Cooldown mínimo (server-side). El frontend también tiene timer, pero NO confiamos solo en el cliente.
+        if (secondsSinceLastSend !== null && secondsSinceLastSend < 60) {
+            await client.query('ROLLBACK');
+            return res.status(200).json({ message: 'Si tu email está pendiente de verificación, hemos enviado un nuevo código.' });
+        }
+
+        // Máximo de reenvíos por solicitud (ej. 5). Si se excede, no revelamos nada.
+        if ((pendingUser.resend_count || 0) >= 5) {
+            await client.query('ROLLBACK');
+            return res.status(200).json({ message: 'Si tu email está pendiente de verificación, hemos enviado un nuevo código.' });
+        }
+
+        // 3. Generar un nuevo OTP y una nueva fecha de expiración.
+        const newVerificationCode = generateOtp6();
+        const newVerificationCodeHash = hashOtpForEmail(normalizedEmail, newVerificationCode);
         const newExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos de validez
 
-        // 3. Actualizar el registro en la base de datos con los nuevos datos.
+        // 4. Actualizar el registro en la base de datos con los nuevos datos.
         await client.query(
-            'UPDATE pending_verifications SET verification_code = $1, expires_at = $2 WHERE email = $3',
-            [newVerificationCode, newExpiresAt, email]
+            `UPDATE pending_verifications
+             SET verification_code = NULL,
+                 verification_code_hash = $1,
+                 expires_at = $2,
+                 last_sent_at = $3,
+                 resend_count = resend_count + 1,
+                 verification_attempts = 0
+             WHERE email = $4`,
+            [newVerificationCodeHash, newExpiresAt, now, normalizedEmail]
         );
 
-        // 4. Enviar el nuevo código por SMS a través de Twilio.
+        // 5. Enviar el nuevo código por Email (AWS SES).
         try {
-            await twilioClient.messages.create({
-                body: `Tu nuevo código de verificación para WintonCoin es: ${newVerificationCode}`,
-                from: twilioPhoneNumber,
-                to: pendingUser.phone_number
-            });
-        } catch (twilioError) {
-            console.error("Error al reenviar SMS con Twilio:", twilioError);
+            const requestedAt = new Date().toISOString();
+            await sendOtpEmail({ toEmail: normalizedEmail, otp: newVerificationCode, context: { requestedAt } });
+        } catch (emailError) {
+            console.error("Error al reenviar OTP por email (SES):", emailError);
             await client.query('ROLLBACK');
             return res.status(500).json({ message: 'No se pudo enviar el nuevo código de verificación. Por favor, inténtalo de nuevo más tarde.' });
         }
 
-        // 5. Si todo ha ido bien, confirmamos la transacción.
+        // 6. Si todo ha ido bien, confirmamos la transacción.
         await client.query('COMMIT');
-        res.status(200).json({ message: 'Se ha enviado un nuevo código de verificación a tu teléfono.' });
+        res.status(200).json({ message: 'Si tu email está pendiente de verificación, hemos enviado un nuevo código.' });
 
     } catch (error) {
         await client.query('ROLLBACK');

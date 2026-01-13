@@ -219,14 +219,14 @@
 
         <!-- PASO 2: Formulario de Verificación de Código -->
         <div id="verification-step-2" style="display: none;">
-            <p>Hemos enviado un código de 6 dígitos a tu teléfono. Por favor, ingrésalo a continuación.</p>
+            <p>Hemos enviado un código de 6 dígitos a tu correo electrónico. Por favor, ingrésalo a continuación.</p>
             <form id="verifyForm">
                 <div>
                     <label for="verificationCode">Código de Verificación:</label>
                     <input type="text" id="verificationCode" name="verificationCode" required maxlength="6">
                 </div>
-                <!-- Campo oculto para mantener el número de teléfono -->
-                <input type="hidden" id="hiddenPhone" name="hiddenPhone">
+                <!-- Campo oculto para mantener el email (OTP por correo) -->
+                <input type="hidden" id="hiddenEmail" name="hiddenEmail">
                 <div>
                     <button type="submit">Verificar y Registrar</button>
                 </div>

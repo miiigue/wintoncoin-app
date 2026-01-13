@@ -82,10 +82,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                         step2Div.style.display = 'block';
                         
                         // Restaurar valores en los inputs
-                        const hiddenPhoneInput = document.getElementById('hiddenPhone');
+                        const hiddenEmailInput = document.getElementById('hiddenEmail');
                         const emailInputVal = document.getElementById('email');
                         
-                        if(hiddenPhoneInput) hiddenPhoneInput.value = pendingPhone;
+                        if(hiddenEmailInput) hiddenEmailInput.value = pendingEmail;
                         if(emailInputVal) emailInputVal.value = pendingEmail;
 
                     } else {
@@ -590,8 +590,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                     // Simplemente mostramos el mensaje y cambiamos la vista al paso 2.
                     showCustomAlert(result.message);
                     
-                    // Guardamos el teléfono en un campo oculto para usarlo en el paso 2
-                    document.getElementById('hiddenPhone').value = phone;
+                    // Guardamos el email en un campo oculto para usarlo en el paso 2 (OTP por correo)
+                    const hiddenEmailInput = document.getElementById('hiddenEmail');
+                    if (hiddenEmailInput) hiddenEmailInput.value = email;
 
                     // --- NUEVO: Guardamos el estado en localStorage para persistir la recarga ---
                     localStorage.setItem('pendingVerificationPhone', phone);
@@ -600,6 +601,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                     // Ocultamos el paso 1 y mostramos el paso 2
                     step1Div.style.display = 'none';
                     step2Div.style.display = 'block';
+                    
+                    // Iniciar temporizador de reenvío (no dependemos de hacks sobre fetch)
+                    startResendTimer();
 
                 } else {
                     showCustomAlert(`Error: ${result.message}`);
@@ -617,7 +621,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             event.preventDefault();
 
             const verificationCode = document.getElementById('verificationCode').value;
-            const phone = document.getElementById('hiddenPhone').value;
+            const email = (document.getElementById('hiddenEmail')?.value || document.getElementById('email')?.value || '').trim();
             const referral_code = document.getElementById('referral_code').value; // Lo obtenemos del primer formulario
 
             const verifyUrl = `${API_URL}/api/register-verify`;
@@ -626,7 +630,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 const response = await fetch(verifyUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone, verificationCode, referral_code })
+                    body: JSON.stringify({ email, verificationCode, referral_code })
                 });
 
                 const result = await response.json();
@@ -680,26 +684,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (step2Div.style.display === 'block') {
         startResendTimer();
     }
-    
-    // Iniciar el temporizador cuando se pasa del paso 1 al 2
-    registerForm.addEventListener('submit', async function(event) {
-        // ... (código existente del submit)
-        // Buscamos si la transición al paso 2 fue exitosa antes de iniciar
-        const originalFetch = fetch;
-        fetch = async (...args) => {
-            const response = await originalFetch(...args);
-            if (args[0] === `${API_URL}/api/register-request` && response.ok) {
-                startResendTimer();
-            }
-            return response;
-        };
-    });
 
 
     if (resendBtn) {
         resendBtn.addEventListener('click', async () => {
             // Para reenviar, necesitamos el email que el usuario introdujo en el paso 1.
-            const email = document.getElementById('email').value || localStorage.getItem('pending_verification_email');
+            const email = document.getElementById('email').value || localStorage.getItem('pendingVerificationEmail');
             
             if (!email) {
                 showCustomAlert('No se pudo encontrar el email para reenviar el código. Por favor, recarga la página e inténtalo de nuevo.');
