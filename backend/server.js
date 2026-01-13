@@ -1336,6 +1336,31 @@ async function initializeDatabase() {
         console.log("Todas las tablas han sido aseguradas en PostgreSQL.");
 
         // ---------------------------------------------------------------------------------
+        // AUTO-MIGRACIÓN OTP (Email): asegurar columnas en pending_verifications
+        // NOTA: Como applyMigrations() está comentado, necesitamos este paso para BD existentes.
+        // ---------------------------------------------------------------------------------
+        await client.query(`ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS verification_code_hash TEXT;`);
+        await client.query(`ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS verification_attempts INTEGER NOT NULL DEFAULT 0;`);
+        await client.query(`ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS resend_count INTEGER NOT NULL DEFAULT 0;`);
+        await client.query(`ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS last_sent_at TIMESTAMPTZ;`);
+        await client.query(`
+            DO $$
+            BEGIN
+                -- Permite dejar de guardar OTP en texto plano (compatibilidad legacy).
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name='pending_verifications' AND column_name='verification_code'
+                ) THEN
+                    BEGIN
+                        ALTER TABLE pending_verifications ALTER COLUMN verification_code DROP NOT NULL;
+                    EXCEPTION WHEN others THEN
+                        NULL;
+                    END;
+                END IF;
+            END $$;
+        `);
+
+        // ---------------------------------------------------------------------------------
         // AUTO-MIGRACIÓN (compatibilidad): booster_transactions.related_publication_id
         // Algunas BD antiguas no tienen esta columna, pero el perfil de impulsor la usa para
         // enlazar/describir correctamente eventos asociados a publicaciones.

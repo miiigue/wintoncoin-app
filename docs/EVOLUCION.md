@@ -183,6 +183,30 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia (commits)**: `b89f852`, `7bf35d2`.
 - **Nota operativa (importante)**: para desactivar pre-launch de forma segura, la DB debe tener columnas requeridas (según el resumen del chat): `red_token_debts.user_id` y `blue_token_escrows.user_id`.
 
+### 2026-01-13 — Registro: verificación por correo (OTP) con AWS SES (estándar fintech)
+
+- **Contexto**:
+  - La verificación por SMS (Twilio) es útil, pero para onboarding fintech moderno normalmente se prioriza **verificación por email** (y se deja el teléfono como verificación adicional más adelante).
+  - Guardar el código OTP en texto plano es un riesgo (exposición por logs/backups/DB leaks).
+  - En producción real, también se necesita control anti-abuso: rate limiting, límite de intentos y reenvíos.
+- **Decisión**:
+  - Migrar el registro a **OTP de 6 dígitos por email**, enviándolo con **AWS SES**.
+  - Cambiar el almacenamiento del OTP en DB a **hash HMAC** (no texto plano) y validar con comparación en tiempo constante.
+  - Implementar controles anti-fraude:
+    - expiración del OTP (10 min)
+    - límite de intentos (ej. 5) con invalidación
+    - límite de reenvíos + cooldown server-side
+    - rate limiting por IP en endpoints de request/verify/resend
+  - Mejorar el correo transaccional con diseño tipo “bank/fintech” (preheader, código destacado, aviso anti-phishing y soporte).
+  - Añadir “auto-migración” de columnas para compatibilidad cuando una BD ya existente no tiene las nuevas columnas de `pending_verifications` (porque `CREATE TABLE IF NOT EXISTS` no altera tablas existentes).
+- **Impacto**:
+  - Onboarding más alineado a fintech: verificación por email como primera capa y teléfono como futura segunda capa.
+  - Seguridad mejorada: OTP no se almacena en claro y hay mitigaciones de fuerza bruta/reintentos.
+  - Operación: guía de configuración de SES (DNS DKIM/SPF/DMARC, MAIL FROM, sandbox → producción) y posibilidad de personalizar branding (logo/color).
+- **Evidencia**:
+  - Commit de implementación inicial: `c3a9e56`.
+  - Documento: `docs/AWS_SES_SETUP.md`.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)
