@@ -1769,8 +1769,22 @@ hr {
     font-size: 1.1rem;
     line-height: 1.8;
     color: var(--text-color);
-    white-space: pre-wrap; /* Respeta los saltos de línea y espacios del texto original */
+    /* Respeta saltos de línea pero NO conserva espacios extra (mejor UX en móvil) */
+    white-space: pre-line;
     padding: 1rem;
+    /* UX móvil: no centrar instrucciones largas */
+    text-align: left;
+    /* Evita que enlaces largos "se pierdan" */
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* Links dentro de la descripción: más legibles y con wrap seguro */
+.detail-description a {
+    color: var(--primary-color);
+    text-decoration: underline;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .detail-actions-section {

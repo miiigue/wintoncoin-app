@@ -64,6 +64,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // --- Lógica de Renderizado ---
+    function normalizeMultilineText(text) {
+        // Normaliza saltos de línea y elimina indentación común
+        // para mejorar legibilidad en móvil (evita "primera línea corrida/centrada").
+        const raw = String(text || '').replace(/\r\n/g, '\n');
+        const lines = raw.split('\n').map(l => l.replace(/[ \t]+$/g, '')); // trim end
+
+        const indents = lines
+            .filter(l => l.trim().length > 0)
+            .map(l => (l.match(/^[ \t]*/) || [''])[0].length);
+
+        const minIndent = indents.length ? Math.min(...indents) : 0;
+        const normalized = lines.map(l => l.slice(minIndent));
+
+        return normalized.join('\n').trim();
+    }
+
     function renderPublication(pub) {
         const authorRatingHTML = generateStarRating(pub.author_average_rating, pub.author_ratings_count);
         
@@ -105,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <hr>
 
             <div class="detail-description">
-                ${linkify(pub.description)}
+                ${linkify(normalizeMultilineText(pub.description))}
             </div>
 
             <hr>
