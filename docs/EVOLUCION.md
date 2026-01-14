@@ -240,6 +240,8 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Permitir overflow visible en el panel principal para el tooltip de “Pre-lanzamiento”.
   - Simplificar el título de “Tips” en la guía de uso.
   - Añadir flechas entre pasos del flujo para enfatizar secuencia.
+  - Simplificar el flujo “Si publicas” y ajustar el paso de confirmación.
+  - Ajustar el texto de aprobación en el flujo de participantes.
 - **Impacto**:
   - Menor fricción de onboarding.
   - Mejor comprensión de saldos, publicaciones y seguridad.
