@@ -5961,6 +5961,8 @@ app.get('/api/platform-settings', async (req, res) => {
             return acc;
         }, {});
 
+        settings.platform_username = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
+
         res.status(200).json(settings);
     } catch (error) {
         console.error("Error al obtener la configuración de la plataforma:", error);

@@ -36,10 +36,14 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // Iniciar ambas solicitudes en paralelo
             const settingsPromise = window.fetchAndStoreAppSettings(); // de utils.js
+            const platformSettingsPromise = fetch(`${API_URL}/api/platform-settings`).then(async (response) => {
+                if (!response.ok) return {};
+                return response.json();
+            });
             const publicationPromise = fetch(`${API_URL}/api/publications/${publicationId}?user=${storedUsername}`);
 
             // Esperar a que ambas se completen
-            const [_, publicationResponse] = await Promise.all([settingsPromise, publicationPromise]);
+            const [_, platformSettings, publicationResponse] = await Promise.all([settingsPromise, platformSettingsPromise, publicationPromise]);
 
             if (!publicationResponse.ok) {
                 const errorData = await publicationResponse.json();
@@ -49,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const publication = await publicationResponse.json();
             
             // Ahora que tenemos todo, renderizamos la página y configuramos los eventos
-            renderPublication(publication);
+            renderPublication(publication, platformSettings);
             setupEventListeners();
 
         } catch (error) {
@@ -80,7 +84,20 @@ document.addEventListener('DOMContentLoaded', () => {
         return normalized.join('\n').trim();
     }
 
-    function renderPublication(pub) {
+    function isPlatformPublication(pub, platformSettings) {
+        const platformUsername = String(platformSettings?.platform_username || 'Plataforma WintonCoin').toLowerCase();
+        const author = String(pub.author_username || '').toLowerCase();
+        return author === platformUsername || author === 'plataforma';
+    }
+
+    function getBlueUnitLabel(pub, platformSettings) {
+        if (platformSettings?.pre_launch_mode_enabled && isPlatformPublication(pub, platformSettings)) {
+            return 'BLUE iou';
+        }
+        return 'BLUE';
+    }
+
+    function renderPublication(pub, platformSettings) {
         const authorRatingHTML = generateStarRating(pub.author_average_rating, pub.author_ratings_count);
         
         const authorNameHTML = window.appSettings.public_profiles_enabled
@@ -94,7 +111,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Ahora el botón se muestra siempre, permitiendo al autor compartir su propia publicación.
         const shareButtonHTML = `<button class="action-button share share-button-header" data-action="share">🔗 Compartir</button>`;
 
-        const { messageHTML, actionHTML } = getActionAndMessageHTML(pub, expirationInfo.isExpired);
+        const blueLabel = getBlueUnitLabel(pub, platformSettings);
+        const { messageHTML, actionHTML } = getActionAndMessageHTML(pub, expirationInfo.isExpired, blueLabel);
 
         let ribbonClass = '';
         if (pub.category === 'donation') {
@@ -105,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const publicationHTML = `
             <div class="detail-header">
-                <span class="detail-cost-badge ${ribbonClass}">${formatBalance(pub.blue_cost)} BLUE</span>
+                <span class="detail-cost-badge ${ribbonClass}">${formatBalance(pub.blue_cost)} ${blueLabel}</span>
                 <h1 class="detail-title">${pub.title}</h1>
                 <div class="detail-meta">
                     Publicado por <strong>${authorNameHTML}</strong> ${authorRatingHTML}
@@ -197,7 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
-    function getActionAndMessageHTML(pub, isExpired) {
+    function getActionAndMessageHTML(pub, isExpired, blueLabel = 'BLUE') {
         const currentUser = storedUsername;
 
         // --- LÓGICA ESPECIAL PARA VENTA RÁPIDA ---
@@ -243,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             } else if (isTargetedBuyer || (isPublicSale && !isAuthor)) {
                 // VISTA DEL COMPRADOR
-                messageHTML = `<div class="action-message">Estás a punto de pagar <strong>${formatBalance(pub.blue_cost)} BLUE</strong> a <strong>${pub.author_username}</strong>.</div>`;
+                messageHTML = `<div class="action-message">Estás a punto de pagar <strong>${formatBalance(pub.blue_cost)} ${blueLabel}</strong> a <strong>${pub.author_username}</strong>.</div>`;
                 actionHTML = `<button class="action-button confirm" data-action="pay-quick-sale">Pagar Ahora</button>`;
             } else {
                 // Si alguien que no es ni el autor ni el comprador objetivo intenta acceder

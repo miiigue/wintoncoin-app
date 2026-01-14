@@ -505,6 +505,8 @@ newElement.style.cursor = 'pointer';
             return;
             }
 
+            const platformSettings = await getPlatformSettings();
+
             // Un mapa para cachear las calificaciones de los usuarios.
             const userRatingsCache = new Map();
 
@@ -522,7 +524,7 @@ newElement.style.cursor = 'pointer';
                 const statusMessageHTML = getCardStatusMessageHTML(pub);
 
                 // 3. Pasamos la publicación completa y los datos generados para crear el HTML
-                return getFullPublicationHTML(pub, authorRatingHTML, statusMessageHTML);
+                return getFullPublicationHTML(pub, authorRatingHTML, statusMessageHTML, platformSettings);
             }));
 
             elements.publicationsList.innerHTML = publicationsHTML.join('');
@@ -572,8 +574,21 @@ newElement.style.cursor = 'pointer';
         return '';
     }
     
-    function getFullPublicationHTML(pub, ratingHTML, statusMessageHTML) {
-        const rewardText = `${formatBalance(pub.blue_cost)} BLUE`;
+    function isPlatformPublication(pub, platformSettings) {
+        const platformUsername = String(platformSettings?.platform_username || 'Plataforma WintonCoin').toLowerCase();
+        const author = String(pub.author_username || '').toLowerCase();
+        return author === platformUsername || author === 'plataforma';
+    }
+
+    function getBlueUnitLabel(pub, platformSettings) {
+        if (platformSettings?.pre_launch_mode_enabled && isPlatformPublication(pub, platformSettings)) {
+            return 'BLUE iou';
+        }
+        return 'BLUE';
+    }
+
+    function getFullPublicationHTML(pub, ratingHTML, statusMessageHTML, platformSettings) {
+        const rewardText = `${formatBalance(pub.blue_cost)} ${getBlueUnitLabel(pub, platformSettings)}`;
 
         // Determinamos la clase de la cinta según la categoría y si es de impulsor
         let ribbonClass = '';
