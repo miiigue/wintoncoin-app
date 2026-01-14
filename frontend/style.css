@@ -3168,7 +3168,7 @@ input:checked + .slider:before {
     top: 25px;
     left: -45px;
     width: 180px;
-    height: 32px;
+    height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3184,8 +3184,18 @@ input:checked + .slider:before {
     transform: rotate(-45deg);
     transform-origin: center;
     z-index: 2;
-    line-height: 1;
+    line-height: 1.1;
     overflow: hidden;
+}
+
+.ribbon-subtext {
+    display: block;
+    font-size: 0.5rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    opacity: 0.75;
+    letter-spacing: 0.6px;
+    margin-top: 1px;
 }
 
 /* Asegurar que el texto esté por encima del overlay de brillo */

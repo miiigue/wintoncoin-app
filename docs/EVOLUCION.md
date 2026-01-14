@@ -243,6 +243,8 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Simplificar el flujo “Si publicas” y ajustar el paso de confirmación.
   - Ajustar el texto de aprobación en el flujo de participantes.
   - Mostrar “BLUE iou” en publicaciones de la plataforma durante pre-lanzamiento.
+  - Mover “Prototipo Alfa” al badge de pre‑lanzamiento.
+  - Quitar “Prototipo Alfa” del encabezado para evitar duplicación.
 - **Impacto**:
   - Menor fricción de onboarding.
   - Mejor comprensión de saldos, publicaciones y seguridad.
