@@ -208,6 +208,39 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Documento: `docs/AWS_SES_SETUP.md`.
   - Nota UX: ajuste de cabecera del correo para mostrar el logo de forma más visible (tamaño mayor) sin depender del cliente de correo.
 
+### 2026-01-13 — UI móvil: instrucciones de publicación legibles
+
+- **Contexto**: en móvil, la descripción larga de algunas tareas se veía centrada y el enlace de WhatsApp podía “perderse” por el largo del URL.
+- **Decisión**:
+  - Alinear la descripción a la izquierda y mejorar el wrap de enlaces largos.
+  - Normalizar la indentación común de textos multilínea antes de renderizar, para evitar “desplazamientos” en la primera línea.
+- **Impacto**:
+  - Lectura más clara en pantallas pequeñas.
+  - Enlaces largos visibles y clicables sin romper el layout.
+- **Evidencia (commits)**: `31de990`.
+
+### 2026-01-13 — Página “Cómo funciona” (guía de uso)
+
+- **Contexto**: se necesitaba una explicación breve, profesional y accesible dentro de la app, que oriente a usuarios nuevos sin saturar la UI principal.
+- **Decisión**:
+  - Agregar una página “Cómo funciona” con flujo básico, tips de uso y seguridad.
+  - Incluirla en el menú desplegable del panel principal para acceso rápido.
+  - Ajustar el texto para aclarar el uso de tooltips sin depender de subrayados.
+  - Mejorar legibilidad del subtítulo para evitar solapamientos visuales.
+  - Añadir iconos en las tarjetas del panel y simplificar el título principal.
+  - Incluir requisito de asociar Metamask en Optimism dentro de la sección de seguridad.
+  - Convertir los puntos de cada sección en tarjetas para mejorar lectura.
+  - Ajustar el texto del menú a “¿Cómo funciona?” para mayor claridad.
+  - Reemplazar “Flujo básico” por timeline con dos perfiles de usuario.
+  - Ajustar el flujo a tarjetas con número para un UX más claro.
+  - Corregir conteo de tareas del perfil de impulsor para alinear con el historial.
+  - Añadir icono de WhatsApp en el enlace de reporte de seguridad.
+- **Impacto**:
+  - Menor fricción de onboarding.
+  - Mejor comprensión de saldos, publicaciones y seguridad.
+  - Navegación más limpia en las pantallas internas.
+- **Evidencia**: commits de la mejora UI (pendiente de push).
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)

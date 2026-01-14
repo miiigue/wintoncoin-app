@@ -5617,9 +5617,9 @@ app.get('/api/users/:username/booster-profile', async (req, res) => {
                 'SELECT MAX(level) AS current_level FROM booster_level_settings WHERE min_blue_required <= $1',
                 [totalBoosterBlue]
             ),
-            // Conteo de "tareas/actividades" asociadas a publicaciones (sin exigir is_booster_task)
+            // Conteo de tareas en el historial (una fila = una tarea)
             client.query(
-                `SELECT COUNT(DISTINCT bbl.source_publication_id) AS tasks_completed
+                `SELECT COUNT(*) AS tasks_completed
                  FROM booster_blue_ledger bbl
                  WHERE bbl.user_id = $1 AND bbl.amount > 0 AND bbl.source_publication_id IS NOT NULL`,
                 [user.id]
@@ -5726,7 +5726,7 @@ app.get('/api/me/booster-profile', verifyUserToken, async (req, res) => {
                 [totalBoosterBlue]
             ),
             client.query(
-                `SELECT COUNT(DISTINCT bbl.source_publication_id) AS tasks_completed
+                `SELECT COUNT(*) AS tasks_completed
                  FROM booster_blue_ledger bbl
                  WHERE bbl.user_id = $1 AND bbl.amount > 0 AND bbl.source_publication_id IS NOT NULL`,
                 [userId]

@@ -1174,9 +1174,10 @@ hr {
 }
 
 .subtitle {
-    margin-top: -1.5rem;
-    margin-bottom: 2rem;
+    margin-top: 0.35rem;
+    margin-bottom: 1.75rem;
     font-size: 1.1rem;
+    line-height: 1.5;
 }
 
 .history-section {
@@ -2180,6 +2181,154 @@ hr {
 .main-title-container {
     text-align: center;
     margin-bottom: 2rem;
+}
+
+/* =========================
+   Cómo funciona
+   ========================= */
+.how-it-works-container {
+    max-width: 900px;
+}
+
+.how-section {
+    margin-top: 1.5rem;
+    padding: 1.25rem 1.5rem;
+    background-color: var(--background-color);
+    border: 1px solid #2a3b5c;
+    border-radius: 12px;
+}
+
+.how-section h2 {
+    margin-top: 0;
+    color: var(--text-color);
+}
+
+.how-list {
+    margin: 0.75rem 0 0;
+    padding-left: 1.2rem;
+    text-align: left;
+}
+
+.how-card {
+    margin-top: 0.75rem;
+    padding: 1rem;
+    border: 1px solid #2a3b5c;
+    border-radius: 10px;
+    background-color: var(--card-color, #0f1f3a);
+    text-align: left;
+}
+
+.how-flow-cards {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.how-flow-card {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid #2a3b5c;
+    border-radius: 10px;
+    background-color: var(--card-color, #0f1f3a);
+    text-align: left;
+}
+
+.how-flow-number {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: #1a2b4b;
+    color: #ffffff;
+    border: 1px solid #2a3b5c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+
+.how-flow-text h4 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--text-color);
+}
+
+.how-flow-text p {
+    margin: 0.35rem 0 0;
+    color: var(--text-secondary-color);
+}
+
+.how-subsection {
+    margin-top: 1rem;
+}
+
+.how-subtitle {
+    margin: 0.75rem 0 0.5rem;
+    font-size: 1.05rem;
+    color: var(--text-color);
+}
+
+.how-timeline {
+    margin-top: 0.5rem;
+    padding-left: 0.5rem;
+}
+
+.how-step {
+    position: relative;
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    column-gap: 0.75rem;
+    padding: 0.25rem 0 1rem;
+}
+
+.how-step::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 36px;
+    bottom: 0;
+    width: 2px;
+    background-color: #2a3b5c;
+}
+
+.how-step:last-child::before {
+    display: none;
+}
+
+.how-step-marker {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #1a2b4b;
+    color: #ffffff;
+    border: 1px solid #2a3b5c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.how-step-content h4 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--text-color);
+}
+
+.how-step-content p {
+    margin: 0.35rem 0 0;
+    color: var(--text-secondary-color);
+}
+
+.whatsapp-inline-icon {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 6px;
+    color: #25D366;
+    vertical-align: middle;
 }
 
 .main-title {
