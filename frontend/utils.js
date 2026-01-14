@@ -612,6 +612,7 @@ function initializeAllInfoTooltips() {
     initializeInfoTooltip('[data-tooltip-id="tooltip-proximo-vencimiento"]', '#tooltip-proximo-vencimiento');
     initializeInfoTooltip('[data-tooltip-id="tooltip-proxima-liberacion"]', '#tooltip-proxima-liberacion');
     initializeInfoTooltip('[data-tooltip-id="tooltip-proxima-liberacion-escrow"]', '#tooltip-proxima-liberacion-escrow');
+    initializeInfoTooltip('[data-tooltip-id="tooltip-prelaunch"]', '#tooltip-prelaunch');
 }
 
 // Inicializar tooltips cuando el DOM esté listo

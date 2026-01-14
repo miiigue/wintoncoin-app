@@ -46,13 +46,16 @@
         </div>
     </div>
 
-    <div class="container"> <!-- Contenedor para centrar y dar estilo -->
+    <div class="container interaction-container"> <!-- Contenedor para centrar y dar estilo -->
         <!-- Badge de Pre-lanzamiento (Banda Diagonal) -->
         <div class="pre-launch-ribbon">
             <span class="pre-launch-text">
                 <span class="ribbon-shine-overlay"></span>
-                <span class="ribbon-text-content">Pre-lanzamiento</span>
+                <span class="ribbon-text-content info-text-clickable" role="button" tabindex="0" aria-label="Información sobre el estado de pre-lanzamiento" data-tooltip-id="tooltip-prelaunch">Pre-lanzamiento</span>
             </span>
+        </div>
+        <div id="tooltip-prelaunch" class="info-tooltip prelaunch-tooltip" role="tooltip" aria-hidden="true">
+            <p>Estás en fase de pre-lanzamiento. Las recompensas en BLUE iou se registran en el Perfil de Impulsor y los saldos en la billetera principal se mantienen en cero hasta el lanzamiento oficial.</p>
         </div>
         
         <div class="main-title-container">

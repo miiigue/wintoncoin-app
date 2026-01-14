@@ -235,6 +235,11 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Ajustar el flujo a tarjetas con número para un UX más claro.
   - Corregir conteo de tareas del perfil de impulsor para alinear con el historial.
   - Añadir icono de WhatsApp en el enlace de reporte de seguridad.
+  - Agregar tooltip en la banda de “Pre-lanzamiento”.
+  - Ajustar el tooltip de “Pre-lanzamiento” para que no se salga de pantalla.
+  - Permitir overflow visible en el panel principal para el tooltip de “Pre-lanzamiento”.
+  - Simplificar el título de “Tips” en la guía de uso.
+  - Añadir flechas entre pasos del flujo para enfatizar secuencia.
 - **Impacto**:
   - Menor fricción de onboarding.
   - Mejor comprensión de saldos, publicaciones y seguridad.

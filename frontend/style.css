@@ -36,6 +36,10 @@ body {
     overflow: hidden; /* Ocultar partes que salen del contenedor */
 }
 
+.interaction-container {
+    overflow: visible;
+}
+
 .form-group-checkbox {
     display: flex;
     align-items: center;
@@ -2235,6 +2239,13 @@ hr {
     text-align: left;
 }
 
+.how-flow-arrow {
+    text-align: center;
+    color: var(--text-secondary-color);
+    font-size: 1rem;
+    line-height: 1;
+}
+
 .how-flow-number {
     width: 30px;
     height: 30px;
@@ -3041,6 +3052,16 @@ input:checked + .slider:before {
     .info-tooltip.show {
         transform: translateX(-50%) translateY(0);
     }
+
+    .prelaunch-tooltip {
+        top: 90px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        width: calc(100% - 24px);
+        max-width: 320px;
+        box-sizing: border-box;
+    }
 }
 
 /* --- Banda Diagonal de Pre-lanzamiento --- */
@@ -3052,8 +3073,19 @@ input:checked + .slider:before {
     height: 150px;
     overflow: hidden;
     z-index: 999;
-    pointer-events: none;
+    pointer-events: auto;
     clip-path: polygon(0 0, 150px 0, 0 150px);
+}
+
+.prelaunch-tooltip {
+    top: 100px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    min-width: auto;
+    width: calc(100% - 24px);
+    max-width: 360px;
+    box-sizing: border-box;
 }
 
 /* Banda diagonal principal */
