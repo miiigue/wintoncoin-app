@@ -4957,6 +4957,7 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
                 const query = `
                     SELECT
                         p.id, p.title, p.description, p.created_at, p.status, p.is_paused,
+                        p.blue_cost, p.available_slots, p.is_sell_post, p.allow_repeat_participation,
                         u.username as author_username,
                         (
                             SELECT json_agg(json_build_object(

@@ -252,6 +252,10 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Alinear el enlace “← Volver” a la izquierda en todas las vistas.
   - Actualizar la página LOVE con back-link y diseño responsive móvil.
   - Ajustar LOVE: título en rojo y tabla sin desbordes.
+  - Cambiar el texto del banner de referidos a “BLUE iou”.
+  - Añadir badges de pendientes y metadatos en publicaciones del admin.
+  - Mostrar badge de pendientes sin entrar a la sección (auto‑refresh).
+  - Mostrar si la publicación permite repetición por el mismo usuario.
 - **Impacto**:
   - Menor fricción de onboarding.
   - Mejor comprensión de saldos, publicaciones y seguridad.

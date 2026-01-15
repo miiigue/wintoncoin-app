@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
         platformCommissionLogContainer: document.getElementById('platform-commission-log-container'),
         platformPublicationForm: document.getElementById('platformPublicationForm'),
         platformManagementList: document.getElementById('platform-management-list'),
+        platformPublicationsBadge: document.getElementById('platformPublicationsBadge'),
         // -- DANGER ZONE (ELEMENTOS A ELIMINAR DESPUÉS DE USAR) --
         resetDatabaseBtn: document.getElementById('resetDatabaseBtn'),
         // --- NUEVOS ELEMENTOS PARA REFERIDOS ---
@@ -73,6 +74,9 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     // Intentamos cargar el dashboard. Si falla por auth, apiFetch redirigirá.
     showSection('dashboard');
+    // Cargar pendientes globales sin entrar a la sección.
+    refreshPlatformPendingBadge();
+    setInterval(refreshPlatformPendingBadge, 30000);
 
     // --- Lógica de la Interfaz ---
     function setupEventListeners() {
@@ -320,6 +324,17 @@ document.addEventListener('DOMContentLoaded', () => {
             renderPlatformPublicationsForManagement(publications);
         } catch (error) {
             elements.platformManagementList.innerHTML = `<p class="error-message">Error al cargar las publicaciones de la plataforma: ${escapeHtml(error.message)}</p>`;
+        }
+    }
+
+    async function refreshPlatformPendingBadge() {
+        try {
+            const publications = await apiFetch('/api/admin/platform/publications-with-participants');
+            const totals = getPlatformPendingTotals(publications);
+            updatePlatformPublicationsBadge(totals.totalPending);
+        } catch (error) {
+            // Si falla, mantenemos el estado actual sin romper la UI.
+            console.warn('No se pudo actualizar el badge de pendientes:', error.message);
         }
     }
 
@@ -1053,22 +1068,92 @@ WHERE username = 'Plataforma WintonCoin';
     }
     
     function renderPlatformPublicationsForManagement(publications) {
+        const totals = getPlatformPendingTotals(publications);
+        updatePlatformPublicationsBadge(totals.totalPending);
         if (!publications || publications.length === 0) {
             elements.platformManagementList.innerHTML = '<p class="empty-message">No hay publicaciones de la plataforma que requieran acción.</p>';
             return;
         }
         elements.platformManagementList.innerHTML = publications.map(pub => getPlatformManagementItemHTML(pub)).join('');
     }
+
+    function getPlatformPendingTotals(publications) {
+        if (!publications || publications.length === 0) {
+            return { pendingApprovals: 0, pendingPayments: 0, totalPending: 0 };
+        }
+        return publications.reduce((acc, pub) => {
+            const counts = getPlatformPendingCounts(pub);
+            acc.pendingApprovals += counts.pendingApprovals;
+            acc.pendingPayments += counts.pendingPayments;
+            acc.totalPending += counts.totalPending;
+            return acc;
+        }, { pendingApprovals: 0, pendingPayments: 0, totalPending: 0 });
+    }
+
+    function getPlatformPendingCounts(pub) {
+        const participants = Array.isArray(pub.participants) ? pub.participants : [];
+        const pendingApprovals = participants.filter(p => p.status === 'pending_approval').length;
+        const pendingPayments = participants.filter(p => p.status === 'completed').length;
+        const totalPending = pendingApprovals + pendingPayments;
+        return { pendingApprovals, pendingPayments, totalPending };
+    }
+
+    function updatePlatformPublicationsBadge(totalPending) {
+        if (!elements.platformPublicationsBadge) return;
+        if (totalPending > 0) {
+            elements.platformPublicationsBadge.textContent = totalPending;
+            elements.platformPublicationsBadge.classList.add('is-visible');
+        } else {
+            elements.platformPublicationsBadge.textContent = '';
+            elements.platformPublicationsBadge.classList.remove('is-visible');
+        }
+    }
     
     function getPlatformManagementItemHTML(pub) {
+        const createdAt = pub.created_at ? new Date(pub.created_at) : null;
+        const createdText = createdAt ? createdAt.toLocaleString('es-ES', {
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        }) : 'Sin fecha';
+        const typeText = pub.is_sell_post ? 'Venta' : 'Solicitud';
+        const typeBadgeClass = pub.is_sell_post ? 'sell' : 'request';
+        const costText = formatBalance(pub.blue_cost);
+        const statusText = getPublicationStatusText(pub);
+        const statusClass = getPublicationStatusClass(pub);
+        const slotsText = Number.isFinite(Number(pub.available_slots)) ? `${pub.available_slots}` : 'N/A';
+        const participantsCount = Array.isArray(pub.participants) ? pub.participants.length : 0;
+        const pendingCounts = getPlatformPendingCounts(pub);
+        const pendingApprovalsBadge = pendingCounts.pendingApprovals > 0
+            ? `<span class="pending-badge warning">Aprobar: ${pendingCounts.pendingApprovals}</span>`
+            : '';
+        const pendingPaymentsBadge = pendingCounts.pendingPayments > 0
+            ? `<span class="pending-badge">Pagos: ${pendingCounts.pendingPayments}</span>`
+            : '';
+        const repeatText = pub.allow_repeat_participation ? 'Sí' : 'No';
+
         const participantsHTML = pub.participants && pub.participants.length > 0
             ? `<ul class="participants-list-admin">${pub.participants.map(p => getParticipantItemForManagementHTML(pub.id, p)).join('')}</ul>`
             : '<p class="no-participants" style="padding: 1rem; text-align: center; color: var(--admin-text-secondary);">Sin participantes por ahora.</p>';
     
         return `
             <div class="history-item-admin">
-                <h3>${escapeHtml(pub.title)}</h3>
+                <div class="history-item-header">
+                    <h3>${escapeHtml(pub.title)}</h3>
+                    <div class="pending-badges">
+                        ${pendingApprovalsBadge}
+                        ${pendingPaymentsBadge}
+                    </div>
+                </div>
                 <p>${escapeHtml(pub.description || 'Sin descripción.')}</p>
+                <div class="history-item-meta">
+                    <span><strong>ID:</strong> ${escapeHtml(pub.id)}</span>
+                    <span><strong>Tipo:</strong> <span class="status-badge ${typeBadgeClass}">${typeText}</span></span>
+                    <span><strong>Precio:</strong> ${costText} BLUE</span>
+                    <span><strong>Cupos:</strong> ${escapeHtml(slotsText)}</span>
+                    <span><strong>Participantes:</strong> ${escapeHtml(participantsCount)}</span>
+                    <span><strong>Repetible:</strong> ${escapeHtml(repeatText)}</span>
+                    <span><strong>Estado:</strong> <span class="status-badge ${escapeHtml(statusClass)}">${escapeHtml(statusText)}</span></span>
+                    <span><strong>Fecha:</strong> ${escapeHtml(createdText)}</span>
+                </div>
                 <h4>Participantes</h4>
                 ${participantsHTML}
             </div>
