@@ -245,6 +245,10 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Mostrar “BLUE iou” en publicaciones de la plataforma durante pre-lanzamiento.
   - Mover “Prototipo Alfa” al badge de pre‑lanzamiento.
   - Quitar “Prototipo Alfa” del encabezado para evitar duplicación.
+  - Agregar selector simple de orden y filtro por tipo en publicaciones.
+  - Ajustar el selector de orden para que el label quede arriba y más compacto.
+  - Reemplazar el label por placeholder “Ordenar por” dentro del dropdown.
+  - Añadir un icono sutil de filtro dentro del selector.
 - **Impacto**:
   - Menor fricción de onboarding.
   - Mejor comprensión de saldos, publicaciones y seguridad.

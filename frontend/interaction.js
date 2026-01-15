@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
         notificationBadge: document.getElementById('notificationBadge'),
         logoutLink: document.getElementById('logoutLink'),
         publicationsList: document.getElementById('publications-list'),
+        publicationSortFilter: document.getElementById('publicationSortFilter'),
         saldoBlue: document.getElementById('saldoBlue'),
         saldoRed: document.getElementById('saldoRed'),
         burnModal: document.getElementById('burnModal'),
@@ -79,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // NUEVO: Almacenamiento en caché para la configuración de la plataforma
     let platformSettingsCache = null;
+    let publicationsCache = [];
 
     async function getPlatformSettings() {
         if (platformSettingsCache) {
@@ -231,6 +233,12 @@ newElement.style.cursor = 'pointer';
         window.addEventListener('click', closeAllDropdowns);
         elements.logoutLink.addEventListener('click', handleLogout);
         elements.publicationsList.addEventListener('click', handlePublicationAction);
+        if (elements.publicationSortFilter) {
+            elements.publicationSortFilter.addEventListener('change', () => {
+                // Reaplica el orden/filtro al cambiar la selección.
+                renderPublicationsWithFilters();
+            });
+        }
         elements.burnTriggerBtn.addEventListener('click', () => {
             // Actualizamos los saldos en el modal cada vez que se abre
             const blueBalance = localStorage.getItem('blue_balance') || '0';
@@ -505,34 +513,100 @@ newElement.style.cursor = 'pointer';
             return;
             }
 
-            const platformSettings = await getPlatformSettings();
-
-            // Un mapa para cachear las calificaciones de los usuarios.
-            const userRatingsCache = new Map();
-
-            // Usamos Promise.all para obtener todas las calificaciones en paralelo, lo que es más eficiente.
-            const publicationsHTML = await Promise.all(publications.map(async (pub) => {
-                // 1. Obtener calificación del AUTOR
-                if (!userRatingsCache.has(pub.author_username)) {
-                    const ratingData = await fetchUserRating(pub.author_username);
-                    userRatingsCache.set(pub.author_username, ratingData);
-                }
-                const authorRating = userRatingsCache.get(pub.author_username);
-                const authorRatingHTML = generateStarRating(authorRating.average, authorRating.count);
-
-                // 2. OBTENER EL MENSAJE DE ESTADO PARA LA TARJETA
-                const statusMessageHTML = getCardStatusMessageHTML(pub);
-
-                // 3. Pasamos la publicación completa y los datos generados para crear el HTML
-                return getFullPublicationHTML(pub, authorRatingHTML, statusMessageHTML, platformSettings);
-            }));
-
-            elements.publicationsList.innerHTML = publicationsHTML.join('');
+            publicationsCache = publications;
+            await renderPublicationsWithFilters();
 
         } catch (error) {
             console.error('Error al obtener publicaciones:', error);
             elements.publicationsList.innerHTML = '<p>No se pudo conectar con el servidor para obtener las publicaciones.</p>';
         }
+    }
+
+    function getPublicationType(pub) {
+        // Determina el tipo de publicación para filtrar.
+        if (pub.category === 'donation') {
+            return 'donation';
+        }
+        if (pub.is_sell_post) {
+            return 'sell';
+        }
+        return 'request';
+    }
+
+    function getPublicationTimestamp(pub) {
+        // Usa la fecha de creación si existe; si no, usa el ID como fallback.
+        const dateValue = pub.created_at || pub.createdAt || pub.created_date || pub.createdDate;
+        const date = dateValue ? new Date(dateValue) : null;
+        if (date && !Number.isNaN(date.getTime())) {
+            return date.getTime();
+        }
+        return Number(pub.id) || 0;
+    }
+
+    function applySortAndFilter(publications) {
+        // Aplica el criterio seleccionado (orden o filtro por tipo).
+        const selected = elements.publicationSortFilter?.value || 'recent';
+        let result = [...publications];
+
+        if (!selected) {
+            return result;
+        }
+
+        if (selected === 'type_request' || selected === 'type_sell' || selected === 'type_donation') {
+            const desiredType = selected.replace('type_', '');
+            result = result.filter((pub) => getPublicationType(pub) === desiredType);
+        }
+
+        if (selected === 'recent' || selected === 'oldest') {
+            result.sort((a, b) => {
+                const diff = getPublicationTimestamp(b) - getPublicationTimestamp(a);
+                return selected === 'recent' ? diff : -diff;
+            });
+        }
+
+        if (selected === 'reward_desc' || selected === 'reward_asc') {
+            result.sort((a, b) => {
+                const diff = (Number(b.blue_cost) || 0) - (Number(a.blue_cost) || 0);
+                return selected === 'reward_desc' ? diff : -diff;
+            });
+        }
+
+        return result;
+    }
+
+    async function renderPublicationsWithFilters() {
+        if (!elements.publicationsList) {
+            return;
+        }
+        const filteredPublications = applySortAndFilter(publicationsCache);
+        if (filteredPublications.length === 0) {
+            elements.publicationsList.innerHTML = '<p class="empty-message">No hay publicaciones para este filtro.</p>';
+            return;
+        }
+
+        const platformSettings = await getPlatformSettings();
+
+        // Un mapa para cachear las calificaciones de los usuarios.
+        const userRatingsCache = new Map();
+
+        // Usamos Promise.all para obtener todas las calificaciones en paralelo, lo que es más eficiente.
+        const publicationsHTML = await Promise.all(filteredPublications.map(async (pub) => {
+            // 1. Obtener calificación del AUTOR
+            if (!userRatingsCache.has(pub.author_username)) {
+                const ratingData = await fetchUserRating(pub.author_username);
+                userRatingsCache.set(pub.author_username, ratingData);
+            }
+            const authorRating = userRatingsCache.get(pub.author_username);
+            const authorRatingHTML = generateStarRating(authorRating.average, authorRating.count);
+
+            // 2. OBTENER EL MENSAJE DE ESTADO PARA LA TARJETA
+            const statusMessageHTML = getCardStatusMessageHTML(pub);
+
+            // 3. Pasamos la publicación completa y los datos generados para crear el HTML
+            return getFullPublicationHTML(pub, authorRatingHTML, statusMessageHTML, platformSettings);
+        }));
+
+        elements.publicationsList.innerHTML = publicationsHTML.join('');
     }
 
     // --- Funciones de Renderizado ---

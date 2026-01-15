@@ -181,6 +181,19 @@
                 <a href="#" id="openQuickSaleModalBtn" class="button-link secondary-action">⚡ Venta Rápida</a>
             </div>
 
+            <div class="publication-controls">
+                <select id="publicationSortFilter" class="publication-controls-select">
+                    <option value="" selected disabled>Ordenar por</option>
+                    <option value="recent">Más reciente</option>
+                    <option value="oldest">Más antigua</option>
+                    <option value="reward_desc">Mayor a menor (recompensa)</option>
+                    <option value="reward_asc">Menor a mayor (recompensa)</option>
+                    <option value="type_request">Solicitudes de tarea</option>
+                    <option value="type_sell">Ventas</option>
+                    <option value="type_donation">Donaciones</option>
+                </select>
+            </div>
+
             <div id="publications-list">
                 <!-- Las publicaciones se cargarán aquí dinámicamente -->
             </div>
