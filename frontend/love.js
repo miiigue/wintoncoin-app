@@ -25,14 +25,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             
             if (data.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="4">No hay obligaciones vencidas en este momento. ¡Felicidades a la comunidad!</td></tr>';
+                tableBody.innerHTML = '<tr class="love-empty-row"><td colspan="4">No hay obligaciones vencidas en este momento. ¡Felicidades a la comunidad!</td></tr>';
             } else {
                 populateTable(data);
             }
 
         } catch (error) {
             console.error('Error:', error);
-            tableBody.innerHTML = '<tr><td colspan="4">No se pudo cargar la información. Inténtelo de nuevo más tarde.</td></tr>';
+            tableBody.innerHTML = '<tr class="love-empty-row"><td colspan="4">No se pudo cargar la información. Inténtelo de nuevo más tarde.</td></tr>';
         } finally {
             loadingSpinner.style.display = 'none';
         }
@@ -49,10 +49,10 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             row.innerHTML = `
-                <td>${debt.username}</td>
-                <td>${parseFloat(debt.total_overdue_amount).toFixed(4)}</td>
-                <td>${overdueDate}</td>
-                <td>${debt.recurrence_count}</td>
+                <td data-label="Usuario">${debt.username}</td>
+                <td data-label="Deuda Vencida (RED)">${parseFloat(debt.total_overdue_amount).toFixed(4)}</td>
+                <td data-label="Vencido Desde">${overdueDate}</td>
+                <td data-label="Reincidencias">${debt.recurrence_count}</td>
             `;
             tableBody.appendChild(row);
         });

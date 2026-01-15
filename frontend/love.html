@@ -6,23 +6,21 @@
     <title>Página LOVE</title>
     <link rel="stylesheet" href="style.css"> <!-- Reutilizamos los estilos principales -->
 </head>
-<body>
-    <header>
+<body class="love-page">
+    <header class="love-header">
+        <a href="contract_interaction.html" class="back-link">← Volver</a>
         <h1>Página LOVE</h1>
-        <div class="user-menu-container">
-            <a href="contract_interaction.html" class="back-button">Volver a la página principal</a>
-        </div>
     </header>
 
-    <main>
-        <section id="love-section">
+    <main class="love-main">
+        <section id="love-section" class="love-card">
             <h2>Lista de Obligaciones Vencidas</h2>
             <p>Esta es una lista pública de todos los usuarios con deudas de tokens RED que han sido penalizadas y aún no se han saldado.</p>
             
             <div id="loading" class="loading-spinner" style="display: none;"></div>
             
-            <div class="table-container">
-                <table>
+            <div class="table-container love-table-container">
+                <table class="love-table">
                     <thead>
                         <tr>
                             <th>Usuario</th>

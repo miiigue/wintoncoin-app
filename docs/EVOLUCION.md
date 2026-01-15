@@ -249,6 +249,9 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Ajustar el selector de orden para que el label quede arriba y más compacto.
   - Reemplazar el label por placeholder “Ordenar por” dentro del dropdown.
   - Añadir un icono sutil de filtro dentro del selector.
+  - Alinear el enlace “← Volver” a la izquierda en todas las vistas.
+  - Actualizar la página LOVE con back-link y diseño responsive móvil.
+  - Ajustar LOVE: título en rojo y tabla sin desbordes.
 - **Impacto**:
   - Menor fricción de onboarding.
   - Mejor comprensión de saldos, publicaciones y seguridad.
