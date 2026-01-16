@@ -258,6 +258,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Mostrar si la publicación permite repetición por el mismo usuario.
   - Priorizar pendientes y agregar filtro “En proceso” en la lista principal.
   - Mover “En proceso” al primer lugar del selector de orden.
+  - Añadir módulo P2P BLUE (ofertas, órdenes, escrow y disputas).
 - **Impacto**:
   - Menor fricción de onboarding.
   - Mejor comprensión de saldos, publicaciones y seguridad.

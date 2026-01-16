@@ -668,6 +668,152 @@ hr {
     }
 }
 
+/* --- P2P BLUE --- */
+.p2p-container {
+    max-width: 960px;
+}
+
+.p2p-tabs {
+    display: flex;
+    gap: 1rem;
+    margin: 1.5rem 0 1rem;
+}
+
+.p2p-tab {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    border: 1px solid #2a3b5c;
+    background-color: var(--background-color);
+    color: var(--text-secondary-color);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.p2p-tab.active {
+    background-color: var(--primary-color);
+    color: #fff;
+}
+
+.p2p-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.p2p-actions .action-button.secondary {
+    background-color: #2a3b5c;
+}
+
+.p2p-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+    margin: 1.5rem 0;
+}
+
+.p2p-offers-list,
+.p2p-orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.p2p-offer-card,
+.p2p-order-card {
+    background-color: var(--background-color);
+    border: 1px solid #2a3b5c;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+}
+
+.p2p-offer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.p2p-offer-header h3 {
+    margin: 0;
+}
+
+.p2p-rating {
+    display: block;
+    color: var(--text-secondary-color);
+    font-size: 0.85rem;
+}
+
+.p2p-price {
+    font-weight: 700;
+    color: var(--primary-color);
+    text-align: right;
+}
+
+.p2p-price span {
+    display: block;
+    color: var(--text-secondary-color);
+    font-size: 0.8rem;
+}
+
+.p2p-offer-meta {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin: 0.75rem 0;
+    color: var(--text-secondary-color);
+    font-size: 0.9rem;
+}
+
+.p2p-methods {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.p2p-method-chip {
+    background-color: #2a3b5c;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    color: var(--text-color);
+}
+
+.p2p-section {
+    margin-top: 2rem;
+}
+
+.p2p-methods-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.5rem;
+}
+
+.p2p-method-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--background-color);
+    border-radius: 8px;
+    border: 1px solid #2a3b5c;
+    font-size: 0.85rem;
+}
+
+.p2p-order-meta {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+    color: var(--text-secondary-color);
+}
+
+.p2p-status {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
 #publications-list {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));

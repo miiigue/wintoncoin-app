@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P BLUE - WintonCoin</title>
+    <link id="main-stylesheet" rel="stylesheet" href="style.css">
+    <script>document.getElementById('main-stylesheet').href = `style.css?v=${new Date().getTime()}`;</script>
+</head>
+<body>
+    <div class="container p2p-container">
+        <a href="contract_interaction.html" class="back-link">&larr; Volver</a>
+        <h1 class="main-title">P2P BLUE</h1>
+        <p class="subtitle">Compra y vende BLUE entre usuarios con protección de escrow.</p>
+
+        <div class="p2p-tabs">
+            <button class="p2p-tab active" data-tab="buy">Comprar</button>
+            <button class="p2p-tab" data-tab="sell">Vender</button>
+        </div>
+
+        <div class="p2p-actions">
+            <button class="action-button" id="openCreateOfferBtn">Crear anuncio</button>
+            <button class="action-button secondary" id="refreshOffersBtn">Actualizar</button>
+        </div>
+
+        <div class="p2p-filters">
+            <select id="p2pCurrencyFilter">
+                <option value="">Moneda</option>
+                <option value="USD">USD</option>
+                <option value="ARS">ARS</option>
+                <option value="MXN">MXN</option>
+                <option value="BRL">BRL</option>
+                <option value="COP">COP</option>
+                <option value="CLP">CLP</option>
+                <option value="PEN">PEN</option>
+                <option value="UYU">UYU</option>
+                <option value="BOB">BOB</option>
+                <option value="PYG">PYG</option>
+                <option value="VES">VES</option>
+                <option value="DOP">DOP</option>
+                <option value="GTQ">GTQ</option>
+                <option value="HNL">HNL</option>
+                <option value="NIO">NIO</option>
+                <option value="CRC">CRC</option>
+                <option value="PAB">PAB</option>
+            </select>
+            <select id="p2pPaymentFilter">
+                <option value="">Método de pago</option>
+            </select>
+            <input type="number" id="p2pAmountFilter" placeholder="Monto" min="0" step="any">
+            <button class="action-button secondary" id="applyP2pFiltersBtn">Filtrar</button>
+        </div>
+
+        <div id="p2pOffersList" class="p2p-offers-list">
+            <div class="loading-spinner"></div>
+        </div>
+
+        <div class="p2p-section">
+            <h2>Mis órdenes</h2>
+            <div id="p2pOrdersList" class="p2p-orders-list">
+                <div class="loading-spinner"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Crear Oferta -->
+    <div id="p2pOfferModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeP2pOfferModal">&times;</span>
+            <h2>Crear anuncio P2P</h2>
+            <form id="p2pOfferForm">
+                <div class="form-group">
+                    <label for="p2pOfferType">Tipo</label>
+                    <select id="p2pOfferType">
+                        <option value="sell">Vender BLUE</option>
+                        <option value="buy">Comprar BLUE</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="p2pOfferCurrency">Moneda</label>
+                    <select id="p2pOfferCurrency">
+                        <option value="USD">USD</option>
+                        <option value="ARS">ARS</option>
+                        <option value="MXN">MXN</option>
+                        <option value="BRL">BRL</option>
+                        <option value="COP">COP</option>
+                        <option value="CLP">CLP</option>
+                        <option value="PEN">PEN</option>
+                        <option value="UYU">UYU</option>
+                        <option value="BOB">BOB</option>
+                        <option value="PYG">PYG</option>
+                        <option value="VES">VES</option>
+                        <option value="DOP">DOP</option>
+                        <option value="GTQ">GTQ</option>
+                        <option value="HNL">HNL</option>
+                        <option value="NIO">NIO</option>
+                        <option value="CRC">CRC</option>
+                        <option value="PAB">PAB</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="p2pOfferPrice">Precio por 1 BLUE (moneda)</label>
+                        <input type="number" id="p2pOfferPrice" min="0" step="any" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="p2pUsdRate">Tipo de cambio USD → moneda</label>
+                        <input type="number" id="p2pUsdRate" min="0" step="any" required>
+                        <small class="input-hint">Necesario para validar el rango 0.95 - 1.05 USD.</small>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="p2pMinAmount">Monto mínimo (fiat)</label>
+                        <input type="number" id="p2pMinAmount" min="0" step="any" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="p2pMaxAmount">Monto máximo (fiat)</label>
+                        <input type="number" id="p2pMaxAmount" min="0" step="any" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="p2pAvailableBlue">Cantidad BLUE disponible</label>
+                    <input type="number" id="p2pAvailableBlue" min="0" step="any" required>
+                </div>
+                <div class="form-group">
+                    <label>Métodos de pago</label>
+                    <div id="p2pPaymentMethods" class="p2p-methods-grid"></div>
+                </div>
+                <div class="form-group">
+                    <label for="p2pOfferTerms">Términos</label>
+                    <textarea id="p2pOfferTerms" rows="3" placeholder="Condiciones o instrucciones para el comprador/vendedor."></textarea>
+                </div>
+                <div class="form-group-checkbox">
+                    <input type="checkbox" id="p2pAllowPartial" checked>
+                    <label for="p2pAllowPartial">Permitir compras parciales</label>
+                </div>
+                <button type="submit" class="action-button">Publicar anuncio</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Crear Orden -->
+    <div id="p2pOrderModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeP2pOrderModal">&times;</span>
+            <h2>Crear orden</h2>
+            <p id="p2pOrderSummary"></p>
+            <div class="form-group">
+                <label for="p2pOrderAmount">Monto en fiat</label>
+                <input type="number" id="p2pOrderAmount" min="0" step="any">
+            </div>
+            <button class="action-button" id="confirmP2pOrderBtn">Confirmar orden</button>
+        </div>
+    </div>
+
+    <script src="utils.js"></script>
+    <script src="p2p.js"></script>
+    <div id="custom-alert-container"></div>
+</body>
+</html>
