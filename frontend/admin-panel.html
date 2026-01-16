@@ -35,6 +35,7 @@
                     </li>
                     <li><a href="#referrals" class="nav-link" data-section="referrals">Sistema de Referidos</a></li>
                     <li><a href="#boosters" class="nav-link" data-section="boosters">Gestión de Impulsores</a></li>
+                    <li><a href="#audit-log" class="nav-link" data-section="audit-log">Auditoría</a></li>
                     <li><a href="#database-management" class="nav-link" data-section="database-management">Gestión de Base de Datos</a></li>
                     <!-- DANGER ZONE LINK (REMOVE AFTER USE) -->
                     <li><a href="#danger-zone" class="nav-link" data-section="danger-zone">Zona de Peligro</a></li>
@@ -145,6 +146,34 @@
                 <!-- Historial de Comisiones -->
                 <h2>Historial de Comisiones</h2>
                 <div id="platform-commission-log-container" class="table-container-admin">
+                    <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- Sección Auditoría -->
+            <section id="audit-log-section" class="admin-section">
+                <h1>Auditoría</h1>
+                <p>Registro inmutable de eventos críticos para trazabilidad y cumplimiento.</p>
+
+                <div class="table-controls">
+                    <input type="text" id="auditEventTypeInput" placeholder="Event type (ej: publication.confirmed_paid)">
+                    <input type="text" id="auditActorInput" placeholder="Actor (username)">
+                    <input type="text" id="auditTargetInput" placeholder="Target (username)">
+                    <input type="text" id="auditCategoryInput" placeholder="Categoría (request, admin, etc)">
+                </div>
+                <div class="table-controls">
+                    <input type="datetime-local" id="auditFromInput" placeholder="Desde">
+                    <input type="datetime-local" id="auditToInput" placeholder="Hasta">
+                    <select id="auditLimitSelect">
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="200">200</option>
+                    </select>
+                    <button id="auditApplyFiltersBtn" class="action-button">Aplicar filtros</button>
+                    <button id="auditExportCsvBtn" class="action-button">Exportar CSV</button>
+                </div>
+
+                <div id="audit-log-container" class="table-container-admin">
                     <div class="loading-spinner"></div>
                 </div>
             </section>

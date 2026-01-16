@@ -123,6 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let actionButton = '';
         const pub = authoredById.get(String(pubId));
         const isPubDeleted = !!pub?.is_deleted;
+        const paymentInfo = getPaymentDirectionText(pub, participant);
 
         // Lógica de enlace de perfil
         const participantNameHTML = window.appSettings.public_profiles_enabled
@@ -148,6 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="status-badge ${participant.status}">${statusText}</span>
                     ${actionButton}
                 </div>
+                ${paymentInfo}
             </li>
         `;
     }
@@ -155,6 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function getCompletedPublicationHTML(pub) {
         const statusText = getStatusText(pub.user_acceptance_status);
         const badgesHTML = getPublicationBadgesHTML(pub, { view: 'completed' });
+        const paymentInfo = getCompletedPaymentDirectionText(pub);
 
         // Lógica de enlace de perfil
         const authorNameHTML = window.appSettings.public_profiles_enabled
@@ -171,6 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <li>Costo: <strong>${formatBalance(pub.blue_cost)} BLUE</strong></li>
                     <li>Estado: <span class="status-badge ${pub.user_acceptance_status}">${statusText}</span></li>
             </ul>
+            ${paymentInfo}
             </div>
             <div class="publication-actions">
                 <button class="action-button hide" data-pub-id="${pub.id}">Ocultar del Historial</button>
@@ -223,6 +227,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         return badges.join(' ');
+    }
+
+    function getPaymentDirectionText(pub, participant) {
+        if (!pub || pub.category !== 'request') return '';
+        if (participant.status !== 'confirmed_paid') return '';
+        const author = escapeHtml(pub.author_username || '');
+        const worker = escapeHtml(participant.acceptor_username || '');
+        return `
+            <div class="payment-direction">
+                <small>Pago aplicado: BLUE → ${worker} | RED → ${author}</small>
+            </div>
+        `;
+    }
+
+    function getCompletedPaymentDirectionText(pub) {
+        if (!pub || pub.category !== 'request') return '';
+        if (pub.user_acceptance_status !== 'confirmed_paid') return '';
+        const author = escapeHtml(pub.author_username || '');
+        const worker = escapeHtml(storedUsername || '');
+        return `
+            <div class="payment-direction">
+                <small>Pago aplicado: BLUE → ${worker} | RED → ${author}</small>
+            </div>
+        `;
     }
 
     function generateStarRating(rating, count) {

@@ -669,8 +669,14 @@ hr {
 }
 
 /* --- P2P BLUE --- */
+.p2p-page {
+    align-items: flex-start;
+    padding: 2rem 0;
+}
+
 .p2p-container {
     max-width: 960px;
+    margin: 0 auto;
 }
 
 .p2p-tabs {
@@ -812,6 +818,11 @@ hr {
 .p2p-status {
     font-weight: 600;
     color: var(--primary-color);
+}
+
+.p2p-modal-content {
+    max-height: 85vh;
+    overflow-y: auto;
 }
 
 #publications-list {
@@ -1819,6 +1830,12 @@ body.love-page {
 .rating-display .no-rating {
     font-size: 0.8rem;
     color: var(--text-secondary-color);
+}
+
+.payment-direction {
+    margin-top: 0.5rem;
+    color: #b7c3ff;
+    font-size: 0.85rem;
 }
 
 /* Estilo para la calificación corta junto al nombre de usuario */

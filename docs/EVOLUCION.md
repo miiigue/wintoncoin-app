@@ -259,6 +259,17 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Priorizar pendientes y agregar filtro “En proceso” en la lista principal.
   - Mover “En proceso” al primer lugar del selector de orden.
   - Añadir módulo P2P BLUE (ofertas, órdenes, escrow y disputas).
+  - Ajustar pantalla P2P para evitar cortes de contenido en modal.
+  - Mostrar “Mis anuncios” y corregir el listado por tipo (buy/sell).
+  - Añadir migraciones 008/009/010 para user_id en deudas, escrows y transactions.
+  - Endurecer confirmación de pago en solicitudes usando acceptor de DB.
+  - Añadir migración 011 para eliminar transactions.username tras migrar a user_id.
+  - Añadir panel de auditoria en admin con filtros y tabla.
+  - Agregar guard para impedir RED asignado al trabajador en solicitudes.
+  - Exportar auditoria a CSV desde el panel admin.
+  - Mostrar direccion de pago BLUE/RED en historial de solicitudes.
+  - Usar user_id en asignacion de deuda RED para solicitudes (evitar errores).
+  - En solicitudes, deuda RED se asigna al autor (sin tutor) por regla economica.
 - **Impacto**:
   - Menor fricción de onboarding.
   - Mejor comprensión de saldos, publicaciones y seguridad.

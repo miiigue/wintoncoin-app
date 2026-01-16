@@ -1395,8 +1395,9 @@ async function initializeDatabase() {
     try {
         await client.query('BEGIN');
         
-        // Paso 1: Aplicar todas las migraciones de esquema.
-        // COMENTADO TEMPORALMENTE PARA EL LANZAMIENTO LIMPIO CON BASE DE DATOS RESETEADA
+        // Paso 1: Migraciones de esquema.
+        // En producción, se ejecutan mediante scripts versionados en backend/migrations
+        // para máxima trazabilidad y control (fintech/banca).
         // await applyMigrations(client);
 
         // --- NUEVO: Ejecutar limpieza antes que nada ---
@@ -3350,10 +3351,16 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
         // 1. OBTENER DATOS Y VERIFICAR PERMISOS
         // Se obtiene la publicación y se asegura que el `confirmerUsername` es el autor.
                 const acceptanceResult = await client.query(
-            `SELECT p.blue_cost, p.title, p.category, p.is_booster_task, u.username as author_username, pa.id as acceptance_id
+            `SELECT p.blue_cost, p.title, p.category, p.is_booster_task,
+                    u.id as author_id,
+                    u.username as author_username,
+                    w.id as worker_id,
+                    pa.id as acceptance_id,
+                    pa.acceptor_username
                      FROM publications p
                      JOIN users u ON p.author_id = u.id
                      JOIN publication_acceptances pa ON p.id = pa.publication_id
+                     JOIN users w ON pa.acceptor_username = w.username
              WHERE p.id = $1 AND pa.acceptor_username = $2 AND pa.status = 'completed'
              FOR UPDATE`, // FOR UPDATE bloquea la fila para evitar concurrencia
             [pubId, workerUsername]
@@ -3367,6 +3374,23 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
         // 2. Fallar rápido si el usuario no es el autor.
         if (acceptance.author_username !== confirmerUsername) {
             throw { status: 403, message: "No tienes permiso para confirmar el pago de esta tarea." };
+        }
+
+        // 2.1 Seguridad: no confiar en el username enviado por cliente.
+        // Usamos el acceptor_username real de la DB como "worker".
+        if (workerUsername && acceptance.acceptor_username !== workerUsername) {
+            await logAuditEvent(client, req, {
+                eventType: 'publication.confirm_payment.mismatch',
+                actorUsername: confirmerUsername,
+                targetUsername: workerUsername,
+                publicationId: parseInt(pubId, 10),
+                category: 'request',
+                metadata: {
+                    acceptance_id: acceptance.acceptance_id,
+                    db_acceptor: acceptance.acceptor_username
+                }
+            });
+            throw { status: 400, message: "El trabajador indicado no coincide con el registrado en la solicitud." };
         }
 
                 // VALIDACIÓN: Esta ruta es solo para 'requests'
@@ -3383,7 +3407,8 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
         const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
 
         // 4. PROCESAR EL PAGO
-        acceptance.workerUsername = workerUsername; // Añadir para la función helper
+        acceptance.workerUsername = acceptance.acceptor_username; // Usar el valor de DB (no el del cliente)
+        acceptance.workerId = acceptance.worker_id;
                 const result = await processRequestPayment(client, acceptance, pubId, preLaunchMode, settings);
                 
         // 5. ACTUALIZAR ESTADO FINAL
@@ -4115,9 +4140,9 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
                         return res.status(409).json({
                             message:
                                 `No se puede desactivar pre-launch todavía: faltan columnas requeridas (${missing.join(', ')}). ` +
-                                `Aplica primero las migraciones de esquema (MIGRACIÓN 30 y 31) para evitar fallos al confirmar pagos.`,
+                                `Aplica primero las migraciones de esquema (MIGRACIÓN 008 y 009) para evitar fallos al confirmar pagos.`,
                             missing_columns: missing,
-                            required_migrations: ['30 (red_token_debts.user_id)', '31 (blue_token_escrows.user_id)']
+                            required_migrations: ['008 (red_token_debts.user_id)', '009 (blue_token_escrows.user_id)']
                         });
                     }
                 }
@@ -4144,6 +4169,85 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
                 res.status(500).json({ message: "Error interno del servidor." });
             }
         });
+
+    // Audit log (bank-grade traceability)
+    app.get('/api/admin/audit-log', verifyAdminToken, async (req, res) => {
+        try {
+            // Filters (all optional). Limit capped for safety.
+            const {
+                eventType = '',
+                actor = '',
+                target = '',
+                category = '',
+                from = '',
+                to = '',
+                limit = '50',
+                offset = '0'
+            } = req.query;
+
+            const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200);
+            const safeOffset = Math.max(parseInt(offset, 10) || 0, 0);
+
+            const conditions = [];
+            const values = [];
+
+            if (eventType) {
+                values.push(eventType);
+                conditions.push(`event_type = $${values.length}`);
+            }
+            if (actor) {
+                values.push(actor);
+                conditions.push(`actor_username = $${values.length}`);
+            }
+            if (target) {
+                values.push(target);
+                conditions.push(`target_username = $${values.length}`);
+            }
+            if (category) {
+                values.push(category);
+                conditions.push(`category = $${values.length}`);
+            }
+            if (from) {
+                values.push(from);
+                conditions.push(`created_at >= $${values.length}::timestamptz`);
+            }
+            if (to) {
+                values.push(to);
+                conditions.push(`created_at <= $${values.length}::timestamptz`);
+            }
+
+            const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+            // Use two queries to return total count + page data.
+            const countResult = await pool.query(
+                `SELECT COUNT(*)::int AS total FROM audit_log ${whereClause}`,
+                values
+            );
+
+            values.push(safeLimit);
+            values.push(safeOffset);
+
+            const dataResult = await pool.query(
+                `SELECT id, event_type, actor_username, target_username, publication_id,
+                        category, ip_address, user_agent, metadata, created_at
+                 FROM audit_log
+                 ${whereClause}
+                 ORDER BY created_at DESC
+                 LIMIT $${values.length - 1} OFFSET $${values.length}`,
+                values
+            );
+
+            res.status(200).json({
+                total: countResult.rows[0]?.total || 0,
+                limit: safeLimit,
+                offset: safeOffset,
+                rows: dataResult.rows
+            });
+        } catch (error) {
+            console.error('Error al cargar audit log:', error);
+            res.status(500).json({ message: 'Error interno del servidor.' });
+        }
+    });
         
         // Endpoint para obtener todos los usuarios con filtros de búsqueda y estado
         // VERSIÓN DE DEPURACIÓN PROFESIONAL
@@ -6979,6 +7083,59 @@ async function getDebtResponsibleUser(client, username) {
 }
 
 /**
+ * Helper para determinar el usuario responsable de la deuda RED por user_id.
+ * Preferido en flujos críticos (evita errores por username).
+ */
+async function getDebtResponsibleUserById(client, userId, { useTutor = true } = {}) {
+    const userResult = await client.query(
+        `SELECT id, username, is_minor, tutor_user_id FROM users WHERE id = $1`,
+        [userId]
+    );
+
+    if (userResult.rowCount === 0) {
+        throw new Error(`Usuario no encontrado (id): ${userId}`);
+    }
+
+    const user = userResult.rows[0];
+
+    // Si no usamos tutor (regla económica estricta), la deuda es del autor.
+    if (!useTutor) {
+        return {
+            user_id: user.id,
+            username: user.username,
+            is_tutor: false,
+            minor_username: null
+        };
+    }
+
+    // Si es menor y tiene tutor, la deuda es del tutor
+    if (user.is_minor && user.tutor_user_id) {
+        const tutorResult = await client.query(
+            `SELECT id, username FROM users WHERE id = $1`,
+            [user.tutor_user_id]
+        );
+
+        if (tutorResult.rowCount === 0) {
+            throw new Error(`Tutor no encontrado para el menor (id): ${userId}`);
+        }
+
+        return {
+            user_id: tutorResult.rows[0].id,
+            username: tutorResult.rows[0].username,
+            is_tutor: true,
+            minor_username: user.username
+        };
+    }
+
+    return {
+        user_id: user.id,
+        username: user.username,
+        is_tutor: false,
+        minor_username: null
+    };
+}
+
+/**
  * Procesa la finalización de una publicación de tipo 'solicitud'.
  * Solo actualiza el estado a 'completed' y notifica al autor.
  */
@@ -6997,7 +7154,7 @@ async function processRequestCompletion(client, acceptance) {
  * Maneja la lógica económica tanto para el modo normal como para el pre-lanzamiento.
  */
 async function processRequestPayment(client, acceptance, pubId, preLaunchMode, settings) {
-    const { blue_cost, title, author_username: author, workerUsername } = acceptance;
+    const { blue_cost, title, author_username: author, author_id: authorId, workerUsername, workerId: workerIdFromQuery } = acceptance;
     const cost = parseFloat(blue_cost);
 
     if (preLaunchMode) {
@@ -7024,7 +7181,28 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         const redForAuthor = cost + commissionAmount;
 
         // Determinar quién es responsable de la deuda (tutor si es menor)
-        const debtResponsible = await getDebtResponsibleUser(client, author);
+        // Preferimos user_id para evitar errores por username.
+        // Regla económica para solicitudes: la deuda RED pertenece al autor que publica.
+        // Aquí NO usamos tutor para mantener coherencia con ECONOMIC_RULES_V2_DEC2025.md.
+        const debtResponsible = authorId
+            ? await getDebtResponsibleUserById(client, authorId, { useTutor: false })
+            : await getDebtResponsibleUser(client, author);
+
+        // Guard de seguridad: nunca cargar RED al trabajador de una solicitud.
+        if (workerIdFromQuery && debtResponsible.user_id === workerIdFromQuery) {
+            await logAuditEvent(client, null, {
+                eventType: 'economic_rules_violation.request_debt_on_worker',
+                actorUsername: author,
+                targetUsername: workerUsername,
+                publicationId: pubId,
+                category: 'request',
+                metadata: {
+                    reason: 'Debt responsible matches worker (unexpected).',
+                    cost
+                }
+            });
+            throw new Error('Regla económica violada: la deuda RED no puede asignarse al trabajador.');
+        }
         
         // Actualizar saldo RED del responsable (tutor si es menor, autor si no)
         // Usamos 'credit' para AUMENTAR el balance de deuda (RED)
@@ -7040,11 +7218,15 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         }
         
         // Obtener el user_id del trabajador para insertarlo en blue_token_escrows
-        const workerResult = await client.query('SELECT id FROM users WHERE username = $1', [workerUsername]);
-        if (!workerResult.rows.length) {
-            throw new Error(`Usuario no encontrado: ${workerUsername}`);
-        }
-        const workerId = workerResult.rows[0].id;
+        const workerId = workerIdFromQuery
+            ? workerIdFromQuery
+            : await (async () => {
+                const workerResult = await client.query('SELECT id FROM users WHERE username = $1', [workerUsername]);
+                if (!workerResult.rows.length) {
+                    throw new Error(`Usuario no encontrado: ${workerUsername}`);
+                }
+                return workerResult.rows[0].id;
+            })();
         
         // Usamos 'payment_received' para AUMENTAR el balance en escrow (BLUE)
         await client.query(`SELECT record_balance_event($1, 'payment_received', 'escrow_blue', $2, NULL)`, [workerId, cost]);

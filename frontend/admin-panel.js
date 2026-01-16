@@ -58,6 +58,17 @@ document.addEventListener('DOMContentLoaded', () => {
         platformPublicationForm: document.getElementById('platformPublicationForm'),
         platformManagementList: document.getElementById('platform-management-list'),
         platformPublicationsBadge: document.getElementById('platformPublicationsBadge'),
+        // --- AUDITORIA ---
+        auditLogContainer: document.getElementById('audit-log-container'),
+        auditEventTypeInput: document.getElementById('auditEventTypeInput'),
+        auditActorInput: document.getElementById('auditActorInput'),
+        auditTargetInput: document.getElementById('auditTargetInput'),
+        auditCategoryInput: document.getElementById('auditCategoryInput'),
+        auditFromInput: document.getElementById('auditFromInput'),
+        auditToInput: document.getElementById('auditToInput'),
+        auditLimitSelect: document.getElementById('auditLimitSelect'),
+        auditApplyFiltersBtn: document.getElementById('auditApplyFiltersBtn'),
+        auditExportCsvBtn: document.getElementById('auditExportCsvBtn'),
         // -- DANGER ZONE (ELEMENTOS A ELIMINAR DESPUÉS DE USAR) --
         resetDatabaseBtn: document.getElementById('resetDatabaseBtn'),
         // --- NUEVOS ELEMENTOS PARA REFERIDOS ---
@@ -159,6 +170,18 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.resetDatabaseBtn.addEventListener('click', handleResetDatabase);
         }
 
+        // Auditoria: aplicar filtros de busqueda
+        if (elements.auditApplyFiltersBtn) {
+            elements.auditApplyFiltersBtn.addEventListener('click', () => {
+                loadAuditLog();
+            });
+        }
+        if (elements.auditExportCsvBtn) {
+            elements.auditExportCsvBtn.addEventListener('click', () => {
+                exportAuditCsv();
+            });
+        }
+
         if (elements.boosterSection) {
             const tabLinks = elements.boosterSection.querySelectorAll('.tab-link');
             tabLinks.forEach(link => {
@@ -196,6 +219,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         else if (sectionId === 'boosters') {
             showBoosterTab('boosters-dashboard');
+        }
+        else if (sectionId === 'audit-log') {
+            loadAuditLog();
         }
         else if (sectionId === 'database-management') {
             loadDatabaseStats();
@@ -409,6 +435,74 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             elements.boostersSettingsContainer.innerHTML = `<p class="error-message">Error al cargar la configuración de impulsores: ${escapeHtml(error.message)}</p>`;
         }
+    }
+
+    async function loadAuditLog() {
+        if (!elements.auditLogContainer) return;
+        elements.auditLogContainer.innerHTML = '<div class="loading-spinner"></div>';
+        try {
+            const params = buildAuditQueryParams();
+            const result = await apiFetch(`/api/admin/audit-log?${params.toString()}`);
+            renderAuditLogTable(result);
+        } catch (error) {
+            elements.auditLogContainer.innerHTML = `<p class="error-message">Error al cargar auditoria: ${escapeHtml(error.message)}</p>`;
+        }
+    }
+
+    function buildAuditQueryParams() {
+        const params = new URLSearchParams();
+        if (elements.auditEventTypeInput?.value) params.set('eventType', elements.auditEventTypeInput.value.trim());
+        if (elements.auditActorInput?.value) params.set('actor', elements.auditActorInput.value.trim());
+        if (elements.auditTargetInput?.value) params.set('target', elements.auditTargetInput.value.trim());
+        if (elements.auditCategoryInput?.value) params.set('category', elements.auditCategoryInput.value.trim());
+        if (elements.auditFromInput?.value) params.set('from', elements.auditFromInput.value);
+        if (elements.auditToInput?.value) params.set('to', elements.auditToInput.value);
+        if (elements.auditLimitSelect?.value) params.set('limit', elements.auditLimitSelect.value);
+        return params;
+    }
+
+    async function exportAuditCsv() {
+        try {
+            const params = buildAuditQueryParams();
+            // For export, allow a larger cap while still respecting backend limit (200).
+            if (!params.get('limit')) params.set('limit', '200');
+            const result = await apiFetch(`/api/admin/audit-log?${params.toString()}`);
+            const rows = result?.rows || [];
+            if (rows.length === 0) {
+                showCustomAlert('No hay eventos para exportar con esos filtros.');
+                return;
+            }
+            const csv = buildAuditCsv(rows);
+            downloadCsv(csv, 'audit_log.csv');
+        } catch (error) {
+            showCustomAlert(`Error al exportar CSV: ${error.message}`);
+        }
+    }
+
+    function buildAuditCsv(rows) {
+        const headers = ['id', 'created_at', 'event_type', 'actor_username', 'target_username', 'publication_id', 'category', 'ip_address', 'user_agent', 'metadata'];
+        const lines = [headers.join(',')];
+        rows.forEach(row => {
+            const values = headers.map(key => {
+                const raw = key === 'metadata' ? JSON.stringify(row[key] || {}) : (row[key] ?? '');
+                const text = String(raw).replace(/"/g, '""');
+                return `"${text}"`;
+            });
+            lines.push(values.join(','));
+        });
+        return lines.join('\n');
+    }
+
+    function downloadCsv(csv, filename) {
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     }
 
     // --- Lógica de Renderizado de Configuración ---
@@ -1053,6 +1147,66 @@ WHERE username = 'Plataforma WintonCoin';
             </table>
         `;
         elements.debtorsTableContainer.innerHTML = tableHTML;
+    }
+
+    function renderAuditLogTable(result) {
+        const rows = result?.rows || [];
+        if (rows.length === 0) {
+            elements.auditLogContainer.innerHTML = '<p class="empty-message">No hay eventos que coincidan con los filtros.</p>';
+            return;
+        }
+
+        const tableHTML = `
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Evento</th>
+                        <th>Actor</th>
+                        <th>Target</th>
+                        <th>Pub ID</th>
+                        <th>Categoría</th>
+                        <th>IP</th>
+                        <th>Metadata</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows.map(row => getAuditRowHTML(row)).join('')}
+                </tbody>
+            </table>
+        `;
+        elements.auditLogContainer.innerHTML = tableHTML;
+    }
+
+    function getAuditRowHTML(row) {
+        const createdAt = row.created_at ? new Date(row.created_at) : null;
+        const dateText = createdAt
+            ? createdAt.toLocaleString('es-ES', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+            : 'Sin fecha';
+        const metadataText = formatAuditMetadata(row.metadata);
+
+        return `
+            <tr>
+                <td>${escapeHtml(dateText)}</td>
+                <td>${escapeHtml(row.event_type)}</td>
+                <td>${escapeHtml(row.actor_username || '')}</td>
+                <td>${escapeHtml(row.target_username || '')}</td>
+                <td>${escapeHtml(row.publication_id ?? '')}</td>
+                <td>${escapeHtml(row.category || '')}</td>
+                <td>${escapeHtml(row.ip_address || '')}</td>
+                <td class="audit-metadata">${escapeHtml(metadataText)}</td>
+            </tr>
+        `;
+    }
+
+    function formatAuditMetadata(metadata) {
+        try {
+            const text = typeof metadata === 'string' ? metadata : JSON.stringify(metadata || {});
+            // Mostrar solo un resumen corto para no romper la tabla.
+            return text.length > 160 ? `${text.slice(0, 160)}...` : text;
+        } catch (error) {
+            return '';
+        }
     }
 
     function getDebtorRowHTML(debtor) {
