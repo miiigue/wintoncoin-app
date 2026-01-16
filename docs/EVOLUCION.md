@@ -256,6 +256,8 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Añadir badges de pendientes y metadatos en publicaciones del admin.
   - Mostrar badge de pendientes sin entrar a la sección (auto‑refresh).
   - Mostrar si la publicación permite repetición por el mismo usuario.
+  - Priorizar pendientes y agregar filtro “En proceso” en la lista principal.
+  - Mover “En proceso” al primer lugar del selector de orden.
 - **Impacto**:
   - Menor fricción de onboarding.
   - Mejor comprensión de saldos, publicaciones y seguridad.

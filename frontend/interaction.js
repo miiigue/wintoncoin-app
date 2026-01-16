@@ -549,12 +549,17 @@ newElement.style.cursor = 'pointer';
         let result = [...publications];
 
         if (!selected) {
-            return result;
+            return sortByPendingPriority(result);
         }
 
         if (selected === 'type_request' || selected === 'type_sell' || selected === 'type_donation') {
             const desiredType = selected.replace('type_', '');
             result = result.filter((pub) => getPublicationType(pub) === desiredType);
+        }
+
+        if (selected === 'pending') {
+            result = result.filter((pub) => isPendingForUser(pub));
+            return sortByPendingPriority(result);
         }
 
         if (selected === 'recent' || selected === 'oldest') {
@@ -572,6 +577,27 @@ newElement.style.cursor = 'pointer';
         }
 
         return result;
+    }
+
+    function isPendingForUser(pub) {
+        const status = pub.user_acceptance_status;
+        return status === 'approved' || status === 'pending_approval' || status === 'completed';
+    }
+
+    function getPendingPriority(pub) {
+        const status = pub.user_acceptance_status;
+        if (status === 'approved') return 0;
+        if (status === 'pending_approval') return 1;
+        if (status === 'completed') return 2;
+        return 3;
+    }
+
+    function sortByPendingPriority(publications) {
+        return [...publications].sort((a, b) => {
+            const priorityDiff = getPendingPriority(a) - getPendingPriority(b);
+            if (priorityDiff !== 0) return priorityDiff;
+            return getPublicationTimestamp(b) - getPublicationTimestamp(a);
+        });
     }
 
     async function renderPublicationsWithFilters() {
