@@ -7,7 +7,7 @@
     <link id="main-stylesheet" rel="stylesheet" href="style.css">
     <script>document.getElementById('main-stylesheet').href = `style.css?v=${new Date().getTime()}`;</script>
 </head>
-<body>
+<body class="p2p-page">
     <div class="container p2p-container">
         <a href="contract_interaction.html" class="back-link">&larr; Volver</a>
         <h1 class="main-title">P2P BLUE</h1>
@@ -56,6 +56,13 @@
         </div>
 
         <div class="p2p-section">
+            <h2>Mis anuncios</h2>
+            <div id="p2pMyOffersList" class="p2p-offers-list">
+                <div class="loading-spinner"></div>
+            </div>
+        </div>
+
+        <div class="p2p-section">
             <h2>Mis órdenes</h2>
             <div id="p2pOrdersList" class="p2p-orders-list">
                 <div class="loading-spinner"></div>
@@ -65,7 +72,7 @@
 
     <!-- Modal Crear Oferta -->
     <div id="p2pOfferModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content p2p-modal-content">
             <span class="close-button" id="closeP2pOfferModal">&times;</span>
             <h2>Crear anuncio P2P</h2>
             <form id="p2pOfferForm">
@@ -142,7 +149,7 @@
 
     <!-- Modal Crear Orden -->
     <div id="p2pOrderModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content p2p-modal-content">
             <span class="close-button" id="closeP2pOrderModal">&times;</span>
             <h2>Crear orden</h2>
             <p id="p2pOrderSummary"></p>

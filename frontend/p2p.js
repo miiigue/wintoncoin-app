@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const elements = {
         tabs: document.querySelectorAll('.p2p-tab'),
         offersList: document.getElementById('p2pOffersList'),
+        myOffersList: document.getElementById('p2pMyOffersList'),
         ordersList: document.getElementById('p2pOrdersList'),
         currencyFilter: document.getElementById('p2pCurrencyFilter'),
         paymentFilter: document.getElementById('p2pPaymentFilter'),
@@ -51,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setupEventListeners();
         loadPaymentMethods();
         loadOffers();
+        loadMyOffers();
         loadOrders();
     }
 
@@ -67,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.applyFiltersBtn.addEventListener('click', loadOffers);
         elements.refreshOffersBtn.addEventListener('click', () => {
             loadOffers();
+            loadMyOffers();
             loadOrders();
         });
 
@@ -124,7 +127,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadOffers() {
         elements.offersList.innerHTML = '<div class="loading-spinner"></div>';
         const params = new URLSearchParams();
-        params.set('type', currentTab);
+        const offerType = currentTab === 'buy' ? 'sell' : 'buy';
+        params.set('type', offerType);
         if (elements.currencyFilter.value) params.set('currency', elements.currencyFilter.value);
         if (elements.paymentFilter.value) params.set('paymentMethod', elements.paymentFilter.value);
         if (elements.amountFilter.value) params.set('min', elements.amountFilter.value);
@@ -139,6 +143,22 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error(error);
             elements.offersList.innerHTML = '<p class="empty-message">No se pudieron cargar ofertas.</p>';
+        }
+    }
+
+    async function loadMyOffers() {
+        if (!elements.myOffersList) return;
+        elements.myOffersList.innerHTML = '<div class="loading-spinner"></div>';
+        try {
+            const response = await fetch(`${API_URL}/api/p2p/offers/mine`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) throw new Error('No se pudieron cargar tus anuncios.');
+            const offers = await response.json();
+            renderMyOffers(offers);
+        } catch (error) {
+            console.error(error);
+            elements.myOffersList.innerHTML = '<p class="empty-message">No se pudieron cargar tus anuncios.</p>';
         }
     }
 
@@ -293,6 +313,34 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span>${order.fiat_amount} ${order.currency}</span>
                         <span>${Number(order.blue_amount).toFixed(4)} BLUE</span>
                         <span class="p2p-status">${order.status}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderMyOffers(offers) {
+        if (!offers || offers.length === 0) {
+            elements.myOffersList.innerHTML = '<p class="empty-message">No tienes anuncios P2P aún.</p>';
+            return;
+        }
+        elements.myOffersList.innerHTML = offers.map(offer => {
+            const typeLabel = offer.offer_type === 'sell' ? 'Venta' : 'Compra';
+            return `
+                <div class="p2p-offer-card">
+                    <div class="p2p-offer-header">
+                        <div>
+                            <h3>${typeLabel}</h3>
+                            <span class="p2p-rating">Estado: ${offer.status}</span>
+                        </div>
+                        <div class="p2p-price">
+                            ${Number(offer.price_per_blue).toLocaleString('es-ES', { minimumFractionDigits: 4 })} ${offer.currency}
+                            <span>por BLUE</span>
+                        </div>
+                    </div>
+                    <div class="p2p-offer-meta">
+                        <span><strong>Disponible:</strong> ${Number(offer.available_blue_amount).toFixed(4)} BLUE</span>
+                        <span><strong>Rango:</strong> ${offer.min_fiat_amount} - ${offer.max_fiat_amount} ${offer.currency}</span>
                     </div>
                 </div>
             `;
