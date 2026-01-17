@@ -290,6 +290,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Añadir instrucciones paso a paso en solicitudes con flujo visual.
   - Mostrar instrucciones paso a paso como bloque fijo en formulario.
   - Ajustar bloque de pasos (sin contenedor visible y max 20).
+  - Agregar pasos a publicaciones de plataforma en panel admin.
 - **Impacto**:
   - Menor fricción de onboarding.
   - Mejor comprensión de saldos, publicaciones y seguridad.

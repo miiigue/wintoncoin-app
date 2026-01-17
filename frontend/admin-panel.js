@@ -56,6 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
         platformWalletStatsContainer: document.getElementById('platform-wallet-stats'),
         platformCommissionLogContainer: document.getElementById('platform-commission-log-container'),
         platformPublicationForm: document.getElementById('platformPublicationForm'),
+        platformStepInputs: document.getElementById('platformStepInputs'),
+        platformAddStepBtn: document.getElementById('platformAddStepBtn'),
         platformManagementList: document.getElementById('platform-management-list'),
         platformPublicationsBadge: document.getElementById('platformPublicationsBadge'),
         // --- AUDITORIA ---
@@ -159,6 +161,38 @@ document.addEventListener('DOMContentLoaded', () => {
     
         if (elements.platformPublicationForm) {
             elements.platformPublicationForm.addEventListener('submit', handlePlatformPublicationSubmit);
+        }
+
+        if (elements.platformAddStepBtn && elements.platformStepInputs) {
+            elements.platformAddStepBtn.addEventListener('click', () => {
+                const maxSteps = 20;
+                const currentCount = elements.platformStepInputs.querySelectorAll('.admin-step-input').length;
+                if (currentCount >= maxSteps) {
+                    elements.platformAddStepBtn.disabled = true;
+                    return;
+                }
+
+                const nextIndex = currentCount + 1;
+                const wrapper = document.createElement('div');
+                wrapper.className = 'admin-step-input';
+
+                const label = document.createElement('label');
+                label.setAttribute('for', `platformStep${nextIndex}`);
+                label.textContent = `Paso ${nextIndex}`;
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.id = `platformStep${nextIndex}`;
+                input.placeholder = `Describe el paso ${nextIndex}`;
+
+                wrapper.appendChild(label);
+                wrapper.appendChild(input);
+                elements.platformStepInputs.appendChild(wrapper);
+
+                if (elements.platformStepInputs.querySelectorAll('.admin-step-input').length >= maxSteps) {
+                    elements.platformAddStepBtn.disabled = true;
+                }
+            });
         }
 
         if (elements.platformManagementList) {
@@ -988,10 +1022,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handlePlatformPublicationSubmit(event) {
         event.preventDefault();
+        const STEP_MARKER_START = '[[INSTRUCTIONS_STEPS]]';
+        const STEP_MARKER_END = '[[/INSTRUCTIONS_STEPS]]';
+        const steps = getPlatformStepValues();
+
+        const description = document.getElementById('platformPubDescription').value;
+        const baseText = stripStepBlock(description);
+        const mergedDescription = steps.length
+            ? `${baseText}\n\n${STEP_MARKER_START}\n${steps.join('\n')}\n${STEP_MARKER_END}`
+            : baseText;
+
         const form = event.target;
         const body = {
             title: document.getElementById('platformPubTitle').value,
-            description: document.getElementById('platformPubDescription').value,
+            description: mergedDescription,
             cost: document.getElementById('platformPubCost').value,
             availableSlots: document.getElementById('platformPubSlots').value,
             isSellPost: document.querySelector('input[name="platformPubType"]:checked').value === 'sell',
@@ -1003,6 +1047,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await apiFetch('/api/admin/platform/create-publication', { method: 'POST', body: JSON.stringify(body) });
             showCustomAlert(result.message || "Publicación creada con éxito.");
             form.reset();
+            if (elements.platformStepInputs) {
+                const allStepInputs = elements.platformStepInputs.querySelectorAll('.admin-step-input');
+                allStepInputs.forEach((item, index) => {
+                    if (index > 3) {
+                        item.remove();
+                    } else {
+                        const input = item.querySelector('input');
+                        if (input) input.value = '';
+                    }
+                });
+            }
+            if (elements.platformAddStepBtn) {
+                elements.platformAddStepBtn.disabled = false;
+            }
         } catch (error) {
             showCustomAlert(`Error al crear la publicación: ${error.message}`);
         }
@@ -1228,7 +1286,16 @@ WHERE username = 'Plataforma WintonCoin';
             elements.platformManagementList.innerHTML = '<p class="empty-message">No hay publicaciones de la plataforma que requieran acción.</p>';
             return;
         }
-        elements.platformManagementList.innerHTML = publications.map(pub => getPlatformManagementItemHTML(pub)).join('');
+        const sortedPublications = [...publications].sort((a, b) => {
+            const aCounts = getPlatformPendingCounts(a);
+            const bCounts = getPlatformPendingCounts(b);
+            if (bCounts.pendingApprovals !== aCounts.pendingApprovals) {
+                return bCounts.pendingApprovals - aCounts.pendingApprovals;
+            }
+            return bCounts.totalPending - aCounts.totalPending;
+        });
+
+        elements.platformManagementList.innerHTML = sortedPublications.map(pub => getPlatformManagementItemHTML(pub)).join('');
     }
 
     function getPlatformPendingTotals(publications) {
@@ -1288,6 +1355,9 @@ WHERE username = 'Plataforma WintonCoin';
             ? `<ul class="participants-list-admin">${pub.participants.map(p => getParticipantItemForManagementHTML(pub.id, p)).join('')}</ul>`
             : '<p class="no-participants" style="padding: 1rem; text-align: center; color: var(--admin-text-secondary);">Sin participantes por ahora.</p>';
     
+        const { mainText, steps } = splitDescriptionWithSteps(pub.description);
+        const stepsHTML = renderAdminStepFlow(steps);
+
         return `
             <div class="history-item-admin">
                 <div class="history-item-header">
@@ -1297,7 +1367,8 @@ WHERE username = 'Plataforma WintonCoin';
                         ${pendingPaymentsBadge}
                     </div>
                 </div>
-                <p>${escapeHtml(pub.description || 'Sin descripción.')}</p>
+                <p>${escapeHtml(mainText || 'Sin descripción.')}</p>
+                ${stepsHTML}
                 <div class="history-item-meta">
                     <span><strong>ID:</strong> ${escapeHtml(pub.id)}</span>
                     <span><strong>Tipo:</strong> <span class="status-badge ${typeBadgeClass}">${typeText}</span></span>
@@ -1310,6 +1381,68 @@ WHERE username = 'Plataforma WintonCoin';
                 </div>
                 <h4>Participantes</h4>
                 ${participantsHTML}
+            </div>
+        `;
+    }
+
+    function getPlatformStepValues() {
+        if (!elements.platformStepInputs) return [];
+        return Array.from(elements.platformStepInputs.querySelectorAll('input'))
+            .map(input => input.value.trim())
+            .filter(value => value.length > 0);
+    }
+
+    function stripStepBlock(text) {
+        if (!text) return '';
+        const STEP_MARKER_START = '[[INSTRUCTIONS_STEPS]]';
+        const STEP_MARKER_END = '[[/INSTRUCTIONS_STEPS]]';
+        const pattern = new RegExp(`${STEP_MARKER_START}[\\s\\S]*?${STEP_MARKER_END}`, 'g');
+        return text.replace(pattern, '').trim();
+    }
+
+    function splitDescriptionWithSteps(description) {
+        const STEP_MARKER_START = '[[INSTRUCTIONS_STEPS]]';
+        const STEP_MARKER_END = '[[/INSTRUCTIONS_STEPS]]';
+        if (!description || !description.includes(STEP_MARKER_START)) {
+            return { mainText: description || '', steps: [] };
+        }
+
+        const startIndex = description.indexOf(STEP_MARKER_START);
+        const endIndex = description.indexOf(STEP_MARKER_END);
+        if (endIndex === -1) {
+            return { mainText: description || '', steps: [] };
+        }
+
+        const mainText = description.slice(0, startIndex).trim();
+        const stepsRaw = description
+            .slice(startIndex + STEP_MARKER_START.length, endIndex)
+            .split('\n')
+            .map(step => step.trim())
+            .filter(step => step.length > 0);
+
+        return { mainText, steps: stepsRaw };
+    }
+
+    function renderAdminStepFlow(steps) {
+        if (!steps || steps.length === 0) return '';
+        const itemsHTML = steps.map((step, index) => `
+            <li class="admin-step-item">
+                <div class="admin-step-node">
+                    <span class="admin-step-index">${index + 1}</span>
+                </div>
+                <div class="admin-step-content">
+                    <div class="admin-step-badge">Paso ${index + 1}</div>
+                    <div class="admin-step-text">${escapeHtml(step)}</div>
+                </div>
+            </li>
+        `).join('');
+
+        return `
+            <div class="admin-step-flow">
+                <h4 class="admin-step-title">Sigue las instrucciones paso a paso sin saltar ninguno</h4>
+                <ol class="admin-steps-list">
+                    ${itemsHTML}
+                </ol>
             </div>
         `;
     }

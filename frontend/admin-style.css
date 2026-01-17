@@ -536,6 +536,109 @@ input:checked + .slider:before {
     min-height: 100px;
 }
 
+/* --- NUEVO: Pasos en publicaciones de plataforma --- */
+.admin-step-inputs {
+    display: grid;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.admin-step-input label {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: var(--admin-text-secondary);
+    font-weight: 500;
+}
+
+.admin-step-add-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--admin-primary);
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.admin-step-add-btn:disabled {
+    color: var(--admin-text-secondary);
+    cursor: not-allowed;
+    text-decoration: none;
+}
+
+.admin-step-flow {
+    margin: 0.75rem 0 1rem;
+}
+
+.admin-step-title {
+    margin-bottom: 0.5rem;
+    color: var(--admin-text);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.admin-steps-list {
+    list-style: none;
+    margin: 0;
+    padding-left: 0;
+    position: relative;
+}
+
+.admin-steps-list::before {
+    content: "";
+    position: absolute;
+    left: 16px;
+    top: 10px;
+    bottom: 10px;
+    width: 2px;
+    background: var(--admin-border);
+}
+
+.admin-step-item {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 0.75rem;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+}
+
+.admin-step-node {
+    display: flex;
+    justify-content: center;
+}
+
+.admin-step-index {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--admin-bg);
+    color: var(--admin-text);
+    border: 2px solid var(--admin-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.admin-step-badge {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--admin-text);
+    margin-bottom: 0.2rem;
+}
+
+.admin-step-content {
+    text-align: left;
+}
+
+.admin-step-text {
+    color: var(--admin-text-secondary);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
 .form-row-admin {
     display: flex;
     gap: 1.5rem;
