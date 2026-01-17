@@ -687,8 +687,32 @@ newElement.style.cursor = 'pointer';
         return 'BLUE';
     }
 
+    function splitDescriptionWithSteps(description) {
+        const STEP_MARKER_START = '[[INSTRUCTIONS_STEPS]]';
+        const STEP_MARKER_END = '[[/INSTRUCTIONS_STEPS]]';
+        if (!description || !description.includes(STEP_MARKER_START)) {
+            return { mainText: description || '', steps: [] };
+        }
+
+        const startIndex = description.indexOf(STEP_MARKER_START);
+        const endIndex = description.indexOf(STEP_MARKER_END);
+        if (endIndex === -1) {
+            return { mainText: description || '', steps: [] };
+        }
+
+        const mainText = description.slice(0, startIndex).trim();
+        const stepsRaw = description
+            .slice(startIndex + STEP_MARKER_START.length, endIndex)
+            .split('\n')
+            .map(step => step.trim())
+            .filter(step => step.length > 0);
+
+        return { mainText, steps: stepsRaw };
+    }
+
     function getFullPublicationHTML(pub, ratingHTML, statusMessageHTML, platformSettings) {
         const rewardText = `${formatBalance(pub.blue_cost)} ${getBlueUnitLabel(pub, platformSettings)}`;
+        const { mainText } = splitDescriptionWithSteps(pub.description);
 
         // Determinamos la clase de la cinta según la categoría y si es de impulsor
         let ribbonClass = '';
@@ -724,7 +748,7 @@ newElement.style.cursor = 'pointer';
                         <h3>${pub.title}</h3>
                     </div>
                     
-                    <p class="pub-description">${linkify(pub.description)}</p>
+                    <p class="pub-description">${linkify(mainText)}</p>
                     
                     <div class="publication-footer">
                         <div class="pub-meta">

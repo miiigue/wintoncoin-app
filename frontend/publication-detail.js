@@ -113,6 +113,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const blueLabel = getBlueUnitLabel(pub, platformSettings);
         const { messageHTML, actionHTML, acceptButtonHTML } = getActionAndMessageHTML(pub, expirationInfo.isExpired, blueLabel);
+        const { mainText, steps } = splitDescriptionWithSteps(pub.description);
+        const stepsHTML = renderStepFlow(steps);
 
         let ribbonClass = '';
         if (pub.category === 'donation') {
@@ -139,8 +141,10 @@ document.addEventListener('DOMContentLoaded', () => {
             <hr>
 
             <div class="detail-description">
-                ${linkify(normalizeMultilineText(pub.description))}
+                ${linkify(normalizeMultilineText(mainText))}
             </div>
+
+            ${stepsHTML}
 
             <hr>
             
@@ -153,6 +157,53 @@ document.addEventListener('DOMContentLoaded', () => {
             ${getParticipantsSectionHTML(pub)}
         `;
         elements.content.innerHTML = publicationHTML;
+    }
+
+    function splitDescriptionWithSteps(description) {
+        const STEP_MARKER_START = '[[INSTRUCTIONS_STEPS]]';
+        const STEP_MARKER_END = '[[/INSTRUCTIONS_STEPS]]';
+        if (!description || !description.includes(STEP_MARKER_START)) {
+            return { mainText: description || '', steps: [] };
+        }
+
+        const startIndex = description.indexOf(STEP_MARKER_START);
+        const endIndex = description.indexOf(STEP_MARKER_END);
+        if (endIndex === -1) {
+            return { mainText: description || '', steps: [] };
+        }
+
+        const mainText = description.slice(0, startIndex).trim();
+        const stepsRaw = description
+            .slice(startIndex + STEP_MARKER_START.length, endIndex)
+            .split('\n')
+            .map(step => step.trim())
+            .filter(step => step.length > 0);
+
+        return { mainText, steps: stepsRaw };
+    }
+
+    function renderStepFlow(steps) {
+        if (!steps || steps.length === 0) return '';
+        const itemsHTML = steps.map((step, index) => `
+            <li class="detail-step-item">
+                <div class="detail-step-node">
+                    <span class="detail-step-index">${index + 1}</span>
+                </div>
+                <div class="detail-step-content">
+                    <div class="detail-step-badge">Paso ${index + 1}</div>
+                    <div class="detail-step-text">${linkify(step)}</div>
+                </div>
+            </li>
+        `).join('');
+
+        return `
+            <div class="detail-steps">
+                <h3 class="detail-steps-title">Sigue las instrucciones paso a paso sin saltar ninguno</h3>
+                <ol class="detail-steps-flow">
+                    ${itemsHTML}
+                </ol>
+            </div>
+        `;
     }
     
     function getParticipantsSectionHTML(pub) {

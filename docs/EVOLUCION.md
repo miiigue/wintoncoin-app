@@ -287,6 +287,9 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Reorganizar toolbar y filtros P2P para layout tipo Binance.
   - Compactar filtros P2P para estilo Binance (fila continua).
   - Mover boton aceptar junto a compartir en detalle de publicacion.
+  - Añadir instrucciones paso a paso en solicitudes con flujo visual.
+  - Mostrar instrucciones paso a paso como bloque fijo en formulario.
+  - Ajustar bloque de pasos (sin contenedor visible y max 20).
 - **Impacto**:
   - Menor fricción de onboarding.
   - Mejor comprensión de saldos, publicaciones y seguridad.

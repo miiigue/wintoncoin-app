@@ -28,6 +28,33 @@
                 <textarea id="description" name="description" rows="4" required placeholder="Ej: Busco un diseñador para crear un logo moderno y minimalista para mi startup. Los colores principales deben ser azul y blanco..."></textarea>
                 <small class="input-hint">Detalla cualquier información relevante: características, requisitos, herramientas, lugares, horarios, habilidades, etc.</small>
             </div>
+
+            <div id="step-instructions-container" class="step-instructions-container" style="display: none;">
+                <label class="step-instructions-title">Describe las instrucciones paso a paso</label>
+                <div id="stepInstructionsPanel" class="step-instructions-panel">
+                    <div class="step-inputs" id="stepInputs">
+                        <div class="step-input">
+                            <label for="stepInstruction1">Paso 1</label>
+                            <input type="text" id="stepInstruction1" name="stepInstruction1" placeholder="Describe el primer paso">
+                        </div>
+                        <div class="step-input">
+                            <label for="stepInstruction2">Paso 2</label>
+                            <input type="text" id="stepInstruction2" name="stepInstruction2" placeholder="Describe el segundo paso">
+                        </div>
+                        <div class="step-input">
+                            <label for="stepInstruction3">Paso 3</label>
+                            <input type="text" id="stepInstruction3" name="stepInstruction3" placeholder="Describe el tercer paso">
+                        </div>
+                        <div class="step-input">
+                            <label for="stepInstruction4">Paso 4</label>
+                            <input type="text" id="stepInstruction4" name="stepInstruction4" placeholder="Describe el cuarto paso">
+                        </div>
+                    </div>
+                    <div class="step-actions">
+                        <button type="button" id="addStepBtn" class="step-add-btn">Agregar más pasos</button>
+                    </div>
+                </div>
+            </div>
             
             <div id="cost-wrapper">
                 <label for="blueCost">Cantidad en BLUE que ofreces al culminar la tarea</label>

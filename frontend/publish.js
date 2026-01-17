@@ -13,6 +13,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const preLaunchNoticeContainer = document.getElementById('prelaunch-notice-container');
     const setExpirationCheckbox = document.getElementById('setExpiration');
     const expirationInputsContainer = document.getElementById('expiration-inputs');
+    const stepInstructionsContainer = document.getElementById('step-instructions-container');
+    const stepInstructionsPanel = document.getElementById('stepInstructionsPanel');
+    const stepInputs = document.getElementById('stepInputs');
+    const addStepBtn = document.getElementById('addStepBtn');
 
     // --- Elementos del formulario que cambiaremos ---
     const pageTitle = document.querySelector('.container h1');
@@ -23,6 +27,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const descriptionInput = document.getElementById('description');
     const descriptionHint = document.querySelector('label[for="description"] + textarea + small');
     const submitButton = document.querySelector('#publishForm button[type="submit"]');
+    const blueCostInput = document.getElementById('blueCost');
+    const blueSellInput = document.getElementById('blueSell');
+    const STEP_MARKER_START = '[[INSTRUCTIONS_STEPS]]';
+    const STEP_MARKER_END = '[[/INSTRUCTIONS_STEPS]]';
 
     // --- NUEVO: Elementos del Modal de Advertencia de Donación ---
     const donationWarningModal = document.getElementById('donationWarningModal');
@@ -134,6 +142,64 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- NUEVO: Lógica para instrucciones paso a paso ---
+    if (stepInstructionsPanel) {
+        stepInstructionsPanel.style.display = 'block';
+    }
+
+
+    if (addStepBtn && stepInputs) {
+        addStepBtn.addEventListener('click', () => {
+            const maxSteps = 20;
+            const currentCount = stepInputs.querySelectorAll('.step-input').length;
+            if (currentCount >= maxSteps) {
+                addStepBtn.disabled = true;
+                return;
+            }
+
+            const nextIndex = currentCount + 1;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'step-input';
+
+            const label = document.createElement('label');
+            label.setAttribute('for', `stepInstruction${nextIndex}`);
+            label.textContent = `Paso ${nextIndex}`;
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.id = `stepInstruction${nextIndex}`;
+            input.name = `stepInstruction${nextIndex}`;
+            input.placeholder = `Describe el paso ${nextIndex}`;
+
+            wrapper.appendChild(label);
+            wrapper.appendChild(input);
+            stepInputs.appendChild(wrapper);
+
+            if (stepInputs.querySelectorAll('.step-input').length >= maxSteps) {
+                addStepBtn.disabled = true;
+            }
+        });
+    }
+
+    function getStepValues() {
+        if (!stepInputs) return [];
+        return Array.from(stepInputs.querySelectorAll('input'))
+            .map(input => input.value.trim())
+            .filter(value => value.length > 0);
+    }
+
+    function stripStepBlock(text) {
+        if (!text) return '';
+        const pattern = new RegExp(`${STEP_MARKER_START}[\\s\\S]*?${STEP_MARKER_END}`, 'g');
+        return text.replace(pattern, '').trim();
+    }
+
+    function mergeDescriptionWithSteps(description, steps) {
+        if (!steps.length) return description;
+        const baseText = stripStepBlock(description || '');
+        return `${baseText}\n\n${STEP_MARKER_START}\n${steps.join('\n')}\n${STEP_MARKER_END}`.trim();
+    }
+
 
     // --- NUEVO: Lógica para mostrar avisos condicionales ---
     async function displayNotices() {
@@ -183,6 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
         costWrapper.style.display = 'block';
         sellWrapper.style.display = 'none';
         // No se necesitan cambios de texto para 'request', usa los valores por defecto.
+        if (stepInstructionsContainer) stepInstructionsContainer.style.display = 'block';
     } else if (publicationType === 'sell') {
         costWrapper.style.display = 'none';
         sellWrapper.style.display = 'block';
@@ -320,6 +387,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.duration_days <= 0 && data.duration_hours <= 0 && data.duration_minutes <= 0) {
                 showCustomAlert('Si estableces un límite de tiempo, la duración debe ser mayor a cero.');
                 return;
+            }
+        }
+
+        if (publicationType === 'request') {
+            const steps = getStepValues();
+            if (steps.length) {
+                data.description = mergeDescriptionWithSteps(data.description, steps);
             }
         }
 
