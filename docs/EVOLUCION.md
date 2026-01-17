@@ -286,6 +286,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Mejorar filtro de metodo de pago con checklist desplegable.
   - Reorganizar toolbar y filtros P2P para layout tipo Binance.
   - Compactar filtros P2P para estilo Binance (fila continua).
+  - Mover boton aceptar junto a compartir en detalle de publicacion.
 - **Impacto**:
   - Menor fricción de onboarding.
   - Mejor comprensión de saldos, publicaciones y seguridad.

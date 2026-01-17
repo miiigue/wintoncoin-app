@@ -1139,10 +1139,24 @@ hr {
 
 /* Estilo específico para el botón de compartir en la cabecera del detalle */
 .share-button-container {
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
     margin: 1rem 0; /* Espacio vertical para separarlo del resto */
 }
 
+.detail-primary-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.detail-primary-note {
+    color: var(--text-secondary-color);
+    font-size: 0.95rem;
+}
 .share-button-container .action-button.share {
     width: auto; /* El botón ocupa solo el espacio de su contenido */
     padding: 10px 25px; /* Hacemos el botón un poco más grande y fácil de tocar */

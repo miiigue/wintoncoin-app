@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const shareButtonHTML = `<button class="action-button share share-button-header" data-action="share">🔗 Compartir</button>`;
 
         const blueLabel = getBlueUnitLabel(pub, platformSettings);
-        const { messageHTML, actionHTML } = getActionAndMessageHTML(pub, expirationInfo.isExpired, blueLabel);
+        const { messageHTML, actionHTML, acceptButtonHTML } = getActionAndMessageHTML(pub, expirationInfo.isExpired, blueLabel);
 
         let ribbonClass = '';
         if (pub.category === 'donation') {
@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
 
             <div class="share-button-container">
-                ${shareButtonHTML}
+                ${acceptButtonHTML || ''}
             </div>
 
             <hr>
@@ -145,6 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <hr>
             
             <div class="detail-actions-section">
+                ${shareButtonHTML}
                 ${messageHTML}
                 ${actionHTML}
             </div>
@@ -268,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // (aunque el backend ya debería haberlo bloqueado con un 404, esta es una capa extra)
                  messageHTML = `<div class="status-info">No tienes permiso para ver o actuar en esta venta.</div>`;
             }
-            return { messageHTML, actionHTML };
+            return { messageHTML, actionHTML, acceptButtonHTML: '' };
         }
         // --- FIN DE LÓGICA ESPECIAL ---
 
@@ -276,6 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const userStatus = pub.user_acceptance_status;
         let messageHTML = '';
         let actionHTML = '';
+        let acceptButtonHTML = '';
 
         if (currentUser === pub.author_username) {
             const hasActiveParticipants = pub.participants.some(p => ['approved', 'completed'].includes(p.status));
@@ -307,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (isExpired) {
                 messageHTML = `<div class="status-info">Esta tarea ha expirado y ya no acepta nuevos participantes.</div>`;
-                return { messageHTML, actionHTML };
+                return { messageHTML, actionHTML, acceptButtonHTML };
             }
 
             switch (userStatus) {
@@ -315,8 +317,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     messageHTML = `<div class="status-pending">Tu solicitud ha sido enviada. Esperando aprobación del autor.</div>`;
                     break;
                 case 'approved':
-                    messageHTML = `<div class="action-message">¡Has sido aprobado! Ahora puedes proceder.</div>`;
-                    actionHTML += `<button class="action-button complete" data-action="complete">${pub.is_sell_post ? 'He Recibido, Pagar' : 'Marcar como Culminada'}</button>`;
+                    acceptButtonHTML = `
+                        <div class="detail-primary-actions">
+                            <span class="detail-primary-note">¡Has sido aprobado! Ahora puedes proceder a realizar la tarea.</span>
+                            <button class="action-button complete" data-action="complete">${pub.is_sell_post ? 'He Recibido, Pagar' : 'Marcar como Culminada'}</button>
+                        </div>
+                    `;
                     break;
                 case 'completed':
                     messageHTML = `<p class="action-message status-pending">Has marcado la tarea como ${action}. Esperando confirmación final del autor.</p>`;
@@ -324,13 +330,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 case 'confirmed_paid':
                     messageHTML = `<p class="action-message status-info">¡Transacción completada!</p>`;
                     if (pub.available_slots > 0) {
-                        actionHTML += `<button class="action-button accept" data-action="accept">${verb} de nuevo</button>`;
+                        acceptButtonHTML = `<button class="action-button accept" data-action="accept">${verb} de nuevo</button>`;
                     }
                     break;
                 case 'not_participating':
                 default:
                     if (pub.available_slots > 0 && !pub.is_paused) {
-                        actionHTML += `<button class="action-button accept" data-action="accept">${verb}</button>`;
+                        acceptButtonHTML = `<button class="action-button accept" data-action="accept">${verb}</button>`;
                     } else if (pub.is_paused) {
                         messageHTML = `<div class="status-pending">El autor ha pausado las nuevas solicitudes para esta tarea.</div>`;
                     } else {
@@ -339,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     break;
             }
         }
-        return { messageHTML, actionHTML };
+        return { messageHTML, actionHTML, acceptButtonHTML };
     }
 
     // --- Copiamos la función de `interaction.js` ---
