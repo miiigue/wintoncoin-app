@@ -270,6 +270,22 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Mostrar direccion de pago BLUE/RED en historial de solicitudes.
   - Usar user_id en asignacion de deuda RED para solicitudes (evitar errores).
   - En solicitudes, deuda RED se asigna al autor (sin tutor) por regla economica.
+  - Sincronizar tipo de anuncio P2P con la pestaña activa (Comprar/Vender).
+  - Simplificar modal P2P: tipo fijo segun pestaña con explicacion.
+  - Mover "Mis ordenes" al inicio de la pantalla P2P.
+  - Usar record_balance_event en P2P para evitar updates directos.
+  - Registrar auditoria detallada en movimientos de escrow P2P.
+  - Añadir acciones P2P en ordenes (pagar, liberar, cancelar).
+  - Corregir expiracion y disputas P2P para usar event sourcing.
+  - Mostrar solo ordenes activas arriba y historial separado.
+  - Ordenar publicaciones activas por precio ascendente.
+  - Crear pagina de historial P2P con estados coloreados.
+  - Mostrar fecha/hora en ordenes P2P activas e historial.
+  - Permitir filtros P2P por multiples metodos de pago.
+  - Ajustar UI P2P: boton historial alineado y filtro mas alto.
+  - Mejorar filtro de metodo de pago con checklist desplegable.
+  - Reorganizar toolbar y filtros P2P para layout tipo Binance.
+  - Compactar filtros P2P para estilo Binance (fila continua).
 - **Impacto**:
   - Menor fricción de onboarding.
   - Mejor comprensión de saldos, publicaciones y seguridad.

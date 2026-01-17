@@ -5749,7 +5749,7 @@ app.listen(PORT, () => {
 
         // Listar ofertas P2P
         app.get('/api/p2p/offers', verifyUserToken, async (req, res) => {
-            const { type, currency, paymentMethod, min, max } = req.query;
+            const { type, currency, paymentMethod, paymentMethods, min, max } = req.query;
             const requestingUser = req.user.username;
             try {
                 const conditions = ['o.status = \'active\'', 'o.available_blue_amount > 0', 'o.creator_username <> $1'];
@@ -5771,7 +5771,16 @@ app.listen(PORT, () => {
                     conditions.push(`o.max_fiat_amount >= $${values.length}`);
                 }
                 let methodJoin = '';
-                if (paymentMethod) {
+                if (paymentMethods) {
+                    const methodIds = String(paymentMethods)
+                        .split(',')
+                        .map(id => parseInt(id, 10))
+                        .filter(id => Number.isFinite(id));
+                    if (methodIds.length > 0) {
+                        values.push(methodIds);
+                        methodJoin = `AND pom.method_id = ANY($${values.length}::int[])`;
+                    }
+                } else if (paymentMethod) {
                     values.push(parseInt(paymentMethod, 10));
                     methodJoin = `AND pom.method_id = $${values.length}`;
                 }
@@ -5858,7 +5867,7 @@ app.listen(PORT, () => {
                 const buyer = offer.offer_type === 'sell' ? requestingUser : offer.creator_username;
 
                 const sellerBalanceResult = await client.query(
-                    `SELECT liquid_blue_balance, escrow_blue_balance FROM users WHERE username = $1 FOR UPDATE`,
+                    `SELECT id, liquid_blue_balance, escrow_blue_balance FROM users WHERE username = $1 FOR UPDATE`,
                     [seller]
                 );
                 const sellerBalance = sellerBalanceResult.rows[0];
@@ -5868,12 +5877,24 @@ app.listen(PORT, () => {
                 }
 
                 await client.query(
-                    `UPDATE users
-                     SET liquid_blue_balance = liquid_blue_balance - $1,
-                         escrow_blue_balance = escrow_blue_balance + $1
-                     WHERE username = $2`,
-                    [blueAmount, seller]
+                    `SELECT record_balance_event($1, 'withdrawal', 'liquid_blue', $2, NULL)`,
+                    [sellerBalance.id, blueAmount]
                 );
+                await client.query(
+                    `SELECT record_balance_event($1, 'deposit', 'escrow_blue', $2, NULL)`,
+                    [sellerBalance.id, blueAmount]
+                );
+                await logAuditEvent(client, req, {
+                    eventType: 'p2p.escrow.locked',
+                    actorUsername: requestingUser,
+                    targetUsername: seller,
+                    metadata: {
+                        offer_id: offer.id,
+                        order_fiat_amount: amountFiat,
+                        blue_amount: blueAmount,
+                        balance_move: 'liquid_blue -> escrow_blue'
+                    }
+                });
 
                 const expiresAt = new Date(Date.now() + settings.paymentWindowMinutes * 60 * 1000);
                 const orderResult = await client.query(
@@ -6009,18 +6030,38 @@ app.listen(PORT, () => {
                 if (order.seller_username !== username) throw { status: 403, message: 'Solo el vendedor puede liberar.' };
                 if (order.status !== 'paid') throw { status: 400, message: 'La orden no está en estado pagado.' };
 
+                const sellerResult = await client.query(
+                    `SELECT id FROM users WHERE username = $1 FOR UPDATE`,
+                    [order.seller_username]
+                );
+                const buyerResult = await client.query(
+                    `SELECT id FROM users WHERE username = $1 FOR UPDATE`,
+                    [order.buyer_username]
+                );
+                const sellerId = sellerResult.rows[0]?.id;
+                const buyerId = buyerResult.rows[0]?.id;
+                if (!sellerId || !buyerId) {
+                    throw { status: 404, message: 'Usuarios de la orden no encontrados.' };
+                }
+
                 await client.query(
-                    `UPDATE users
-                     SET escrow_blue_balance = escrow_blue_balance - $1
-                     WHERE username = $2`,
-                    [order.blue_amount, order.seller_username]
+                    `SELECT record_balance_event($1, 'withdrawal', 'escrow_blue', $2, NULL)`,
+                    [sellerId, order.blue_amount]
                 );
                 await client.query(
-                    `UPDATE users
-                     SET liquid_blue_balance = liquid_blue_balance + $1
-                     WHERE username = $2`,
-                    [order.blue_amount, order.buyer_username]
+                    `SELECT record_balance_event($1, 'deposit', 'liquid_blue', $2, NULL)`,
+                    [buyerId, order.blue_amount]
                 );
+                await logAuditEvent(client, req, {
+                    eventType: 'p2p.escrow.released',
+                    actorUsername: username,
+                    targetUsername: order.buyer_username,
+                    metadata: {
+                        order_id: orderId,
+                        blue_amount: order.blue_amount,
+                        balance_move: 'escrow_blue(seller) -> liquid_blue(buyer)'
+                    }
+                });
 
                 await client.query(
                     `UPDATE p2p_orders SET status = 'released', released_at = NOW() WHERE id = $1`,
@@ -6068,13 +6109,33 @@ app.listen(PORT, () => {
                     throw { status: 403, message: 'No tienes permiso para cancelar esta orden.' };
                 }
 
-                await client.query(
-                    `UPDATE users
-                     SET liquid_blue_balance = liquid_blue_balance + $1,
-                         escrow_blue_balance = escrow_blue_balance - $1
-                     WHERE username = $2`,
-                    [order.blue_amount, order.seller_username]
+                const sellerResult = await client.query(
+                    `SELECT id FROM users WHERE username = $1 FOR UPDATE`,
+                    [order.seller_username]
                 );
+                const sellerId = sellerResult.rows[0]?.id;
+                if (!sellerId) {
+                    throw { status: 404, message: 'Vendedor no encontrado.' };
+                }
+
+                await client.query(
+                    `SELECT record_balance_event($1, 'withdrawal', 'escrow_blue', $2, NULL)`,
+                    [sellerId, order.blue_amount]
+                );
+                await client.query(
+                    `SELECT record_balance_event($1, 'deposit', 'liquid_blue', $2, NULL)`,
+                    [sellerId, order.blue_amount]
+                );
+                await logAuditEvent(client, req, {
+                    eventType: 'p2p.escrow.refunded',
+                    actorUsername: username,
+                    targetUsername: order.seller_username,
+                    metadata: {
+                        order_id: orderId,
+                        blue_amount: order.blue_amount,
+                        balance_move: 'escrow_blue -> liquid_blue'
+                    }
+                });
                 await client.query(
                     `UPDATE p2p_offers
                      SET available_blue_amount = available_blue_amount + $1,
@@ -6297,25 +6358,47 @@ app.listen(PORT, () => {
                 if (dispute.status !== 'open') throw { status: 400, message: 'La disputa ya está resuelta.' };
 
                 if (action === 'release_to_buyer') {
+                    const sellerResult = await client.query(
+                        `SELECT id FROM users WHERE username = $1 FOR UPDATE`,
+                        [dispute.seller_username]
+                    );
+                    const buyerResult = await client.query(
+                        `SELECT id FROM users WHERE username = $1 FOR UPDATE`,
+                        [dispute.buyer_username]
+                    );
+                    const sellerId = sellerResult.rows[0]?.id;
+                    const buyerId = buyerResult.rows[0]?.id;
+                    if (!sellerId || !buyerId) {
+                        throw { status: 404, message: 'Usuarios de la orden no encontrados.' };
+                    }
                     await client.query(
-                        `UPDATE users SET escrow_blue_balance = escrow_blue_balance - $1 WHERE username = $2`,
-                        [dispute.blue_amount, dispute.seller_username]
+                        `SELECT record_balance_event($1, 'withdrawal', 'escrow_blue', $2, NULL)`,
+                        [sellerId, dispute.blue_amount]
                     );
                     await client.query(
-                        `UPDATE users SET liquid_blue_balance = liquid_blue_balance + $1 WHERE username = $2`,
-                        [dispute.blue_amount, dispute.buyer_username]
+                        `SELECT record_balance_event($1, 'deposit', 'liquid_blue', $2, NULL)`,
+                        [buyerId, dispute.blue_amount]
                     );
                     await client.query(
                         `UPDATE p2p_orders SET status = 'released', released_at = NOW() WHERE id = $1`,
                         [dispute.order_id]
                     );
                 } else if (action === 'refund_seller') {
+                    const sellerResult = await client.query(
+                        `SELECT id FROM users WHERE username = $1 FOR UPDATE`,
+                        [dispute.seller_username]
+                    );
+                    const sellerId = sellerResult.rows[0]?.id;
+                    if (!sellerId) {
+                        throw { status: 404, message: 'Vendedor no encontrado.' };
+                    }
                     await client.query(
-                        `UPDATE users
-                         SET liquid_blue_balance = liquid_blue_balance + $1,
-                             escrow_blue_balance = escrow_blue_balance - $1
-                         WHERE username = $2`,
-                        [dispute.blue_amount, dispute.seller_username]
+                        `SELECT record_balance_event($1, 'withdrawal', 'escrow_blue', $2, NULL)`,
+                        [sellerId, dispute.blue_amount]
+                    );
+                    await client.query(
+                        `SELECT record_balance_event($1, 'deposit', 'liquid_blue', $2, NULL)`,
+                        [sellerId, dispute.blue_amount]
                     );
                     await client.query(
                         `UPDATE p2p_orders SET status = 'cancelled', cancelled_at = NOW() WHERE id = $1`,
@@ -6361,12 +6444,21 @@ app.listen(PORT, () => {
                     const client = await pool.connect();
                     try {
                         await client.query('BEGIN');
+                        const sellerResult = await client.query(
+                            `SELECT id FROM users WHERE username = $1 FOR UPDATE`,
+                            [order.seller_username]
+                        );
+                        const sellerId = sellerResult.rows[0]?.id;
+                        if (!sellerId) {
+                            throw new Error('Vendedor no encontrado en expiracion P2P.');
+                        }
                         await client.query(
-                            `UPDATE users
-                             SET liquid_blue_balance = liquid_blue_balance + $1,
-                                 escrow_blue_balance = escrow_blue_balance - $1
-                             WHERE username = $2`,
-                            [order.blue_amount, order.seller_username]
+                            `SELECT record_balance_event($1, 'withdrawal', 'escrow_blue', $2, NULL)`,
+                            [sellerId, order.blue_amount]
+                        );
+                        await client.query(
+                            `SELECT record_balance_event($1, 'deposit', 'liquid_blue', $2, NULL)`,
+                            [sellerId, order.blue_amount]
                         );
                         await client.query(
                             `UPDATE p2p_offers
@@ -6382,6 +6474,17 @@ app.listen(PORT, () => {
                              WHERE id = $1`,
                             [order.id]
                         );
+                        await logAuditEvent(client, null, {
+                            eventType: 'p2p.order.expired',
+                            actorUsername: 'system',
+                            targetUsername: order.seller_username,
+                            metadata: {
+                                order_id: order.id,
+                                offer_id: order.offer_id,
+                                blue_amount: order.blue_amount,
+                                balance_move: 'escrow_blue -> liquid_blue'
+                            }
+                        });
                         await client.query('COMMIT');
                     } catch (err) {
                         await client.query('ROLLBACK');

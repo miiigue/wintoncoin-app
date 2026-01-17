@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial P2P - WintonCoin</title>
+    <link id="main-stylesheet" rel="stylesheet" href="style.css">
+    <script>document.getElementById('main-stylesheet').href = `style.css?v=${new Date().getTime()}`;</script>
+</head>
+<body class="p2p-page">
+    <div class="container p2p-container">
+        <a href="p2p.html" class="back-link">&larr; Volver</a>
+        <h1 class="main-title">Historial P2P</h1>
+        <p class="subtitle">Órdenes finalizadas, canceladas o expiradas.</p>
+
+        <div class="p2p-section">
+            <div id="p2pOrdersHistoryList" class="p2p-orders-list">
+                <div class="loading-spinner"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="utils.js"></script>
+    <script src="p2p-history.js"></script>
+</body>
+</html>

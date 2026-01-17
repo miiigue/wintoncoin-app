@@ -679,16 +679,25 @@ hr {
     margin: 0 auto;
 }
 
+.p2p-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    margin: 1.5rem 0 1rem;
+    flex-wrap: wrap;
+}
+
 .p2p-tabs {
     display: flex;
     gap: 1rem;
-    margin: 1.5rem 0 1rem;
 }
 
 .p2p-tab {
-    flex: 1;
-    padding: 0.75rem 1rem;
-    border-radius: 10px;
+    min-width: 160px;
+    height: 44px;
+    padding: 0 20px;
+    border-radius: 12px;
     border: 1px solid #2a3b5c;
     background-color: var(--background-color);
     color: var(--text-secondary-color);
@@ -715,7 +724,30 @@ hr {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 0.75rem;
+    align-items: end;
     margin: 1.5rem 0;
+}
+
+.p2p-filters-compact {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.p2p-filters-compact .p2p-filter-item {
+    min-width: 160px;
+    flex: 1 1 180px;
+}
+
+.p2p-filter-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.p2p-filter-label {
+    color: var(--text-secondary-color);
+    font-size: 0.8rem;
 }
 
 .p2p-offers-list,
@@ -760,6 +792,20 @@ hr {
     display: block;
     color: var(--text-secondary-color);
     font-size: 0.8rem;
+}
+
+.p2p-offer-type-display {
+    margin-top: 0.4rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #ffffff;
+}
+
+.p2p-offer-type-help {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--text-secondary-color);
+    font-size: 0.85rem;
 }
 
 .p2p-offer-meta {
@@ -815,9 +861,139 @@ hr {
     color: var(--text-secondary-color);
 }
 
+.p2p-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 1rem;
+}
+
+.p2p-section-header h2 {
+    margin-bottom: 0;
+}
+
+.p2p-history-btn {
+    padding: 0;
+    font-size: inherit;
+    font-weight: 300;
+    color: var(--text-secondary-color);
+    background: transparent;
+    border: none;
+    text-decoration: none;
+}
+
+.p2p-history-btn:hover {
+    color: #ffffff;
+}
+
+.p2p-filters .action-button {
+    height: 44px;
+    padding: 0 22px;
+}
+
+.p2p-filter-button {
+    min-width: 140px;
+}
+
+.p2p-actions .action-button,
+.p2p-actions .action-button.secondary {
+    height: 44px;
+    padding: 0 18px;
+}
+
+.p2p-filters select,
+.p2p-filters input {
+    height: 44px;
+}
+
+.p2p-multiselect {
+    position: relative;
+    width: 100%;
+}
+
+.p2p-multiselect-trigger {
+    width: 100%;
+    height: 44px;
+    padding: 0 14px;
+    border-radius: 10px;
+    border: 1px solid #2a3b5c;
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    text-align: left;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+.p2p-multiselect-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 10px;
+    border-radius: 12px;
+    background: #0f1a3a;
+    border: 1px solid #2a3b5c;
+    z-index: 5;
+}
+
+.p2p-multiselect-menu.is-open {
+    display: block;
+}
+
+.p2p-multiselect-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 4px;
+    color: var(--text-secondary-color);
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.p2p-multiselect-option input {
+    accent-color: var(--primary-color);
+}
+
+.p2p-order-actions {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.p2p-order-info {
+    color: var(--text-secondary-color);
+    font-size: 0.85rem;
+}
+
+.p2p-order-date {
+    color: var(--text-secondary-color);
+    font-size: 0.85rem;
+}
+
+.p2p-order-action.secondary {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
 .p2p-status {
     font-weight: 600;
     color: var(--primary-color);
+}
+
+.p2p-status.expired {
+    color: #f39c12;
+}
+
+.p2p-status.cancelled {
+    color: #ff6b6b;
+}
+
+.p2p-status.released {
+    color: #2ecc71;
 }
 
 .p2p-modal-content {
