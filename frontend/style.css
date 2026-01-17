@@ -1146,6 +1146,14 @@ hr {
     margin: 1rem 0; /* Espacio vertical para separarlo del resto */
 }
 
+#publication-detail-container .share-button-container {
+    margin: 0.35rem 0;
+}
+
+#publication-detail-container hr {
+    margin: 0.5rem 0;
+}
+
 .detail-primary-actions {
     display: flex;
     align-items: center;
@@ -2282,7 +2290,7 @@ body.love-page {
     color: var(--text-color);
     /* Respeta saltos de línea pero NO conserva espacios extra (mejor UX en móvil) */
     white-space: pre-line;
-    padding: 1rem;
+    padding: 0.35rem 0;
     /* UX móvil: no centrar instrucciones largas */
     text-align: left;
     /* Evita que enlaces largos "se pierdan" */
@@ -2997,7 +3005,7 @@ body.love-page {
 
 /* --- NUEVO: Flujo de pasos en detalle de publicación --- */
 .detail-steps {
-    margin-top: 1.5rem;
+    margin-top: 0.35rem;
 }
 
 .detail-steps-title {
