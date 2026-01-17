@@ -58,6 +58,9 @@ document.addEventListener('DOMContentLoaded', () => {
         platformPublicationForm: document.getElementById('platformPublicationForm'),
         platformStepInputs: document.getElementById('platformStepInputs'),
         platformAddStepBtn: document.getElementById('platformAddStepBtn'),
+        platformEditNotice: document.getElementById('platformEditNotice'),
+        platformCancelEditBtn: document.getElementById('platformCancelEditBtn'),
+        platformPublicationSubmitBtn: document.getElementById('platformPublicationSubmitBtn'),
         platformManagementList: document.getElementById('platform-management-list'),
         platformPublicationsBadge: document.getElementById('platformPublicationsBadge'),
         // --- AUDITORIA ---
@@ -84,6 +87,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Inicialización ---
+    let platformPublicationsCache = [];
+    let platformEditId = null;
     setupEventListeners();
     // Intentamos cargar el dashboard. Si falla por auth, apiFetch redirigirá.
     showSection('dashboard');
@@ -161,6 +166,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
         if (elements.platformPublicationForm) {
             elements.platformPublicationForm.addEventListener('submit', handlePlatformPublicationSubmit);
+        }
+
+        if (elements.platformCancelEditBtn) {
+            elements.platformCancelEditBtn.addEventListener('click', resetPlatformEditForm);
         }
 
         if (elements.platformAddStepBtn && elements.platformStepInputs) {
@@ -381,6 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.platformManagementList.innerHTML = '<div class="loading-spinner"></div>';
         try {
             const publications = await apiFetch('/api/admin/platform/publications-with-participants');
+            platformPublicationsCache = publications || [];
             renderPlatformPublicationsForManagement(publications);
         } catch (error) {
             elements.platformManagementList.innerHTML = `<p class="error-message">Error al cargar las publicaciones de la plataforma: ${escapeHtml(error.message)}</p>`;
@@ -1044,23 +1054,17 @@ document.addEventListener('DOMContentLoaded', () => {
             isBoosterTask: document.getElementById('platformIsBoosterTask').checked
         };
         try {
-            const result = await apiFetch('/api/admin/platform/create-publication', { method: 'POST', body: JSON.stringify(body) });
-            showCustomAlert(result.message || "Publicación creada con éxito.");
+            if (platformEditId) {
+                const result = await apiFetch(`/api/admin/platform/publications/${platformEditId}`, { method: 'PUT', body: JSON.stringify(body) });
+                showCustomAlert(result.message || "Publicación actualizada con éxito.");
+            } else {
+                const result = await apiFetch('/api/admin/platform/create-publication', { method: 'POST', body: JSON.stringify(body) });
+                showCustomAlert(result.message || "Publicación creada con éxito.");
+            }
+
             form.reset();
-            if (elements.platformStepInputs) {
-                const allStepInputs = elements.platformStepInputs.querySelectorAll('.admin-step-input');
-                allStepInputs.forEach((item, index) => {
-                    if (index > 3) {
-                        item.remove();
-                    } else {
-                        const input = item.querySelector('input');
-                        if (input) input.value = '';
-                    }
-                });
-            }
-            if (elements.platformAddStepBtn) {
-                elements.platformAddStepBtn.disabled = false;
-            }
+            resetPlatformEditForm();
+            loadPlatformManagementData();
         } catch (error) {
             showCustomAlert(`Error al crear la publicación: ${error.message}`);
         }
@@ -1078,6 +1082,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let endpoint, body = {};
     
         switch (action) {
+            case 'edit':
+                await startPlatformEdit(pubId);
+                return;
             case 'approve':
                 endpoint = `/publications/${pubId}/approve`;
                 body = { approverUsername: platformUsername, userToApprove: userInAction };
@@ -1369,6 +1376,9 @@ WHERE username = 'Plataforma WintonCoin';
                 </div>
                 <p>${escapeHtml(mainText || 'Sin descripción.')}</p>
                 ${stepsHTML}
+                <div class="history-item-actions">
+                    <button class="action-button-admin edit" data-action="edit" data-pub-id="${escapeHtml(pub.id)}">Editar</button>
+                </div>
                 <div class="history-item-meta">
                     <span><strong>ID:</strong> ${escapeHtml(pub.id)}</span>
                     <span><strong>Tipo:</strong> <span class="status-badge ${typeBadgeClass}">${typeText}</span></span>
@@ -1445,6 +1455,138 @@ WHERE username = 'Plataforma WintonCoin';
                 </ol>
             </div>
         `;
+    }
+
+    async function startPlatformEdit(publicationId) {
+        let pub = platformPublicationsCache.find(item => String(item.id) === String(publicationId));
+        if (!pub) {
+            try {
+                const publications = await apiFetch('/api/admin/platform/publications-with-participants');
+                platformPublicationsCache = publications || [];
+                pub = platformPublicationsCache.find(item => String(item.id) === String(publicationId));
+            } catch (error) {
+                showCustomAlert(`No se pudo cargar la publicación para editar: ${error.message}`);
+                return;
+            }
+        }
+
+        if (!pub) {
+            showCustomAlert('No se encontró la publicación para editar.');
+            return;
+        }
+
+        platformEditId = pub.id;
+        const { mainText, steps } = splitDescriptionWithSteps(pub.description);
+
+        document.getElementById('platformPubTitle').value = pub.title || '';
+        document.getElementById('platformPubDescription').value = mainText || '';
+        document.getElementById('platformPubCost').value = pub.blue_cost || '';
+        document.getElementById('platformPubSlots').value = pub.available_slots || 1;
+        document.getElementById('platformAutoApprove').checked = !!pub.auto_approve;
+        document.getElementById('platformAllowRepeatParticipation').checked = !!pub.allow_repeat_participation;
+        document.getElementById('platformIsBoosterTask').checked = !!pub.is_booster_task;
+
+        if (pub.is_sell_post) {
+            document.getElementById('platformPubTypeSell').checked = true;
+        } else {
+            document.getElementById('platformPubTypeRequest').checked = true;
+        }
+
+        populatePlatformSteps(steps);
+
+        if (elements.platformPublicationSubmitBtn) {
+            elements.platformPublicationSubmitBtn.textContent = 'Guardar cambios';
+        }
+        if (elements.platformCancelEditBtn) {
+            elements.platformCancelEditBtn.style.display = 'inline-flex';
+        }
+        if (elements.platformEditNotice) {
+            elements.platformEditNotice.textContent = `Editando publicación #${pub.id}`;
+            elements.platformEditNotice.style.display = 'block';
+        }
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetPlatformEditForm() {
+        platformEditId = null;
+        if (elements.platformPublicationSubmitBtn) {
+            elements.platformPublicationSubmitBtn.textContent = 'Crear Publicación';
+        }
+        if (elements.platformCancelEditBtn) {
+            elements.platformCancelEditBtn.style.display = 'none';
+        }
+        if (elements.platformEditNotice) {
+            elements.platformEditNotice.style.display = 'none';
+        }
+
+        if (elements.platformStepInputs) {
+            const allStepInputs = elements.platformStepInputs.querySelectorAll('.admin-step-input');
+            allStepInputs.forEach((item, index) => {
+                if (index > 3) {
+                    item.remove();
+                } else {
+                    const input = item.querySelector('input');
+                    if (input) input.value = '';
+                }
+            });
+        }
+        if (elements.platformAddStepBtn) {
+            elements.platformAddStepBtn.disabled = false;
+        }
+    }
+
+    function populatePlatformSteps(steps) {
+        if (!elements.platformStepInputs) return;
+        resetPlatformEditStepsOnly();
+        steps.forEach((step, index) => {
+            const position = index + 1;
+            ensurePlatformStepInput(position);
+            const input = document.getElementById(`platformStep${position}`);
+            if (input) input.value = step;
+        });
+    }
+
+    function resetPlatformEditStepsOnly() {
+        const allStepInputs = elements.platformStepInputs.querySelectorAll('.admin-step-input');
+        allStepInputs.forEach((item, index) => {
+            if (index > 3) {
+                item.remove();
+            } else {
+                const input = item.querySelector('input');
+                if (input) input.value = '';
+            }
+        });
+        if (elements.platformAddStepBtn) {
+            elements.platformAddStepBtn.disabled = false;
+        }
+    }
+
+    function ensurePlatformStepInput(position) {
+        const maxSteps = 20;
+        if (position > maxSteps) return;
+        const existing = document.getElementById(`platformStep${position}`);
+        if (existing) return;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'admin-step-input';
+
+        const label = document.createElement('label');
+        label.setAttribute('for', `platformStep${position}`);
+        label.textContent = `Paso ${position}`;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.id = `platformStep${position}`;
+        input.placeholder = `Describe el paso ${position}`;
+
+        wrapper.appendChild(label);
+        wrapper.appendChild(input);
+        elements.platformStepInputs.appendChild(wrapper);
+
+        if (elements.platformStepInputs.querySelectorAll('.admin-step-input').length >= maxSteps) {
+            elements.platformAddStepBtn.disabled = true;
+        }
     }
     
     function getParticipantItemForManagementHTML(pubId, participant) {

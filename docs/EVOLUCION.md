@@ -291,6 +291,9 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Mostrar instrucciones paso a paso como bloque fijo en formulario.
   - Ajustar bloque de pasos (sin contenedor visible y max 20).
   - Agregar pasos a publicaciones de plataforma en panel admin.
+  - Permitir editar publicaciones de plataforma desde admin.
+  - Asegurar carga de datos al editar publicaciones.
+  - Añadir migración 012 para publications.updated_at.
 - **Impacto**:
   - Menor fricción de onboarding.
   - Mejor comprensión de saldos, publicaciones y seguridad.

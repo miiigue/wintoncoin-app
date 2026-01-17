@@ -5163,6 +5163,73 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
         }
         });
 
+        // Endpoint para que un administrador edite una publicación de la plataforma
+        app.put('/api/admin/platform/publications/:id', verifyAdminToken, async (req, res) => {
+            const { id } = req.params;
+            const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation } = req.body;
+
+            if (!title || !description || !costString) {
+                return res.status(400).json({ message: "Faltan datos: título, descripción y costo son requeridos." });
+            }
+
+            const cost = parseFloat(costString.toString().replace(',', '.'));
+            if (isNaN(cost) || cost <= 0) {
+                return res.status(400).json({ message: "El costo debe ser un número positivo." });
+            }
+
+            const slots = slotsString ? parseInt(slotsString, 10) : 1;
+            if (isNaN(slots) || slots < 1) {
+                return res.status(400).json({ message: "La cantidad de cupos debe ser mayor a 0." });
+            }
+
+            const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
+
+            try {
+                const ownership = await pool.query(
+                    `SELECT p.id
+                     FROM publications p
+                     JOIN users u ON p.author_id = u.id
+                     WHERE p.id = $1 AND u.username = $2`,
+                    [id, platformUsername]
+                );
+
+                if (ownership.rowCount === 0) {
+                    return res.status(404).json({ message: "La publicación no pertenece a la plataforma." });
+                }
+
+                const updateSql = `
+                    UPDATE publications
+                    SET title = $1,
+                        description = $2,
+                        blue_cost = $3,
+                        is_sell_post = $4,
+                        available_slots = $5,
+                        auto_approve = $6,
+                        is_booster_task = $7,
+                        allow_repeat_participation = $8,
+                        updated_at = NOW()
+                    WHERE id = $9
+                `;
+
+                await pool.query(updateSql, [
+                    title,
+                    description,
+                    cost,
+                    !!isSellPost,
+                    slots,
+                    !!autoApprove,
+                    !!isBoosterTask,
+                    !!allowRepeatParticipation,
+                    id
+                ]);
+
+                res.json({ message: "Publicación de la plataforma actualizada exitosamente." });
+            } catch (error) {
+                console.error("Error al editar publicación de la plataforma:", error);
+                res.status(500).json({ message: "Error interno del servidor." });
+            }
+        });
+
         // NUEVO: Endpoint para obtener las publicaciones de la plataforma con sus participantes para gestionarlas
         app.get('/api/admin/platform/publications-with-participants', verifyAdminToken, async (req, res) => {
             const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';

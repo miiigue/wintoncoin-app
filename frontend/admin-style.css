@@ -665,6 +665,42 @@ input:checked + .slider:before {
     background-color: var(--admin-primary);
 }
 
+.action-button-admin.edit {
+    background-color: #1f6feb;
+}
+
+.admin-form-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.admin-edit-cancel {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--admin-text-secondary);
+    text-decoration: underline;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.admin-edit-notice {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    background-color: rgba(10, 132, 255, 0.1);
+    border: 1px solid rgba(10, 132, 255, 0.35);
+    color: var(--admin-text);
+    font-weight: 600;
+}
+
+.history-item-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin: 0.5rem 0 0.75rem;
+}
+
 /* Reutilizamos los estilos de la hoja principal para la coherencia */
 .form-group-checkbox {
     display: flex;

@@ -3072,7 +3072,8 @@ body.love-page {
 }
 
 .detail-step-text {
-    color: var(--text-secondary-color);
+    font-size: 1.1rem;
+    color: var(--text-color);
     line-height: 1.5;
     overflow-wrap: anywhere;
     word-break: break-word;

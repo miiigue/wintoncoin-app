@@ -184,6 +184,7 @@
                 <p>Crea tareas o servicios que aparecerán como si los hubiera publicado el usuario 'plataforma'.</p>
 
                 <form id="platformPublicationForm" class="admin-form">
+                    <div id="platformEditNotice" class="admin-edit-notice" style="display: none;"></div>
                     <div class="form-group-admin">
                         <label for="platformPubTitle">Título de la Publicación:</label>
                         <input type="text" id="platformPubTitle" required>
@@ -252,7 +253,10 @@
                         <small class="input-hint">Marcar si esta tarea otorga BLUE de Impulsor y cuenta para el programa.</small>
                     </div>
                     
-                    <button type="submit" class="action-button-admin publish">Crear Publicación</button>
+                    <div class="admin-form-actions">
+                        <button type="submit" id="platformPublicationSubmitBtn" class="action-button-admin publish">Crear Publicación</button>
+                        <button type="button" id="platformCancelEditBtn" class="admin-edit-cancel" style="display: none;">Cancelar edición</button>
+                    </div>
                 </form>
 
                 <hr class="admin-divider">
