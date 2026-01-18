@@ -323,6 +323,27 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: más aire en el encabezado y mejor jerarquía visual.
 - **Evidencia**: commit pendiente de push.
 
+### 2026-01-12 — Contador de publicaciones disponibles
+
+- **Contexto**: el usuario necesita ver cuántas publicaciones puede aceptar en ese momento.
+- **Decisión**: mostrar un contador junto a “Publicaciones Activas” basado en cupos, estado y repetición permitida.
+- **Impacto**: claridad inmediata sobre oportunidades disponibles para cada usuario.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Contador discreto en el título
+
+- **Contexto**: el contador debía verse más sutil en móvil.
+- **Decisión**: moverlo entre paréntesis, sin fondo, usando color secundario.
+- **Impacto**: mejor legibilidad sin robar protagonismo al título.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Contador en el título sin paréntesis
+
+- **Contexto**: el contador debía verse aún más limpio.
+- **Decisión**: mostrar el número sin paréntesis, con color secundario discreto.
+- **Impacto**: título más minimalista y legible.
+- **Evidencia**: commit pendiente de push.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)

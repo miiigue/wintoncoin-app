@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- Elementos para el contador de disponibles ---
         availableCountdownContainer: document.getElementById('available-countdown-container'),
         availableCountdownText: document.getElementById('available-countdown-text'),
+        publicationsCount: document.getElementById('publicationsCount'),
         authoredList: document.getElementById('authored-publications-list'),
         completedList: document.getElementById('completed-publications-list')
     };
@@ -510,10 +511,12 @@ newElement.style.cursor = 'pointer';
             
         if (publications.length === 0) {
                 elements.publicationsList.innerHTML = '<p class="empty-message">No hay publicaciones disponibles en este momento. ¡Sé el primero en crear una!</p>';
+                updatePublicationsCount([]);
             return;
             }
 
             publicationsCache = publications;
+            updatePublicationsCount(publicationsCache);
             await renderPublicationsWithFilters();
 
         } catch (error) {
@@ -577,6 +580,35 @@ newElement.style.cursor = 'pointer';
         }
 
         return result;
+    }
+
+    function isPublicationAvailableForUser(pub) {
+        if (!pub) return false;
+        if (String(pub.author_username || '').toLowerCase() === String(storedUsername || '').toLowerCase()) {
+            return false;
+        }
+        if (Number(pub.available_slots) <= 0) {
+            return false;
+        }
+        if (pub.is_paused) {
+            return false;
+        }
+        const status = pub.user_acceptance_status;
+        if (!status || status === 'open') {
+            return true;
+        }
+        if (status === 'confirmed_paid' && pub.allow_repeat_participation) {
+            return true;
+        }
+        return false;
+    }
+
+    function updatePublicationsCount(publications) {
+        if (!elements.publicationsCount) {
+            return;
+        }
+        const availableCount = (publications || []).filter(isPublicationAvailableForUser).length;
+        elements.publicationsCount.textContent = String(availableCount);
     }
 
     function isPendingForUser(pub) {

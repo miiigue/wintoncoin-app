@@ -646,6 +646,16 @@ hr {
     text-align: left;
 }
 
+.publications-count {
+    color: var(--text-secondary-color);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.publications-count-wrapper {
+    color: var(--text-secondary-color);
+}
+
 .publication-controls-select {
     background-color: var(--background-color);
     border: 1px solid #2a3b5c;
