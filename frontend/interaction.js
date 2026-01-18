@@ -516,7 +516,6 @@ newElement.style.cursor = 'pointer';
             }
 
             publicationsCache = publications;
-            updatePublicationsCount(publicationsCache);
             await renderPublicationsWithFilters();
 
         } catch (error) {
@@ -582,33 +581,12 @@ newElement.style.cursor = 'pointer';
         return result;
     }
 
-    function isPublicationAvailableForUser(pub) {
-        if (!pub) return false;
-        if (String(pub.author_username || '').toLowerCase() === String(storedUsername || '').toLowerCase()) {
-            return false;
-        }
-        if (Number(pub.available_slots) <= 0) {
-            return false;
-        }
-        if (pub.is_paused) {
-            return false;
-        }
-        const status = pub.user_acceptance_status;
-        if (!status || status === 'open') {
-            return true;
-        }
-        if (status === 'confirmed_paid' && pub.allow_repeat_participation) {
-            return true;
-        }
-        return false;
-    }
-
     function updatePublicationsCount(publications) {
         if (!elements.publicationsCount) {
             return;
         }
-        const availableCount = (publications || []).filter(isPublicationAvailableForUser).length;
-        elements.publicationsCount.textContent = String(availableCount);
+        const totalCount = (publications || []).length;
+        elements.publicationsCount.textContent = String(totalCount);
     }
 
     function isPendingForUser(pub) {
@@ -639,9 +617,11 @@ newElement.style.cursor = 'pointer';
         const filteredPublications = applySortAndFilter(publicationsCache);
         if (filteredPublications.length === 0) {
             elements.publicationsList.innerHTML = '<p class="empty-message">No hay publicaciones para este filtro.</p>';
+            updatePublicationsCount([]);
             return;
         }
 
+        updatePublicationsCount(filteredPublications);
         const platformSettings = await getPlatformSettings();
 
         // Un mapa para cachear las calificaciones de los usuarios.

@@ -344,6 +344,13 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: título más minimalista y legible.
 - **Evidencia**: commit pendiente de push.
 
+### 2026-01-12 — Contador: refleja lo visible en lista
+
+- **Contexto**: el contador mostraba “0” aunque había publicaciones visibles.
+- **Decisión**: contar el listado filtrado/renderizado en pantalla.
+- **Impacto**: número coherente con lo que ve el usuario.
+- **Evidencia**: commit pendiente de push.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)
