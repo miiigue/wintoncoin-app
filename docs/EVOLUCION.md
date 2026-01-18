@@ -302,6 +302,13 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Navegación más limpia en las pantallas internas.
 - **Evidencia**: commits de la mejora UI (pendiente de push).
 
+### 2026-01-12 — Encabezado principal: alineación y jerarquía visual
+
+- **Contexto**: el enlace “¿Cómo funciona?” debía verse más discreto y alineado con el título principal para mejorar la lectura.
+- **Decisión**: colocar el enlace junto a “WintonCoin”, reducir tamaño (~30%), usar cursiva y color secundario.
+- **Impacto**: encabezado más compacto y profesional; menor ruido visual.
+- **Evidencia**: commit pendiente de push.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)
