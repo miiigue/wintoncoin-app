@@ -2864,6 +2864,23 @@ body.love-page {
     vertical-align: middle;
 }
 
+.whatsapp-inline-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(37, 211, 102, 0.12);
+    color: #25D366;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.whatsapp-inline-link:hover {
+    background: rgba(37, 211, 102, 0.2);
+    text-decoration: none;
+}
+
 .main-title {
     font-size: 1.1rem; /* CORRECCIÓN: Tamaño reducido al 50% */
     margin: 0;
