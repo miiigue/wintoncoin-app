@@ -551,16 +551,16 @@ hr {
 .profile-trigger {
     display: flex;
     align-items: center;
-    background-color: var(--surface-color);
-    padding: 8px 15px;
-    border-radius: 20px;
+    background-color: transparent;
+    padding: 4px 6px;
+    border-radius: 8px;
     cursor: pointer;
-    border: 1px solid #2a3b5c;
-    transition: background-color 0.3s;
+    border: none;
+    transition: color 0.3s;
 }
 
 .profile-trigger:hover {
-    background-color: #2a3b5c;
+    color: var(--text-secondary-color);
 }
 
 .profile-trigger span {
@@ -3450,6 +3450,14 @@ input:checked + .slider:before {
 @media (max-width: 768px) {
     .container {
         padding: 1.25rem;
+    }
+
+    .interaction-container {
+        padding-top: 2.25rem;
+    }
+
+    .main-title-container {
+        margin-top: 0.85rem;
     }
     
     .balance-amount {

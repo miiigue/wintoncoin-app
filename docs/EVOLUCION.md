@@ -309,6 +309,20 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: encabezado más compacto y profesional; menor ruido visual.
 - **Evidencia**: commit pendiente de push.
 
+### 2026-01-12 — Encabezado en móvil: más aire superior
+
+- **Contexto**: en móviles el encabezado quedaba muy pegado arriba y se veía apretado.
+- **Decisión**: aumentar el padding superior del contenedor del panel y el margen del título en móvil.
+- **Impacto**: mejora la legibilidad y evita sensación de elementos “apretados” en pantalla pequeña.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Menú de usuario: estilo compacto sin fondo
+
+- **Contexto**: el fondo del nombre de usuario ocupaba espacio y chocaba con “¿Cómo funciona?” en móvil.
+- **Decisión**: quitar fondo y borde del trigger, con padding mínimo y hover sutil.
+- **Impacto**: más aire en el encabezado y mejor jerarquía visual.
+- **Evidencia**: commit pendiente de push.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)
