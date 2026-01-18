@@ -638,6 +638,14 @@ hr {
     margin: 0.5rem 0 1rem;
 }
 
+.publications-title {
+    margin-top: 0.75rem;
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+    color: var(--text-color);
+    text-align: left;
+}
+
 .publication-controls-select {
     background-color: var(--background-color);
     border: 1px solid #2a3b5c;

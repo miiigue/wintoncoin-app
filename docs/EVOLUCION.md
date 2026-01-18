@@ -294,6 +294,8 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Permitir editar publicaciones de plataforma desde admin.
   - Asegurar carga de datos al editar publicaciones.
   - Añadir migración 012 para publications.updated_at.
+  - Ajustar textos en "Cómo funciona" y verificación OTP.
+  - Añadir título "Publicaciones Activas" en el panel principal.
 - **Impacto**:
   - Menor fricción de onboarding.
   - Mejor comprensión de saldos, publicaciones y seguridad.
