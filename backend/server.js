@@ -6818,6 +6818,83 @@ async function updateUserBoosterLevel(client, userId) {
     console.log(`Nivel de impulsor para el usuario ID ${userId} actualizado a ${newLevel}.`);
 }
 
+// --- Helper: ranking de impulsores por BLUE iou acumulado ---
+async function getBoosterRankData(client, userId) {
+    const result = await client.query(
+        `
+        WITH totals AS (
+            SELECT user_id, SUM(amount) AS total
+            FROM booster_blue_ledger
+            GROUP BY user_id
+            HAVING SUM(amount) > 0
+        ),
+        ranked AS (
+            SELECT
+                user_id,
+                total,
+                RANK() OVER (ORDER BY total DESC) AS rank_position,
+                COUNT(*) OVER () AS total_users
+            FROM totals
+        )
+        SELECT rank_position, total_users
+        FROM ranked
+        WHERE user_id = $1
+        `,
+        [userId]
+    );
+
+    if (result.rowCount === 0) {
+        return null;
+    }
+
+    const rankPosition = parseInt(result.rows[0].rank_position || '0', 10);
+    const rankTotal = parseInt(result.rows[0].total_users || '0', 10);
+    const rankPercentile = rankTotal > 0 ? Math.ceil((rankPosition / rankTotal) * 100) : null;
+
+    return {
+        rank_position: rankPosition,
+        rank_total: rankTotal,
+        rank_percentile: rankPercentile
+    };
+}
+
+// --- Helper: comparación diaria de BLUE iou vs ayer ---
+async function getBoosterDailyData(client, userId) {
+    const [todayResult, yesterdayResult] = await Promise.all([
+        client.query(
+            `
+            SELECT COALESCE(SUM(amount), 0) AS total
+            FROM booster_blue_ledger
+            WHERE user_id = $1
+              AND amount > 0
+              AND created_at >= date_trunc('day', NOW())
+              AND created_at < date_trunc('day', NOW()) + INTERVAL '1 day'
+            `,
+            [userId]
+        ),
+        client.query(
+            `
+            SELECT COALESCE(SUM(amount), 0) AS total
+            FROM booster_blue_ledger
+            WHERE user_id = $1
+              AND amount > 0
+              AND created_at >= date_trunc('day', NOW()) - INTERVAL '1 day'
+              AND created_at < date_trunc('day', NOW())
+            `,
+            [userId]
+        )
+    ]);
+
+    const todayEarned = parseFloat(todayResult.rows[0]?.total) || 0;
+    const yesterdayEarned = parseFloat(yesterdayResult.rows[0]?.total) || 0;
+
+    return {
+        daily_today: todayEarned,
+        daily_yesterday: yesterdayEarned,
+        daily_improved: todayEarned > yesterdayEarned
+    };
+}
+
 // --- ENDPOINT CORREGIDO Y PROFESIONAL PARA PERFIL DE IMPULSOR ---
 // Devuelve tanto el perfil del usuario como su historial completo de transacciones de impulsor.
 app.get('/api/users/:username/booster-profile', async (req, res) => {
@@ -6856,7 +6933,7 @@ app.get('/api/users/:username/booster-profile', async (req, res) => {
 
         // 3. Obtener niveles, historial (fuente de verdad) y métricas en paralelo.
         // En fintech, el "extracto" debe venir del ledger para que SIEMPRE cuadre con el total.
-        const [ledgerHistoryResult, levelSettingsResult, currentLevelResult, tasksCountResult] = await Promise.all([
+        const [ledgerHistoryResult, levelSettingsResult, currentLevelResult, tasksCountResult, rankData, dailyData] = await Promise.all([
             // Historial: booster_blue_ledger (source of truth) + descripción (si existe) desde booster_transactions
             client.query(
                 `
@@ -6908,7 +6985,9 @@ app.get('/api/users/:username/booster-profile', async (req, res) => {
                  FROM booster_blue_ledger bbl
                  WHERE bbl.user_id = $1 AND bbl.amount > 0 AND bbl.source_publication_id IS NOT NULL`,
                 [user.id]
-            )
+            ),
+            getBoosterRankData(client, user.id),
+            getBoosterDailyData(client, user.id)
         ]);
 
         const allLevels = levelSettingsResult.rows;
@@ -6927,7 +7006,13 @@ app.get('/api/users/:username/booster-profile', async (req, res) => {
             current_level_info: currentLevelInfo,
             next_level_info: nextLevelInfo,
             booster_tasks_completed_count: tasksCompleted,
-            transactions: ledgerHistoryResult.rows
+            transactions: ledgerHistoryResult.rows,
+            rank_position: rankData?.rank_position || null,
+            rank_total: rankData?.rank_total || null,
+            rank_percentile: rankData?.rank_percentile || null,
+            daily_today: dailyData?.daily_today || 0,
+            daily_yesterday: dailyData?.daily_yesterday || 0,
+            daily_improved: dailyData?.daily_improved || false
         });
 
     } catch (error) {
@@ -6966,7 +7051,7 @@ app.get('/api/me/booster-profile', verifyUserToken, async (req, res) => {
         }
 
         // 2) Niveles + historial + conteos (igual que el endpoint por username)
-        const [ledgerHistoryResult, levelSettingsResult, currentLevelResult, tasksCountResult] = await Promise.all([
+        const [ledgerHistoryResult, levelSettingsResult, currentLevelResult, tasksCountResult, rankData, dailyData] = await Promise.all([
             client.query(
                 `
                 SELECT
@@ -7015,7 +7100,9 @@ app.get('/api/me/booster-profile', verifyUserToken, async (req, res) => {
                  FROM booster_blue_ledger bbl
                  WHERE bbl.user_id = $1 AND bbl.amount > 0 AND bbl.source_publication_id IS NOT NULL`,
                 [userId]
-            )
+            ),
+            getBoosterRankData(client, userId),
+            getBoosterDailyData(client, userId)
         ]);
 
         const allLevels = levelSettingsResult.rows;
@@ -7032,7 +7119,13 @@ app.get('/api/me/booster-profile', verifyUserToken, async (req, res) => {
             current_level_info: currentLevelInfo,
             next_level_info: nextLevelInfo,
             booster_tasks_completed_count: tasksCompleted,
-            transactions: ledgerHistoryResult.rows
+            transactions: ledgerHistoryResult.rows,
+            rank_position: rankData?.rank_position || null,
+            rank_total: rankData?.rank_total || null,
+            rank_percentile: rankData?.rank_percentile || null,
+            daily_today: dailyData?.daily_today || 0,
+            daily_yesterday: dailyData?.daily_yesterday || 0,
+            daily_improved: dailyData?.daily_improved || false
         });
     } catch (error) {
         console.error(`Error al obtener el perfil de impulsor (me) para ${username}:`, error);

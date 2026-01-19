@@ -498,6 +498,13 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: control explícito de cache y actualizaciones inmediatas tras release.
 - **Evidencia**: commit pendiente de push.
 
+### 2026-01-19 — Gamificación en perfil de Impulsor
+
+- **Contexto**: se buscaba motivar tareas con ranking y metas diarias.
+- **Decisión**: agregar ranking (#posición y top %) y meta diaria comparando hoy vs ayer, con confeti y brillo cuando hay mejora.
+- **Impacto**: refuerzo positivo y mayor incentivo a mantener actividad diaria.
+- **Evidencia**: commit pendiente de push.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)

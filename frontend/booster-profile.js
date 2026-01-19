@@ -75,15 +75,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const headerHTML = getHeaderHTML(current_level_info);
         const statsHTML = getStatsHTML(total_booster_blue, booster_tasks_completed_count || 0);
+        const rankingHTML = getRankingHTML(data);
+        const dailyGoalHTML = getDailyGoalHTML(data);
         const progressHTML = getProgressHTML(total_booster_blue, current_level_info, next_level_info);
         const historyHTML = getHistoryHTML(transactions);
 
         elements.content.innerHTML = `
             ${headerHTML}
             ${statsHTML}
+            ${rankingHTML}
+            ${dailyGoalHTML}
             ${progressHTML}
             ${historyHTML}
         `;
+
+        if (data.daily_improved) {
+            const dailyCard = elements.content.querySelector('.booster-daily-goal');
+            if (dailyCard) {
+                dailyCard.classList.add('rank-improved');
+                launchConfetti(dailyCard);
+                setTimeout(() => dailyCard.classList.remove('rank-improved'), 2200);
+            }
+        }
     }
 
     function getHeaderHTML(levelInfo) {
@@ -97,15 +110,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getStatsHTML(totalBlue, totalTasks) {
         return `
-            <div class="booster-stats">
-                <div class="stat-box">
-                    <h4>Total BLUE de Impulsor</h4>
-                    <p class="stat-value saldo-blue-text">${formatBalance(totalBlue)}</p>
+            <div class="booster-stats booster-stats-blocks">
+                <div class="booster-stat-block">
+                    <div class="ranking-title">Total BLUE iou de Impulsor</div>
+                    <div class="ranking-position saldo-blue-text">${formatBalance(totalBlue)}</div>
                 </div>
-                <div class="stat-box">
-                    <h4>Tareas de Impulsor Completadas</h4>
-                    <p class="stat-value">${totalTasks}</p>
+                <div class="booster-stat-block">
+                    <div class="ranking-title">Tareas de Impulsor Completadas</div>
+                    <div class="ranking-position">${formatInteger(totalTasks)}</div>
                 </div>
+            </div>
+        `;
+    }
+
+    function getRankingHTML(data) {
+        if (!data.rank_position || !data.rank_total) {
+            return '';
+        }
+
+        const rankText = `#${data.rank_position} de ${formatInteger(data.rank_total)}`;
+        const percentileText = data.rank_percentile ? `Top ${data.rank_percentile}%` : '';
+
+        return `
+            <div class="booster-ranking">
+                <div class="ranking-title">Ranking</div>
+                <div class="ranking-position">${rankText}</div>
+                ${percentileText ? `<div class="ranking-subtitle">${percentileText}</div>` : ''}
+            </div>
+        `;
+    }
+
+    function getDailyGoalHTML(data) {
+        if (data.daily_today == null || data.daily_yesterday == null) {
+            return '';
+        }
+
+        const todayValue = Number(data.daily_today) || 0;
+        const yesterdayValue = Number(data.daily_yesterday) || 0;
+        const progress = yesterdayValue > 0 ? Math.min((todayValue / yesterdayValue) * 100, 100) : (todayValue > 0 ? 100 : 0);
+        const delta = todayValue - yesterdayValue;
+
+        return `
+            <div class="booster-daily-goal">
+                <div class="ranking-title">Meta diaria (hoy vs ayer)</div>
+                <div class="daily-goal-value">${formatBalance(todayValue)} hoy</div>
+                <div class="daily-goal-bar">
+                    <div class="daily-goal-fill" style="width: ${progress}%;"></div>
+                </div>
+                <div class="ranking-subtitle">Ayer: ${formatBalance(yesterdayValue)} | Diferencia: ${formatDelta(delta)}</div>
+                ${data.daily_improved ? `<div class="daily-goal-reward">🎉 ¡Mejoraste tu día anterior!</div>` : ''}
             </div>
         `;
     }
@@ -201,5 +254,42 @@ document.addEventListener('DOMContentLoaded', () => {
             return `${parts[0]},<span class="decimal-part">${parts[1]}</span>`;
         }
         return formattedString;
+    }
+
+    function formatInteger(value) {
+        return Number(value || 0).toLocaleString('es-ES');
+    }
+
+    function formatDelta(value) {
+        const numeric = Number(value) || 0;
+        const sign = numeric > 0 ? '+' : '';
+        return `${sign}${formatBalance(numeric)}`;
+    }
+
+    function launchConfetti(container) {
+        const bursts = 3;
+        const burstSpacing = 900;
+        const colors = ['#f5d76e', '#6a5acd', '#2ecc71', '#ffffff'];
+
+        const spawnBurst = () => {
+            const confettiCount = 18;
+            for (let i = 0; i < confettiCount; i += 1) {
+                const piece = document.createElement('span');
+                const size = 6 + Math.random() * 6;
+                piece.className = 'confetti-piece';
+                piece.style.left = `${8 + Math.random() * 84}%`;
+                piece.style.background = colors[i % colors.length];
+                piece.style.animationDelay = `${Math.random() * 0.3}s`;
+                piece.style.width = `${size}px`;
+                piece.style.height = `${size + 4}px`;
+                piece.style.transform = `rotate(${Math.random() * 180}deg)`;
+                container.appendChild(piece);
+                setTimeout(() => piece.remove(), 2200);
+            }
+        };
+
+        for (let i = 0; i < bursts; i += 1) {
+            setTimeout(spawnBurst, i * burstSpacing);
+        }
     }
 }); 
