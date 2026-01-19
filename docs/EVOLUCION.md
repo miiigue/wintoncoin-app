@@ -477,6 +477,27 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: coherencia tipográfica en el banner.
 - **Evidencia**: commit pendiente de push.
 
+### 2026-01-12 — Protocolo de release documentado
+
+- **Contexto**: se necesitaba una guía persistente de versionado y despliegue.
+- **Decisión**: crear `docs/RELEASE_PROTOCOL.md` con flujo SemVer + checklist.
+- **Impacto**: releases consistentes y auditables en futuros cambios.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Archivo VERSION para releases
+
+- **Contexto**: se necesitaba un punto único y auditable de la versión.
+- **Decisión**: agregar el archivo `VERSION` y referenciarlo en el protocolo.
+- **Impacto**: claridad de versión en cada release.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Versionado manual de assets (v1.4.0)
+
+- **Contexto**: el cache del navegador podía mantener estilos/scripts viejos tras un deploy.
+- **Decisión**: renombrar assets estáticos a `style.v1.4.0.css`, `utils.v1.4.0.js` y `interaction.v1.4.0.js` y actualizar referencias en HTML.
+- **Impacto**: control explícito de cache y actualizaciones inmediatas tras release.
+- **Evidencia**: commit pendiente de push.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)

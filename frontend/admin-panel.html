@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Panel de Administración - Winton Coin</title>
-    <link id="main-stylesheet" rel="stylesheet" href="style.css">
-    <link id="admin-stylesheet" rel="stylesheet" href="admin-style.css"> <!-- Hoja de estilos específica para el panel -->
-    <script>
-        document.getElementById('main-stylesheet').href = `style.css?v=${new Date().getTime()}`;
-        document.getElementById('admin-stylesheet').href = `admin-style.css?v=${new Date().getTime()}`;
-    </script>
+    <link id="main-stylesheet" rel="stylesheet" href="style.v1.4.0.css">
+    <link id="admin-stylesheet" rel="stylesheet" href="admin-style.v1.4.0.css"> <!-- Hoja de estilos específica para el panel -->
 </head>
 <body>
     <div class="admin-grid-container">
@@ -450,8 +449,8 @@
         </main>
     </div>
 
-    <script src="utils.js"></script>
-    <script src="admin-panel.js"></script>
+    <script src="utils.v1.4.0.js"></script>
+    <script src="admin-panel.v1.4.0.js"></script>
 
     <!-- Modal de Alerta -->
     <div id="customAlertModal" class="modal">

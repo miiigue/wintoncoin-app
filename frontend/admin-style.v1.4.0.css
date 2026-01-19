@@ -1,0 +1,1418 @@
+/* --- Estilos Generales para el Panel de Administración --- */
+:root {
+    --admin-bg: #161a1d; /* Un negro/gris muy oscuro */
+    --admin-surface: #202528; /* Un gris un poco más claro */
+    --admin-border: #3a3f44;
+    --admin-text: #f0f2f5;
+    --admin-text-secondary: #b0b3b8;
+    --admin-primary: #0a84ff; /* Un azul brillante, tipo Apple */
+}
+
+/* --- Layout Principal con Grid --- */
+.admin-grid-container {
+    display: grid;
+    grid-template-columns: 240px 1fr; /* Columna fija para el sidebar, el resto para el main */
+    grid-template-rows: 1fr;
+    height: 100vh;
+    width: 100vw;
+    background-color: var(--admin-bg);
+}
+
+.admin-sidebar {
+    background-color: var(--admin-surface);
+    border-right: 1px solid var(--admin-border);
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem;
+}
+
+.admin-main {
+    padding: 2rem 3rem;
+    overflow-y: auto; /* Permitir scroll solo en el contenido principal */
+}
+
+/* --- Barra Lateral (Sidebar) --- */
+.sidebar-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    color: var(--admin-primary);
+    font-size: 1.5rem;
+}
+
+.sidebar-header p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--admin-text-secondary);
+}
+
+.sidebar-nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar-nav li {
+    margin-bottom: 0.5rem;
+}
+
+.sidebar-nav .nav-link {
+    display: block;
+    padding: 0.75rem 1rem;
+    color: var(--admin-text-secondary);
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.sidebar-nav .nav-link:hover {
+    background-color: var(--admin-bg);
+    color: var(--admin-text);
+}
+
+.sidebar-nav .nav-link.active {
+    background-color: var(--admin-primary);
+    color: white;
+    font-weight: 600;
+}
+
+.sidebar-nav .nav-link {
+    position: relative;
+}
+
+.nav-badge {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background-color: var(--error-color);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-left: 8px;
+    line-height: 1;
+}
+
+.nav-badge.is-visible {
+    display: inline-flex;
+}
+
+.sidebar-footer {
+    margin-top: auto; /* Empuja el footer hacia abajo */
+}
+
+.sidebar-footer a {
+    color: var(--admin-text-secondary);
+    text-decoration: none;
+}
+.sidebar-footer a:hover {
+    color: var(--error-color);
+}
+
+/* --- Secciones de Contenido --- */
+.admin-section {
+    display: none; /* Ocultas por defecto */
+}
+.admin-section.active-section {
+    display: block; /* La sección activa se muestra */
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+.admin-section h1 {
+    color: var(--admin-text);
+}
+
+.admin-section p {
+    color: var(--admin-text-secondary);
+    max-width: 80ch;
+}
+
+/* --- Estilos para el Dashboard --- */
+.stats-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.stat-card {
+    background-color: var(--admin-surface);
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid var(--admin-border);
+}
+
+.stat-card h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--admin-text-secondary);
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.stat-card .stat-value {
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: var(--admin-text);
+}
+
+/* --- Estilos para los Interruptores de Configuración --- */
+.settings-container {
+    margin-top: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.setting-item {
+    background-color: var(--admin-surface);
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.setting-item-info h4 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--admin-text);
+}
+
+.setting-item-info p {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.9rem;
+    color: var(--admin-text-secondary);
+}
+
+.setting-item-control {
+    flex-shrink: 0; /* Evita que el input se encoja */
+}
+
+/* --- Nuevo: Estilo para grupos de inputs numéricos --- */
+.setting-item-control-group {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end; /* Alinea los inputs y labels en la base */
+}
+
+.numeric-group-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.numeric-group-item label {
+    font-size: 0.8rem;
+    color: var(--admin-text-secondary);
+    margin-bottom: 0.25rem;
+    text-align: center;
+}
+
+.numeric-group-item .admin-numeric-input {
+    width: 70px; /* Ancho reducido para cada input */
+}
+/* --- Fin de lo nuevo --- */
+
+.admin-numeric-input {
+    width: 80px;
+    padding: 10px 15px;
+    border-radius: 8px;
+    background-color: var(--admin-bg);
+    border: 1px solid var(--admin-border);
+    color: var(--admin-text);
+    font-size: 1rem;
+    text-align: center;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+}
+
+.switch input { 
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #3e3e3e;
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: var(--admin-primary);
+}
+
+input:focus + .slider {
+    box-shadow: 0 0 1px var(--admin-primary);
+}
+
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+
+/* --- Estilos para la Gestión de Usuarios (y otras tablas) --- */
+.table-controls {
+    margin: 2rem 0 1rem 0;
+}
+
+.table-controls input[type="text"] {
+    padding: 10px 15px;
+    border-radius: 8px;
+    background-color: var(--admin-bg);
+    border: 1px solid var(--admin-border);
+    color: var(--admin-text);
+    font-size: 1rem;
+    width: 100%;
+    max-width: 400px;
+}
+
+.table-container-admin {
+    width: 100%;
+    overflow-x: auto;
+    background-color: var(--admin-surface);
+    border-radius: 12px;
+    border: 1px solid var(--admin-border);
+}
+
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+    padding: 1rem 1.5rem;
+    text-align: left;
+    border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-table thead th {
+    color: var(--admin-text-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
+}
+
+.admin-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.admin-table tbody tr:hover {
+    background-color: var(--admin-bg);
+}
+
+.admin-table .username-cell {
+    font-weight: 600;
+    color: var(--admin-text);
+}
+
+.admin-table .username-cell a {
+    color: var(--admin-primary);
+    text-decoration: none;
+}
+
+.admin-table .username-cell a:hover {
+    text-decoration: underline;
+}
+
+.admin-table .saldo-escrow-text {
+    color: #8e44ad;
+}
+
+.admin-table .rating-cell .stars {
+    color: #ffc107;
+}
+
+.admin-table .no-rating {
+    color: var(--admin-text-secondary);
+    font-style: italic;
+}
+
+.admin-table .audit-metadata {
+    max-width: 320px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--admin-text-secondary);
+    font-size: 0.9rem;
+}
+
+/* --- Estilos para la tabla de publicaciones --- */
+
+.admin-table .publication-title-cell {
+    max-width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: help; /* Para indicar que se puede hacer hover y ver el título completo */
+}
+
+.admin-table .status-badge {
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: white;
+    text-transform: capitalize;
+}
+
+/* Tipo de Publicación */
+.admin-table .status-badge.sell {
+    background-color: #ffc107; /* Amarillo */
+    color: #111;
+}
+
+.admin-table .status-badge.request {
+    background-color: #17a2b8; /* Cyan */
+}
+
+/* Status de la Publicación */
+.admin-table .status-badge.open { background-color: #28a745; } /* Verde */
+.admin-table .status-badge.pausada { background-color: #6c757d; } /* Gris */
+.admin-table .status-badge.closed { background-color: #dc3545; } /* Rojo */
+.admin-table .status-badge.completed { background-color: #6f42c1; } /* Morado */
+.admin-table .status-badge.expired { background-color: #fd7e14; } /* Naranja */
+.admin-table .status-badge.deleted { background-color: #dc3545; } /* Rojo */
+
+.action-button-admin {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    border: none;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.action-button-admin:hover {
+    transform: translateY(-1px);
+    opacity: 0.9;
+}
+
+.action-button-admin.delete {
+    background-color: #dc3545;
+}
+
+.action-button-admin.approve {
+    background-color: #28a745; /* Verde */
+}
+
+.action-button-admin.confirm {
+    background-color: #6f42c1; /* Púrpura */
+}
+
+.action-button-admin.danger {
+    background-color: #dc3545; /* Mismo color que eliminar */
+    border: 1px solid #ff7b7b;
+}
+.action-button-admin.danger:hover {
+    background-color: #c82333;
+}
+
+/* --- NUEVO: Estilos para la navegación por pestañas --- */
+.admin-tabs {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 2px solid var(--admin-border);
+    margin: 2rem 0;
+}
+
+.tab-link {
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    background-color: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--admin-text-secondary);
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    transform: translateY(2px); /* Alinear con el borde inferior */
+}
+
+.tab-link:hover {
+    background-color: var(--admin-bg);
+    color: var(--admin-text);
+}
+
+.tab-link.active {
+    color: var(--admin-primary);
+    border-bottom-color: var(--admin-primary);
+    font-weight: 600;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+/* --- NUEVO: Estilos para el formulario de creación de publicaciones de la plataforma --- */
+.admin-form {
+    background-color: var(--admin-surface);
+    padding: 2rem;
+    border-radius: 12px;
+    margin-top: 2rem;
+    border: 1px solid var(--admin-border);
+}
+
+.form-group-admin {
+    margin-bottom: 1.5rem;
+}
+
+.form-group-admin label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--admin-text-secondary);
+    font-weight: 500;
+}
+
+.form-group-admin input[type="text"],
+.form-group-admin input[type="number"],
+.form-group-admin textarea {
+    width: 100%;
+    padding: 10px 15px;
+    border-radius: 8px;
+    background-color: var(--admin-bg);
+    border: 1px solid var(--admin-border);
+    color: var(--admin-text);
+    font-size: 1rem;
+    box-sizing: border-box; /* Importante para que el padding no desborde el contenedor */
+}
+
+.admin-text-input,
+.admin-textarea-input {
+    width: 100%;
+    padding: 10px 15px;
+    border-radius: 8px;
+    background-color: var(--admin-bg);
+    border: 1px solid var(--admin-border);
+    color: var(--admin-text);
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+.admin-textarea-input {
+    resize: vertical;
+    min-height: 50px; /* Una altura mínima para que no sea tan pequeño */
+}
+
+.form-group-admin textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+/* --- NUEVO: Pasos en publicaciones de plataforma --- */
+.admin-step-inputs {
+    display: grid;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.admin-step-input label {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: var(--admin-text-secondary);
+    font-weight: 500;
+}
+
+.admin-step-add-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--admin-primary);
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.admin-step-add-btn:disabled {
+    color: var(--admin-text-secondary);
+    cursor: not-allowed;
+    text-decoration: none;
+}
+
+.admin-step-flow {
+    margin: 0.75rem 0 1rem;
+}
+
+.admin-step-title {
+    margin-bottom: 0.5rem;
+    color: var(--admin-text);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.admin-steps-list {
+    list-style: none;
+    margin: 0;
+    padding-left: 0;
+    position: relative;
+}
+
+.admin-steps-list::before {
+    content: "";
+    position: absolute;
+    left: 16px;
+    top: 10px;
+    bottom: 10px;
+    width: 2px;
+    background: var(--admin-border);
+}
+
+.admin-step-item {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 0.75rem;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+}
+
+.admin-step-node {
+    display: flex;
+    justify-content: center;
+}
+
+.admin-step-index {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--admin-bg);
+    color: var(--admin-text);
+    border: 2px solid var(--admin-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.admin-step-badge {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--admin-text);
+    margin-bottom: 0.2rem;
+}
+
+.admin-step-content {
+    text-align: left;
+}
+
+.admin-step-text {
+    color: var(--admin-text-secondary);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.form-row-admin {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-end; /* Alinear elementos en la base */
+    margin-bottom: 1.5rem;
+}
+
+.radio-group-admin {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.radio-group-admin input[type="radio"] {
+    accent-color: var(--admin-primary); /* Colorea el radio button con el color primario */
+}
+
+.radio-group-admin label {
+    margin-bottom: 0; /* Quitar el margen inferior para los labels de radio */
+    font-weight: normal;
+}
+
+.action-button-admin.publish {
+    background-color: var(--admin-primary);
+}
+
+.action-button-admin.edit {
+    background-color: #1f6feb;
+}
+
+.admin-form-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.admin-edit-cancel {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--admin-text-secondary);
+    text-decoration: underline;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.admin-edit-notice {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    background-color: rgba(10, 132, 255, 0.1);
+    border: 1px solid rgba(10, 132, 255, 0.35);
+    color: var(--admin-text);
+    font-weight: 600;
+}
+
+.history-item-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin: 0.5rem 0 0.75rem;
+}
+
+/* Reutilizamos los estilos de la hoja principal para la coherencia */
+.form-group-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: left;
+    background-color: var(--admin-bg);
+    margin-bottom: 1.5rem;
+}
+
+.form-group-checkbox input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    accent-color: var(--admin-primary);
+}
+
+.form-group-checkbox label {
+    margin-bottom: 0;
+    font-weight: 600;
+    color: var(--admin-text);
+}
+
+.repeat-limit-input {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+    flex-wrap: wrap;
+}
+
+.repeat-limit-input label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--admin-text-secondary);
+}
+
+.repeat-limit-input input[type="number"] {
+    width: 72px;
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--admin-border);
+    background-color: var(--admin-bg);
+    color: var(--admin-text);
+}
+
+.repeat-limit-input .input-hint {
+    width: 100%;
+    margin: 0.25rem 0 0;
+    font-size: 0.75rem;
+    color: var(--admin-text-secondary);
+}
+
+.booster-task-checkbox {
+    background-color: rgba(106, 90, 205, 0.1);
+    border: 1px solid var(--admin-primary);
+}
+
+.booster-task-checkbox label {
+    color: var(--admin-primary);
+}
+
+
+/* --- NUEVO: Estilos para la sección de gestión de publicaciones --- */
+.admin-divider {
+    border: none;
+    border-top: 1px solid var(--admin-border);
+    margin: 3rem 0;
+}
+
+.publications-list-admin {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.history-item-admin {
+    background-color: var(--admin-bg);
+    border: 1px solid var(--admin-border);
+    border-radius: 10px;
+    padding: 1.5rem;
+}
+
+.history-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.pending-badges {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.history-item-header h3 {
+    margin: 0;
+}
+
+.history-item-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.5rem 1rem;
+    margin: 0.75rem 0 1.25rem 0;
+    color: var(--admin-text-secondary);
+    font-size: 0.9rem;
+}
+
+.history-item-meta span {
+    display: block;
+}
+
+.pending-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fff;
+    background-color: var(--error-color);
+}
+
+.pending-badge.warning {
+    background-color: #f39c12;
+    color: #111;
+}
+
+.history-item-admin h3 {
+    margin: 0 0 1rem 0;
+    color: var(--admin-text);
+}
+
+.participants-list-admin {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.participant-item-admin {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    border-radius: 6px;
+    background-color: var(--admin-surface);
+}
+
+.participant-info-admin strong a {
+    color: var(--admin-primary);
+    text-decoration: none;
+}
+.participant-info-admin strong a:hover {
+    text-decoration: underline;
+}
+
+.participant-info-admin .rating-display {
+    font-size: 0.8rem;
+    color: var(--admin-text-secondary);
+    margin-left: 0.5rem;
+}
+.participant-info-admin .rating-display .stars {
+    color: #ffc107;
+}
+
+.participant-status-admin {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* --- NUEVO: Estilos para la Zona de Peligro --- */
+.danger-zone-container {
+    margin-top: 2rem;
+    border: 2px solid #dc3545;
+    border-radius: 12px;
+    padding: 1.5rem;
+    background-color: rgba(220, 53, 69, 0.05);
+}
+
+.danger-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+}
+
+.danger-item-info h4 {
+    color: #dc3545;
+    margin: 0 0 0.5rem 0;
+    font-size: 1.2rem;
+}
+
+.danger-item-info p {
+    color: var(--admin-text);
+    max-width: 70ch;
+}
+
+
+/* Regla ultra-específica y autoritaria para los decimales */
+.decimal-part {
+    font-size: 0.7em !important;
+    vertical-align: super; /* Alinea los decimales como un superíndice, visualmente más atractivo */
+} 
+
+/* --- ESTILOS PARA GESTIÓN DE BASE DE DATOS --- */
+
+.database-stats-card,
+.backup-tools-card,
+.cleanup-tools-card {
+    background-color: var(--admin-surface);
+    border: 1px solid var(--admin-border);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.database-stats-card h2,
+.backup-tools-card h2,
+.cleanup-tools-card h2 {
+    color: var(--admin-text);
+    margin: 0 0 1rem 0;
+    font-size: 1.3rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+}
+
+.stat-item {
+    background-color: var(--admin-bg);
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--admin-border);
+    text-align: center;
+    transition: transform 0.2s ease;
+}
+
+.stat-item:hover {
+    transform: translateY(-2px);
+}
+
+.stat-value {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: var(--admin-primary);
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: var(--admin-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.backup-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.cleanup-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+    margin: 1.5rem 0;
+}
+
+.cleanup-option {
+    background-color: var(--admin-bg);
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    transition: border-color 0.2s ease;
+}
+
+.cleanup-option:hover {
+    border-color: var(--admin-primary);
+}
+
+.cleanup-option h3 {
+    margin: 0 0 0.75rem 0;
+    color: var(--admin-text);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.cleanup-option p {
+    margin: 0 0 1rem 0;
+    color: var(--admin-text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.input-group {
+    margin: 1rem 0 1.5rem 0;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--admin-text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.number-input {
+    width: 120px;
+    padding: 8px 12px;
+    border: 1px solid var(--admin-border);
+    background-color: var(--admin-bg);
+    color: var(--admin-text);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.number-input:focus {
+    outline: none;
+    border-color: var(--admin-primary);
+    box-shadow: 0 0 5px rgba(10, 132, 255, 0.3);
+}
+
+.action-button-admin.backup {
+    background-color: #17a2b8; /* Cyan */
+}
+
+.action-button-admin.backup:hover {
+    background-color: #138496;
+}
+
+.action-button-admin.cleanup {
+    background-color: #ffc107; /* Amarillo */
+    color: #212529;
+    font-weight: 600;
+}
+
+.action-button-admin.cleanup:hover {
+    background-color: #e0a800;
+}
+
+.status-message {
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    display: none; /* Oculto por defecto */
+    animation: fadeIn 0.3s ease-in;
+}
+
+.status-message.success {
+    background-color: rgba(40, 167, 69, 0.15);
+    border: 1px solid #28a745;
+    color: #28a745;
+    display: block;
+}
+
+.status-message.error {
+    background-color: rgba(220, 53, 69, 0.15);
+    border: 1px solid #dc3545;
+    color: #dc3545;
+    display: block;
+}
+
+.status-message.info {
+    background-color: rgba(23, 162, 184, 0.15);
+    border: 1px solid #17a2b8;
+    color: #17a2b8;
+    display: block;
+}
+
+.warning-section {
+    background-color: rgba(255, 193, 7, 0.08);
+    border: 1px solid #ffc107;
+    border-radius: 10px;
+    padding: 2rem;
+    margin-top: 2rem;
+}
+
+.warning-section h2 {
+    color: #ffc107;
+    margin: 0 0 1.5rem 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.warning-text {
+    color: #ffc107;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.best-practices-list {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 0 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 0.5rem;
+}
+
+.best-practices-list li {
+    padding: 0.5rem 0;
+    color: var(--admin-text);
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+/* Efectos especiales para botones de acción crítica */
+.action-button-admin.cleanup {
+    position: relative;
+    overflow: hidden;
+}
+
+.action-button-admin.cleanup:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.action-button-admin.cleanup:hover:before {
+    left: 100%;
+}
+
+/* --- NUEVOS ESTILOS PARA GESTIÓN DE BASE DE DATOS --- */
+
+.status-container {
+    margin-top: 1rem;
+}
+
+.status-message {
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+    font-weight: 500;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.status-success {
+    background-color: rgba(40, 167, 69, 0.1);
+    border: 1px solid #28a745;
+    color: #28a745;
+}
+
+.status-error {
+    background-color: rgba(220, 53, 69, 0.1);
+    border: 1px solid #dc3545;
+    color: #dc3545;
+}
+
+.cleanup-option {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.cleanup-option h3 {
+    margin-top: 0;
+    color: var(--text-color);
+}
+
+.input-group {
+    margin: 1rem 0;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary-color);
+    font-weight: 500;
+}
+
+.number-input {
+    width: 100px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    font-size: 1rem;
+}
+
+.number-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 5px rgba(106, 90, 205, 0.3);
+}
+
+.action-button-admin.backup {
+    background-color: #20c997;
+    color: white;
+}
+
+.action-button-admin.backup:hover {
+    background-color: #1aa085;
+}
+
+.warning-section {
+    background-color: rgba(255, 193, 7, 0.1);
+    border: 1px solid #ffc107;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+}
+
+.warning-section h2 {
+    color: #ffc107;
+    margin-top: 0;
+}
+
+.best-practices-list {
+    list-style: none;
+    padding: 0;
+}
+
+.best-practices-list li {
+    padding: 0.5rem 0;
+    color: var(--text-color);
+}
+
+.backup-tools-card,
+.cleanup-tools-card,
+.database-stats-card {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.backup-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Estilos para las estadísticas de base de datos */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.stat-item {
+    background-color: var(--background-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary-color);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Spinner de carga mejorado */
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--border-color);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 2rem auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Estilos para la columna de acciones y el menú desplegable */
+.actions-cell {
+    text-align: center;
+}
+
+.action-menu-container {
+    position: relative; /* <-- CORRECCIÓN: De static a relative */
+}
+
+.action-menu-container .menu-toggle {
+    background: var(--admin-bg-main);
+    border: 1px solid var(--admin-border-color);
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--admin-text-primary);
+}
+
+.action-menu-container .menu-toggle:hover {
+    background: var(--admin-bg-hover);
+    border-color: #555;
+}
+
+.action-menu {
+    display: none;
+    position: absolute;
+    right: 0; /* Alineado a la derecha del contenedor */
+    top: 100%; /* Justo debajo del botón */
+    margin-top: 8px; /* Pequeño espacio para que no esté pegado */
+    background-color: var(--admin-bg-light);
+    border: 1px solid var(--admin-border-color);
+    border-radius: 8px;
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+    z-index: 100;
+    min-width: 180px;
+    padding: 0.5rem 0;
+    overflow: hidden;
+}
+
+.action-menu.visible {
+    display: block;
+}
+
+.action-menu .action-button-admin {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.75rem 1.25rem;
+    border: none;
+    background: none;
+    color: var(--admin-text-primary);
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.action-menu .action-button-admin:hover {
+    background-color: var(--admin-bg-hover);
+}
+
+.action-menu .action-button-admin.danger:hover {
+    background-color: #5c2a2a;
+    color: #fff;
+}
+
+
+/* --- NUEVOS ESTILOS PARA ESTADOS DE USUARIO --- */
+.status-badge.active {
+    background-color: var(--status-completed-bg);
+    color: var(--status-completed-text);
+}
+
+.status-badge.suspended {
+    background-color: #fff8e1; /* Amarillo claro */
+    color: #f57c00;
+}
+
+.status-badge.banned {
+    background-color: #fbe9e7; /* Rojo claro */
+    color: #d32f2f;
+    font-weight: bold;
+}
+
+/* Saldos */
+.saldo-blue-text {
+    color: var(--blue-token-color);
+    font-weight: 600;
+}
+
+.saldo-booster-text {
+    color: var(--escrow-token-color); /* Usamos el mismo color que escrow por consistencia */
+    font-weight: 600;
+}
+
+.saldo-escrow-text {
+    color: var(--escrow-token-color);
+}
