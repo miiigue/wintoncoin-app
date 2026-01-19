@@ -16,6 +16,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return formattedString;
     }
 
+    function formatBalanceWithGrouping(value) {
+        const num = Number(value);
+        if (!Number.isFinite(num)) {
+            return formatBalance(value);
+        }
+        const fixed = num.toFixed(4);
+        const [integerPart, decimalPart] = fixed.split('.');
+        const grouped = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        return `${grouped},<span class="decimal-part">${decimalPart}</span>`;
+    }
+
     // --- Configuración Global ---
     // Lógica para determinar la URL del API automáticamente
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
@@ -66,6 +77,10 @@ document.addEventListener('DOMContentLoaded', () => {
         availableCountdownContainer: document.getElementById('available-countdown-container'),
         availableCountdownText: document.getElementById('available-countdown-text'),
         publicationsCount: document.getElementById('publicationsCount'),
+        boosterSummary: document.getElementById('boosterSummary'),
+        boosterTotalBlue: document.getElementById('boosterTotalBlue'),
+        boosterProgressText: document.getElementById('boosterProgressText'),
+        boosterProgressFill: document.getElementById('boosterProgressFill'),
         authoredList: document.getElementById('authored-publications-list'),
         completedList: document.getElementById('completed-publications-list')
     };
@@ -74,6 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let debtCountdownInterval = null;
     let escrowCountdownInterval = null;
     let availableCountdownInterval = null; // Nuevo intervalo para el saldo disponible
+    let lastBoosterFetch = 0;
 
     // --- Lógica de Control de Funcionalidades ---
     // Escuchamos el evento personalizado para actualizar la UI según los permisos
@@ -204,6 +220,7 @@ newElement.style.cursor = 'pointer';
         fetchAndDisplayPublications();
         fetchNotifications();
         fetchAndDisplayBalances();
+        fetchBoosterSummary();
     }
 
     // --- Lógica de la Interfaz (Menús, etc.) ---
@@ -521,6 +538,67 @@ newElement.style.cursor = 'pointer';
         } catch (error) {
             console.error('Error al obtener publicaciones:', error);
             elements.publicationsList.innerHTML = '<p>No se pudo conectar con el servidor para obtener las publicaciones.</p>';
+        }
+    }
+
+    async function fetchBoosterSummary() {
+        if (!elements.boosterSummary) {
+            return;
+        }
+
+        const now = Date.now();
+        if (now - lastBoosterFetch < 60000) {
+            return;
+        }
+        lastBoosterFetch = now;
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            elements.boosterSummary.style.display = 'none';
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/api/me/booster-profile`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const result = await response.json();
+
+            if (!response.ok || !result?.is_booster) {
+                elements.boosterSummary.style.display = 'none';
+                return;
+            }
+
+            const totalBoosterBlue = Number(result.total_booster_blue || 0);
+            const currentLevel = Number(result.booster_level || 0);
+            const tasksCompleted = Number(result.booster_tasks_completed_count || 0);
+            const nextLevel = result.next_level_info;
+            const nextMin = nextLevel ? Number(nextLevel.min_blue_required || 0) : 0;
+
+            if (elements.boosterTotalBlue) {
+                const formattedBlue = formatBalance(totalBoosterBlue);
+                const formattedGroupedBlue = formatBalanceWithGrouping(totalBoosterBlue);
+                elements.boosterTotalBlue.innerHTML = `<span class="booster-total-value">${formattedGroupedBlue}</span> <span class="booster-total-unit">BLUE iou</span>`;
+            }
+
+            let progressPercent = 100;
+            let progressText = 'Nivel máximo alcanzado';
+            if (nextMin > 0) {
+                progressPercent = Math.min(100, (totalBoosterBlue / nextMin) * 100);
+                progressText = `${totalBoosterBlue.toFixed(4)} / ${nextMin.toFixed(4)} BLUE iou`;
+            }
+
+            if (elements.boosterProgressText) {
+                elements.boosterProgressText.textContent = progressText;
+            }
+            if (elements.boosterProgressFill) {
+                elements.boosterProgressFill.style.width = `${progressPercent}%`;
+            }
+
+            elements.boosterSummary.style.display = 'block';
+        } catch (error) {
+            console.error('Error al cargar el resumen de impulsor:', error);
+            elements.boosterSummary.style.display = 'none';
         }
     }
 

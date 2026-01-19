@@ -358,6 +358,125 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: control fino, auditable y coherente con reglas fintech.
 - **Evidencia**: commit pendiente de push.
 
+### 2026-01-12 — Mini tarjeta de Impulsor en pantalla principal
+
+- **Contexto**: el usuario necesita ver su estado de Impulsor sin salir del panel.
+- **Decisión**: mostrar un widget compacto con nivel, total BLUE iou, progreso y acceso al perfil.
+- **Impacto**: más claridad y motivación sin saturar la UI.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Banner horizontal de Impulsor (comparativa UI)
+
+- **Contexto**: comparar una opción más visible tipo banner.
+- **Decisión**: reemplazar la tarjeta por un banner con ícono, métricas y barra de progreso.
+- **Impacto**: mayor presencia visual sin perder jerarquía.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Título junto al ícono (Impulsor)
+
+- **Contexto**: se necesitaba compactar el encabezado del banner.
+- **Decisión**: poner la estrella al lado del título y quitar el fondo del ícono.
+- **Impacto**: encabezado más limpio y alineado.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Banner de Impulsor sin barra de progreso
+
+- **Contexto**: se solicitó una vista más limpia del banner.
+- **Decisión**: eliminar la barra de progreso del widget.
+- **Impacto**: visual más simple y menos ruido.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Tipografía del banner de Impulsor
+
+- **Contexto**: el título debía igualar el tamaño de SALDO BLUE/RED y el monto BLUE iou debía destacarse.
+- **Decisión**: aplicar mayúsculas al título y aumentar tamaño + cursiva del monto BLUE iou.
+- **Impacto**: mayor coherencia visual con los saldos.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Banner de Impulsor sin nivel
+
+- **Contexto**: se pidió una vista más simple sin el nivel.
+- **Decisión**: eliminar el badge de nivel del banner.
+- **Impacto**: layout más limpio y directo.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Formato del monto BLUE iou en impulsor
+
+- **Contexto**: se pidió separar miles y reducir tamaño de decimales.
+- **Decisión**: reutilizar el formateo con separadores y `decimal-part`.
+- **Impacto**: mejor legibilidad del monto en el banner.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Destacar monto BLUE iou en impulsor
+
+- **Contexto**: el monto debía verse más grande y con más color.
+- **Decisión**: separar valor/unidad con estilos y aumentar tamaño del valor.
+- **Impacto**: mayor énfasis visual sin afectar el resto del banner.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Banner de valor sobre referidos
+
+- **Contexto**: se pidió mostrar el texto de valor antes del bloque de referidos.
+- **Decisión**: mover el banner arriba del botón “Comparte tu código” y fijar el texto solicitado.
+- **Impacto**: jerarquía más clara del mensaje de valor.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Banner de Impulsor sin tareas y centrado
+
+- **Contexto**: se pidió remover “tareas” y alinear mejor el bloque.
+- **Decisión**: eliminar el texto de tareas y centrar el espaciado del meta.
+- **Impacto**: banner más limpio y equilibrado.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Tarjeta de Impulsor como enlace
+
+- **Contexto**: se pidió quitar “Ver perfil” y usar la tarjeta completa como acceso.
+- **Decisión**: convertir el banner en enlace a `booster-profile.html`.
+- **Impacto**: interacción más directa y limpia.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Título de Impulsor centrado
+
+- **Contexto**: se pidió centrar el texto “Perfil de Impulsor”.
+- **Decisión**: centrar el encabezado del banner.
+- **Impacto**: mejor alineación visual.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Ícono de Impulsor simétrico
+
+- **Contexto**: se pidió simetría visual en el título.
+- **Decisión**: colocar una estrella a cada lado del texto.
+- **Impacto**: banner más equilibrado.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Espaciado uniforme en el panel
+
+- **Contexto**: se pidió un margen mínimo y consistente entre elementos.
+- **Decisión**: unificar márgenes de banner impulsor, valor, referidos y botones.
+- **Impacto**: layout más limpio y homogéneo.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Monto BLUE iou con mayor tamaño
+
+- **Contexto**: el monto debía verse al doble de tamaño.
+- **Decisión**: aumentar el tamaño del valor principal en el banner.
+- **Impacto**: mayor énfasis visual del monto BLUE iou.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Separador de miles en BLUE iou
+
+- **Contexto**: el monto debía mostrarse como `1.640,0000`.
+- **Decisión**: formatear el valor del banner con separador de miles fijo.
+- **Impacto**: formato numérico consistente y más legible.
+- **Evidencia**: commit pendiente de push.
+
+### 2026-01-12 — Tamaño de “BLUE iou” igual al título
+
+- **Contexto**: se pidió que el texto “BLUE iou” igualara el tamaño de “Perfil de Impulsor”.
+- **Decisión**: aumentar el tamaño de la unidad en el banner.
+- **Impacto**: coherencia tipográfica en el banner.
+- **Evidencia**: commit pendiente de push.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)
