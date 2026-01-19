@@ -311,7 +311,7 @@ async function initializeValueBanner() {
         // CORRECCIÓN LÓGICA: Ahora el texto se construye en una variable
         let bannerText = '';
 
-        bannerText = `VALOR 1 BLUE iou = 1 BLUE = 1 USD $`;
+        bannerText = `1 BLUE iou = 1 BLUE = 1 USD`;
         
         // El texto final se envuelve en el span con la clase para el efecto
         bannerTextContainer.innerHTML = `<span class="shimmer-text">${bannerText}</span>`;
@@ -323,7 +323,7 @@ async function initializeValueBanner() {
     } catch (error) {
         console.error('Error al inicializar el banner de valor:', error);
         // Fallback unificado
-        bannerTextContainer.innerHTML = `<span class="shimmer-text">VALOR 1 BLUE iou = 1 BLUE = 1 USD $</span>`;
+        bannerTextContainer.innerHTML = `<span class="shimmer-text">1 BLUE iou = 1 BLUE = 1 USD</span>`;
         banner.style.display = 'flex';
         
         // Inicializar funcionalidad del tooltip incluso en caso de error
