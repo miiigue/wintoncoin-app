@@ -726,6 +726,36 @@ input:checked + .slider:before {
     color: var(--admin-text);
 }
 
+.repeat-limit-input {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+    flex-wrap: wrap;
+}
+
+.repeat-limit-input label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--admin-text-secondary);
+}
+
+.repeat-limit-input input[type="number"] {
+    width: 72px;
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--admin-border);
+    background-color: var(--admin-bg);
+    color: var(--admin-text);
+}
+
+.repeat-limit-input .input-hint {
+    width: 100%;
+    margin: 0.25rem 0 0;
+    font-size: 0.75rem;
+    color: var(--admin-text-secondary);
+}
+
 .booster-task-checkbox {
     background-color: rgba(106, 90, 205, 0.1);
     border: 1px solid var(--admin-primary);

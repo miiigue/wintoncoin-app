@@ -351,6 +351,13 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: número coherente con lo que ve el usuario.
 - **Evidencia**: commit pendiente de push.
 
+### 2026-01-12 — Repetición por usuario con límite auditable
+
+- **Contexto**: se requiere definir cuántas veces puede repetir una misma tarea cada usuario.
+- **Decisión**: agregar `max_repeat_per_user` en `publications`, con input en admin y en publicación normal, validado en backend.
+- **Impacto**: control fino, auditable y coherente con reglas fintech.
+- **Evidencia**: commit pendiente de push.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)

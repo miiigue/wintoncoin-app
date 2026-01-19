@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const costWrapper = document.getElementById('cost-wrapper');
     const sellWrapper = document.getElementById('sell-wrapper');
     const repeatWrapper = document.getElementById('repeat-wrapper');
+    const repeatLimitWrapper = document.getElementById('repeatLimitWrapper');
+    const repeatLimitInput = document.getElementById('repeatLimit');
     const noticeContainer = document.getElementById('commission-notice-container');
     const preLaunchNoticeContainer = document.getElementById('prelaunch-notice-container');
     const setExpirationCheckbox = document.getElementById('setExpiration');
@@ -254,6 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
         costWrapper.style.display = 'none';
         sellWrapper.style.display = 'block';
         if (repeatWrapper) repeatWrapper.style.display = 'none'; // No tiene sentido repetir compras
+        if (repeatLimitWrapper) repeatLimitWrapper.style.display = 'none';
         // Lógica específica para Venta
         pageTitle.textContent = 'Crear una Oferta de Venta';
         titleLabel.textContent = '¿Qué ofreces a cambio de BLUE?';
@@ -273,6 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
         costWrapper.style.display = 'none';
         sellWrapper.style.display = 'block';
         if (repeatWrapper) repeatWrapper.style.display = 'none'; // No tiene sentido repetir donaciones en este contexto
+        if (repeatLimitWrapper) repeatLimitWrapper.style.display = 'none';
         // Lógica específica para Donación
         pageTitle.textContent = 'Crear una Campaña de Donación';
         titleLabel.textContent = 'Título de tu Causa o Campaña:';
@@ -298,6 +302,18 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         showCustomAlert('Tipo de publicación no válido.', () => { window.location.href = 'contract_interaction.html'; });
         return;
+    }
+
+    const repeatCheckbox = document.getElementById('allowRepeatParticipation');
+    if (repeatCheckbox && repeatLimitWrapper) {
+        const updateRepeatVisibility = () => {
+            repeatLimitWrapper.style.display = repeatCheckbox.checked ? 'flex' : 'none';
+            if (!repeatCheckbox.checked && repeatLimitInput) {
+                repeatLimitInput.value = '2';
+            }
+        };
+        repeatCheckbox.addEventListener('change', updateRepeatVisibility);
+        updateRepeatVisibility();
     }
 
     // --- NUEVO: Funciones para manejar el modal de advertencia ---
@@ -376,6 +392,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // El valor de un checkbox no marcado no se envía, así que lo manejamos explícitamente.
         data.autoApprove = document.getElementById('autoApprove').checked;
         data.allowRepeatParticipation = document.getElementById('allowRepeatParticipation').checked;
+        if (data.allowRepeatParticipation) {
+            const repeatLimit = repeatLimitInput ? parseInt(repeatLimitInput.value, 10) : NaN;
+            if (!Number.isFinite(repeatLimit) || repeatLimit < 2) {
+                showCustomAlert('Indica el máximo de repeticiones por usuario (mínimo 2).');
+                return;
+            }
+            data.maxRepeatPerUser = repeatLimit;
+        } else {
+            data.maxRepeatPerUser = 1;
+        }
 
         // Añadimos la lógica de la fecha de expiración
         if (setExpirationCheckbox.checked) {

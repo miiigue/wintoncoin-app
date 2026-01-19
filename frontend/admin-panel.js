@@ -63,6 +63,8 @@ document.addEventListener('DOMContentLoaded', () => {
         platformPublicationSubmitBtn: document.getElementById('platformPublicationSubmitBtn'),
         platformManagementList: document.getElementById('platform-management-list'),
         platformPublicationsBadge: document.getElementById('platformPublicationsBadge'),
+        platformRepeatLimit: document.getElementById('platformRepeatLimit'),
+        platformRepeatLimitWrapper: document.getElementById('platformRepeatLimitWrapper'),
         // --- AUDITORIA ---
         auditLogContainer: document.getElementById('audit-log-container'),
         auditEventTypeInput: document.getElementById('auditEventTypeInput'),
@@ -166,6 +168,18 @@ document.addEventListener('DOMContentLoaded', () => {
     
         if (elements.platformPublicationForm) {
             elements.platformPublicationForm.addEventListener('submit', handlePlatformPublicationSubmit);
+        }
+
+        const repeatCheckbox = document.getElementById('platformAllowRepeatParticipation');
+        if (repeatCheckbox && elements.platformRepeatLimitWrapper) {
+            const updateRepeatVisibility = () => {
+                elements.platformRepeatLimitWrapper.style.display = repeatCheckbox.checked ? 'flex' : 'none';
+                if (!repeatCheckbox.checked && elements.platformRepeatLimit) {
+                    elements.platformRepeatLimit.value = '2';
+                }
+            };
+            repeatCheckbox.addEventListener('change', updateRepeatVisibility);
+            updateRepeatVisibility();
         }
 
         if (elements.platformCancelEditBtn) {
@@ -1043,6 +1057,12 @@ document.addEventListener('DOMContentLoaded', () => {
             : baseText;
 
         const form = event.target;
+        const allowRepeat = document.getElementById('platformAllowRepeatParticipation').checked;
+        const repeatLimit = elements.platformRepeatLimit ? parseInt(elements.platformRepeatLimit.value, 10) : NaN;
+        if (allowRepeat && (!Number.isFinite(repeatLimit) || repeatLimit < 2)) {
+            showCustomAlert('Indica el máximo de repeticiones por usuario (mínimo 2).');
+            return;
+        }
         const body = {
             title: document.getElementById('platformPubTitle').value,
             description: mergedDescription,
@@ -1050,7 +1070,8 @@ document.addEventListener('DOMContentLoaded', () => {
             availableSlots: document.getElementById('platformPubSlots').value,
             isSellPost: document.querySelector('input[name="platformPubType"]:checked').value === 'sell',
             autoApprove: document.getElementById('platformAutoApprove').checked,
-            allowRepeatParticipation: document.getElementById('platformAllowRepeatParticipation').checked,
+            allowRepeatParticipation: allowRepeat,
+            maxRepeatPerUser: allowRepeat ? repeatLimit : 1,
             isBoosterTask: document.getElementById('platformIsBoosterTask').checked
         };
         try {
@@ -1356,7 +1377,8 @@ WHERE username = 'Plataforma WintonCoin';
         const pendingPaymentsBadge = pendingCounts.pendingPayments > 0
             ? `<span class="pending-badge">Pagos: ${pendingCounts.pendingPayments}</span>`
             : '';
-        const repeatText = pub.allow_repeat_participation ? 'Sí' : 'No';
+        const maxRepeatText = Number.isFinite(Number(pub.max_repeat_per_user)) ? ` (máx ${pub.max_repeat_per_user})` : '';
+        const repeatText = pub.allow_repeat_participation ? `Sí${maxRepeatText}` : 'No';
 
         const participantsHTML = pub.participants && pub.participants.length > 0
             ? `<ul class="participants-list-admin">${pub.participants.map(p => getParticipantItemForManagementHTML(pub.id, p)).join('')}</ul>`
@@ -1485,6 +1507,13 @@ WHERE username = 'Plataforma WintonCoin';
         document.getElementById('platformAutoApprove').checked = !!pub.auto_approve;
         document.getElementById('platformAllowRepeatParticipation').checked = !!pub.allow_repeat_participation;
         document.getElementById('platformIsBoosterTask').checked = !!pub.is_booster_task;
+        if (elements.platformRepeatLimit) {
+            const repeatValue = Number(pub.max_repeat_per_user);
+            elements.platformRepeatLimit.value = Number.isFinite(repeatValue) && repeatValue >= 2 ? repeatValue : 2;
+        }
+        if (elements.platformRepeatLimitWrapper) {
+            elements.platformRepeatLimitWrapper.style.display = pub.allow_repeat_participation ? 'flex' : 'none';
+        }
 
         if (pub.is_sell_post) {
             document.getElementById('platformPubTypeSell').checked = true;
@@ -1533,6 +1562,12 @@ WHERE username = 'Plataforma WintonCoin';
         }
         if (elements.platformAddStepBtn) {
             elements.platformAddStepBtn.disabled = false;
+        }
+        if (elements.platformRepeatLimit) {
+            elements.platformRepeatLimit.value = '2';
+        }
+        if (elements.platformRepeatLimitWrapper) {
+            elements.platformRepeatLimitWrapper.style.display = 'none';
         }
     }
 

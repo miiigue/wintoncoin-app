@@ -2515,7 +2515,7 @@ app.post('/api/minor/add-tutor', async (req, res) => {
                 title, description, blueCost, blueSell, authorUsername, 
                 availableSlots, autoApprove, publicationType,
                 duration_days, duration_hours, duration_minutes,
-                allowRepeatParticipation
+                allowRepeatParticipation, maxRepeatPerUser
             } = req.body;
         
             if (!title || !description || !authorUsername || (!blueCost && !blueSell) || !publicationType) {
@@ -2558,6 +2558,17 @@ app.post('/api/minor/add-tutor', async (req, res) => {
             if (isNaN(slots) || slots < 1) {
                     throw { status: 400, message: "La cantidad de cupos disponibles debe ser mayor a 0." };
             }
+
+            const allowRepeat = !!allowRepeatParticipation;
+            let maxRepeat = null;
+            if (allowRepeat) {
+                maxRepeat = parseInt(maxRepeatPerUser, 10);
+                if (!Number.isFinite(maxRepeat) || maxRepeat < 2) {
+                    throw { status: 400, message: "Indica el máximo de repeticiones por usuario (mínimo 2)." };
+                }
+            } else {
+                maxRepeat = 1;
+            }
         
                 const userResult = await client.query(`SELECT id, is_minor, tutor_user_id, account_status FROM users WHERE username = $1`, [authorUsername]);
                 if (userResult.rowCount === 0) {
@@ -2591,9 +2602,9 @@ app.post('/api/minor/add-tutor', async (req, res) => {
 
                 const sql = `
                     INSERT INTO publications
-                        (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, category, expires_at, allow_repeat_participation)
+                        (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, category, expires_at, allow_repeat_participation, max_repeat_per_user)
                     VALUES
-                        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
                     RETURNING id
                 `;
                 const result = await client.query(sql, [
@@ -2606,7 +2617,8 @@ app.post('/api/minor/add-tutor', async (req, res) => {
                     !!autoApprove,
                     publicationType,
                     expiresAt,
-                    !!allowRepeatParticipation
+                    allowRepeat,
+                    maxRepeat
                 ]);
 
                 await logAuditEvent(client, req, {
@@ -2618,7 +2630,8 @@ app.post('/api/minor/add-tutor', async (req, res) => {
                         blue_cost: cost,
                         available_slots: slots,
                         auto_approve: !!autoApprove,
-                        allow_repeat_participation: !!allowRepeatParticipation,
+                        allow_repeat_participation: allowRepeat,
+                        max_repeat_per_user: maxRepeat,
                         expires_at: expiresAt ? expiresAt.toISOString() : null
                     }
                 });
@@ -2653,7 +2666,7 @@ app.post('/api/minor/add-tutor', async (req, res) => {
     const sql = `
                 SELECT
             p.id, p.title, p.description, p.blue_cost, p.created_at, p.status, p.category,
-            p.is_booster_task, p.is_sell_post, p.available_slots, p.expires_at, p.allow_repeat_participation,
+            p.is_booster_task, p.is_sell_post, p.available_slots, p.expires_at, p.allow_repeat_participation, p.max_repeat_per_user,
                     u.username as author_username,
             u.average_rating as author_average_rating,
             u.ratings_count as author_ratings_count,
@@ -2694,13 +2707,27 @@ app.post('/api/minor/add-tutor', async (req, res) => {
                     -- NUEVO (UX + seguridad de negocio): Si la publicación NO es repetible y el usuario ya la completó/pagó,
                     -- entonces NO debe aparecer como "disponible" para ese usuario.
                     AND NOT (
-                        COALESCE(p.allow_repeat_participation, FALSE) = FALSE
-                        AND EXISTS (
-                            SELECT 1
-                            FROM publication_acceptances pa_done
-                            WHERE pa_done.publication_id = p.id
-                              AND pa_done.acceptor_username = $1
-                              AND pa_done.status = 'confirmed_paid'
+                        (
+                            COALESCE(p.allow_repeat_participation, FALSE) = FALSE
+                            AND EXISTS (
+                                SELECT 1
+                                FROM publication_acceptances pa_done
+                                WHERE pa_done.publication_id = p.id
+                                  AND pa_done.acceptor_username = $1
+                                  AND pa_done.status = 'confirmed_paid'
+                            )
+                        )
+                        OR
+                        (
+                            COALESCE(p.allow_repeat_participation, FALSE) = TRUE
+                            AND p.max_repeat_per_user IS NOT NULL
+                            AND (
+                                SELECT COUNT(*)
+                                FROM publication_acceptances pa_done
+                                WHERE pa_done.publication_id = p.id
+                                  AND pa_done.acceptor_username = $1
+                                  AND pa_done.status = 'confirmed_paid'
+                            ) >= p.max_repeat_per_user
                         )
                     )
                     -- NUEVO (Hard Reject): Si el usuario fue rechazado alguna vez en esta publicación, ocultarla del feed.
@@ -3054,6 +3081,7 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
 
                 if (prev.rows.length > 0) {
                     const statuses = prev.rows.map(r => r.status);
+                    const confirmedPaidCount = statuses.filter(s => s === 'confirmed_paid').length;
 
                     // Hard Reject: si fue rechazado alguna vez, no puede volver a intentar nunca más.
                     if (statuses.includes('rejected')) {
@@ -3067,12 +3095,13 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                         throw { status: 409, message: "Ya tienes una solicitud activa para esta tarea. Complétala antes de iniciar otra." };
                     }
 
-                    // Si NO se permite repetir y ya tuvo una finalización exitosa, bloquear.
-                    const successfulStatuses = ['completed', 'confirmed_paid'];
-                    const hasSuccessful = statuses.some(s => successfulStatuses.includes(s));
                     const allowRepeat = !!pub.allow_repeat_participation;
-                    if (!allowRepeat && hasSuccessful) {
+                    const maxRepeat = Number(pub.max_repeat_per_user);
+                    if (!allowRepeat && confirmedPaidCount >= 1) {
                         throw { status: 409, message: "Ya completaste esta tarea y no se permite repetirla." };
+                    }
+                    if (allowRepeat && Number.isFinite(maxRepeat) && maxRepeat >= 2 && confirmedPaidCount >= maxRepeat) {
+                        throw { status: 409, message: `Ya alcanzaste el máximo de ${maxRepeat} repeticiones permitidas para esta tarea.` };
                     }
                 }
                 
@@ -5123,7 +5152,7 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
 
         // Endpoint para que un administrador cree una publicación como la plataforma
         app.post('/api/admin/platform/create-publication', verifyAdminToken, async (req, res) => {
-            const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation } = req.body;
+            const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation, maxRepeatPerUser } = req.body;
         
             if (!title || !description || !costString) {
                 return res.status(400).json({ message: "Faltan datos: título, descripción y costo son requeridos." });
@@ -5140,6 +5169,16 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
             }
         
             const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
+            const allowRepeat = !!allowRepeatParticipation;
+            let maxRepeat = null;
+            if (allowRepeat) {
+                maxRepeat = parseInt(maxRepeatPerUser, 10);
+                if (!Number.isFinite(maxRepeat) || maxRepeat < 2) {
+                    return res.status(400).json({ message: "Indica el máximo de repeticiones por usuario (mínimo 2)." });
+                }
+            } else {
+                maxRepeat = 1;
+            }
         
             try {
                 const userResult = await pool.query(`SELECT id FROM users WHERE username = $1`, [platformUsername]);
@@ -5149,11 +5188,11 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
                 const authorId = userResult.rows[0].id;
         
                 const sql = `
-                    INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, is_booster_task, allow_repeat_participation) 
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+                    INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, is_booster_task, allow_repeat_participation, max_repeat_per_user) 
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
                     RETURNING id
                 `;
-                const result = await pool.query(sql, [title, description, cost, !!isSellPost, authorId, slots, !!autoApprove, !!isBoosterTask, !!allowRepeatParticipation]);
+                const result = await pool.query(sql, [title, description, cost, !!isSellPost, authorId, slots, !!autoApprove, !!isBoosterTask, allowRepeat, maxRepeat]);
                 
                 res.status(201).json({ message: "Publicación de la plataforma creada exitosamente.", publicationId: result.rows[0].id });
         
@@ -5166,7 +5205,7 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
         // Endpoint para que un administrador edite una publicación de la plataforma
         app.put('/api/admin/platform/publications/:id', verifyAdminToken, async (req, res) => {
             const { id } = req.params;
-            const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation } = req.body;
+            const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation, maxRepeatPerUser } = req.body;
 
             if (!title || !description || !costString) {
                 return res.status(400).json({ message: "Faltan datos: título, descripción y costo son requeridos." });
@@ -5183,6 +5222,16 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
             }
 
             const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
+            const allowRepeat = !!allowRepeatParticipation;
+            let maxRepeat = null;
+            if (allowRepeat) {
+                maxRepeat = parseInt(maxRepeatPerUser, 10);
+                if (!Number.isFinite(maxRepeat) || maxRepeat < 2) {
+                    return res.status(400).json({ message: "Indica el máximo de repeticiones por usuario (mínimo 2)." });
+                }
+            } else {
+                maxRepeat = 1;
+            }
 
             try {
                 const ownership = await pool.query(
@@ -5207,8 +5256,9 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
                         auto_approve = $6,
                         is_booster_task = $7,
                         allow_repeat_participation = $8,
+                        max_repeat_per_user = $9,
                         updated_at = NOW()
-                    WHERE id = $9
+                    WHERE id = $10
                 `;
 
                 await pool.query(updateSql, [
@@ -5219,7 +5269,8 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
                     slots,
                     !!autoApprove,
                     !!isBoosterTask,
-                    !!allowRepeatParticipation,
+                    allowRepeat,
+                    maxRepeat,
                     id
                 ]);
 
@@ -5237,7 +5288,7 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
                 const query = `
                     SELECT
                         p.id, p.title, p.description, p.created_at, p.status, p.is_paused,
-                        p.blue_cost, p.available_slots, p.is_sell_post, p.allow_repeat_participation,
+                        p.blue_cost, p.available_slots, p.is_sell_post, p.allow_repeat_participation, p.max_repeat_per_user,
                         u.username as author_username,
                         (
                             SELECT json_agg(json_build_object(

@@ -3171,6 +3171,8 @@ body.love-page {
     border-radius: 8px;
     padding: 0.8rem 1rem;
     margin-bottom: 1rem;
+    gap: 0.75rem;
+    flex-wrap: wrap;
 }
 
 .switch-label-group {
@@ -3188,6 +3190,34 @@ body.love-page {
     font-size: 0.8rem;
     color: var(--text-secondary-color);
     margin: 0;
+}
+
+.repeat-limit-input {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.repeat-limit-input label {
+    font-size: 0.8rem;
+    color: var(--text-secondary-color);
+}
+
+.repeat-limit-input input[type="number"] {
+    width: 72px;
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid #2a3b5c;
+    background-color: var(--background-color);
+    color: var(--text-color);
+}
+
+.repeat-limit-input .input-hint {
+    width: 100%;
+    font-size: 0.75rem;
+    color: var(--text-secondary-color);
+    margin: 0.25rem 0 0;
 }
 
 .switch {
