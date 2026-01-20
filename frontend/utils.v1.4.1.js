@@ -200,6 +200,20 @@ function linkify(text) {
 
 // --- Configuración Global de la Aplicación ---
 
+// Helper global para resolver la URL del API (soporta localhost y LAN).
+window.getApiUrl = function() {
+    const hostname = window.location.hostname;
+    const isFileProtocol = window.location.protocol === 'file:';
+    const isPrivateIp = /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
+    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || isPrivateIp || isFileProtocol;
+
+    if (isFileProtocol) {
+        return 'http://localhost:3000';
+    }
+
+    return isLocal ? window.location.origin : 'https://wintoncoin-backend.onrender.com';
+};
+
 // Guardamos la configuración en una variable global para que todos los scripts puedan acceder a ella.
 window.appSettings = {};
 

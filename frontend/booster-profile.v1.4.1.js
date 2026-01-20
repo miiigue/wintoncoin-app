@@ -1,8 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- Configuración y Estado ---
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
-    const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+    const API_URL = window.getApiUrl();
     
     // Lógica mejorada para obtener el nombre de usuario
     const urlParams = new URLSearchParams(window.location.search);
@@ -74,15 +73,13 @@ document.addEventListener('DOMContentLoaded', () => {
         } = data;
 
         const headerHTML = getHeaderHTML(current_level_info);
-        const statsHTML = getStatsHTML(total_booster_blue, booster_tasks_completed_count || 0);
-        const summaryCardsHTML = getSummaryCardsHTML(data);
+        const cardsHTML = getAllCardsHTML(data, total_booster_blue, booster_tasks_completed_count || 0);
         const progressHTML = getProgressHTML(total_booster_blue, current_level_info, next_level_info);
         const historyHTML = getHistoryHTML(transactions);
 
         elements.content.innerHTML = `
             ${headerHTML}
-            ${statsHTML}
-            ${summaryCardsHTML}
+            ${cardsHTML}
             ${progressHTML}
             ${historyHTML}
         `;
@@ -107,17 +104,30 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
-    function getStatsHTML(totalBlue, totalTasks) {
+    function getAllCardsHTML(data, totalBlue, totalTasks) {
+        const cards = [
+            getTotalBlueCardHTML(totalBlue),
+            getDailyGoalCardHTML(data),
+            getRankingCardHTML(data),
+            getTasksCardHTML(totalTasks)
+        ].filter(Boolean);
+
+        if (cards.length === 0) {
+            return '';
+        }
+
         return `
-            <div class="booster-stats booster-stats-blocks">
-                <div class="booster-stat-block">
-                    <div class="ranking-title">Total BLUE iou de Impulsor</div>
-                    <div class="ranking-position saldo-blue-text">${formatBalance(totalBlue)}</div>
-                </div>
-                <div class="booster-stat-block">
-                    <div class="ranking-title">Tareas de Impulsor Completadas</div>
-                    <div class="ranking-position">${formatInteger(totalTasks)}</div>
-                </div>
+            <div class="booster-stats booster-stats-blocks booster-summary-cards">
+                ${cards.join('')}
+            </div>
+        `;
+    }
+
+    function getTotalBlueCardHTML(totalBlue) {
+        return `
+            <div class="booster-stat-block booster-summary-card">
+                <div class="ranking-title">Total BLUE iou de Impulsor</div>
+                <div class="ranking-position saldo-blue-text">${formatBalance(totalBlue)}</div>
             </div>
         `;
     }
@@ -173,6 +183,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="ranking-subtitle">Ayer: ${formatBalance(yesterdayValue)} | Diferencia: ${formatDelta(delta)}</div>
                 ${data.daily_improved ? `<div class="daily-goal-reward">🎉 ¡Mejoraste tu día anterior!</div>` : ''}
+            </div>
+        `;
+    }
+
+    function getTasksCardHTML(totalTasks) {
+        return `
+            <div class="booster-stat-block booster-summary-card">
+                <div class="ranking-title">Tareas de Impulsor Completadas</div>
+                <div class="ranking-position">${formatInteger(totalTasks)}</div>
             </div>
         `;
     }

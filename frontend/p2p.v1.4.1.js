@@ -1,6 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
-    const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+    const API_URL = window.getApiUrl();
     const token = localStorage.getItem('token');
     const storedUsername = localStorage.getItem('username');
 
@@ -508,8 +507,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 document.addEventListener('DOMContentLoaded', () => {
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
-    const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+    const API_URL = window.getApiUrl();
     const token = localStorage.getItem('token');
     const storedUsername = localStorage.getItem('username');
 

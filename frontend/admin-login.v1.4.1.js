@@ -1,8 +1,7 @@
 // admin-login.js
 document.addEventListener('DOMContentLoaded', () => {
     // Lógica para determinar la URL del API automáticamente
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
-    const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+    const API_URL = window.getApiUrl();
 
     const adminLoginForm = document.getElementById('adminLoginForm');
 
@@ -44,8 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // admin-login.js
 document.addEventListener('DOMContentLoaded', () => {
     // Lógica para determinar la URL del API automáticamente
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
-    const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+    const API_URL = window.getApiUrl();
 
     const adminLoginForm = document.getElementById('adminLoginForm');
 

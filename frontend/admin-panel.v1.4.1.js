@@ -32,8 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Configuración y Estado ---
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
-    const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+    const API_URL = window.getApiUrl();
     
     // CAMBIO SEGURIDAD: Ya no leemos el token de localStorage. 
     // La autenticación se verifica mediante la cookie HttpOnly al hacer la petición al backend.
