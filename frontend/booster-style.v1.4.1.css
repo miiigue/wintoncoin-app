@@ -68,40 +68,34 @@
     border: 1px solid rgba(106, 90, 205, 0.35);
 }
 
-.booster-ranking {
-    background-color: var(--surface-color);
-    padding: 1.25rem;
-    border-radius: 10px;
-    text-align: center;
-    border: 1px solid rgba(106, 90, 205, 0.35);
+.booster-summary-cards {
     margin-bottom: 2rem;
 }
 
+.booster-ranking {
+    margin: 0;
+}
+
 .booster-daily-goal {
-    background-color: var(--surface-color);
-    padding: 1.25rem;
-    border-radius: 10px;
-    text-align: center;
-    border: 1px solid rgba(106, 90, 205, 0.35);
-    margin-bottom: 2rem;
     position: relative;
     overflow: hidden;
 }
 
 .daily-goal-value {
-    font-size: 1.6rem;
+    font-size: 1.4rem;
     font-weight: 700;
-    color: var(--text-color);
-    margin-bottom: 0.6rem;
+    color: #f5d76e;
+    text-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+    margin-bottom: 0.4rem;
 }
 
 .daily-goal-bar {
     width: 100%;
-    height: 12px;
+    height: 10px;
     background-color: var(--background-color);
     border-radius: 999px;
     overflow: hidden;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.35rem;
 }
 
 .daily-goal-fill {
@@ -113,7 +107,7 @@
 
 .daily-goal-reward {
     margin-top: 0.45rem;
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     color: #f5d76e;
 }
 
@@ -121,17 +115,28 @@
     animation: boosterGlow 1.1s ease-in-out 3;
 }
 
-.confetti-piece {
+.firework-particle {
     position: absolute;
-    top: -8px;
-    border-radius: 2px;
-    opacity: 0.95;
-    animation: confettiFall 2.1s ease-out forwards;
+    left: 50%;
+    top: 55%;
+    border-radius: 50%;
+    opacity: 0;
+    animation: fireworkBurst 3.2s ease-out forwards;
+    transform: translate(-50%, -50%) scale(0.25);
 }
 
-@keyframes confettiFall {
-    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-    100% { transform: translateY(180px) rotate(220deg); opacity: 0; }
+@keyframes fireworkBurst {
+    0% {
+        opacity: 0.95;
+        transform: translate(-50%, -50%) scale(0.2);
+    }
+    70% {
+        opacity: 0.9;
+    }
+    100% {
+        opacity: 0;
+        transform: translate(calc(-50% + var(--fx-x)), calc(-50% + var(--fx-y))) scale(1);
+    }
 }
 
 @keyframes boosterGlow {

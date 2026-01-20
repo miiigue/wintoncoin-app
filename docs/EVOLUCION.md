@@ -498,6 +498,13 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: control explícito de cache y actualizaciones inmediatas tras release.
 - **Evidencia**: commit pendiente de push.
 
+### 2026-01-12 — Versionado estricto (solo assets con versión)
+
+- **Contexto**: mantener archivos “originales” sin versión genera ambigüedad sobre cuál es el asset oficial del release.
+- **Decisión**: conservar únicamente archivos versionados (`*.vX.Y.Z.*`) y eliminar los duplicados sin versión.
+- **Impacto**: single source of truth en releases, caché más predecible y menos riesgo de cargar assets obsoletos.
+- **Evidencia**: commit pendiente de push.
+
 ### 2026-01-19 — Gamificación en perfil de Impulsor
 
 - **Contexto**: se buscaba motivar tareas con ranking y metas diarias.

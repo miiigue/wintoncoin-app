@@ -75,16 +75,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const headerHTML = getHeaderHTML(current_level_info);
         const statsHTML = getStatsHTML(total_booster_blue, booster_tasks_completed_count || 0);
-        const rankingHTML = getRankingHTML(data);
-        const dailyGoalHTML = getDailyGoalHTML(data);
+        const summaryCardsHTML = getSummaryCardsHTML(data);
         const progressHTML = getProgressHTML(total_booster_blue, current_level_info, next_level_info);
         const historyHTML = getHistoryHTML(transactions);
 
         elements.content.innerHTML = `
             ${headerHTML}
             ${statsHTML}
-            ${rankingHTML}
-            ${dailyGoalHTML}
+            ${summaryCardsHTML}
             ${progressHTML}
             ${historyHTML}
         `;
@@ -93,7 +91,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const dailyCard = elements.content.querySelector('.booster-daily-goal');
             if (dailyCard) {
                 dailyCard.classList.add('rank-improved');
-                launchConfetti(dailyCard);
+                // Efecto visual sobrio: fuegos artificiales discretos.
+                launchFireworks(dailyCard);
                 setTimeout(() => dailyCard.classList.remove('rank-improved'), 2200);
             }
         }
@@ -123,7 +122,22 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
-    function getRankingHTML(data) {
+    function getSummaryCardsHTML(data) {
+        const rankingCard = getRankingCardHTML(data);
+        const dailyGoalCard = getDailyGoalCardHTML(data);
+        if (!rankingCard && !dailyGoalCard) {
+            return '';
+        }
+
+        return `
+            <div class="booster-stats booster-stats-blocks booster-summary-cards">
+                ${rankingCard}
+                ${dailyGoalCard}
+            </div>
+        `;
+    }
+
+    function getRankingCardHTML(data) {
         if (!data.rank_position || !data.rank_total) {
             return '';
         }
@@ -132,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const percentileText = data.rank_percentile ? `Top ${data.rank_percentile}%` : '';
 
         return `
-            <div class="booster-ranking">
+            <div class="booster-stat-block booster-summary-card booster-ranking">
                 <div class="ranking-title">Ranking</div>
                 <div class="ranking-position">${rankText}</div>
                 ${percentileText ? `<div class="ranking-subtitle">${percentileText}</div>` : ''}
@@ -140,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
-    function getDailyGoalHTML(data) {
+    function getDailyGoalCardHTML(data) {
         if (data.daily_today == null || data.daily_yesterday == null) {
             return '';
         }
@@ -151,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const delta = todayValue - yesterdayValue;
 
         return `
-            <div class="booster-daily-goal">
+            <div class="booster-stat-block booster-summary-card booster-daily-goal">
                 <div class="ranking-title">Meta diaria (hoy vs ayer)</div>
                 <div class="daily-goal-value">${formatBalance(todayValue)} hoy</div>
                 <div class="daily-goal-bar">
@@ -266,25 +280,31 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${sign}${formatBalance(numeric)}`;
     }
 
-    function launchConfetti(container) {
+    function launchFireworks(container) {
         const bursts = 3;
-        const burstSpacing = 900;
+        const burstSpacing = 1100;
         const colors = ['#f5d76e', '#6a5acd', '#2ecc71', '#ffffff'];
+        const particlesPerBurst = 14;
 
         const spawnBurst = () => {
-            const confettiCount = 18;
-            for (let i = 0; i < confettiCount; i += 1) {
-                const piece = document.createElement('span');
-                const size = 6 + Math.random() * 6;
-                piece.className = 'confetti-piece';
-                piece.style.left = `${8 + Math.random() * 84}%`;
-                piece.style.background = colors[i % colors.length];
-                piece.style.animationDelay = `${Math.random() * 0.3}s`;
-                piece.style.width = `${size}px`;
-                piece.style.height = `${size + 4}px`;
-                piece.style.transform = `rotate(${Math.random() * 180}deg)`;
-                container.appendChild(piece);
-                setTimeout(() => piece.remove(), 2200);
+            for (let i = 0; i < particlesPerBurst; i += 1) {
+                const particle = document.createElement('span');
+                const size = 6 + Math.random() * 5;
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 40 + Math.random() * 70;
+                const offsetX = Math.cos(angle) * distance;
+                const offsetY = Math.sin(angle) * distance;
+
+                particle.className = 'firework-particle';
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                particle.style.background = colors[i % colors.length];
+                particle.style.setProperty('--fx-x', `${offsetX}px`);
+                particle.style.setProperty('--fx-y', `${offsetY}px`);
+                particle.style.animationDelay = `${Math.random() * 0.4}s`;
+
+                container.appendChild(particle);
+                setTimeout(() => particle.remove(), 4200);
             }
         };
 
@@ -292,4 +312,4 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(spawnBurst, i * burstSpacing);
         }
     }
-}); 
+});
