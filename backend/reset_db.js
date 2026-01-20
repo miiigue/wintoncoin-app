@@ -308,7 +308,10 @@ async function resetDatabase() {
                 is_booster_task BOOLEAN DEFAULT FALSE,
                 is_quick_sale BOOLEAN DEFAULT FALSE,
                 target_username VARCHAR(255),
-                expires_at TIMESTAMPTZ
+                expires_at TIMESTAMPTZ,
+                allow_repeat_participation BOOLEAN DEFAULT FALSE,
+                max_repeat_per_user INTEGER DEFAULT 1,
+                repeat_cooldown_hours INTEGER DEFAULT 24
             );
         `);
         

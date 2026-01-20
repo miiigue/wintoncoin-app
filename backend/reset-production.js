@@ -93,7 +93,10 @@ async function resetProductionDatabase() {
                 is_paused BOOLEAN DEFAULT FALSE,
                 auto_approve BOOLEAN DEFAULT FALSE,
                 category VARCHAR(50) NOT NULL DEFAULT 'request',
-                is_booster_task BOOLEAN NOT NULL DEFAULT FALSE
+                is_booster_task BOOLEAN NOT NULL DEFAULT FALSE,
+                allow_repeat_participation BOOLEAN DEFAULT FALSE,
+                max_repeat_per_user INTEGER DEFAULT 1,
+                repeat_cooldown_hours INTEGER DEFAULT 24
             );
         `);
 

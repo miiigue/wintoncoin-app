@@ -3273,6 +3273,50 @@ body.love-page {
     flex-wrap: wrap;
 }
 
+.form-group-switch .switch {
+    margin-left: auto;
+}
+
+.form-group-switch.has-switch-header {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.has-switch-header .switch-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+.has-switch-header .switch-header .switch {
+    margin-left: auto;
+}
+
+.form-group-switch.repeat-switch {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.form-group-checkbox.repeat-switch {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.repeat-switch .switch-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+.repeat-switch .switch-header input[type="checkbox"] {
+    margin-left: auto;
+}
+
 .switch-label-group {
     display: flex;
     flex-direction: column;
@@ -4174,4 +4218,52 @@ input:checked + .slider:before {
 .password-toggle-icon svg {
     width: 20px;
     height: 20px;
+}
+
+.repeat-cooldown-inputs {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.repeat-input-row {
+    justify-content: flex-start;
+    text-align: left;
+}
+
+.repeat-limit-input {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.repeat-cooldown-inputs input {
+    min-width: 90px;
+    flex: 1;
+}
+
+.repeat-cooldown-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1;
+    align-items: flex-start;
+}
+
+.repeat-label {
+    display: block;
+    text-align: left;
+    margin-bottom: 0.35rem;
+}
+
+.repeat-input-row input {
+    width: 90px;
+}
+
+.repeat-cooldown-unit {
+    font-size: 0.75rem;
+    color: var(--text-secondary-color);
+    text-transform: lowercase;
+    margin-left: 0.1rem;
+    text-align: right;
 }

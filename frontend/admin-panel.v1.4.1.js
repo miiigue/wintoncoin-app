@@ -64,6 +64,10 @@ document.addEventListener('DOMContentLoaded', () => {
         platformPublicationsBadge: document.getElementById('platformPublicationsBadge'),
         platformRepeatLimit: document.getElementById('platformRepeatLimit'),
         platformRepeatLimitWrapper: document.getElementById('platformRepeatLimitWrapper'),
+        platformRepeatCooldownDays: document.getElementById('platformRepeatCooldownDays'),
+        platformRepeatCooldownHours: document.getElementById('platformRepeatCooldownHours'),
+        platformRepeatCooldownMinutes: document.getElementById('platformRepeatCooldownMinutes'),
+        platformRepeatCooldownWrapper: document.getElementById('platformRepeatCooldownWrapper'),
         // --- AUDITORIA ---
         auditLogContainer: document.getElementById('audit-log-container'),
         auditEventTypeInput: document.getElementById('auditEventTypeInput'),
@@ -170,11 +174,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const repeatCheckbox = document.getElementById('platformAllowRepeatParticipation');
-        if (repeatCheckbox && elements.platformRepeatLimitWrapper) {
+        if (repeatCheckbox && elements.platformRepeatLimitWrapper && elements.platformRepeatCooldownWrapper) {
             const updateRepeatVisibility = () => {
                 elements.platformRepeatLimitWrapper.style.display = repeatCheckbox.checked ? 'flex' : 'none';
+                elements.platformRepeatCooldownWrapper.style.display = repeatCheckbox.checked ? 'flex' : 'none';
                 if (!repeatCheckbox.checked && elements.platformRepeatLimit) {
                     elements.platformRepeatLimit.value = '2';
+                }
+                if (!repeatCheckbox.checked) {
+                    if (elements.platformRepeatCooldownDays) elements.platformRepeatCooldownDays.value = '1';
+                    if (elements.platformRepeatCooldownHours) elements.platformRepeatCooldownHours.value = '0';
+                    if (elements.platformRepeatCooldownMinutes) elements.platformRepeatCooldownMinutes.value = '0';
                 }
             };
             repeatCheckbox.addEventListener('change', updateRepeatVisibility);
@@ -1062,6 +1072,17 @@ document.addEventListener('DOMContentLoaded', () => {
             showCustomAlert('Indica el máximo de repeticiones por usuario (mínimo 2).');
             return;
         }
+        const repeatDays = elements.platformRepeatCooldownDays ? parseInt(elements.platformRepeatCooldownDays.value, 10) : 0;
+        const repeatHours = elements.platformRepeatCooldownHours ? parseInt(elements.platformRepeatCooldownHours.value, 10) : 0;
+        const repeatMinutes = elements.platformRepeatCooldownMinutes ? parseInt(elements.platformRepeatCooldownMinutes.value, 10) : 0;
+        const safeDays = Number.isFinite(repeatDays) ? repeatDays : 0;
+        const safeHours = Number.isFinite(repeatHours) ? repeatHours : 0;
+        const safeMinutes = Number.isFinite(repeatMinutes) ? repeatMinutes : 0;
+        const totalMinutes = (safeDays * 24 * 60) + (safeHours * 60) + safeMinutes;
+        if (allowRepeat && totalMinutes < 1) {
+            showCustomAlert('Indica el tiempo mínimo para repetir (mínimo 1 minuto).');
+            return;
+        }
         const body = {
             title: document.getElementById('platformPubTitle').value,
             description: mergedDescription,
@@ -1071,6 +1092,9 @@ document.addEventListener('DOMContentLoaded', () => {
             autoApprove: document.getElementById('platformAutoApprove').checked,
             allowRepeatParticipation: allowRepeat,
             maxRepeatPerUser: allowRepeat ? repeatLimit : 1,
+            repeatCooldownDays: allowRepeat ? safeDays : 1,
+            repeatCooldownHours: allowRepeat ? safeHours : 0,
+            repeatCooldownMinutes: allowRepeat ? safeMinutes : 0,
             isBoosterTask: document.getElementById('platformIsBoosterTask').checked
         };
         try {
@@ -1513,6 +1537,19 @@ WHERE username = 'Plataforma WintonCoin';
         if (elements.platformRepeatLimitWrapper) {
             elements.platformRepeatLimitWrapper.style.display = pub.allow_repeat_participation ? 'flex' : 'none';
         }
+        if (elements.platformRepeatCooldownWrapper) {
+            elements.platformRepeatCooldownWrapper.style.display = pub.allow_repeat_participation ? 'flex' : 'none';
+        }
+        if (elements.platformRepeatCooldownDays || elements.platformRepeatCooldownHours || elements.platformRepeatCooldownMinutes) {
+            const cooldownMinutes = Number(pub.repeat_cooldown_minutes);
+            const normalizedMinutes = Number.isFinite(cooldownMinutes) && cooldownMinutes > 0 ? cooldownMinutes : 1440;
+            const days = Math.floor(normalizedMinutes / 1440);
+            const hours = Math.floor((normalizedMinutes % 1440) / 60);
+            const minutes = normalizedMinutes % 60;
+            if (elements.platformRepeatCooldownDays) elements.platformRepeatCooldownDays.value = String(days);
+            if (elements.platformRepeatCooldownHours) elements.platformRepeatCooldownHours.value = String(hours);
+            if (elements.platformRepeatCooldownMinutes) elements.platformRepeatCooldownMinutes.value = String(minutes);
+        }
 
         if (pub.is_sell_post) {
             document.getElementById('platformPubTypeSell').checked = true;
@@ -1567,6 +1604,18 @@ WHERE username = 'Plataforma WintonCoin';
         }
         if (elements.platformRepeatLimitWrapper) {
             elements.platformRepeatLimitWrapper.style.display = 'none';
+        }
+        if (elements.platformRepeatCooldownDays) {
+            elements.platformRepeatCooldownDays.value = '1';
+        }
+        if (elements.platformRepeatCooldownHours) {
+            elements.platformRepeatCooldownHours.value = '0';
+        }
+        if (elements.platformRepeatCooldownMinutes) {
+            elements.platformRepeatCooldownMinutes.value = '0';
+        }
+        if (elements.platformRepeatCooldownWrapper) {
+            elements.platformRepeatCooldownWrapper.style.display = 'none';
         }
     }
 

@@ -10,6 +10,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const repeatWrapper = document.getElementById('repeat-wrapper');
     const repeatLimitWrapper = document.getElementById('repeatLimitWrapper');
     const repeatLimitInput = document.getElementById('repeatLimit');
+    const repeatCooldownWrapper = document.getElementById('repeatCooldownWrapper');
+    const repeatCooldownDaysInput = document.getElementById('repeatCooldownDays');
+    const repeatCooldownHoursInput = document.getElementById('repeatCooldownHours');
+    const repeatCooldownMinutesInput = document.getElementById('repeatCooldownMinutes');
     const noticeContainer = document.getElementById('commission-notice-container');
     const preLaunchNoticeContainer = document.getElementById('prelaunch-notice-container');
     const setExpirationCheckbox = document.getElementById('setExpiration');
@@ -256,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sellWrapper.style.display = 'block';
         if (repeatWrapper) repeatWrapper.style.display = 'none'; // No tiene sentido repetir compras
         if (repeatLimitWrapper) repeatLimitWrapper.style.display = 'none';
+        if (repeatCooldownWrapper) repeatCooldownWrapper.style.display = 'none';
         // Lógica específica para Venta
         pageTitle.textContent = 'Crear una Oferta de Venta';
         titleLabel.textContent = '¿Qué ofreces a cambio de BLUE?';
@@ -276,6 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sellWrapper.style.display = 'block';
         if (repeatWrapper) repeatWrapper.style.display = 'none'; // No tiene sentido repetir donaciones en este contexto
         if (repeatLimitWrapper) repeatLimitWrapper.style.display = 'none';
+        if (repeatCooldownWrapper) repeatCooldownWrapper.style.display = 'none';
         // Lógica específica para Donación
         pageTitle.textContent = 'Crear una Campaña de Donación';
         titleLabel.textContent = 'Título de tu Causa o Campaña:';
@@ -304,11 +310,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const repeatCheckbox = document.getElementById('allowRepeatParticipation');
-    if (repeatCheckbox && repeatLimitWrapper) {
+    if (repeatCheckbox && repeatLimitWrapper && repeatCooldownWrapper) {
         const updateRepeatVisibility = () => {
             repeatLimitWrapper.style.display = repeatCheckbox.checked ? 'flex' : 'none';
+            repeatCooldownWrapper.style.display = repeatCheckbox.checked ? 'flex' : 'none';
             if (!repeatCheckbox.checked && repeatLimitInput) {
                 repeatLimitInput.value = '2';
+            }
+            if (!repeatCheckbox.checked) {
+                if (repeatCooldownDaysInput) repeatCooldownDaysInput.value = '1';
+                if (repeatCooldownHoursInput) repeatCooldownHoursInput.value = '0';
+                if (repeatCooldownMinutesInput) repeatCooldownMinutesInput.value = '0';
             }
         };
         repeatCheckbox.addEventListener('change', updateRepeatVisibility);
@@ -398,8 +410,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             data.maxRepeatPerUser = repeatLimit;
+            const repeatDays = repeatCooldownDaysInput ? parseInt(repeatCooldownDaysInput.value, 10) : 0;
+            const repeatHours = repeatCooldownHoursInput ? parseInt(repeatCooldownHoursInput.value, 10) : 0;
+            const repeatMinutes = repeatCooldownMinutesInput ? parseInt(repeatCooldownMinutesInput.value, 10) : 0;
+            const safeDays = Number.isFinite(repeatDays) ? repeatDays : 0;
+            const safeHours = Number.isFinite(repeatHours) ? repeatHours : 0;
+            const safeMinutes = Number.isFinite(repeatMinutes) ? repeatMinutes : 0;
+            const totalMinutes = (safeDays * 24 * 60) + (safeHours * 60) + safeMinutes;
+            if (totalMinutes < 1) {
+                showCustomAlert('Indica un tiempo mínimo para repetir (mínimo 1 minuto).');
+                return;
+            }
+            data.repeatCooldownDays = safeDays;
+            data.repeatCooldownHours = safeHours;
+            data.repeatCooldownMinutes = safeMinutes;
         } else {
             data.maxRepeatPerUser = 1;
+            data.repeatCooldownDays = 1;
+            data.repeatCooldownHours = 0;
+            data.repeatCooldownMinutes = 0;
         }
 
         // Añadimos la lógica de la fecha de expiración

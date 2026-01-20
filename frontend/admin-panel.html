@@ -241,13 +241,37 @@
                         <label for="platformAutoApprove">Aprobar automáticamente a los participantes</label>
                     </div>
 
-                    <div class="form-group-checkbox">
-                        <input type="checkbox" id="platformAllowRepeatParticipation">
-                        <label for="platformAllowRepeatParticipation">Permitir que los usuarios repitan esta tarea</label>
+                    <div class="form-group-checkbox repeat-switch">
+                        <div class="switch-header">
+                            <div class="switch-label-group">
+                                <label for="platformAllowRepeatParticipation">Permitir que los usuarios repitan esta tarea</label>
+                            </div>
+                            <input type="checkbox" id="platformAllowRepeatParticipation">
+                        </div>
                         <div class="repeat-limit-input" id="platformRepeatLimitWrapper" style="display: none;">
-                            <label for="platformRepeatLimit">Máx por usuario</label>
-                            <input type="number" id="platformRepeatLimit" min="2" step="1" value="2">
-                            <small class="input-hint">Total de veces por usuario (ej: 2)</small>
+                            <label class="repeat-label" for="platformRepeatLimit">Veces que puede repetir</label>
+                            <div class="repeat-input-row">
+                                <input type="number" id="platformRepeatLimit" min="2" step="1" value="2">
+                            </div>
+                            <small class="input-hint"></small>
+                        </div>
+                        <div class="repeat-limit-input" id="platformRepeatCooldownWrapper" style="display: none;">
+                            <label class="repeat-label">Tiempo mínimo para repetir</label>
+                            <div class="repeat-cooldown-inputs repeat-input-row">
+                                <div class="repeat-cooldown-field">
+                                    <input type="number" id="platformRepeatCooldownDays" min="0" step="1" value="1" placeholder="Días">
+                                    <small class="repeat-cooldown-unit">d</small>
+                                </div>
+                                <div class="repeat-cooldown-field">
+                                    <input type="number" id="platformRepeatCooldownHours" min="0" step="1" value="0" placeholder="Horas">
+                                    <small class="repeat-cooldown-unit">h</small>
+                                </div>
+                                <div class="repeat-cooldown-field">
+                                    <input type="number" id="platformRepeatCooldownMinutes" min="0" step="1" value="0" placeholder="Minutos">
+                                    <small class="repeat-cooldown-unit">min</small>
+                                </div>
+                            </div>
+                            <small class="input-hint"></small>
                         </div>
                     </div>
 
