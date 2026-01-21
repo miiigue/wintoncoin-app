@@ -2,11 +2,29 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Iniciar Sesión - Interfaz Smart Contract</title>
+    <title>WintonCoin - Iniciar Sesión</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Plataforma de intercambio de servicios con tokens BLUE y RED">
+    <meta name="theme-color" content="#4a90d9">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="WintonCoin">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="WintonCoin">
+    <meta name="msapplication-TileColor" content="#1a1a2e">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- PWA Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/icon-96x96.png">
+    <link rel="apple-touch-icon" href="assets/icons/icon-192x192.png">
+    
     <link id="main-stylesheet" rel="stylesheet" href="style.v1.5.0.css">
 </head>
 <body>
@@ -60,5 +78,8 @@
             <button class="action-button policy-close-button">Entendido</button>
         </div>
     </div>
+    
+    <!-- PWA Service Worker Registration -->
+    <script src="pwa-register.js"></script>
 </body>
 </html> 

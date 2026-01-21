@@ -2,13 +2,39 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>WintonCoin</title>
-    <link id="main-stylesheet" rel="stylesheet" href="style.v1.5.0.css"> <!-- ID para poder modificarlo por script -->
-    <!-- NUEVO: Importación de la fuente Poppins desde Google Fonts -->
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Plataforma de intercambio de bienes y servicios con tokens BLUE y RED">
+    <meta name="theme-color" content="#4a90d9">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="WintonCoin">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="WintonCoin">
+    <meta name="msapplication-TileColor" content="#1a1a2e">
+    <meta name="msapplication-tap-highlight" content="no">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- PWA Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/icon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/icon-72x72.png">
+    <link rel="apple-touch-icon" href="assets/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="assets/icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="assets/icons/icon-192x192.png">
+    
+    <!-- Splash screens for iOS -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <link id="main-stylesheet" rel="stylesheet" href="style.v1.5.0.css">
+    <!-- Importación de la fuente Poppins desde Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
@@ -121,15 +147,15 @@
             <!-- Sección RED -->
             <div class="balance-section red-section">
                 <h3 class="balance-title">
-                    <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información sobre Saldo RED" data-tooltip-id="tooltip-saldo-red">Saldo RED</span>
+                    <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información sobre Saldo RED" data-tooltip-id="tooltip-saldo-red">SALDO RED</span>
                 </h3>
                 <div id="tooltip-saldo-red" class="info-tooltip" role="tooltip" aria-hidden="true">
                     <p>Los tokens RED representan tu deuda en el sistema. Se crean cuando realizas un pago a otro usuario. Debes quemarlos usando BLUE antes de que venzan, o el sistema los quemará automáticamente usando tus BLUE disponibles o pendientes. Si no pagas a tiempo, tu usuario será listado públicamente en la <strong>página LOVE</strong> (Lista de Obligaciones Vencidas).</p>
                 </div>
-                <div class="balance-items">
-                    <div class="balance-item-wrapper">
+                <div class="balance-items red-balance-items">
+                    <div class="balance-item-wrapper red-balance-wrapper">
                         <span class="balance-label">
-                            <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información sobre Saldo" data-tooltip-id="tooltip-saldo-red-label">Saldo</span>
+                            <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información sobre Debes" data-tooltip-id="tooltip-saldo-red-label">Tu Deuda</span>
                         </span>
                         <div id="tooltip-saldo-red-label" class="info-tooltip" role="tooltip" aria-hidden="true">
                             <p>Es la cantidad total de tokens RED (deuda) que tienes actualmente. Esta deuda tiene un tiempo de vencimiento. Si no la quemas antes del vencimiento, el sistema la quemará automáticamente usando tus tokens BLUE. Si no tienes suficientes BLUE para cubrir la deuda vencida, serás listado en la <strong>página LOVE</strong>.</p>
@@ -143,11 +169,11 @@
                                 <p>Tiempo restante antes de que tu deuda RED más antigua venza. Si no quemas manualmente antes de este tiempo, el sistema quemará automáticamente tus tokens BLUE (primero disponibles, luego pendientes) para saldar la deuda. Si no tienes suficientes BLUE, serás listado en la <strong>página LOVE</strong>.</p>
                             </div>
                         </div>
-                    </div>
-                    <div class="balance-item burn-item">
-                        <button class="action-button burn-trigger" id="burnTriggerBtn">
-                            <span class="fire-icon">🔥</span> Quemar <span class="fire-icon">🔥</span>
-                        </button>
+                        <div class="burn-item red-burn-button">
+                            <button class="action-button burn-trigger" id="burnTriggerBtn">
+                                <span class="fire-icon">🔥</span> Quemar <span class="fire-icon">🔥</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -392,5 +418,8 @@
         Prototipo Alfa
     </div>
     <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+    
+    <!-- PWA Service Worker Registration -->
+    <script src="pwa-register.js"></script>
 </body>
 </html> 
