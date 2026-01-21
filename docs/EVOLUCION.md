@@ -524,6 +524,27 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: reglas de repetición claras, releases consistentes y pruebas móviles más rápidas.
 - **Evidencia**: commit pendiente de push.
 
+### 2026-01-21 — PWA: Progressive Web App instalable en móviles
+
+- **Contexto**: los usuarios necesitaban una forma de acceder a la app desde la pantalla de inicio de su móvil sin pasar por Play Store, con experiencia similar a una app nativa.
+- **Decisión**:
+  - Implementar **PWA completa** con `manifest.json`, Service Worker y botón de instalación.
+  - Generar **iconos en todos los tamaños** requeridos (72px a 512px) incluyendo maskable para Android.
+  - Estrategia de cache: **Network First** para HTML, **Cache First** para assets estáticos, **Network Only** para APIs.
+  - Preparar estructura para **Push Notifications** (Firebase pendiente).
+  - Botón de instalación verde centrado ("Instalar App") visible en login/dashboard/registro.
+- **Archivos creados**:
+  - `frontend/manifest.json` — metadata de la PWA
+  - `frontend/sw.js` — Service Worker con estrategias de cache
+  - `frontend/pwa-register.js` — registro SW + UI de instalación
+  - `frontend/assets/icons/` — 14 iconos PNG + SVG fuente + scripts de generación
+- **Impacto**:
+  - La app puede instalarse en móviles desde el navegador.
+  - Funciona offline (páginas cacheadas).
+  - Se ve y comporta como app nativa (sin barra de navegador).
+  - Base lista para notificaciones push.
+- **Evidencia (commits)**: `20a10f3`.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)
