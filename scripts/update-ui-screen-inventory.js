@@ -9,7 +9,8 @@ const outputPath = path.join(docsDir, 'UI_SCREEN_INVENTORY.md');
 const versionedJsRegex = /<script[^>]*src="([^"]+\.v\d+\.\d+\.\d+\.js)"[^>]*>/gi;
 const modalRegex = /<div[^>]*id="([^"]+)"[^>]*class="([^"]+)"[^>]*>/gi;
 
-const excludedScripts = new Set(['utils.v1.4.1.js', 'password-toggle.v1.4.1.js']);
+const ASSET_VERSION = 'v1.5.0';
+const excludedScripts = new Set([`utils.${ASSET_VERSION}.js`, `password-toggle.${ASSET_VERSION}.js`]);
 
 const displayNameMap = new Map([
     ['index.html', 'Login'],
@@ -255,14 +256,14 @@ function buildMarkdown({ entries, staticScreens }) {
     lines.push('## 7) Core utilities');
     lines.push('');
     lines.push('- Utilidades globales');
-    lines.push('  - JS: `frontend/utils.v1.4.1.js`');
+    lines.push(`  - JS: \`frontend/utils.${ASSET_VERSION}.js\``);
     lines.push('  - Modales: `customAlertModal`, `customConfirmModal` (usados por varias pantallas)');
     lines.push('');
     lines.push('### Tabla - Core utilities');
     lines.push('');
     lines.push('| Item | JS | Modales |');
     lines.push('| --- | --- | --- |');
-    lines.push('| Utilidades globales | `frontend/utils.v1.4.1.js` | `customAlertModal`, `customConfirmModal` |');
+    lines.push(`| Utilidades globales | \`frontend/utils.${ASSET_VERSION}.js\` | \`customAlertModal\`, \`customConfirmModal\` |`);
     lines.push('');
 
     return lines.join('\n');

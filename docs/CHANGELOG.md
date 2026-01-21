@@ -203,3 +203,17 @@ Este archivo resume la evolución del proyecto **por hitos** a partir del histor
 - UI: usar modal personalizado para avisos relevantes (evitar `alert()` nativo cuando corresponde). (`7bf35d2`)
 - Admin: guard **fail-closed** al desactivar pre-launch; si faltan columnas críticas en DB (`red_token_debts.user_id`, `blue_token_escrows.user_id`), responder `409` con mensaje claro para evitar romper pagos por “schema drift”. (`7bf35d2`)
 
+## [2026-01-20]
+
+### Added
+- Repetición de tareas con cooldown configurable (días/horas/minutos) y validación server-side.
+- Migración 014 para `repeat_cooldown_hours` en `publications`.
+- Script para inventario de pantallas UI + hook pre-commit para mantenerlo actualizado.
+
+### Changed
+- Versionado de assets a `v1.5.0` y actualización de referencias en HTML.
+- UI de repetición de tareas: labels alineados, inputs compactos y estructura consistente de toggles.
+
+### Fixed
+- CORS en desarrollo: permitir IPs LAN para pruebas desde teléfono.
+

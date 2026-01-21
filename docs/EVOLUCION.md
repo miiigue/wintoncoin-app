@@ -512,6 +512,18 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: refuerzo positivo y mayor incentivo a mantener actividad diaria.
 - **Evidencia**: commit pendiente de push.
 
+### 2026-01-20 — Repetición con cooldown + versionado v1.5.0
+
+- **Contexto**: era necesario controlar cuánto tiempo debe pasar antes de repetir una tarea y estandarizar el release.
+- **Decisión**:
+  - agregar cooldown configurable (días/horas/minutos) en UI y validación en backend.
+  - migración 014 para `repeat_cooldown_hours`.
+  - versionar assets a `v1.5.0` y actualizar referencias HTML.
+  - automatizar inventario UI con script y hook pre-commit.
+  - permitir IPs LAN en CORS dev para pruebas desde teléfono.
+- **Impacto**: reglas de repetición claras, releases consistentes y pruebas móviles más rápidas.
+- **Evidencia**: commit pendiente de push.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)
