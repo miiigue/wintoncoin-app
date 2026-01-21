@@ -1,0 +1,115 @@
+// ============================================================================
+// WintonCoin - Página de Login
+// ============================================================================
+// Entry point para la página de inicio de sesión
+// ============================================================================
+
+import { getApiUrl, showCustomAlert } from '../modules/index.js';
+import { togglePasswordVisibility } from '../modules/password-toggle.js';
+
+// Hacer toggle disponible globalmente para el onclick del HTML
+window.togglePasswordVisibility = togglePasswordVisibility;
+
+/**
+ * Inicializa el modal de política de cuenta única
+ */
+function initializePolicyModal() {
+    const policyModal = document.getElementById('oneAccountPolicyModal');
+    const closeButtons = document.querySelectorAll('.policy-close-button');
+
+    const showPolicyModal = () => {
+        if (policyModal && sessionStorage.getItem('policyModalShown') !== 'true') {
+            policyModal.style.display = 'flex';
+            sessionStorage.setItem('policyModalShown', 'true');
+        }
+    };
+
+    const closePolicyModal = () => {
+        if (policyModal) {
+            policyModal.style.display = 'none';
+        }
+    };
+
+    // Mostrar el modal al cargar la página
+    showPolicyModal();
+
+    // Añadir eventos a los botones de cierre
+    closeButtons.forEach(button => {
+        button.addEventListener('click', closePolicyModal);
+    });
+
+    // Cerrar el modal si se hace clic fuera de él
+    window.addEventListener('click', (event) => {
+        if (event.target === policyModal) {
+            closePolicyModal();
+        }
+    });
+}
+
+/**
+ * Inicializa el formulario de login
+ */
+function initializeLoginForm() {
+    const API_URL = getApiUrl();
+    const loginForm = document.getElementById('loginForm');
+
+    if (!loginForm) {
+        console.error('El formulario con id "loginForm" no fue encontrado.');
+        return;
+    }
+
+    loginForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
+
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const loginUrl = `${API_URL}/login`;
+
+        try {
+            const response = await fetch(loginUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                
+                if (result.token && result.username) {
+                    localStorage.setItem('token', result.token);
+                    localStorage.setItem('username', result.username);
+                    window.location.href = 'contract_interaction.html';
+                } else {
+                    showCustomAlert('Error: La respuesta del servidor no incluyó un token de sesión.');
+                }
+            } else {
+                const errorResult = await response.json();
+                showCustomAlert(`Error: ${errorResult.message}`);
+                document.getElementById('password').value = '';
+            }
+        } catch (error) {
+            console.error('Error de red o al conectar con el servidor:', error);
+            showCustomAlert('No se pudo conectar con el servidor. Asegúrate de que está en funcionamiento.');
+        }
+    });
+}
+
+/**
+ * Inicialización principal de la página de login
+ */
+function initializeLoginPage() {
+    initializePolicyModal();
+    initializeLoginForm();
+}
+
+// Inicializar cuando el DOM esté listo
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeLoginPage);
+} else {
+    initializeLoginPage();
+}
+
+// Exportar funciones para uso en tests o extensiones
+export { initializeLoginPage, initializePolicyModal, initializeLoginForm };

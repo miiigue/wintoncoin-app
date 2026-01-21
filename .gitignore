@@ -67,6 +67,9 @@ typings/
 # vuepress build output
 .vuepress/dist
 
+# Vite build output
+frontend/dist/
+
 # Serverless directories
 .serverless/
 

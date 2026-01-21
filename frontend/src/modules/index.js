@@ -12,6 +12,7 @@ export * from './auth.js';
 export * from './tooltips.js';
 export * from './banner.js';
 export * from './linkify.js';
+export * from './password-toggle.js';
 
 // ============================================================================
 // COMPATIBILIDAD GLOBAL (window.*)
@@ -56,6 +57,7 @@ import {
 } from './banner.js';
 
 import { linkify } from './linkify.js';
+import { togglePasswordVisibility } from './password-toggle.js';
 
 // Solo ejecutar en el navegador (no en Node.js)
 if (typeof window !== 'undefined') {

@@ -56,11 +56,13 @@
         <a href="register.html" class="secondary-action-button">Registrarse</a>
     </div>
 
-    <script src="utils.v1.5.0.js"></script>
-    <script src="login.v1.5.0.js"></script>
-    <script src="password-toggle.v1.5.0.js"></script>
+    <!-- ES Modules (Vite) -->
+    <script type="module" src="src/pages/login.js"></script>
 
-    <!-- Modal de Alerta Personalizado -->
+    <!-- Contenedor para alertas dinámicas -->
+    <div id="custom-alert-container"></div>
+
+    <!-- Modal de Alerta Personalizado (legacy) -->
     <div id="customAlertModal" class="modal">
         <div class="modal-content">
             <span class="close-button alert-close-button">&times;</span>
