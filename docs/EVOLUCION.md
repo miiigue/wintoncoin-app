@@ -545,6 +545,23 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Base lista para notificaciones push.
 - **Evidencia (commits)**: `20a10f3`.
 
+### 2026-01-22 — PWA: flujo de instalación con código de referido y admin panel restaurado
+
+- **Contexto**: cuando un usuario llegaba por enlace de referido, instalaba la PWA y la abría, perdía el código de referido y quedaba en la pantalla de login en vez de registro. Además, el admin panel había perdido funcionalidades durante la migración a ES Modules.
+- **Decisión**:
+  - **Botón de instalación grande** en página de registro: más visible (3x más alto) con mensaje claro "Primero debes instalar la app".
+  - **Persistencia del código de referido** en `localStorage` para que sobreviva la instalación de la PWA.
+  - **Redirección inteligente**: al abrir la PWA, si hay código de referido pendiente y no hay sesión, redirige a registro SOLO la primera vez (usa `sessionStorage`). Después el usuario puede navegar libremente.
+  - **Restauración del admin panel**: recuperar las 2000+ líneas de funcionalidad que se habían perdido en la migración.
+  - **Iconos PWA con fondo blanco**: evitar bordes negros en Android con iconos maskable.
+  - **Herramienta generate-maskable.html**: permite generar iconos con color de fondo personalizado.
+- **Impacto**:
+  - Flujo de referidos sin fricción: el código se mantiene desde el navegador hasta la PWA instalada.
+  - UX profesional tipo fintech: redirección controlada sin bloquear navegación.
+  - Admin panel 100% funcional con todas las secciones restauradas.
+  - Iconos sin bordes negros en Android.
+- **Evidencia (commits)**: `4a6a439`.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)

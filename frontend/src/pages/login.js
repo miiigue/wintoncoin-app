@@ -6,9 +6,33 @@
 
 import { getApiUrl, showCustomAlert } from '../modules/index.js';
 import { togglePasswordVisibility } from '../modules/password-toggle.js';
+import { initPWAInstall, isPWAInstalled } from '../modules/pwa-install.js';
 
 // Hacer toggle disponible globalmente para el onclick del HTML
 window.togglePasswordVisibility = togglePasswordVisibility;
+
+/**
+ * Verifica si hay un código de referido pendiente y redirige a registro
+ * SOLO la primera vez que se abre la app en esta sesión.
+ * Después, el usuario puede navegar libremente entre login y registro.
+ */
+function checkPendingReferralAndRedirect() {
+    const pendingRefCode = localStorage.getItem('pending_referral_code');
+    const token = localStorage.getItem('token');
+    const alreadyRedirected = sessionStorage.getItem('referral_redirect_done');
+    
+    // Si hay código de referido pendiente, NO hay sesión activa,
+    // y NO hemos redirigido ya en esta sesión
+    if (pendingRefCode && !token && !alreadyRedirected) {
+        console.log('[Login] Primera apertura con código de referido - redirigiendo a registro...');
+        // Marcar que ya redirigimos para no hacerlo de nuevo en esta sesión
+        sessionStorage.setItem('referral_redirect_done', 'true');
+        window.location.href = 'register.html';
+        return true; // Indica que se está redirigiendo
+    }
+    
+    return false; // No se redirige
+}
 
 /**
  * Inicializa el modal de política de cuenta única
@@ -100,8 +124,15 @@ function initializeLoginForm() {
  * Inicialización principal de la página de login
  */
 function initializeLoginPage() {
+    // PRIMERO: Verificar si hay código de referido pendiente
+    // Si lo hay, redirigir a registro y no continuar
+    if (checkPendingReferralAndRedirect()) {
+        return; // Salir, ya que se está redirigiendo
+    }
+    
     initializePolicyModal();
     initializeLoginForm();
+    initPWAInstall(); // Inicializar botón de instalación PWA
 }
 
 // Inicializar cuando el DOM esté listo

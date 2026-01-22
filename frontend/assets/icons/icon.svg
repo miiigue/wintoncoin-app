@@ -14,14 +14,17 @@
     </filter>
   </defs>
   
-  <!-- Background circle -->
-  <circle cx="256" cy="256" r="256" fill="url(#bgGrad)"/>
+  <!-- FONDO BLANCO SOLIDO - Evita bordes negros en Android -->
+  <rect x="0" y="0" width="512" height="512" fill="#ffffff"/>
+  
+  <!-- Background circle - reducido para zona segura maskable (80%) -->
+  <circle cx="256" cy="256" r="230" fill="url(#bgGrad)"/>
   
   <!-- Inner circle for depth -->
-  <circle cx="256" cy="256" r="220" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="2"/>
+  <circle cx="256" cy="256" r="200" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="2"/>
   
-  <!-- W letter -->
-  <g filter="url(#shadow)">
+  <!-- W letter - escalado para caber en el circulo reducido -->
+  <g filter="url(#shadow)" transform="translate(256,256) scale(0.9) translate(-256,-256)">
     <path d="M 100 140 
              L 150 140 
              L 190 320 
@@ -39,5 +42,5 @@
   </g>
   
   <!-- Subtle shine effect -->
-  <ellipse cx="256" cy="120" rx="150" ry="80" fill="rgba(255,255,255,0.03)"/>
+  <ellipse cx="256" cy="130" rx="130" ry="70" fill="rgba(255,255,255,0.03)"/>
 </svg>

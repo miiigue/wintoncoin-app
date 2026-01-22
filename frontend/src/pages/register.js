@@ -6,6 +6,7 @@
 
 import { getApiUrl, showCustomAlert, checkAuthStatus } from '../modules/index.js';
 import { togglePasswordVisibility } from '../modules/password-toggle.js';
+import { initPWAInstall, restoreReferralCode, isPWAInstalled } from '../modules/pwa-install.js';
 
 // Hacer toggle disponible globalmente para el onclick del HTML
 window.togglePasswordVisibility = togglePasswordVisibility;
@@ -394,6 +395,9 @@ function setupMinorFields() {
 async function initializeRegisterPage() {
     const API_URL = getApiUrl();
     
+    // Inicializar botón de instalación PWA
+    initPWAInstall();
+    
     // Referencias a elementos del DOM
     const registerForm = document.getElementById('registerForm');
     const verifyForm = document.getElementById('verifyForm');
@@ -495,6 +499,11 @@ async function initializeRegisterPage() {
     
     if (refCodeFromUrl && referralCodeInput) {
         referralCodeInput.value = refCodeFromUrl.trim().toUpperCase();
+        // Guardar en localStorage para que persista después de instalar la PWA
+        localStorage.setItem('pending_referral_code', refCodeFromUrl.trim().toUpperCase());
+    } else if (isPWAInstalled()) {
+        // Si estamos en la PWA instalada, restaurar código de referido guardado
+        restoreReferralCode();
     }
 
     // Mostrar modales según corresponda
@@ -618,6 +627,8 @@ async function initializeRegisterPage() {
                     localStorage.removeItem('pendingVerificationPhone');
                     localStorage.removeItem('pendingVerificationEmail');
                     localStorage.removeItem('pending_verification_email');
+                    // Limpiar código de referido ya que el registro se completó
+                    localStorage.removeItem('pending_referral_code');
                     
                     window.location.href = 'contract_interaction.html';
                 } else {
