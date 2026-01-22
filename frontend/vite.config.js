@@ -19,6 +19,9 @@ export default defineConfig({
   // Base URL para assets (./ para rutas relativas - compatible con Hostinger)
   base: './',
   
+  // Directorio para archivos estáticos (se copian tal cual al dist)
+  publicDir: 'public',
+  
   // Configuración de resolución de módulos
   resolve: {
     alias: {

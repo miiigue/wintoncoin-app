@@ -1,0 +1,220 @@
+/* --- Estilos para la Página de Perfil de Impulsor --- */
+
+.booster-container {
+    max-width: 900px;
+}
+
+.booster-header {
+    text-align: center;
+    padding: 2rem;
+    background: linear-gradient(45deg, var(--primary-color), #8e44ad);
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    position: relative;
+    color: white;
+}
+
+.booster-header h1 {
+    margin: 0;
+    font-size: 2.5rem;
+    color: white;
+}
+
+.booster-header .level-badge {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    font-weight: 600;
+    margin-top: 0.5rem;
+}
+
+.booster-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.booster-stats-blocks {
+    gap: 1.25rem;
+}
+
+.stat-box {
+    background-color: var(--surface-color);
+    padding: 1.5rem;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.stat-box h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-secondary-color);
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.stat-box .stat-value {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.booster-stat-block {
+    background-color: var(--surface-color);
+    padding: 1.25rem;
+    border-radius: 10px;
+    text-align: center;
+    border: 1px solid rgba(106, 90, 205, 0.35);
+}
+
+.booster-summary-cards {
+    margin-bottom: 2rem;
+}
+
+.booster-ranking {
+    margin: 0;
+}
+
+.booster-daily-goal {
+    position: relative;
+    overflow: hidden;
+}
+
+.daily-goal-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #f5d76e;
+    text-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+    margin-bottom: 0.4rem;
+}
+
+.daily-goal-bar {
+    width: 100%;
+    height: 10px;
+    background-color: var(--background-color);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 0.35rem;
+}
+
+.daily-goal-fill {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #6a5acd, #2ecc71);
+    transition: width 0.6s ease;
+}
+
+.daily-goal-reward {
+    margin-top: 0.45rem;
+    font-size: 0.85rem;
+    color: #f5d76e;
+}
+
+.rank-improved {
+    animation: boosterGlow 1.1s ease-in-out 3;
+}
+
+.firework-particle {
+    position: absolute;
+    left: 50%;
+    top: 55%;
+    border-radius: 50%;
+    opacity: 0;
+    animation: fireworkBurst 3.2s ease-out forwards;
+    transform: translate(-50%, -50%) scale(0.25);
+}
+
+@keyframes fireworkBurst {
+    0% {
+        opacity: 0.95;
+        transform: translate(-50%, -50%) scale(0.2);
+    }
+    70% {
+        opacity: 0.9;
+    }
+    100% {
+        opacity: 0;
+        transform: translate(calc(-50% + var(--fx-x)), calc(-50% + var(--fx-y))) scale(1);
+    }
+}
+
+@keyframes boosterGlow {
+    0% { box-shadow: 0 0 0 rgba(245, 215, 110, 0); }
+    40% { box-shadow: 0 0 18px rgba(245, 215, 110, 0.5); }
+    100% { box-shadow: 0 0 0 rgba(245, 215, 110, 0); }
+}
+
+.ranking-title {
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-secondary-color);
+    margin-bottom: 0.4rem;
+}
+
+.ranking-position {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #f5d76e;
+    text-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.ranking-subtitle {
+    margin-top: 0.35rem;
+    font-size: 0.95rem;
+    color: var(--text-secondary-color);
+}
+
+.progress-section {
+    background-color: var(--surface-color);
+    padding: 1.5rem;
+    border-radius: 10px;
+    margin-bottom: 2rem;
+}
+
+.progress-section h3 {
+    margin-top: 0;
+    text-align: center;
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 20px;
+    background-color: var(--background-color);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0; /* Se ajustará con JS */
+    background: linear-gradient(90deg, var(--primary-color), #2ecc71);
+    border-radius: 10px;
+    transition: width 0.5s ease-in-out;
+}
+
+.progress-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary-color);
+}
+
+.history-section h2 {
+    color: var(--text-color);
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+} 
+
+@media (max-width: 640px) {
+    .booster-header h1 {
+        font-size: 1.25rem;
+    }
+
+    .booster-stats {
+        grid-template-columns: 1fr;
+    }
+}

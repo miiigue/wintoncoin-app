@@ -1,0 +1,1000 @@
+/**
+ * Contract Interaction (Dashboard) Page Module
+ * Main dashboard for authenticated users - publications, balances, notifications
+ */
+
+import { 
+    getApiUrl, 
+    showCustomAlert, 
+    showCustomConfirm, 
+    linkify,
+    fetchAndStoreAppSettings,
+    appSettings 
+} from '../modules/index.js';
+import { initPWAInstall } from '../modules/pwa-install.js';
+
+// Expose functions globally for backward compatibility
+window.getApiUrl = getApiUrl;
+window.showCustomAlert = showCustomAlert;
+window.showCustomConfirm = showCustomConfirm;
+window.linkify = linkify;
+window.fetchAndStoreAppSettings = fetchAndStoreAppSettings;
+window.appSettings = appSettings;
+
+console.log('[ContractInteraction] ES Module loaded');
+
+document.addEventListener('DOMContentLoaded', () => {
+    // --- Utility Functions ---
+    function formatBalance(value) {
+        const num = Number(value) || 0;
+        const formattedString = num.toLocaleString('es-ES', {
+            minimumFractionDigits: 4,
+            maximumFractionDigits: 4
+        });
+        const parts = formattedString.split(',');
+        if (parts.length === 2) {
+            return `${parts[0]},<span class="decimal-part">${parts[1]}</span>`;
+        }
+        return formattedString;
+    }
+
+    // --- Configuration ---
+    const API_URL = getApiUrl();
+    const storedUsername = localStorage.getItem('username');
+    
+    // --- DOM Elements ---
+    const elements = {
+        usernameDisplay: document.getElementById('usernameDisplay'),
+        profileTrigger: document.querySelector('.profile-trigger'),
+        profileDropdown: document.getElementById('profileDropdown'),
+        notificationTrigger: document.querySelector('.notification-trigger'),
+        notificationDropdown: document.getElementById('notificationDropdown'),
+        notificationBadge: document.getElementById('notificationBadge'),
+        logoutLink: document.getElementById('logoutLink'),
+        publicationsList: document.getElementById('publications-list'),
+        publicationSortFilter: document.getElementById('publicationSortFilter'),
+        saldoBlue: document.getElementById('saldoBlue'),
+        saldoRed: document.getElementById('saldoRed'),
+        saldoEscrowBlue: document.getElementById('saldoEscrowBlue'),
+        burnModal: document.getElementById('burnModal'),
+        burnTriggerBtn: document.getElementById('burnTriggerBtn'),
+        closeModalBtn: document.querySelector('.close-button'),
+        burnForm: document.getElementById('burnForm'),
+        burnModalBalances: document.getElementById('burnModalBalances'),
+        ratingModal: document.getElementById('ratingModal'),
+        ratingForm: document.getElementById('ratingForm'),
+        publicationTypeModal: document.getElementById('publicationTypeModal'),
+        openPublicationModalBtn: document.getElementById('openPublicationModalBtn'),
+        closePublicationTypeModalBtn: document.querySelector('.publication-type-close'),
+        debtCountdownContainer: document.getElementById('debt-countdown-container'),
+        debtCountdownText: document.getElementById('debt-countdown-text'),
+        escrowCountdownContainer: document.getElementById('escrow-countdown-container'),
+        escrowCountdownText: document.getElementById('escrow-countdown-text'),
+        availableCountdownContainer: document.getElementById('available-countdown-container'),
+        availableCountdownText: document.getElementById('available-countdown-text'),
+        publicationsCount: document.getElementById('publicationsCount'),
+        boosterSummary: document.getElementById('boosterSummary'),
+        boosterTotalBlue: document.getElementById('boosterTotalBlue'),
+        boosterProgressText: document.getElementById('boosterProgressText'),
+        boosterProgressFill: document.getElementById('boosterProgressFill')
+    };
+
+    // Intervals for countdowns
+    let debtCountdownInterval = null;
+    let escrowCountdownInterval = null;
+    let availableCountdownInterval = null;
+    let lastBoosterFetch = 0;
+    let platformSettingsCache = null;
+    let publicationsCache = [];
+
+    // --- Initialize ---
+    if (!storedUsername) {
+        showCustomAlert('Debes iniciar sesión para acceder a esta página.', () => {
+            window.location.href = 'index.html';
+        });
+        return;
+    }
+    
+    if (elements.usernameDisplay) {
+        elements.usernameDisplay.textContent = storedUsername;
+    }
+
+    // Show cached balances immediately
+    if (elements.saldoBlue) elements.saldoBlue.innerHTML = formatBalance(localStorage.getItem('blue_balance'));
+    if (elements.saldoEscrowBlue) elements.saldoEscrowBlue.innerHTML = formatBalance(localStorage.getItem('escrow_blue_balance'));
+    if (elements.saldoRed) elements.saldoRed.innerHTML = formatBalance(localStorage.getItem('red_balance'));
+
+    // Load data
+    loadAllData();
+    setupDropdowns();
+    setupEventListeners();
+    checkPublicationPermissions();
+    loadReferralSettings();
+    setupShareReferral();
+    initPWAInstall(); // Inicializar botón de instalación PWA
+
+    // Auto-refresh every 5 seconds
+    setInterval(loadAllData, 5000);
+
+    // --- Functions ---
+    async function getPlatformSettings() {
+        if (platformSettingsCache) return platformSettingsCache;
+        try {
+            const response = await fetch(`${API_URL}/api/platform-settings`);
+            if (!response.ok) throw new Error('No se pudo cargar la configuración.');
+            platformSettingsCache = await response.json();
+            return platformSettingsCache;
+        } catch (error) {
+            console.error(error);
+            return {
+                pre_launch_mode_enabled: false,
+                allow_request_publications: true,
+                allow_sell_publications: true,
+                allow_donation_publications: true
+            };
+        }
+    }
+
+    async function checkPublicationPermissions() {
+        const settings = await getPlatformSettings();
+        const modal = document.getElementById('publicationTypeModal');
+        if (!modal) return;
+
+        const requestOption = modal.querySelector('.modal-option-button.request');
+        const sellOption = modal.querySelector('.modal-option-button.sell');
+        const donationOption = modal.querySelector('.modal-option-button.donation');
+
+        const toggleOption = (element, isEnabled, type) => {
+            if (!element) return;
+            element.classList.toggle('disabled', !isEnabled);
+            if (!isEnabled) {
+                element.style.cursor = 'not-allowed';
+            } else {
+                element.style.cursor = 'pointer';
+                const newElement = element.cloneNode(true);
+                element.parentNode.replaceChild(newElement, element);
+                newElement.addEventListener('click', () => {
+                    setTimeout(() => {
+                        window.location.href = `publish.html?type=${type}`;
+                    }, 50);
+                });
+            }
+        };
+
+        toggleOption(requestOption, settings.allow_request_publications, 'request');
+        toggleOption(sellOption, settings.allow_sell_publications, 'sell');
+        toggleOption(donationOption, settings.allow_donation_publications, 'donation');
+
+        // Quick sale button
+        const quickSaleBtn = document.getElementById('openQuickSaleModalBtn');
+        if (quickSaleBtn) {
+            quickSaleBtn.style.display = settings.allow_quick_sale_publications === false ? 'none' : 'inline-flex';
+        }
+    }
+
+    function loadAllData() {
+        fetchAndDisplayPublications();
+        fetchNotifications();
+        fetchAndDisplayBalances();
+        fetchBoosterSummary();
+    }
+
+    function setupDropdowns() {
+        const setup = (trigger, dropdown) => {
+            if (!trigger || !dropdown) return;
+            trigger.addEventListener('click', (event) => {
+                event.stopPropagation();
+                const isOpening = !dropdown.classList.contains('show');
+                closeAllDropdowns();
+                if (isOpening) dropdown.classList.toggle('show');
+            });
+        };
+        setup(elements.profileTrigger, elements.profileDropdown);
+        setup(elements.notificationTrigger, elements.notificationDropdown);
+    }
+
+    function closeAllDropdowns() {
+        if (elements.profileDropdown) elements.profileDropdown.classList.remove('show');
+        if (elements.notificationDropdown) elements.notificationDropdown.classList.remove('show');
+    }
+
+    function setupEventListeners() {
+        window.addEventListener('click', closeAllDropdowns);
+        
+        if (elements.logoutLink) {
+            elements.logoutLink.addEventListener('click', handleLogout);
+        }
+        
+        if (elements.publicationsList) {
+            elements.publicationsList.addEventListener('click', handlePublicationAction);
+        }
+        
+        if (elements.publicationSortFilter) {
+            elements.publicationSortFilter.addEventListener('change', renderPublicationsWithFilters);
+        }
+        
+        if (elements.burnTriggerBtn) {
+            elements.burnTriggerBtn.addEventListener('click', () => {
+                updateBurnModal();
+                if (elements.burnModal) elements.burnModal.style.display = 'flex';
+            });
+        }
+        
+        if (elements.closeModalBtn) {
+            elements.closeModalBtn.addEventListener('click', () => {
+                if (elements.burnModal) elements.burnModal.style.display = 'none';
+            });
+        }
+        
+        if (elements.burnForm) {
+            elements.burnForm.addEventListener('submit', handleBurnSubmit);
+        }
+        
+        if (elements.ratingForm) {
+            elements.ratingForm.addEventListener('submit', handleRatingSubmit);
+        }
+        
+        if (elements.openPublicationModalBtn) {
+            elements.openPublicationModalBtn.addEventListener('click', (event) => {
+                event.preventDefault();
+                checkPublicationPermissions();
+                if (elements.publicationTypeModal) elements.publicationTypeModal.style.display = 'flex';
+            });
+        }
+        
+        if (elements.closePublicationTypeModalBtn) {
+            elements.closePublicationTypeModalBtn.addEventListener('click', () => {
+                if (elements.publicationTypeModal) elements.publicationTypeModal.style.display = 'none';
+            });
+        }
+
+        window.addEventListener('click', (event) => {
+            if (event.target === elements.burnModal && elements.burnModal) elements.burnModal.style.display = 'none';
+            if (event.target === elements.ratingModal && elements.ratingModal) elements.ratingModal.style.display = 'none';
+            if (event.target === elements.publicationTypeModal && elements.publicationTypeModal) elements.publicationTypeModal.style.display = 'none';
+        });
+
+        // Notification handlers
+        if (elements.notificationDropdown) {
+            elements.notificationDropdown.addEventListener('click', async (event) => {
+                const dismissButton = event.target.closest('.notification-dismiss');
+                const clearAllLink = event.target.closest('.notification-footer-link');
+                if (dismissButton) {
+                    event.preventDefault();
+                    await dismissNotification(dismissButton.dataset.id);
+                }
+                if (clearAllLink) {
+                    event.preventDefault();
+                    await clearAllNotifications();
+                }
+            });
+        }
+    }
+
+    function handleLogout(event) {
+        event.preventDefault();
+        localStorage.removeItem('username');
+        localStorage.removeItem('blue_balance');
+        localStorage.removeItem('escrow_blue_balance');
+        localStorage.removeItem('red_balance');
+        localStorage.removeItem('token');
+        showCustomAlert('Has cerrado la sesión.', () => {
+            window.location.href = 'index.html';
+        });
+    }
+
+    async function handlePublicationAction(event) {
+        const button = event.target.closest('[data-action]');
+        if (!button) return;
+
+        const pubId = button.dataset.id;
+        const action = button.dataset.action;
+        const userInAction = button.dataset.user;
+
+        let endpoint, body = {};
+
+        switch (action) {
+            case 'accept':
+                endpoint = `/publications/${pubId}/accept`;
+                body = { acceptorUsername: storedUsername };
+                await postToServer(endpoint, body);
+                break;
+            case 'approve':
+                endpoint = `/publications/${pubId}/approve`;
+                body = { approverUsername: storedUsername, userToApprove: userInAction };
+                await postToServer(endpoint, body);
+                break;
+            case 'complete':
+                endpoint = `/publications/${pubId}/complete`;
+                body = { completerUsername: storedUsername };
+                await postToServer(endpoint, body);
+                break;
+            case 'confirm-payment':
+                const publicationElement = button.closest('.publication-item');
+                const authorUsername = publicationElement?.dataset.author;
+                await confirmPaymentAndRate(pubId, authorUsername, userInAction);
+                break;
+            case 'delete':
+                showCustomConfirm('¿Deseas eliminar esta tarea?', async () => {
+                    await deleteFromServer(`/publications/${pubId}`, { deleterUsername: storedUsername });
+                });
+                break;
+            case 'discard':
+                showCustomConfirm(`¿Descartar solicitud de ${userInAction}?`, async () => {
+                    await postToServer(`/publications/${pubId}/discard`, { discarderUsername: storedUsername, userToDiscard: userInAction });
+                });
+                break;
+            case 'toggle-pause':
+                await postToServer(`/publications/${pubId}/toggle-pause`, { username: storedUsername });
+                break;
+            case 'hide':
+                await postToServer(`/publications/${pubId}/hide`, { username: storedUsername });
+                break;
+        }
+    }
+
+    async function confirmPaymentAndRate(pubId, authorUsername, acceptorUsername) {
+        try {
+            const response = await fetch(`${API_URL}/publications/${pubId}/confirm-payment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ confirmerUsername: storedUsername, workerUsername: acceptorUsername })
+            });
+            const result = await response.json();
+            
+            if (response.ok) {
+                showCustomAlert(result.message);
+                loadAllData();
+                openRatingModal(pubId, authorUsername, acceptorUsername);
+            } else {
+                showCustomAlert(result.message || "Error al confirmar el pago.");
+            }
+        } catch (error) {
+            console.error('Error en confirmPaymentAndRate:', error);
+            showCustomAlert('Error de red al confirmar el pago.');
+        }
+    }
+
+    async function handleRatingSubmit(event) {
+        event.preventDefault();
+        const formData = new FormData(event.target);
+        const body = Object.fromEntries(formData.entries());
+        
+        try {
+            await postToServer('/rate', body);
+            if (elements.ratingModal) elements.ratingModal.style.display = 'none';
+        } catch(error) {
+            console.error("La calificación falló.", error);
+        }
+    }
+
+    async function postToServer(endpoint, body, options = {}) {
+        const { silent = false, reload = true } = options;
+        try {
+            const token = localStorage.getItem('token');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            const response = await fetch(`${API_URL}${endpoint}`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(body)
+            });
+
+            const responseText = await response.text();
+            let result;
+
+            try {
+                result = JSON.parse(responseText);
+            } catch (e) {
+                console.error("Respuesta no-JSON:", responseText);
+                showCustomAlert(responseText || 'Error inesperado.');
+                throw new Error("Respuesta no-JSON");
+            }
+
+            if (!response.ok) {
+                showCustomAlert(result.message || `Error: ${response.status}`);
+                throw new Error(result.message);
+            }
+
+            if (!silent && result.message) {
+                showCustomAlert(result.message);
+            }
+
+            if (response.ok && reload) {
+                loadAllData();
+            }
+
+            return result;
+        } catch (error) {
+            console.error(`Error en postToServer (${endpoint}):`, error);
+            return Promise.reject(error);
+        }
+    }
+
+    async function deleteFromServer(endpoint, body) {
+        try {
+            const response = await fetch(`${API_URL}${endpoint}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const result = await response.json();
+            showCustomAlert(result.message);
+            if (response.ok) loadAllData();
+        } catch (error) {
+            console.error('Error en deleteFromServer:', error);
+            showCustomAlert('Error de red al eliminar.');
+        }
+    }
+
+    // --- Publications ---
+    async function fetchAndDisplayPublications() {
+        if (!elements.publicationsList) return;
+        
+        try {
+            const response = await fetch(`${API_URL}/publications/active?user=${storedUsername}`);
+            if (!response.ok) {
+                elements.publicationsList.innerHTML = '<p>Error al cargar las publicaciones.</p>';
+                return;
+            }
+            const publications = await response.json();
+            
+            if (publications.length === 0) {
+                elements.publicationsList.innerHTML = '<p class="empty-message">No hay publicaciones disponibles. ¡Sé el primero en crear una!</p>';
+                updatePublicationsCount([]);
+                return;
+            }
+
+            publicationsCache = publications;
+            await renderPublicationsWithFilters();
+        } catch (error) {
+            console.error('Error al obtener publicaciones:', error);
+            elements.publicationsList.innerHTML = '<p>No se pudo conectar con el servidor.</p>';
+        }
+    }
+
+    async function renderPublicationsWithFilters() {
+        if (!elements.publicationsList) return;
+        
+        const filteredPublications = applySortAndFilter(publicationsCache);
+        if (filteredPublications.length === 0) {
+            elements.publicationsList.innerHTML = '<p class="empty-message">No hay publicaciones para este filtro.</p>';
+            updatePublicationsCount([]);
+            return;
+        }
+
+        updatePublicationsCount(filteredPublications);
+        const platformSettings = await getPlatformSettings();
+
+        const publicationsHTML = filteredPublications.map(pub => {
+            const blueLabel = getBlueUnitLabel(pub, platformSettings);
+            return getPublicationCardHTML(pub, blueLabel);
+        });
+
+        elements.publicationsList.innerHTML = publicationsHTML.join('');
+    }
+
+    function applySortAndFilter(publications) {
+        const selected = elements.publicationSortFilter?.value || 'recent';
+        let result = [...publications];
+
+        if (selected === 'type_request' || selected === 'type_sell' || selected === 'type_donation') {
+            const desiredType = selected.replace('type_', '');
+            result = result.filter(pub => getPublicationType(pub) === desiredType);
+        }
+
+        if (selected === 'recent' || selected === 'oldest') {
+            result.sort((a, b) => {
+                const diff = getPublicationTimestamp(b) - getPublicationTimestamp(a);
+                return selected === 'recent' ? diff : -diff;
+            });
+        }
+
+        if (selected === 'reward_desc' || selected === 'reward_asc') {
+            result.sort((a, b) => {
+                const diff = (Number(b.blue_cost) || 0) - (Number(a.blue_cost) || 0);
+                return selected === 'reward_desc' ? diff : -diff;
+            });
+        }
+
+        return result;
+    }
+
+    function getPublicationType(pub) {
+        if (pub.category === 'donation') return 'donation';
+        if (pub.is_sell_post) return 'sell';
+        return 'request';
+    }
+
+    function getPublicationTimestamp(pub) {
+        const dateValue = pub.created_at || pub.createdAt;
+        const date = dateValue ? new Date(dateValue) : null;
+        if (date && !Number.isNaN(date.getTime())) return date.getTime();
+        return Number(pub.id) || 0;
+    }
+
+    function updatePublicationsCount(publications) {
+        if (elements.publicationsCount) {
+            elements.publicationsCount.textContent = String((publications || []).length);
+        }
+    }
+
+    function isPlatformPublication(pub, platformSettings) {
+        const platformUsername = String(platformSettings?.platform_username || 'Plataforma WintonCoin').toLowerCase();
+        const author = String(pub.author_username || '').toLowerCase();
+        return author === platformUsername || author === 'plataforma';
+    }
+
+    function getBlueUnitLabel(pub, platformSettings) {
+        if (platformSettings?.pre_launch_mode_enabled && isPlatformPublication(pub, platformSettings)) {
+            return 'BLUE iou';
+        }
+        return 'BLUE';
+    }
+
+    function getPublicationCardHTML(pub, blueLabel) {
+        const rewardText = `${formatBalance(pub.blue_cost)} ${blueLabel}`;
+        
+        let ribbonClass = '';
+        if (pub.is_booster_task) ribbonClass = 'booster-ribbon';
+        else if (pub.category === 'donation') ribbonClass = 'donation-ribbon';
+        else if (pub.is_sell_post) ribbonClass = 'sell-ribbon';
+
+        const slotsClass = pub.available_slots > 0 ? 'available' : 'full';
+        const slotsText = pub.available_slots > 0
+            ? `${pub.available_slots} cupo${pub.available_slots > 1 ? 's' : ''} disponible${pub.available_slots > 1 ? 's' : ''}`
+            : `Cupos agotados`;
+
+        return `
+            <a href="publication-detail.html?id=${pub.id}" class="publication-item-link">
+                <div class="publication-item" data-id="${pub.id}" data-author="${pub.author_username}">
+                    <div class="cost-ribbon ${ribbonClass}">${rewardText}</div>
+                    <div class="publication-header">
+                        <h3>${pub.title}</h3>
+                    </div>
+                    <p class="pub-description">${linkify(pub.description?.slice(0, 150) || '')}</p>
+                    <div class="publication-footer">
+                        <div class="pub-meta">
+                            <span>Por: <strong>${pub.author_username}</strong></span>
+                        </div>
+                        <div class="pub-meta-right">
+                            <div class="slots-info ${slotsClass}">${slotsText}</div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        `;
+    }
+
+    // --- Notifications ---
+    async function fetchNotifications() {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/api/me/notifications`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
+            if (!response.ok) throw new Error('Error al cargar notificaciones.');
+            
+            const notifications = await response.json();
+            const dropdown = document.getElementById('notificationDropdown');
+            if (!dropdown) return;
+            
+            dropdown.innerHTML = '';
+
+            if (notifications.length === 0) {
+                dropdown.innerHTML = '<div class="no-notifications">No tienes notificaciones nuevas.</div>';
+            } else {
+                notifications.forEach(notification => {
+                    const item = document.createElement('div');
+                    item.className = 'notification-item';
+                    item.dataset.id = notification.id;
+                    item.innerHTML = `
+                        <p>${notification.message}</p>
+                        <span class="notification-dismiss" data-id="${notification.id}" title="Descartar">&times;</span>
+                    `;
+                    dropdown.appendChild(item);
+                });
+
+                const footer = document.createElement('div');
+                footer.className = 'notification-footer';
+                footer.innerHTML = '<a href="#" class="notification-footer-link">Limpiar todas</a>';
+                dropdown.appendChild(footer);
+            }
+
+            updateNotificationBadge(notifications.length);
+        } catch (error) {
+            console.error(error.message);
+            updateNotificationBadge(0);
+        }
+    }
+
+    function updateNotificationBadge(count) {
+        if (elements.notificationBadge) {
+            if (count > 0) {
+                elements.notificationBadge.textContent = count;
+                elements.notificationBadge.style.display = 'flex';
+            } else {
+                elements.notificationBadge.style.display = 'none';
+            }
+        }
+    }
+
+    async function dismissNotification(notificationId) {
+        const notificationElement = document.querySelector(`.notification-item[data-id='${notificationId}']`);
+        if (notificationElement) {
+            notificationElement.style.transition = 'opacity 0.3s ease';
+            notificationElement.style.opacity = '0';
+            setTimeout(() => {
+                notificationElement.remove();
+                const remaining = document.querySelectorAll('.notification-item').length;
+                updateNotificationBadge(remaining);
+                if (remaining === 0) fetchNotifications();
+            }, 300);
+        }
+        
+        try {
+            await postToServer(`/api/me/notifications/${notificationId}/dismiss`, {}, { silent: true, reload: false });
+        } catch (error) {
+            console.error("Error al descartar notificación:", error);
+        }
+    }
+
+    async function clearAllNotifications() {
+        try {
+            const response = await postToServer('/api/me/notifications/mark-read', {}, { silent: true, reload: false });
+            if (response.success) {
+                const dropdown = document.getElementById('notificationDropdown');
+                if (dropdown) dropdown.innerHTML = '<div class="no-notifications">No tienes notificaciones nuevas.</div>';
+                updateNotificationBadge(0);
+            }
+        } catch (error) {
+            console.error("Error al limpiar notificaciones:", error);
+        }
+    }
+
+    // --- Balances ---
+    async function fetchAndDisplayBalances() {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/api/me/balance?t=${new Date().getTime()}`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
+            if (response.ok) {
+                const data = await response.json();
+                if (elements.saldoBlue) elements.saldoBlue.innerHTML = formatBalance(data.blue_balance);
+                if (elements.saldoEscrowBlue) elements.saldoEscrowBlue.innerHTML = formatBalance(data.escrow_blue_balance);
+                if (elements.saldoRed) elements.saldoRed.innerHTML = formatBalance(data.red_balance);
+                
+                localStorage.setItem('blue_balance', data.blue_balance);
+                localStorage.setItem('escrow_blue_balance', data.escrow_blue_balance);
+                localStorage.setItem('red_balance', data.red_balance);
+                localStorage.setItem('penalized_debt', data.penalized_debt);
+
+                // Countdown timers
+                handleCountdownTimers(data);
+            }
+        } catch (error) {
+            console.error('Error al obtener saldos:', error);
+        }
+    }
+
+    function handleCountdownTimers(data) {
+        // Available countdown
+        if (data.next_available_at && parseFloat(data.next_available_amount) > 0 && elements.availableCountdownContainer) {
+            elements.availableCountdownContainer.style.display = 'block';
+            startCountdown(data.next_available_at, data.next_available_amount, elements.availableCountdownText, availableCountdownInterval, 'available');
+        } else if (elements.availableCountdownContainer) {
+            elements.availableCountdownContainer.style.display = 'none';
+        }
+
+        // Debt countdown
+        if (data.next_due_at && parseFloat(data.next_due_amount) > 0 && elements.debtCountdownContainer) {
+            elements.debtCountdownContainer.style.display = 'block';
+            startDebtCountdown(data.next_due_at, data.next_due_amount);
+        } else if (elements.debtCountdownContainer) {
+            elements.debtCountdownContainer.style.display = 'none';
+        }
+
+        // Escrow countdown
+        if (data.next_unlock_at && parseFloat(data.next_unlock_amount) > 0 && elements.escrowCountdownContainer) {
+            elements.escrowCountdownContainer.style.display = 'block';
+            startEscrowCountdown(data.next_unlock_at, data.next_unlock_amount);
+        } else if (elements.escrowCountdownContainer) {
+            elements.escrowCountdownContainer.style.display = 'none';
+        }
+    }
+
+    function startDebtCountdown(dueDateString, dueAmount) {
+        if (debtCountdownInterval) clearInterval(debtCountdownInterval);
+        const formattedAmount = formatBalance(dueAmount);
+
+        const updateTimer = () => {
+            const now = new Date();
+            const dueDate = new Date(dueDateString);
+            const diff = dueDate - now;
+
+            if (diff <= 0) {
+                if (elements.debtCountdownText) {
+                    elements.debtCountdownText.innerHTML = `<strong class="expired">URGENTE! ${formattedAmount} VENCIDOS!</strong>`;
+                }
+                clearInterval(debtCountdownInterval);
+                return;
+            }
+
+            const timeString = formatTimeRemaining(diff);
+            if (elements.debtCountdownText) {
+                elements.debtCountdownText.innerHTML = `próximo vencimiento <strong class="saldo-red-text">${formattedAmount}</strong> en <strong>${timeString}</strong>`;
+            }
+        };
+
+        updateTimer();
+        debtCountdownInterval = setInterval(updateTimer, 1000);
+    }
+
+    function startEscrowCountdown(unlockDateString, unlockAmount) {
+        if (escrowCountdownInterval) clearInterval(escrowCountdownInterval);
+        const formattedAmount = formatBalance(unlockAmount);
+
+        const updateTimer = () => {
+            const now = new Date();
+            const unlockDate = new Date(unlockDateString);
+            const diff = unlockDate - now;
+
+            if (diff <= 0) {
+                if (elements.escrowCountdownContainer) elements.escrowCountdownContainer.style.display = 'none';
+                clearInterval(escrowCountdownInterval);
+                fetchAndDisplayBalances();
+                return;
+            }
+
+            const timeString = formatTimeRemaining(diff);
+            if (elements.escrowCountdownText) {
+                elements.escrowCountdownText.innerHTML = `Disponible <strong class="saldo-blue-text">${formattedAmount}</strong> en <strong>${timeString}</strong>`;
+            }
+        };
+        
+        updateTimer();
+        escrowCountdownInterval = setInterval(updateTimer, 1000);
+    }
+
+    function formatTimeRemaining(diff) {
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+        if (days > 0) return `${days}d y ${hours}h`;
+        if (hours > 0) return `${hours}h y ${minutes}m`;
+        if (minutes > 0) return `${minutes}m y ${seconds}s`;
+        return `${seconds}s`;
+    }
+
+    // --- Burn Modal ---
+    function updateBurnModal() {
+        const blueBalance = localStorage.getItem('blue_balance') || '0';
+        const escrowBlueBalance = localStorage.getItem('escrow_blue_balance') || '0';
+        const redBalance = localStorage.getItem('red_balance') || '0';
+        const penalizedDebt = localStorage.getItem('penalized_debt') || '0';
+
+        let penalizedDebtHTML = '';
+        if (parseFloat(penalizedDebt) > 0.00009) {
+            penalizedDebtHTML = `
+                <div class="balance-line">
+                    <span>Vencidos</span>
+                    <span class="saldo-red-text">${formatBalance(penalizedDebt)} RED</span>
+                </div>
+            `;
+        }
+        
+        if (elements.burnModalBalances) {
+            elements.burnModalBalances.innerHTML = `
+                <div class="balance-line">
+                    <span>Disponible</span>
+                    <span class="saldo-blue-text">${formatBalance(blueBalance)} BLUE</span>
+                </div>
+                <div class="balance-line">
+                    <span>Pendientes</span>
+                    <span class="saldo-escrow-text">${formatBalance(escrowBlueBalance)} BLUE</span>
+                </div>
+                <hr class="burn-modal-divider">
+                <div class="balance-line">
+                    <span>Deuda Total</span>
+                    <span class="saldo-red-text">${formatBalance(redBalance)} RED</span>
+                </div>
+                ${penalizedDebtHTML}
+            `;
+        }
+    }
+
+    async function handleBurnSubmit(event) {
+        event.preventDefault();
+        const amountInput = document.getElementById('burnAmount');
+        const amount = amountInput?.value;
+
+        if (!amount || amount <= 0) {
+            showCustomAlert('Introduce una cantidad válida.');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/users/burn`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: storedUsername, amount: amount })
+            });
+            const result = await response.json();
+            showCustomAlert(result.message);
+
+            if (response.ok) {
+                if (elements.burnModal) elements.burnModal.style.display = 'none';
+                if (elements.burnForm) elements.burnForm.reset();
+                loadAllData();
+            }
+        } catch (error) {
+            console.error('Error al quemar tokens:', error);
+            showCustomAlert('Error de red al quemar tokens.');
+        }
+    }
+
+    // --- Rating Modal ---
+    function openRatingModal(publicationId, raterUsername, rateeUsername) {
+        if (!elements.ratingForm) return;
+        elements.ratingForm.reset();
+        
+        const pubIdInput = document.getElementById('ratingPublicationId');
+        const raterInput = document.getElementById('ratingRaterUsername');
+        const rateeInput = document.getElementById('ratingRateeUsername');
+        const titleEl = document.getElementById('ratingModalTitle');
+        
+        if (pubIdInput) pubIdInput.value = publicationId;
+        if (raterInput) raterInput.value = raterUsername;
+        if (rateeInput) rateeInput.value = rateeUsername;
+        if (titleEl) titleEl.textContent = `Calificar a ${rateeUsername}`;
+        
+        if (elements.ratingModal) elements.ratingModal.style.display = 'flex';
+    }
+
+    // --- Referral Settings & Share ---
+    async function loadReferralSettings() {
+        try {
+            const response = await fetch(`${API_URL}/api/referral-settings`);
+            if (response.ok) {
+                const data = await response.json();
+                const amountElement = document.getElementById('referralAmount');
+                if (amountElement && data.referral_bonus_amount) {
+                    const amount = parseInt(parseFloat(data.referral_bonus_amount));
+                    if (!isNaN(amount)) {
+                        amountElement.textContent = amount;
+                    } else {
+                        amountElement.textContent = '10';
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error al cargar configuración de referidos:', error);
+        }
+    }
+
+    async function shareReferralCode() {
+        try {
+            const username = localStorage.getItem('username');
+            if (!username) {
+                showCustomAlert('Error: No se pudo obtener tu información de usuario.');
+                return;
+            }
+
+            const [referralResponse, expiryResponse] = await Promise.all([
+                fetch(`${API_URL}/api/users/${username}/referral-info`),
+                fetch(`${API_URL}/api/referral-expiry-date`)
+            ]);
+
+            if (referralResponse.ok) {
+                const data = await referralResponse.json();
+                const referralCode = data.referral_code;
+                const rewardAmount = document.getElementById('referralAmount')?.textContent || '10';
+                const registrationUrl = `${window.location.origin}/register.html?ref=${referralCode}`;
+                
+                let expiryText = '';
+                if (expiryResponse.ok) {
+                    try {
+                        const expiryData = await expiryResponse.json();
+                        if (expiryData.expiry_date) {
+                            const expiryDate = new Date(expiryData.expiry_date);
+                            if (!isNaN(expiryDate.getTime())) {
+                                const formattedDate = expiryDate.toLocaleDateString('es-ES', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                });
+                                expiryText = `\n⏰ Válido hasta el ${formattedDate}\n`;
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('Error al formatear fecha de vigencia:', error);
+                    }
+                }
+                
+                const textToShare = `¡Únete a WintonCoin! 🪙\n\n` +
+                                  `Entra a mi enlace de referidos y acumula ${rewardAmount} BLUE (IOU) al registrarte:\n` +
+                                  `*${referralCode}*` +
+                                  expiryText + `\n` +
+                                  `¡Lo mejor es que tú también ganarás ${rewardAmount} BLUE por cada amigo que invites!\n\n` +
+                                  `Regístrate aquí: ${registrationUrl}`;
+
+                if (navigator.share) {
+                    await navigator.share({
+                        title: '¡Únete a WintonCoin!',
+                        text: textToShare,
+                        url: registrationUrl
+                    });
+                } else {
+                    await navigator.clipboard.writeText(textToShare);
+                    showCustomAlert('¡Mensaje de invitación copiado! Compártelo con tus amigos.');
+                }
+            } else {
+                showCustomAlert('Error al obtener tu código de referido.');
+            }
+        } catch (error) {
+            console.error('Error al compartir código de referido:', error);
+            showCustomAlert('Error al compartir el código de referido.');
+        }
+    }
+
+    function setupShareReferral() {
+        const shareReferralCard = document.getElementById('shareReferralCard');
+        if (shareReferralCard) {
+            shareReferralCard.addEventListener('click', shareReferralCode);
+        }
+    }
+
+    // --- Booster Summary ---
+    async function fetchBoosterSummary() {
+        if (!elements.boosterSummary) return;
+
+        const now = Date.now();
+        if (now - lastBoosterFetch < 60000) return;
+        lastBoosterFetch = now;
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            elements.boosterSummary.style.display = 'none';
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/api/me/booster-profile`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const result = await response.json();
+
+            if (!response.ok || !result?.is_booster) {
+                elements.boosterSummary.style.display = 'none';
+                return;
+            }
+
+            const totalBoosterBlue = Number(result.total_booster_blue || 0);
+            const nextLevel = result.next_level_info;
+            const nextMin = nextLevel ? Number(nextLevel.min_blue_required || 0) : 0;
+
+            if (elements.boosterTotalBlue) {
+                elements.boosterTotalBlue.innerHTML = `<span class="booster-total-value">${formatBalance(totalBoosterBlue)}</span> <span class="booster-total-unit">BLUE iou</span>`;
+            }
+
+            let progressPercent = 100;
+            let progressText = 'Nivel máximo alcanzado';
+            if (nextMin > 0) {
+                progressPercent = Math.min(100, (totalBoosterBlue / nextMin) * 100);
+                progressText = `${totalBoosterBlue.toFixed(4)} / ${nextMin.toFixed(4)} BLUE iou`;
+            }
+
+            if (elements.boosterProgressText) elements.boosterProgressText.textContent = progressText;
+            if (elements.boosterProgressFill) elements.boosterProgressFill.style.width = `${progressPercent}%`;
+
+            elements.boosterSummary.style.display = 'block';
+        } catch (error) {
+            console.error('Error al cargar el resumen de impulsor:', error);
+            elements.boosterSummary.style.display = 'none';
+        }
+    }
+});

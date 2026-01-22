@@ -545,6 +545,27 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Base lista para notificaciones push.
 - **Evidencia (commits)**: `20a10f3`.
 
+### 2026-01-22 — Migración frontend a Vite con ES Modules
+
+- **Contexto**: el frontend usaba scripts inline y globales, lo cual dificultaba el mantenimiento, testing y optimización. Se necesitaba una arquitectura moderna.
+- **Decisión**:
+  - **Migrar a Vite** como bundler: build rápido, HMR, y soporte nativo de ES Modules.
+  - **Separar scripts por página** en `frontend/src/pages/`: cada HTML carga solo su módulo.
+  - **Módulos compartidos** en `frontend/src/modules/`: `config.js`, `alerts.js`, `password-toggle.js`, `pwa-install.js`.
+  - **Mantener compatibilidad** con scripts versionados existentes (`*.v1.5.0.js`).
+  - **Mover manifest.json** a `frontend/public/` para que Vite lo copie al build.
+- **Archivos migrados**:
+  - 17 páginas HTML actualizadas con imports de ES Modules
+  - 13 nuevos scripts en `src/pages/`
+  - Estilos separados: `admin-style.css`, `booster-style.css`
+  - Configuración: `vite.config.js`
+- **Impacto**:
+  - Código más modular y mantenible.
+  - Build optimizado con tree-shaking.
+  - Hot Module Replacement para desarrollo más rápido.
+  - Base lista para testing y futuras mejoras.
+- **Evidencia (commits)**: `d404ef1`.
+
 ### 2026-01-22 — PWA: flujo de instalación con código de referido y admin panel restaurado
 
 - **Contexto**: cuando un usuario llegaba por enlace de referido, instalaba la PWA y la abría, perdía el código de referido y quedaba en la pantalla de login en vez de registro. Además, el admin panel había perdido funcionalidades durante la migración a ES Modules.

@@ -159,8 +159,9 @@
                 const ctx = canvas.getContext('2d');
                 
                 if (maskable) {
-                    // Para maskable: fondo sólido + padding del 10%
-                    ctx.fillStyle = '#1a1a2e';
+                    // Para maskable: FONDO BLANCO SÓLIDO + padding del 10%
+                    // Esto es crítico para que no aparezcan bordes negros en Android
+                    ctx.fillStyle = '#ffffff';
                     ctx.fillRect(0, 0, size, size);
                     
                     const padding = size * 0.1;
