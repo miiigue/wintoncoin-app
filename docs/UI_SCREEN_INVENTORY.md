@@ -5,10 +5,6 @@ Regla: cada vez que se cree una pantalla nueva o se agregue un modal, actualizar
 
 ## 1) Autenticacion y onboarding
 
-- Login
-  - HTML: `frontend/index.html`
-  - JS: `frontend/login.v1.5.0.js`
-  - Modales: `customAlertModal`, `oneAccountPolicyModal`
 - Registro
   - HTML: `frontend/register.html`
   - JS: `frontend/register.v1.5.0.js`
@@ -18,7 +14,6 @@ Regla: cada vez que se cree una pantalla nueva o se agregue un modal, actualizar
 
 | Pantalla | HTML | JS | Modales |
 | --- | --- | --- | --- |
-| Login | `frontend/index.html` | `frontend/login.v1.5.0.js` | `customAlertModal`, `oneAccountPolicyModal` |
 | Registro | `frontend/register.html` | `frontend/register.v1.5.0.js` | `customAlertModal`, `oneAccountPolicyModal`, `referralCodeModal` |
 
 ## 2) Core (usuario)
@@ -122,6 +117,8 @@ Regla: cada vez que se cree una pantalla nueva o se agregue un modal, actualizar
 
 - Como funciona
   - HTML: `frontend/como-funciona.html`
+- Login
+  - HTML: `frontend/index.html`
 - Privacidad
   - HTML: `frontend/privacy.html`
 - Terminos

@@ -16,8 +16,8 @@ export default defineConfig({
   // Directorio raíz del proyecto
   root: '.',
   
-  // Base URL para assets (/ para dominio raíz)
-  base: '/',
+  // Base URL para assets (./ para rutas relativas - compatible con Hostinger)
+  base: './',
   
   // Configuración de resolución de módulos
   resolve: {
@@ -275,7 +275,7 @@ export default defineConfig({
         ],
         
         // Navegación offline
-        navigateFallback: '/index.html',
+        navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api\//],
         
         // Skip waiting y claim clients
