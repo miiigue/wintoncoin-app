@@ -3,7 +3,7 @@
  * Handles P2P trading functionality - buy/sell BLUE between users
  */
 
-import { getApiUrl, showCustomAlert } from '../modules/index.js';
+import { getApiUrl, showCustomAlert, handleSessionExpired } from '../modules/index.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const API_URL = getApiUrl();
@@ -119,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${API_URL}/api/p2p/payment-methods`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+            if (handleSessionExpired(response)) return;
             if (!response.ok) throw new Error('No se pudieron cargar métodos de pago.');
             paymentMethods = await response.json();
             renderPaymentMethods();
@@ -167,6 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${API_URL}/api/p2p/offers?${params.toString()}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+            if (handleSessionExpired(response)) return;
             if (!response.ok) throw new Error('No se pudieron cargar ofertas.');
             const offers = await response.json();
             const sortedOffers = [...offers].sort((a, b) => Number(a.price_per_blue) - Number(b.price_per_blue));
@@ -184,6 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${API_URL}/api/p2p/offers/mine`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+            if (handleSessionExpired(response)) return;
             if (!response.ok) throw new Error('No se pudieron cargar tus anuncios.');
             const offers = await response.json();
             renderMyOffers(offers);
@@ -261,6 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify({ offerId: selectedOffer.id, fiatAmount: amount })
             });
+            if (handleSessionExpired(response)) return;
             const result = await response.json();
             if (!response.ok) throw new Error(result.message || 'No se pudo crear la orden.');
             showCustomAlert('Orden creada. Tienes 15 minutos para pagar.');
@@ -300,6 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify(payload)
             });
+            if (handleSessionExpired(response)) return;
             const result = await response.json();
             if (!response.ok) throw new Error(result.message || 'No se pudo crear la oferta.');
             showCustomAlert('Anuncio publicado correctamente.');
@@ -318,6 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${API_URL}/api/p2p/orders`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+            if (handleSessionExpired(response)) return;
             if (!response.ok) throw new Error('No se pudieron cargar órdenes.');
             const orders = await response.json();
             renderOrders(orders);
@@ -481,6 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
         });
+        if (handleSessionExpired(response)) throw new Error('Sesión expirada');
         const result = await response.json();
         if (!response.ok) throw new Error(result.message || 'Error en la acción.');
         return result;

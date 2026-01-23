@@ -2,7 +2,7 @@
 // WintonCoin - Página de Historial P2P
 // ============================================================================
 
-import { getApiUrl, showCustomAlert } from '../modules/index.js';
+import { getApiUrl, showCustomAlert, handleSessionExpired } from '../modules/index.js';
 
 function initializeP2PHistoryPage() {
     const API_URL = getApiUrl();
@@ -28,6 +28,7 @@ function initializeP2PHistoryPage() {
             const response = await fetch(`${API_URL}/api/p2p/orders`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+            if (handleSessionExpired(response)) return;
             if (!response.ok) throw new Error('No se pudieron cargar órdenes.');
             const orders = await response.json();
             renderHistory(orders);

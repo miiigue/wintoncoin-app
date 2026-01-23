@@ -9,7 +9,8 @@ import {
     showCustomConfirm, 
     linkify,
     fetchAndStoreAppSettings,
-    appSettings 
+    appSettings,
+    handleSessionExpired
 } from '../modules/index.js';
 import { initPWAInstall } from '../modules/pwa-install.js';
 
@@ -381,6 +382,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify(body)
             });
 
+            if (handleSessionExpired(response)) return null;
+            
             const responseText = await response.text();
             let result;
 
@@ -574,6 +577,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${API_URL}/api/me/notifications`, {
                 headers: token ? { 'Authorization': `Bearer ${token}` } : {}
             });
+            if (handleSessionExpired(response)) return;
             if (!response.ok) throw new Error('Error al cargar notificaciones.');
             
             const notifications = await response.json();
@@ -660,6 +664,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${API_URL}/api/me/balance?t=${new Date().getTime()}`, {
                 headers: token ? { 'Authorization': `Bearer ${token}` } : {}
             });
+            if (handleSessionExpired(response)) return;
             if (response.ok) {
                 const data = await response.json();
                 if (elements.saldoBlue) elements.saldoBlue.innerHTML = formatBalance(data.blue_balance);
@@ -966,6 +971,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${API_URL}/api/me/booster-profile`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+            if (handleSessionExpired(response)) return;
             const result = await response.json();
 
             if (!response.ok || !result?.is_booster) {

@@ -611,6 +611,20 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Iconos sin bordes negros en Android.
 - **Evidencia (commits)**: `4a6a439`.
 
+### 2026-01-23 — Seguridad: validación de username + manejo de sesión expirada
+
+- **Contexto**: el campo de nombre de usuario no tenía validaciones completas, permitiendo caracteres especiales, espacios y longitudes arbitrarias. Además, cuando el token JWT expiraba, el usuario veía un error técnico sin orientación.
+- **Decisión**:
+  - **Validación de username**: 3-30 caracteres, solo alfanuméricos y guiones bajos, verificación case-insensitive (`User` = `user` = duplicado).
+  - **Helper `handleSessionExpired()`**: función reutilizable en `auth.js` que detecta respuestas 401, limpia la sesión y redirige al login con mensaje amigable.
+  - **Aplicar helper en todas las páginas protegidas**: dashboard, P2P, historial P2P, perfil de impulsor (13 puntos de manejo).
+  - **Cambio de icono**: reemplazar flecha dropdown por icono de hamburguesa (☰) junto al nombre de usuario.
+- **Impacto**:
+  - Prevención de XSS e inyección SQL por usernames malformados.
+  - UX profesional cuando expira la sesión (no más errores técnicos).
+  - Código DRY: el manejo de 401 está centralizado en un solo helper.
+- **Evidencia (commits)**: `30682bf`, `e30bd35`, `cec14a8`.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)

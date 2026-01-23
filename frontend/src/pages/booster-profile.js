@@ -2,7 +2,7 @@
 // WintonCoin - Página de Perfil de Impulsor (Booster)
 // ============================================================================
 
-import { getApiUrl, showCustomAlert } from '../modules/index.js';
+import { getApiUrl, showCustomAlert, handleSessionExpired } from '../modules/index.js';
 
 function initializeBoosterProfilePage() {
     const API_URL = getApiUrl();
@@ -35,6 +35,10 @@ function initializeBoosterProfilePage() {
             const response = await fetch(url, {
                 headers: isMe ? { 'Authorization': `Bearer ${token}` } : {}
             });
+            
+            // Manejar sesión expirada (401)
+            if (handleSessionExpired(response)) return;
+            
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Error al cargar el perfil de impulsor.');

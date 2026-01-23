@@ -42,7 +42,8 @@ import {
     checkAuthStatus,
     logout,
     getAuthToken,
-    setAuthToken
+    setAuthToken,
+    handleSessionExpired
 } from './auth.js';
 
 import {
