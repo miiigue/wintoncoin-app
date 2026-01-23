@@ -1156,6 +1156,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 endpoint = `/publications/${pubId}/approve`;
                 body = { approverUsername: platformUsername, userToApprove: userInAction };
                 break;
+            case 'discard':
+                endpoint = `/publications/${pubId}/discard`;
+                body = { discarderUsername: platformUsername, userToDiscard: userInAction };
+                break;
             case 'confirm-payment':
                 endpoint = `/publications/${pubId}/confirm-payment`;
                 body = { confirmerUsername: platformUsername, workerUsername: userInAction };
@@ -1707,7 +1711,10 @@ WHERE username = 'Plataforma WintonCoin';
         let actionButton = '';
         
         if (participant.status === 'pending_approval') {
-            actionButton = `<button class="action-button-admin approve" data-pub-id="${escapeHtml(pubId)}" data-action="approve" data-user="${escapeHtml(participant.acceptor_username)}">Aprobar</button>`;
+            actionButton = `
+                <button class="action-button-admin approve" data-pub-id="${escapeHtml(pubId)}" data-action="approve" data-user="${escapeHtml(participant.acceptor_username)}">Aprobar</button>
+                <button class="action-button-admin reject" data-pub-id="${escapeHtml(pubId)}" data-action="discard" data-user="${escapeHtml(participant.acceptor_username)}">Rechazar</button>
+            `;
         } else if (participant.status === 'completed') {
             actionButton = `<button class="action-button-admin confirm" data-pub-id="${escapeHtml(pubId)}" data-action="confirm-payment" data-user="${escapeHtml(participant.acceptor_username)}">Confirmar Pago</button>`;
         }

@@ -428,6 +428,10 @@ input:checked + .slider:before {
     background-color: #28a745; /* Verde */
 }
 
+.action-button-admin.reject {
+    background-color: #dc3545; /* Rojo */
+}
+
 .action-button-admin.confirm {
     background-color: #6f42c1; /* Púrpura */
 }
