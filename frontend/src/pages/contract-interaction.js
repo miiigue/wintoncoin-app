@@ -470,30 +470,93 @@ document.addEventListener('DOMContentLoaded', () => {
         updatePublicationsCount(filteredPublications);
         const platformSettings = await getPlatformSettings();
 
-        const publicationsHTML = filteredPublications.map(pub => {
+        // Un mapa para cachear las calificaciones de los usuarios
+        const userRatingsCache = new Map();
+
+        // Usamos Promise.all para obtener todas las calificaciones en paralelo
+        const publicationsHTML = await Promise.all(filteredPublications.map(async (pub) => {
+            // Obtener calificación del AUTOR
+            if (!userRatingsCache.has(pub.author_username)) {
+                const ratingData = await fetchUserRating(pub.author_username);
+                userRatingsCache.set(pub.author_username, ratingData);
+            }
+            const authorRating = userRatingsCache.get(pub.author_username);
+            const authorRatingHTML = generateStarRating(authorRating.average, authorRating.count);
+
             const blueLabel = getBlueUnitLabel(pub, platformSettings);
-            return getPublicationCardHTML(pub, blueLabel);
-        });
+            return getPublicationCardHTML(pub, blueLabel, authorRatingHTML);
+        }));
 
         elements.publicationsList.innerHTML = publicationsHTML.join('');
     }
 
+    // Genera el HTML de estrellas para una calificación
+    function generateStarRating(rating, count) {
+        if (count === 0) {
+            return '<span class="no-rating">Sin calificaciones</span>';
+        }
+
+        const fullStars = Math.floor(rating);
+        const halfStar = rating % 1 >= 0.5 ? 1 : 0;
+        const emptyStars = 5 - fullStars - halfStar;
+        let starsHTML = '';
+
+        for (let i = 0; i < fullStars; i++) starsHTML += '★';
+        if (halfStar) starsHTML += '½';
+        for (let i = 0; i < emptyStars; i++) starsHTML += '☆';
+        
+        return `<span class="stars">${starsHTML}</span> <span class="rating-count">(${count})</span>`;
+    }
+
+    // Obtiene la calificación de un usuario desde el servidor
+    async function fetchUserRating(username) {
+        try {
+            const response = await fetch(`${API_URL}/user/${username}`);
+            if (!response.ok) {
+                console.warn(`Could not fetch rating for user ${username}. Status: ${response.status}`);
+                return { average: 0, count: 0 };
+            }
+            const data = await response.json();
+            return { average: data.average_rating, count: data.ratings_count };
+        } catch (error) {
+            console.error(`Error fetching rating for ${username}:`, error);
+            return { average: 0, count: 0 };
+        }
+    }
+
     function applySortAndFilter(publications) {
+        // Aplica el criterio seleccionado (orden o filtro por tipo).
         const selected = elements.publicationSortFilter?.value || 'recent';
         let result = [...publications];
 
+        // Si no hay filtro seleccionado, ordenar por prioridad de tareas en proceso
+        if (!selected) {
+            return sortByPendingPriority(result);
+        }
+
+        // Filtrar por tipo de publicación
         if (selected === 'type_request' || selected === 'type_sell' || selected === 'type_donation') {
             const desiredType = selected.replace('type_', '');
             result = result.filter(pub => getPublicationType(pub) === desiredType);
         }
 
+        // Filtro especial: solo tareas en proceso del usuario
+        if (selected === 'pending') {
+            result = result.filter(pub => isPendingForUser(pub));
+            return sortByPendingPriority(result);
+        }
+
+        // Ordenar por fecha
         if (selected === 'recent' || selected === 'oldest') {
             result.sort((a, b) => {
                 const diff = getPublicationTimestamp(b) - getPublicationTimestamp(a);
                 return selected === 'recent' ? diff : -diff;
             });
+            // Siempre aplicar prioridad de tareas en proceso dentro del orden por fecha
+            return sortByPendingPriority(result);
         }
 
+        // Ordenar por recompensa
         if (selected === 'reward_desc' || selected === 'reward_asc') {
             result.sort((a, b) => {
                 const diff = (Number(b.blue_cost) || 0) - (Number(a.blue_cost) || 0);
@@ -502,6 +565,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         return result;
+    }
+
+    // Determina si una publicación está en proceso para el usuario actual
+    function isPendingForUser(pub) {
+        const status = pub.user_acceptance_status;
+        return status === 'approved' || status === 'pending_approval' || status === 'completed';
+    }
+
+    // Asigna prioridad según estado (menor número = mayor prioridad)
+    function getPendingPriority(pub) {
+        const status = pub.user_acceptance_status;
+        if (status === 'approved') return 0;        // Aprobado - puede realizar la tarea
+        if (status === 'pending_approval') return 1; // Esperando aprobación
+        if (status === 'completed') return 2;        // Completado - esperando confirmación
+        return 3;                                    // Sin estado o no participando
+    }
+
+    // Ordena las publicaciones poniendo primero las que están en proceso
+    function sortByPendingPriority(publications) {
+        return [...publications].sort((a, b) => {
+            const priorityDiff = getPendingPriority(a) - getPendingPriority(b);
+            if (priorityDiff !== 0) return priorityDiff;
+            // Si tienen la misma prioridad, ordenar por fecha (más recientes primero)
+            return getPublicationTimestamp(b) - getPublicationTimestamp(a);
+        });
     }
 
     function getPublicationType(pub) {
@@ -536,8 +624,90 @@ document.addEventListener('DOMContentLoaded', () => {
         return 'BLUE';
     }
 
-    function getPublicationCardHTML(pub, blueLabel) {
+    /**
+     * Genera un banner de estado para la tarjeta si el usuario actual tiene un estado específico.
+     * @param {object} pub La publicación.
+     * @returns {string} El HTML del banner o un string vacío.
+     */
+    function getCardStatusMessageHTML(pub) {
+        const userStatus = pub.user_acceptance_status;
+        let message = '';
+        let className = '';
+    
+        if (userStatus === 'approved') {
+            if (pub.is_sell_post) {
+                message = 'Completa el pago para recibir el producto.';
+            } else {
+                message = '¡Aprobado! Ya puedes realizar la tarea.';
+            }
+            className = 'status-approved';
+        } else if (userStatus === 'completed') {
+            if (pub.is_sell_post) {
+                message = 'Pago realizado. Esperando confirmación del vendedor.';
+            } else {
+                message = 'Tarea culminada. Esperando confirmación.';
+            }
+            className = 'status-completed';
+        } else if (userStatus === 'pending_approval') {
+            message = 'Solicitud enviada. Esperando aprobación.';
+            className = 'status-pending';
+        }
+    
+        if (message) {
+            return `<div class="publication-status-banner ${className}">${message}</div>`;
+        }
+        return '';
+    }
+
+    /**
+     * Calcula y formatea el estado de expiración de una publicación.
+     * @param {object} pub La publicación.
+     * @returns {{html: string, isExpired: boolean}}
+     */
+    function getExpirationStatusHTML(pub) {
+        if (!pub.expires_at) {
+            return { html: '', isExpired: false };
+        }
+
+        const now = new Date();
+        const expirationDate = new Date(pub.expires_at);
+        const diff = expirationDate - now;
+
+        if (diff <= 0) {
+            return {
+                html: `<div class="expiration-info expired"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg> Expirada</div>`,
+                isExpired: true
+            };
+        }
+
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+        let timeLeft = '';
+        if (days > 1) {
+            timeLeft = `Vence en ${days} días`;
+        } else if (days === 1) {
+            timeLeft = `Vence en ${days} día`;
+        } else if (hours > 1) {
+            timeLeft = `Vence en ${hours} horas`;
+        } else if (hours === 1) {
+            timeLeft = `Vence en ${hours} hora`;
+        } else if (minutes > 0) {
+            timeLeft = `Vence en ${minutes} min`;
+        } else {
+            timeLeft = `Vence en <1 min`;
+        }
+
+        return {
+            html: `<div class="expiration-info"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> ${timeLeft}</div>`,
+            isExpired: false
+        };
+    }
+
+    function getPublicationCardHTML(pub, blueLabel, ratingHTML = '') {
         const rewardText = `${formatBalance(pub.blue_cost)} ${blueLabel}`;
+        const statusMessageHTML = getCardStatusMessageHTML(pub);
         
         let ribbonClass = '';
         if (pub.is_booster_task) ribbonClass = 'booster-ribbon';
@@ -549,9 +719,18 @@ document.addEventListener('DOMContentLoaded', () => {
             ? `${pub.available_slots} cupo${pub.available_slots > 1 ? 's' : ''} disponible${pub.available_slots > 1 ? 's' : ''}`
             : `Cupos agotados`;
 
+        // Información de expiración
+        const expirationInfo = getExpirationStatusHTML(pub);
+
+        // Enlace al perfil del autor (si los perfiles públicos están habilitados)
+        const authorNameHTML = window.appSettings?.public_profiles_enabled
+            ? `<a href="profile.html?user=${pub.author_username}" class="profile-link" onclick="event.stopPropagation()">${pub.author_username}</a>`
+            : pub.author_username;
+
         return `
             <a href="publication-detail.html?id=${pub.id}" class="publication-item-link">
-                <div class="publication-item" data-id="${pub.id}" data-author="${pub.author_username}">
+                <div class="publication-item ${expirationInfo.isExpired ? 'expired' : ''}" data-id="${pub.id}" data-author="${pub.author_username}">
+                    ${statusMessageHTML}
                     <div class="cost-ribbon ${ribbonClass}">${rewardText}</div>
                     <div class="publication-header">
                         <h3>${pub.title}</h3>
@@ -559,10 +738,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <p class="pub-description">${linkify(pub.description?.slice(0, 150) || '')}</p>
                     <div class="publication-footer">
                         <div class="pub-meta">
-                            <span>Por: <strong>${pub.author_username}</strong></span>
+                            <span>Por: <strong>${authorNameHTML}</strong></span>
+                            ${ratingHTML}
                         </div>
                         <div class="pub-meta-right">
                             <div class="slots-info ${slotsClass}">${slotsText}</div>
+                            ${expirationInfo.html}
                         </div>
                     </div>
                 </div>

@@ -1314,7 +1314,8 @@ hr {
     font-weight: 600;
 }
 
-.publication-item .status-pending {
+/* Nota: NO aplicar a .publication-status-banner que tiene su propio estilo */
+.publication-item > .status-pending:not(.publication-status-banner) {
     margin-top: 1rem;
     color: #f39c12; /* Naranja */
     font-weight: 600;

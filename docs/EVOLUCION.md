@@ -625,6 +625,21 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Código DRY: el manejo de 401 está centralizado en un solo helper.
 - **Evidencia (commits)**: `30682bf`, `e30bd35`, `cec14a8`.
 
+### 2026-01-23 — Dashboard: restauración de funcionalidad perdida + fix CSS banner
+
+- **Contexto**: durante refactorizaciones anteriores, se perdieron varias funcionalidades del dashboard de publicaciones: ordenamiento por prioridad de tareas en proceso, información de expiración, rating del autor, y el texto del banner de estado "pendiente" era invisible (CSS sobrescribía el color del texto al mismo color del fondo).
+- **Decisión**:
+  - **Restaurar ordenamiento por prioridad**: funciones `sortByPendingPriority()`, `isPendingForUser()`, `getPendingPriority()` para mostrar primero las tareas donde el usuario tiene participación activa (approved > pending > completed > otros).
+  - **Restaurar información de expiración**: función `getExpirationStatusHTML()` que muestra tiempo restante ("Vence en 2 días", "Vence en 3 horas", etc.) con indicador visual de publicaciones expiradas.
+  - **Restaurar rating del autor**: funciones `generateStarRating()` y `fetchUserRating()` para mostrar calificación del autor en cada tarjeta.
+  - **Restaurar enlace al perfil**: el nombre del autor ahora es clickeable si los perfiles públicos están habilitados.
+  - **Fix CSS crítico**: el selector `.publication-item .status-pending` sobrescribía el color del texto a naranja (`#f39c12`), mismo color que el fondo del banner, haciendo el mensaje invisible. Corregido con `:not(.publication-status-banner)`.
+- **Impacto**:
+  - UX mejorada: las tareas en proceso aparecen primero, facilitando el seguimiento.
+  - Información completa: usuarios ven expiración, ratings y pueden navegar a perfiles.
+  - Bug visual corregido: el banner "Solicitud enviada. Esperando aprobación." ahora es visible.
+- **Evidencia (commits)**: `4b6c08e`.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)
