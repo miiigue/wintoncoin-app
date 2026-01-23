@@ -1106,6 +1106,9 @@ document.addEventListener('DOMContentLoaded', () => {
             showCustomAlert('Indica el tiempo mínimo para repetir (mínimo 1 minuto).');
             return;
         }
+        const targetUsernameInput = document.getElementById('platformTargetUsername');
+        const targetUsername = targetUsernameInput ? targetUsernameInput.value.trim() : '';
+
         const body = {
             title: document.getElementById('platformPubTitle').value,
             description: mergedDescription,
@@ -1118,7 +1121,8 @@ document.addEventListener('DOMContentLoaded', () => {
             repeatCooldownDays: allowRepeat ? safeDays : 1,
             repeatCooldownHours: allowRepeat ? safeHours : 0,
             repeatCooldownMinutes: allowRepeat ? safeMinutes : 0,
-            isBoosterTask: document.getElementById('platformIsBoosterTask').checked
+            isBoosterTask: document.getElementById('platformIsBoosterTask').checked,
+            targetUsername: targetUsername || null
         };
         try {
             if (platformEditId) {
@@ -1648,6 +1652,11 @@ WHERE username = 'Plataforma WintonCoin';
         }
         if (elements.platformRepeatCooldownWrapper) {
             elements.platformRepeatCooldownWrapper.style.display = 'none';
+        }
+        // Limpiar campo de usuario específico
+        const targetUsernameInput = document.getElementById('platformTargetUsername');
+        if (targetUsernameInput) {
+            targetUsernameInput.value = '';
         }
     }
 

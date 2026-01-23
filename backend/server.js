@@ -2777,8 +2777,11 @@ app.post('/api/minor/add-tutor', async (req, res) => {
                     )
                     AND (
             -- Caso 1: Publicaciones normales que están activas o en las que el usuario participa
+            -- NUEVO: Si target_username está definido, solo ese usuario puede verla
             (
-                p.is_quick_sale = false AND (
+                p.is_quick_sale = false 
+                AND (p.target_username IS NULL OR p.target_username = $1)
+                AND (
                     (p.available_slots > 0 AND (p.expires_at IS NULL OR p.expires_at > NOW()))
                     OR 
                     (u.username = $1 AND EXISTS (SELECT 1 FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status != 'confirmed_paid'))
@@ -5211,7 +5214,7 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
 
         // Endpoint para que un administrador cree una publicación como la plataforma
         app.post('/api/admin/platform/create-publication', verifyAdminToken, async (req, res) => {
-            const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours } = req.body;
+            const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours, targetUsername } = req.body;
         
             if (!title || !description || !costString) {
                 return res.status(400).json({ message: "Faltan datos: título, descripción y costo son requeridos." });
@@ -5244,6 +5247,16 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
                 maxRepeat = 1;
                 repeatCooldown = 24;
             }
+
+            // Validar target_username si se especifica (publicación dirigida)
+            let sanitizedTargetUsername = null;
+            if (targetUsername && targetUsername.trim() !== '') {
+                sanitizedTargetUsername = targetUsername.trim();
+                const targetUserResult = await pool.query(`SELECT id FROM users WHERE username = $1`, [sanitizedTargetUsername]);
+                if (targetUserResult.rowCount === 0) {
+                    return res.status(400).json({ message: `El usuario "${sanitizedTargetUsername}" no existe.` });
+                }
+            }
         
             try {
                 const userResult = await pool.query(`SELECT id FROM users WHERE username = $1`, [platformUsername]);
@@ -5253,13 +5266,33 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
                 const authorId = userResult.rows[0].id;
         
                 const sql = `
-                    INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, is_booster_task, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours) 
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
+                    INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, is_booster_task, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, target_username) 
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
                     RETURNING id
                 `;
-                const result = await pool.query(sql, [title, description, cost, !!isSellPost, authorId, slots, !!autoApprove, !!isBoosterTask, allowRepeat, maxRepeat, repeatCooldown]);
+                const result = await pool.query(sql, [title, description, cost, !!isSellPost, authorId, slots, !!autoApprove, !!isBoosterTask, allowRepeat, maxRepeat, repeatCooldown, sanitizedTargetUsername]);
                 
-                res.status(201).json({ message: "Publicación de la plataforma creada exitosamente.", publicationId: result.rows[0].id });
+                const newPubId = result.rows[0].id;
+
+                // Auditoría: registrar creación con target_username si aplica
+                await logAuditEvent(pool, req, {
+                    eventType: 'admin.platform_publication.created',
+                    actorUsername: 'admin',
+                    targetUsername: sanitizedTargetUsername,
+                    publicationId: newPubId,
+                    category: 'platform',
+                    metadata: {
+                        title: title,
+                        cost: cost,
+                        is_targeted: !!sanitizedTargetUsername
+                    }
+                });
+
+                const message = sanitizedTargetUsername 
+                    ? `Publicación creada exitosamente. Visible solo para: ${sanitizedTargetUsername}`
+                    : "Publicación de la plataforma creada exitosamente.";
+                
+                res.status(201).json({ message, publicationId: newPubId });
         
             } catch (error) {
                 console.error("Error al crear publicación de la plataforma:", error);

@@ -1095,7 +1095,8 @@ document.addEventListener('DOMContentLoaded', () => {
             repeatCooldownDays: allowRepeat ? safeDays : 1,
             repeatCooldownHours: allowRepeat ? safeHours : 0,
             repeatCooldownMinutes: allowRepeat ? safeMinutes : 0,
-            isBoosterTask: document.getElementById('platformIsBoosterTask').checked
+            isBoosterTask: document.getElementById('platformIsBoosterTask').checked,
+            targetUsername: (document.getElementById('platformTargetUsername')?.value || '').trim() || null
         };
         try {
             if (platformEditId) {
@@ -1620,6 +1621,11 @@ WHERE username = 'Plataforma WintonCoin';
         }
         if (elements.platformRepeatCooldownWrapper) {
             elements.platformRepeatCooldownWrapper.style.display = 'none';
+        }
+        // Limpiar campo de usuario específico
+        const targetUsernameInput = document.getElementById('platformTargetUsername');
+        if (targetUsernameInput) {
+            targetUsernameInput.value = '';
         }
     }
 
