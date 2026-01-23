@@ -638,7 +638,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - UX mejorada: las tareas en proceso aparecen primero, facilitando el seguimiento.
   - Información completa: usuarios ven expiración, ratings y pueden navegar a perfiles.
   - Bug visual corregido: el banner "Solicitud enviada. Esperando aprobación." ahora es visible.
-- **Evidencia (commits)**: `4b6c08e`.
+- **Evidencia (commits)**: `7b02f1a`.
 
 ## Observaciones de manager (deuda técnica / riesgos)
 
