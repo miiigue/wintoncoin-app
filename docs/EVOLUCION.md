@@ -545,6 +545,21 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Base lista para notificaciones push.
 - **Evidencia (commits)**: `20a10f3`.
 
+### 2026-01-23 — Validación de username: estándar de industria
+
+- **Contexto**: el campo de nombre de usuario no tenía validaciones completas, permitiendo caracteres especiales, espacios y longitudes arbitrarias.
+- **Decisión**:
+  - Implementar validación completa: **3-30 caracteres**, solo **letras, números y guiones bajos** (`a-zA-Z0-9_`).
+  - Validación en **frontend** (UX) y **backend** (seguridad crítica).
+  - Verificación **case-insensitive** para evitar duplicados (`User` = `user`).
+  - Mensaje descriptivo en el formulario explicando los requisitos.
+  - Cambiar etiquetas del formulario de registro para mayor claridad.
+- **Impacto**:
+  - Prevención de XSS e inyección SQL.
+  - Evita suplantación de identidad por mayúsculas/minúsculas.
+  - UX clara con requisitos visibles.
+- **Evidencia (commits)**: `pending`.
+
 ### 2026-01-23 — UX: icono de menú hamburguesa + soporte LAN para desarrollo
 
 - **Contexto**: el icono de flecha (▼) junto al nombre de usuario no era suficientemente visible en móvil, y el desarrollo desde dispositivos móviles en la red local no funcionaba.

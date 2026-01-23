@@ -1781,10 +1781,26 @@ async function startServer() {
             return res.status(400).json({ error: 'Username is required' });
         }
 
+        // Validación: mínimo 3 caracteres
+        if (username.length < 3) {
+            return res.json({ available: false, message: 'El usuario debe tener al menos 3 caracteres.' });
+        }
+
+        // Validación: máximo 30 caracteres
+        if (username.length > 30) {
+            return res.json({ available: false, message: 'El usuario no puede tener más de 30 caracteres.' });
+        }
+
+        // Validación: solo alfanuméricos y guiones bajos, sin espacios
+        const usernameRegex = /^[a-zA-Z0-9_]+$/;
+        if (!usernameRegex.test(username)) {
+            return res.json({ available: false, message: 'Solo letras, números y guiones bajos (_). Sin espacios.' });
+        }
+
         try {
             // Check case-insensitive to avoid "User" vs "user" duplicates
             // Using PostgreSQL syntax with pool
-            const result = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
+            const result = await pool.query('SELECT id FROM users WHERE LOWER(username) = LOWER($1)', [username]);
             
             if (result.rows.length > 0) {
                 return res.json({ available: false, message: 'Este nombre de usuario ya está en uso.' });
@@ -1884,7 +1900,16 @@ async function startServer() {
             const { username, email, password, phone, date_of_birth } = req.body;
             const normalizedEmail = normalizeEmail(email);
 
-    // --- Validación Estricta de Usuario para Prevenir XSS ---
+    // --- Validación Estricta de Usuario (Estándar de Industria) ---
+    // 1. Longitud mínima
+    if (!username || username.length < 3) {
+        return res.status(400).json({ message: "El nombre de usuario debe tener al menos 3 caracteres." });
+    }
+    // 2. Longitud máxima
+    if (username.length > 30) {
+        return res.status(400).json({ message: "El nombre de usuario no puede tener más de 30 caracteres." });
+    }
+    // 3. Solo caracteres permitidos (previene XSS e inyección)
     if (!/^[a-zA-Z0-9_]+$/.test(username)) {
         return res.status(400).json({ message: "El nombre de usuario solo puede contener letras, números y guiones bajos (sin espacios ni caracteres especiales)." });
     }

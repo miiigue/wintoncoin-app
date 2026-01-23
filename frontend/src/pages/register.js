@@ -131,8 +131,26 @@ function setupFieldValidation(API_URL, checkAgreements) {
             
             if (!username) return;
 
+            // Validación: mínimo 3 caracteres
             if (username.length < 3) {
                 usernameFeedback.textContent = 'El usuario debe tener al menos 3 caracteres.';
+                usernameFeedback.style.color = '#dc3545';
+                usernameFeedback.style.display = 'block';
+                return;
+            }
+
+            // Validación: máximo 30 caracteres
+            if (username.length > 30) {
+                usernameFeedback.textContent = 'El usuario no puede tener más de 30 caracteres.';
+                usernameFeedback.style.color = '#dc3545';
+                usernameFeedback.style.display = 'block';
+                return;
+            }
+
+            // Validación: solo alfanuméricos y guiones bajos, sin espacios
+            const usernameRegex = /^[a-zA-Z0-9_]+$/;
+            if (!usernameRegex.test(username)) {
+                usernameFeedback.textContent = 'Solo letras, números y guiones bajos (_). Sin espacios ni caracteres especiales.';
                 usernameFeedback.style.color = '#dc3545';
                 usernameFeedback.style.display = 'block';
                 return;
