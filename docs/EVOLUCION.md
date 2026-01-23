@@ -545,6 +545,19 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Base lista para notificaciones push.
 - **Evidencia (commits)**: `20a10f3`.
 
+### 2026-01-23 — UX: icono de menú hamburguesa + soporte LAN para desarrollo
+
+- **Contexto**: el icono de flecha (▼) junto al nombre de usuario no era suficientemente visible en móvil, y el desarrollo desde dispositivos móviles en la red local no funcionaba.
+- **Decisión**:
+  - Reemplazar el icono de flecha por un **icono de hamburguesa** (☰) de 30px.
+  - Aumentar el icono de campana de notificaciones a 26px para mantener simetría.
+  - Ajustar posiciones verticales de ambos iconos para evitar solapamientos.
+  - Corregir `config.js` para detectar IPs privadas y conectar al backend en puerto 3000.
+- **Impacto**:
+  - Menú más visible y accesible en móvil.
+  - Desarrollo local desde teléfono funcional (conectando a la IP de la PC).
+- **Evidencia (commits)**: `ed187c7`.
+
 ### 2026-01-22 — Migración frontend a Vite con ES Modules
 
 - **Contexto**: el frontend usaba scripts inline y globales, lo cual dificultaba el mantenimiento, testing y optimización. Se necesitaba una arquitectura moderna.

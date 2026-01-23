@@ -21,7 +21,12 @@ export function getApiUrl() {
         return 'http://localhost:3000';
     }
 
-    return isLocal ? window.location.origin : 'https://wintoncoin-backend.onrender.com';
+    // Para entornos locales (localhost o IPs privadas), usar puerto 3000 del backend
+    if (isLocal) {
+        return `http://${hostname}:3000`;
+    }
+
+    return 'https://wintoncoin-backend.onrender.com';
 }
 
 /**
@@ -29,11 +34,8 @@ export function getApiUrl() {
  * @returns {Promise<void>}
  */
 export async function fetchAndStoreAppSettings() {
-    // Lógica para determinar la URL del API automáticamente
-    const isLocal = window.location.hostname === 'localhost' || 
-                    window.location.hostname === '127.0.0.1' || 
-                    window.location.protocol === 'file:';
-    const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+    // Usar la misma lógica que getApiUrl() para consistencia
+    const API_URL = getApiUrl();
 
     try {
         // Si ya hemos cargado la configuración, no la volvemos a pedir.
