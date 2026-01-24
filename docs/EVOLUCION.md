@@ -665,7 +665,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Autores pueden ver el orden cronológico de solicitudes.
   - Mejor privacidad de datos de usuarios.
   - UX mejorada en botón de referidos.
-- **Evidencia (commits)**: `pending`.
+- **Evidencia (commits)**: `b46547b`.
 
 ## Observaciones de manager (deuda técnica / riesgos)
 
