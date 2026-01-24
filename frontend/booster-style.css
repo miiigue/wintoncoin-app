@@ -66,6 +66,8 @@
     border-radius: 10px;
     text-align: center;
     border: 1px solid rgba(106, 90, 205, 0.35);
+    position: relative;
+    overflow: visible;
 }
 
 .booster-summary-cards {
@@ -78,7 +80,7 @@
 
 .booster-daily-goal {
     position: relative;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .daily-goal-value {
@@ -151,6 +153,7 @@
     letter-spacing: 0.6px;
     color: var(--text-secondary-color);
     margin-bottom: 0.4rem;
+    position: relative;
 }
 
 .ranking-position {
@@ -175,11 +178,14 @@
     padding: 1.5rem;
     border-radius: 10px;
     margin-bottom: 2rem;
+    position: relative;
+    overflow: visible;
 }
 
 .progress-section h3 {
     margin-top: 0;
     text-align: center;
+    position: relative;
 }
 
 .progress-bar-container {
@@ -206,12 +212,45 @@
     color: var(--text-secondary-color);
 }
 
+.history-section {
+    position: relative;
+    overflow: visible;
+}
+
 .history-section h2 {
     color: var(--text-color);
     border-bottom: 2px solid var(--primary-color);
     padding-bottom: 0.5rem;
     margin-bottom: 1.5rem;
+    position: relative;
 } 
+
+/* Estilos para la tabla del historial */
+#booster-history-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+#booster-history-table th:nth-child(1),
+#booster-history-table td:nth-child(1) {
+    width: 22%;
+}
+
+#booster-history-table th:nth-child(2),
+#booster-history-table td:nth-child(2) {
+    width: 50%;
+}
+
+#booster-history-table th:nth-child(3),
+#booster-history-table td:nth-child(3) {
+    width: 28%;
+    text-align: right;
+}
+
+#booster-history-table td {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
 
 @media (max-width: 640px) {
     .booster-header h1 {
@@ -220,5 +259,24 @@
 
     .booster-stats {
         grid-template-columns: 1fr;
+    }
+
+    #booster-history-table {
+        font-size: 0.75rem;
+    }
+
+    #booster-history-table th:nth-child(1),
+    #booster-history-table td:nth-child(1) {
+        width: 22%;
+    }
+
+    #booster-history-table th:nth-child(2),
+    #booster-history-table td:nth-child(2) {
+        width: 53%;
+    }
+
+    #booster-history-table th:nth-child(3),
+    #booster-history-table td:nth-child(3) {
+        width: 25%;
     }
 }

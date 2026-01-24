@@ -2,7 +2,7 @@
 // WintonCoin - Página de Perfil de Impulsor (Booster)
 // ============================================================================
 
-import { getApiUrl, showCustomAlert, handleSessionExpired } from '../modules/index.js';
+import { getApiUrl, showCustomAlert, handleSessionExpired, initializeInfoTooltip } from '../modules/index.js';
 
 function initializeBoosterProfilePage() {
     const API_URL = getApiUrl();
@@ -68,6 +68,9 @@ function initializeBoosterProfilePage() {
 
         elements.content.innerHTML = `${headerHTML}${cardsHTML}${progressHTML}${historyHTML}`;
 
+        // Inicializar tooltips después de renderizar
+        initializeBoosterTooltips();
+
         if (data.daily_improved) {
             const dailyCard = elements.content.querySelector('.booster-daily-goal');
             if (dailyCard) {
@@ -79,10 +82,14 @@ function initializeBoosterProfilePage() {
     }
 
     function getHeaderHTML(levelInfo) {
+        const levelDescription = levelInfo?.description || 'Acumula más BLUE iou para subir de nivel.';
         return `
             <div class="booster-header">
                 <h1>${levelInfo ? levelInfo.name : 'Impulsor'}</h1>
-                <span class="level-badge">Nivel ${levelInfo ? levelInfo.level : '?'}</span>
+                <span class="level-badge info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-booster-level">Nivel ${levelInfo ? levelInfo.level : '?'}</span>
+                <div id="tooltip-booster-level" class="info-tooltip" role="tooltip" aria-hidden="true">
+                    <p>${levelDescription}</p>
+                </div>
             </div>
         `;
     }
@@ -101,7 +108,12 @@ function initializeBoosterProfilePage() {
     function getTotalBlueCardHTML(totalBlue) {
         return `
             <div class="booster-stat-block booster-summary-card">
-                <div class="ranking-title">Total BLUE iou de Impulsor</div>
+                <div class="ranking-title">
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-total-blue">Total BLUE iou de Impulsor</span>
+                </div>
+                <div id="tooltip-total-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
+                    <p>BLUE iou ganados por completar tareas de plataforma y referidos.</p>
+                </div>
                 <div class="ranking-position booster-total-highlight">${formatBalance(totalBlue)}</div>
             </div>
         `;
@@ -113,7 +125,12 @@ function initializeBoosterProfilePage() {
         const percentileText = data.rank_percentile ? `Top ${data.rank_percentile}%` : '';
         return `
             <div class="booster-stat-block booster-summary-card booster-ranking">
-                <div class="ranking-title">Ranking</div>
+                <div class="ranking-title">
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-ranking">Ranking</span>
+                </div>
+                <div id="tooltip-ranking" class="info-tooltip" role="tooltip" aria-hidden="true">
+                    <p>Tu posición entre todos los impulsores activos de la plataforma.</p>
+                </div>
                 <div class="ranking-position">${rankText}</div>
                 ${percentileText ? `<div class="ranking-subtitle">${percentileText}</div>` : ''}
             </div>
@@ -128,7 +145,12 @@ function initializeBoosterProfilePage() {
         const delta = todayValue - yesterdayValue;
         return `
             <div class="booster-stat-block booster-summary-card booster-daily-goal">
-                <div class="ranking-title">Meta diaria (hoy vs ayer)</div>
+                <div class="ranking-title">
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-daily-goal">Meta diaria (hoy vs ayer)</span>
+                </div>
+                <div id="tooltip-daily-goal" class="info-tooltip" role="tooltip" aria-hidden="true">
+                    <p>Compara tus ganancias de hoy vs ayer. Supéralas diariamente para mejorar tu ranking.</p>
+                </div>
                 <div class="daily-goal-value">${formatBalance(todayValue)} hoy</div>
                 <div class="daily-goal-bar"><div class="daily-goal-fill" style="width: ${progress}%;"></div></div>
                 <div class="ranking-subtitle">Ayer: ${formatBalance(yesterdayValue)} | Diferencia: ${formatDelta(delta)}</div>
@@ -140,7 +162,12 @@ function initializeBoosterProfilePage() {
     function getTasksCardHTML(totalTasks) {
         return `
             <div class="booster-stat-block booster-summary-card">
-                <div class="ranking-title">Tareas de Impulsor Completadas</div>
+                <div class="ranking-title">
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-tasks">Tareas de Impulsor Completadas</span>
+                </div>
+                <div id="tooltip-tasks" class="info-tooltip" role="tooltip" aria-hidden="true">
+                    <p>Cantidad de tareas de plataforma que has completado como impulsor.</p>
+                </div>
                 <div class="ranking-position">${formatInteger(totalTasks)}</div>
             </div>
         `;
@@ -154,9 +181,14 @@ function initializeBoosterProfilePage() {
         const blueInCurrentLevel = totalBlue - parseFloat(currentLevel.min_blue_required);
         const neededForNextLevel = blueForNextLevel - parseFloat(currentLevel.min_blue_required);
         const progressPercentage = Math.min((blueInCurrentLevel / neededForNextLevel) * 100, 100);
+        const remaining = blueForNextLevel - totalBlue;
+        const remainingFormatted = formatBalancePlain(remaining);
         return `
             <div class="progress-section">
-                <h3>Progreso a ${nextLevel.name}</h3>
+                <h3 class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-progress">Progreso a ${nextLevel.name}</h3>
+                <div id="tooltip-progress" class="info-tooltip" role="tooltip" aria-hidden="true">
+                    <p>Te faltan <strong>${remainingFormatted} BLUE iou</strong> para ${nextLevel.name}. ¡No te quedes atrás, otros impulsores ya están subiendo!</p>
+                </div>
                 <div class="progress-bar-container"><div class="progress-bar" style="width: ${progressPercentage}%;"></div></div>
                 <div class="progress-labels">
                     <span>${formatBalance(totalBlue)} BLUE</span>
@@ -168,7 +200,7 @@ function initializeBoosterProfilePage() {
     
     function getHistoryHTML(transactions) {
         if (!transactions || transactions.length === 0) {
-            return `<div class="history-section"><h2>Historial de Actividades</h2><p class="empty-message">Aún no hay actividades registradas.</p></div>`;
+            return `<div class="history-section"><h2 class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-history">Historial de Actividades</h2><div id="tooltip-history" class="info-tooltip" role="tooltip" aria-hidden="true"><p>Registro detallado de tus ganancias como impulsor.</p></div><p class="empty-message">Aún no hay actividades registradas.</p></div>`;
         }
         const historyRows = transactions.map(entry => {
             const amount = Number(entry.amount) || 0;
@@ -180,7 +212,10 @@ function initializeBoosterProfilePage() {
         }).join('');
         return `
             <div class="history-section">
-                <h2>Historial de Ganancias</h2>
+                <h2 class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-history">Historial de Ganancias</h2>
+                <div id="tooltip-history" class="info-tooltip" role="tooltip" aria-hidden="true">
+                    <p>Registro detallado de tus ganancias como impulsor.</p>
+                </div>
                 <div class="table-container">
                     <table id="booster-history-table">
                         <thead><tr><th>Fecha</th><th>Descripción</th><th>BLUE Ganado</th></tr></thead>
@@ -200,6 +235,14 @@ function initializeBoosterProfilePage() {
         return `${intWithSeparator},<span class="decimal-part">${decPart}</span>`;
     }
 
+    function formatBalancePlain(value) {
+        const num = Number(value) || 0;
+        const fixed = num.toFixed(4);
+        const [intPart, decPart] = fixed.split('.');
+        const intWithSeparator = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        return `${intWithSeparator},${decPart}`;
+    }
+
     function formatInteger(value) {
         return Number(value || 0).toLocaleString('es-ES');
     }
@@ -208,6 +251,24 @@ function initializeBoosterProfilePage() {
         const numeric = Number(value) || 0;
         const sign = numeric > 0 ? '+' : '';
         return `${sign}${formatBalance(numeric)}`;
+    }
+
+    function initializeBoosterTooltips() {
+        // Inicializar cada tooltip si existe en el DOM
+        const tooltips = [
+            { trigger: '[data-tooltip-id="tooltip-booster-level"]', tooltip: '#tooltip-booster-level' },
+            { trigger: '[data-tooltip-id="tooltip-total-blue"]', tooltip: '#tooltip-total-blue' },
+            { trigger: '[data-tooltip-id="tooltip-daily-goal"]', tooltip: '#tooltip-daily-goal' },
+            { trigger: '[data-tooltip-id="tooltip-ranking"]', tooltip: '#tooltip-ranking' },
+            { trigger: '[data-tooltip-id="tooltip-tasks"]', tooltip: '#tooltip-tasks' },
+            { trigger: '[data-tooltip-id="tooltip-progress"]', tooltip: '#tooltip-progress' },
+            { trigger: '[data-tooltip-id="tooltip-history"]', tooltip: '#tooltip-history' }
+        ];
+        tooltips.forEach(({ trigger, tooltip }) => {
+            if (document.querySelector(trigger) && document.querySelector(tooltip)) {
+                initializeInfoTooltip(trigger, tooltip);
+            }
+        });
     }
 
     function launchFireworks(container) {
