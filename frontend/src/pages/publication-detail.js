@@ -209,6 +209,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const participantNameHTML = appSettings.public_profiles_enabled
                 ? `<a href="profile.html?user=${p.username}" class="profile-link">${p.username}</a>`
                 : p.username;
+
+            // Formatear fecha y hora de solicitud
+            const acceptedAtHTML = p.accepted_at 
+                ? `<span class="participant-accepted-at">Solicitó: ${formatDateTime(p.accepted_at)}</span>`
+                : '';
     
             if (p.status === 'pending_approval') {
                 actionButtons = `
@@ -236,6 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="participant-info">
                         <strong>${participantNameHTML}</strong>
                         <span class="rating-display">${ratingHTML}</span>
+                        ${acceptedAtHTML}
                     </div>
                     <div class="participant-status">
                         <span class="status-badge ${p.status}">${statusText}</span>
@@ -253,6 +259,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 </ul>
             </div>
         `;
+    }
+
+    function formatDateTime(dateString) {
+        const date = new Date(dateString);
+        const options = { 
+            day: '2-digit', 
+            month: 'short', 
+            year: 'numeric',
+            hour: '2-digit', 
+            minute: '2-digit'
+        };
+        return date.toLocaleDateString('es-ES', options);
     }
 
     function getActionAndMessageHTML(pub, isExpired, blueLabel = 'BLUE') {

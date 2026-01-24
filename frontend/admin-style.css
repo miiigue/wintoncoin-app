@@ -879,6 +879,13 @@ input:checked + .slider:before {
     color: #ffc107;
 }
 
+.participant-info-admin .participant-accepted-at {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--admin-text-secondary);
+    margin-top: 0.25rem;
+}
+
 .participant-status-admin {
     display: flex;
     align-items: center;

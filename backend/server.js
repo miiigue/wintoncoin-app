@@ -2725,9 +2725,10 @@ app.post('/api/minor/add-tutor', async (req, res) => {
                             SELECT json_agg(json_build_object(
                                 'username', participant_user.username,
                                 'status', pa.status,
+                                'accepted_at', pa.created_at,
                                 'average_rating', participant_user.average_rating,
                                 'ratings_count', participant_user.ratings_count
-                            ))
+                            ) ORDER BY pa.created_at)
                             FROM publication_acceptances pa
                             JOIN users participant_user ON pa.acceptor_username = participant_user.username
                             WHERE pa.publication_id = p.id
@@ -3725,7 +3726,7 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
         app.get('/publications/:id/participants', async (req, res) => {
             const { id } = req.params;
             const sql = `
-                SELECT pa.acceptor_username, pa.status, u.average_rating, u.ratings_count
+                SELECT pa.acceptor_username, pa.status, pa.created_at as accepted_at, u.average_rating, u.ratings_count
                 FROM publication_acceptances pa JOIN users u ON pa.acceptor_username = u.username
                 WHERE pa.publication_id = $1 ORDER BY pa.created_at
             `;
@@ -5400,13 +5401,12 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
                             SELECT json_agg(json_build_object(
                                 'acceptor_username', pa.acceptor_username,
                                 'status', pa.status,
+                                'accepted_at', pa.created_at,
                                 'average_rating', u_participant.average_rating,
-                                'ratings_count', u_participant.ratings_count,
-                                'phone_number', p_user.phone_number -- AÑADIDO: Incluimos el teléfono
-                            ))
+                                'ratings_count', u_participant.ratings_count
+                            ) ORDER BY pa.created_at)
                             FROM publication_acceptances pa
                             JOIN users u_participant ON pa.acceptor_username = u_participant.username
-                            JOIN users p_user ON p_user.username = u_participant.username
                             WHERE pa.publication_id = p.id
                         ) as participants
                     FROM
@@ -6758,10 +6758,11 @@ app.get('/api/publications/:id', async (req, res) => {
                     SELECT jsonb_agg(jsonb_build_object(
                         'username', pa_all.acceptor_username,
                         'status', pa_all.status,
+                        'accepted_at', pa_all.created_at,
                         'average_rating', p_user.average_rating,
                         'ratings_count', p_user.ratings_count,
-                        'phone_number', p_user.phone_number -- AÑADIDO: Incluimos el teléfono
-                    ))
+                        'phone_number', CASE WHEN pa_all.status = 'approved' THEN p_user.phone_number ELSE NULL END
+                    ) ORDER BY pa_all.created_at)
                     FROM publication_acceptances pa_all
                     JOIN users p_user ON pa_all.acceptor_username = p_user.username
                     WHERE pa_all.publication_id = p.id

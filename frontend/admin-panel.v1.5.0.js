@@ -1687,6 +1687,11 @@ WHERE username = 'Plataforma WintonCoin';
         const statusText = getStatusText(participant.status);
         let actionButton = '';
         
+        // Formatear fecha y hora de solicitud
+        const acceptedAtHTML = participant.accepted_at 
+            ? `<span class="participant-accepted-at">Solicitó: ${formatDateTime(participant.accepted_at)}</span>`
+            : '';
+        
         // Data attributes are safe if values are properly quoted, but escaping is better practice for user content
         if (participant.status === 'pending_approval') {
             actionButton = `
@@ -1702,6 +1707,7 @@ WHERE username = 'Plataforma WintonCoin';
                 <div class="participant-info-admin">
                     <strong><a href="profile.html?user=${escapeHtml(participant.acceptor_username)}" target="_blank">${escapeHtml(participant.acceptor_username)}</a></strong>
                     <span class="rating-display">${ratingHTML}</span>
+                    ${acceptedAtHTML}
                 </div>
                 <div class="participant-status-admin">
                     <span class="status-badge ${escapeHtml(participant.status)}">${escapeHtml(statusText)}</span>
@@ -1709,6 +1715,18 @@ WHERE username = 'Plataforma WintonCoin';
                 </div>
             </li>
         `;
+    }
+
+    function formatDateTime(dateString) {
+        const date = new Date(dateString);
+        const options = { 
+            day: '2-digit', 
+            month: 'short', 
+            year: 'numeric',
+            hour: '2-digit', 
+            minute: '2-digit'
+        };
+        return date.toLocaleDateString('es-ES', options);
     }
 
     function renderUsersTable(users) {

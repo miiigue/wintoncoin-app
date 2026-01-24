@@ -653,6 +653,20 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - UX más clara con colores distintivos para cada rol.
 - **Evidencia (commits)**: `819899b`.
 
+### 2026-01-24 — Fecha de aceptación en participantes + mejoras UX botón referidos
+
+- **Contexto**: El autor no podía ver cuándo un usuario había solicitado participar en su publicación. Además, el botón de referidos necesitaba mejor copy y efectos visuales.
+- **Decisión**:
+  - **Backend**: Agregado campo `accepted_at` a todos los endpoints que devuelven participantes. Ordenamiento cronológico (quien pidió primero, aparece primero).
+  - **Seguridad**: Removido `phone_number` de endpoints públicos. Solo se muestra cuando el participante está aprobado (para contacto vía WhatsApp).
+  - **Admin Panel + Publication Detail**: Muestran "Solicitó: fecha/hora" debajo de cada participante.
+  - **Botón de referidos**: Nuevo copy persuasivo, icono de compartir SVG con efecto pulse+glow mejorado.
+- **Impacto**:
+  - Autores pueden ver el orden cronológico de solicitudes.
+  - Mejor privacidad de datos de usuarios.
+  - UX mejorada en botón de referidos.
+- **Evidencia (commits)**: `pending`.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)
