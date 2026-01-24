@@ -102,7 +102,7 @@ function initializeBoosterProfilePage() {
         return `
             <div class="booster-stat-block booster-summary-card">
                 <div class="ranking-title">Total BLUE iou de Impulsor</div>
-                <div class="ranking-position saldo-blue-text">${formatBalance(totalBlue)}</div>
+                <div class="ranking-position booster-total-highlight">${formatBalance(totalBlue)}</div>
             </div>
         `;
     }
@@ -193,10 +193,11 @@ function initializeBoosterProfilePage() {
 
     function formatBalance(value) {
         const num = Number(value) || 0;
-        const formattedString = num.toLocaleString('es-ES', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
-        const parts = formattedString.split(',');
-        if (parts.length === 2) return `${parts[0]},<span class="decimal-part">${parts[1]}</span>`;
-        return formattedString;
+        const fixed = num.toFixed(4);
+        const [intPart, decPart] = fixed.split('.');
+        // Agregar separador de miles manualmente
+        const intWithSeparator = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        return `${intWithSeparator},<span class="decimal-part">${decPart}</span>`;
     }
 
     function formatInteger(value) {
