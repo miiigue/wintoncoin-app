@@ -651,7 +651,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Autores ven inmediatamente qué publicaciones requieren su atención.
   - Menos fricción: no hay que buscar manualmente qué aprobar o pagar.
   - UX más clara con colores distintivos para cada rol.
-- **Evidencia (commits)**: `pending`.
+- **Evidencia (commits)**: `819899b`.
 
 ## Observaciones de manager (deuda técnica / riesgos)
 
