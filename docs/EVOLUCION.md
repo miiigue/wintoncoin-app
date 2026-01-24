@@ -667,6 +667,20 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - UX mejorada en botón de referidos.
 - **Evidencia (commits)**: `b46547b`.
 
+### 2026-01-24 — UX: tooltips en Perfil de Impulsor + tabla responsive
+
+- **Contexto**: El perfil de impulsor mostraba métricas (nivel, ranking, meta diaria, etc.) sin explicación de qué significaba cada una. Usuarios nuevos no entendían el sistema de niveles ni cómo subir.
+- **Decisión**:
+  - **7 tooltips informativos**: Nivel (descripción dinámica desde backend), Total BLUE iou, Meta diaria, Ranking, Tareas completadas, Progreso al siguiente nivel, Historial.
+  - **Tooltip de progreso con FOMO**: muestra cuántos BLUE iou faltan + frase motivadora ("¡No te quedes atrás, otros impulsores ya están subiendo!").
+  - **Descripciones dinámicas**: el tooltip del nivel actual usa `levelInfo.description` del backend (editable desde admin).
+  - **Tabla de historial responsive**: ajustes CSS para móviles (`table-layout: fixed`, anchos de columna proporcionales, font-size reducido).
+- **Impacto**:
+  - Onboarding mejorado: usuarios entienden cada métrica al primer clic.
+  - Gamificación: el FOMO en el progreso incentiva completar más tareas.
+  - UX móvil: la tabla de historial se lee correctamente en pantallas pequeñas.
+- **Evidencia (commits)**: `3d5db92`.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)
