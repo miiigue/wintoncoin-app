@@ -567,19 +567,45 @@ document.addEventListener('DOMContentLoaded', () => {
         return result;
     }
 
-    // Determina si una publicación está en proceso para el usuario actual
+    // Determina si una publicación requiere atención del usuario
     function isPendingForUser(pub) {
+        // Como participante
         const status = pub.user_acceptance_status;
-        return status === 'approved' || status === 'pending_approval' || status === 'completed';
+        if (status === 'approved' || status === 'pending_approval' || status === 'completed') {
+            return true;
+        }
+        // Como autor con acciones pendientes
+        if (pub.author_username === storedUsername && pub.participants) {
+            const hasPendingActions = pub.participants.some(p => 
+                p.status === 'pending_approval' || p.status === 'completed'
+            );
+            if (hasPendingActions) return true;
+        }
+        return false;
     }
 
     // Asigna prioridad según estado (menor número = mayor prioridad)
     function getPendingPriority(pub) {
+        const isAuthor = pub.author_username === storedUsername;
+        
+        // --- PRIORIDAD DEL AUTOR ---
+        if (isAuthor && pub.participants && pub.participants.length > 0) {
+            const hasPendingApproval = pub.participants.some(p => p.status === 'pending_approval');
+            const hasPendingPayment = pub.participants.some(p => p.status === 'completed');
+            
+            // Autor con participantes por aprobar = máxima prioridad
+            if (hasPendingApproval) return 0;
+            // Autor con participantes por pagar = alta prioridad
+            if (hasPendingPayment) return 1;
+        }
+        
+        // --- PRIORIDAD DEL PARTICIPANTE ---
         const status = pub.user_acceptance_status;
-        if (status === 'approved') return 0;        // Aprobado - puede realizar la tarea
-        if (status === 'pending_approval') return 1; // Esperando aprobación
-        if (status === 'completed') return 2;        // Completado - esperando confirmación
-        return 3;                                    // Sin estado o no participando
+        if (status === 'approved') return 2;        // Aprobado - puede realizar la tarea
+        if (status === 'pending_approval') return 3; // Esperando aprobación
+        if (status === 'completed') return 4;        // Completado - esperando confirmación
+        
+        return 5; // Sin estado o no participando
     }
 
     // Ordena las publicaciones poniendo primero las que están en proceso
@@ -625,11 +651,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * Genera un banner de estado para la tarjeta si el usuario actual tiene un estado específico.
+     * Genera un banner de estado para la tarjeta.
+     * - Para el AUTOR: muestra conteo de participantes pendientes de aprobar/pagar
+     * - Para PARTICIPANTES: muestra su estado actual
      * @param {object} pub La publicación.
      * @returns {string} El HTML del banner o un string vacío.
      */
     function getCardStatusMessageHTML(pub) {
+        const isAuthor = pub.author_username === storedUsername;
+        
+        // --- VISTA DEL AUTOR ---
+        if (isAuthor && pub.participants && pub.participants.length > 0) {
+            const pendingApproval = pub.participants.filter(p => p.status === 'pending_approval').length;
+            const pendingPayment = pub.participants.filter(p => p.status === 'completed').length;
+            
+            if (pendingApproval > 0 || pendingPayment > 0) {
+                const parts = [];
+                if (pendingApproval > 0) {
+                    parts.push(`${pendingApproval} por aprobar`);
+                }
+                if (pendingPayment > 0) {
+                    parts.push(`${pendingPayment} por pagar`);
+                }
+                const message = parts.join(' · ');
+                return `<div class="publication-status-banner status-author-action">${message}</div>`;
+            }
+        }
+        
+        // --- VISTA DEL PARTICIPANTE ---
         const userStatus = pub.user_acceptance_status;
         let message = '';
         let className = '';

@@ -640,6 +640,19 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Bug visual corregido: el banner "Solicitud enviada. Esperando aprobación." ahora es visible.
 - **Evidencia (commits)**: `7b02f1a`.
 
+### 2026-01-23 — UX: badge de acción para autores + ordenamiento inteligente
+
+- **Contexto**: cuando un usuario publicaba una tarea y otros la aceptaban, el autor no tenía indicación visual de que había acciones pendientes (aprobar solicitudes o confirmar pagos). Esto causaba que las solicitudes quedaran sin atender.
+- **Decisión**:
+  - **Badge naranja para el autor**: cuando hay participantes esperando aprobación o pago, se muestra un banner naranja con el conteo ("2 por aprobar · 1 por pagar").
+  - **Ordenamiento por prioridad**: las publicaciones del autor con acciones pendientes aparecen primero (prioridad 0-1), seguidas de las tareas donde el usuario participa (prioridad 2-4).
+  - **Diferenciación de colores**: amarillo brillante (`#FFE600`) para participante esperando, naranja (`#e67e22`) para autor con acciones pendientes.
+- **Impacto**:
+  - Autores ven inmediatamente qué publicaciones requieren su atención.
+  - Menos fricción: no hay que buscar manualmente qué aprobar o pagar.
+  - UX más clara con colores distintivos para cada rol.
+- **Evidencia (commits)**: `pending`.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)

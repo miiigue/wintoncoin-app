@@ -1185,7 +1185,7 @@ hr {
 }
 
 .publication-status-banner.status-pending {
-    background-color: #f39c12; /* Naranja */
+    background-color: #FFE600; /* Amarillo brillante - participante esperando aprobación */
     color: #111;
 }
 
@@ -1195,6 +1195,11 @@ hr {
 
 .publication-status-banner.status-completed {
     background-color: #6f42c1; /* Púrpura */
+}
+
+.publication-status-banner.status-author-action {
+    background-color: #e67e22; /* Naranja - Acción requerida del autor */
+    color: #fff;
 }
 /* Fin del nuevo estilo */
 
