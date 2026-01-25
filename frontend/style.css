@@ -1250,7 +1250,7 @@ hr {
 
 .action-button.accept   { background-color: #007bff; } /* Azul de Bootstrap */
 .action-button.approve  { background-color: #28a745; } /* Verde */
-.action-button.complete { background-color: #17a2b8; } /* Cyan */
+.action-button.complete { background-color: #28a745; } /* Verde */
 .action-button.confirm  { background-color: #6f42c1; } /* Púrpura */
 .action-button.delete   { background-color: #dc3545; } /* Rojo/Peligro */
 .action-button.discard  { background-color: #6c757d; } /* Gris secundario */
@@ -1287,14 +1287,54 @@ hr {
     font-size: 0.95rem;
 }
 .share-button-container .action-button.share {
-    width: auto; /* El botón ocupa solo el espacio de su contenido */
-    padding: 10px 25px; /* Hacemos el botón un poco más grande y fácil de tocar */
+    flex: 1 1 0;
+    min-width: 140px;
+    padding: 12px 18px;
     font-size: 1rem;
 }
 
 .share-button-container .action-button.share .share-icon {
     display: inline-block;
     margin-right: 8px;
+    vertical-align: middle;
+}
+
+#publication-detail-container .share-button-container .action-button,
+#publication-detail-container .detail-primary-actions .action-button {
+    flex: 1 1 0;
+    min-width: 140px;
+    padding: 12px 18px;
+    text-align: center;
+}
+
+@media (max-width: 640px) {
+    #publication-detail-container .share-button-container,
+    #publication-detail-container .detail-primary-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+#publication-detail-container .share-link-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+#publication-detail-container .share-link-button:hover {
+    text-decoration: underline;
+}
+
+#publication-detail-container .share-link-button .share-icon {
+    display: inline-block;
     vertical-align: middle;
 }
 

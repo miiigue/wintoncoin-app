@@ -727,6 +727,15 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: UI más intuitiva y consistente; acción final más accesible en móvil.
 - **Evidencia (commits)**: pendiente de push.
 
+### 2026-01-24 — Publicación: CTA verde + compartir compacto
+
+- **Contexto**: se pidió enfatizar la acción de culminar y hacer el compartir más ligero visualmente.
+- **Decisión**:
+  - Renombrar el CTA a **“He culminado”** y ponerlo en verde.
+  - Convertir el compartir en **icono + texto** (sin botón sólido), manteniendo la acción.
+- **Impacto**: jerarquía visual más clara; compartir más discreto y rápido de identificar.
+- **Evidencia (commits)**: pendiente de push.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)
