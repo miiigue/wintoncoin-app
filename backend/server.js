@@ -7034,6 +7034,55 @@ async function getBoosterRankData(client, userId) {
     };
 }
 
+// --- Helper: ranking entre referidos del usuario ---
+async function getReferralRankData(client, userId) {
+    const result = await client.query(
+        `
+        WITH friends AS (
+            SELECT $1::int AS user_id
+            UNION
+            SELECT referred_user_id
+            FROM referral_log
+            WHERE referrer_user_id = $1
+        ),
+        totals AS (
+            SELECT
+                f.user_id,
+                COALESCE(SUM(bbl.amount), 0) AS total
+            FROM friends f
+            LEFT JOIN booster_blue_ledger bbl ON bbl.user_id = f.user_id
+            GROUP BY f.user_id
+        ),
+        ranked AS (
+            SELECT
+                user_id,
+                total,
+                RANK() OVER (ORDER BY total DESC) AS rank_position,
+                COUNT(*) OVER () AS total_users
+            FROM totals
+        )
+        SELECT rank_position, total_users
+        FROM ranked
+        WHERE user_id = $1
+        `,
+        [userId]
+    );
+
+    if (result.rowCount === 0) {
+        return null;
+    }
+
+    const rankPosition = parseInt(result.rows[0].rank_position || '0', 10);
+    const rankTotal = parseInt(result.rows[0].total_users || '0', 10);
+    const rankPercentile = rankTotal > 0 ? Math.ceil((rankPosition / rankTotal) * 100) : null;
+
+    return {
+        rank_position: rankPosition,
+        rank_total: rankTotal,
+        rank_percentile: rankPercentile
+    };
+}
+
 // --- Helper: comparación diaria de BLUE iou vs ayer ---
 async function getBoosterDailyData(client, userId) {
     const [todayResult, yesterdayResult] = await Promise.all([
@@ -7109,7 +7158,7 @@ app.get('/api/users/:username/booster-profile', async (req, res) => {
 
         // 3. Obtener niveles, historial (fuente de verdad) y métricas en paralelo.
         // En fintech, el "extracto" debe venir del ledger para que SIEMPRE cuadre con el total.
-        const [ledgerHistoryResult, levelSettingsResult, currentLevelResult, tasksCountResult, rankData, dailyData] = await Promise.all([
+        const [ledgerHistoryResult, levelSettingsResult, currentLevelResult, tasksCountResult, rankData, friendsRankData, dailyData] = await Promise.all([
             // Historial: booster_blue_ledger (source of truth) + descripción (si existe) desde booster_transactions
             client.query(
                 `
@@ -7163,6 +7212,7 @@ app.get('/api/users/:username/booster-profile', async (req, res) => {
                 [user.id]
             ),
             getBoosterRankData(client, user.id),
+            getReferralRankData(client, user.id),
             getBoosterDailyData(client, user.id)
         ]);
 
@@ -7186,6 +7236,9 @@ app.get('/api/users/:username/booster-profile', async (req, res) => {
             rank_position: rankData?.rank_position || null,
             rank_total: rankData?.rank_total || null,
             rank_percentile: rankData?.rank_percentile || null,
+            friends_rank_position: friendsRankData?.rank_position || null,
+            friends_rank_total: friendsRankData?.rank_total || null,
+            friends_rank_percentile: friendsRankData?.rank_percentile || null,
             daily_today: dailyData?.daily_today || 0,
             daily_yesterday: dailyData?.daily_yesterday || 0,
             daily_improved: dailyData?.daily_improved || false
@@ -7227,7 +7280,7 @@ app.get('/api/me/booster-profile', verifyUserToken, async (req, res) => {
         }
 
         // 2) Niveles + historial + conteos (igual que el endpoint por username)
-        const [ledgerHistoryResult, levelSettingsResult, currentLevelResult, tasksCountResult, rankData, dailyData] = await Promise.all([
+        const [ledgerHistoryResult, levelSettingsResult, currentLevelResult, tasksCountResult, rankData, friendsRankData, dailyData] = await Promise.all([
             client.query(
                 `
                 SELECT
@@ -7278,6 +7331,7 @@ app.get('/api/me/booster-profile', verifyUserToken, async (req, res) => {
                 [userId]
             ),
             getBoosterRankData(client, userId),
+            getReferralRankData(client, userId),
             getBoosterDailyData(client, userId)
         ]);
 
@@ -7299,6 +7353,9 @@ app.get('/api/me/booster-profile', verifyUserToken, async (req, res) => {
             rank_position: rankData?.rank_position || null,
             rank_total: rankData?.rank_total || null,
             rank_percentile: rankData?.rank_percentile || null,
+            friends_rank_position: friendsRankData?.rank_position || null,
+            friends_rank_total: friendsRankData?.rank_total || null,
+            friends_rank_percentile: friendsRankData?.rank_percentile || null,
             daily_today: dailyData?.daily_today || 0,
             daily_yesterday: dailyData?.daily_yesterday || 0,
             daily_improved: dailyData?.daily_improved || false

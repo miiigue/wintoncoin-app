@@ -99,6 +99,7 @@ function initializeBoosterProfilePage() {
             getTotalBlueCardHTML(totalBlue),
             getDailyGoalCardHTML(data),
             getRankingCardHTML(data),
+            getFriendsRankingCardHTML(data),
             getTasksCardHTML(totalTasks)
         ].filter(Boolean);
         if (cards.length === 0) return '';
@@ -126,10 +127,28 @@ function initializeBoosterProfilePage() {
         return `
             <div class="booster-stat-block booster-summary-card booster-ranking">
                 <div class="ranking-title">
-                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-ranking">Ranking</span>
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-ranking">Ranking Mundial</span>
                 </div>
                 <div id="tooltip-ranking" class="info-tooltip" role="tooltip" aria-hidden="true">
                     <p>Tu posición entre todos los impulsores activos de la plataforma.</p>
+                </div>
+                <div class="ranking-position">${rankText}</div>
+                ${percentileText ? `<div class="ranking-subtitle">${percentileText}</div>` : ''}
+            </div>
+        `;
+    }
+
+    function getFriendsRankingCardHTML(data) {
+        if (!data.friends_rank_position || !data.friends_rank_total) return '';
+        const rankText = `#${data.friends_rank_position} de ${formatInteger(data.friends_rank_total)}`;
+        const percentileText = data.friends_rank_percentile ? `Top ${data.friends_rank_percentile}%` : '';
+        return `
+            <div class="booster-stat-block booster-summary-card booster-ranking">
+                <div class="ranking-title">
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-friends-ranking">Ranking entre amigos</span>
+                </div>
+                <div id="tooltip-friends-ranking" class="info-tooltip" role="tooltip" aria-hidden="true">
+                    <p>Tu posición frente a las personas que invitaste con tu código de referido.</p>
                 </div>
                 <div class="ranking-position">${rankText}</div>
                 ${percentileText ? `<div class="ranking-subtitle">${percentileText}</div>` : ''}
@@ -260,6 +279,7 @@ function initializeBoosterProfilePage() {
             { trigger: '[data-tooltip-id="tooltip-total-blue"]', tooltip: '#tooltip-total-blue' },
             { trigger: '[data-tooltip-id="tooltip-daily-goal"]', tooltip: '#tooltip-daily-goal' },
             { trigger: '[data-tooltip-id="tooltip-ranking"]', tooltip: '#tooltip-ranking' },
+            { trigger: '[data-tooltip-id="tooltip-friends-ranking"]', tooltip: '#tooltip-friends-ranking' },
             { trigger: '[data-tooltip-id="tooltip-tasks"]', tooltip: '#tooltip-tasks' },
             { trigger: '[data-tooltip-id="tooltip-progress"]', tooltip: '#tooltip-progress' },
             { trigger: '[data-tooltip-id="tooltip-history"]', tooltip: '#tooltip-history' }

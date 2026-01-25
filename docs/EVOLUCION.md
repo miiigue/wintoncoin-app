@@ -707,6 +707,16 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: la tabla prioriza referidos con mayor aporte y se ve mejor en pantallas pequeñas.
 - **Evidencia (commits)**: pendiente de push.
 
+### 2026-01-24 — Impulsor: Ranking Mundial + ranking entre amigos
+
+- **Contexto**: se quería distinguir el ranking global del ranking dentro de tu red de referidos.
+- **Decisión**:
+  - Renombrar el bloque a **Ranking Mundial**.
+  - Añadir **Ranking entre amigos** con tooltip explicativo.
+  - Calcular ranking entre el usuario y sus referidos (por BLUE iou acumulado).
+- **Impacto**: gamificación más clara; el usuario compara su progreso global vs su círculo.
+- **Evidencia (commits)**: pendiente de push.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)
