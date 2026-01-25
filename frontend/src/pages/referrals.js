@@ -100,9 +100,7 @@ function initializeReferralsPage() {
     }
 
     function getReferredUserRowHTML(user) {
-        const registrationDate = new Date(user.created_at).toLocaleString('es-ES', {
-            year: 'numeric', month: 'long', day: 'numeric'
-        });
+        const registrationDate = formatShortDate(user.created_at);
         const totalBoosterBlue = formatBlueAmount(user.total_booster_blue);
 
         const userNameHTML = window.appSettings?.public_profiles_enabled
@@ -119,6 +117,15 @@ function initializeReferralsPage() {
             minimumFractionDigits: 4,
             maximumFractionDigits: 4
         });
+    }
+
+    function formatShortDate(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '--/--/--';
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = String(date.getFullYear()).slice(-2);
+        return `${day}/${month}/${year}`;
     }
 }
 

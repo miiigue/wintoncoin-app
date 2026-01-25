@@ -6932,7 +6932,7 @@ app.get('/api/users/:username/referral-info', async (req, res) => {
                 FROM referral_log rl
                 JOIN users u ON rl.referred_user_id = u.id
                 WHERE rl.referrer_user_id = (SELECT id FROM users WHERE username = $1)
-                ORDER BY rl.created_at DESC;
+                ORDER BY total_booster_blue DESC, rl.created_at DESC;
             `, [username])
         ]);
     

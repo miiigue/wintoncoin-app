@@ -698,6 +698,15 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Envíos de formulario con timestamp y auditoría.
 - **Evidencia (commits)**: pendiente de push.
 
+### 2026-01-24 — Referidos: orden por acumulado + fecha corta
+
+- **Contexto**: en móvil la tabla de referidos necesitaba ordenarse por relevancia económica y usar fecha compacta.
+- **Decisión**:
+  - Ordenar la lista por **BLUE iou acumulado** (descendente).
+  - Mostrar fecha en formato corto `dd/mm/yy`.
+- **Impacto**: la tabla prioriza referidos con mayor aporte y se ve mejor en pantallas pequeñas.
+- **Evidencia (commits)**: pendiente de push.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)
