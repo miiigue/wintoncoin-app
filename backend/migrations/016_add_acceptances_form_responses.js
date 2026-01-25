@@ -1,5 +1,6 @@
-// backend/migrations/014_add_publications_repeat_cooldown.js
-// Adds repeat_cooldown_hours to publications for repeat timing control.
+// Migración: Agregar campo form_responses a publication_acceptances
+// Este campo almacena las respuestas del usuario a los formularios dinámicos
+// Estructura: { "2": { "Pregunta 1": "Respuesta 1", "Pregunta 2": "Respuesta 2" } }
 
 const { Pool } = require('pg');
 require('dotenv').config({ path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development' });
@@ -11,30 +12,24 @@ const pool = new Pool({
 });
 
 async function runMigration() {
-    console.log('--- Iniciando Migración 014: repeat_cooldown_hours en publications ---');
+    console.log('--- Iniciando Migración 016: form_responses en publication_acceptances ---');
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
         await ensureSchemaMigrationsTable(client);
 
         const ddlStatements = `
-            ALTER TABLE publications
-            ADD COLUMN IF NOT EXISTS repeat_cooldown_hours INTEGER DEFAULT 24;
+            ALTER TABLE publication_acceptances
+            ADD COLUMN IF NOT EXISTS form_responses JSONB DEFAULT NULL;
         `;
         await client.query(ddlStatements);
 
-        await client.query(`
-            UPDATE publications
-            SET repeat_cooldown_hours = 24
-            WHERE repeat_cooldown_hours IS NULL;
-        `);
-
-        await recordMigration(client, '014_add_publications_repeat_cooldown', computeChecksum(ddlStatements));
+        await recordMigration(client, '016_add_acceptances_form_responses', computeChecksum(ddlStatements));
         await client.query('COMMIT');
-        console.log('✅ Migración 014 completada.');
+        console.log('✅ Migración 016 completada.');
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error('❌ Error en Migración 014:', error);
+        console.error('❌ Error en Migración 016:', error);
         throw error;
     } finally {
         client.release();

@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const blueLabel = getBlueUnitLabel(pub, platformSettings);
         const { messageHTML, actionHTML, acceptButtonHTML } = getActionAndMessageHTML(pub, expirationInfo.isExpired, blueLabel);
         const { mainText, steps } = splitDescriptionWithSteps(pub.description);
-        const stepsHTML = renderStepFlow(steps);
+        const stepsHTML = renderStepFlow(steps, pub.form_fields, pub.user_acceptance_status);
 
         let ribbonClass = '';
         if (pub.category === 'donation') {
@@ -172,19 +172,57 @@ document.addEventListener('DOMContentLoaded', () => {
         return { mainText, steps: stepsRaw };
     }
 
-    function renderStepFlow(steps) {
+    function renderStepFlow(steps, formFields = null, userStatus = null) {
         if (!steps || steps.length === 0) return '';
-        const itemsHTML = steps.map((step, index) => `
-            <li class="detail-step-item">
-                <div class="detail-step-node">
-                    <span class="detail-step-index">${index + 1}</span>
-                </div>
-                <div class="detail-step-content">
-                    <div class="detail-step-badge">Paso ${index + 1}</div>
-                    <div class="detail-step-text">${linkify(step)}</div>
-                </div>
-            </li>
-        `).join('');
+        
+        const canFillForm = userStatus === 'approved'; // Solo usuarios aprobados pueden llenar formularios
+        
+        const itemsHTML = steps.map((step, index) => {
+            const stepNum = index + 1;
+            const stepNumStr = String(stepNum);
+            const hasFormFields = formFields && formFields[stepNumStr] && formFields[stepNumStr].length > 0;
+            
+            let formInputsHTML = '';
+            if (hasFormFields && canFillForm) {
+                const fieldsHTML = formFields[stepNumStr].map((field, fieldIndex) => `
+                    <div class="step-form-field-user">
+                        <label for="form-step-${stepNum}-field-${fieldIndex}">${field}</label>
+                        <input type="text" 
+                               id="form-step-${stepNum}-field-${fieldIndex}" 
+                               class="step-form-input" 
+                               data-step="${stepNum}" 
+                               data-field="${field}"
+                               placeholder="Escribe tu respuesta..." 
+                               required>
+                    </div>
+                `).join('');
+                
+                formInputsHTML = `
+                    <div class="step-form-container" data-step="${stepNum}">
+                        <div class="step-form-header">
+                            <span class="step-form-icon">📝</span>
+                            <span class="step-form-label">Completa los siguientes datos:</span>
+                        </div>
+                        <div class="step-form-fields-user">
+                            ${fieldsHTML}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            return `
+                <li class="detail-step-item">
+                    <div class="detail-step-node">
+                        <span class="detail-step-index">${stepNum}</span>
+                    </div>
+                    <div class="detail-step-content">
+                        <div class="detail-step-badge">Paso ${stepNum}</div>
+                        <div class="detail-step-text">${linkify(step)}</div>
+                        ${formInputsHTML}
+                    </div>
+                </li>
+            `;
+        }).join('');
 
         return `
             <div class="detail-steps">
@@ -235,9 +273,40 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button class="action-button confirm" data-action="confirm-payment" data-user="${p.username}">Confirmar Pago</button>
                 `;
             }
+
+            // Mostrar respuestas del formulario si existen
+            let formResponsesHTML = '';
+            if (p.form_responses && Object.keys(p.form_responses).length > 0) {
+                const responsesContent = Object.entries(p.form_responses).map(([stepNum, fields]) => {
+                    const fieldsHTML = Object.entries(fields).map(([fieldName, value]) => `
+                        <div class="form-response-field">
+                            <span class="form-response-label">${fieldName}:</span>
+                            <span class="form-response-value">${value}</span>
+                        </div>
+                    `).join('');
+                    return `
+                        <div class="form-response-step">
+                            <span class="form-response-step-badge">Paso ${stepNum}</span>
+                            ${fieldsHTML}
+                        </div>
+                    `;
+                }).join('');
+                
+                formResponsesHTML = `
+                    <div class="participant-form-responses">
+                        <div class="form-responses-header">
+                            <span class="form-responses-icon">📝</span>
+                            <span class="form-responses-title">Respuestas del formulario:</span>
+                        </div>
+                        <div class="form-responses-content">
+                            ${responsesContent}
+                        </div>
+                    </div>
+                `;
+            }
     
             return `
-                <li class="participant-item">
+                <li class="participant-item ${p.form_responses ? 'has-responses' : ''}">
                     <div class="participant-info">
                         <strong>${participantNameHTML}</strong>
                         <span class="rating-display">${ratingHTML}</span>
@@ -247,6 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="status-badge ${p.status}">${statusText}</span>
                         ${actionButtons}
                     </div>
+                    ${formResponsesHTML}
                 </li>
             `;
         }).join('');
@@ -435,6 +505,35 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
+    // --- Función para recopilar respuestas del formulario dinámico ---
+    function collectFormResponses() {
+        const formResponses = {};
+        const formContainers = document.querySelectorAll('.step-form-container');
+        
+        formContainers.forEach((container) => {
+            const stepNum = container.getAttribute('data-step');
+            const inputs = container.querySelectorAll('.step-form-input');
+            
+            if (inputs.length > 0) {
+                formResponses[stepNum] = {};
+                inputs.forEach((input) => {
+                    const field = input.getAttribute('data-field');
+                    const value = input.value.trim();
+                    if (field && value) {
+                        formResponses[stepNum][field] = value;
+                    }
+                });
+                
+                // Si no hay respuestas para este paso, eliminarlo
+                if (Object.keys(formResponses[stepNum]).length === 0) {
+                    delete formResponses[stepNum];
+                }
+            }
+        });
+        
+        return formResponses;
+    }
+
     // --- Event Handlers ---
     function setupEventListeners() {
         elements.content.addEventListener('click', handleActionClick);
@@ -478,7 +577,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case 'complete':
                 endpoint = `/publications/${publicationId}/complete`;
+                // Recopilar respuestas del formulario si existen
+                const formResponses = collectFormResponses();
                 body = { completerUsername: storedUsername };
+                if (formResponses && Object.keys(formResponses).length > 0) {
+                    // Validar que todos los campos requeridos estén completos
+                    const hasEmptyFields = document.querySelectorAll('.step-form-input[required]');
+                    let allFilled = true;
+                    hasEmptyFields.forEach(input => {
+                        if (!input.value.trim()) {
+                            allFilled = false;
+                            input.classList.add('input-error');
+                        } else {
+                            input.classList.remove('input-error');
+                        }
+                    });
+                    if (!allFilled) {
+                        showCustomAlert('Por favor, completa todos los campos requeridos antes de marcar como culminada.');
+                        return;
+                    }
+                    body.formResponses = formResponses;
+                }
                 break;
             case 'confirm-payment':
                 const authorUsername = document.querySelector('.detail-meta strong a')?.innerText || document.querySelector('.detail-meta strong')?.innerText;

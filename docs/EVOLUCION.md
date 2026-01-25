@@ -681,6 +681,23 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - UX móvil: la tabla de historial se lee correctamente en pantallas pequeñas.
 - **Evidencia (commits)**: `3d5db92`.
 
+### 2026-01-24 — Auditoría de migraciones + referidos con acumulado visible
+
+- **Contexto**:
+  - Se necesitaba que las migraciones quedaran **auditables** y ejecutables de forma manual con evidencia persistente.
+  - La lista de referidos no mostraba el acumulado de cada usuario, y en móvil la tabla quedaba apretada.
+- **Decisión**:
+  - **Migraciones manuales auditables**: crear `schema_migrations` y registrar `applied_at`, `applied_by`, `environment`, `checksum` desde cada script.
+  - **Scripts manuales**: convertir 014/015/016/017 a ejecución `node` con transacciones y `IF NOT EXISTS`.
+  - **Eliminar helper automático**: retirar `run-migrations.js` para evitar ejecución no controlada.
+  - **Referidos**: exponer `total_booster_blue` por referido y mostrarlo en la tabla; reducir tipografía en móvil.
+  - **Formularios**: guardar `form_responses_submitted_at` y registrar evento `publication.form_responses_submitted` en `audit_log`.
+- **Impacto**:
+  - Migraciones con trazabilidad en BD y logs operativos (estándar fintech).
+  - Lista de referidos más informativa; UI móvil legible.
+  - Envíos de formulario con timestamp y auditoría.
+- **Evidencia (commits)**: pendiente de push.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)

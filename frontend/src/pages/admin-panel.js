@@ -213,6 +213,17 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.platformCancelEditBtn.addEventListener('click', resetPlatformEditForm);
         }
 
+        // Acordeón para el formulario de publicaciones de plataforma
+        const platformFormToggle = document.getElementById('platformFormToggle');
+        const platformFormContent = document.getElementById('platformFormContent');
+        if (platformFormToggle && platformFormContent) {
+            platformFormToggle.addEventListener('click', () => {
+                const isExpanded = platformFormContent.style.display !== 'none';
+                platformFormContent.style.display = isExpanded ? 'none' : 'block';
+                platformFormToggle.classList.toggle('expanded', !isExpanded);
+            });
+        }
+
         if (elements.platformAddStepBtn && elements.platformStepInputs) {
             elements.platformAddStepBtn.addEventListener('click', () => {
                 const maxSteps = 20;
@@ -225,22 +236,67 @@ document.addEventListener('DOMContentLoaded', () => {
                 const nextIndex = currentCount + 1;
                 const wrapper = document.createElement('div');
                 wrapper.className = 'admin-step-input';
+                wrapper.setAttribute('data-step', nextIndex);
 
-                const label = document.createElement('label');
-                label.setAttribute('for', `platformStep${nextIndex}`);
-                label.textContent = `Paso ${nextIndex}`;
+                // Solo pasos >= 2 tienen formulario dinámico
+                const formToggleHTML = nextIndex >= 2 ? `
+                    <div class="step-form-toggle">
+                        <label class="toggle-label">
+                            <input type="checkbox" class="step-form-checkbox" data-step="${nextIndex}">
+                            <span>Activar formulario para este paso</span>
+                        </label>
+                        <div class="step-form-fields" style="display: none;">
+                            <p class="form-hint">Define los campos que el usuario debe completar:</p>
+                            <div class="step-form-inputs">
+                                <input type="text" class="step-form-field" placeholder="Campo 1">
+                                <input type="text" class="step-form-field" placeholder="Campo 2">
+                                <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
+                            </div>
+                            <button type="button" class="step-add-field-btn">+ Agregar más campos</button>
+                        </div>
+                    </div>
+                ` : '';
 
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.id = `platformStep${nextIndex}`;
-                input.placeholder = `Describe el paso ${nextIndex}`;
+                wrapper.innerHTML = `
+                    <label for="platformStep${nextIndex}">Paso ${nextIndex}</label>
+                    <input type="text" id="platformStep${nextIndex}" placeholder="Describe el paso ${nextIndex}">
+                    ${formToggleHTML}
+                `;
 
-                wrapper.appendChild(label);
-                wrapper.appendChild(input);
                 elements.platformStepInputs.appendChild(wrapper);
 
                 if (elements.platformStepInputs.querySelectorAll('.admin-step-input').length >= maxSteps) {
                     elements.platformAddStepBtn.disabled = true;
+                }
+            });
+        }
+
+        // Event delegation para formularios dinámicos en pasos
+        if (elements.platformStepInputs) {
+            elements.platformStepInputs.addEventListener('change', (e) => {
+                if (e.target.classList.contains('step-form-checkbox')) {
+                    const stepContainer = e.target.closest('.admin-step-input');
+                    const formFields = stepContainer.querySelector('.step-form-fields');
+                    if (formFields) {
+                        formFields.style.display = e.target.checked ? 'block' : 'none';
+                    }
+                }
+            });
+
+            elements.platformStepInputs.addEventListener('click', (e) => {
+                if (e.target.classList.contains('step-add-field-btn')) {
+                    const formInputs = e.target.previousElementSibling;
+                    const fieldCount = formInputs.querySelectorAll('.step-form-field').length;
+                    if (fieldCount < 10) {
+                        const newField = document.createElement('input');
+                        newField.type = 'text';
+                        newField.className = 'step-form-field';
+                        newField.placeholder = `Campo ${fieldCount + 1}`;
+                        formInputs.appendChild(newField);
+                    }
+                    if (fieldCount >= 9) {
+                        e.target.style.display = 'none';
+                    }
                 }
             });
         }
@@ -1076,6 +1132,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Función para recopilar los campos de formulario dinámico de cada paso
+    function collectFormFields() {
+        const formFields = {};
+        const stepContainers = document.querySelectorAll('#platformStepInputs .admin-step-input');
+        
+        stepContainers.forEach((container) => {
+            const stepNum = container.getAttribute('data-step');
+            const checkbox = container.querySelector('.step-form-checkbox');
+            
+            if (checkbox && checkbox.checked) {
+                const fields = [];
+                const fieldInputs = container.querySelectorAll('.step-form-field');
+                fieldInputs.forEach((input) => {
+                    const value = input.value.trim();
+                    if (value) {
+                        fields.push(value);
+                    }
+                });
+                
+                if (fields.length > 0) {
+                    formFields[stepNum] = fields;
+                }
+            }
+        });
+        
+        return Object.keys(formFields).length > 0 ? formFields : null;
+    }
+
     async function handlePlatformPublicationSubmit(event) {
         event.preventDefault();
         const STEP_MARKER_START = '[[INSTRUCTIONS_STEPS]]';
@@ -1109,6 +1193,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const targetUsernameInput = document.getElementById('platformTargetUsername');
         const targetUsername = targetUsernameInput ? targetUsernameInput.value.trim() : '';
 
+        // Recopilar campos de formulario dinámico
+        const formFields = collectFormFields();
+
         const body = {
             title: document.getElementById('platformPubTitle').value,
             description: mergedDescription,
@@ -1122,7 +1209,8 @@ document.addEventListener('DOMContentLoaded', () => {
             repeatCooldownHours: allowRepeat ? safeHours : 0,
             repeatCooldownMinutes: allowRepeat ? safeMinutes : 0,
             isBoosterTask: document.getElementById('platformIsBoosterTask').checked,
-            targetUsername: targetUsername || null
+            targetUsername: targetUsername || null,
+            formFields: formFields
         };
         try {
             if (platformEditId) {
@@ -1478,8 +1566,11 @@ WHERE username = 'Plataforma WintonCoin';
 
     function getPlatformStepValues() {
         if (!elements.platformStepInputs) return [];
-        return Array.from(elements.platformStepInputs.querySelectorAll('input'))
-            .map(input => input.value.trim())
+        return Array.from(elements.platformStepInputs.querySelectorAll('.admin-step-input'))
+            .map(container => {
+                const stepInput = container.querySelector(':scope > input[type="text"]');
+                return stepInput ? stepInput.value.trim() : '';
+            })
             .filter(value => value.length > 0);
     }
 
@@ -1732,18 +1823,42 @@ WHERE username = 'Plataforma WintonCoin';
         } else if (participant.status === 'completed') {
             actionButton = `<button class="action-button-admin confirm" data-pub-id="${escapeHtml(pubId)}" data-action="confirm-payment" data-user="${escapeHtml(participant.acceptor_username)}">Confirmar Pago</button>`;
         }
+
+        // Mostrar respuestas del formulario si existen
+        let formResponsesHTML = '';
+        if (participant.form_responses && Object.keys(participant.form_responses).length > 0) {
+            const responsesContent = Object.entries(participant.form_responses)
+                .flatMap(([, fields]) => Object.entries(fields))
+                .map(([fieldName, value]) => `
+                    <div class="form-response-field-admin">
+                        <span class="form-response-label-admin">${escapeHtml(fieldName)}:</span>
+                        <span class="form-response-value-admin">${escapeHtml(value)}</span>
+                    </div>
+                `).join('');
+            
+            formResponsesHTML = `
+                <div class="participant-form-responses-admin">
+                    <div class="form-responses-content-admin">
+                        ${responsesContent}
+                    </div>
+                </div>
+            `;
+        }
     
         return `
-            <li class="participant-item-admin">
-                <div class="participant-info-admin">
-                    <strong><a href="profile.html?user=${escapeHtml(participant.acceptor_username)}" target="_blank">${escapeHtml(participant.acceptor_username)}</a></strong>
-                    <span class="rating-display">${ratingHTML}</span>
-                    ${acceptedAtHTML}
+            <li class="participant-item-admin ${participant.form_responses ? 'has-responses' : ''}">
+                <div class="participant-row-admin">
+                    <div class="participant-info-admin">
+                        <strong><a href="profile.html?user=${escapeHtml(participant.acceptor_username)}" target="_blank">${escapeHtml(participant.acceptor_username)}</a></strong>
+                        <span class="rating-display">${ratingHTML}</span>
+                        ${acceptedAtHTML}
+                    </div>
+                    <div class="participant-status-admin">
+                        <span class="status-badge ${escapeHtml(participant.status)}">${escapeHtml(statusText)}</span>
+                        ${actionButton}
+                    </div>
                 </div>
-                <div class="participant-status-admin">
-                    <span class="status-badge ${escapeHtml(participant.status)}">${escapeHtml(statusText)}</span>
-                    ${actionButton}
-                </div>
+                ${formResponsesHTML}
             </li>
         `;
     }

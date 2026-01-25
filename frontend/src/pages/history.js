@@ -144,6 +144,7 @@ function initializeHistoryPage() {
         const statusText = getStatusText(pub.user_acceptance_status);
         const badgesHTML = getPublicationBadgesHTML(pub, { view: 'completed' });
         const paymentInfo = getCompletedPaymentDirectionText(pub);
+        const formResponsesHTML = getFormResponsesHTML(pub.form_responses);
 
         const authorNameHTML = window.appSettings?.public_profiles_enabled
             ? `<a href="profile.html?user=${pub.author_username}" class="profile-link">${pub.author_username}</a>`
@@ -154,6 +155,7 @@ function initializeHistoryPage() {
                 <h3>${pub.title}</h3>
                 <div class="history-badges">${badgesHTML}</div>
                 <p class="pub-description">${linkify(pub.description)}</p>
+                ${formResponsesHTML}
                 <ul class="pub-meta-list">
                     <li>Autor: <strong>${authorNameHTML}</strong></li>
                     <li>Costo: <strong>${formatBalance(pub.blue_cost)} BLUE</strong></li>
@@ -189,6 +191,29 @@ function initializeHistoryPage() {
             'confirmed_paid': 'Finalizada y Pagada'
         };
         return statusMap[status] || status;
+    }
+
+    function getFormResponsesHTML(formResponses) {
+        if (!formResponses || Object.keys(formResponses).length === 0) return '';
+        const itemsHTML = Object.entries(formResponses)
+            .flatMap(([, fields]) => Object.entries(fields || {}))
+            .map(([fieldName, value]) => `
+                <div class="history-form-item">
+                    <span class="history-form-label">${escapeHtml(fieldName)}:</span>
+                    <span class="history-form-value">${escapeHtml(value)}</span>
+                </div>
+            `).join('');
+
+        if (!itemsHTML) return '';
+
+        return `
+            <div class="history-form-responses">
+                <h4>Tus respuestas</h4>
+                <div class="history-form-grid">
+                    ${itemsHTML}
+                </div>
+            </div>
+        `;
     }
 
     function getPublicationBadgesHTML(pub, { view }) {

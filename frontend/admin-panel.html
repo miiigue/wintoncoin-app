@@ -180,8 +180,14 @@
             <!-- Nueva Sección para Publicaciones de la Plataforma -->
             <section id="platform-publications-section" class="admin-section">
                 <h1>Publicaciones de la Plataforma</h1>
-                <p>Crea tareas o servicios que aparecerán como si los hubiera publicado el usuario 'plataforma'.</p>
 
+                <!-- Acordeón para el formulario -->
+                <div class="admin-accordion">
+                    <div class="admin-accordion-header" id="platformFormToggle">
+                        <span class="accordion-title">Crear Nueva Publicación</span>
+                        <span class="accordion-icon">▼</span>
+                    </div>
+                    <div class="admin-accordion-content" id="platformFormContent" style="display: none;">
                 <form id="platformPublicationForm" class="admin-form">
                     <div id="platformEditNotice" class="admin-edit-notice" style="display: none;"></div>
                     <div class="form-group-admin">
@@ -196,21 +202,66 @@
                     <div class="form-group-admin">
                         <label>Describe las instrucciones paso a paso</label>
                         <div class="admin-step-inputs" id="platformStepInputs">
-                            <div class="admin-step-input">
+                            <div class="admin-step-input" data-step="1">
                                 <label for="platformStep1">Paso 1</label>
                                 <input type="text" id="platformStep1" placeholder="Describe el primer paso">
                             </div>
-                            <div class="admin-step-input">
+                            <div class="admin-step-input" data-step="2">
                                 <label for="platformStep2">Paso 2</label>
                                 <input type="text" id="platformStep2" placeholder="Describe el segundo paso">
+                                <div class="step-form-toggle">
+                                    <label class="toggle-label">
+                                        <input type="checkbox" class="step-form-checkbox" data-step="2">
+                                        <span>Activar formulario para este paso</span>
+                                    </label>
+                                    <div class="step-form-fields" style="display: none;">
+                                        <p class="form-hint">Define los campos que el usuario debe completar:</p>
+                                        <div class="step-form-inputs">
+                                            <input type="text" class="step-form-field" placeholder="Campo 1 (ej: Tu usuario de Instagram)">
+                                            <input type="text" class="step-form-field" placeholder="Campo 2 (ej: Link del post)">
+                                            <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
+                                        </div>
+                                        <button type="button" class="step-add-field-btn">+ Agregar más campos</button>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="admin-step-input">
+                            <div class="admin-step-input" data-step="3">
                                 <label for="platformStep3">Paso 3</label>
                                 <input type="text" id="platformStep3" placeholder="Describe el tercer paso">
+                                <div class="step-form-toggle">
+                                    <label class="toggle-label">
+                                        <input type="checkbox" class="step-form-checkbox" data-step="3">
+                                        <span>Activar formulario para este paso</span>
+                                    </label>
+                                    <div class="step-form-fields" style="display: none;">
+                                        <p class="form-hint">Define los campos que el usuario debe completar:</p>
+                                        <div class="step-form-inputs">
+                                            <input type="text" class="step-form-field" placeholder="Campo 1">
+                                            <input type="text" class="step-form-field" placeholder="Campo 2">
+                                            <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
+                                        </div>
+                                        <button type="button" class="step-add-field-btn">+ Agregar más campos</button>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="admin-step-input">
+                            <div class="admin-step-input" data-step="4">
                                 <label for="platformStep4">Paso 4</label>
                                 <input type="text" id="platformStep4" placeholder="Describe el cuarto paso">
+                                <div class="step-form-toggle">
+                                    <label class="toggle-label">
+                                        <input type="checkbox" class="step-form-checkbox" data-step="4">
+                                        <span>Activar formulario para este paso</span>
+                                    </label>
+                                    <div class="step-form-fields" style="display: none;">
+                                        <p class="form-hint">Define los campos que el usuario debe completar:</p>
+                                        <div class="step-form-inputs">
+                                            <input type="text" class="step-form-field" placeholder="Campo 1">
+                                            <input type="text" class="step-form-field" placeholder="Campo 2">
+                                            <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
+                                        </div>
+                                        <button type="button" class="step-add-field-btn">+ Agregar más campos</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <button type="button" id="platformAddStepBtn" class="admin-step-add-btn">Agregar más pasos</button>
@@ -292,12 +343,12 @@
                         <button type="button" id="platformCancelEditBtn" class="admin-edit-cancel" style="display: none;">Cancelar edición</button>
                     </div>
                 </form>
+                    </div>
+                </div>
 
                 <hr class="admin-divider">
 
                 <div id="platform-publications-management">
-                    <h2>Gestionar Publicaciones Activas</h2>
-                    <p>Aquí aparecen las publicaciones creadas por la plataforma que tienen solicitudes pendientes o tareas por confirmar.</p>
                     <div id="platform-management-list" class="publications-list-admin">
                         <!-- El contenido se cargará aquí dinámicamente -->
                         <div class="loading-spinner"></div>

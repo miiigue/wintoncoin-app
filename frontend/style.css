@@ -1877,6 +1877,57 @@ body.love-page {
     margin-bottom: 1rem;
 }
 
+.history-form-responses {
+    margin: 1rem 0;
+    padding: 1rem;
+    border: 1px solid #2a3b5c;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(26, 115, 232, 0.08) 0%, rgba(138, 180, 248, 0.04) 100%);
+}
+
+.history-form-responses h4 {
+    margin: 0 0 0.75rem 0;
+    color: var(--text-color);
+    font-size: 1rem;
+}
+
+.history-form-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.history-form-item {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0.6rem 0.75rem;
+    border-radius: 8px;
+}
+
+.history-form-label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-secondary, #888);
+    margin-bottom: 0.25rem;
+}
+
+.history-form-value {
+    font-size: 0.95rem;
+    color: var(--text-color);
+    word-break: break-word;
+}
+
+@media (max-width: 1100px) {
+    .history-form-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .history-form-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .participants-section {
     margin-top: 1.5rem;
     border-top: 1px solid #2a3b5c;
@@ -1929,6 +1980,91 @@ body.love-page {
     gap: 1rem;
 }
 
+/* --- Estilos para respuestas del formulario en participantes --- */
+.participant-item.has-responses {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.participant-item.has-responses > .participant-info,
+.participant-item.has-responses > .participant-status {
+    width: 100%;
+}
+
+.participant-item.has-responses > .participant-info {
+    margin-bottom: 0.5rem;
+}
+
+.participant-item.has-responses > .participant-status {
+    justify-content: flex-start;
+    margin-bottom: 0.75rem;
+}
+
+.participant-form-responses {
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    background: linear-gradient(135deg, rgba(26, 115, 232, 0.08) 0%, rgba(138, 180, 248, 0.04) 100%);
+    border: 1px solid rgba(26, 115, 232, 0.2);
+    border-radius: 8px;
+}
+
+.form-responses-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    font-size: 0.85rem;
+}
+
+.form-responses-icon {
+    font-size: 1rem;
+}
+
+.form-responses-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.form-response-step {
+    background: rgba(0, 0, 0, 0.15);
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+}
+
+.form-response-step-badge {
+    display: inline-block;
+    background: var(--primary-color);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.form-response-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin-top: 0.4rem;
+}
+
+.form-response-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #888);
+    font-weight: 500;
+}
+
+.form-response-value {
+    font-size: 0.9rem;
+    color: var(--text-color);
+    word-break: break-word;
+}
+
 /* --- Estilos para la Tabla de Transacciones --- */
 .table-container {
     width: 100%;
@@ -1937,6 +2073,45 @@ body.love-page {
     padding: 1rem;
     border-radius: 8px;
     border: 1px solid #2a3b5c;
+}
+
+/* --- Estilos para la Tabla de Referidos --- */
+#referrals-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.95rem;
+}
+
+#referrals-table th,
+#referrals-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #2a3b5c;
+}
+
+#referrals-table thead th {
+    background-color: var(--surface-color);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+#referrals-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+#referrals-table tbody tr:hover {
+    background-color: #2a3b5c;
+}
+
+@media (max-width: 640px) {
+    #referrals-table {
+        font-size: 0.75rem;
+    }
+
+    #referrals-table th,
+    #referrals-table td {
+        padding: 8px 10px;
+    }
 }
 
 #transactions-table {
@@ -3298,6 +3473,76 @@ body.love-page {
     word-break: break-word;
 }
 
+/* --- Estilos para formularios dinámicos en pasos (usuario) --- */
+.step-form-container {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, rgba(26, 115, 232, 0.1) 0%, rgba(138, 180, 248, 0.05) 100%);
+    border: 1px solid rgba(26, 115, 232, 0.3);
+    border-radius: 12px;
+}
+
+.step-form-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.step-form-icon {
+    font-size: 1.1rem;
+}
+
+.step-form-label {
+    font-size: 0.9rem;
+}
+
+.step-form-fields-user {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.step-form-field-user {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.step-form-field-user label {
+    font-size: 0.85rem;
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+.step-form-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background-color: var(--background-color);
+    border: 1px solid #2a3b5c;
+    border-radius: 8px;
+    color: var(--text-color);
+    font-size: 0.95rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.step-form-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.2);
+}
+
+.step-form-input.input-error {
+    border-color: #ff4444;
+    box-shadow: 0 0 0 3px rgba(255, 68, 68, 0.2);
+}
+
+.step-form-input::placeholder {
+    color: #6b7280;
+}
+
 @media (max-width: 640px) {
     .step-actions {
         flex-direction: column;
@@ -3305,6 +3550,15 @@ body.love-page {
 
     .detail-step-item {
         grid-template-columns: 36px 1fr;
+    }
+    
+    .step-form-container {
+        padding: 0.75rem;
+    }
+    
+    .step-form-input {
+        padding: 0.6rem 0.75rem;
+        font-size: 0.9rem;
     }
 }
 

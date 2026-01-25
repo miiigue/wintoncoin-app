@@ -967,17 +967,38 @@ async function applyMigrations(client) {
         END $$;`,
         // MIGRACIÓN 35 (FIX): Asegurar columnas de tutores y menores (Ejecución forzada)
         `DO $$
-             BEGIN
-                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='tutor_user_id') THEN
-                     ALTER TABLE users ADD COLUMN tutor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
-                 END IF;
-                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_minor') THEN
-                     ALTER TABLE users ADD COLUMN is_minor BOOLEAN DEFAULT FALSE;
-                 END IF;
-                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='account_status') THEN
-                     ALTER TABLE users ADD COLUMN account_status VARCHAR(50) DEFAULT 'active';
-                 END IF;
-             END $$;`
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='tutor_user_id') THEN
+                    ALTER TABLE users ADD COLUMN tutor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_minor') THEN
+                    ALTER TABLE users ADD COLUMN is_minor BOOLEAN DEFAULT FALSE;
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='account_status') THEN
+                    ALTER TABLE users ADD COLUMN account_status VARCHAR(50) DEFAULT 'active';
+                END IF;
+            END $$;`,
+            // MIGRACIÓN: Agregar form_fields a publications (formularios dinámicos por paso)
+            `DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publications' AND column_name='form_fields') THEN
+                    ALTER TABLE publications ADD COLUMN form_fields JSONB DEFAULT NULL;
+                END IF;
+            END $$;`,
+            // MIGRACIÓN: Agregar form_responses a publication_acceptances (respuestas del usuario)
+            `DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publication_acceptances' AND column_name='form_responses') THEN
+                    ALTER TABLE publication_acceptances ADD COLUMN form_responses JSONB DEFAULT NULL;
+                END IF;
+            END $$;`,
+            // MIGRACIÓN: Agregar form_responses_submitted_at a publication_acceptances (timestamp de envío)
+            `DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publication_acceptances' AND column_name='form_responses_submitted_at') THEN
+                    ALTER TABLE publication_acceptances ADD COLUMN form_responses_submitted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
+                END IF;
+            END $$;`
         ];
 
         for (const migration of migrations) {
@@ -3362,7 +3383,7 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
         // Ruta para Marcar como Culminada
         app.post('/publications/:id/complete', async (req, res) => {
     const pubId = req.params.id;
-            const { completerUsername } = req.body;
+            const { completerUsername, formResponses } = req.body;
 
             const client = await pool.connect();
             try {
@@ -3379,7 +3400,10 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
 
                 // 2. FETCH ACCEPTANCE DATA
                 const acceptanceResult = await client.query(
-                    `SELECT p.blue_cost, p.is_sell_post, p.title, p.category, u.username as author_username, pa.id as acceptance_id
+                    `SELECT p.blue_cost, p.is_sell_post, p.title, p.category, p.form_fields,
+                            u.username as author_username,
+                            pa.id as acceptance_id,
+                            pa.form_responses_submitted_at
                      FROM publications p
                      JOIN users u ON p.author_id = u.id
                      JOIN publication_acceptances pa ON p.id = pa.publication_id
@@ -3391,6 +3415,37 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                 const acceptance = acceptanceResult.rows[0];
                 if (!acceptance) {
                     throw { status: 404, message: "No se encontró una tarea o compra aprobada para procesar." };
+                }
+
+                // Guardar respuestas del formulario si se proporcionan y la publicación tiene form_fields
+                const shouldSaveResponses = !!formResponses
+                    && acceptance.form_fields
+                    && typeof formResponses === 'object'
+                    && Object.keys(formResponses).length > 0;
+
+                if (shouldSaveResponses) {
+                    const updateResponsesResult = await client.query(
+                        `UPDATE publication_acceptances
+                         SET form_responses = $1,
+                             form_responses_submitted_at = COALESCE(form_responses_submitted_at, NOW())
+                         WHERE id = $2
+                         RETURNING form_responses_submitted_at`,
+                        [formResponses, acceptance.acceptance_id]
+                    );
+
+                    if (!acceptance.form_responses_submitted_at) {
+                        await logAuditEvent(client, req, {
+                            eventType: 'publication.form_responses_submitted',
+                            actorUsername: completerUsername,
+                            targetUsername: acceptance.author_username,
+                            publicationId: parseInt(pubId, 10),
+                            category: acceptance.category,
+                            metadata: {
+                                acceptance_id: acceptance.acceptance_id,
+                                submitted_at: updateResponsesResult.rows[0]?.form_responses_submitted_at
+                            }
+                        });
+                    }
                 }
 
                 // Añadir completerUsername al objeto acceptance para pasarlo a los helpers
@@ -3701,6 +3756,7 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
                         p.*,
                         u.username as author_username,
                         pa.status as user_acceptance_status,
+                        pa.form_responses,
                         (p.deleted_at IS NOT NULL) AS is_deleted,
                         (p.expires_at IS NOT NULL AND p.expires_at < NOW()) AS is_expired
                     FROM publications p
@@ -5215,7 +5271,7 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
 
         // Endpoint para que un administrador cree una publicación como la plataforma
         app.post('/api/admin/platform/create-publication', verifyAdminToken, async (req, res) => {
-            const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours, targetUsername } = req.body;
+            const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours, targetUsername, formFields } = req.body;
         
             if (!title || !description || !costString) {
                 return res.status(400).json({ message: "Faltan datos: título, descripción y costo son requeridos." });
@@ -5266,12 +5322,18 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
                 }
                 const authorId = userResult.rows[0].id;
         
+                // Validar y sanitizar formFields (JSON con campos por paso)
+                let sanitizedFormFields = null;
+                if (formFields && typeof formFields === 'object' && Object.keys(formFields).length > 0) {
+                    sanitizedFormFields = formFields;
+                }
+
                 const sql = `
-                    INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, is_booster_task, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, target_username) 
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
+                    INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, is_booster_task, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, target_username, form_fields) 
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
                     RETURNING id
                 `;
-                const result = await pool.query(sql, [title, description, cost, !!isSellPost, authorId, slots, !!autoApprove, !!isBoosterTask, allowRepeat, maxRepeat, repeatCooldown, sanitizedTargetUsername]);
+                const result = await pool.query(sql, [title, description, cost, !!isSellPost, authorId, slots, !!autoApprove, !!isBoosterTask, allowRepeat, maxRepeat, repeatCooldown, sanitizedTargetUsername, sanitizedFormFields]);
                 
                 const newPubId = result.rows[0].id;
 
@@ -5403,7 +5465,8 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
                                 'status', pa.status,
                                 'accepted_at', pa.created_at,
                                 'average_rating', u_participant.average_rating,
-                                'ratings_count', u_participant.ratings_count
+                                'ratings_count', u_participant.ratings_count,
+                                'form_responses', pa.form_responses
                             ) ORDER BY pa.created_at)
                             FROM publication_acceptances pa
                             JOIN users u_participant ON pa.acceptor_username = u_participant.username
@@ -6741,7 +6804,7 @@ app.get('/api/publications/:id', async (req, res) => {
             SELECT
                 p.id, p.title, p.description, p.blue_cost, p.status, p.created_at, p.is_paused,
                 p.is_sell_post, p.available_slots, p.category, p.expires_at,
-                p.is_quick_sale, p.target_username, -- CAMPOS AÑADIDOS
+                p.is_quick_sale, p.target_username, p.form_fields, -- CAMPOS AÑADIDOS
                 u.username as author_username,
                 u.average_rating as author_average_rating,
                 u.ratings_count as author_ratings_count,
@@ -6761,7 +6824,8 @@ app.get('/api/publications/:id', async (req, res) => {
                         'accepted_at', pa_all.created_at,
                         'average_rating', p_user.average_rating,
                         'ratings_count', p_user.ratings_count,
-                        'phone_number', CASE WHEN pa_all.status = 'approved' THEN p_user.phone_number ELSE NULL END
+                        'phone_number', CASE WHEN pa_all.status = 'approved' THEN p_user.phone_number ELSE NULL END,
+                        'form_responses', pa_all.form_responses
                     ) ORDER BY pa_all.created_at)
                     FROM publication_acceptances pa_all
                     JOIN users p_user ON pa_all.acceptor_username = p_user.username
@@ -6859,7 +6923,12 @@ app.get('/api/users/:username/referral-info', async (req, res) => {
             client.query(`
                 SELECT
                     u.username as referred_username,
-                    rl.created_at
+                    rl.created_at,
+                    (
+                        SELECT COALESCE(SUM(amount), 0)
+                        FROM booster_blue_ledger
+                        WHERE user_id = u.id
+                    ) as total_booster_blue
                 FROM referral_log rl
                 JOIN users u ON rl.referred_user_id = u.id
                 WHERE rl.referrer_user_id = (SELECT id FROM users WHERE username = $1)

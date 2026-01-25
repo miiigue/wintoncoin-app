@@ -88,6 +88,7 @@ function initializeReferralsPage() {
                     <tr>
                         <th>Usuario Registrado</th>
                         <th>Fecha de Registro</th>
+                        <th>BLUE iou acumulado</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -102,12 +103,22 @@ function initializeReferralsPage() {
         const registrationDate = new Date(user.created_at).toLocaleString('es-ES', {
             year: 'numeric', month: 'long', day: 'numeric'
         });
+        const totalBoosterBlue = formatBlueAmount(user.total_booster_blue);
 
         const userNameHTML = window.appSettings?.public_profiles_enabled
             ? `<a href="profile.html?user=${user.referred_username}" class="profile-link">${user.referred_username}</a>`
             : user.referred_username;
 
-        return `<tr><td>${userNameHTML}</td><td>${registrationDate}</td></tr>`;
+        return `<tr><td>${userNameHTML}</td><td>${registrationDate}</td><td>${totalBoosterBlue}</td></tr>`;
+    }
+
+    function formatBlueAmount(value) {
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) return '0,0000';
+        return numericValue.toLocaleString('es-ES', {
+            minimumFractionDigits: 4,
+            maximumFractionDigits: 4
+        });
     }
 }
 
