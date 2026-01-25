@@ -1292,6 +1292,12 @@ hr {
     font-size: 1rem;
 }
 
+.share-button-container .action-button.share .share-icon {
+    display: inline-block;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
 /* Estilo para botones deshabilitados */
 .action-button:disabled {
     background-color: #495057; /* Un gris más oscuro */
@@ -3520,10 +3526,10 @@ body.love-page {
 .step-form-input {
     width: 100%;
     padding: 0.75rem 1rem;
-    background-color: var(--background-color);
+    background-color: #ffffff;
     border: 1px solid #2a3b5c;
     border-radius: 8px;
-    color: var(--text-color);
+    color: #1f2937;
     font-size: 0.95rem;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }

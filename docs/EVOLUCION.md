@@ -717,6 +717,16 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: gamificación más clara; el usuario compara su progreso global vs su círculo.
 - **Evidencia (commits)**: pendiente de push.
 
+### 2026-01-24 — Publicación: botón compartir con icono oficial + CTA duplicado
+
+- **Contexto**: se quería mantener consistencia visual del icono de compartir y facilitar la acción final en móvil.
+- **Decisión**:
+  - Reemplazar el icono de compartir por el de 3 nodos (mismo que pantalla principal).
+  - Mover compartir arriba y duplicar “Marcar como Culminada” abajo para alcance rápido.
+  - Ajustar inputs de formulario a fondo blanco para mejor UX de escritura.
+- **Impacto**: UI más intuitiva y consistente; acción final más accesible en móvil.
+- **Evidencia (commits)**: pendiente de push.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)
