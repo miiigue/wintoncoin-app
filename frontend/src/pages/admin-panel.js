@@ -67,6 +67,8 @@ document.addEventListener('DOMContentLoaded', () => {
         platformPublicationSubmitBtn: document.getElementById('platformPublicationSubmitBtn'),
         platformManagementList: document.getElementById('platform-management-list'),
         platformPublicationsBadge: document.getElementById('platformPublicationsBadge'),
+        platformPublicationSearchInput: document.getElementById('platformPublicationSearchInput'),
+        platformPublicationSortSelect: document.getElementById('platformPublicationSortSelect'),
         platformRepeatLimit: document.getElementById('platformRepeatLimit'),
         platformRepeatLimitWrapper: document.getElementById('platformRepeatLimitWrapper'),
         platformRepeatCooldownDays: document.getElementById('platformRepeatCooldownDays'),
@@ -191,6 +193,20 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.platformPublicationForm.addEventListener('submit', handlePlatformPublicationSubmit);
         }
 
+        let platformSearchTimeout;
+        if (elements.platformPublicationSearchInput) {
+            elements.platformPublicationSearchInput.addEventListener('keyup', () => {
+                clearTimeout(platformSearchTimeout);
+                platformSearchTimeout = setTimeout(() => {
+                    applyPlatformManagementFilters();
+                }, 250);
+            });
+        }
+
+        if (elements.platformPublicationSortSelect) {
+            elements.platformPublicationSortSelect.addEventListener('change', applyPlatformManagementFilters);
+        }
+
         const repeatCheckbox = document.getElementById('platformAllowRepeatParticipation');
         if (repeatCheckbox && elements.platformRepeatLimitWrapper && elements.platformRepeatCooldownWrapper) {
             const updateRepeatVisibility = () => {
@@ -200,9 +216,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     elements.platformRepeatLimit.value = '2';
                 }
                 if (!repeatCheckbox.checked) {
-                    if (elements.platformRepeatCooldownDays) elements.platformRepeatCooldownDays.value = '1';
+                    if (elements.platformRepeatCooldownDays) elements.platformRepeatCooldownDays.value = '0';
                     if (elements.platformRepeatCooldownHours) elements.platformRepeatCooldownHours.value = '0';
-                    if (elements.platformRepeatCooldownMinutes) elements.platformRepeatCooldownMinutes.value = '0';
+                    if (elements.platformRepeatCooldownMinutes) elements.platformRepeatCooldownMinutes.value = '12';
                 }
             };
             repeatCheckbox.addEventListener('change', updateRepeatVisibility);
@@ -482,7 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const publications = await apiFetch('/api/admin/platform/publications-with-participants');
             platformPublicationsCache = publications || [];
-            renderPlatformPublicationsForManagement(publications);
+            applyPlatformManagementFilters();
         } catch (error) {
             elements.platformManagementList.innerHTML = `<p class="error-message">Error al cargar las publicaciones de la plataforma: ${escapeHtml(error.message)}</p>`;
         }
@@ -1451,7 +1467,7 @@ WHERE username = 'Plataforma WintonCoin';
     }
     
     function renderPlatformPublicationsForManagement(publications) {
-        const totals = getPlatformPendingTotals(publications);
+        const totals = getPlatformPendingTotals(platformPublicationsCache);
         updatePlatformPublicationsBadge(totals.totalPending);
         if (!publications || publications.length === 0) {
             if (elements.platformManagementList) {
@@ -1459,18 +1475,65 @@ WHERE username = 'Plataforma WintonCoin';
             }
             return;
         }
-        const sortedPublications = [...publications].sort((a, b) => {
-            const aCounts = getPlatformPendingCounts(a);
-            const bCounts = getPlatformPendingCounts(b);
-            if (bCounts.pendingApprovals !== aCounts.pendingApprovals) {
-                return bCounts.pendingApprovals - aCounts.pendingApprovals;
-            }
-            return bCounts.totalPending - aCounts.totalPending;
-        });
 
         if (elements.platformManagementList) {
-            elements.platformManagementList.innerHTML = sortedPublications.map(pub => getPlatformManagementItemHTML(pub)).join('');
+            elements.platformManagementList.innerHTML = publications.map(pub => getPlatformManagementItemHTML(pub)).join('');
         }
+    }
+
+    function applyPlatformManagementFilters() {
+        if (!elements.platformManagementList) return;
+        const searchTerm = (elements.platformPublicationSearchInput?.value || '').trim().toLowerCase();
+        const sortValue = elements.platformPublicationSortSelect?.value || 'pending';
+        let filtered = [...platformPublicationsCache];
+
+        if (searchTerm) {
+            filtered = filtered.filter(pub => {
+                const title = (pub.title || '').toLowerCase();
+                const description = (pub.description || '').toLowerCase();
+                const author = (pub.author_username || '').toLowerCase();
+                const idText = String(pub.id || '');
+                return title.includes(searchTerm)
+                    || description.includes(searchTerm)
+                    || author.includes(searchTerm)
+                    || idText.includes(searchTerm);
+            });
+        }
+
+        const toNumber = (value) => Number(value) || 0;
+        filtered.sort((a, b) => {
+            const aCounts = getPlatformPendingCounts(a);
+            const bCounts = getPlatformPendingCounts(b);
+            switch (sortValue) {
+                case 'recent':
+                    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+                case 'oldest':
+                    return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+                case 'reward_desc':
+                    return toNumber(b.blue_cost) - toNumber(a.blue_cost);
+                case 'reward_asc':
+                    return toNumber(a.blue_cost) - toNumber(b.blue_cost);
+                case 'participants_desc':
+                    return (b.participants?.length || 0) - (a.participants?.length || 0);
+                case 'approvals_desc':
+                    return bCounts.pendingApprovals - aCounts.pendingApprovals;
+                case 'payments_desc':
+                    return bCounts.pendingPayments - aCounts.pendingPayments;
+                case 'pending':
+                default:
+                    if (bCounts.pendingApprovals !== aCounts.pendingApprovals) {
+                        return bCounts.pendingApprovals - aCounts.pendingApprovals;
+                    }
+                    return bCounts.totalPending - aCounts.totalPending;
+            }
+        });
+
+        if (filtered.length === 0) {
+            elements.platformManagementList.innerHTML = '<p class="empty-message">No hay publicaciones que coincidan con la búsqueda.</p>';
+            return;
+        }
+
+        renderPlatformPublicationsForManagement(filtered);
     }
 
     function getPlatformPendingTotals(publications) {
@@ -1733,13 +1796,13 @@ WHERE username = 'Plataforma WintonCoin';
             elements.platformRepeatLimitWrapper.style.display = 'none';
         }
         if (elements.platformRepeatCooldownDays) {
-            elements.platformRepeatCooldownDays.value = '1';
+            elements.platformRepeatCooldownDays.value = '0';
         }
         if (elements.platformRepeatCooldownHours) {
             elements.platformRepeatCooldownHours.value = '0';
         }
         if (elements.platformRepeatCooldownMinutes) {
-            elements.platformRepeatCooldownMinutes.value = '0';
+            elements.platformRepeatCooldownMinutes.value = '12';
         }
         if (elements.platformRepeatCooldownWrapper) {
             elements.platformRepeatCooldownWrapper.style.display = 'none';

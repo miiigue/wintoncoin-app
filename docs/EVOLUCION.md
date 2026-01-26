@@ -736,6 +736,17 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: jerarquía visual más clara; compartir más discreto y rápido de identificar.
 - **Evidencia (commits)**: pendiente de push.
 
+### 2026-01-24 — Admin: buscador + orden en publicaciones plataforma
+
+- **Contexto**: se necesitaba encontrar y priorizar publicaciones de plataforma rápidamente en admin.
+- **Decisión**:
+  - Agregar buscador por título/descripcion/autor/ID.
+  - Añadir selector de orden (pendientes, fecha, recompensa, participantes, aprobaciones/pagos).
+  - Ajustar layout para mantener consistencia visual.
+  - Default de repetición: **12 minutos** al habilitar la opción.
+- **Impacto**: gestión más rápida y menos fricción operativa en panel admin.
+- **Evidencia (commits)**: pendiente de push.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)

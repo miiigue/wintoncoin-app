@@ -296,6 +296,31 @@ input:checked + .slider:before {
     max-width: 400px;
 }
 
+.table-controls select {
+    padding: 10px 15px;
+    border-radius: 8px;
+    background-color: var(--admin-bg);
+    border: 1px solid var(--admin-border);
+    color: var(--admin-text);
+    font-size: 1rem;
+}
+
+.platform-publications-controls {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.platform-publications-controls input[type="text"] {
+    flex: 1 1 260px;
+    max-width: none;
+}
+
+.platform-publications-controls select {
+    min-width: 220px;
+}
+
 .table-container-admin {
     width: 100%;
     overflow-x: auto;
