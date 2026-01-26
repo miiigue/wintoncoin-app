@@ -182,16 +182,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderStepFlow(steps, formFields = null, userStatus = null) {
         if (!steps || steps.length === 0) return '';
-        
-        const canFillForm = userStatus === 'approved'; // Solo usuarios aprobados pueden llenar formularios
-        
+
         const itemsHTML = steps.map((step, index) => {
             const stepNum = index + 1;
             const stepNumStr = String(stepNum);
             const hasFormFields = formFields && formFields[stepNumStr] && formFields[stepNumStr].length > 0;
             
             let formInputsHTML = '';
-            if (hasFormFields && canFillForm) {
+            if (hasFormFields) {
                 const fieldsHTML = formFields[stepNumStr].map((field, fieldIndex) => `
                     <div class="step-form-field-user">
                         <label for="form-step-${stepNum}-field-${fieldIndex}">${field}</label>
@@ -592,11 +590,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Recopilar respuestas del formulario si existen
                 const formResponses = collectFormResponses();
                 body = { completerUsername: storedUsername };
-                if (formResponses && Object.keys(formResponses).length > 0) {
-                    // Validar que todos los campos requeridos estén completos
-                    const hasEmptyFields = document.querySelectorAll('.step-form-input[required]');
+                // Validar que todos los campos requeridos estén completos
+                const requiredFields = document.querySelectorAll('.step-form-input[required]');
+                if (requiredFields.length > 0) {
                     let allFilled = true;
-                    hasEmptyFields.forEach(input => {
+                    requiredFields.forEach(input => {
                         if (!input.value.trim()) {
                             allFilled = false;
                             input.classList.add('input-error');
@@ -608,6 +606,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         showCustomAlert('Por favor, completa todos los campos requeridos antes de marcar como culminada.');
                         return;
                     }
+                }
+                if (formResponses && Object.keys(formResponses).length > 0) {
                     body.formResponses = formResponses;
                 }
                 break;
