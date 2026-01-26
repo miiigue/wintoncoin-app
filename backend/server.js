@@ -127,6 +127,24 @@ function escapeHtml(input) {
         .replace(/'/g, '&#039;');
 }
 
+function resolveRepeatCooldownHours(body) {
+    // Convertimos a números; si vienen vacíos/invalidos, quedan en 0.
+    const days = parseInt(body.repeatCooldownDays, 10) || 0;
+    const hours = parseInt(body.repeatCooldownHours, 10) || 0;
+    const minutes = parseInt(body.repeatCooldownMinutes, 10) || 0;
+
+    // Total en minutos (días -> horas -> minutos).
+    let totalMinutes = (days * 24 * 60) + (hours * 60) + minutes;
+
+    // Si no hay datos válidos, usamos un default de 12 minutos.
+    if (!Number.isFinite(totalMinutes) || totalMinutes < 1) {
+        totalMinutes = 12;
+    }
+
+    // El resto del sistema guarda cooldown en horas (decimal).
+    return totalMinutes / 60;
+}
+
 async function sendOtpEmail({ toEmail, otp, context = {} }) {
     const email = normalizeEmail(toEmail);
 
@@ -2559,13 +2577,14 @@ app.post('/api/minor/add-tutor', async (req, res) => {
     }
 });
 
-// Ruta para crear una nueva Publicación
+        // Ruta para crear una nueva Publicación
         app.post('/publish', async (req, res) => {
             const { 
                 title, description, blueCost, blueSell, authorUsername, 
                 availableSlots, autoApprove, publicationType,
                 duration_days, duration_hours, duration_minutes,
-                allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours
+                allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours,
+                repeatCooldownDays, repeatCooldownMinutes
             } = req.body;
         
             if (!title || !description || !authorUsername || (!blueCost && !blueSell) || !publicationType) {
@@ -2617,10 +2636,11 @@ app.post('/api/minor/add-tutor', async (req, res) => {
                 if (!Number.isFinite(maxRepeat) || maxRepeat < 2) {
                     throw { status: 400, message: "Indica el máximo de repeticiones por usuario (mínimo 2)." };
                 }
-                repeatCooldown = parseInt(repeatCooldownHours, 10);
-                if (!Number.isFinite(repeatCooldown) || repeatCooldown < 1) {
-                    repeatCooldown = 24;
-                }
+                repeatCooldown = resolveRepeatCooldownHours({
+                    repeatCooldownDays,
+                    repeatCooldownHours,
+                    repeatCooldownMinutes
+                });
             } else {
                 maxRepeat = 1;
                 repeatCooldown = 24;
@@ -3181,10 +3201,14 @@ app.post('/api/quick-sale/:id/pay', async (req, res) => {
                             const lastAt = new Date(lastCompletion.rows[0].created_at);
                             const cooldownMs = repeatCooldown * 60 * 60 * 1000;
                             const elapsedMs = Date.now() - lastAt.getTime();
-                            if (elapsedMs < cooldownMs) {
-                                const remainingHours = Math.ceil((cooldownMs - elapsedMs) / (60 * 60 * 1000));
-                                throw { status: 409, message: `Debes esperar ${remainingHours} hora${remainingHours === 1 ? '' : 's'} para volver a realizar esta tarea.` };
-                            }
+                    if (elapsedMs < cooldownMs) {
+                        const remainingMinutes = Math.ceil((cooldownMs - elapsedMs) / (60 * 1000));
+                        if (remainingMinutes >= 60) {
+                            const remainingHours = Math.ceil(remainingMinutes / 60);
+                            throw { status: 409, message: `Debes esperar ${remainingHours} hora${remainingHours === 1 ? '' : 's'} para volver a realizar esta tarea.` };
+                        }
+                        throw { status: 409, message: `Debes esperar ${remainingMinutes} minuto${remainingMinutes === 1 ? '' : 's'} para volver a realizar esta tarea.` };
+                    }
                         }
                     }
                 }
@@ -5271,7 +5295,7 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
 
         // Endpoint para que un administrador cree una publicación como la plataforma
         app.post('/api/admin/platform/create-publication', verifyAdminToken, async (req, res) => {
-            const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours, targetUsername, formFields } = req.body;
+            const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours, repeatCooldownDays, repeatCooldownMinutes, targetUsername, formFields } = req.body;
         
             if (!title || !description || !costString) {
                 return res.status(400).json({ message: "Faltan datos: título, descripción y costo son requeridos." });
@@ -5296,10 +5320,11 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
                 if (!Number.isFinite(maxRepeat) || maxRepeat < 2) {
                     return res.status(400).json({ message: "Indica el máximo de repeticiones por usuario (mínimo 2)." });
                 }
-                repeatCooldown = parseInt(repeatCooldownHours, 10);
-                if (!Number.isFinite(repeatCooldown) || repeatCooldown < 1) {
-                    repeatCooldown = 24;
-                }
+                repeatCooldown = resolveRepeatCooldownHours({
+                    repeatCooldownDays,
+                    repeatCooldownHours,
+                    repeatCooldownMinutes
+                });
             } else {
                 maxRepeat = 1;
                 repeatCooldown = 24;
@@ -5366,7 +5391,7 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
         // Endpoint para que un administrador edite una publicación de la plataforma
         app.put('/api/admin/platform/publications/:id', verifyAdminToken, async (req, res) => {
             const { id } = req.params;
-            const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours } = req.body;
+            const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours, repeatCooldownDays, repeatCooldownMinutes } = req.body;
 
             if (!title || !description || !costString) {
                 return res.status(400).json({ message: "Faltan datos: título, descripción y costo son requeridos." });
@@ -5391,10 +5416,11 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
                 if (!Number.isFinite(maxRepeat) || maxRepeat < 2) {
                     return res.status(400).json({ message: "Indica el máximo de repeticiones por usuario (mínimo 2)." });
                 }
-                repeatCooldown = parseInt(repeatCooldownHours, 10);
-                if (!Number.isFinite(repeatCooldown) || repeatCooldown < 1) {
-                    repeatCooldown = 24;
-                }
+                repeatCooldown = resolveRepeatCooldownHours({
+                    repeatCooldownDays,
+                    repeatCooldownHours,
+                    repeatCooldownMinutes
+                });
             } else {
                 maxRepeat = 1;
                 repeatCooldown = 24;

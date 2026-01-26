@@ -747,6 +747,16 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: gestión más rápida y menos fricción operativa en panel admin.
 - **Evidencia (commits)**: pendiente de push.
 
+### 2026-01-24 — Repetición: cooldown en minutos (12 min default)
+
+- **Contexto**: el sistema seguía bloqueando por 24 horas aunque el UI mostraba 12 minutos.
+- **Decisión**:
+  - Permitir precisión en `repeat_cooldown_hours` (NUMERIC).
+  - Calcular cooldown desde días/horas/minutos y default de 12 minutos cuando se habilita.
+  - Mensajes de espera en minutos cuando aplica.
+- **Impacto**: el bloqueo respeta minutos reales y coincide con la configuración del admin.
+- **Evidencia (commits)**: pendiente de push.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)
