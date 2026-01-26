@@ -2689,8 +2689,38 @@ body.love-page {
 }
 
 .referral-motivation-section .referral-icon {
-    font-size: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    min-width: 72px;
+    padding: 6px 6px 8px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.referral-motivation-section .referral-icon-symbol {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.referral-motivation-section .referral-icon-symbol svg {
     animation: pulse 2s infinite;
+}
+
+.referral-motivation-section .referral-icon-label {
+    margin-top: 4px;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.85);
+    text-align: center;
+    line-height: 1.1;
 }
 
 @keyframes pulse {

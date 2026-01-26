@@ -2922,17 +2922,16 @@ body.love-page {
 }
 
 .referral-motivation-section .referral-icon {
-    font-size: 1.5rem;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 50px;
-    height: 50px;
-    min-width: 50px;
-    min-height: 50px;
+    width: 72px;
+    min-width: 72px;
     background: rgba(255, 255, 255, 0.15);
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 6px 6px 8px;
     box-shadow: 
         0 4px 8px rgba(0, 0, 0, 0.2),
         inset 0 1px 0 rgba(255, 255, 255, 0.3),
@@ -2940,9 +2939,26 @@ body.love-page {
     transition: all 0.3s ease;
 }
 
-.referral-motivation-section .referral-icon svg {
+.referral-motivation-section .referral-icon-symbol {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.referral-motivation-section .referral-icon-symbol svg {
     animation: pulseGlow 2s infinite;
     filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0));
+}
+
+.referral-motivation-section .referral-icon-label {
+    margin-top: 4px;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.85);
+    text-align: center;
+    line-height: 1.1;
 }
 
 .referral-motivation-section .referral-card:hover .referral-icon {
