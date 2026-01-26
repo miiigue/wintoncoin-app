@@ -313,9 +313,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 repeatLimitInput.value = '2';
             }
             if (!repeatCheckbox.checked) {
-                if (repeatCooldownDaysInput) repeatCooldownDaysInput.value = '1';
+                if (repeatCooldownDaysInput) repeatCooldownDaysInput.value = '0';
                 if (repeatCooldownHoursInput) repeatCooldownHoursInput.value = '0';
-                if (repeatCooldownMinutesInput) repeatCooldownMinutesInput.value = '0';
+                if (repeatCooldownMinutesInput) repeatCooldownMinutesInput.value = '12';
             }
         };
         repeatCheckbox.addEventListener('change', updateRepeatVisibility);
@@ -413,9 +413,9 @@ document.addEventListener('DOMContentLoaded', () => {
             data.repeatCooldownMinutes = safeMinutes;
         } else {
             data.maxRepeatPerUser = 1;
-            data.repeatCooldownDays = 1;
+            data.repeatCooldownDays = 0;
             data.repeatCooldownHours = 0;
-            data.repeatCooldownMinutes = 0;
+            data.repeatCooldownMinutes = 12;
         }
 
         if (setExpirationCheckbox.checked) {

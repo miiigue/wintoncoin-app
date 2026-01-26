@@ -1221,9 +1221,9 @@ document.addEventListener('DOMContentLoaded', () => {
             autoApprove: document.getElementById('platformAutoApprove').checked,
             allowRepeatParticipation: allowRepeat,
             maxRepeatPerUser: allowRepeat ? repeatLimit : 1,
-            repeatCooldownDays: allowRepeat ? safeDays : 1,
+            repeatCooldownDays: allowRepeat ? safeDays : 0,
             repeatCooldownHours: allowRepeat ? safeHours : 0,
-            repeatCooldownMinutes: allowRepeat ? safeMinutes : 0,
+            repeatCooldownMinutes: allowRepeat ? safeMinutes : 12,
             isBoosterTask: document.getElementById('platformIsBoosterTask').checked,
             targetUsername: targetUsername || null,
             formFields: formFields
@@ -1732,7 +1732,10 @@ WHERE username = 'Plataforma WintonCoin';
         }
         if (elements.platformRepeatCooldownDays || elements.platformRepeatCooldownHours || elements.platformRepeatCooldownMinutes) {
             const cooldownMinutes = Number(pub.repeat_cooldown_minutes);
-            const normalizedMinutes = Number.isFinite(cooldownMinutes) && cooldownMinutes > 0 ? cooldownMinutes : 1440;
+            const cooldownHours = Number(pub.repeat_cooldown_hours);
+            const normalizedMinutes = Number.isFinite(cooldownMinutes) && cooldownMinutes > 0
+                ? cooldownMinutes
+                : (Number.isFinite(cooldownHours) && cooldownHours > 0 ? Math.round(cooldownHours * 60) : 12);
             const days = Math.floor(normalizedMinutes / 1440);
             const hours = Math.floor((normalizedMinutes % 1440) / 60);
             const minutes = normalizedMinutes % 60;

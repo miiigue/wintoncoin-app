@@ -127,24 +127,6 @@ function escapeHtml(input) {
         .replace(/'/g, '&#039;');
 }
 
-function resolveRepeatCooldownHours(body) {
-    // Convertimos a números; si vienen vacíos/invalidos, quedan en 0.
-    const days = parseInt(body.repeatCooldownDays, 10) || 0;
-    const hours = parseInt(body.repeatCooldownHours, 10) || 0;
-    const minutes = parseInt(body.repeatCooldownMinutes, 10) || 0;
-
-    // Total en minutos (días -> horas -> minutos).
-    let totalMinutes = (days * 24 * 60) + (hours * 60) + minutes;
-
-    // Si no hay datos válidos, usamos un default de 12 minutos.
-    if (!Number.isFinite(totalMinutes) || totalMinutes < 1) {
-        totalMinutes = 12;
-    }
-
-    // El resto del sistema guarda cooldown en horas (decimal).
-    return totalMinutes / 60;
-}
-
 async function sendOtpEmail({ toEmail, otp, context = {} }) {
     const email = normalizeEmail(toEmail);
 
@@ -2576,6 +2558,17 @@ app.post('/api/minor/add-tutor', async (req, res) => {
         client.release();
     }
 });
+
+        function resolveRepeatCooldownHours(body) {
+            const days = parseInt(body.repeatCooldownDays, 10) || 0;
+            const hours = parseInt(body.repeatCooldownHours, 10) || 0;
+            const minutes = parseInt(body.repeatCooldownMinutes, 10) || 0;
+            let totalMinutes = (days * 24 * 60) + (hours * 60) + minutes;
+            if (!Number.isFinite(totalMinutes) || totalMinutes < 1) {
+                totalMinutes = 12;
+            }
+            return totalMinutes / 60;
+        }
 
         // Ruta para crear una nueva Publicación
         app.post('/publish', async (req, res) => {
