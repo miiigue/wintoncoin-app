@@ -68,6 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
         platformManagementList: document.getElementById('platform-management-list'),
         platformPublicationsBadge: document.getElementById('platformPublicationsBadge'),
         platformPublicationSearchInput: document.getElementById('platformPublicationSearchInput'),
+        platformPublicationStatusFilter: document.getElementById('platformPublicationStatusFilter'),
         platformPublicationSortSelect: document.getElementById('platformPublicationSortSelect'),
         platformRepeatLimit: document.getElementById('platformRepeatLimit'),
         platformRepeatLimitWrapper: document.getElementById('platformRepeatLimitWrapper'),
@@ -201,6 +202,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     applyPlatformManagementFilters();
                 }, 250);
             });
+        }
+
+        if (elements.platformPublicationStatusFilter) {
+            elements.platformPublicationStatusFilter.addEventListener('change', applyPlatformManagementFilters);
         }
 
         if (elements.platformPublicationSortSelect) {
@@ -1484,6 +1489,7 @@ WHERE username = 'Plataforma WintonCoin';
     function applyPlatformManagementFilters() {
         if (!elements.platformManagementList) return;
         const searchTerm = (elements.platformPublicationSearchInput?.value || '').trim().toLowerCase();
+        const statusFilter = elements.platformPublicationStatusFilter?.value || 'all';
         const sortValue = elements.platformPublicationSortSelect?.value || 'pending';
         let filtered = [...platformPublicationsCache];
 
@@ -1497,6 +1503,25 @@ WHERE username = 'Plataforma WintonCoin';
                     || description.includes(searchTerm)
                     || author.includes(searchTerm)
                     || idText.includes(searchTerm);
+            });
+        }
+
+        if (statusFilter !== 'all') {
+            filtered = filtered.filter(pub => {
+                switch (statusFilter) {
+                    case 'active':
+                        return !pub.is_deleted && !pub.is_expired && !pub.is_completed_publication && !pub.is_paused;
+                    case 'paused':
+                        return !!pub.is_paused && !pub.is_deleted;
+                    case 'completed':
+                        return !!pub.is_completed_publication && !pub.is_deleted;
+                    case 'expired':
+                        return !!pub.is_expired && !pub.is_deleted;
+                    case 'deleted':
+                        return !!pub.is_deleted;
+                    default:
+                        return true;
+                }
             });
         }
 

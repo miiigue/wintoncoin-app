@@ -348,6 +348,14 @@
 
                 <div class="table-controls platform-publications-controls">
                     <input type="text" id="platformPublicationSearchInput" placeholder="Buscar publicaciones (título o descripción)">
+                    <select id="platformPublicationStatusFilter">
+                        <option value="all" selected>Todos los estados</option>
+                        <option value="active">Activas</option>
+                        <option value="paused">Pausadas</option>
+                        <option value="completed">Completadas</option>
+                        <option value="expired">Expiradas</option>
+                        <option value="deleted">Eliminadas</option>
+                    </select>
                     <select id="platformPublicationSortSelect">
                         <option value="pending" selected>Ordenar por pendientes</option>
                         <option value="recent">Más recientes</option>

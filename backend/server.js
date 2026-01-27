@@ -5477,6 +5477,7 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
                     SELECT
                         p.id, p.title, p.description, p.created_at, p.status, p.is_paused,
                         p.blue_cost, p.available_slots, p.is_sell_post, p.allow_repeat_participation, p.max_repeat_per_user, p.repeat_cooldown_hours,
+                        p.expires_at, p.deleted_at, p.deleted_by_username, p.is_quick_sale,
                         u.username as author_username,
                         (
                             SELECT json_agg(json_build_object(
@@ -5491,23 +5492,27 @@ app.post('/api/me/notifications/:id/dismiss', verifyUserToken, async (req, res) 
                             JOIN users u_participant ON pa.acceptor_username = u_participant.username
                             WHERE pa.publication_id = p.id
                         ) as participants
+                        ,
+                        (p.deleted_at IS NOT NULL) AS is_deleted,
+                        (p.expires_at IS NOT NULL AND p.expires_at < NOW()) AS is_expired,
+                        (
+                            CASE
+                                WHEN COALESCE(p.is_quick_sale, FALSE) = TRUE THEN (p.status <> 'open')
+                                ELSE (
+                                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id) > 0
+                                    AND
+                                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status = 'confirmed_paid')
+                                    =
+                                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id)
+                                )
+                            END
+                        ) AS is_completed_publication
                     FROM
                         publications p
                     JOIN
                         users u ON p.author_id = u.id
                     WHERE
                         u.username = $1
-                    AND (
-                        -- La publicación todavía tiene cupos disponibles
-                        p.available_slots > 0
-                        OR
-                        -- O tiene participantes cuyo proceso no ha terminado (no han sido pagados)
-                        EXISTS (
-                            SELECT 1
-                            FROM publication_acceptances pa_check
-                            WHERE pa_check.publication_id = p.id AND pa_check.status != 'confirmed_paid'
-                        )
-                    )
                     ORDER BY
                         p.created_at DESC;
                 `;
