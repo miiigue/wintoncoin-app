@@ -1156,7 +1156,7 @@ hr {
 }
 
 .publication-item .pub-description {
-    margin: 0.75rem 0; /* Margen vertical ajustado */
+    margin: 0.4rem 0;
     color: var(--text-secondary-color);
     font-size: 0.9rem;
     line-height: 1.5;
@@ -1877,13 +1877,13 @@ body.love-page {
 .pub-meta-list {
     list-style: none;
     padding: 0;
-    margin: 1rem 0 0 0;
+    margin: 0.4rem 0 0 0;
     color: var(--text-secondary-color);
     font-size: 0.9rem;
 }
 
 .pub-meta-list li {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
 }
 
 .status-badge {
@@ -1911,7 +1911,7 @@ body.love-page {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
-    margin: 0.5rem 0 0.75rem 0;
+    margin: 0.35rem 0 0.5rem 0;
 }
 
 /* --- Nuevos Estilos para la Vista de Autor en el Historial --- */
@@ -1919,8 +1919,8 @@ body.love-page {
     background-color: var(--background-color);
     border: 1px solid #2a3b5c;
     border-radius: 10px;
-    padding: 1.5rem;
-    margin-bottom: 1rem;
+    padding: 0.9rem;
+    margin-bottom: 0.6rem;
 }
 
 .history-form-responses {

@@ -163,9 +163,6 @@ function initializeHistoryPage() {
                 </ul>
                 ${paymentInfo}
             </div>
-            <div class="publication-actions">
-                <button class="action-button hide" data-pub-id="${pub.id}">Ocultar del Historial</button>
-            </div>
         `;
     }
     
@@ -223,8 +220,7 @@ function initializeHistoryPage() {
         const isCompletedPublication = !!pub.is_completed_publication;
         const isPaused = !!pub.is_paused;
 
-        if (isDeleted) badges.push(`<span class="status-badge deleted">ELIMINADA</span>`);
-        else if (isExpired) badges.push(`<span class="status-badge expired">EXPIRADA</span>`);
+        if (isExpired) badges.push(`<span class="status-badge expired">EXPIRADA</span>`);
         else if (isCompletedPublication) badges.push(`<span class="status-badge completed">COMPLETADA</span>`);
         else if (isPaused) badges.push(`<span class="status-badge pausada">PAUSADA</span>`);
         else badges.push(`<span class="status-badge active">ACTIVA</span>`);
@@ -276,16 +272,6 @@ function initializeHistoryPage() {
         if (button.classList.contains('confirm')) {
             const workerUsername = button.dataset.workerUsername;
             await postToServer(`/publications/${pubId}/confirm-payment`, { confirmerUsername: storedUsername, workerUsername });
-        }
-    });
-
-    elements.completedList.addEventListener('click', async (event) => {
-        const button = event.target;
-        if (button.classList.contains('hide')) {
-            const pubId = button.dataset.pubId;
-            showCustomConfirm('¿Seguro que quieres ocultar esta tarea de tu historial? No la volverás a ver aquí.', async () => {
-                await postToServer(`/publications/${pubId}/hide`, { username: storedUsername });
-            });
         }
     });
 
