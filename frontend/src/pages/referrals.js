@@ -52,7 +52,14 @@ function initializeReferralsPage() {
 
         elements.codeSection.innerHTML = `
             <h4>Tu Código de Referido</h4>
-            <p class="referral-code-display">${code}</p>
+            <div style="text-align: center; margin: 1.5rem 0;">
+                <p class="referral-code-display" style="font-size: 2rem; font-weight: 800; color: #4F46E5; margin: 0; letter-spacing: 2px; line-height: 1.2;">
+                    ${code}
+                </p>
+                <button id="copyCodeBtn" class="action-button" style="margin-top: 1rem;">
+                    Copiar Código
+                </button>
+            </div>
             <p class="referral-description">Comparte este código o el enlace de abajo con tus amigos. Cuando se registren, ¡ambos recibirán una recompensa!</p>
             <div class="referral-link-container">
                 <input type="text" id="referralLinkInput" value="${referralLink}" readonly>
@@ -60,20 +67,59 @@ function initializeReferralsPage() {
             </div>
         `;
 
+        // Evento para Copiar CÓDIGO
+        document.getElementById('copyCodeBtn').addEventListener('click', () => {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(code).then(() => {
+                    showCustomAlert('¡Código copiado al portapapeles!');
+                }).catch(err => {
+                    console.error('Error al copiar código:', err);
+                    fallbackCopy(code);
+                });
+            } else {
+                fallbackCopy(code);
+            }
+        });
+
+        // Evento para Copiar ENLACE
         document.getElementById('copyLinkBtn').addEventListener('click', () => {
             const linkInput = document.getElementById('referralLinkInput');
             linkInput.select();
             linkInput.setSelectionRange(0, 99999);
-            
-            try {
+
+            if (navigator.clipboard) {
                 navigator.clipboard.writeText(linkInput.value).then(() => {
                     showCustomAlert('¡Enlace de referido copiado al portapapeles!');
+                }).catch(err => {
+                    fallbackCopy(linkInput.value);
                 });
-            } catch (err) {
-                document.execCommand('copy');
-                showCustomAlert('¡Enlace de referido copiado al portapapeles!');
+            } else {
+                fallbackCopy(linkInput.value);
             }
         });
+
+        function fallbackCopy(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+
+            // Evitar scroll al insertar
+            textArea.style.top = "0";
+            textArea.style.left = "0";
+            textArea.style.position = "fixed";
+
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            try {
+                document.execCommand('copy');
+                showCustomAlert('¡Copiado al portapapeles!');
+            } catch (err) {
+                console.error('Fallback: Oops, unable to copy', err);
+            }
+
+            document.body.removeChild(textArea);
+        }
     }
 
     function renderReferredUsers(users) {
