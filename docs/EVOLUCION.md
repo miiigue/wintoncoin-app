@@ -757,6 +757,21 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: el bloqueo respeta minutos reales y coincide con la configuración del admin.
 - **Evidencia (commits)**: pendiente de push.
 
+### 2026-01-25 — Recibos por correo y correo oficial de plataforma
+
+- **Contexto**:
+  - Faltaba notificación transaccional por email en pagos/completaciones.
+  - El usuario “Plataforma” podía quedar con email aleatorio en instalaciones previas.
+- **Decisión**:
+  - Enviar **correos de recibo** a autor y trabajador para pagos de tareas, compras/donaciones.
+  - Agregar **plantilla transaccional** con monto, estado y detalles, con fallback DEV.
+  - Forzar el email oficial del usuario Plataforma a `accounting@wintoncoin.com` (creación y mantenimiento).
+  - Actualizar el asset del logo.
+- **Impacto**:
+  - Comunicación profesional tipo fintech y trazabilidad para usuarios.
+  - Plataforma con email consistente y auditable en todas las instalaciones.
+- **Evidencia (commits)**: `791b2c1`, `0b12dcd`.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)

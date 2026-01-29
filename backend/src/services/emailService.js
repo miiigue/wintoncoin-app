@@ -277,7 +277,7 @@ async function sendTransactionEmail({ toEmail, subject, title, message, amount, 
           <!-- Encabezado -->
           <tr>
             <td style="padding: 32px 40px; text-align: center; border-bottom: 1px solid #F2F4F7;">
-               ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="${safeBrandName}" height="40" style="height:40px; margin-bottom: 16px;">` : `<div style="font-size:24px; font-weight:800; color:${mainColor}; margin-bottom: 16px;">${safeBrandName}</div>`}
+               ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="${safeBrandName}" height="120" style="height:120px; margin-bottom: 24px;">` : `<div style="font-size:24px; font-weight:800; color:${mainColor}; margin-bottom: 16px;">${safeBrandName}</div>`}
                <h1 style="margin: 0; font-size: 24px; color: #101828; font-weight: 700;">${escapeHtml(title)}</h1>
             </td>
           </tr>
