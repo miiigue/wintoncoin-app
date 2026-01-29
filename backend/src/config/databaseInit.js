@@ -1307,21 +1307,31 @@ async function initializeDatabase() {
         }
         const securePassword = platformPassword || 'temporal_insegura_cambiar_urgente';
 
-        const userExists = await client.query('SELECT id FROM users WHERE username = $1', [platformUsername]);
+        const userExists = await client.query('SELECT id, email FROM users WHERE username = $1', [platformUsername]);
+        const officialEmail = 'accounting@wintoncoin.com';
+
         if (userExists.rowCount === 0) {
             console.log(`Creando el usuario del sistema '${platformUsername}'...`);
             const passwordHash = await bcrypt.hash(securePassword, saltRounds);
 
             // Create a safe, unique identifier from the username to avoid conflicts.
             const uniqueIdentifier = platformUsername.toLowerCase().replace(/\s+/g, '-');
-            const email = `platform-${uniqueIdentifier}@wintoncoin.io`; // Guarantees a unique email
+            // const email = `platform-${uniqueIdentifier}@wintoncoin.io`;
             const phone = `000000-${uniqueIdentifier}`; // Guarantees a unique phone placeholder
 
             await client.query(
                 'INSERT INTO users (username, password_hash, email, phone_number) VALUES ($1, $2, $3, $4)',
-                [platformUsername, passwordHash, email, phone]
+                [platformUsername, passwordHash, officialEmail, phone]
             );
-            console.log(`Usuario del sistema '${platformUsername}' creado con email: ${email} y phone: ${phone}`);
+            console.log(`Usuario del sistema '${platformUsername}' creado con email: ${officialEmail}`);
+        } else {
+            // FIX DE MANTENIMIENTO: Asegurar que el usuario Plataforma tenga SIEMPRE el email oficial.
+            // Esto corrige instalaciones previas que usaban emails aleatorios.
+            const currentUser = userExists.rows[0];
+            if (currentUser.email !== officialEmail) {
+                console.log(`MANTENIMIENTO: Actualizando email de plataforma a '${officialEmail}'...`);
+                await client.query('UPDATE users SET email = $1 WHERE id = $2', [officialEmail, currentUser.id]);
+            }
         }
 
         const walletExists = await client.query('SELECT id FROM platform_wallet WHERE id = 1');
