@@ -15,8 +15,8 @@ const BRAND_LOGO_URL = process.env.BRAND_LOGO_URL || '';
 
 // Validación de configuración al cargar el módulo
 if (isProduction) {
-    if (!AWS_REGION || !SES_FROM_EMAIL) {
-        console.error(`
+  if (!AWS_REGION || !SES_FROM_EMAIL) {
+    console.error(`
             *******************************************************************************
             * ERROR FATAL: AWS SES no está configurado para producción.                  *
             *                                                                             *
@@ -24,12 +24,12 @@ if (isProduction) {
             * El servidor no se iniciará hasta que estas variables estén configuradas.   *
             *******************************************************************************
         `);
-        // En un servicio, quizás no deberíamos matar el proceso directamente, pero mantendré la lógica original
-        // para asegurar que el usuario vea el error crítico.
-        process.exit(1);
-    }
-    if (!OTP_SECRET) {
-        console.error(`
+    // En un servicio, quizás no deberíamos matar el proceso directamente, pero mantendré la lógica original
+    // para asegurar que el usuario vea el error crítico.
+    process.exit(1);
+  }
+  if (!OTP_SECRET) {
+    console.error(`
             *******************************************************************************
             * ERROR FATAL: OTP_SECRET no está definida.                                   *
             *                                                                             *
@@ -37,89 +37,89 @@ if (isProduction) {
             * dedicado, separado de JWT_SECRET.                                            *
             *******************************************************************************
         `);
-        process.exit(1);
-    }
+    process.exit(1);
+  }
 } else {
-    if (!AWS_REGION || !SES_FROM_EMAIL) {
-        console.warn('[DEV WARNING] AWS_REGION o SES_FROM_EMAIL no están definidos. El OTP se mostrará en consola en vez de enviarse por email.');
-    }
-    if (!OTP_SECRET) {
-        console.warn('[DEV WARNING] OTP_SECRET no está definido. Se usará JWT_SECRET como fallback (NO recomendado en producción).');
-    }
+  if (!AWS_REGION || !SES_FROM_EMAIL) {
+    console.warn('[DEV WARNING] AWS_REGION o SES_FROM_EMAIL no están definidos. El OTP se mostrará en consola en vez de enviarse por email.');
+  }
+  if (!OTP_SECRET) {
+    console.warn('[DEV WARNING] OTP_SECRET no está definido. Se usará JWT_SECRET como fallback (NO recomendado en producción).');
+  }
 }
 
 let _sesClient = null;
 function getSesClient() {
-    if (_sesClient) return _sesClient;
-    _sesClient = new SESClient({ region: AWS_REGION });
-    return _sesClient;
+  if (_sesClient) return _sesClient;
+  _sesClient = new SESClient({ region: AWS_REGION });
+  return _sesClient;
 }
 
 function normalizeEmail(email) {
-    return String(email || '').trim().toLowerCase();
+  return String(email || '').trim().toLowerCase();
 }
 
 function generateOtp6() {
-    // crypto.randomInt es criptográficamente seguro (mejor que Math.random para OTP).
-    const n = crypto.randomInt(0, 1000000);
-    return String(n).padStart(6, '0');
+  // crypto.randomInt es criptográficamente seguro (mejor que Math.random para OTP).
+  const n = crypto.randomInt(0, 1000000);
+  return String(n).padStart(6, '0');
 }
 
 function hashOtpForEmail(email, otp) {
-    // Atamos el OTP al email para evitar reutilización cruzada.
-    const secret = OTP_SECRET || JWT_SECRET; // fallback solo para dev
-    return crypto.createHmac('sha256', secret).update(`${normalizeEmail(email)}:${otp}`).digest('hex');
+  // Atamos el OTP al email para evitar reutilización cruzada.
+  const secret = OTP_SECRET || JWT_SECRET; // fallback solo para dev
+  return crypto.createHmac('sha256', secret).update(`${normalizeEmail(email)}:${otp}`).digest('hex');
 }
 
 function safeEqualHex(a, b) {
-    if (!a || !b) return false;
-    const bufA = Buffer.from(String(a), 'hex');
-    const bufB = Buffer.from(String(b), 'hex');
-    if (bufA.length !== bufB.length) return false;
-    return crypto.timingSafeEqual(bufA, bufB);
+  if (!a || !b) return false;
+  const bufA = Buffer.from(String(a), 'hex');
+  const bufB = Buffer.from(String(b), 'hex');
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
 }
 
 function escapeHtml(input) {
-    return String(input || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+  return String(input || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 async function sendOtpEmail({ toEmail, otp, context = {} }) {
-    const email = normalizeEmail(toEmail);
+  const email = normalizeEmail(toEmail);
 
-    // Dev fallback: si SES no está configurado, no bloqueamos el registro.
-    if (!AWS_REGION || !SES_FROM_EMAIL) {
-        console.warn(`[DEV OTP] Email: ${email} OTP: ${otp} (SES no configurado)`);
-        return;
-    }
+  // Dev fallback: si SES no está configurado, no bloqueamos el registro.
+  if (!AWS_REGION || !SES_FROM_EMAIL) {
+    console.warn(`[DEV OTP] Email: ${email} OTP: ${otp} (SES no configurado)`);
+    return;
+  }
 
-    const brandName = SES_FROM_NAME || 'WintonCoin';
-    const subject = `Tu código de verificación de ${brandName}`;
-    const safeSupportEmail = escapeHtml(SUPPORT_EMAIL);
-    const safeBrandPrimary = escapeHtml(BRAND_PRIMARY_COLOR);
-    const safeBrandName = escapeHtml(brandName);
-    const safeOtp = escapeHtml(otp);
-    const safeLogoUrl = BRAND_LOGO_URL ? escapeHtml(BRAND_LOGO_URL) : '';
+  const brandName = SES_FROM_NAME || 'WintonCoin';
+  const subject = `Tu código de verificación de ${brandName}`;
+  const safeSupportEmail = escapeHtml(SUPPORT_EMAIL);
+  const safeBrandPrimary = escapeHtml(BRAND_PRIMARY_COLOR);
+  const safeBrandName = escapeHtml(brandName);
+  const safeOtp = escapeHtml(otp);
+  const safeLogoUrl = BRAND_LOGO_URL ? escapeHtml(BRAND_LOGO_URL) : '';
 
-    // Contexto opcional (ayuda anti-phishing y “fintech feel”)
-    const requestedIp = context.ip ? escapeHtml(context.ip) : '';
-    const requestedAt = context.requestedAt ? escapeHtml(context.requestedAt) : '';
+  // Contexto opcional (ayuda anti-phishing y “fintech feel”)
+  const requestedIp = context.ip ? escapeHtml(context.ip) : '';
+  const requestedAt = context.requestedAt ? escapeHtml(context.requestedAt) : '';
 
-    const textBody =
-        `Tu código de verificación para ${brandName} es: ${otp}\n\n` +
-        `Este código expira en 10 minutos.\n\n` +
-        (requestedAt ? `Solicitud: ${requestedAt}\n` : '') +
-        (requestedIp ? `IP aproximada: ${requestedIp}\n\n` : '\n') +
-        `Seguridad: ${brandName} nunca te pedirá este código por teléfono, chat o redes sociales.\n\n` +
-        `Si no solicitaste este código, ignora este correo o contacta a soporte: ${SUPPORT_EMAIL}`;
+  const textBody =
+    `Tu código de verificación para ${brandName} es: ${otp}\n\n` +
+    `Este código expira en 10 minutos.\n\n` +
+    (requestedAt ? `Solicitud: ${requestedAt}\n` : '') +
+    (requestedIp ? `IP aproximada: ${requestedIp}\n\n` : '\n') +
+    `Seguridad: ${brandName} nunca te pedirá este código por teléfono, chat o redes sociales.\n\n` +
+    `Si no solicitaste este código, ignora este correo o contacta a soporte: ${SUPPORT_EMAIL}`;
 
-    // HTML “fintech grade” (compatibilidad alta con clientes de correo: tablas + estilos inline)
-    const preheader = `Tu código de verificación es ${otp}. Expira en 10 minutos.`;
-    const htmlBody = `
+  // HTML “fintech grade” (compatibilidad alta con clientes de correo: tablas + estilos inline)
+  const preheader = `Tu código de verificación es ${otp}. Expira en 10 minutos.`;
+  const htmlBody = `
 <!doctype html>
 <html lang="es">
   <head>
@@ -209,25 +209,157 @@ async function sendOtpEmail({ toEmail, otp, context = {} }) {
 </html>
     `.trim();
 
-    const cmd = new SendEmailCommand({
-        Source: `${SES_FROM_NAME} <${SES_FROM_EMAIL}>`,
-        Destination: { ToAddresses: [email] },
-        Message: {
-            Subject: { Data: subject, Charset: 'UTF-8' },
-            Body: {
-                Text: { Data: textBody, Charset: 'UTF-8' },
-                Html: { Data: htmlBody, Charset: 'UTF-8' }
-            }
-        }
-    });
+  const cmd = new SendEmailCommand({
+    Source: `${SES_FROM_NAME} <${SES_FROM_EMAIL}>`,
+    Destination: { ToAddresses: [email] },
+    Message: {
+      Subject: { Data: subject, Charset: 'UTF-8' },
+      Body: {
+        Text: { Data: textBody, Charset: 'UTF-8' },
+        Html: { Data: htmlBody, Charset: 'UTF-8' }
+      }
+    }
+  });
 
-    await getSesClient().send(cmd);
+  await getSesClient().send(cmd);
+}
+
+/**
+ * Envía un correo transaccional (Recibo, Pago, Recompensa) con diseño profesional.
+ * @param {Object} params
+ * @param {string} params.toEmail - Email del destinatario
+ * @param {string} params.subject - Asunto del correo
+ * @param {string} params.title - Título principal dentro del correo (ej: "Pago Exitoso")
+ * @param {string} params.message - Mensaje breve descriptivo
+ * @param {string} params.amount - Monto formateado (ej: "100.00 BLUE")
+ * @param {Array<{label: string, value: string}>} params.details - Lista de detalles a mostrar en tabla (ej: ID Transacción, Fecha, Concepto)
+ */
+async function sendTransactionEmail({ toEmail, subject, title, message, amount, details = [] }) {
+  const email = normalizeEmail(toEmail);
+
+  if (!AWS_REGION || !SES_FROM_EMAIL) {
+    console.warn(`[DEV EMAIL] Simulación de envío a ${email}: ${subject}`);
+    return;
+  }
+
+  const brandName = SES_FROM_NAME || 'WintonCoin';
+  const safeBrandName = escapeHtml(brandName);
+  const safeLogoUrl = BRAND_LOGO_URL ? escapeHtml(BRAND_LOGO_URL) : '';
+  const safeSupportEmail = escapeHtml(SUPPORT_EMAIL);
+  const mainColor = BRAND_PRIMARY_COLOR || '#0B5FFF';
+
+  // Generar filas de detalles
+  const detailsRows = details.map(d => `
+        <tr>
+            <td style="padding: 12px 0; border-bottom: 1px solid #EEF2F6; color: #667085; font-size: 14px;">
+                ${escapeHtml(d.label)}
+            </td>
+            <td style="padding: 12px 0; border-bottom: 1px solid #EEF2F6; color: #101828; font-size: 14px; font-weight: 500; text-align: right;">
+                ${escapeHtml(d.value)}
+            </td>
+        </tr>
+    `).join('');
+
+  const htmlBody = `
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${escapeHtml(subject)}</title>
+</head>
+<body style="margin:0; padding:0; background:#F5F7FB; font-family: Arial, sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F5F7FB; padding: 40px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="background:#FFFFFF; border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.05); max-width: 600px; width: 100%;">
+          
+          <!-- Encabezado -->
+          <tr>
+            <td style="padding: 32px 40px; text-align: center; border-bottom: 1px solid #F2F4F7;">
+               ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="${safeBrandName}" height="40" style="height:40px; margin-bottom: 16px;">` : `<div style="font-size:24px; font-weight:800; color:${mainColor}; margin-bottom: 16px;">${safeBrandName}</div>`}
+               <h1 style="margin: 0; font-size: 24px; color: #101828; font-weight: 700;">${escapeHtml(title)}</h1>
+            </td>
+          </tr>
+
+          <!-- Cuerpo Principal -->
+          <tr>
+            <td style="padding: 40px;">
+              
+              <!-- Monto -->
+              <div style="text-align: center; margin-bottom: 32px;">
+                <p style="margin: 0 0 8px 0; color: #667085; font-size: 16px;">Monto total</p>
+                <div style="font-size: 36px; color: ${mainColor}; font-weight: 800; letter-spacing: -0.5px;">${escapeHtml(amount)}</div>
+              </div>
+
+              <!-- Mensaje -->
+              <p style="margin: 0 0 24px 0; color: #344054; font-size: 16px; line-height: 24px; text-align: center;">
+                ${escapeHtml(message)}
+              </p>
+
+              <!-- Tabla de Detalles -->
+              <div style="background: #F9FAFB; border-radius: 12px; padding: 24px;">
+                <table width="100%" cellspacing="0" cellpadding="0" border="0">
+                  ${detailsRows}
+                </table>
+              </div>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 32px 40px; background: #F9FAFB; border-top: 1px solid #F2F4F7; text-align: center;">
+              <p style="margin: 0 0 16px 0; font-size: 12px; color: #667085; line-height: 18px;">
+                Si tienes alguna pregunta sobre esta transacción, contacta a nuestro equipo de soporte en <a href="mailto:${safeSupportEmail}" style="color:${mainColor}; text-decoration:none;">${safeSupportEmail}</a>.
+              </p>
+              <p style="margin: 0; font-size: 12px; color: #98A2B3;">
+                © ${new Date().getFullYear()} ${safeBrandName}. Todos los derechos reservados.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim();
+
+  // Versión texto plano simplificada
+  const textBody = `
+${title}
+----------------------------------------
+Monto: ${amount}
+
+${message}
+
+Detalles:
+${details.map(d => `${d.label}: ${d.value}`).join('\n')}
+
+Si necesitas ayuda, contacta a ${SUPPORT_EMAIL}.
+    `.trim();
+
+  const cmd = new SendEmailCommand({
+    Source: `${SES_FROM_NAME} <${SES_FROM_EMAIL}>`,
+    Destination: { ToAddresses: [email] },
+    Message: {
+      Subject: { Data: subject, Charset: 'UTF-8' },
+      Body: {
+        Text: { Data: textBody, Charset: 'UTF-8' },
+        Html: { Data: htmlBody, Charset: 'UTF-8' }
+      }
+    }
+  });
+
+  await getSesClient().send(cmd);
 }
 
 module.exports = {
-    generateOtp6,
-    hashOtpForEmail,
-    safeEqualHex,
-    sendOtpEmail,
-    normalizeEmail
+  generateOtp6,
+  hashOtpForEmail,
+  safeEqualHex,
+  sendOtpEmail,
+  sendTransactionEmail,
+  normalizeEmail
 };

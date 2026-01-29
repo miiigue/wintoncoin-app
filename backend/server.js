@@ -14,7 +14,7 @@ const cron = require('node-cron');
 const crypto = require('crypto');
 require('./config'); // Carga la configuración del entorno (development o production)
 const { initializeDatabase, generateUniqueReferralCode } = require('./src/config/databaseInit');
-const { generateOtp6, hashOtpForEmail, sendOtpEmail, normalizeEmail, safeEqualHex } = require('./src/services/emailService');
+const { generateOtp6, hashOtpForEmail, sendOtpEmail, sendTransactionEmail, normalizeEmail, safeEqualHex } = require('./src/services/emailService');
 const { logAuditEvent, startAuditCleanupJob } = require('./src/services/auditService');
 
 // --- NUEVO: Gestión profesional de la clave secreta de JWT ---
@@ -3750,7 +3750,7 @@ async function startServer() {
         // Endpoint para que un administrador edite una publicación de la plataforma
         app.put('/api/admin/platform/publications/:id', verifyAdminToken, async (req, res) => {
             const { id } = req.params;
-            const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours, repeatCooldownDays, repeatCooldownMinutes } = req.body;
+            const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours, repeatCooldownDays, repeatCooldownMinutes, targetUsername, formFields } = req.body;
 
             if (!title || !description || !costString) {
                 return res.status(400).json({ message: "Faltan datos: título, descripción y costo son requeridos." });
@@ -3798,6 +3798,22 @@ async function startServer() {
                     return res.status(404).json({ message: "La publicación no pertenece a la plataforma." });
                 }
 
+                // Validar target_username si se especifica (publicación dirigida)
+                let sanitizedTargetUsername = null;
+                if (targetUsername && targetUsername.trim() !== '') {
+                    sanitizedTargetUsername = targetUsername.trim();
+                    const targetUserResult = await pool.query(`SELECT id FROM users WHERE username = $1`, [sanitizedTargetUsername]);
+                    if (targetUserResult.rowCount === 0) {
+                        return res.status(400).json({ message: `El usuario "${sanitizedTargetUsername}" no existe.` });
+                    }
+                }
+
+                // Validar y sanitizar formFields (JSON con campos por paso)
+                let sanitizedFormFields = null;
+                if (formFields && typeof formFields === 'object' && Object.keys(formFields).length > 0) {
+                    sanitizedFormFields = formFields;
+                }
+
                 const updateSql = `
                     UPDATE publications
                     SET title = $1,
@@ -3810,8 +3826,10 @@ async function startServer() {
                         allow_repeat_participation = $8,
                         max_repeat_per_user = $9,
                         repeat_cooldown_hours = $10,
+                        target_username = $11,
+                        form_fields = $12,
                         updated_at = NOW()
-                    WHERE id = $11
+                    WHERE id = $13
                 `;
 
                 await pool.query(updateSql, [
@@ -3825,6 +3843,8 @@ async function startServer() {
                     allowRepeat,
                     maxRepeat,
                     repeatCooldown,
+                    sanitizedTargetUsername,
+                    sanitizedFormFields,
                     id
                 ]);
 
@@ -3843,7 +3863,7 @@ async function startServer() {
                     SELECT
                         p.id, p.title, p.description, p.created_at, p.status, p.is_paused,
                         p.blue_cost, p.available_slots, p.is_sell_post, p.allow_repeat_participation, p.max_repeat_per_user, p.repeat_cooldown_hours,
-                        p.expires_at, p.deleted_at, p.deleted_by_username, p.is_quick_sale,
+                        p.expires_at, p.deleted_at, p.deleted_by_username, p.is_quick_sale, p.auto_approve, p.is_booster_task, p.target_username, p.form_fields,
                         u.username as author_username,
                         (
                             SELECT json_agg(json_build_object(
@@ -6191,6 +6211,68 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         await client.query(`INSERT INTO platform_commission_log (related_publication_id, related_user_transaction_id, commission_amount_blue) VALUES ($1, $2, $3)`, [pubId, authorTxId, commissionAmount]);
     }
 
+    // --- NOTIFICACIONES POR CORREO (RECIBOS) ---
+    try {
+        const emailQuery = await client.query('SELECT username, email FROM users WHERE username IN ($1, $2)', [author, workerUsername]);
+        const authorEmail = emailQuery.rows.find(u => u.username === author)?.email;
+        const workerEmail = emailQuery.rows.find(u => u.username === workerUsername)?.email;
+
+        // Determinar la etiqueta de la moneda (BLUE vs BLUE iou)
+        // Regla: Si es modo pre-lanzamiento O es tarea de impulsor => "BLUE iou"
+        const currencyLabel = (preLaunchMode || acceptance.is_booster_task) ? 'BLUE iou' : 'BLUE';
+
+        // 1. Recibo para el TRABAJADOR (Recibió pago)
+        if (workerEmail) {
+            await sendTransactionEmail({
+                toEmail: workerEmail,
+                subject: `¡Pago recibido por "${title}"!`,
+                title: 'Pago Recibido',
+                message: `Has recibido un pago por completar la tarea "${title}".`,
+                amount: `${cost.toFixed(4)} ${currencyLabel}`,
+                details: [
+                    { label: 'Concepto', value: `Tarea: ${title}` },
+                    { label: 'Pagado por', value: author },
+                    { label: 'Fecha', value: new Date().toLocaleDateString('es-ES') },
+                    { label: 'Estado', value: preLaunchMode ? 'Acreditado (Booster)' : 'En Depósito (Escrow)' }
+                ]
+            });
+        }
+
+        // 2. Comprobante para el AUTOR (Realizó pago)
+        if (authorEmail) {
+            let authMsg = '';
+            let authAmount = '';
+            let authTitle = '';
+
+            if (preLaunchMode) {
+                authTitle = 'Tarea Completada';
+                authMsg = `El usuario ${workerUsername} completó tu tarea "${title}". El sistema ha enviado la recompensa.`;
+                authAmount = `${cost.toFixed(4)} ${currencyLabel} (Subvencionado)`;
+            } else {
+                const totalPaid = cost * (1 + (parseFloat(settings.platform_commission_percentage || '0') / 100));
+                authTitle = 'Pago Enviado';
+                authMsg = `Has pagado por la tarea "${title}".`;
+                authAmount = `${totalPaid.toFixed(4)} RED`;
+            }
+
+            await sendTransactionEmail({
+                toEmail: authorEmail,
+                subject: `Actualización de tarea: "${title}"`,
+                title: authTitle,
+                message: authMsg,
+                amount: authAmount,
+                details: [
+                    { label: 'Concepto', value: `Tarea: ${title}` },
+                    { label: 'Trabajador', value: workerUsername },
+                    { label: 'Fecha', value: new Date().toLocaleDateString('es-ES') }
+                ]
+            });
+        }
+    } catch (emailError) {
+        console.error('Error al enviar correos de transacción (processRequestPayment):', emailError);
+    }
+
+
     const notificationMessage = preLaunchMode
         ? `¡Has acumulado ${cost.toFixed(4)} BLUE en tu Perfil de Impulsor por la tarea "${title}"!`
         : `¡Has recibido ${cost.toFixed(4)} BLUE (en depósito) por la tarea "${title}"!`;
@@ -6299,6 +6381,63 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [recipient, recipientNotification]);
 
         resultMessage = "¡Compra/Donación completada y pagada! Gracias.";
+    }
+
+    // --- NOTIFICACIONES POR CORREO (RECIBOS) ---
+    try {
+        const emailQuery = await client.query('SELECT username, email FROM users WHERE username IN ($1, $2)', [payer, recipient]);
+        const payerEmail = emailQuery.rows.find(u => u.username === payer)?.email;
+        const recipientEmail = emailQuery.rows.find(u => u.username === recipient)?.email;
+        const dateStr = new Date().toLocaleDateString('es-ES');
+
+        // 1. Recibo para el COMPRADOR/DONANTE (Pagó)
+        if (payerEmail) {
+            let totalPaid = cost;
+            let currency = 'BLUE';
+            let status = 'Completado';
+
+            if (!preLaunchMode) {
+                totalPaid = cost * (1 + (parseFloat(settings.platform_commission_percentage || '0') / 100));
+                currency = 'RED'; // En modo normal genera deuda RED
+                status = 'Deuda Generada';
+            } else {
+                status = 'Transferido (Booster)';
+            }
+
+            await sendTransactionEmail({
+                toEmail: payerEmail,
+                subject: `Recibo de pago: "${title}"`,
+                title: 'Pago Realizado',
+                message: `Has completado el pago para la publicación "${title}".`,
+                amount: `${totalPaid.toFixed(4)} ${currency}`,
+                details: [
+                    { label: 'Concepto', value: title },
+                    { label: 'Beneficiario', value: recipient },
+                    { label: 'Fecha', value: dateStr },
+                    { label: 'Estado', value: status }
+                ]
+            });
+        }
+
+        // 2. Notificación para el VENDEDOR/RECEPTOR (Recibió)
+        if (recipientEmail) {
+            const receiveStatus = preLaunchMode ? 'Recibido (Booster)' : 'En Depósito (Escrow)';
+            await sendTransactionEmail({
+                toEmail: recipientEmail,
+                subject: `¡Te han pagado por "${title}"!`,
+                title: 'Nuevo Pago Recibido',
+                message: `${payer} ha pagado por tu publicación "${title}".`,
+                amount: `${cost.toFixed(4)} BLUE`,
+                details: [
+                    { label: 'Concepto', value: title },
+                    { label: 'Pagador', value: payer },
+                    { label: 'Fecha', value: dateStr },
+                    { label: 'Estado', value: receiveStatus }
+                ]
+            });
+        }
+    } catch (emailError) {
+        console.error('Error al enviar correos de transacción (processDirectPaymentCompletion):', emailError);
     }
 
     // Actualizar el estado de la aceptación a 'confirmed_paid' (solo si existe acceptance_id)
