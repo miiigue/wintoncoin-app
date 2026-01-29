@@ -6219,21 +6219,27 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
 
         // Determinar la etiqueta de la moneda (BLUE vs BLUE iou)
         // Regla: Si es modo pre-lanzamiento O es tarea de impulsor => "BLUE iou"
-        const currencyLabel = (preLaunchMode || acceptance.is_booster_task) ? 'BLUE iou' : 'BLUE';
+        const isBoosterTx = (preLaunchMode || acceptance.is_booster_task);
+        const currencyLabel = isBoosterTx ? 'BLUE iou' : 'BLUE';
 
-        // 1. Recibo para el TRABAJADOR (Recibió pago)
+        // 1. Recibo para el TRABAJADOR (Recibió recompensa)
         if (workerEmail) {
+            const workerTitle = 'Tarea Completada';
+            const workerMessage = isBoosterTx
+                ? `Tu participación ha sido validada y los BLUE iou están en tu Perfil de Impulsor.`
+                : `Tu participación ha sido validada y los BLUE están en tu Depósito de Garantía.`;
+
             await sendTransactionEmail({
                 toEmail: workerEmail,
-                subject: `¡Pago recibido por "${title}"!`,
-                title: 'Pago Recibido',
-                message: `Has recibido un pago por completar la tarea "${title}".`,
+                subject: `¡Tarea completada: "${title}"!`,
+                title: workerTitle,
+                message: workerMessage,
                 amount: `${cost.toFixed(4)} ${currencyLabel}`,
                 details: [
                     { label: 'Concepto', value: `Tarea: ${title}` },
-                    { label: 'Pagado por', value: author },
+                    { label: 'Validado por', value: author },
                     { label: 'Fecha', value: new Date().toLocaleDateString('es-ES') },
-                    { label: 'Estado', value: preLaunchMode ? 'Acreditado (Booster)' : 'En Depósito (Escrow)' }
+                    { label: 'Destino', value: isBoosterTx ? 'Perfil de Impulsor' : 'Escrow (Garantía)' }
                 ]
             });
         }
