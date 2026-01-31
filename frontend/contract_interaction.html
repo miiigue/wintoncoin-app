@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -7,7 +8,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>WintonCoin</title>
-    
+
     <!-- PWA Meta Tags -->
     <meta name="description" content="Plataforma de intercambio de bienes y servicios con tokens BLUE y RED">
     <meta name="theme-color" content="#4a90d9">
@@ -18,10 +19,10 @@
     <meta name="application-name" content="WintonCoin">
     <meta name="msapplication-TileColor" content="#1a1a2e">
     <meta name="msapplication-tap-highlight" content="no">
-    
+
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
-    
+
     <!-- PWA Icons -->
     <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/icon-96x96.png">
     <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/icon-72x72.png">
@@ -29,24 +30,31 @@
     <link rel="apple-touch-icon" sizes="152x152" href="assets/icons/icon-152x152.png">
     <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/icon-192x192.png">
     <link rel="apple-touch-icon" sizes="167x167" href="assets/icons/icon-192x192.png">
-    
+
     <!-- Splash screens for iOS -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    
+
     <link id="main-stylesheet" rel="stylesheet" href="style.css">
     <!-- Importación de la fuente Poppins desde Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400&family=Poppins:wght@300;400;600&display=swap"
+        rel="stylesheet">
+    <!-- Driver.js for Onboarding -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css" />
 </head>
+
 <body>
     <div class="header-menu">
         <!-- Menú de Perfil del Usuario -->
         <div class="profile-menu">
             <div class="profile-trigger" style="align-items: flex-start; margin-top: -10px;">
                 <span id="usernameDisplay">Usuario</span> <!-- El nombre se insertará aquí -->
-                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-list" viewBox="0 0 16 16" style="margin-top: -2px; margin-left: 8px;">
-                    <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/>
+                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-list"
+                    viewBox="0 0 16 16" style="margin-top: -2px; margin-left: 8px;">
+                    <path fill-rule="evenodd"
+                        d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z" />
                 </svg>
             </div>
             <div class="dropdown-content" id="profileDropdown">
@@ -64,8 +72,10 @@
         <!-- Menú de Notificaciones -->
         <div class="notification-menu">
             <div class="notification-trigger" style="margin-top: -5px;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" fill="currentColor" class="bi bi-bell-fill" viewBox="0 0 16 16">
-                    <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2zm.995-14.901a1 1 0 1 0-1.99 0A5.002 5.002 0 0 0 3 6c0 1.098-.5 6-2.5 7h13c-2-1-2.5-5.902-2.5-7 0-2.42-1.72-4.44-4.005-4.901z"/>
+                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" fill="currentColor"
+                    class="bi bi-bell-fill" viewBox="0 0 16 16">
+                    <path
+                        d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2zm.995-14.901a1 1 0 1 0-1.99 0A5.002 5.002 0 0 0 3 6c0 1.098-.5 6-2.5 7h13c-2-1-2.5-5.902-2.5-7 0-2.42-1.72-4.44-4.005-4.901z" />
                 </svg>
                 <span class="notification-badge" id="notificationBadge"></span>
             </div>
@@ -80,64 +90,84 @@
         <div class="pre-launch-ribbon">
             <span class="pre-launch-text">
                 <span class="ribbon-shine-overlay"></span>
-                <span class="ribbon-text-content info-text-clickable" role="button" tabindex="0" aria-label="Información sobre el estado de pre-lanzamiento" data-tooltip-id="tooltip-prelaunch">
+                <span class="ribbon-text-content info-text-clickable" role="button" tabindex="0"
+                    aria-label="Información sobre el estado de pre-lanzamiento" data-tooltip-id="tooltip-prelaunch">
                     Pre-lanzamiento<br>
                     <span class="ribbon-subtext">Prototipo Alfa</span>
                 </span>
             </span>
         </div>
         <div id="tooltip-prelaunch" class="info-tooltip prelaunch-tooltip" role="tooltip" aria-hidden="true">
-            <p>Estás en fase de pre-lanzamiento. Las recompensas en BLUE iou se registran en el Perfil de Impulsor y los saldos en la billetera principal se mantienen en cero hasta el lanzamiento oficial.</p>
+            <p>Estás en fase de pre-lanzamiento. Las recompensas en BLUE iou se registran en el Perfil de Impulsor y los
+                saldos en la billetera principal se mantienen en cero hasta el lanzamiento oficial.</p>
         </div>
-        
+
         <div class="main-title-container">
             <div class="main-title-row">
                 <h1 class="main-title">WintonCoin</h1>
                 <a href="como-funciona.html" class="main-title-link">¿Cómo funciona?</a>
             </div>
         </div>
-        
+
         <div class="balances-container">
             <!-- Sección BLUE -->
             <div class="balance-section blue-section">
                 <h3 class="balance-title">
-                    <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información sobre SALDO BLUE" data-tooltip-id="tooltip-saldo-blue">SALDO BLUE</span>
+                    <span class="info-text-clickable" role="button" tabindex="0"
+                        aria-label="Información sobre SALDO BLUE" data-tooltip-id="tooltip-saldo-blue">SALDO BLUE</span>
                 </h3>
                 <div id="tooltip-saldo-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
-                    <p>Los tokens BLUE son tu activo. Puedes usarlos para pagar servicios, recibirlos por trabajo realizado, o quemarlos para reducir tu deuda RED. Al lanzamiento oficial <strong>14-2-2027</strong>, <strong>1 BLUE = 1 USD</strong>.</p>
+                    <p>Los tokens BLUE son tu activo. Puedes usarlos para pagar servicios, recibirlos por trabajo
+                        realizado, o quemarlos para reducir tu deuda RED. Al lanzamiento oficial
+                        <strong>14-2-2027</strong>, <strong>1 BLUE = 1 USD</strong>.
+                    </p>
                 </div>
                 <div class="balance-items">
                     <div class="balance-item-wrapper">
                         <span class="balance-label">
-                            <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información sobre Disponibles" data-tooltip-id="tooltip-disponibles">Disponibles</span>
+                            <span class="info-text-clickable" role="button" tabindex="0"
+                                aria-label="Información sobre Disponibles"
+                                data-tooltip-id="tooltip-disponibles">Disponibles</span>
                         </span>
                         <div id="tooltip-disponibles" class="info-tooltip" role="tooltip" aria-hidden="true">
-                            <p>Son tus tokens BLUE que puedes usar inmediatamente. Puedes pagar con ellos, transferirlos o quemarlos para reducir tu deuda RED.</p>
+                            <p>Son tus tokens BLUE que puedes usar inmediatamente. Puedes pagar con ellos, transferirlos
+                                o quemarlos para reducir tu deuda RED.</p>
                         </div>
                         <div class="balance-item">
                             <span id="saldoBlue" class="balance-amount blue-amount">--</span>
                         </div>
                         <div id="available-countdown-container" class="countdown-container" style="display: none;">
-                            <p id="available-countdown-text" class="countdown-text info-text-clickable" role="button" tabindex="0" aria-label="Información sobre próxima liberación" data-tooltip-id="tooltip-proxima-liberacion"></p>
+                            <p id="available-countdown-text" class="countdown-text info-text-clickable" role="button"
+                                tabindex="0" aria-label="Información sobre próxima liberación"
+                                data-tooltip-id="tooltip-proxima-liberacion"></p>
                             <div id="tooltip-proxima-liberacion" class="info-tooltip" role="tooltip" aria-hidden="true">
-                                <p>Tiempo restante para que tus tokens BLUE pendientes se liberen y estén disponibles para usar. Este período de espera protege a ambas partes en las transacciones.</p>
+                                <p>Tiempo restante para que tus tokens BLUE pendientes se liberen y estén disponibles
+                                    para usar. Este período de espera protege a ambas partes en las transacciones.</p>
                             </div>
                         </div>
                     </div>
                     <div class="balance-item-wrapper">
                         <span class="balance-label">
-                            <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información sobre Pendientes" data-tooltip-id="tooltip-pendientes">Pendientes</span>
+                            <span class="info-text-clickable" role="button" tabindex="0"
+                                aria-label="Información sobre Pendientes"
+                                data-tooltip-id="tooltip-pendientes">Pendientes</span>
                         </span>
                         <div id="tooltip-pendientes" class="info-tooltip" role="tooltip" aria-hidden="true">
-                            <p>Son tokens BLUE que recibiste como pago y están en período de espera (escrow) antes de estar disponibles. Este período protege a ambas partes en las transacciones. Se liberarán automáticamente cuando termine el tiempo de espera.</p>
+                            <p>Son tokens BLUE que recibiste como pago y están en período de espera (escrow) antes de
+                                estar disponibles. Este período protege a ambas partes en las transacciones. Se
+                                liberarán automáticamente cuando termine el tiempo de espera.</p>
                         </div>
                         <div class="balance-item">
                             <span id="saldoEscrowBlue" class="balance-amount escrow-amount">--</span>
                         </div>
                         <div id="escrow-countdown-container" class="countdown-container" style="display: none;">
-                            <p id="escrow-countdown-text" class="countdown-text info-text-clickable" role="button" tabindex="0" aria-label="Información sobre próxima liberación de escrow" data-tooltip-id="tooltip-proxima-liberacion-escrow"></p>
-                            <div id="tooltip-proxima-liberacion-escrow" class="info-tooltip" role="tooltip" aria-hidden="true">
-                                <p>Tiempo restante para que tus tokens BLUE pendientes se liberen y estén disponibles para usar. Este período de espera protege a ambas partes en las transacciones.</p>
+                            <p id="escrow-countdown-text" class="countdown-text info-text-clickable" role="button"
+                                tabindex="0" aria-label="Información sobre próxima liberación de escrow"
+                                data-tooltip-id="tooltip-proxima-liberacion-escrow"></p>
+                            <div id="tooltip-proxima-liberacion-escrow" class="info-tooltip" role="tooltip"
+                                aria-hidden="true">
+                                <p>Tiempo restante para que tus tokens BLUE pendientes se liberen y estén disponibles
+                                    para usar. Este período de espera protege a ambas partes en las transacciones.</p>
                             </div>
                         </div>
                     </div>
@@ -147,26 +177,41 @@
             <!-- Sección RED -->
             <div class="balance-section red-section">
                 <h3 class="balance-title">
-                    <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información sobre Saldo RED" data-tooltip-id="tooltip-saldo-red">SALDO RED</span>
+                    <span class="info-text-clickable" role="button" tabindex="0"
+                        aria-label="Información sobre Saldo RED" data-tooltip-id="tooltip-saldo-red">SALDO RED</span>
                 </h3>
                 <div id="tooltip-saldo-red" class="info-tooltip" role="tooltip" aria-hidden="true">
-                    <p>Los tokens RED representan tu deuda en el sistema. Se crean cuando realizas un pago a otro usuario. Debes quemarlos usando BLUE antes de que venzan, o el sistema los quemará automáticamente usando tus BLUE disponibles o pendientes. Si no pagas a tiempo, tu usuario será listado públicamente en la <strong>página LOVE</strong> (Lista de Obligaciones Vencidas).</p>
+                    <p>Los tokens RED representan tu deuda en el sistema. Se crean cuando realizas un pago a otro
+                        usuario. Debes quemarlos usando BLUE antes de que venzan, o el sistema los quemará
+                        automáticamente usando tus BLUE disponibles o pendientes. Si no pagas a tiempo, tu usuario será
+                        listado públicamente en la <strong>página LOVE</strong> (Lista de Obligaciones Vencidas).</p>
                 </div>
                 <div class="balance-items red-balance-items">
                     <div class="balance-item-wrapper red-balance-wrapper">
                         <span class="balance-label">
-                            <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información sobre Debes" data-tooltip-id="tooltip-saldo-red-label">Tu Deuda</span>
+                            <span class="info-text-clickable" role="button" tabindex="0"
+                                aria-label="Información sobre Debes" data-tooltip-id="tooltip-saldo-red-label">Tu
+                                Deuda</span>
                         </span>
                         <div id="tooltip-saldo-red-label" class="info-tooltip" role="tooltip" aria-hidden="true">
-                            <p>Es la cantidad total de tokens RED (deuda) que tienes actualmente. Esta deuda tiene un tiempo de vencimiento. Si no la quemas antes del vencimiento, el sistema la quemará automáticamente usando tus tokens BLUE. Si no tienes suficientes BLUE para cubrir la deuda vencida, serás listado en la <strong>página LOVE</strong>.</p>
+                            <p>Es la cantidad total de tokens RED (deuda) que tienes actualmente. Esta deuda tiene un
+                                tiempo de vencimiento. Si no la quemas antes del vencimiento, el sistema la quemará
+                                automáticamente usando tus tokens BLUE. Si no tienes suficientes BLUE para cubrir la
+                                deuda vencida, serás listado en la <strong>página LOVE</strong>.</p>
                         </div>
                         <div class="balance-item">
                             <span id="saldoRed" class="balance-amount red-amount">--</span>
                         </div>
                         <div id="debt-countdown-container" class="countdown-container" style="display: none;">
-                            <p id="debt-countdown-text" class="countdown-text info-text-clickable" role="button" tabindex="0" aria-label="Información sobre próximo vencimiento" data-tooltip-id="tooltip-proximo-vencimiento"></p>
-                            <div id="tooltip-proximo-vencimiento" class="info-tooltip" role="tooltip" aria-hidden="true">
-                                <p>Tiempo restante antes de que tu deuda RED más antigua venza. Si no quemas manualmente antes de este tiempo, el sistema quemará automáticamente tus tokens BLUE (primero disponibles, luego pendientes) para saldar la deuda. Si no tienes suficientes BLUE, serás listado en la <strong>página LOVE</strong>.</p>
+                            <p id="debt-countdown-text" class="countdown-text info-text-clickable" role="button"
+                                tabindex="0" aria-label="Información sobre próximo vencimiento"
+                                data-tooltip-id="tooltip-proximo-vencimiento"></p>
+                            <div id="tooltip-proximo-vencimiento" class="info-tooltip" role="tooltip"
+                                aria-hidden="true">
+                                <p>Tiempo restante antes de que tu deuda RED más antigua venza. Si no quemas manualmente
+                                    antes de este tiempo, el sistema quemará automáticamente tus tokens BLUE (primero
+                                    disponibles, luego pendientes) para saldar la deuda. Si no tienes suficientes BLUE,
+                                    serás listado en la <strong>página LOVE</strong>.</p>
                             </div>
                         </div>
                         <div class="burn-item red-burn-button">
@@ -199,13 +244,16 @@
         <!-- =============================================================== -->
         <div id="value-banner" class="value-banner" style="display: none;">
             <div class="banner-main-content">
-                <span id="banner-text-container" class="banner-text-clickable" role="button" tabindex="0" aria-label="Información sobre el valor de BLUE" aria-describedby="value-tooltip">
+                <span id="banner-text-container" class="banner-text-clickable" role="button" tabindex="0"
+                    aria-label="Información sobre el valor de BLUE" aria-describedby="value-tooltip">
                     <!-- El texto dinámico se insertará aquí -->
                 </span>
             </div>
             <div id="value-tooltip" class="value-tooltip" role="tooltip" aria-hidden="true">
-                <p>El día del lanzamiento oficial de la plataforma <strong>14-2-2027</strong> (sujeto a cambios) el precio del BLUE se lanzará con un valor igual a <strong>1 $USD</strong> (Dólar americano).</p>
-                <a href="https://boosters.wintoncoin.com/" target="_blank" rel="noopener" class="tooltip-link">Más información aquí...</a>
+                <p>El día del lanzamiento oficial de la plataforma <strong>14-2-2027</strong> (sujeto a cambios) el
+                    precio del BLUE se lanzará con un valor igual a <strong>1 $USD</strong> (Dólar americano).</p>
+                <a href="https://boosters.wintoncoin.com/" target="_blank" rel="noopener" class="tooltip-link">Más
+                    información aquí...</a>
             </div>
         </div>
 
@@ -213,10 +261,15 @@
             <div class="referral-card" id="shareReferralCard">
                 <div class="referral-content">
                     <div class="referral-header">
-                        <span class="referral-text">Tus amigos se unirán tarde o temprano. O cobras los <span id="referralAmount">10</span> BLUE iou tú, o se los lleva otro.</span>
+                        <span class="referral-text">Tus amigos se unirán tarde o temprano. O cobras los <span
+                                id="referralAmount">10</span> BLUE iou tú, o se los lleva otro.</span>
                         <span class="referral-icon">
                             <span class="referral-icon-symbol">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 24 24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 24 24"
+                                    fill="currentColor">
+                                    <path
+                                        d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z" />
+                                </svg>
                             </span>
                             <span class="referral-icon-label">Compartir código</span>
                         </span>
@@ -227,14 +280,15 @@
         </div>
 
         <div class="publications-section">
-            
+
             <div class="main-actions-container">
                 <a href="#" id="openPublicationModalBtn" class="button-link primary-action">Crear Nueva Publicación</a>
                 <a href="#" id="openQuickSaleModalBtn" class="button-link secondary-action">⚡ Venta Rápida</a>
             </div>
 
             <div class="publications-title">
-                Publicaciones Activas <span class="publications-count-wrapper"><span id="publicationsCount" class="publications-count">0</span></span>
+                Publicaciones Activas <span class="publications-count-wrapper"><span id="publicationsCount"
+                        class="publications-count">0</span></span>
             </div>
 
             <div class="publication-controls">
@@ -267,7 +321,8 @@
                 <p>Crea un cobro directo con un enlace de pago único. Ideal para transacciones inmediatas.</p>
                 <div class="form-group">
                     <label for="quickSaleAmount">Monto a cobrar (BLUE):</label>
-                    <input type="text" inputmode="decimal" id="quickSaleAmount" name="amount" required placeholder="Ej: 150.50">
+                    <input type="text" inputmode="decimal" id="quickSaleAmount" name="amount" required
+                        placeholder="Ej: 150.50">
                 </div>
                 <div class="form-group">
                     <label for="quickSaleTitle">Título / Concepto (opcional):</label>
@@ -275,7 +330,8 @@
                 </div>
                 <div class="form-group">
                     <label for="quickSaleTargetUsername">Comprador específico (opcional):</label>
-                    <input type="text" id="quickSaleTargetUsername" name="targetUsername" placeholder="Ej: nombredeusuario">
+                    <input type="text" id="quickSaleTargetUsername" name="targetUsername"
+                        placeholder="Ej: nombredeusuario">
                     <small class="input-hint">Si lo dejas en blanco, cualquiera con el enlace podrá pagar.</small>
                 </div>
                 <button type="submit" class="action-button confirm">Generar QR de Cobro</button>
@@ -301,9 +357,11 @@
         <div class="modal-content burn-modal-content">
             <span class="close-button">&times;</span>
             <div class="burn-container">
-                <h2 class="burn-title"><span class="fire-icon">🔥</span> Quemar Tokens <span class="fire-icon">🔥</span></h2>
-                <p class="burn-description">Esta acción es irreversible y restará la cantidad especificada de tus saldos de BLUE y RED.</p>
-            
+                <h2 class="burn-title"><span class="fire-icon">🔥</span> Quemar Tokens <span class="fire-icon">🔥</span>
+                </h2>
+                <p class="burn-description">Esta acción es irreversible y restará la cantidad especificada de tus saldos
+                    de BLUE y RED.</p>
+
                 <div class="burn-balance-info">
                     <h4>Tu saldo actual</h4>
                     <div id="burnModalBalances" class="burn-modal-balances">
@@ -314,7 +372,8 @@
                 <form id="burnForm">
                     <div class="form-group">
                         <label for="burnAmount">Cantidad a quemar:</label>
-                        <input type="text" inputmode="decimal" id="burnAmount" name="burnAmount" placeholder="Ej: 10.5000" required pattern="^[0-9]+([.,][0-9]{1,4})?$">
+                        <input type="text" inputmode="decimal" id="burnAmount" name="burnAmount"
+                            placeholder="Ej: 10.5000" required pattern="^[0-9]+([.,][0-9]{1,4})?$">
                         <small class="input-hint">Usa un punto (.) o una coma (,) para los decimales.</small>
                     </div>
                     <button type="submit" class="action-button burn-button">Quemar</button>
@@ -327,7 +386,7 @@
     <div id="ratingModal" class="modal">
         <div class="modal-content rating-modal-content">
             <span class="close-button rating-close-button">&times;</span>
-            
+
             <form id="ratingForm">
                 <input type="hidden" id="ratingPublicationId" name="publication_id">
                 <input type="hidden" id="ratingRaterUsername" name="rater_username">
@@ -337,16 +396,22 @@
                     <h2 id="ratingModalTitle">Calificar al Usuario</h2>
                     <div class="star-rating">
                         <!-- Las estrellas están en orden inverso (5 a 1) para que el CSS funcione correctamente -->
-                        <input type="radio" id="5-stars" name="rating" value="5" required /><label for="5-stars" class="star">&#9733;</label>
-                        <input type="radio" id="4-stars" name="rating" value="4" /><label for="4-stars" class="star">&#9733;</label>
-                        <input type="radio" id="3-stars" name="rating" value="3" /><label for="3-stars" class="star">&#9733;</label>
-                        <input type="radio" id="2-stars" name="rating" value="2" /><label for="2-stars" class="star">&#9733;</label>
-                        <input type="radio" id="1-star" name="rating" value="1" /><label for="1-star" class="star">&#9733;</label>
+                        <input type="radio" id="5-stars" name="rating" value="5" required /><label for="5-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="4-stars" name="rating" value="4" /><label for="4-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="3-stars" name="rating" value="3" /><label for="3-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="2-stars" name="rating" value="2" /><label for="2-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="1-star" name="rating" value="1" /><label for="1-star"
+                            class="star">&#9733;</label>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <textarea id="ratingComment" name="comment" rows="2" placeholder="¿Qué te pareció la experiencia? (opcional)"></textarea>
+                    <textarea id="ratingComment" name="comment" rows="2"
+                        placeholder="¿Qué te pareció la experiencia? (opcional)"></textarea>
                 </div>
 
                 <button type="submit" class="action-button confirm">Enviar Calificación</button>
@@ -387,9 +452,12 @@
             <div class="modal-options">
                 <a href="publish.html?type=request" class="modal-option-button request">
                     <div class="option-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="bi bi-person-plus" viewBox="0 0 16 16">
-                            <path d="M6 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H1s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C9.516 10.68 8.289 10 6 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"/>
-                            <path fill-rule="evenodd" d="M13.5 5a.5.5 0 0 1 .5.5V7h1.5a.5.5 0 0 1 0 1H14v1.5a.5.5 0 0 1-1 0V8h-1.5a.5.5 0 0 1 0-1H13V5.5a.5.5 0 0 1 .5-.5z"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
+                            class="bi bi-person-plus" viewBox="0 0 16 16">
+                            <path
+                                d="M6 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H1s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C9.516 10.68 8.289 10 6 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z" />
+                            <path fill-rule="evenodd"
+                                d="M13.5 5a.5.5 0 0 1 .5.5V7h1.5a.5.5 0 0 1 0 1H14v1.5a.5.5 0 0 1-1 0V8h-1.5a.5.5 0 0 1 0-1H13V5.5a.5.5 0 0 1 .5-.5z" />
                         </svg>
                     </div>
                     <h3>Solicitar un Ayudante</h3>
@@ -397,9 +465,11 @@
                 </a>
                 <a href="publish.html?type=sell" class="modal-option-button sell">
                     <div class="option-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="bi bi-tag" viewBox="0 0 16 16">
-                            <path d="M6 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-1 0a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0z"/>
-                            <path d="M2 1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 1 6.586V2a1 1 0 0 1 1-1zm0 5.586 7 7L13.586 9l-7-7H2v4.586z"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
+                            class="bi bi-tag" viewBox="0 0 16 16">
+                            <path d="M6 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-1 0a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0z" />
+                            <path
+                                d="M2 1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 1 6.586V2a1 1 0 0 1 1-1zm0 5.586 7 7L13.586 9l-7-7H2v4.586z" />
                         </svg>
                     </div>
                     <h3>Venta / Ofrecer Servicio / P2P</h3>
@@ -407,8 +477,10 @@
                 </a>
                 <a href="publish.html?type=donation" class="modal-option-button donation">
                     <div class="option-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="bi bi-heart-fill" viewBox="0 0 16 16">
-                            <path fill-rule="evenodd" d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
+                            class="bi bi-heart-fill" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd"
+                                d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z" />
                         </svg>
                     </div>
                     <h3>Recibir Donaciones</h3>
@@ -423,5 +495,7 @@
         Prototipo Alfa
     </div>
     <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
 </body>
-</html> 
+
+</html>

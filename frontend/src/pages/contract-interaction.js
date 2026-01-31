@@ -3,16 +3,17 @@
  * Main dashboard for authenticated users - publications, balances, notifications
  */
 
-import { 
-    getApiUrl, 
-    showCustomAlert, 
-    showCustomConfirm, 
+import {
+    getApiUrl,
+    showCustomAlert,
+    showCustomConfirm,
     linkify,
     fetchAndStoreAppSettings,
     appSettings,
     handleSessionExpired
 } from '../modules/index.js';
 import { initPWAInstall } from '../modules/pwa-install.js';
+import { initOnboarding, restartTour } from '../modules/onboarding.js';
 
 // Expose functions globally for backward compatibility
 window.getApiUrl = getApiUrl;
@@ -21,6 +22,7 @@ window.showCustomConfirm = showCustomConfirm;
 window.linkify = linkify;
 window.fetchAndStoreAppSettings = fetchAndStoreAppSettings;
 window.appSettings = appSettings;
+window.restartTour = restartTour;
 
 console.log('[ContractInteraction] ES Module loaded');
 
@@ -42,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Configuration ---
     const API_URL = getApiUrl();
     const storedUsername = localStorage.getItem('username');
-    
+
     // --- DOM Elements ---
     const elements = {
         usernameDisplay: document.getElementById('usernameDisplay'),
@@ -95,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         return;
     }
-    
+
     if (elements.usernameDisplay) {
         elements.usernameDisplay.textContent = storedUsername;
     }
@@ -112,7 +114,12 @@ document.addEventListener('DOMContentLoaded', () => {
     checkPublicationPermissions();
     loadReferralSettings();
     setupShareReferral();
+    loadReferralSettings();
+    setupShareReferral();
     initPWAInstall(); // Inicializar botón de instalación PWA
+
+    // Iniciar tour de bienvenida si corresponde
+    setTimeout(initOnboarding, 500);
 
     // Auto-refresh every 5 seconds
     setInterval(loadAllData, 5000);
@@ -201,40 +208,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setupEventListeners() {
         window.addEventListener('click', closeAllDropdowns);
-        
+
         if (elements.logoutLink) {
             elements.logoutLink.addEventListener('click', handleLogout);
         }
-        
+
         if (elements.publicationsList) {
             elements.publicationsList.addEventListener('click', handlePublicationAction);
         }
-        
+
         if (elements.publicationSortFilter) {
             elements.publicationSortFilter.addEventListener('change', renderPublicationsWithFilters);
         }
-        
+
         if (elements.burnTriggerBtn) {
             elements.burnTriggerBtn.addEventListener('click', () => {
                 updateBurnModal();
                 if (elements.burnModal) elements.burnModal.style.display = 'flex';
             });
         }
-        
+
         if (elements.closeModalBtn) {
             elements.closeModalBtn.addEventListener('click', () => {
                 if (elements.burnModal) elements.burnModal.style.display = 'none';
             });
         }
-        
+
         if (elements.burnForm) {
             elements.burnForm.addEventListener('submit', handleBurnSubmit);
         }
-        
+
         if (elements.ratingForm) {
             elements.ratingForm.addEventListener('submit', handleRatingSubmit);
         }
-        
+
         if (elements.openPublicationModalBtn) {
             elements.openPublicationModalBtn.addEventListener('click', (event) => {
                 event.preventDefault();
@@ -242,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (elements.publicationTypeModal) elements.publicationTypeModal.style.display = 'flex';
             });
         }
-        
+
         if (elements.closePublicationTypeModalBtn) {
             elements.closePublicationTypeModalBtn.addEventListener('click', () => {
                 if (elements.publicationTypeModal) elements.publicationTypeModal.style.display = 'none';
@@ -342,7 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ confirmerUsername: storedUsername, workerUsername: acceptorUsername })
             });
             const result = await response.json();
-            
+
             if (response.ok) {
                 showCustomAlert(result.message);
                 loadAllData();
@@ -360,11 +367,11 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault();
         const formData = new FormData(event.target);
         const body = Object.fromEntries(formData.entries());
-        
+
         try {
             await postToServer('/rate', body);
             if (elements.ratingModal) elements.ratingModal.style.display = 'none';
-        } catch(error) {
+        } catch (error) {
             console.error("La calificación falló.", error);
         }
     }
@@ -383,7 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (handleSessionExpired(response)) return null;
-            
+
             const responseText = await response.text();
             let result;
 
@@ -434,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Publications ---
     async function fetchAndDisplayPublications() {
         if (!elements.publicationsList) return;
-        
+
         try {
             const response = await fetch(`${API_URL}/publications/active?user=${storedUsername}`);
             if (!response.ok) {
@@ -442,9 +449,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             const publications = await response.json();
-            
+
             if (publications.length === 0) {
-                elements.publicationsList.innerHTML = '<p class="empty-message">No hay publicaciones disponibles. ¡Sé el primero en crear una!</p>';
+                elements.publicationsList.innerHTML = `
+                    <div class="empty-state-container">
+                        <div class="empty-state-icon">🚀</div>
+                        <h3>¡El mercado está tranquilo!</h3>
+                        <p>Es el momento perfecto para definir la economía.</p>
+                        <button onclick="document.getElementById('openPublicationModalBtn').click()" class="action-button primary-action pulse-animation">
+                            Crear la Primera Publicación
+                        </button>
+                    </div>
+                `;
                 updatePublicationsCount([]);
                 return;
             }
@@ -459,7 +475,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function renderPublicationsWithFilters() {
         if (!elements.publicationsList) return;
-        
+
         const filteredPublications = applySortAndFilter(publicationsCache);
         if (filteredPublications.length === 0) {
             elements.publicationsList.innerHTML = '<p class="empty-message">No hay publicaciones para este filtro.</p>';
@@ -504,7 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 0; i < fullStars; i++) starsHTML += '★';
         if (halfStar) starsHTML += '½';
         for (let i = 0; i < emptyStars; i++) starsHTML += '☆';
-        
+
         return `<span class="stars">${starsHTML}</span> <span class="rating-count">(${count})</span>`;
     }
 
@@ -576,7 +592,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // Como autor con acciones pendientes
         if (pub.author_username === storedUsername && pub.participants) {
-            const hasPendingActions = pub.participants.some(p => 
+            const hasPendingActions = pub.participants.some(p =>
                 p.status === 'pending_approval' || p.status === 'completed'
             );
             if (hasPendingActions) return true;
@@ -587,24 +603,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // Asigna prioridad según estado (menor número = mayor prioridad)
     function getPendingPriority(pub) {
         const isAuthor = pub.author_username === storedUsername;
-        
+
         // --- PRIORIDAD DEL AUTOR ---
         if (isAuthor && pub.participants && pub.participants.length > 0) {
             const hasPendingApproval = pub.participants.some(p => p.status === 'pending_approval');
             const hasPendingPayment = pub.participants.some(p => p.status === 'completed');
-            
+
             // Autor con participantes por aprobar = máxima prioridad
             if (hasPendingApproval) return 0;
             // Autor con participantes por pagar = alta prioridad
             if (hasPendingPayment) return 1;
         }
-        
+
         // --- PRIORIDAD DEL PARTICIPANTE ---
         const status = pub.user_acceptance_status;
         if (status === 'approved') return 2;        // Aprobado - puede realizar la tarea
         if (status === 'pending_approval') return 3; // Esperando aprobación
         if (status === 'completed') return 4;        // Completado - esperando confirmación
-        
+
         return 5; // Sin estado o no participando
     }
 
@@ -659,12 +675,12 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function getCardStatusMessageHTML(pub) {
         const isAuthor = pub.author_username === storedUsername;
-        
+
         // --- VISTA DEL AUTOR ---
         if (isAuthor && pub.participants && pub.participants.length > 0) {
             const pendingApproval = pub.participants.filter(p => p.status === 'pending_approval').length;
             const pendingPayment = pub.participants.filter(p => p.status === 'completed').length;
-            
+
             if (pendingApproval > 0 || pendingPayment > 0) {
                 const parts = [];
                 if (pendingApproval > 0) {
@@ -677,12 +693,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 return `<div class="publication-status-banner status-author-action">${message}</div>`;
             }
         }
-        
+
         // --- VISTA DEL PARTICIPANTE ---
         const userStatus = pub.user_acceptance_status;
         let message = '';
         let className = '';
-    
+
         if (userStatus === 'approved') {
             if (pub.is_sell_post) {
                 message = 'Completa el pago para recibir el producto.';
@@ -701,7 +717,7 @@ document.addEventListener('DOMContentLoaded', () => {
             message = 'Solicitud enviada. Esperando aprobación.';
             className = 'status-pending';
         }
-    
+
         if (message) {
             return `<div class="publication-status-banner ${className}">${message}</div>`;
         }
@@ -757,7 +773,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function getPublicationCardHTML(pub, blueLabel, ratingHTML = '') {
         const rewardText = `${formatBalance(pub.blue_cost)} ${blueLabel}`;
         const statusMessageHTML = getCardStatusMessageHTML(pub);
-        
+
         let ribbonClass = '';
         if (pub.is_booster_task) ribbonClass = 'booster-ribbon';
         else if (pub.category === 'donation') ribbonClass = 'donation-ribbon';
@@ -809,11 +825,11 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (handleSessionExpired(response)) return;
             if (!response.ok) throw new Error('Error al cargar notificaciones.');
-            
+
             const notifications = await response.json();
             const dropdown = document.getElementById('notificationDropdown');
             if (!dropdown) return;
-            
+
             dropdown.innerHTML = '';
 
             if (notifications.length === 0) {
@@ -866,7 +882,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (remaining === 0) fetchNotifications();
             }, 300);
         }
-        
+
         try {
             await postToServer(`/api/me/notifications/${notificationId}/dismiss`, {}, { silent: true, reload: false });
         } catch (error) {
@@ -900,7 +916,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (elements.saldoBlue) elements.saldoBlue.innerHTML = formatBalance(data.blue_balance);
                 if (elements.saldoEscrowBlue) elements.saldoEscrowBlue.innerHTML = formatBalance(data.escrow_blue_balance);
                 if (elements.saldoRed) elements.saldoRed.innerHTML = formatBalance(data.red_balance);
-                
+
                 localStorage.setItem('blue_balance', data.blue_balance);
                 localStorage.setItem('escrow_blue_balance', data.escrow_blue_balance);
                 localStorage.setItem('red_balance', data.red_balance);
@@ -988,7 +1004,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.escrowCountdownText.innerHTML = `Disponible <strong class="saldo-blue-text">${formattedAmount}</strong> en <strong>${timeString}</strong>`;
             }
         };
-        
+
         updateTimer();
         escrowCountdownInterval = setInterval(updateTimer, 1000);
     }
@@ -1021,7 +1037,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
         }
-        
+
         if (elements.burnModalBalances) {
             elements.burnModalBalances.innerHTML = `
                 <div class="balance-line">
@@ -1076,17 +1092,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function openRatingModal(publicationId, raterUsername, rateeUsername) {
         if (!elements.ratingForm) return;
         elements.ratingForm.reset();
-        
+
         const pubIdInput = document.getElementById('ratingPublicationId');
         const raterInput = document.getElementById('ratingRaterUsername');
         const rateeInput = document.getElementById('ratingRateeUsername');
         const titleEl = document.getElementById('ratingModalTitle');
-        
+
         if (pubIdInput) pubIdInput.value = publicationId;
         if (raterInput) raterInput.value = raterUsername;
         if (rateeInput) rateeInput.value = rateeUsername;
         if (titleEl) titleEl.textContent = `Calificar a ${rateeUsername}`;
-        
+
         if (elements.ratingModal) elements.ratingModal.style.display = 'flex';
     }
 
@@ -1129,7 +1145,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const referralCode = data.referral_code;
                 const rewardAmount = document.getElementById('referralAmount')?.textContent || '10';
                 const registrationUrl = `${window.location.origin}/register.html?ref=${referralCode}`;
-                
+
                 let expiryText = '';
                 if (expiryResponse.ok) {
                     try {
@@ -1149,13 +1165,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         console.warn('Error al formatear fecha de vigencia:', error);
                     }
                 }
-                
+
                 const textToShare = `¡Únete a WintonCoin! 🪙\n\n` +
-                                  `Entra a mi enlace de referidos y acumula ${rewardAmount} BLUE (IOU) al registrarte:\n` +
-                                  `*${referralCode}*` +
-                                  expiryText + `\n` +
-                                  `¡Lo mejor es que tú también ganarás ${rewardAmount} BLUE por cada amigo que invites!\n\n` +
-                                  `Regístrate aquí: ${registrationUrl}`;
+                    `Entra a mi enlace de referidos y acumula ${rewardAmount} BLUE (IOU) al registrarte:\n` +
+                    `*${referralCode}*` +
+                    expiryText + `\n` +
+                    `¡Lo mejor es que tú también ganarás ${rewardAmount} BLUE por cada amigo que invites!\n\n` +
+                    `Regístrate aquí: ${registrationUrl}`;
 
                 if (navigator.share) {
                     await navigator.share({
