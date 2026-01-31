@@ -2799,6 +2799,7 @@ async function startServer() {
                     u.average_rating, 
                     u.ratings_count, 
                     u.created_at,
+                    u.referral_code,
                     COALESCE(SUM(bbl.amount), 0) as booster_blue_balance
                 FROM 
                     users u
@@ -6481,55 +6482,71 @@ app.get('/api/public-settings', async (req, res) => {
     }
 });
 
-//VERSIÓN DE DEPURACIÓN PROFESIONAL
-/*app.get('/api/admin/users', verifyAdminToken, async (req, res) => {
-    // Micrófono 1: Nos dice si esta función se está ejecutando y con qué filtros.
-    console.log(`[DEBUG] Petición recibida para /api/admin/users. Filtro de estado: '${req.query.status || 'ninguno'}'`);
 
-    const { search = '', status = '' } = req.query;
+
+// Actualizar código de referido de un usuario (Admin)
+app.put('/api/admin/users/:userId/referral-code', verifyAdminToken, async (req, res) => {
+    const { userId } = req.params;
+    const { newReferralCode } = req.body;
+
+    if (!newReferralCode) {
+        return res.status(400).json({ message: "Se requiere un nuevo código de referido." });
+    }
+
+    // Validación básica de formato (letras, números, guiones, sin espacios)
+    if (!/^[a-zA-Z0-9_-]+$/.test(newReferralCode)) {
+        return res.status(400).json({ message: "El código solo puede contener letras, números y guiones. Sin espacios." });
+    }
+
+    const client = await pool.connect();
     try {
-        let sql = `
-            SELECT
-                u.id,
-                u.username,
-                u.liquid_blue_balance,
-                u.escrow_blue_balance,
-                u.red_balance,
-                u.status,
-                u.average_rating,
-                u.ratings_count,
-                u.created_at,
-                COALESCE(SUM(bbl.amount), 0) as booster_blue_balance
-            FROM
-                users u
-            LEFT JOIN
-                booster_blue_ledger bbl ON u.id = bbl.user_id
-            WHERE
-                u.username ILIKE $1`;
+        await client.query('BEGIN');
 
-        const params = [`%${search}%`];
-        let paramIndex = 2;
-
-        if (status) {
-            // Se añade la condición al WHERE antes del GROUP BY
-            sql += ` AND u.status = $${paramIndex++}`;
-            params.push(status);
+        // Verificar si el código ya existe (debe ser único globalmente)
+        const checkResult = await client.query('SELECT id FROM users WHERE referral_code = $1', [newReferralCode]);
+        if (checkResult.rowCount > 0 && checkResult.rows[0].id != userId) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ message: "Este código de referido ya está en uso por otro usuario." });
         }
 
-        // Se agrupa por el ID del usuario, que es la clave primaria
-        sql += ` GROUP BY u.id ORDER BY u.created_at DESC`;
+        // Obtener usuario actual para log
+        const oldUserResult = await client.query('SELECT username, referral_code FROM users WHERE id = $1', [userId]);
+        if (oldUserResult.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: "Usuario no encontrado." });
+        }
+        const oldCode = oldUserResult.rows[0].referral_code;
+        const targetUsername = oldUserResult.rows[0].username;
 
-        const result = await pool.query(sql, params);
+        // Actualizar
+        await client.query('UPDATE users SET referral_code = $1 WHERE id = $2', [newReferralCode, userId]);
 
-        // Micrófono 2: Nos muestra los datos EXACTOS que la base de datos devuelve, antes de enviarlos.
-        console.log('[DEBUG] Datos recibidos de la base de datos:', JSON.stringify(result.rows, null, 2));
+        // Audit Log
+        await logAuditEvent(client, req, {
+            eventType: 'admin.user.update_referral_code',
+            actorUsername: 'admin', // O tomarlo del token si está disponible en req.user
+            targetUsername: targetUsername,
+            metadata: {
+                old_code: oldCode,
+                new_code: newReferralCode
+            }
+        });
 
-        res.status(200).json(result.rows);
+        await client.query('COMMIT');
+        res.json({ success: true, message: `Código de referido actualizado a: ${newReferralCode}` });
+
     } catch (error) {
-        console.error("Error al obtener la lista de usuarios:", error);
-        res.status(500).json({ message: "Error interno del servidor." });
+        await client.query('ROLLBACK');
+        console.error('Error al actualizar código de referido:', error);
+        // Manejar error de unicidad si se escapó
+        if (error.code === '23505') {
+            return res.status(409).json({ message: "Este código de referido ya está en uso." });
+        }
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    } finally {
+        client.release();
     }
-}); */
+});
 
 // =================================================================================
 // ==  PERFIL PÚBLICO DE IMPULSOR (BOOSTER)                                       ==

@@ -48,11 +48,11 @@ document.addEventListener('DOMContentLoaded', () => {
         sections: document.querySelectorAll('.admin-section'),
         logoutBtn: document.getElementById('adminLogoutBtn'),
         settingsContainer: document.getElementById('settings-switches'),
-        phaseManagementContainer: document.getElementById('phase-management-switches'), 
+        phaseManagementContainer: document.getElementById('phase-management-switches'),
         dashboardContainer: document.getElementById('dashboard-stats'),
         usersTableContainer: document.getElementById('users-table-container'),
         userSearchInput: document.getElementById('userSearchInput'),
-        userStatusFilter: document.getElementById('userStatusFilter'), 
+        userStatusFilter: document.getElementById('userStatusFilter'),
         debtorsTableContainer: document.getElementById('debtors-table-container'),
         publicationsTableContainer: document.getElementById('publications-table-container'),
         publicationSearchInput: document.getElementById('publicationSearchInput'),
@@ -137,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
-        
+
         if (elements.phaseManagementContainer) {
             elements.phaseManagementContainer.addEventListener('change', handleSettingChange);
         }
@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elements.usersTableContainer) {
             elements.usersTableContainer.addEventListener('click', handleUserAction);
         }
-        
+
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.action-menu-container') && !e.target.closest('.menu-toggle')) {
                 document.querySelectorAll('.action-menu.visible').forEach(menu => {
@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elements.publicationsTableContainer) {
             elements.publicationsTableContainer.addEventListener('click', handlePublicationAction);
         }
-    
+
         if (elements.platformPublicationForm) {
             elements.platformPublicationForm.addEventListener('submit', handlePlatformPublicationSubmit);
         }
@@ -360,13 +360,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const sectionEl = document.getElementById(`${sectionId}-section`);
         const navEl = document.querySelector(`.nav-link[data-section="${sectionId}"]`);
-        
+
         if (sectionEl) sectionEl.classList.add('active-section');
         if (navEl) navEl.classList.add('active');
 
         if (sectionId === 'dashboard') loadDashboardData();
         else if (sectionId === 'settings') loadSettings();
-        else if (sectionId === 'users') loadUsers(); 
+        else if (sectionId === 'users') loadUsers();
         else if (sectionId === 'debtors') loadDebtors();
         else if (sectionId === 'publications') loadPublications();
         else if (sectionId === 'platform-wallet') loadPlatformWalletData();
@@ -415,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include'
         };
-        
+
         if (options.headers) {
             defaultOptions.headers = { ...defaultOptions.headers, ...options.headers };
             delete options.headers;
@@ -423,17 +423,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const response = await fetch(`${API_URL}${endpoint}`, { ...defaultOptions, ...options });
-            
+
             if (response.status === 401 || response.status === 403) {
                 window.location.href = 'admin.html';
                 throw new Error('Sesión expirada o no autorizada.');
             }
-            
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || `Error del servidor: ${response.status}`);
             }
-            
+
             return response.json();
         } catch (error) {
             if (error.message === 'Sesión expirada o no autorizada.') throw error;
@@ -496,7 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
-    
+
     async function loadPlatformManagementData() {
         if (!elements.platformManagementList) return;
         elements.platformManagementList.innerHTML = '<div class="loading-spinner"></div>';
@@ -554,7 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 apiFetch('/api/admin/settings'),
                 apiFetch('/api/admin/referrals/log')
             ]);
-            
+
             renderReferralSettings(settings);
             renderReferralLog(log);
 
@@ -697,14 +697,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderSettings(settings) {
         const phaseSettings = settings.filter(s => ['pre_launch_mode_enabled', 'allow_request_publications', 'allow_sell_publications', 'allow_donation_publications', 'allow_quick_sale_publications'].includes(s.setting_key));
         const timeSettingsRaw = settings.filter(s => s.setting_key.startsWith('debt_cycle_') || s.setting_key.startsWith('blue_escrow_'));
-        
+
         const referralKeys = [
-            'referral_system_enabled', 'referral_reward_amount', 
+            'referral_system_enabled', 'referral_reward_amount',
             'welcome_bonus_enabled', 'welcome_bonus_amount',
-            'referral_bonus_enabled', 'referral_bonus_amount' 
+            'referral_bonus_enabled', 'referral_bonus_amount'
         ];
-        const generalSettings = settings.filter(s => 
-            !phaseSettings.includes(s) && 
+        const generalSettings = settings.filter(s =>
+            !phaseSettings.includes(s) &&
             !timeSettingsRaw.includes(s) &&
             !referralKeys.includes(s.setting_key)
         );
@@ -717,7 +717,7 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.settingsContainer.innerHTML = generalSettings.map(s => {
                 if (s.setting_key.endsWith('_enabled') || s.setting_key.endsWith('registrations')) return getSettingHTML(s, 'switch');
                 if (s.setting_key.endsWith('_amount') || s.setting_key.includes('percentage')) return getSettingHTML(s, 'number');
-                return ''; 
+                return '';
             }).join('');
 
             const timeSettingsGrouped = {
@@ -735,11 +735,11 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const groupKey in timeSettingsGrouped) {
                 elements.settingsContainer.innerHTML += getTimeGroupHTML(timeSettingsGrouped[groupKey]);
             }
-            
+
             elements.settingsContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
                 checkbox.addEventListener('change', handleSettingChange);
             });
-            
+
             elements.settingsContainer.querySelectorAll('input[type="number"]').forEach(input => {
                 input.addEventListener('change', handleSettingChange);
                 input.addEventListener('keyup', (event) => {
@@ -749,7 +749,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
         }
-        
+
         if (elements.phaseManagementContainer) {
             elements.phaseManagementContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
                 checkbox.addEventListener('change', handleSettingChange);
@@ -763,7 +763,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const safeValue = escapeHtml(setting.setting_value);
         const safeTitle = escapeHtml(title);
         const safeDescription = escapeHtml(description);
-        
+
         let controlHTML = '';
 
         if (type === 'switch') {
@@ -798,7 +798,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getTimeGroupHTML(group) {
         if (group.settings.length === 0) return '';
-        
+
         group.settings.sort((a, b) => {
             const order = ['days', 'hours', 'minutes'];
             const aKey = a.setting_key.split('_').pop();
@@ -814,16 +814,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="setting-item-control-group">
                     ${group.settings.map(setting => {
-                        const unit = setting.setting_key.split('_').pop();
-                        const safeKey = escapeHtml(setting.setting_key);
-                        const safeValue = escapeHtml(setting.setting_value);
-                        return `
+            const unit = setting.setting_key.split('_').pop();
+            const safeKey = escapeHtml(setting.setting_key);
+            const safeValue = escapeHtml(setting.setting_value);
+            return `
                             <div class="numeric-group-item">
                                 <label for="setting-${safeKey}">${unit.charAt(0).toUpperCase() + unit.slice(1)}</label>
                                 <input type="number" class="admin-numeric-input" id="setting-${safeKey}" data-key="${safeKey}" value="${safeValue}" min="0">
                             </div>
                         `;
-                    }).join('')}
+        }).join('')}
                 </div>
             </div>
         `;
@@ -832,7 +832,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderReferralSettings(allSettings) {
         const referralKeys = ['referral_system_enabled', 'referral_reward_amount', 'referral_codes_expiry_date', 'welcome_bonus_enabled', 'welcome_bonus_amount'];
         const referralSettings = allSettings.filter(s => referralKeys.includes(s.setting_key));
-        
+
         const container = document.getElementById('referrals-settings-container');
         if (container) {
             container.innerHTML = referralSettings.map(s => {
@@ -841,11 +841,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (s.setting_key === 'referral_codes_expiry_date') return getSettingHTML(s, 'date');
                 return '';
             }).join('');
-            
+
             container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
                 checkbox.addEventListener('change', handleSettingChange);
             });
-            
+
             container.querySelectorAll('input[type="number"]').forEach(input => {
                 input.addEventListener('change', handleSettingChange);
                 input.addEventListener('keyup', (event) => {
@@ -864,14 +864,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderBoosterSettings(appSettings, boosterLevels) {
         const container = elements.boostersSettingsContainer;
         if (!container) return;
-        container.innerHTML = ''; 
+        container.innerHTML = '';
 
         const systemEnabledSetting = appSettings.find(s => s.setting_key === 'booster_system_enabled');
         if (systemEnabledSetting) {
             const title = getSettingTitle(systemEnabledSetting.setting_key);
             const safeKey = escapeHtml(systemEnabledSetting.setting_key);
             const description = systemEnabledSetting.description || 'Activa o desactiva el programa de impulsores y los pagos mensuales.';
-            
+
             const itemHTML = `
                 <div class="setting-item">
                     <div class="setting-item-info">
@@ -924,7 +924,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const chk = container.querySelector('input[type="checkbox"]');
-        if(chk) chk.addEventListener('change', handleSettingChange);
+        if (chk) chk.addEventListener('change', handleSettingChange);
     }
 
     function renderBoosterDashboard(stats) {
@@ -992,7 +992,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let value;
 
         if (control.type === 'checkbox') {
-            value = control.checked.toString(); 
+            value = control.checked.toString();
         } else if (control.type === 'number') {
             value = control.value;
         } else if (control.type === 'date') {
@@ -1006,14 +1006,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } else {
-            return; 
+            return;
         }
-        
+
         if (control.type === 'number' || control.type === 'date') {
             clearTimeout(settingChangeTimeout);
             settingChangeTimeout = setTimeout(() => {
                 updateSetting(key, value);
-            }, 500); 
+            }, 500);
         } else {
             updateSetting(key, value);
         }
@@ -1021,12 +1021,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleUserAction(event) {
         const toggleButton = event.target.closest('.menu-toggle');
-        
+
         if (toggleButton) {
-            event.stopPropagation(); 
+            event.stopPropagation();
             const menu = toggleButton.nextElementSibling;
             const isVisible = menu.classList.contains('visible');
-            
+
             document.querySelectorAll('.action-menu.visible').forEach(m => {
                 m.classList.remove('visible');
             });
@@ -1044,6 +1044,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const userId = userRow.dataset.userId;
             const username = userRow.dataset.username;
             const currentStatus = userRow.dataset.status;
+
+            // --- NUEVO: Editar Código de Referido ---
+            if (action === 'edit-referral') { // Acción implementada
+                const currentCode = userRow.dataset.referralCode || '';
+                const newCode = prompt(`Nuevo código de referido para ${username} (Solo letras, números y guiones):`, currentCode);
+
+                if (newCode !== null && newCode.trim() !== '' && newCode !== currentCode) {
+                    try {
+                        const result = await apiFetch(`/api/admin/users/${userId}/referral-code`, {
+                            method: 'PUT',
+                            body: JSON.stringify({ newReferralCode: newCode.trim().toUpperCase() })
+                        });
+                        showCustomAlert(result.message || 'Código actualizado correctamente.');
+                        loadUsers(elements.userSearchInput.value, elements.userStatusFilter.value);
+                    } catch (error) {
+                        showCustomAlert(`Error al actualizar código: ${error.message}`);
+                    }
+                }
+                return;
+            }
+            // ----------------------------------------
 
             const actionTexts = {
                 suspend: { verb: "suspender", noun: "suspensión" },
@@ -1069,7 +1090,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         body: JSON.stringify({ status: newStatus })
                     });
                     showCustomAlert(result.message || 'Acción completada con éxito.');
-                    loadUsers(elements.userSearchInput.value, elements.userStatusFilter.value); 
+                    loadUsers(elements.userSearchInput.value, elements.userStatusFilter.value);
                 } catch (error) {
                     showCustomAlert(`Error durante la ${noun}: ${error.message}`);
                 }
@@ -1081,7 +1102,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const input = event.target;
         const row = input.closest('tr');
         const level = row.dataset.level;
-        
+
         const body = {
             level: parseInt(level),
             name: row.querySelector('[data-field="name"]').value,
@@ -1157,11 +1178,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function collectFormFields() {
         const formFields = {};
         const stepContainers = document.querySelectorAll('#platformStepInputs .admin-step-input');
-        
+
         stepContainers.forEach((container) => {
             const stepNum = container.getAttribute('data-step');
             const checkbox = container.querySelector('.step-form-checkbox');
-            
+
             if (checkbox && checkbox.checked) {
                 const fields = [];
                 const fieldInputs = container.querySelectorAll('.step-form-field');
@@ -1171,13 +1192,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         fields.push(value);
                     }
                 });
-                
+
                 if (fields.length > 0) {
                     formFields[stepNum] = fields;
                 }
             }
         });
-        
+
         return Object.keys(formFields).length > 0 ? formFields : null;
     }
 
@@ -1249,18 +1270,18 @@ document.addEventListener('DOMContentLoaded', () => {
             showCustomAlert(`Error al crear la publicación: ${error.message}`);
         }
     }
-    
+
     async function handlePlatformAction(event) {
         const button = event.target.closest('.action-button-admin');
         if (!button) return;
-    
+
         const pubId = button.dataset.pubId;
         const action = button.dataset.action;
         const userInAction = button.dataset.user;
         const platformUsername = 'Plataforma WintonCoin';
-    
+
         let endpoint, body = {};
-    
+
         switch (action) {
             case 'edit':
                 await startPlatformEdit(pubId);
@@ -1279,7 +1300,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             default: return;
         }
-    
+
         try {
             const result = await apiFetch(endpoint, { method: 'POST', body: JSON.stringify(body) });
             showCustomAlert(result.message || 'Acción completada con éxito.');
@@ -1470,7 +1491,7 @@ WHERE username = 'Plataforma WintonCoin';
             </tr>
         `;
     }
-    
+
     function renderPlatformPublicationsForManagement(publications) {
         const totals = getPlatformPendingTotals(platformPublicationsCache);
         updatePlatformPublicationsBadge(totals.totalPending);
@@ -1592,7 +1613,7 @@ WHERE username = 'Plataforma WintonCoin';
             elements.platformPublicationsBadge.classList.remove('is-visible');
         }
     }
-    
+
     function getPlatformManagementItemHTML(pub) {
         const createdAt = pub.created_at ? new Date(pub.created_at) : null;
         const createdText = createdAt ? createdAt.toLocaleString('es-ES', {
@@ -1618,7 +1639,7 @@ WHERE username = 'Plataforma WintonCoin';
         const participantsHTML = pub.participants && pub.participants.length > 0
             ? `<ul class="participants-list-admin">${pub.participants.map(p => getParticipantItemForManagementHTML(pub.id, p)).join('')}</ul>`
             : '<p class="no-participants" style="padding: 1rem; text-align: center; color: var(--admin-text-secondary);">Sin participantes por ahora.</p>';
-    
+
         const { mainText, steps } = splitDescriptionWithSteps(pub.description);
         const stepsHTML = renderAdminStepFlow(steps);
 
@@ -1895,17 +1916,17 @@ WHERE username = 'Plataforma WintonCoin';
             elements.platformAddStepBtn.disabled = true;
         }
     }
-    
+
     function getParticipantItemForManagementHTML(pubId, participant) {
         const ratingHTML = generateStarRating(participant.average_rating, participant.ratings_count);
         const statusText = getStatusText(participant.status);
         let actionButton = '';
-        
+
         // Formatear fecha y hora de solicitud
-        const acceptedAtHTML = participant.accepted_at 
+        const acceptedAtHTML = participant.accepted_at
             ? `<span class="participant-accepted-at">Solicitó: ${formatDateTime(participant.accepted_at)}</span>`
             : '';
-        
+
         if (participant.status === 'pending_approval') {
             actionButton = `
                 <button class="action-button-admin approve" data-pub-id="${escapeHtml(pubId)}" data-action="approve" data-user="${escapeHtml(participant.acceptor_username)}">Aprobar</button>
@@ -1926,7 +1947,7 @@ WHERE username = 'Plataforma WintonCoin';
                         <span class="form-response-value-admin">${escapeHtml(value)}</span>
                     </div>
                 `).join('');
-            
+
             formResponsesHTML = `
                 <div class="participant-form-responses-admin">
                     <div class="form-responses-content-admin">
@@ -1935,7 +1956,7 @@ WHERE username = 'Plataforma WintonCoin';
                 </div>
             `;
         }
-    
+
         return `
             <li class="participant-item-admin ${participant.form_responses ? 'has-responses' : ''}">
                 <div class="participant-row-admin">
@@ -1956,11 +1977,11 @@ WHERE username = 'Plataforma WintonCoin';
 
     function formatDateTime(dateString) {
         const date = new Date(dateString);
-        const options = { 
-            day: '2-digit', 
-            month: 'short', 
+        const options = {
+            day: '2-digit',
+            month: 'short',
             year: 'numeric',
-            hour: '2-digit', 
+            hour: '2-digit',
             minute: '2-digit'
         };
         return date.toLocaleDateString('es-ES', options);
@@ -2003,7 +2024,7 @@ WHERE username = 'Plataforma WintonCoin';
         const ratingHTML = generateStarRating(user.average_rating, user.ratings_count);
 
         return `
-            <tr data-user-id="${escapeHtml(user.id)}" data-username="${escapeHtml(user.username)}" data-status="${escapeHtml(user.status)}">
+            <tr data-user-id="${escapeHtml(user.id)}" data-username="${escapeHtml(user.username)}" data-status="${escapeHtml(user.status)}" data-referral-code="${escapeHtml(user.referral_code || '')}">
                 <td class="username-cell">
                     <a href="profile.html?user=${escapeHtml(user.username)}" target="_blank">${escapeHtml(user.username)}</a>
                 </td>
@@ -2018,6 +2039,7 @@ WHERE username = 'Plataforma WintonCoin';
                     <div class="action-menu-container">
                         <button class="action-button-admin menu-toggle">Acciones</button>
                         <div class="action-menu">
+                            <button class="action-button-admin" data-action="edit-referral">✏️ Editar Código</button>
                             <button class="action-button-admin approve" data-action="activate">Reactivar</button>
                             <button class="action-button-admin suspend" data-action="suspend">Suspender</button>
                             <button class="action-button-admin danger" data-action="ban">Banear</button>
@@ -2062,7 +2084,7 @@ WHERE username = 'Plataforma WintonCoin';
             year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
         });
 
-        const typeHTML = pub.is_sell_post 
+        const typeHTML = pub.is_sell_post
             ? `<span class="status-badge sell">Venta</span>`
             : `<span class="status-badge request">Solicitud</span>`;
 
@@ -2369,7 +2391,7 @@ WHERE username = 'Plataforma WintonCoin';
 
     async function loadDatabaseStats() {
         const statsContainer = document.getElementById('database-stats-container');
-        
+
         try {
             if (statsContainer) statsContainer.innerHTML = '<div class="loading-spinner"></div>';
 
@@ -2421,7 +2443,7 @@ WHERE username = 'Plataforma WintonCoin';
                 </div>
             </div>
         `;
-        
+
         statsContainer.innerHTML = statsHTML;
     }
 });
