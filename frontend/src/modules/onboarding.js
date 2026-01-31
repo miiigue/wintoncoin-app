@@ -63,6 +63,15 @@ function startTour() {
                 }
             },
             {
+                element: '.header-menu',
+                popover: {
+                    title: '⚙️ Tu Panel de Control',
+                    description: 'Aquí accedes al <b>P2P</b>, <b>Historial</b>, <b>Perfil de Impulsor</b> y otras funciones.',
+                    side: "bottom",
+                    align: 'center'
+                }
+            },
+            {
                 element: '.blue-section',
                 popover: {
                     title: '🔵 Tu Activo (BLUE)',

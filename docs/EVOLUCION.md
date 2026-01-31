@@ -772,6 +772,13 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Plataforma con email consistente y auditable en todas las instalaciones.
 - **Evidencia (commits)**: `791b2c1`, `0b12dcd`.
 
+### 2026-01-25 — Onboarding: guía del menú principal
+
+- **Contexto**: algunos usuarios no encontraban rápido accesos clave (P2P, Historial, Impulsor).
+- **Decisión**: agregar un paso en el tour de bienvenida que resalta el menú superior y sus accesos.
+- **Impacto**: navegación inicial más clara y menos fricción en el primer uso.
+- **Evidencia (commits)**: pendiente de push.
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)
