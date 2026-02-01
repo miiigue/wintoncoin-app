@@ -3,18 +3,36 @@
  * Utiliza driver.js para guiar al usuario en su primera visita.
  */
 
+// function to handle URL parameter for restarting tour
+function checkAndRestartOnboarding() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const startTourParam = urlParams.get('start_tour');
+
+    if (startTourParam === 'true') {
+        // Clear the completion flag
+        localStorage.removeItem('wintoncoin_tour_completed');
+
+        // Clean URL
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.replaceState({ path: newUrl }, '', newUrl);
+
+        // Start tour with a slight delay
+        setTimeout(() => {
+            startTour();
+        }, 1000);
+    } else {
+        // Standard check
+        const hasSeenTour = localStorage.getItem('wintoncoin_tour_completed');
+        if (!hasSeenTour) {
+            setTimeout(() => {
+                startTour();
+            }, 1500);
+        }
+    }
+}
+
 export function initOnboarding() {
-    // Verificar si el usuario ya vio el tour
-    // Para pruebas, puedes comentar la siguiente línea para que siempre salga
-    const hasSeenTour = localStorage.getItem('wintoncoin_tour_completed');
-
-    // Si ya lo vio, retornamos.
-    if (hasSeenTour) return;
-
-    // Pequeño delay para asegurar que la UI esté cargada y estable
-    setTimeout(() => {
-        startTour();
-    }, 1500);
+    checkAndRestartOnboarding();
 }
 
 function startTour() {
