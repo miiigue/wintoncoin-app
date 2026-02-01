@@ -12,6 +12,11 @@ export const appSettings = {};
  * @returns {string} La URL base del API
  */
 export function getApiUrl() {
+    // Permite sobreescribir la URL desde variables de entorno (útil para Demo/Staging)
+    if (import.meta.env.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL;
+    }
+
     const hostname = window.location.hostname;
     const isFileProtocol = window.location.protocol === 'file:';
     const isPrivateIp = /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
@@ -21,11 +26,20 @@ export function getApiUrl() {
         return 'http://localhost:3000';
     }
 
-    // Para entornos locales (localhost o IPs privadas), usar puerto 3000 del backend
+    // Para entornos locales
     if (isLocal) {
         return `http://${hostname}:3000`;
     }
 
+    // Entorno de DEMO
+    if (hostname.startsWith('demo.')) {
+        // Opción A: Backend en subdominio separado (Recomendado)
+        return 'https://demo-api.wintoncoin.com';
+        // Opción B: Si usas el mismo dominio backend pero otro path (menos común)
+        // return 'https://wintoncoin-backend-demo.onrender.com';
+    }
+
+    // Producción por defecto
     return 'https://wintoncoin-backend.onrender.com';
 }
 
@@ -48,10 +62,10 @@ export async function fetchAndStoreAppSettings() {
             throw new Error('No se pudo cargar la configuración de la aplicación.');
         }
         const settingsObject = await response.json();
-        
+
         // Copiamos las propiedades al objeto appSettings
         Object.assign(appSettings, settingsObject);
-        
+
         // Disparar un evento para notificar que la configuración está lista
         document.dispatchEvent(new CustomEvent('app-settings-loaded'));
 

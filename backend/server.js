@@ -67,7 +67,8 @@ const {
 const ALLOWED_ORIGINS = [
     'https://wintoncoin-frontend.onrender.com',
     'https://sc.wintoncoin.com', // Hostinger (producción)
-    'https://www.sc.wintoncoin.com'
+    'https://www.sc.wintoncoin.com',
+    'https://demo.wintoncoin.com' // Entorno DEMO
 ];
 
 if (process.env.NODE_ENV !== 'production') {
