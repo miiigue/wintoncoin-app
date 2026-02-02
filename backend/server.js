@@ -222,6 +222,7 @@ async function startServer() {
         });
 
         // Rutas de Autenticación movidas a src/routes/authRoutes.js
+        app.use('/', authRoutes);
 
         // NUEVO: Endpoint para agregar tutor a cuenta de menor
         app.post('/api/minor/add-tutor', async (req, res) => {

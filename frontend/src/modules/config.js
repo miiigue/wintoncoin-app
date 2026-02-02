@@ -33,10 +33,7 @@ export function getApiUrl() {
 
     // Entorno de DEMO
     if (hostname.startsWith('demo.')) {
-        // Opción A: Backend en subdominio separado (Recomendado)
-        return 'https://demo-api.wintoncoin.com';
-        // Opción B: Si usas el mismo dominio backend pero otro path (menos común)
-        // return 'https://wintoncoin-backend-demo.onrender.com';
+        return 'https://wintoncoin-backend-demo.onrender.com';
     }
 
     // Producción por defecto

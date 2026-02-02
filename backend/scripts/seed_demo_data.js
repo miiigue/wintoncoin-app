@@ -26,18 +26,7 @@ async function seedDemoData() {
     try {
         await client.query('BEGIN');
 
-        // 1. Limpieza (TRUNCATE es rápido y furioso)
-        console.log('🧹 Limpiando base de datos demo...');
-        // Orden importante para respetar Foreign Keys
-        await client.query(`
-            TRUNCATE TABLE 
-                notifications, 
-                publication_acceptances, 
-                publications, 
-                transactions, 
-                users 
-            RESTART IDENTITY CASCADE
-        `);
+        console.log('🌱 Sembrando datos en tablas existentes...');
 
         // 2. Crear Usuario Inversionista (El que usarás en la demo)
         console.log('👤 Creando usuario Inversionista...');
