@@ -1249,4 +1249,112 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.boosterSummary.style.display = 'none';
         }
     }
+
+    // --- VENTA RÁPIDA (recuperado del historial de Git) ---
+    const quickSaleModal = document.getElementById('quickSaleModal');
+    const openQuickSaleModalBtn = document.getElementById('openQuickSaleModalBtn');
+    const quickSaleCloseBtn = document.querySelector('.quick-sale-close');
+    const quickSaleForm = document.getElementById('quickSaleForm');
+
+    const qrCodeModal = document.getElementById('qrCodeModal');
+    const qrCodeCloseBtn = document.querySelector('.qr-code-close');
+    const qrCodeOutput = document.getElementById('qrCodeOutput');
+    const qrCodeUrlInput = document.getElementById('qrCodeUrl');
+    const copyQrCodeUrlBtn = document.getElementById('copyQrCodeUrl');
+
+    let qrCodeInstance = null; // Para mantener la instancia del QR y poder limpiarla
+
+    if (openQuickSaleModalBtn && quickSaleModal) {
+        openQuickSaleModalBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            quickSaleModal.style.display = 'flex';
+        });
+    }
+
+    if (quickSaleCloseBtn) {
+        quickSaleCloseBtn.addEventListener('click', () => {
+            quickSaleModal.style.display = 'none';
+        });
+    }
+
+    if (qrCodeCloseBtn) {
+        qrCodeCloseBtn.addEventListener('click', () => {
+            qrCodeModal.style.display = 'none';
+        });
+    }
+
+    window.addEventListener('click', (event) => {
+        if (event.target === quickSaleModal) {
+            quickSaleModal.style.display = 'none';
+        }
+        if (event.target === qrCodeModal) {
+            qrCodeModal.style.display = 'none';
+        }
+    });
+
+    if (quickSaleForm) {
+        quickSaleForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(quickSaleForm);
+            const data = {
+                title: formData.get('title'),
+                amount: formData.get('amount'),
+                targetUsername: formData.get('targetUsername'),
+                authorUsername: storedUsername
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/api/quick-sale`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // 1. Ocultar modal de formulario y resetearlo
+                    quickSaleModal.style.display = 'none';
+                    quickSaleForm.reset();
+
+                    // 2. Generar URL y mostrar modal de QR
+                    const publicationUrl = `${window.location.origin}/publication-detail.html?id=${result.publicationId}`;
+
+                    // Limpiar QR anterior si existe
+                    if (qrCodeOutput) qrCodeOutput.innerHTML = '';
+
+                    // Crear nueva instancia de QRCode (la librería se carga desde CDN en el HTML)
+                    if (typeof QRCode !== 'undefined' && qrCodeOutput) {
+                        qrCodeInstance = new QRCode(qrCodeOutput, {
+                            text: publicationUrl,
+                            width: 256,
+                            height: 256,
+                            colorDark: '#000000',
+                            colorLight: '#ffffff',
+                            correctLevel: QRCode.CorrectLevel.H
+                        });
+                    }
+
+                    if (qrCodeUrlInput) qrCodeUrlInput.value = publicationUrl;
+                    if (qrCodeModal) qrCodeModal.style.display = 'flex';
+
+                } else {
+                    showCustomAlert(result.message || 'Error al crear la venta rápida.');
+                }
+            } catch (error) {
+                console.error('Error en el submit de Venta Rápida:', error);
+                showCustomAlert('Error de conexión al crear la venta rápida.');
+            }
+        });
+    }
+
+    if (copyQrCodeUrlBtn) {
+        copyQrCodeUrlBtn.addEventListener('click', () => {
+            if (qrCodeUrlInput) {
+                qrCodeUrlInput.select();
+                document.execCommand('copy');
+                showCustomAlert('¡Enlace copiado al portapapeles!');
+            }
+        });
+    }
 });
