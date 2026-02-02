@@ -2214,8 +2214,8 @@ async function startServer() {
                     params.push(status);
                 }
 
-                // Se agrupa por el ID del usuario, que es la clave primaria
-                sql += ` GROUP BY u.id ORDER BY u.created_at DESC`;
+                // Se agrupa por todas las columnas seleccionadas de users (PostgreSQL es estricto)
+                sql += ` GROUP BY u.id, u.username, u.liquid_blue_balance, u.escrow_blue_balance, u.red_balance, u.account_status, u.average_rating, u.ratings_count, u.created_at, u.referral_code ORDER BY u.created_at DESC`;
 
                 const result = await pool.query(sql, params);
 
