@@ -419,6 +419,40 @@
         </div>
     </div>
 
+    <!-- Modal de Confirmación de Quema (Fintech Style) -->
+    <div id="burnConfirmModal" class="modal burn-confirm-modal">
+        <div class="modal-content burn-confirm-content">
+            <div class="burn-confirm-icon">⚠️</div>
+            <h2 class="burn-confirm-title">Confirmar Operación</h2>
+
+            <div class="burn-confirm-summary">
+                <p class="burn-confirm-label">Vas a quemar:</p>
+                <div class="burn-confirm-amounts">
+                    <div class="burn-confirm-amount blue">
+                        <span class="amount-value" id="confirmBurnBlue">0.0000</span>
+                        <span class="amount-label">BLUE</span>
+                    </div>
+                    <div class="burn-confirm-amount red">
+                        <span class="amount-value" id="confirmBurnRed">0.0000</span>
+                        <span class="amount-label">RED</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="burn-confirm-warning">
+                <span class="warning-icon">🔒</span>
+                <p>Esta acción es <strong>IRREVERSIBLE</strong>. Los tokens serán eliminados permanentemente y no podrán
+                    ser recuperados.</p>
+            </div>
+
+            <div class="burn-confirm-buttons">
+                <button type="button" class="burn-confirm-btn cancel" id="burnConfirmCancel">Cancelar</button>
+                <button type="button" class="burn-confirm-btn confirm" id="burnConfirmAccept">🔥 Confirmar
+                    Quema</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal de Calificación -->
     <div id="ratingModal" class="modal">
         <div class="modal-content rating-modal-content">

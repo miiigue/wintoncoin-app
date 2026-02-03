@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
         saldoEscrowBlue: document.getElementById('saldoEscrowBlue'),
         burnModal: document.getElementById('burnModal'),
         burnTriggerBtn: document.getElementById('burnTriggerBtn'),
-        closeModalBtn: document.querySelector('.close-button'),
+        closeModalBtn: document.querySelector('#burnModal .close-button'),
         burnForm: document.getElementById('burnForm'),
         burnModalBalances: document.getElementById('burnModalBalances'),
         ratingModal: document.getElementById('ratingModal'),
@@ -261,20 +261,23 @@ document.addEventListener('DOMContentLoaded', () => {
         tabImpulsor.addEventListener('click', () => switchToTab('impulsor'));
         tabBilletera.addEventListener('click', () => switchToTab('billetera'));
 
-        // Determine default tab based on pre-launch mode
-        const savedTab = localStorage.getItem('walletActiveTab');
-        if (savedTab) {
-            switchToTab(savedTab);
-        } else {
-            // Default: In pre-launch show Impulsor, otherwise show Billetera
-            getPlatformSettings().then(settings => {
-                const isPreLaunch = settings?.pre_launch_mode === true || settings?.pre_launch_mode === 'true';
-                switchToTab(isPreLaunch ? 'impulsor' : 'billetera');
-            }).catch(() => {
-                // Fallback to Impulsor if settings fail
+        // Determine default tab based on server pre_launch_mode configuration
+        getPlatformSettings().then(settings => {
+            const isPreLaunch = settings?.pre_launch_mode_enabled === true || settings?.pre_launch_mode_enabled === 'true';
+
+            if (isPreLaunch) {
+                // Pre-launch: Always show Impulsor, ignore localStorage
                 switchToTab('impulsor');
-            });
-        }
+            } else {
+                // Post-launch: Respect user's saved preference or default to Billetera
+                const savedTab = localStorage.getItem('walletActiveTab');
+                switchToTab(savedTab || 'billetera');
+            }
+        }).catch(error => {
+            // Fallback: If server config fails, default to Impulsor (safe choice)
+            console.warn('[WalletTabs] Could not fetch platform settings, defaulting to Impulsor:', error);
+            switchToTab('impulsor');
+        });
     }
 
     function setupEventListeners() {
@@ -308,6 +311,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elements.burnForm) {
             elements.burnForm.addEventListener('submit', handleBurnSubmit);
         }
+
+        // Setup burn confirmation modal
+        setupBurnConfirmModal();
 
         if (elements.ratingForm) {
             elements.ratingForm.addEventListener('submit', handleRatingSubmit);
@@ -1129,33 +1135,124 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Store pending burn amount for confirmation
+    let pendingBurnAmount = null;
+
     async function handleBurnSubmit(event) {
         event.preventDefault();
         const amountInput = document.getElementById('burnAmount');
-        const amount = amountInput?.value;
+        const amountStr = amountInput?.value?.replace(',', '.');
+        const amount = parseFloat(amountStr);
 
-        if (!amount || amount <= 0) {
+        if (!amount || amount <= 0 || isNaN(amount)) {
             showCustomAlert('Introduce una cantidad válida.');
             return;
         }
 
-        try {
-            const response = await fetch(`${API_URL}/users/burn`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: storedUsername, amount: amount })
-            });
-            const result = await response.json();
-            showCustomAlert(result.message);
+        // Helper to parse formatted balance (handles 1.952.340,0000 format)
+        function parseFormattedBalance(text) {
+            if (!text) return 0;
+            // Remove everything except digits, dots and commas
+            let cleaned = text.replace(/[^\d.,]/g, '');
+            // Count dots and commas to determine format
+            const dots = (cleaned.match(/\./g) || []).length;
+            const commas = (cleaned.match(/,/g) || []).length;
 
-            if (response.ok) {
-                if (elements.burnModal) elements.burnModal.style.display = 'none';
-                if (elements.burnForm) elements.burnForm.reset();
-                loadAllData();
+            if (dots > 1 || (dots === 1 && commas === 1 && cleaned.indexOf('.') < cleaned.indexOf(','))) {
+                // Format: 1.952.340,0000 (dots as thousand sep, comma as decimal)
+                cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+            } else if (commas > 1 || (commas === 1 && dots === 1 && cleaned.indexOf(',') < cleaned.indexOf('.'))) {
+                // Format: 1,952,340.0000 (commas as thousand sep, dot as decimal)
+                cleaned = cleaned.replace(/,/g, '');
+            } else if (commas === 1 && dots === 0) {
+                // Format: 1952340,0000 (comma as decimal)
+                cleaned = cleaned.replace(',', '.');
             }
-        } catch (error) {
-            console.error('Error al quemar tokens:', error);
-            showCustomAlert('Error de red al quemar tokens.');
+            return parseFloat(cleaned) || 0;
+        }
+
+        // Get current balances to validate
+        const blueBalance = parseFormattedBalance(document.getElementById('saldoBlue')?.textContent);
+        const redBalance = parseFormattedBalance(document.getElementById('saldoRed')?.textContent);
+
+        // Check if user has sufficient BLUE balance
+        if (amount > blueBalance) {
+            showCustomAlert('No tienes suficiente saldo BLUE disponible para quemar esta cantidad.');
+            return;
+        }
+
+        // Check if user has sufficient RED debt to burn
+        if (amount > redBalance) {
+            const redBalanceText = redBalance.toFixed(4).replace('.', ',');
+            showCustomAlert('No tienes suficiente deuda RED para quemar esta cantidad. Solo puedes quemar hasta ' + redBalanceText + ' RED.');
+            return;
+        }
+
+        // Store the amount and show confirmation modal
+        pendingBurnAmount = amountStr;
+
+        // Update modal with amounts
+        const confirmBlueEl = document.getElementById('confirmBurnBlue');
+        const confirmRedEl = document.getElementById('confirmBurnRed');
+        if (confirmBlueEl) confirmBlueEl.innerHTML = formatBalance(amount);
+        if (confirmRedEl) confirmRedEl.innerHTML = formatBalance(amount);
+
+        // Show confirmation modal
+        const burnConfirmModal = document.getElementById('burnConfirmModal');
+        if (burnConfirmModal) burnConfirmModal.style.display = 'flex';
+    }
+
+    // Setup burn confirmation modal handlers
+    function setupBurnConfirmModal() {
+        const burnConfirmModal = document.getElementById('burnConfirmModal');
+        const cancelBtn = document.getElementById('burnConfirmCancel');
+        const acceptBtn = document.getElementById('burnConfirmAccept');
+
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                if (burnConfirmModal) burnConfirmModal.style.display = 'none';
+                pendingBurnAmount = null;
+            });
+        }
+
+        if (acceptBtn) {
+            acceptBtn.addEventListener('click', async () => {
+                if (!pendingBurnAmount) return;
+
+                // Close confirmation modal
+                if (burnConfirmModal) burnConfirmModal.style.display = 'none';
+
+                try {
+                    const response = await fetch(`${API_URL}/users/burn`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: storedUsername, amount: pendingBurnAmount })
+                    });
+                    const result = await response.json();
+                    showCustomAlert(result.message);
+
+                    if (response.ok) {
+                        if (elements.burnModal) elements.burnModal.style.display = 'none';
+                        if (elements.burnForm) elements.burnForm.reset();
+                        loadAllData();
+                    }
+                } catch (error) {
+                    console.error('Error al quemar tokens:', error);
+                    showCustomAlert('Error de red al quemar tokens.');
+                } finally {
+                    pendingBurnAmount = null;
+                }
+            });
+        }
+
+        // Close on click outside
+        if (burnConfirmModal) {
+            burnConfirmModal.addEventListener('click', (e) => {
+                if (e.target === burnConfirmModal) {
+                    burnConfirmModal.style.display = 'none';
+                    pendingBurnAmount = null;
+                }
+            });
         }
     }
 
