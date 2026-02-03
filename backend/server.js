@@ -910,6 +910,23 @@ async function startServer() {
                     throw { status: 400, message: "Esta publicación está pausada y no acepta nuevas solicitudes." };
                 }
 
+                // Prevenir que un tutor acepte tareas (solicitudes) de su menor representado.
+                // Razón: En solicitudes, la deuda RED del menor va al tutor. Si el tutor también
+                // es el trabajador, sería simultáneamente deudor y acreedor, lo cual no está permitido.
+                if (pub.category === 'request') {
+                    const authorResult = await client.query(
+                        `SELECT id, is_minor, tutor_user_id FROM users WHERE id = $1`,
+                        [pub.author_id]
+                    );
+                    const author = authorResult.rows[0];
+                    if (author && author.is_minor && author.tutor_user_id === acceptor.id) {
+                        throw {
+                            status: 403,
+                            message: "No puedes aceptar tareas publicadas por tu menor representado. La deuda de esta tarea sería tuya, y al mismo tiempo recibirías el pago. Esto no está permitido."
+                        };
+                    }
+                }
+
                 // --- NUEVO: Política profesional anti-repetición + Hard Reject (regla de negocio en backend) ---
                 // Cargamos TODAS las participaciones históricas del usuario en esta publicación.
                 const prev = await client.query(
@@ -5535,12 +5552,11 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         const commissionAmount = cost * (commissionPercentage / 100);
         const redForAuthor = cost + commissionAmount;
 
-        // Determinar quién es responsable de la deuda (tutor si es menor)
-        // Preferimos user_id para evitar errores por username.
-        // Regla económica para solicitudes: la deuda RED pertenece al autor que publica.
-        // Aquí NO usamos tutor para mantener coherencia con ECONOMIC_RULES_V2_DEC2025.md.
+        // Determinar quién es responsable de la deuda (tutor si es menor).
+        // Los menores de edad no pueden asumir obligaciones financieras legalmente,
+        // por lo que su tutor asume la deuda RED (consistente con ventas y venta rápida).
         const debtResponsible = authorId
-            ? await getDebtResponsibleUserById(client, authorId, { useTutor: false })
+            ? await getDebtResponsibleUserById(client, authorId, { useTutor: true })
             : await getDebtResponsibleUser(client, author);
 
         // Guard de seguridad: nunca cargar RED al trabajador de una solicitud.
