@@ -2323,10 +2323,9 @@ async function startServer() {
                     // SOLO tokens reales en circulación (excluyendo plataforma y fondos de impulsores)
                     client.query(`
                         SELECT 
-                            SUM(liquid_blue_balance + escrow_blue_balance) AS users_total_blue, 
+                            SUM(CASE WHEN username != $1 THEN liquid_blue_balance + escrow_blue_balance ELSE 0 END) AS users_total_blue, 
                             SUM(red_balance) AS total_red 
-                        FROM users 
-                        WHERE username != $1
+                        FROM users
                     `, [platformUsername]),
                     client.query('SELECT total_blue_commission_balance FROM platform_wallet WHERE id = 1'),
                     // Fondos de impulsores (NO son tokens en circulación)
