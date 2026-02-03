@@ -4,11 +4,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap');
 
 :root {
-    --primary-color: #6a5acd; /* Un tono de violeta/azul */
-    --background-color: #1a1a2e; /* Azul oscuro noche */
-    --surface-color: #14245a; /* Un poco más claro que el fondo */
-    --text-color: #F5F5F5; /* Blanco más brillante para mejor legibilidad */
-    --text-secondary-color: #BDBDBD; /* Gris más claro para textos secundarios */
+    --primary-color: #6a5acd;
+    /* Un tono de violeta/azul */
+    --background-color: #1a1a2e;
+    /* Azul oscuro noche */
+    --surface-color: #14245a;
+    /* Un poco más claro que el fondo */
+    --text-color: #F5F5F5;
+    /* Blanco más brillante para mejor legibilidad */
+    --text-secondary-color: #BDBDBD;
+    /* Gris más claro para textos secundarios */
     --error-color: #ff5252;
 }
 
@@ -32,8 +37,10 @@ body {
     width: 100%;
     max-width: 450px;
     text-align: center;
-    position: relative; /* Necesario para posicionar la banda diagonal */
-    overflow: hidden; /* Ocultar partes que salen del contenedor */
+    position: relative;
+    /* Necesario para posicionar la banda diagonal */
+    overflow: hidden;
+    /* Ocultar partes que salen del contenedor */
 }
 
 .interaction-container {
@@ -66,8 +73,10 @@ body {
 .form-group-checkbox .input-hint {
     font-size: 0.8rem;
     color: var(--text-secondary-color);
-    margin-left: calc(20px + 0.75rem); /* Alinear con la descripción */
-    margin-top: -0.5rem; /* Ajuste para que quede debajo del label */
+    margin-left: calc(20px + 0.75rem);
+    /* Alinear con la descripción */
+    margin-top: -0.5rem;
+    /* Ajuste para que quede debajo del label */
     flex-basis: 100%;
 }
 
@@ -112,7 +121,8 @@ textarea {
     color: #111111;
     font-size: 1rem;
     font-family: 'Poppins', sans-serif;
-    box-sizing: border-box; /* Asegura que el padding no afecte el ancho total */
+    box-sizing: border-box;
+    /* Asegura que el padding no afecte el ancho total */
     transition: border-color 0.3s, box-shadow 0.3s;
 }
 
@@ -136,7 +146,8 @@ button {
     font-weight: 600;
     cursor: pointer;
     transition: background-color 0.3s, transform 0.2s;
-    box-sizing: border-box; /* Añadido para normalizar el tamaño */
+    box-sizing: border-box;
+    /* Añadido para normalizar el tamaño */
 }
 
 button:hover {
@@ -148,23 +159,29 @@ button:hover {
 .secondary-action-button {
     display: block;
     width: 100%;
-    padding: 15px; /* Mismo padding que el botón principal */
+    padding: 15px;
+    /* Mismo padding que el botón principal */
     margin-top: 1rem;
     border: none;
     border-radius: 8px;
-    background-color: #140277; /* Azul oscuro seleccionado por el usuario */
-    color: var(--text-color); /* Texto principal para buen contraste */
-    font-size: 1.1rem; /* Mismo tamaño de fuente que el botón principal */
+    background-color: #140277;
+    /* Azul oscuro seleccionado por el usuario */
+    color: var(--text-color);
+    /* Texto principal para buen contraste */
+    font-size: 1.1rem;
+    /* Mismo tamaño de fuente que el botón principal */
     font-weight: 600;
     text-align: center;
     cursor: pointer;
     text-decoration: none;
     transition: background-color 0.3s, color 0.3s, transform 0.2s;
-    box-sizing: border-box; /* Añadido para normalizar el tamaño */
+    box-sizing: border-box;
+    /* Añadido para normalizar el tamaño */
 }
 
 .secondary-action-button:hover {
-    background-color: #2a1b8a; /* Un azul ligeramente más claro al pasar el ratón */
+    background-color: #2a1b8a;
+    /* Un azul ligeramente más claro al pasar el ratón */
     color: white;
     transform: translateY(-2px);
     text-decoration: none;
@@ -201,7 +218,8 @@ a:hover {
 /* Regla ultra-específica y autoritaria para los decimales */
 .decimal-part {
     font-size: 0.7em !important;
-    vertical-align: super; /* Alinea los decimales como un superíndice, visualmente más atractivo */
+    vertical-align: super;
+    /* Alinea los decimales como un superíndice, visualmente más atractivo */
 }
 
 .input-hint {
@@ -247,11 +265,13 @@ a:hover {
     overflow: hidden;
     transition: max-height 0.3s ease-out, padding-top 0.3s ease-out;
     padding-top: 0;
-    margin-left: 30px; /* Alinea con el texto del label del checkbox */
+    margin-left: 30px;
+    /* Alinea con el texto del label del checkbox */
 }
 
 .collapsible-content.expanded {
-    max-height: 200px; /* Altura suficiente para el contenido */
+    max-height: 200px;
+    /* Altura suficiente para el contenido */
     padding-top: 15px;
 }
 
@@ -261,7 +281,7 @@ a:hover {
     align-items: flex-end;
 }
 
-.time-input-group > div {
+.time-input-group>div {
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -298,7 +318,8 @@ input[type="checkbox"] {
     padding: 1.5rem;
     border: 1px solid rgba(255, 255, 255, 0.1);
     position: relative;
-    overflow: visible; /* Cambiado de hidden a visible para que los tooltips se muestren */
+    overflow: visible;
+    /* Cambiado de hidden a visible para que los tooltips se muestren */
 }
 
 .balance-section::before {
@@ -430,23 +451,23 @@ input[type="checkbox"] {
         grid-template-columns: 1fr;
         gap: 1rem;
     }
-    
+
     .balance-section {
         padding: 1.25rem;
     }
-    
+
     .balance-amount {
         font-size: 1.1rem;
     }
-    
+
     .balance-title {
         font-size: 1rem;
     }
-    
+
     .balance-item {
         padding: 0.6rem;
     }
-    
+
     .balance-label {
         font-size: 0.85rem;
     }
@@ -457,24 +478,24 @@ input[type="checkbox"] {
     .balances-container {
         gap: 0.75rem;
     }
-    
+
     .balance-section {
         padding: 1rem;
     }
-    
+
     .balance-amount {
         font-size: 1rem;
     }
-    
+
     .balance-title {
         font-size: 0.95rem;
         margin-bottom: 0.75rem;
     }
-    
+
     .balance-item {
         padding: 0.5rem;
     }
-    
+
     .burn-item .burn-trigger {
         font-size: 0.85rem;
         padding: 0.6rem 0.8rem;
@@ -506,9 +527,20 @@ input[type="checkbox"] {
 }
 
 @keyframes pulse {
-    0% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.05); opacity: 0.7; }
-    100% { transform: scale(1); opacity: 1; }
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 0.7;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 
 #debt-countdown-timer,
@@ -517,7 +549,7 @@ input[type="checkbox"] {
     font-size: 1.1rem;
     font-weight: 600;
     letter-spacing: normal;
-    background-color: rgba(0,0,0,0.2);
+    background-color: rgba(0, 0, 0, 0.2);
     padding: 2px 8px;
     border-radius: 4px;
 }
@@ -527,12 +559,22 @@ input[type="checkbox"] {
 }
 
 #escrow-countdown-timer {
-    color: #2ecc71; /* Verde para la liberación */
+    color: #2ecc71;
+    /* Verde para la liberación */
 }
 
-#saldoBlue { color: #3498db; }
-#saldoEscrowBlue { color: #8e44ad; } /* Púrpura para el saldo en escrow */
-#saldoRed { color: #e74c3c; }
+#saldoBlue {
+    color: #3498db;
+}
+
+#saldoEscrowBlue {
+    color: #8e44ad;
+}
+
+/* Púrpura para el saldo en escrow */
+#saldoRed {
+    color: #e74c3c;
+}
 
 hr {
     border: none;
@@ -569,20 +611,24 @@ hr {
 }
 
 .dropdown-content {
-    display: none; /* Oculto por defecto */
+    display: none;
+    /* Oculto por defecto */
     position: absolute;
     right: 0;
-    top: 120%; /* Un poco debajo del trigger */
+    top: 120%;
+    /* Un poco debajo del trigger */
     background-color: var(--surface-color);
     min-width: 160px;
-    box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+    box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2);
     border-radius: 8px;
-    overflow: hidden; /* Para que los bordes redondeados se apliquen a los hijos */
+    overflow: hidden;
+    /* Para que los bordes redondeados se apliquen a los hijos */
     animation: fadeIn 0.3s ease-in-out;
 }
 
 .dropdown-content.show {
-    display: block; /* Se muestra con la clase .show */
+    display: block;
+    /* Se muestra con la clase .show */
 }
 
 .dropdown-content a {
@@ -602,13 +648,15 @@ hr {
 /* Botón con apariencia de enlace */
 .button-link {
     display: inline-block;
-    width: calc(100% - 30px); /* Ajusta el ancho como un botón */
+    width: calc(100% - 30px);
+    /* Ajusta el ancho como un botón */
     margin: 2rem 0;
     padding: 15px;
     border: none;
     border-radius: 8px;
     background-color: var(--primary-color);
-    color: white !important; /* !important para sobreescribir el color de 'a' */
+    color: white !important;
+    /* !important para sobreescribir el color de 'a' */
     font-size: 1.1rem;
     font-weight: 600;
     text-align: center;
@@ -767,6 +815,587 @@ hr {
     color: var(--text-secondary-color);
 }
 
+/* =============================================================== */
+/* ==           ESTILOS DE TABS (IMPULSOR / BILLETERA)          == */
+/* ==           Diseño inspirado en mockup fintech premium       == */
+/* =============================================================== */
+
+.wallet-tabs-container {
+    margin-bottom: 1.5rem;
+}
+
+.wallet-tabs-nav {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    padding: 4px;
+    background: linear-gradient(180deg, rgba(15, 25, 50, 0.95) 0%, rgba(20, 36, 90, 0.98) 100%);
+    border-radius: 40px;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow:
+        0 6px 24px rgba(0, 0, 0, 0.35),
+        0 2px 6px rgba(0, 0, 0, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.wallet-tab-btn {
+    flex: 1;
+    padding: 0.65rem 1.25rem;
+    border: none;
+    border-radius: 36px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    position: relative;
+    overflow: hidden;
+    letter-spacing: 0.3px;
+}
+
+.wallet-tab-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 45px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.wallet-tab-btn:hover {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.wallet-tab-btn:hover::before {
+    opacity: 0.08;
+    background: white;
+}
+
+.wallet-tab-btn.active {
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    font-weight: 700;
+}
+
+.wallet-tab-btn.active[data-tab="impulsor"] {
+    background: linear-gradient(135deg, #16a34a 0%, #22c55e 50%, #4ade80 100%);
+    box-shadow:
+        0 6px 25px rgba(34, 197, 94, 0.6),
+        0 2px 8px rgba(34, 197, 94, 0.4),
+        inset 0 2px 0 rgba(255, 255, 255, 0.25);
+}
+
+.wallet-tab-btn.active[data-tab="billetera"] {
+    background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 50%, #60a5fa 100%);
+    box-shadow:
+        0 6px 25px rgba(59, 130, 246, 0.6),
+        0 2px 8px rgba(59, 130, 246, 0.4),
+        inset 0 2px 0 rgba(255, 255, 255, 0.25);
+}
+
+.wallet-tab-btn .tab-icon {
+    font-size: 0.95rem;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+}
+
+/* --- Paneles de contenido --- */
+.wallet-tab-panel {
+    display: none;
+    animation: fadeInTab 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wallet-tab-panel.active {
+    display: block;
+}
+
+@keyframes fadeInTab {
+    from {
+        opacity: 0;
+        transform: translateY(15px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ============================================================ */
+/* === PANEL IMPULSOR - Riqueza Azul & Verde Esmeralda      === */
+/* ============================================================ */
+
+#panelImpulsor .booster-banner {
+    display: block;
+    text-decoration: none;
+    background:
+        radial-gradient(ellipse at bottom right, rgba(16, 185, 129, 0.12) 0%, transparent 50%),
+        linear-gradient(160deg, #1a2744 0%, #0f1629 50%, #1a2744 100%);
+    border: 2px solid rgba(16, 185, 129, 0.5);
+    border-radius: 16px;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow:
+        0 0 30px rgba(16, 185, 129, 0.15),
+        0 12px 40px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    transition: all 0.35s ease;
+}
+
+#panelImpulsor .booster-banner:hover {
+    transform: translateY(-3px);
+    box-shadow:
+        0 0 40px rgba(16, 185, 129, 0.25),
+        0 18px 50px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    border-color: rgba(16, 185, 129, 0.7);
+}
+
+/* Brillo verde animado */
+#panelImpulsor .booster-banner::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.1), transparent);
+    animation: greenShine 4s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes greenShine {
+    0% {
+        left: -100%;
+    }
+
+    50% {
+        left: 150%;
+    }
+
+    100% {
+        left: 150%;
+    }
+}
+
+/* Header */
+#panelImpulsor .booster-banner-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+#panelImpulsor .booster-banner-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2.5px;
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Cuerpo con el saldo */
+#panelImpulsor .booster-banner-body {
+    text-align: center;
+    position: relative;
+}
+
+#panelImpulsor .booster-label {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: rgba(16, 185, 129, 0.7);
+    margin-bottom: 0.25rem;
+}
+
+#panelImpulsor .booster-amount {
+    font-size: 2rem;
+    font-weight: 800;
+    font-style: italic;
+    color: #fff;
+    text-shadow:
+        0 0 30px rgba(16, 185, 129, 0.5),
+        0 0 60px rgba(16, 185, 129, 0.25),
+        0 4px 15px rgba(0, 0, 0, 0.4);
+    line-height: 1.1;
+    letter-spacing: -0.5px;
+}
+
+#panelImpulsor .booster-total-value {
+    font-size: 2rem;
+    font-weight: 800;
+    font-style: italic;
+    color: #fff;
+    text-shadow:
+        0 0 30px rgba(16, 185, 129, 0.5),
+        0 0 60px rgba(16, 185, 129, 0.25),
+        0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+#panelImpulsor .booster-total-unit {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-style: normal;
+    color: #10b981;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    text-align: right;
+    margin-top: 0.2rem;
+}
+
+/* Flecha de crecimiento */
+#panelImpulsor .booster-growth-indicator {
+    display: inline-block;
+    font-size: 1.5rem;
+    color: #10b981;
+    margin-left: 0.5rem;
+    text-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
+    animation: growthPulse 2s ease-in-out infinite;
+    vertical-align: middle;
+}
+
+@keyframes growthPulse {
+
+    0%,
+    100% {
+        opacity: 0.7;
+        transform: translateY(0) scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: translateY(-3px) scale(1.1);
+    }
+}
+
+/* Modal Pre-Lanzamiento Billetera */
+.prelaunch-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 1rem;
+    animation: fadeInOverlay 0.3s ease;
+}
+
+@keyframes fadeInOverlay {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.prelaunch-modal {
+    background: linear-gradient(160deg, #1a2744 0%, #0f1629 100%);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    border-radius: 20px;
+    padding: 2rem 1.75rem;
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+    box-shadow:
+        0 0 50px rgba(16, 185, 129, 0.2),
+        0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: slideUpModal 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUpModal {
+    from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.prelaunch-modal-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    animation: iconPulse 2s ease-in-out infinite;
+}
+
+@keyframes iconPulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+.prelaunch-modal-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #fff;
+    margin: 0 0 1rem 0;
+    letter-spacing: 0.5px;
+}
+
+.prelaunch-modal-text {
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.5;
+    margin: 0 0 0.75rem 0;
+}
+
+.prelaunch-modal-text strong {
+    color: #fff;
+    font-weight: 600;
+}
+
+.prelaunch-modal-text .highlight-date {
+    color: #10b981;
+    font-weight: 700;
+}
+
+.prelaunch-modal-btn {
+    margin-top: 1.25rem;
+    padding: 0.9rem 2.5rem;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border: none;
+    border-radius: 50px;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+}
+
+.prelaunch-modal-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(16, 185, 129, 0.5);
+}
+
+.modal-link {
+    color: #10b981;
+    text-decoration: underline;
+    font-weight: 600;
+    transition: color 0.2s ease;
+}
+
+.modal-link:hover {
+    color: #34d399;
+}
+
+/* --- Panel BILLETERA Premium (estilo mockup) --- */
+#panelBilletera .balances-container {
+    background:
+        radial-gradient(ellipse at top center, rgba(52, 152, 219, 0.2) 0%, transparent 60%),
+        linear-gradient(165deg, rgba(25, 55, 100, 0.95) 0%, rgba(20, 40, 80, 0.98) 50%, rgba(15, 30, 60, 1) 100%);
+    border: 1px solid rgba(52, 152, 219, 0.35);
+    border-radius: 24px;
+    padding: 1.75rem;
+    box-shadow:
+        0 15px 50px rgba(0, 0, 0, 0.4),
+        0 5px 15px rgba(52, 152, 219, 0.15),
+        inset 0 2px 0 rgba(255, 255, 255, 0.1),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+#panelBilletera .balance-section {
+    background: transparent;
+    border: none;
+    padding: 1.25rem 0;
+    border-radius: 0;
+}
+
+#panelBilletera .balance-section::before {
+    display: none;
+}
+
+/* Sección BLUE */
+#panelBilletera .blue-section {
+    padding-bottom: 1.75rem;
+    border-bottom: 1px solid rgba(93, 173, 226, 0.2);
+}
+
+#panelBilletera .balance-title {
+    font-size: 0.85rem;
+    letter-spacing: 2.5px;
+    color: rgba(255, 255, 255, 0.75);
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+#panelBilletera .balance-items {
+    gap: 0.6rem;
+}
+
+#panelBilletera .balance-amount {
+    font-size: 2.6rem;
+    font-weight: 800;
+    letter-spacing: -1px;
+}
+
+#panelBilletera .blue-amount {
+    color: #5dade2;
+    text-shadow:
+        0 0 30px rgba(93, 173, 226, 0.7),
+        0 0 60px rgba(93, 173, 226, 0.4),
+        0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+#panelBilletera .escrow-amount {
+    color: #bb8fce;
+    text-shadow:
+        0 0 25px rgba(187, 143, 206, 0.6),
+        0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+#panelBilletera .balance-label {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+/* Sección RED */
+#panelBilletera .red-section {
+    padding-top: 1.75rem;
+}
+
+#panelBilletera .red-amount {
+    color: #e74c3c;
+    text-shadow:
+        0 0 30px rgba(231, 76, 60, 0.7),
+        0 0 60px rgba(231, 76, 60, 0.4),
+        0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Botón Quemar Premium Animado */
+#panelBilletera .burn-item {
+    margin-top: 1.25rem;
+}
+
+#panelBilletera .burn-item .burn-trigger {
+    background: linear-gradient(135deg, #922b21 0%, #c0392b 40%, #e74c3c 100%);
+    padding: 0.9rem 2.25rem;
+    font-size: 1rem;
+    font-weight: 700;
+    border-radius: 30px;
+    box-shadow:
+        0 8px 30px rgba(231, 76, 60, 0.5),
+        0 3px 10px rgba(231, 76, 60, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    border: none;
+    transition: all 0.3s ease;
+    letter-spacing: 0.5px;
+    position: relative;
+    overflow: hidden;
+}
+
+#panelBilletera .burn-item .burn-trigger::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+#panelBilletera .burn-item .burn-trigger:hover::before {
+    left: 100%;
+}
+
+#panelBilletera .burn-item .burn-trigger:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow:
+        0 12px 40px rgba(231, 76, 60, 0.6),
+        0 5px 15px rgba(231, 76, 60, 0.4);
+}
+
+#panelBilletera .burn-item .fire-icon {
+    animation: fireFlicker 0.6s ease-in-out infinite alternate;
+    display: inline-block;
+}
+
+@keyframes fireFlicker {
+    from {
+        transform: scale(1) rotate(-5deg);
+        filter: brightness(1);
+    }
+
+    to {
+        transform: scale(1.2) rotate(5deg);
+        filter: brightness(1.3);
+    }
+}
+
+/* Responsive tabs */
+@media (max-width: 480px) {
+    .wallet-tabs-nav {
+        padding: 4px;
+    }
+
+    .wallet-tab-btn {
+        padding: 0.75rem 0.9rem;
+        font-size: 0.88rem;
+    }
+
+    .wallet-tab-btn .tab-icon {
+        font-size: 1.05rem;
+    }
+
+    #panelImpulsor .booster-banner {
+        padding: 1.5rem 1rem;
+    }
+
+    #panelImpulsor .booster-total-value {
+        font-size: 2.5rem;
+    }
+
+    #panelImpulsor .booster-banner::before,
+    #panelImpulsor .booster-banner::after {
+        font-size: 1.3rem;
+        top: 14px;
+    }
+
+    #panelBilletera .balances-container {
+        padding: 1.25rem;
+    }
+
+    #panelBilletera .balance-amount {
+        font-size: 2rem;
+    }
+
+    #panelBilletera .burn-item .burn-trigger {
+        padding: 0.8rem 1.75rem;
+        font-size: 0.92rem;
+    }
+}
 
 .publication-controls-select:focus {
     outline: none;
@@ -1129,7 +1758,8 @@ hr {
     border-radius: 12px;
     padding: 1rem;
     position: relative;
-    overflow: hidden; /* Mantenemos esto para la cinta de costo */
+    overflow: hidden;
+    /* Mantenemos esto para la cinta de costo */
     transition: box-shadow 0.3s ease, transform 0.3s ease;
     display: flex;
     flex-direction: column;
@@ -1143,16 +1773,20 @@ hr {
 .publication-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start; /* Alinea título y costo arriba */
-    margin-bottom: 0.25rem; /* Margen reducido */
+    align-items: flex-start;
+    /* Alinea título y costo arriba */
+    margin-bottom: 0.25rem;
+    /* Margen reducido */
 }
 
 .publication-item h3 {
     margin: 0;
     color: var(--text-color);
     font-size: 1.2rem;
-    flex-grow: 1; /* Permite que el título ocupe el espacio disponible */
-    padding-right: 100px; /* Espacio para que no choque con la cinta más grande */
+    flex-grow: 1;
+    /* Permite que el título ocupe el espacio disponible */
+    padding-right: 100px;
+    /* Espacio para que no choque con la cinta más grande */
 }
 
 .publication-item .pub-description {
@@ -1160,14 +1794,17 @@ hr {
     color: var(--text-secondary-color);
     font-size: 0.9rem;
     line-height: 1.5;
-    flex-grow: 1; /* La descripción ocupa el espacio sobrante */
+    flex-grow: 1;
+    /* La descripción ocupa el espacio sobrante */
 
     /* --- Magia para truncar el texto a 3 líneas --- */
     overflow: hidden;
     text-overflow: ellipsis;
     display: -webkit-box;
-    -webkit-line-clamp: 3; /* Número de líneas a mostrar */
-    line-clamp: 3; /* Propiedad estándar para máxima compatibilidad */
+    -webkit-line-clamp: 3;
+    /* Número de líneas a mostrar */
+    line-clamp: 3;
+    /* Propiedad estándar para máxima compatibilidad */
     -webkit-box-orient: vertical;
 }
 
@@ -1185,22 +1822,27 @@ hr {
 }
 
 .publication-status-banner.status-pending {
-    background-color: #FFE600; /* Amarillo brillante - participante esperando aprobación */
+    background-color: #FFE600;
+    /* Amarillo brillante - participante esperando aprobación */
     color: #111;
 }
 
 .publication-status-banner.status-approved {
-    background-color: #28a745; /* Verde */
+    background-color: #28a745;
+    /* Verde */
 }
 
 .publication-status-banner.status-completed {
-    background-color: #6f42c1; /* Púrpura */
+    background-color: #6f42c1;
+    /* Púrpura */
 }
 
 .publication-status-banner.status-author-action {
-    background-color: #e67e22; /* Naranja - Acción requerida del autor */
+    background-color: #e67e22;
+    /* Naranja - Acción requerida del autor */
     color: #fff;
 }
+
 /* Fin del nuevo estilo */
 
 .publication-footer {
@@ -1209,15 +1851,20 @@ hr {
     align-items: center;
     font-size: 0.85rem;
     color: var(--text-secondary-color);
-    margin-top: auto; /* Empuja el footer hacia abajo si hay espacio extra */
-    padding-top: 0.5rem; /* Un poco de espacio antes del footer */
+    margin-top: auto;
+    /* Empuja el footer hacia abajo si hay espacio extra */
+    padding-top: 0.5rem;
+    /* Un poco de espacio antes del footer */
 }
 
 .pub-meta {
     display: flex;
-    flex-direction: row; /* Elementos en una sola línea */
-    align-items: center;  /* Alineados verticalmente */
-    gap: 0.5rem; /* Espacio entre autor y calificación */
+    flex-direction: row;
+    /* Elementos en una sola línea */
+    align-items: center;
+    /* Alineados verticalmente */
+    gap: 0.5rem;
+    /* Espacio entre autor y calificación */
 }
 
 .pub-meta strong {
@@ -1227,8 +1874,17 @@ hr {
 .slots-info {
     font-weight: 600;
 }
-.slots-info.available { color: #2ecc71; } /* Verde para disponibles */
-.slots-info.full { color: #e74c3c; } /* Rojo para agotados */
+
+.slots-info.available {
+    color: #2ecc71;
+}
+
+/* Verde para disponibles */
+.slots-info.full {
+    color: #e74c3c;
+}
+
+/* Rojo para agotados */
 
 .action-button {
     margin-top: 1rem;
@@ -1245,18 +1901,55 @@ hr {
 
 .action-button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
-.action-button.accept   { background-color: #007bff; } /* Azul de Bootstrap */
-.action-button.approve  { background-color: #28a745; } /* Verde */
-.action-button.complete { background-color: #28a745; } /* Verde */
-.action-button.confirm  { background-color: #6f42c1; } /* Púrpura */
-.action-button.delete   { background-color: #dc3545; } /* Rojo/Peligro */
-.action-button.discard  { background-color: #6c757d; } /* Gris secundario */
-.action-button.pause    { background-color: #ffc107; color: #111; } /* Amarillo */
-.action-button.hide     { background-color: #343a40; } /* Gris oscuro */
-.action-button.share    { background-color: #00b894; } /* Un verde azulado (teal) para compartir */
+.action-button.accept {
+    background-color: #007bff;
+}
+
+/* Azul de Bootstrap */
+.action-button.approve {
+    background-color: #28a745;
+}
+
+/* Verde */
+.action-button.complete {
+    background-color: #28a745;
+}
+
+/* Verde */
+.action-button.confirm {
+    background-color: #6f42c1;
+}
+
+/* Púrpura */
+.action-button.delete {
+    background-color: #dc3545;
+}
+
+/* Rojo/Peligro */
+.action-button.discard {
+    background-color: #6c757d;
+}
+
+/* Gris secundario */
+.action-button.pause {
+    background-color: #ffc107;
+    color: #111;
+}
+
+/* Amarillo */
+.action-button.hide {
+    background-color: #343a40;
+}
+
+/* Gris oscuro */
+.action-button.share {
+    background-color: #00b894;
+}
+
+/* Un verde azulado (teal) para compartir */
 
 /* Estilo específico para el botón de compartir en la cabecera del detalle */
 .share-button-container {
@@ -1264,7 +1957,8 @@ hr {
     align-items: center;
     justify-content: center;
     gap: 0.75rem;
-    margin: 1rem 0; /* Espacio vertical para separarlo del resto */
+    margin: 1rem 0;
+    /* Espacio vertical para separarlo del resto */
 }
 
 #publication-detail-container .share-button-container {
@@ -1286,6 +1980,7 @@ hr {
     color: var(--text-secondary-color);
     font-size: 0.95rem;
 }
+
 .share-button-container .action-button.share {
     flex: 1 1 0;
     min-width: 140px;
@@ -1308,6 +2003,7 @@ hr {
 }
 
 @media (max-width: 640px) {
+
     #publication-detail-container .share-button-container,
     #publication-detail-container .detail-primary-actions {
         flex-direction: column;
@@ -1340,15 +2036,21 @@ hr {
 
 /* Estilo para botones deshabilitados */
 .action-button:disabled {
-    background-color: #495057; /* Un gris más oscuro */
-    color: #6c757d; /* Texto gris claro, casi invisible */
-    cursor: not-allowed; /* Cursor que indica "no permitido" */
-    transform: none; /* Sin efecto de hover */
-    box-shadow: none; /* Sin sombra */
+    background-color: #495057;
+    /* Un gris más oscuro */
+    color: #6c757d;
+    /* Texto gris claro, casi invisible */
+    cursor: not-allowed;
+    /* Cursor que indica "no permitido" */
+    transform: none;
+    /* Sin efecto de hover */
+    box-shadow: none;
+    /* Sin sombra */
 }
 
 .action-message {
-    background-color: rgba(243, 156, 18, 0.1); /* Naranja muy transparente */
+    background-color: rgba(243, 156, 18, 0.1);
+    /* Naranja muy transparente */
     border: 1px solid #f39c12;
     border-radius: 6px;
     padding: 10px;
@@ -1366,17 +2068,20 @@ hr {
 }
 
 /* Nota: NO aplicar a .publication-status-banner que tiene su propio estilo */
-.publication-item > .status-pending:not(.publication-status-banner) {
+.publication-item>.status-pending:not(.publication-status-banner) {
     margin-top: 1rem;
-    color: #f39c12; /* Naranja */
+    color: #f39c12;
+    /* Naranja */
     font-weight: 600;
 }
 
 .publication-item .status-progress {
     margin-top: 1rem;
-    color: #3498db; /* Azul */
+    color: #3498db;
+    /* Azul */
     font-weight: 600;
-    border-left: 5px solid #17a2b8; /* Cyan */
+    border-left: 5px solid #17a2b8;
+    /* Cyan */
     padding-left: 10px;
 }
 
@@ -1394,33 +2099,41 @@ hr {
     position: absolute;
     top: 12px;
     right: -1px;
-    padding: 7px 15px; /* Más grande */
+    padding: 7px 15px;
+    /* Más grande */
     background-color: var(--primary-color);
     color: white;
-    font-size: 0.95rem; /* Más grande */
+    font-size: 0.95rem;
+    /* Más grande */
     font-weight: 700;
     border-radius: 6px 0 0 6px;
-    box-shadow: -2px 2px 5px rgba(0,0,0,0.2);
+    box-shadow: -2px 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 .cost-ribbon.sell-ribbon {
-    background-color: #ffc107; /* Un amarillo vistoso */
-    color: #000; /* Texto en negro */
+    background-color: #ffc107;
+    /* Un amarillo vistoso */
+    color: #000;
+    /* Texto en negro */
 }
 
 .cost-ribbon.donation-ribbon {
-    background-color: #e83e8c; /* Rosa/Magenta */
+    background-color: #e83e8c;
+    /* Rosa/Magenta */
     color: white;
 }
 
 .cost-ribbon.booster-ribbon {
-    background-color: #EBFD88; /* Amarillo claro para tareas de impulsor */
-    color: #000; /* Texto negro para mejor contraste */
+    background-color: #EBFD88;
+    /* Amarillo claro para tareas de impulsor */
+    color: #000;
+    /* Texto negro para mejor contraste */
 }
 
 /* NUEVO: Ajuste para cuando la cinta de costo y el banner de estado coexisten */
-.publication-status-banner + .cost-ribbon {
-    top: 50px; /* Empuja la cinta hacia abajo para que no se solape con el banner */
+.publication-status-banner+.cost-ribbon {
+    top: 50px;
+    /* Empuja la cinta hacia abajo para que no se solape con el banner */
 }
 
 /* --- Menús del Header --- */
@@ -1435,7 +2148,8 @@ hr {
 }
 
 /* Ajustes para los menús existentes */
-.profile-menu, .notification-menu {
+.profile-menu,
+.notification-menu {
     position: relative;
     top: auto;
     right: auto;
@@ -1465,15 +2179,18 @@ hr {
     justify-content: center;
     align-items: center;
     border: 2px solid var(--background-color);
-    display: none; /* Oculto por defecto, se muestra con JS */
+    display: none;
+    /* Oculto por defecto, se muestra con JS */
 }
 
 #notificationDropdown .notification-item {
     padding: 12px 16px;
-    padding-right: 35px; /* Espacio para el botón de cierre */
+    padding-right: 35px;
+    /* Espacio para el botón de cierre */
     border-bottom: 1px solid #2a3b5c;
     position: relative;
-    cursor: default; /* El contenedor ya no es clickeable */
+    cursor: default;
+    /* El contenedor ya no es clickeable */
 }
 
 #notificationDropdown .notification-item:last-child {
@@ -1538,9 +2255,21 @@ hr {
     transform: scale(1.05);
 }
 
-.notification-button.approve { background-color: #27ae60; } /* Verde */
-.notification-button.complete { background-color: #3498db; } /* Azul */
-.notification-button.confirm { background-color: #8e44ad; } /* Púrpura */
+.notification-button.approve {
+    background-color: #27ae60;
+}
+
+/* Verde */
+.notification-button.complete {
+    background-color: #3498db;
+}
+
+/* Azul */
+.notification-button.confirm {
+    background-color: #8e44ad;
+}
+
+/* Púrpura */
 
 #notificationDropdown .no-notifications {
     padding: 12px 16px;
@@ -1553,6 +2282,7 @@ hr {
         opacity: 0;
         transform: translateY(-10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -1561,7 +2291,8 @@ hr {
 
 /* --- Estilos del Modal --- */
 .modal {
-    display: none; /* Oculto por defecto */
+    display: none;
+    /* Oculto por defecto */
     position: fixed;
     z-index: 1000;
     left: 0;
@@ -1569,7 +2300,7 @@ hr {
     width: 100%;
     height: 100%;
     overflow: auto;
-    background-color: rgba(0,0,0,0.6);
+    background-color: rgba(0, 0, 0, 0.6);
     animation: fadeIn 0.5s;
     /* Propiedades para centrar que se activarán cuando JS ponga 'display: flex' */
     justify-content: center;
@@ -1578,14 +2309,15 @@ hr {
 
 .modal-content {
     background-color: var(--surface-color);
-    margin: 1rem; /* Cambiado de '15% auto' para permitir el centrado con Flexbox y dar un respiro */
+    margin: 1rem;
+    /* Cambiado de '15% auto' para permitir el centrado con Flexbox y dar un respiro */
     padding: 2rem 3rem;
     border: 1px solid #2a3b5c;
     width: 80%;
     max-width: 500px;
     border-radius: 15px;
     position: relative;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
 .close-button {
@@ -1607,7 +2339,8 @@ hr {
 #burnForm {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem; /* Espacio entre los elementos del formulario */
+    gap: 1.5rem;
+    /* Espacio entre los elementos del formulario */
     margin-top: 1.5rem;
 }
 
@@ -1624,7 +2357,8 @@ hr {
 }
 
 #burnForm input {
-    width: 100%; /* El input ocupa todo el ancho del contenedor */
+    width: 100%;
+    /* El input ocupa todo el ancho del contenedor */
 }
 
 .burn-info {
@@ -1649,7 +2383,8 @@ hr {
 .burn-modal-balances {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem; /* Espacio entre las líneas de saldo */
+    gap: 0.5rem;
+    /* Espacio entre las líneas de saldo */
 }
 
 .balance-line {
@@ -1663,6 +2398,7 @@ hr {
     color: var(--text-secondary-color);
     font-size: 1rem;
 }
+
 .balance-line span:last-child {
     font-weight: 600;
 }
@@ -1670,11 +2406,12 @@ hr {
 .burn-modal-divider {
     border: none;
     height: 1px;
-    background-color: #2a3b5c; /* Coincide con el borde de los inputs */
+    background-color: #2a3b5c;
+    /* Coincide con el borde de los inputs */
     margin: 0.75rem 0;
 }
 
-.burn-info > span {
+.burn-info>span {
     display: block;
     color: var(--text-secondary-color);
     margin-bottom: 0.5rem;
@@ -1688,38 +2425,56 @@ hr {
     font-weight: 600;
 }
 
-.saldo-blue-text { color: #3498db; }
-.saldo-escrow-text { color: #8e44ad; }
-.saldo-red-text { color: #e74c3c; }
+.saldo-blue-text {
+    color: #3498db;
+}
+
+.saldo-escrow-text {
+    color: #8e44ad;
+}
+
+.saldo-red-text {
+    color: #e74c3c;
+}
 
 .burn-trigger {
     width: auto;
     padding: 10px 20px;
     font-size: 1rem;
     margin-top: 1rem;
-    background-color: var(--error-color); /* Rojo claro para una acción destructiva */
-    display: inline-flex; /* Para alinear iconos y texto */
+    background-color: var(--error-color);
+    /* Rojo claro para una acción destructiva */
+    display: inline-flex;
+    /* Para alinear iconos y texto */
     align-items: center;
     justify-content: center;
-    gap: 0.7em; /* Espacio entre los elementos */
+    gap: 0.7em;
+    /* Espacio entre los elementos */
 }
 
 .burn-trigger:hover {
-    background-color: #d73a3a; /* Rojo más oscuro en hover */
+    background-color: #d73a3a;
+    /* Rojo más oscuro en hover */
     transform: translateY(-2px);
 }
 
 .burn-trigger .fire-icon {
-    font-size: 1.2em; /* Icono un poco más grande */
-    line-height: 1; /* Mejor alineamiento vertical */
-    animation: fire-flicker 2s ease-in-out infinite; /* Animación sutil */
+    font-size: 1.2em;
+    /* Icono un poco más grande */
+    line-height: 1;
+    /* Mejor alineamiento vertical */
+    animation: fire-flicker 2s ease-in-out infinite;
+    /* Animación sutil */
 }
 
 @keyframes fire-flicker {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
         opacity: 1;
     }
+
     50% {
         transform: scale(1.1) rotate(-5deg);
         opacity: 0.8;
@@ -1736,6 +2491,7 @@ hr {
     font-size: 1rem;
     color: var(--text-secondary-color);
 }
+
 .back-link:hover {
     color: var(--primary-color);
 }
@@ -1894,17 +2650,46 @@ body.love-page {
     color: white;
 }
 
-.status-badge.open             { background-color: #007bff; }
-.status-badge.pending_approval { background-color: #ffc107; color: #333; }
-.status-badge.approved         { background-color: #17a2b8; }
-.status-badge.completed        { background-color: #6f42c1; }
-.status-badge.confirmed_paid   { background-color: #28a745; }
+.status-badge.open {
+    background-color: #007bff;
+}
+
+.status-badge.pending_approval {
+    background-color: #ffc107;
+    color: #333;
+}
+
+.status-badge.approved {
+    background-color: #17a2b8;
+}
+
+.status-badge.completed {
+    background-color: #6f42c1;
+}
+
+.status-badge.confirmed_paid {
+    background-color: #28a745;
+}
 
 /* --- Estados de Publicación (historial) --- */
-.status-badge.active   { background-color: #28a745; }
-.status-badge.pausada  { background-color: #6c757d; }
-.status-badge.expired  { background-color: #fd7e14; } /* Naranja */
-.status-badge.deleted  { background-color: #dc3545; } /* Rojo */
+.status-badge.active {
+    background-color: #28a745;
+}
+
+.status-badge.pausada {
+    background-color: #6c757d;
+}
+
+.status-badge.expired {
+    background-color: #fd7e14;
+}
+
+/* Naranja */
+.status-badge.deleted {
+    background-color: #dc3545;
+}
+
+/* Rojo */
 
 /* Badges en historial */
 .history-badges {
@@ -2032,16 +2817,16 @@ body.love-page {
     align-items: stretch;
 }
 
-.participant-item.has-responses > .participant-info,
-.participant-item.has-responses > .participant-status {
+.participant-item.has-responses>.participant-info,
+.participant-item.has-responses>.participant-status {
     width: 100%;
 }
 
-.participant-item.has-responses > .participant-info {
+.participant-item.has-responses>.participant-info {
     margin-bottom: 0.5rem;
 }
 
-.participant-item.has-responses > .participant-status {
+.participant-item.has-responses>.participant-status {
     justify-content: flex-start;
     margin-bottom: 0.75rem;
 }
@@ -2114,7 +2899,8 @@ body.love-page {
 /* --- Estilos para la Tabla de Transacciones --- */
 .table-container {
     width: 100%;
-    overflow-x: auto; /* Para responsividad en pantallas pequeñas */
+    overflow-x: auto;
+    /* Para responsividad en pantallas pequeñas */
     background-color: var(--background-color);
     padding: 1rem;
     border-radius: 8px;
@@ -2187,23 +2973,26 @@ body.love-page {
 }
 
 .positive-change {
-    color: #2ecc71; /* Verde */
+    color: #2ecc71;
+    /* Verde */
     font-weight: 600;
 }
 
 .negative-change {
-    color: #e74c3c; /* Rojo */
+    color: #e74c3c;
+    /* Rojo */
     font-weight: 600;
 }
 
 .red-text-always {
-    color: #e74c3c; /* Rojo */
+    color: #e74c3c;
+    /* Rojo */
     font-weight: 600;
 }
 
 .no-change {
     color: var(--text-secondary-color);
-} 
+}
 
 /* --- Estilos específicos para el Modal de Alerta --- */
 #customAlertModal .modal-content {
@@ -2226,7 +3015,8 @@ body.love-page {
 
 /* --- Estilos para el Modal de Política de Cuenta Única (NUEVO) --- */
 .policy-modal .modal-content {
-    border-left: 5px solid #f39c12; /* Un borde naranja para indicar advertencia/información */
+    border-left: 5px solid #f39c12;
+    /* Un borde naranja para indicar advertencia/información */
     padding: 2rem;
     text-align: center;
 }
@@ -2234,7 +3024,8 @@ body.love-page {
 .policy-modal h3 {
     margin-top: 0;
     margin-bottom: 1rem;
-    color: #f39c12; /* Naranja */
+    color: #f39c12;
+    /* Naranja */
     font-size: 1.4rem;
 }
 
@@ -2249,8 +3040,10 @@ body.love-page {
     width: auto;
     padding: 10px 30px;
     margin-top: 1rem;
-    background-color: #f39c12; /* Botón naranja */
-    color: #111; /* Texto oscuro para contraste */
+    background-color: #f39c12;
+    /* Botón naranja */
+    color: #111;
+    /* Texto oscuro para contraste */
 }
 
 .policy-modal .action-button:hover {
@@ -2284,7 +3077,8 @@ body.love-page {
 }
 
 #customConfirmModal .action-button.cancel-button {
-    background-color: #6c757d; /* Gris secundario */
+    background-color: #6c757d;
+    /* Gris secundario */
 }
 
 #customConfirmModal .action-button.cancel-button:hover {
@@ -2292,7 +3086,8 @@ body.love-page {
 }
 
 #customConfirmModal .action-button.confirm-button {
-    background-color: var(--error-color); /* Rojo */
+    background-color: var(--error-color);
+    /* Rojo */
 }
 
 #customConfirmModal .action-button.confirm-button:hover {
@@ -2301,8 +3096,10 @@ body.love-page {
 
 /* --- Estilos para el Modal de Calificación (NUEVO DISEÑO COMPACTO) --- */
 .rating-modal-content {
-    max-width: 380px; /* Más estrecho */
-    padding: 1.5rem 2rem; /* Menos padding */
+    max-width: 380px;
+    /* Más estrecho */
+    padding: 1.5rem 2rem;
+    /* Menos padding */
     text-align: center;
 }
 
@@ -2311,7 +3108,8 @@ body.love-page {
 }
 
 .rating-modal-content h2 {
-    font-size: 1.3rem; /* Título más pequeño y legible */
+    font-size: 1.3rem;
+    /* Título más pequeño y legible */
     margin: 0 0 1rem 0;
     color: var(--text-color);
     font-weight: 600;
@@ -2325,20 +3123,23 @@ body.love-page {
 /* Las estrellas son labels, las hacemos inline-block para poder estilizarlas */
 .star-rating .star {
     padding: 2px;
-    font-size: 2.5rem; /* Estrellas grandes y fáciles de clickear */
-    color: #444; /* Color de estrella vacía (un gris oscuro) */
+    font-size: 2.5rem;
+    /* Estrellas grandes y fáciles de clickear */
+    color: #444;
+    /* Color de estrella vacía (un gris oscuro) */
     cursor: pointer;
     transition: color 0.2s ease-in-out;
 }
 
 /* La magia del hover: colorea la estrella actual y las siguientes a la derecha (gracias a flex-direction: row-reverse) */
 .star-rating .star:hover,
-.star-rating .star:hover ~ .star {
-    color: #ffc107; /* Amarillo brillante al pasar el ratón */
+.star-rating .star:hover~.star {
+    color: #ffc107;
+    /* Amarillo brillante al pasar el ratón */
 }
 
 /* Mantiene las estrellas seleccionadas con su color amarillo cuando el ratón no está encima */
-.star-rating input[type="radio"]:checked ~ .star {
+.star-rating input[type="radio"]:checked~.star {
     color: #ffc107;
 }
 
@@ -2351,11 +3152,13 @@ body.love-page {
 
 
 .rating-modal-content #ratingForm textarea {
-    min-height: 70px; /* Altura mínima más pequeña */
+    min-height: 70px;
+    /* Altura mínima más pequeña */
     font-size: 0.9rem;
     padding: 10px;
     margin-bottom: 1rem;
-    resize: none; /* Evitamos que el usuario pueda cambiar el tamaño */
+    resize: none;
+    /* Evitamos que el usuario pueda cambiar el tamaño */
 }
 
 .rating-modal-content #ratingForm button {
@@ -2368,7 +3171,8 @@ body.love-page {
 
 /* --- Estilos para la Calificación en la Tarjeta de Publicación --- */
 .rating-display .stars {
-    color: #ffc107; /* Mismo amarillo que las estrellas del modal */
+    color: #ffc107;
+    /* Mismo amarillo que las estrellas del modal */
     font-size: 1rem;
     margin-right: 0.3rem;
 }
@@ -2388,9 +3192,12 @@ body.love-page {
 /* Estilo para la calificación corta junto al nombre de usuario */
 .short-rating {
     font-weight: normal;
-    color: #ffc107; /* Amarillo estrella */
-    margin-left: 0.5em; /* Espacio entre el nombre y la calificación */
-    cursor: help; /* Cursor de ayuda para indicar que hay un tooltip (title) */
+    color: #ffc107;
+    /* Amarillo estrella */
+    margin-left: 0.5em;
+    /* Espacio entre el nombre y la calificación */
+    cursor: help;
+    /* Cursor de ayuda para indicar que hay un tooltip (title) */
 }
 
 .publication-header {
@@ -2400,7 +3207,8 @@ body.love-page {
 
 /* --- Estilos para el Modal de Selección de Tipo de Publicación --- */
 #publicationTypeModal .modal-content {
-    max-width: 700px; /* Un poco más ancho para que quepan las opciones */
+    max-width: 700px;
+    /* Un poco más ancho para que quepan las opciones */
     text-align: center;
 }
 
@@ -2413,12 +3221,14 @@ body.love-page {
     justify-content: center;
     gap: 2rem;
     margin-top: 2rem;
-    flex-wrap: wrap; /* Para que se adapte en pantallas pequeñas */
+    flex-wrap: wrap;
+    /* Para que se adapte en pantallas pequeñas */
 }
 
 .modal-option-button {
     flex: 1;
-    min-width: 250px; /* Ancho mínimo para cada tarjeta */
+    min-width: 250px;
+    /* Ancho mínimo para cada tarjeta */
     padding: 2rem;
     border-radius: 10px;
     border: 1px solid #2a3b5c;
@@ -2439,15 +3249,18 @@ body.love-page {
 }
 
 .modal-option-button.request:hover {
-    border-color: #4a90e2; /* Azul que usamos en las cintas */
+    border-color: #4a90e2;
+    /* Azul que usamos en las cintas */
 }
 
 .modal-option-button.sell:hover {
-    border-color: #ffc107; /* Amarillo que usamos en las cintas */
+    border-color: #ffc107;
+    /* Amarillo que usamos en las cintas */
 }
 
 .modal-option-button.donation:hover {
-    border-color: #e83e8c; /* Rosa/Magenta para donaciones */
+    border-color: #e83e8c;
+    /* Rosa/Magenta para donaciones */
 }
 
 .modal-option-button h3 {
@@ -2474,6 +3287,7 @@ body.love-page {
 .modal-option-button.request .option-icon svg {
     color: #4a90e2;
 }
+
 .modal-option-button.request h3 {
     color: #4a90e2;
 }
@@ -2481,15 +3295,19 @@ body.love-page {
 .modal-option-button.sell .option-icon svg {
     color: #ffc107;
 }
+
 .modal-option-button.sell h3 {
     color: #ffc107;
 }
 
 .modal-option-button.donation .option-icon svg {
-    color: #e83e8c; /* Rosa/Magenta */
+    color: #e83e8c;
+    /* Rosa/Magenta */
 }
+
 .modal-option-button.donation h3 {
-    color: #e83e8c; /* Rosa/Magenta */
+    color: #e83e8c;
+    /* Rosa/Magenta */
 }
 
 .publication-actions {
@@ -2506,7 +3324,8 @@ body.love-page {
 /* Duplicamos los estilos de historial aquí para usarlos en el panel principal */
 .publication-item .participants-section {
     margin-top: 1rem;
-    border-top: none; /* No necesitamos doble borde */
+    border-top: none;
+    /* No necesitamos doble borde */
     padding-top: 0;
 }
 
@@ -2556,7 +3375,8 @@ body.love-page {
 }
 
 .publication-item .participant-status .action-button {
-    margin-top: 0; /* Reseteamos el margen para los botones en la lista */
+    margin-top: 0;
+    /* Reseteamos el margen para los botones en la lista */
     padding: 6px 10px;
     font-size: 0.8rem;
 }
@@ -2572,11 +3392,14 @@ body.love-page {
 .publication-item-link {
     text-decoration: none;
     color: inherit;
-    display: block; /* Para que el enlace ocupe todo el espacio de la tarjeta */
+    display: block;
+    /* Para que el enlace ocupe todo el espacio de la tarjeta */
 }
+
 .publication-item-link:hover {
     text-decoration: none;
 }
+
 /* Al pasar el ratón sobre el enlace, el efecto se aplica a la tarjeta interna */
 .publication-item-link:hover .publication-item {
     transform: translateY(-5px);
@@ -2599,17 +3422,21 @@ body.love-page {
     font-size: 1.5rem;
     font-weight: 600;
     border-radius: 8px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    transform: translateY(-80%); /* La movemos hacia arriba para evitar solapamiento */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    transform: translateY(-80%);
+    /* La movemos hacia arriba para evitar solapamiento */
 }
 
 .detail-cost-badge.sell-ribbon {
-    background-color: #ffc107; /* Amarillo */
-    color: #111; /* Texto oscuro para contraste */
+    background-color: #ffc107;
+    /* Amarillo */
+    color: #111;
+    /* Texto oscuro para contraste */
 }
 
 .detail-cost-badge.donation-ribbon {
-    background-color: #e83e8c; /* Rosa/Magenta */
+    background-color: #e83e8c;
+    /* Rosa/Magenta */
     color: white;
 }
 
@@ -2692,14 +3519,16 @@ body.love-page {
 .commission-notice {
     margin: 1rem 0;
     padding: 0.75rem;
-    background-color: rgba(255, 255, 255, 0.05); /* Un fondo muy sutil */
+    background-color: rgba(255, 255, 255, 0.05);
+    /* Un fondo muy sutil */
     border-radius: 6px;
     border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .commission-notice p {
     font-size: 0.85rem;
-    color: #b0b3b8; /* Texto secundario, menos prominente */
+    color: #b0b3b8;
+    /* Texto secundario, menos prominente */
     margin: 0;
     text-align: center;
 }
@@ -2792,13 +3621,17 @@ body.love-page {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Estilo para los enlaces de perfil en las tarjetas y listas */
 .profile-link {
-    font-weight: 600; /* O el peso que prefieras */
-    color: var(--text-color); /* Hereda el color del texto fuerte */
+    font-weight: 600;
+    /* O el peso que prefieras */
+    color: var(--text-color);
+    /* Hereda el color del texto fuerte */
     text-decoration: none;
     border-bottom: 1px dotted var(--primary-color);
     transition: color 0.2s ease, border-bottom-color 0.2s ease;
@@ -2821,8 +3654,10 @@ body.love-page {
     background-color: var(--surface-color);
     padding: 2rem 2.5rem;
     border-radius: 15px;
-    border: 1px solid #c0392b; /* Borde rojo */
-    box-shadow: 0 0 25px rgba(231, 76, 60, 0.3); /* Sombra roja */
+    border: 1px solid #c0392b;
+    /* Borde rojo */
+    box-shadow: 0 0 25px rgba(231, 76, 60, 0.3);
+    /* Sombra roja */
     text-align: center;
 }
 
@@ -2860,8 +3695,10 @@ body.love-page {
     background-color: var(--error-color);
     margin-top: 1.5rem;
 }
+
 .action-button.burn-button:hover {
-    background-color: #c0392b; /* Rojo más oscuro */
+    background-color: #c0392b;
+    /* Rojo más oscuro */
 }
 
 /* --- Estilos para la Sección de Motivación de Referidos (Solo en la página principal) --- */
@@ -2932,7 +3769,7 @@ body.love-page {
     border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.2);
     padding: 6px 6px 8px;
-    box-shadow: 
+    box-shadow:
         0 4px 8px rgba(0, 0, 0, 0.2),
         inset 0 1px 0 rgba(255, 255, 255, 0.3),
         inset 0 -1px 0 rgba(0, 0, 0, 0.1);
@@ -2963,7 +3800,7 @@ body.love-page {
 
 .referral-motivation-section .referral-card:hover .referral-icon {
     background: rgba(255, 255, 255, 0.25);
-    box-shadow: 
+    box-shadow:
         0 6px 12px rgba(0, 0, 0, 0.25),
         inset 0 1px 0 rgba(255, 255, 255, 0.4),
         inset 0 -1px 0 rgba(0, 0, 0, 0.15);
@@ -2972,17 +3809,20 @@ body.love-page {
 
 .referral-motivation-section .referral-card:active .referral-icon {
     background: rgba(255, 255, 255, 0.1);
-    box-shadow: 
+    box-shadow:
         0 2px 4px rgba(0, 0, 0, 0.2),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
     transform: translateY(1px);
 }
 
 @keyframes pulseGlow {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
         filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.3));
     }
+
     50% {
         transform: scale(1.3);
         filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.8));
@@ -3034,19 +3874,19 @@ body.love-page {
         text-align: center;
         gap: 0.75rem;
     }
-    
+
     .referral-motivation-section .referral-header {
         justify-content: center;
     }
-    
+
     .referral-motivation-section .referral-icon {
         font-size: 1.25rem;
     }
-    
+
     .referral-motivation-section .referral-text {
         font-size: 0.9rem;
     }
-    
+
     .referral-motivation-section .referral-button {
         font-size: 0.8rem;
         padding: 0.4rem 0.8rem;
@@ -3054,26 +3894,32 @@ body.love-page {
 }
 
 .modal-option-button.disabled {
-    background: #2a2a3e; /* Fondo más oscuro */
+    background: #2a2a3e;
+    /* Fondo más oscuro */
     cursor: not-allowed;
     opacity: 0.5;
-    transform: none; /* Sin efecto de elevación */
+    transform: none;
+    /* Sin efecto de elevación */
 }
 
 .modal-option-button.disabled:hover {
-    background: #2a2a3e; /* Mismo fondo en hover */
-    box-shadow: none; /* Sin sombra */
+    background: #2a2a3e;
+    /* Mismo fondo en hover */
+    box-shadow: none;
+    /* Sin sombra */
     transform: none;
 }
 
 .modal-option-button.disabled .option-icon,
 .modal-option-button.disabled h3,
 .modal-option-button.disabled p {
-    color: #6a6a7e; /* Texto y icono apagados */
+    color: #6a6a7e;
+    /* Texto y icono apagados */
 }
 
 .modal-option-button.disabled .option-icon {
-    transform: none; /* Sin animación en el icono */
+    transform: none;
+    /* Sin animación en el icono */
 }
 
 /* --- Aviso de Pre-lanzamiento --- */
@@ -3312,7 +4158,8 @@ body.love-page {
 }
 
 .main-title {
-    font-size: 1.1rem; /* CORRECCIÓN: Tamaño reducido al 50% */
+    font-size: 1.1rem;
+    /* CORRECCIÓN: Tamaño reducido al 50% */
     margin: 0;
     line-height: 1.1;
 }
@@ -3329,7 +4176,8 @@ body.love-page {
 /* --- Etiqueta Beta junto al título --- */
 .beta-tag {
     display: block;
-    text-align: center; /* Centra el texto */
+    text-align: center;
+    /* Centra el texto */
     font-size: 0.9rem;
     font-style: italic;
     font-weight: 400;
@@ -3340,7 +4188,8 @@ body.love-page {
 
 /* --- Etiqueta de Versión Beta --- */
 .beta-version-tag {
-    display: none; /* Ocultamos la etiqueta anterior */
+    display: none;
+    /* Ocultamos la etiqueta anterior */
 }
 
 /* --- NUEVO: Estilos para la Vigencia de Tarea --- */
@@ -3369,7 +4218,8 @@ body.love-page {
 }
 
 .expiration-info svg {
-    stroke-width: 2.5; /* Iconos un poco más gruesos */
+    stroke-width: 2.5;
+    /* Iconos un poco más gruesos */
 }
 
 .expiration-info.expired {
@@ -3379,18 +4229,23 @@ body.love-page {
 
 /* --- NUEVO: Estilos para Compactar el Formulario de Publicación --- */
 .publish-container {
-    max-width: 550px; /* Ancho máximo más estrecho */
-    padding: 2rem 2.5rem; /* Padding horizontal reducido */
+    max-width: 550px;
+    /* Ancho máximo más estrecho */
+    padding: 2rem 2.5rem;
+    /* Padding horizontal reducido */
 }
 
 .publish-container form div,
 .publish-container .form-group-collapsible {
-    margin-bottom: 1rem; /* Espacio vertical entre elementos reducido AÚN MÁS */
+    margin-bottom: 1rem;
+    /* Espacio vertical entre elementos reducido AÚN MÁS */
 }
 
 .publish-container h1 {
-    margin-bottom: 1.5rem; /* Margen bajo el título ajustado */
-    text-align: center; /* Aseguramos que el título principal esté centrado */
+    margin-bottom: 1.5rem;
+    /* Margen bajo el título ajustado */
+    text-align: center;
+    /* Aseguramos que el título principal esté centrado */
 }
 
 .form-back-link {
@@ -3613,11 +4468,11 @@ body.love-page {
     .detail-step-item {
         grid-template-columns: 36px 1fr;
     }
-    
+
     .step-form-container {
         padding: 0.75rem;
     }
-    
+
     .step-form-input {
         padding: 0.6rem 0.75rem;
         font-size: 0.9rem;
@@ -3731,8 +4586,10 @@ body.love-page {
 .switch {
     position: relative;
     display: inline-block;
-    width: 50px; /* Ancho del interruptor */
-    height: 28px; /* Alto del interruptor */
+    width: 50px;
+    /* Ancho del interruptor */
+    height: 28px;
+    /* Alto del interruptor */
     flex-shrink: 0;
 }
 
@@ -3749,7 +4606,8 @@ body.love-page {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #3c3c5c; /* Color del fondo del switch apagado */
+    background-color: #3c3c5c;
+    /* Color del fondo del switch apagado */
     transition: .4s;
     border-radius: 28px;
 }
@@ -3757,7 +4615,8 @@ body.love-page {
 .slider:before {
     position: absolute;
     content: "";
-    height: 20px; /* Tamaño del círculo */
+    height: 20px;
+    /* Tamaño del círculo */
     width: 20px;
     left: 4px;
     bottom: 4px;
@@ -3766,12 +4625,13 @@ body.love-page {
     border-radius: 50%;
 }
 
-input:checked + .slider {
+input:checked+.slider {
     background-color: var(--primary-color);
 }
 
-input:checked + .slider:before {
-    transform: translateX(22px); /* Distancia que se mueve el círculo */
+input:checked+.slider:before {
+    transform: translateX(22px);
+    /* Distancia que se mueve el círculo */
 }
 
 /* --- Contenedor de Acciones Principales (NUEVO) --- */
@@ -3783,28 +4643,41 @@ input:checked + .slider:before {
 }
 
 .main-actions-container .button-link {
-    margin: 0; /* Reseteamos el margen que tenían individualmente */
-    flex: 1; /* Ocupan el espacio disponible */
-    display: flex; /* Usar flexbox para centrado perfecto */
-    justify-content: center; /* Centrado horizontal */
-    align-items: center; /* Centrado vertical */
-    gap: 0.5em; /* Espacio entre el icono y el texto */
+    margin: 0;
+    /* Reseteamos el margen que tenían individualmente */
+    flex: 1;
+    /* Ocupan el espacio disponible */
+    display: flex;
+    /* Usar flexbox para centrado perfecto */
+    justify-content: center;
+    /* Centrado horizontal */
+    align-items: center;
+    /* Centrado vertical */
+    gap: 0.5em;
+    /* Espacio entre el icono y el texto */
 }
 
 /* Ajuste para el botón de acción secundaria (Venta Rápida) */
 .main-actions-container .button-link.secondary-action {
     background-color: transparent;
-    border: 2px solid #f1c40f; /* Borde de color amarillo claro */
-    color: #f1c40f; /* Texto del mismo color que el borde */
+    border: 2px solid #f1c40f;
+    /* Borde de color amarillo claro */
+    color: #f1c40f;
+    /* Texto del mismo color que el borde */
     font-weight: 700;
-    animation: glowing-border 2.5s ease-in-out infinite; /* Aplicamos la nueva animación */
-    transition: background-color 0.3s, color 0.3s; /* Transición suave para el hover */
+    animation: glowing-border 2.5s ease-in-out infinite;
+    /* Aplicamos la nueva animación */
+    transition: background-color 0.3s, color 0.3s;
+    /* Transición suave para el hover */
 }
 
 .main-actions-container .button-link.secondary-action:hover {
-    background-color: #f1c40f; /* Al pasar el ratón, se rellena */
-    color: #111; /* El texto se vuelve oscuro */
-    animation: none; /* Pausamos la animación para que el hover sea limpio */
+    background-color: #f1c40f;
+    /* Al pasar el ratón, se rellena */
+    color: #111;
+    /* El texto se vuelve oscuro */
+    animation: none;
+    /* Pausamos la animación para que el hover sea limpio */
 }
 
 
@@ -3821,7 +4694,8 @@ input:checked + .slider:before {
     padding: 1rem;
     background-color: white;
     border-radius: 8px;
-    line-height: 0; /* Para que no haya espacio extra bajo el QR */
+    line-height: 0;
+    /* Para que no haya espacio extra bajo el QR */
 }
 
 #qrCodeOutput canvas {
@@ -3849,10 +4723,12 @@ input:checked + .slider:before {
         border-color: #f1c40f;
         box-shadow: 0 0 3px #f1c40f;
     }
+
     50% {
         border-color: #f39c12;
         box-shadow: 0 0 10px #f39c12, 0 0 5px #f39c12 inset;
     }
+
     100% {
         border-color: #f1c40f;
         box-shadow: 0 0 3px #f1c40f;
@@ -3908,7 +4784,7 @@ input:checked + .slider:before {
     min-width: 150px;
 }
 
-.referral-modal .modal-content > div:last-child {
+.referral-modal .modal-content>div:last-child {
     display: flex;
     gap: 1rem;
     margin-top: 1.5rem;
@@ -3934,13 +4810,16 @@ input:checked + .slider:before {
 
 /* --- Estilos para el Modal de Advertencia de Donación (NUEVO) --- */
 .donation-warning-modal .modal-content {
-    border-left: 5px solid #e74c3c; /* Borde rojo para indicar advertencia crítica */
+    border-left: 5px solid #e74c3c;
+    /* Borde rojo para indicar advertencia crítica */
     text-align: left;
-    max-width: 600px; /* Un poco más ancho para texto largo */
+    max-width: 600px;
+    /* Un poco más ancho para texto largo */
 }
 
 .donation-warning-modal .modal-content h3 {
-    color: #c0392b; /* Título en rojo oscuro */
+    color: #c0392b;
+    /* Título en rojo oscuro */
     margin-top: 0;
 }
 
@@ -3952,8 +4831,10 @@ input:checked + .slider:before {
 
 .donation-warning-modal .modal-actions {
     display: flex;
-    justify-content: flex-end; /* Alinea los botones a la derecha */
-    gap: 10px; /* Espacio entre botones */
+    justify-content: flex-end;
+    /* Alinea los botones a la derecha */
+    gap: 10px;
+    /* Espacio entre botones */
     margin-top: 1rem;
 }
 
@@ -3967,18 +4848,22 @@ input:checked + .slider:before {
 }
 
 .donation-warning-modal .modal-actions .confirm-button {
-    background-color: #27ae60; /* Verde para confirmar */
+    background-color: #27ae60;
+    /* Verde para confirmar */
     color: white;
 }
+
 .donation-warning-modal .modal-actions .confirm-button:hover {
     background-color: #2ecc71;
     transform: translateY(-2px);
 }
 
 .donation-warning-modal .modal-actions .cancel-button {
-    background-color: #bdc3c7; /* Gris para cancelar */
+    background-color: #bdc3c7;
+    /* Gris para cancelar */
     color: #333;
 }
+
 .donation-warning-modal .modal-actions .cancel-button:hover {
     background-color: #ecf0f1;
 }
@@ -3986,7 +4871,8 @@ input:checked + .slider:before {
 .donation-warning-modal .modal-actions .ok-button {
     background-color: var(--primary-color);
     color: white;
-    width: 100%; /* Ocupa todo el ancho cuando está solo */
+    width: 100%;
+    /* Ocupa todo el ancho cuando está solo */
 }
 
 .donation-warning-modal .modal-actions .ok-button:hover {
@@ -4007,19 +4893,19 @@ input:checked + .slider:before {
     .main-title-container {
         margin-top: 0.85rem;
     }
-    
+
     .balance-amount {
         font-size: 1.1rem;
     }
-    
+
     .balance-title {
         font-size: 1rem;
     }
-    
+
     .balance-item {
         padding: 0.6rem;
     }
-    
+
     .balance-label {
         font-size: 0.85rem;
     }
@@ -4031,16 +4917,22 @@ input:checked + .slider:before {
     background: none;
     color: var(--text-color);
     padding: 0 1rem;
-    font-size: 1.1rem; /* Mantenemos tu ajuste de tamaño */
-    font-weight: 300; /* NUEVO: Fuente delgada y elegante */
-    font-family: 'Montserrat', sans-serif; /* NUEVO: Fuente moderna y limpia */
-    font-style: normal; /* CORRECCIÓN: Quitamos la cursiva */
-    position: relative; /* Necesario para posicionar el tooltip */
+    font-size: 1.1rem;
+    /* Mantenemos tu ajuste de tamaño */
+    font-weight: 300;
+    /* NUEVO: Fuente delgada y elegante */
+    font-family: 'Montserrat', sans-serif;
+    /* NUEVO: Fuente moderna y limpia */
+    font-style: normal;
+    /* CORRECCIÓN: Quitamos la cursiva */
+    position: relative;
+    /* Necesario para posicionar el tooltip */
     display: flex;
     justify-content: center;
     align-items: center;
     border: none;
-    margin: 0.5rem 0; /* AJUSTE: Margen vertical uniforme y mínimo */
+    margin: 0.5rem 0;
+    /* AJUSTE: Margen vertical uniforme y mínimo */
     box-sizing: border-box;
 }
 
@@ -4050,26 +4942,40 @@ input:checked + .slider:before {
 }
 
 @keyframes aurora-enhanced {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
 }
 
 .value-banner .shimmer-text {
-    background: linear-gradient(
-        90deg, 
-        #004d40, /* Verde Esmeralda Oscuro */
-        #00796b, /* Verde Intermedio */
-        #ffffff, /* Destello de Plata Pura */
-        #00796b, /* Verde Intermedio */
-        #004d40  /* Repite para un bucle perfecto */
-    ); /* NUEVO: Paleta de colores Ejecutiva */
+    background: linear-gradient(90deg,
+            #004d40,
+            /* Verde Esmeralda Oscuro */
+            #00796b,
+            /* Verde Intermedio */
+            #ffffff,
+            /* Destello de Plata Pura */
+            #00796b,
+            /* Verde Intermedio */
+            #004d40
+            /* Repite para un bucle perfecto */
+        );
+    /* NUEVO: Paleta de colores Ejecutiva */
     background-size: 400% 400%;
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
     animation: aurora-enhanced 4s ease-in-out infinite;
-    font-weight: 400; /* Un poco más de grosor para el efecto */
+    font-weight: 400;
+    /* Un poco más de grosor para el efecto */
 }
 
 /* --- Texto Clickable del Banner de Valor --- */
@@ -4179,7 +5085,7 @@ input:checked + .slider:before {
         min-width: calc(100vw - 32px);
         max-width: 400px;
     }
-    
+
     .value-tooltip.show {
         transform: translateX(-50%) translateY(0);
     }
@@ -4318,7 +5224,7 @@ input:checked + .slider:before {
         min-width: calc(100vw - 32px);
         max-width: 400px;
     }
-    
+
     .info-tooltip.show {
         transform: translateX(-50%) translateY(0);
     }
@@ -4366,17 +5272,15 @@ input:checked + .slider:before {
     left: -45px;
     width: 180px;
     height: 32px;
-    background: linear-gradient(
-        135deg,
-        rgba(106, 90, 205, 0.5) 0%,
-        rgba(106, 90, 205, 0.65) 50%,
-        rgba(106, 90, 205, 0.5) 100%
-    );
+    background: linear-gradient(135deg,
+            rgba(106, 90, 205, 0.5) 0%,
+            rgba(106, 90, 205, 0.65) 50%,
+            rgba(106, 90, 205, 0.5) 100%);
     backdrop-filter: blur(10px) saturate(180%);
     -webkit-backdrop-filter: blur(10px) saturate(180%);
     transform: rotate(-45deg);
     transform-origin: center;
-    box-shadow: 
+    box-shadow:
         0 2px 8px rgba(0, 0, 0, 0.25),
         inset 0 1px 0 rgba(255, 255, 255, 0.2),
         inset 0 -1px 0 rgba(0, 0, 0, 0.1);
@@ -4392,12 +5296,10 @@ input:checked + .slider:before {
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(
-        90deg,
-        transparent,
-        rgba(255, 255, 255, 0.25),
-        transparent
-    );
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(255, 255, 255, 0.25),
+            transparent);
     animation: ribbon-shine 3s ease-in-out infinite;
     z-index: 1;
     pointer-events: none;
@@ -4407,7 +5309,9 @@ input:checked + .slider:before {
     0% {
         left: -100%;
     }
-    50%, 100% {
+
+    50%,
+    100% {
         left: 100%;
     }
 }
@@ -4420,15 +5324,13 @@ input:checked + .slider:before {
     left: 0;
     width: 50px;
     height: 50px;
-    background: linear-gradient(
-        135deg,
-        rgba(106, 90, 205, 0.4) 0%,
-        rgba(106, 90, 205, 0.25) 50%,
-        transparent 100%
-    );
+    background: linear-gradient(135deg,
+            rgba(106, 90, 205, 0.4) 0%,
+            rgba(106, 90, 205, 0.25) 50%,
+            transparent 100%);
     clip-path: polygon(0 0, 50px 0, 0 50px);
     z-index: 1;
-    box-shadow: 
+    box-shadow:
         inset 2px 2px 4px rgba(0, 0, 0, 0.2),
         0 0 10px rgba(106, 90, 205, 0.3);
 }
@@ -4448,7 +5350,7 @@ input:checked + .slider:before {
     font-family: 'Poppins', sans-serif;
     letter-spacing: 1.2px;
     text-transform: uppercase;
-    text-shadow: 
+    text-shadow:
         0 1px 3px rgba(0, 0, 0, 0.6),
         0 0 8px rgba(106, 90, 205, 0.5);
     transform: rotate(-45deg);
@@ -4480,19 +5382,19 @@ input:checked + .slider:before {
         width: 130px;
         height: 130px;
     }
-    
+
     .pre-launch-ribbon::before {
         top: 22px;
         left: -40px;
         width: 160px;
         height: 30px;
     }
-    
+
     .pre-launch-ribbon::after {
         width: 45px;
         height: 45px;
     }
-    
+
     .pre-launch-text {
         top: 22px;
         left: -40px;
@@ -4509,19 +5411,19 @@ input:checked + .slider:before {
         width: 120px;
         height: 120px;
     }
-    
+
     .pre-launch-ribbon::before {
         top: 20px;
         left: -38px;
         width: 150px;
         height: 28px;
     }
-    
+
     .pre-launch-ribbon::after {
         width: 40px;
         height: 40px;
     }
-    
+
     .pre-launch-text {
         top: 20px;
         left: -38px;
@@ -4534,23 +5436,28 @@ input:checked + .slider:before {
 
 /* Estilos para el nuevo botón de WhatsApp */
 .whatsapp-button {
-    background-color: #25D366; /* Color oficial de WhatsApp */
+    background-color: #25D366;
+    /* Color oficial de WhatsApp */
     color: white;
     border-color: #25D366;
     display: inline-flex;
     align-items: center;
-    gap: 8px; /* Espacio entre el ícono y el texto */
-    text-decoration: none; /* Quitar subrayado del enlace */
+    gap: 8px;
+    /* Espacio entre el ícono y el texto */
+    text-decoration: none;
+    /* Quitar subrayado del enlace */
 }
 
 .whatsapp-button:hover {
-    background-color: #128C7E; /* Un tono más oscuro para el hover */
+    background-color: #128C7E;
+    /* Un tono más oscuro para el hover */
     border-color: #128C7E;
     color: white;
 }
 
 .whatsapp-button svg {
-    stroke: white; /* Asegurarse de que el ícono sea blanco */
+    stroke: white;
+    /* Asegurarse de que el ícono sea blanco */
 }
 
 /* --- Estilos para el Toggle de Contraseña --- */
@@ -4562,7 +5469,8 @@ input:checked + .slider:before {
 
 .password-wrapper input[type="password"],
 .password-wrapper input[type="text"] {
-    padding-right: 40px; /* Espacio para el icono */
+    padding-right: 40px;
+    /* Espacio para el icono */
 }
 
 .password-toggle-icon {
@@ -4640,7 +5548,7 @@ input:checked + .slider:before {
     color: #ffffff;
     border: 1px solid #4a90d9;
     border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     font-family: 'Poppins', sans-serif;
 }
 
@@ -4683,23 +5591,36 @@ input:checked + .slider:before {
     border: 2px dashed rgba(255, 255, 255, 0.1);
     margin-top: 20px;
 }
-.empty-state-icon { 
-    font-size: 3rem; 
-    margin-bottom: 15px; 
+
+.empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
 }
+
 .empty-state-container h3 {
     margin: 10px 0;
     color: var(--text-color);
 }
+
 .empty-state-container p {
     color: var(--text-secondary-color);
     margin-bottom: 20px;
 }
+
 .pulse-animation {
     animation: pulse-blue 2s infinite;
 }
+
 @keyframes pulse-blue {
-    0% { box-shadow: 0 0 0 0 rgba(74, 144, 217, 0.7); }
-    70% { box-shadow: 0 0 0 10px rgba(74, 144, 217, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(74, 144, 217, 0); }
+    0% {
+        box-shadow: 0 0 0 0 rgba(74, 144, 217, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(74, 144, 217, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(74, 144, 217, 0);
+    }
 }

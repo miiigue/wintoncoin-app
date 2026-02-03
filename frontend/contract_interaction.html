@@ -108,136 +108,173 @@
                 <a href="como-funciona.html" class="main-title-link">¿Cómo funciona?</a>
             </div>
         </div>
-
-        <div class="balances-container">
-            <!-- Sección BLUE -->
-            <div class="balance-section blue-section">
-                <h3 class="balance-title">
-                    <span class="info-text-clickable" role="button" tabindex="0"
-                        aria-label="Información sobre SALDO BLUE" data-tooltip-id="tooltip-saldo-blue">SALDO BLUE</span>
-                </h3>
-                <div id="tooltip-saldo-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
-                    <p>Los tokens BLUE son tu activo. Puedes usarlos para pagar servicios, recibirlos por trabajo
-                        realizado, o quemarlos para reducir tu deuda RED. Al lanzamiento oficial
-                        <strong>14-2-2027</strong>, <strong>1 BLUE = 1 USD</strong>.
-                    </p>
-                </div>
-                <div class="balance-items">
-                    <div class="balance-item-wrapper">
-                        <span class="balance-label">
-                            <span class="info-text-clickable" role="button" tabindex="0"
-                                aria-label="Información sobre Disponibles"
-                                data-tooltip-id="tooltip-disponibles">Disponibles</span>
-                        </span>
-                        <div id="tooltip-disponibles" class="info-tooltip" role="tooltip" aria-hidden="true">
-                            <p>Son tus tokens BLUE que puedes usar inmediatamente. Puedes pagar con ellos, transferirlos
-                                o quemarlos para reducir tu deuda RED.</p>
-                        </div>
-                        <div class="balance-item">
-                            <span id="saldoBlue" class="balance-amount blue-amount">--</span>
-                        </div>
-                        <div id="available-countdown-container" class="countdown-container" style="display: none;">
-                            <p id="available-countdown-text" class="countdown-text info-text-clickable" role="button"
-                                tabindex="0" aria-label="Información sobre próxima liberación"
-                                data-tooltip-id="tooltip-proxima-liberacion"></p>
-                            <div id="tooltip-proxima-liberacion" class="info-tooltip" role="tooltip" aria-hidden="true">
-                                <p>Tiempo restante para que tus tokens BLUE pendientes se liberen y estén disponibles
-                                    para usar. Este período de espera protege a ambas partes en las transacciones.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="balance-item-wrapper">
-                        <span class="balance-label">
-                            <span class="info-text-clickable" role="button" tabindex="0"
-                                aria-label="Información sobre Pendientes"
-                                data-tooltip-id="tooltip-pendientes">Pendientes</span>
-                        </span>
-                        <div id="tooltip-pendientes" class="info-tooltip" role="tooltip" aria-hidden="true">
-                            <p>Son tokens BLUE que recibiste como pago y están en período de espera (escrow) antes de
-                                estar disponibles. Este período protege a ambas partes en las transacciones. Se
-                                liberarán automáticamente cuando termine el tiempo de espera.</p>
-                        </div>
-                        <div class="balance-item">
-                            <span id="saldoEscrowBlue" class="balance-amount escrow-amount">--</span>
-                        </div>
-                        <div id="escrow-countdown-container" class="countdown-container" style="display: none;">
-                            <p id="escrow-countdown-text" class="countdown-text info-text-clickable" role="button"
-                                tabindex="0" aria-label="Información sobre próxima liberación de escrow"
-                                data-tooltip-id="tooltip-proxima-liberacion-escrow"></p>
-                            <div id="tooltip-proxima-liberacion-escrow" class="info-tooltip" role="tooltip"
-                                aria-hidden="true">
-                                <p>Tiempo restante para que tus tokens BLUE pendientes se liberen y estén disponibles
-                                    para usar. Este período de espera protege a ambas partes en las transacciones.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        <!-- =============================================================== -->
+        <!-- ==           INTERFAZ DE TABS (IMPULSOR / BILLETERA)          == -->
+        <!-- =============================================================== -->
+        <div class="wallet-tabs-container">
+            <div class="wallet-tabs-nav">
+                <button class="wallet-tab-btn active" data-tab="impulsor" id="tabImpulsor">
+                    <span class="tab-icon">⭐</span> Impulsor
+                </button>
+                <button class="wallet-tab-btn" data-tab="billetera" id="tabBilletera">
+                    <span class="tab-icon">💰</span> Billetera
+                </button>
             </div>
 
-            <!-- Sección RED -->
-            <div class="balance-section red-section">
-                <h3 class="balance-title">
-                    <span class="info-text-clickable" role="button" tabindex="0"
-                        aria-label="Información sobre Saldo RED" data-tooltip-id="tooltip-saldo-red">SALDO RED</span>
-                </h3>
-                <div id="tooltip-saldo-red" class="info-tooltip" role="tooltip" aria-hidden="true">
-                    <p>Los tokens RED representan tu deuda en el sistema. Se crean cuando realizas un pago a otro
-                        usuario. Debes quemarlos usando BLUE antes de que venzan, o el sistema los quemará
-                        automáticamente usando tus BLUE disponibles o pendientes. Si no pagas a tiempo, tu usuario será
-                        listado públicamente en la <strong>página LOVE</strong> (Lista de Obligaciones Vencidas).</p>
-                </div>
-                <div class="balance-items red-balance-items">
-                    <div class="balance-item-wrapper red-balance-wrapper">
-                        <span class="balance-label">
+            <!-- Panel IMPULSOR -->
+            <div class="wallet-tab-panel active" id="panelImpulsor" data-panel="impulsor">
+                <a id="boosterSummary" class="booster-banner" href="booster-profile.html">
+                    <div class="booster-banner-header">
+                        <span class="booster-banner-title">Perfil de Impulsor</span>
+                    </div>
+                    <div class="booster-banner-body">
+                        <span class="booster-label">SALDO ACUMULADO</span>
+                        <div id="boosterTotalBlue" class="booster-amount">0 BLUE iou</div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Panel BILLETERA -->
+            <div class="wallet-tab-panel" id="panelBilletera" data-panel="billetera">
+                <div class="balances-container">
+                    <!-- Sección BLUE -->
+                    <div class="balance-section blue-section">
+                        <h3 class="balance-title">
                             <span class="info-text-clickable" role="button" tabindex="0"
-                                aria-label="Información sobre Debes" data-tooltip-id="tooltip-saldo-red-label">Tu
-                                Deuda</span>
-                        </span>
-                        <div id="tooltip-saldo-red-label" class="info-tooltip" role="tooltip" aria-hidden="true">
-                            <p>Es la cantidad total de tokens RED (deuda) que tienes actualmente. Esta deuda tiene un
-                                tiempo de vencimiento. Si no la quemas antes del vencimiento, el sistema la quemará
-                                automáticamente usando tus tokens BLUE. Si no tienes suficientes BLUE para cubrir la
-                                deuda vencida, serás listado en la <strong>página LOVE</strong>.</p>
+                                aria-label="Información sobre SALDO BLUE" data-tooltip-id="tooltip-saldo-blue">SALDO
+                                BLUE</span>
+                        </h3>
+                        <div id="tooltip-saldo-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
+                            <p>Los tokens BLUE son tu activo. Puedes usarlos para pagar servicios, recibirlos por
+                                trabajo
+                                realizado, o quemarlos para reducir tu deuda RED. Al lanzamiento oficial
+                                <strong>14-2-2027</strong>, <strong>1 BLUE = 1 USD</strong>.
+                            </p>
                         </div>
-                        <div class="balance-item">
-                            <span id="saldoRed" class="balance-amount red-amount">--</span>
-                        </div>
-                        <div id="debt-countdown-container" class="countdown-container" style="display: none;">
-                            <p id="debt-countdown-text" class="countdown-text info-text-clickable" role="button"
-                                tabindex="0" aria-label="Información sobre próximo vencimiento"
-                                data-tooltip-id="tooltip-proximo-vencimiento"></p>
-                            <div id="tooltip-proximo-vencimiento" class="info-tooltip" role="tooltip"
-                                aria-hidden="true">
-                                <p>Tiempo restante antes de que tu deuda RED más antigua venza. Si no quemas manualmente
-                                    antes de este tiempo, el sistema quemará automáticamente tus tokens BLUE (primero
-                                    disponibles, luego pendientes) para saldar la deuda. Si no tienes suficientes BLUE,
-                                    serás listado en la <strong>página LOVE</strong>.</p>
+                        <div class="balance-items">
+                            <div class="balance-item-wrapper">
+                                <span class="balance-label">
+                                    <span class="info-text-clickable" role="button" tabindex="0"
+                                        aria-label="Información sobre Disponibles"
+                                        data-tooltip-id="tooltip-disponibles">Disponibles</span>
+                                </span>
+                                <div id="tooltip-disponibles" class="info-tooltip" role="tooltip" aria-hidden="true">
+                                    <p>Son tus tokens BLUE que puedes usar inmediatamente. Puedes pagar con ellos,
+                                        transferirlos
+                                        o quemarlos para reducir tu deuda RED.</p>
+                                </div>
+                                <div class="balance-item">
+                                    <span id="saldoBlue" class="balance-amount blue-amount">--</span>
+                                </div>
+                                <div id="available-countdown-container" class="countdown-container"
+                                    style="display: none;">
+                                    <p id="available-countdown-text" class="countdown-text info-text-clickable"
+                                        role="button" tabindex="0" aria-label="Información sobre próxima liberación"
+                                        data-tooltip-id="tooltip-proxima-liberacion"></p>
+                                    <div id="tooltip-proxima-liberacion" class="info-tooltip" role="tooltip"
+                                        aria-hidden="true">
+                                        <p>Tiempo restante para que tus tokens BLUE pendientes se liberen y estén
+                                            disponibles
+                                            para usar. Este período de espera protege a ambas partes en las
+                                            transacciones.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="balance-item-wrapper">
+                                <span class="balance-label">
+                                    <span class="info-text-clickable" role="button" tabindex="0"
+                                        aria-label="Información sobre Pendientes"
+                                        data-tooltip-id="tooltip-pendientes">Pendientes</span>
+                                </span>
+                                <div id="tooltip-pendientes" class="info-tooltip" role="tooltip" aria-hidden="true">
+                                    <p>Son tokens BLUE que recibiste como pago y están en período de espera (escrow)
+                                        antes de
+                                        estar disponibles. Este período protege a ambas partes en las transacciones. Se
+                                        liberarán automáticamente cuando termine el tiempo de espera.</p>
+                                </div>
+                                <div class="balance-item">
+                                    <span id="saldoEscrowBlue" class="balance-amount escrow-amount">--</span>
+                                </div>
+                                <div id="escrow-countdown-container" class="countdown-container" style="display: none;">
+                                    <p id="escrow-countdown-text" class="countdown-text info-text-clickable"
+                                        role="button" tabindex="0"
+                                        aria-label="Información sobre próxima liberación de escrow"
+                                        data-tooltip-id="tooltip-proxima-liberacion-escrow"></p>
+                                    <div id="tooltip-proxima-liberacion-escrow" class="info-tooltip" role="tooltip"
+                                        aria-hidden="true">
+                                        <p>Tiempo restante para que tus tokens BLUE pendientes se liberen y estén
+                                            disponibles
+                                            para usar. Este período de espera protege a ambas partes en las
+                                            transacciones.</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="burn-item red-burn-button">
-                            <button class="action-button burn-trigger" id="burnTriggerBtn">
-                                <span class="fire-icon">🔥</span> Quemar <span class="fire-icon">🔥</span>
-                            </button>
+                    </div>
+
+                    <!-- Sección RED -->
+                    <div class="balance-section red-section">
+                        <h3 class="balance-title">
+                            <span class="info-text-clickable" role="button" tabindex="0"
+                                aria-label="Información sobre Saldo RED" data-tooltip-id="tooltip-saldo-red">SALDO
+                                RED</span>
+                        </h3>
+                        <div id="tooltip-saldo-red" class="info-tooltip" role="tooltip" aria-hidden="true">
+                            <p>Los tokens RED representan tu deuda en el sistema. Se crean cuando realizas un pago a
+                                otro
+                                usuario. Debes quemarlos usando BLUE antes de que venzan, o el sistema los quemará
+                                automáticamente usando tus BLUE disponibles o pendientes. Si no pagas a tiempo, tu
+                                usuario será
+                                listado públicamente en la <strong>página LOVE</strong> (Lista de Obligaciones
+                                Vencidas).</p>
+                        </div>
+                        <div class="balance-items red-balance-items">
+                            <div class="balance-item-wrapper red-balance-wrapper">
+                                <span class="balance-label">
+                                    <span class="info-text-clickable" role="button" tabindex="0"
+                                        aria-label="Información sobre Debes"
+                                        data-tooltip-id="tooltip-saldo-red-label">Tu
+                                        Deuda</span>
+                                </span>
+                                <div id="tooltip-saldo-red-label" class="info-tooltip" role="tooltip"
+                                    aria-hidden="true">
+                                    <p>Es la cantidad total de tokens RED (deuda) que tienes actualmente. Esta deuda
+                                        tiene un
+                                        tiempo de vencimiento. Si no la quemas antes del vencimiento, el sistema la
+                                        quemará
+                                        automáticamente usando tus tokens BLUE. Si no tienes suficientes BLUE para
+                                        cubrir la
+                                        deuda vencida, serás listado en la <strong>página LOVE</strong>.</p>
+                                </div>
+                                <div class="balance-item">
+                                    <span id="saldoRed" class="balance-amount red-amount">--</span>
+                                </div>
+                                <div id="debt-countdown-container" class="countdown-container" style="display: none;">
+                                    <p id="debt-countdown-text" class="countdown-text info-text-clickable" role="button"
+                                        tabindex="0" aria-label="Información sobre próximo vencimiento"
+                                        data-tooltip-id="tooltip-proximo-vencimiento"></p>
+                                    <div id="tooltip-proximo-vencimiento" class="info-tooltip" role="tooltip"
+                                        aria-hidden="true">
+                                        <p>Tiempo restante antes de que tu deuda RED más antigua venza. Si no quemas
+                                            manualmente
+                                            antes de este tiempo, el sistema quemará automáticamente tus tokens BLUE
+                                            (primero
+                                            disponibles, luego pendientes) para saldar la deuda. Si no tienes
+                                            suficientes BLUE,
+                                            serás listado en la <strong>página LOVE</strong>.</p>
+                                    </div>
+                                </div>
+                                <div class="burn-item red-burn-button">
+                                    <button class="action-button burn-trigger" id="burnTriggerBtn">
+                                        <span class="fire-icon">🔥</span> Quemar <span class="fire-icon">🔥</span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-
-        <a id="boosterSummary" class="booster-banner" href="booster-profile.html" style="display: none;">
-            <div class="booster-banner-body">
-                <div class="booster-banner-header">
-                    <div class="booster-banner-title">
-                        <span class="booster-banner-icon" aria-hidden="true">⭐</span>
-                        <h3>Perfil de Impulsor</h3>
-                        <span class="booster-banner-icon" aria-hidden="true">⭐</span>
-                    </div>
-                </div>
-                <div class="booster-banner-meta">
-                    <span id="boosterTotalBlue" class="booster-total">0 BLUE iou</span>
-                </div>
-            </div>
-        </a>
 
         <!-- =============================================================== -->
         <!-- ==           UBICACIÓN DEFINITIVA DEL BANNER DE VALOR        == -->
@@ -494,6 +531,23 @@
     <div class="beta-version-tag" style="display: none;">
         Prototipo Alfa
     </div>
+    <!-- Modal Pre-Lanzamiento Billetera -->
+    <div class="prelaunch-modal-overlay" id="prelaunchWalletModal" style="display: none;">
+        <div class="prelaunch-modal">
+            <div class="prelaunch-modal-icon">💰</div>
+            <h3 class="prelaunch-modal-title">Fase de Acumulación</h3>
+            <p class="prelaunch-modal-text">
+                Actualmente estás acumulando <strong>BLUE iou</strong> (pagarés).
+            </p>
+            <p class="prelaunch-modal-text">
+                A partir del <strong class="highlight-date">14 de febrero de 2027</strong>, recibirás tus <strong>tokens
+                    BLUE</strong> conforme al <a href="https://boosters.wintoncoin.com" target="_blank"
+                    class="modal-link">Programa de Incentivos para Impulsores</a>.
+            </p>
+            <button class="prelaunch-modal-btn" id="prelaunchModalAccept">Entendido</button>
+        </div>
+    </div>
+
     <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
 </body>

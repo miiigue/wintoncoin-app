@@ -79,7 +79,12 @@ document.addEventListener('DOMContentLoaded', () => {
         boosterSummary: document.getElementById('boosterSummary'),
         boosterTotalBlue: document.getElementById('boosterTotalBlue'),
         boosterProgressText: document.getElementById('boosterProgressText'),
-        boosterProgressFill: document.getElementById('boosterProgressFill')
+        boosterProgressFill: document.getElementById('boosterProgressFill'),
+        // Wallet Tabs
+        tabImpulsor: document.getElementById('tabImpulsor'),
+        tabBilletera: document.getElementById('tabBilletera'),
+        panelImpulsor: document.getElementById('panelImpulsor'),
+        panelBilletera: document.getElementById('panelBilletera')
     };
 
     // Intervals for countdowns
@@ -117,6 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadReferralSettings();
     setupShareReferral();
     initPWAInstall(); // Inicializar botón de instalación PWA
+    setupWalletTabs(); // Inicializar tabs de billetera/impulsor
 
     // Iniciar tour de bienvenida si corresponde
     setTimeout(initOnboarding, 500);
@@ -204,6 +210,71 @@ document.addEventListener('DOMContentLoaded', () => {
     function closeAllDropdowns() {
         if (elements.profileDropdown) elements.profileDropdown.classList.remove('show');
         if (elements.notificationDropdown) elements.notificationDropdown.classList.remove('show');
+    }
+
+    // --- Wallet Tabs (Impulsor / Billetera) ---
+    function setupWalletTabs() {
+        const { tabImpulsor, tabBilletera, panelImpulsor, panelBilletera } = elements;
+        const prelaunchModal = document.getElementById('prelaunchWalletModal');
+        const prelaunchAcceptBtn = document.getElementById('prelaunchModalAccept');
+
+        if (!tabImpulsor || !tabBilletera) {
+            console.warn('[WalletTabs] Tabs not found in DOM');
+            return;
+        }
+
+        // Show prelaunch modal
+        function showPrelaunchModal() {
+            if (prelaunchModal) {
+                prelaunchModal.style.display = 'flex';
+            }
+        }
+
+        // Close modal handler
+        if (prelaunchAcceptBtn) {
+            prelaunchAcceptBtn.addEventListener('click', () => {
+                if (prelaunchModal) {
+                    prelaunchModal.style.display = 'none';
+                }
+            });
+        }
+
+        function switchToTab(tabName) {
+            // Update buttons
+            tabImpulsor.classList.toggle('active', tabName === 'impulsor');
+            tabBilletera.classList.toggle('active', tabName === 'billetera');
+
+            // Update panels
+            if (panelImpulsor) panelImpulsor.classList.toggle('active', tabName === 'impulsor');
+            if (panelBilletera) panelBilletera.classList.toggle('active', tabName === 'billetera');
+
+            // Show modal when switching to Billetera
+            if (tabName === 'billetera') {
+                showPrelaunchModal();
+            }
+
+            // Save preference
+            localStorage.setItem('walletActiveTab', tabName);
+        }
+
+        // Event listeners
+        tabImpulsor.addEventListener('click', () => switchToTab('impulsor'));
+        tabBilletera.addEventListener('click', () => switchToTab('billetera'));
+
+        // Determine default tab based on pre-launch mode
+        const savedTab = localStorage.getItem('walletActiveTab');
+        if (savedTab) {
+            switchToTab(savedTab);
+        } else {
+            // Default: In pre-launch show Impulsor, otherwise show Billetera
+            getPlatformSettings().then(settings => {
+                const isPreLaunch = settings?.pre_launch_mode === true || settings?.pre_launch_mode === 'true';
+                switchToTab(isPreLaunch ? 'impulsor' : 'billetera');
+            }).catch(() => {
+                // Fallback to Impulsor if settings fail
+                switchToTab('impulsor');
+            });
+        }
     }
 
     function setupEventListeners() {
@@ -1209,7 +1280,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const token = localStorage.getItem('token');
         if (!token) {
-            elements.boosterSummary.style.display = 'none';
+            // No token, nothing to show but tab system controls visibility
             return;
         }
 
@@ -1221,7 +1292,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await response.json();
 
             if (!response.ok || !result?.is_booster) {
-                elements.boosterSummary.style.display = 'none';
+                // Not a booster, show placeholder text
+                if (elements.boosterTotalBlue) {
+                    elements.boosterTotalBlue.innerHTML = `<span class="booster-total-value">0</span> <span class="booster-total-unit">BLUE iou</span>`;
+                }
                 return;
             }
 
@@ -1243,10 +1317,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (elements.boosterProgressText) elements.boosterProgressText.textContent = progressText;
             if (elements.boosterProgressFill) elements.boosterProgressFill.style.width = `${progressPercent}%`;
 
-            elements.boosterSummary.style.display = 'block';
         } catch (error) {
             console.error('Error al cargar el resumen de impulsor:', error);
-            elements.boosterSummary.style.display = 'none';
         }
     }
 
