@@ -39,7 +39,7 @@ function clearRegisterClientState() {
 // --- Configuración del banner de sesión ---
 function configureSessionBanner(elements, { title, message, primaryText, onPrimary, secondaryText, onSecondary }) {
     const { sessionBanner, sessionBannerTitle, sessionBannerMessage, sessionPrimaryBtn, sessionSecondaryBtn, sessionLogoutBtn } = elements;
-    
+
     if (!sessionBanner) return;
 
     sessionBannerTitle.textContent = title || 'Sesión detectada';
@@ -67,19 +67,19 @@ async function validateAndSetInitialStep(API_URL, pendingPhone, pendingEmail, st
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ phone: pendingPhone, email: pendingEmail })
             });
-            
+
             if (response.ok) {
                 const data = await response.json();
                 if (data.isValid) {
                     console.log("Recuperando sesión de verificación pendiente...");
                     step1Div.style.display = 'none';
                     step2Div.style.display = 'block';
-                    
+
                     const hiddenEmailInput = document.getElementById('hiddenEmail');
                     const emailInputVal = document.getElementById('email');
-                    
-                    if(hiddenEmailInput) hiddenEmailInput.value = pendingEmail;
-                    if(emailInputVal) emailInputVal.value = pendingEmail;
+
+                    if (hiddenEmailInput) hiddenEmailInput.value = pendingEmail;
+                    if (emailInputVal) emailInputVal.value = pendingEmail;
                 } else {
                     console.log("Sesión pendiente expirada o inválida según backend.");
                     localStorage.removeItem('pendingVerificationPhone');
@@ -128,7 +128,7 @@ function setupFieldValidation(API_URL, checkAgreements) {
             const username = usernameInput.value.trim();
             usernameFeedback.style.display = 'none';
             usernameInput.style.borderColor = '';
-            
+
             if (!username) return;
 
             // Validación: mínimo 3 caracteres
@@ -159,7 +159,7 @@ function setupFieldValidation(API_URL, checkAgreements) {
             try {
                 const response = await fetch(`${API_URL}/api/check-username/${username}`);
                 if (!response.ok) throw new Error('Error de red');
-                
+
                 const data = await response.json();
 
                 if (!data.available) {
@@ -199,7 +199,7 @@ function setupFieldValidation(API_URL, checkAgreements) {
             const email = emailInput.value.trim();
             emailFeedback.style.display = 'none';
             emailInput.style.borderColor = '';
-            
+
             if (!email) return;
 
             if (!/^\S+@\S+\.\S+$/.test(email)) {
@@ -212,7 +212,7 @@ function setupFieldValidation(API_URL, checkAgreements) {
             try {
                 const response = await fetch(`${API_URL}/api/check-email/${encodeURIComponent(email)}`);
                 if (!response.ok) throw new Error('Error de red');
-                
+
                 const data = await response.json();
 
                 if (!data.available) {
@@ -252,7 +252,7 @@ function setupFieldValidation(API_URL, checkAgreements) {
             const phone = phoneInput.value.trim();
             phoneFeedback.style.display = 'none';
             phoneInput.style.borderColor = '';
-            
+
             if (!phone) return;
 
             if (phone.length < 7) {
@@ -265,7 +265,7 @@ function setupFieldValidation(API_URL, checkAgreements) {
             try {
                 const response = await fetch(`${API_URL}/api/check-phone/${encodeURIComponent(phone)}`);
                 if (!response.ok) throw new Error('Error de red');
-                
+
                 const data = await response.json();
 
                 if (!data.available) {
@@ -353,7 +353,7 @@ function setupModals() {
     }
 
     referralCloseButtons.forEach(button => button.addEventListener('click', closeReferralModal));
-    
+
     if (referralModal) {
         window.addEventListener('click', (event) => {
             if (event.target === referralModal) {
@@ -412,10 +412,10 @@ function setupMinorFields() {
 // --- Inicialización principal ---
 async function initializeRegisterPage() {
     const API_URL = getApiUrl();
-    
+
     // Inicializar botón de instalación PWA
     initPWAInstall();
-    
+
     // Referencias a elementos del DOM
     const registerForm = document.getElementById('registerForm');
     const verifyForm = document.getElementById('verifyForm');
@@ -483,12 +483,12 @@ async function initializeRegisterPage() {
     const termsRiskCheck = document.getElementById('terms-risk');
     const registerRequestBtn = document.getElementById('register-request-btn');
 
-    if (termsGeneralCheck && termsPreLaunchCheck && termsEconomicCheck && termsDebtCheck && 
+    if (termsGeneralCheck && termsPreLaunchCheck && termsEconomicCheck && termsDebtCheck &&
         termsRiskCheck && registerRequestBtn) {
         const allCheckboxes = [
-            termsGeneralCheck, 
-            termsPreLaunchCheck, 
-            termsEconomicCheck, 
+            termsGeneralCheck,
+            termsPreLaunchCheck,
+            termsEconomicCheck,
             termsDebtCheck,
             termsRiskCheck
         ];
@@ -514,7 +514,7 @@ async function initializeRegisterPage() {
     const urlParams = new URLSearchParams(window.location.search);
     const refCodeFromUrl = urlParams.get('ref');
     const referralCodeInput = document.getElementById('referral_code');
-    
+
     if (refCodeFromUrl && referralCodeInput) {
         referralCodeInput.value = refCodeFromUrl.trim().toUpperCase();
         // Guardar en localStorage para que persista después de instalar la PWA
@@ -528,7 +528,7 @@ async function initializeRegisterPage() {
     if (!refCodeFromUrl) {
         const referralModalShown = sessionStorage.getItem('referralModalShown') === 'true';
         const policyModalShown = sessionStorage.getItem('policyModalShown') === 'true';
-        
+
         if (!referralModalShown) {
             showReferralModal();
         } else if (!policyModalShown) {
@@ -552,76 +552,237 @@ async function initializeRegisterPage() {
         }
     });
 
-    // --- PASO 1: Formulario de registro inicial ---
-    if (registerForm) {
-        registerForm.addEventListener('submit', async function(event) {
-            event.preventDefault();
+    // --- LÓGICA DEL WIZARD (Nuevo) ---
+    function setupWizard() {
+        const steps = document.querySelectorAll('.wizard-step');
+        const dots = document.querySelectorAll('.wizard-step-dot');
+        const progressFill = document.getElementById('progress-line-fill');
+        const nextBtns = document.querySelectorAll('.next-step-btn');
+        const prevBtns = document.querySelectorAll('.prev-step-btn');
+        let currentStep = 1;
 
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
-            const email = document.getElementById('email').value;
-            const phone = document.getElementById('phone').value;
-            const dateOfBirth = document.getElementById('date_of_birth').value;
+        // Actualizar barra de progreso
+        function updateProgress(step) {
+            // Calcular porcentaje de relleno de la barra
+            // Total pasos = 3. 
+            // Paso 1: 0% (inicio) o 50% (hacia 2)? 
+            // Vamos a hacerlo visual: 
+            // Step 1 -> 2: 50%
+            // Step 2 -> 3: 100%
+            const totalSteps = 3;
+            const percentage = ((step - 1) / (totalSteps - 1)) * 100;
+            if (progressFill) progressFill.style.width = `${percentage}%`;
 
-            if (password !== confirmPassword) {
-                showCustomAlert('Las contraseñas no coinciden. Por favor, inténtalo de nuevo.');
-                return;
+            // Actualizar dots
+            dots.forEach(dot => {
+                const dotStep = parseInt(dot.dataset.step);
+                dot.classList.remove('active', 'completed');
+                if (dotStep === step) {
+                    dot.classList.add('active');
+                } else if (dotStep < step) {
+                    dot.classList.add('completed');
+                    // Cambiar el número por check? Opcional. 
+                    dot.querySelector('.dot-circle').innerHTML = '✓';
+                } else {
+                    dot.querySelector('.dot-circle').innerHTML = dotStep;
+                }
+            });
+
+            // Mostrar paso actual
+            steps.forEach(s => {
+                s.style.display = (parseInt(s.dataset.stepIndex) === step) ? 'block' : 'none';
+                if (parseInt(s.dataset.stepIndex) === step) {
+                    s.classList.add('active-step');
+                } else {
+                    s.classList.remove('active-step');
+                }
+            });
+
+            currentStep = step;
+
+            // Scroll arriba suave
+            const wizardContainer = document.getElementById('wizard-progress-container');
+            if (wizardContainer) wizardContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // Validar Paso 1
+        function validateStep1() {
+            const email = document.getElementById('email').value.trim();
+            const pass = document.getElementById('password').value;
+            const confirm = document.getElementById('confirmPassword').value;
+            const emailFeedback = document.getElementById('email-feedback');
+
+            if (!email || !pass || !confirm) {
+                showCustomAlert('Por favor completa todos los campos.');
+                return false;
+            }
+            if (pass !== confirm) {
+                showCustomAlert('Las contraseñas no coinciden.');
+                return false;
+            }
+            if (pass.length < 8) {
+                showCustomAlert('La contraseña debe tener al menos 8 caracteres.');
+                return false;
             }
 
-            if (!dateOfBirth) {
-                showCustomAlert('Por favor, proporciona tu fecha de nacimiento.');
-                return;
+            // Comprobación básica de email (la validación asíncrona ocurre en blur, aquí checamos si ya dio error)
+            if (isEmailTaken) {
+                showCustomAlert('El correo electrónico ya está registrado o no es válido.');
+                return false;
             }
 
-            const birthDate = new Date(dateOfBirth);
+            return true;
+        }
+
+        // Validar Paso 2
+        function validateStep2() {
+            const username = document.getElementById('username').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const dob = document.getElementById('date_of_birth').value;
+
+            if (!username || !phone || !dob) {
+                showCustomAlert('Por favor completa todos los campos de tu perfil.');
+                return false;
+            }
+
+            if (isUsernameTaken) {
+                showCustomAlert('El nombre de usuario no está disponible.');
+                return false;
+            }
+
+            if (isPhoneTaken) {
+                showCustomAlert('El teléfono ya está registrado o no es válido.');
+                return false;
+            }
+
+            // Validar edad (copiado de lógica anterior)
+            const birthDate = new Date(dob);
             const today = new Date();
             let age = today.getFullYear() - birthDate.getFullYear();
             const monthDiff = today.getMonth() - birthDate.getMonth();
             if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
                 age--;
             }
-
             if (age < 13) {
-                showCustomAlert('Debes tener al menos 13 años para registrarte en WintonCoin. Los menores de 13 años no pueden utilizar la plataforma.');
-                return;
+                showCustomAlert('Debes tener al menos 13 años para registrarte.');
+                return false;
             }
 
+            return true;
+        }
+
+        // Listeners Botones Siguiente
+        nextBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const nextStep = parseInt(btn.dataset.next);
+
+                // Validación antes de avanzar
+                if (currentStep === 1 && !validateStep1()) return;
+                if (currentStep === 2 && !validateStep2()) return;
+
+                updateProgress(nextStep);
+            });
+        });
+
+        // Listeners Botones Atrás
+        prevBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const prevStep = parseInt(btn.dataset.prev);
+                updateProgress(prevStep);
+            });
+        });
+
+        // Inicializar
+        updateProgress(1);
+    }
+
+    // Ejecutar setup wizard
+    setupWizard();
+
+    // --- PASO 1 (FINAL SUBMIT): Formulario de registro ---
+    if (registerForm) {
+        registerForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            // Recopilar datos de TODOS los pasos (están en el mismo form)
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            // email, phone, dob ya validados
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
+            const dateOfBirth = document.getElementById('date_of_birth').value;
+            // referral code
+            const referralCode = document.getElementById('referral_code')?.value;
+
+            // ... (Resto de lógica de envío igual, pero ya validamos edad en el wizard)
+
             try {
+                // Deshabilitar botón para evitar doble envío
+                const submitBtn = document.getElementById('register-request-btn');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerText = 'Procesando...';
+                }
+
+                // Payload incluye referral_code si existe
+                const payload = {
+                    username,
+                    password,
+                    email,
+                    phone,
+                    date_of_birth: dateOfBirth,
+                    referral_code: referralCode
+                };
+
                 const response = await fetch(`${API_URL}/api/register-request`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password, email, phone, date_of_birth: dateOfBirth })
+                    body: JSON.stringify(payload)
                 });
 
                 const result = await response.json();
 
                 if (response.ok) {
                     showCustomAlert(result.message);
-                    
+
                     const hiddenEmailInput = document.getElementById('hiddenEmail');
                     if (hiddenEmailInput) hiddenEmailInput.value = email;
 
                     localStorage.setItem('pendingVerificationPhone', phone);
                     localStorage.setItem('pendingVerificationEmail', email);
 
-                    step1Div.style.display = 'none';
+                    // Ocultar wizard completo, mostrar paso verificación
+                    const wizardContainer = document.getElementById('wizard-progress-container');
+                    const formContainer = document.getElementById('registration-step-1'); // Ahora es wizard-form-container
+
+                    if (wizardContainer) wizardContainer.style.display = 'none';
+                    if (formContainer) formContainer.style.display = 'none';
+
                     step2Div.style.display = 'block';
-                    
+
                     startResendTimer(resendBtn, resendTimerSpan);
                 } else {
                     showCustomAlert(`Error: ${result.message}`);
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerText = 'Crear Cuenta';
+                    }
                 }
             } catch (error) {
                 console.error('Error de red o al conectar con el servidor:', error);
                 showCustomAlert('No se pudo conectar con el servidor. Asegúrate de que está en funcionamiento.');
+                const submitBtn = document.getElementById('register-request-btn');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = 'Crear Cuenta';
+                }
             }
         });
     }
 
     // --- PASO 2: Formulario de verificación ---
     if (verifyForm) {
-        verifyForm.addEventListener('submit', async function(event) {
+        verifyForm.addEventListener('submit', async function (event) {
             event.preventDefault();
 
             const verificationCode = document.getElementById('verificationCode').value;
@@ -647,7 +808,7 @@ async function initializeRegisterPage() {
                     localStorage.removeItem('pending_verification_email');
                     // Limpiar código de referido ya que el registro se completó
                     localStorage.removeItem('pending_referral_code');
-                    
+
                     window.location.href = 'contract_interaction.html';
                 } else {
                     showCustomAlert(`Error: ${result.message}`);
@@ -668,7 +829,7 @@ async function initializeRegisterPage() {
     if (resendBtn) {
         resendBtn.addEventListener('click', async () => {
             const email = document.getElementById('email')?.value || localStorage.getItem('pendingVerificationEmail');
-            
+
             if (!email) {
                 showCustomAlert('No se pudo encontrar el email para reenviar el código. Por favor, recarga la página e inténtalo de nuevo.');
                 return;

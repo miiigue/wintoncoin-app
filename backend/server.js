@@ -130,6 +130,7 @@ async function startServer() {
         console.log("Base de datos inicializada correctamente.");
 
         // --- AHORA DEFINIMOS LAS RUTAS ---
+        app.use('/api', authRoutes); // Registrar rutas de autenticación
 
         // =================================================================================
         // ==  NUEVO FLUJO DE REGISTRO CON VERIFICACIÓN POR SMS (FASE 1: SOLICITUD)  ==
