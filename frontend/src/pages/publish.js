@@ -48,53 +48,53 @@ document.addEventListener('DOMContentLoaded', () => {
     const donationWarningModal = document.getElementById('donationWarningModal');
     const donationModalActions = document.querySelector('#donationWarningModal .modal-actions');
     const donationWarningCloseButton = document.querySelector('.donation-warning-close');
-    
+
     // --- Tutor Required Modal (Minors) ---
     const tutorModal = document.getElementById('tutorRequiredModal');
     const tutorForm = document.getElementById('addTutorForm');
     const tutorCloseButtons = document.querySelectorAll('.tutor-modal-close');
-    
+
     function showTutorRequiredModal() {
         if (tutorModal) {
             tutorModal.style.display = 'flex';
         }
     }
-    
+
     function closeTutorModal() {
         if (tutorModal) {
             tutorModal.style.display = 'none';
             if (tutorForm) tutorForm.reset();
         }
     }
-    
+
     tutorCloseButtons.forEach(button => {
         button.addEventListener('click', closeTutorModal);
     });
-    
+
     if (tutorModal) {
         window.addEventListener('click', (event) => {
             if (event.target === tutorModal) closeTutorModal();
         });
     }
-    
+
     // Handle tutor form submission
     if (tutorForm) {
         tutorForm.addEventListener('submit', async (event) => {
             event.preventDefault();
-            
+
             const tutorUsernameOrEmail = document.getElementById('tutorUsernameOrEmail').value;
             const username = localStorage.getItem('username');
-            
+
             if (!username) {
                 showCustomAlert('Error: No se pudo obtener tu nombre de usuario. Por favor, inicia sesión nuevamente.');
                 return;
             }
-            
+
             if (!tutorUsernameOrEmail) {
                 showCustomAlert('Por favor, ingresa el usuario o email del tutor.');
                 return;
             }
-            
+
             try {
                 const response = await fetch(`${API_URL}/api/minor/add-tutor`, {
                     method: 'POST',
@@ -104,9 +104,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         tutorUsernameOrEmail: tutorUsernameOrEmail.trim()
                     })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (response.ok) {
                     showCustomAlert(result.message || 'Tutor agregado exitosamente. Ahora puedes realizar transacciones.', () => {
                         closeTutorModal();
@@ -266,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
         descriptionLabel.textContent = 'Descripción y Condiciones:';
         descriptionInput.placeholder = 'Ej: Ofrezco mis servicios para crear un logo vectorial de alta calidad. Incluye 3 revisiones...';
         descriptionHint.textContent = 'Detalla tu oferta. Si ofreces dinero, especifica el método de pago (banco, etc.) y cualquier condición.';
-        
+
         const sellLabel = document.querySelector('#sell-wrapper label');
         if (sellLabel) {
             sellLabel.textContent = 'Cantidad de BLUE que quieres recibir:';
@@ -286,7 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
         descriptionLabel.textContent = 'Describe tu Causa:';
         descriptionInput.placeholder = 'Ej: Somos un refugio de animales que necesita fondos para comprar 100kg de alimento este mes...';
         descriptionHint.textContent = 'Explica por qué necesitas apoyo, para qué se usarán los fondos y cualquier detalle que genere confianza.';
-        
+
         const sellLabel = document.querySelector('#sell-wrapper label');
         if (sellLabel) {
             sellLabel.textContent = 'Meta de Recaudación (en BLUE):';
@@ -294,10 +294,8 @@ document.addEventListener('DOMContentLoaded', () => {
         submitButton.textContent = 'Crear Campaña';
 
         // Show initial warning
-        if (sessionStorage.getItem('donationWarningShown') !== 'true') {
-            showDonationWarningModal('initial');
-            sessionStorage.setItem('donationWarningShown', 'true');
-        }
+        // Show initial warning always
+        showDonationWarningModal('initial');
 
     } else {
         showCustomAlert('Tipo de publicación no válido.', () => { window.location.href = 'contract_interaction.html'; });
@@ -347,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 hideDonationWarningModal();
                 submitPublicationForm();
             };
-            
+
             donationModalActions.appendChild(cancelButton);
             donationModalActions.appendChild(confirmButton);
         }

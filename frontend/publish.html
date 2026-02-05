@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,16 +10,17 @@
     <title>Crear Publicación - Interfaz Smart Contract</title>
     <link id="main-stylesheet" rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div id="custom-alert-container"></div>
 
     <div class="container publish-container">
         <a href="contract_interaction.html" class="form-back-link">‹ Volver</a>
         <h1>Crear Nueva Publicación</h1>
-        
+
         <form id="publishForm">
             <div id="prelaunch-notice-container" style="display: none;"></div>
-            
+
             <div>
                 <label for="title">Título:</label>
                 <input type="text" id="title" name="title" required placeholder="Ej: Necesito un logo para mi marca">
@@ -27,8 +29,10 @@
 
             <div>
                 <label for="description">Descripción:</label>
-                <textarea id="description" name="description" rows="4" required placeholder="Ej: Busco un diseñador para crear un logo moderno y minimalista para mi startup. Los colores principales deben ser azul y blanco..."></textarea>
-                <small class="input-hint">Detalla cualquier información relevante: características, requisitos, herramientas, lugares, horarios, habilidades, etc.</small>
+                <textarea id="description" name="description" rows="4" required
+                    placeholder="Ej: Busco un diseñador para crear un logo moderno y minimalista para mi startup. Los colores principales deben ser azul y blanco..."></textarea>
+                <small class="input-hint">Detalla cualquier información relevante: características, requisitos,
+                    herramientas, lugares, horarios, habilidades, etc.</small>
             </div>
 
             <div id="step-instructions-container" class="step-instructions-container" style="display: none;">
@@ -37,19 +41,23 @@
                     <div class="step-inputs" id="stepInputs">
                         <div class="step-input">
                             <label for="stepInstruction1">Paso 1</label>
-                            <input type="text" id="stepInstruction1" name="stepInstruction1" placeholder="Describe el primer paso">
+                            <input type="text" id="stepInstruction1" name="stepInstruction1"
+                                placeholder="Describe el primer paso">
                         </div>
                         <div class="step-input">
                             <label for="stepInstruction2">Paso 2</label>
-                            <input type="text" id="stepInstruction2" name="stepInstruction2" placeholder="Describe el segundo paso">
+                            <input type="text" id="stepInstruction2" name="stepInstruction2"
+                                placeholder="Describe el segundo paso">
                         </div>
                         <div class="step-input">
                             <label for="stepInstruction3">Paso 3</label>
-                            <input type="text" id="stepInstruction3" name="stepInstruction3" placeholder="Describe el tercer paso">
+                            <input type="text" id="stepInstruction3" name="stepInstruction3"
+                                placeholder="Describe el tercer paso">
                         </div>
                         <div class="step-input">
                             <label for="stepInstruction4">Paso 4</label>
-                            <input type="text" id="stepInstruction4" name="stepInstruction4" placeholder="Describe el cuarto paso">
+                            <input type="text" id="stepInstruction4" name="stepInstruction4"
+                                placeholder="Describe el cuarto paso">
                         </div>
                     </div>
                     <div class="step-actions">
@@ -57,15 +65,17 @@
                     </div>
                 </div>
             </div>
-            
+
             <div id="cost-wrapper">
                 <label for="blueCost">Cantidad en BLUE que ofreces al culminar la tarea</label>
-                <input type="text" inputmode="decimal" id="blueCost" name="blueCost" placeholder="Ej: 12.5300" pattern="^[0-9]+([.,][0-9]{1,4})?$">
+                <input type="text" inputmode="decimal" id="blueCost" name="blueCost" placeholder="Ej: 12.5300"
+                    pattern="^[0-9]+([.,][0-9]{1,4})?$">
             </div>
 
             <div id="sell-wrapper">
                 <label for="blueSell">Precio de Venta (en BLUE):</label>
-                <input type="text" inputmode="decimal" id="blueSell" name="blueSell" placeholder="Ej: 50.0000" pattern="^[0-9]+([.,][0-9]{1,4})?$">
+                <input type="text" inputmode="decimal" id="blueSell" name="blueSell" placeholder="Ej: 50.0000"
+                    pattern="^[0-9]+([.,][0-9]{1,4})?$">
             </div>
 
             <div>
@@ -77,7 +87,8 @@
                 <div class="switch-header">
                     <div class="switch-label-group">
                         <label for="setExpiration">Establecer un límite de tiempo</label>
-                        <small class="input-hint">Por defecto, la tarea no expira y permanece activa hasta que se llenen los cupos.</small>
+                        <small class="input-hint">Por defecto, la tarea no expira y permanece activa hasta que se llenen
+                            los cupos.</small>
                     </div>
                     <label class="switch">
                         <input type="checkbox" id="setExpiration" name="setExpiration">
@@ -107,7 +118,8 @@
                 <div class="switch-header">
                     <div class="switch-label-group">
                         <label for="autoApprove">Aprobación automática</label>
-                        <small class="input-hint">Ideal para tareas que no requieren selección. Cualquier usuario que acepte será aprobado.</small>
+                        <small class="input-hint">Ideal para tareas que no requieren selección. Cualquier usuario que
+                            acepte será aprobado.</small>
                     </div>
                     <label class="switch">
                         <input type="checkbox" id="autoApprove" name="autoApprove">
@@ -120,7 +132,8 @@
                 <div class="switch-header">
                     <div class="switch-label-group">
                         <label for="allowRepeatParticipation">Permitir repetición de tareas</label>
-                        <small class="input-hint">Permite que un usuario vuelva a realizar esta tarea después de haberla completado.</small>
+                        <small class="input-hint">Permite que un usuario vuelva a realizar esta tarea después de haberla
+                            completado.</small>
                     </div>
                     <label class="switch">
                         <input type="checkbox" id="allowRepeatParticipation" name="allowRepeatParticipation">
@@ -142,11 +155,13 @@
                             <small class="repeat-cooldown-unit">d</small>
                         </div>
                         <div class="repeat-cooldown-field">
-                            <input type="number" id="repeatCooldownHours" min="0" step="1" value="0" placeholder="Horas">
+                            <input type="number" id="repeatCooldownHours" min="0" step="1" value="0"
+                                placeholder="Horas">
                             <small class="repeat-cooldown-unit">h</small>
                         </div>
                         <div class="repeat-cooldown-field">
-                            <input type="number" id="repeatCooldownMinutes" min="0" step="1" value="12" placeholder="Minutos">
+                            <input type="number" id="repeatCooldownMinutes" min="0" step="1" value="12"
+                                placeholder="Minutos">
                             <small class="repeat-cooldown-unit">min</small>
                         </div>
                     </div>
@@ -156,7 +171,7 @@
 
             <!-- Contenedor para la nota de la comisión -->
             <div id="commission-notice-container"></div>
-            
+
             <div>
                 <button type="submit">Publicar</button>
             </div>
@@ -169,13 +184,11 @@
             <span class="close-button donation-warning-close">&times;</span>
             <h3>Uso Responsable de Solicitudes de Donación</h3>
             <p>
-                Esta sección está destinada exclusivamente para solicitar ayuda en <strong>emergencias reales y causas humanitarias verificables.</strong>
+                Esta sección es exclusiva para <strong>emergencias reales y causas humanitarias</strong>. Mentir o
+                cometer fraude es una falta grave que resultará en la <strong>suspensión permanente</strong> de tu
+                cuenta y posibles acciones legales.
                 <br><br>
-                El uso de esta plataforma para beneficio personal, engaño o fraude es una falta grave a nuestros términos de servicio. Nos tomamos la confianza de nuestra comunidad muy en serio.
-                <br><br>
-                Todas las solicitudes están sujetas a revisión. Las cuentas que incurran en actividades fraudulentas serán suspendidas permanentemente y, de ser necesario, reportadas a las autoridades competentes.
-                <br><br>
-                Al continuar, confirmas que tu solicitud es legítima y que la información proporcionada es veraz.
+                Al continuar, declaras bajo juramento que tu solicitud es legítima y veraz.
             </p>
             <div class="modal-actions">
                 <!-- Los botones se insertarán aquí dinámicamente desde JS -->
@@ -189,22 +202,28 @@
         <div class="modal-content" style="max-width: 600px;">
             <span class="close-button tutor-modal-close">&times;</span>
             <h3>Autorización de Tutor Requerida</h3>
-            <div class="info-box" style="margin: 15px 0; background-color: #fff3cd; border-left-color: #ffc107; color: #856404;">
-                <strong>Por ser menor de edad</strong>, necesitas la autorización de un tutor (padre, madre o tutor legal) para realizar transacciones que generen obligaciones financieras.
+            <div class="info-box"
+                style="margin: 15px 0; background-color: #fff3cd; border-left-color: #ffc107; color: #856404;">
+                <strong>Por ser menor de edad</strong>, necesitas la autorización de un tutor (padre, madre o tutor
+                legal) para realizar transacciones que generen obligaciones financieras.
             </div>
-            <p>El tutor debe tener una cuenta activa en WintonCoin y será responsable de todas las deudas RED generadas por tu cuenta.</p>
-            
+            <p>El tutor debe tener una cuenta activa en WintonCoin y será responsable de todas las deudas RED generadas
+                por tu cuenta.</p>
+
             <form id="addTutorForm" style="margin-top: 20px;">
                 <div>
                     <label for="tutorUsernameOrEmail">Usuario o Email del Tutor:</label>
-                    <input type="text" id="tutorUsernameOrEmail" name="tutorUsernameOrEmail" required placeholder="Ej: tutor123 o tutor@email.com">
+                    <input type="text" id="tutorUsernameOrEmail" name="tutorUsernameOrEmail" required
+                        placeholder="Ej: tutor123 o tutor@email.com">
                     <small style="display: block; color: #666; font-size: 0.85em; margin-top: 5px;">
-                        El tutor debe tener una cuenta activa en WintonCoin. Se le enviará una notificación para confirmar.
+                        El tutor debe tener una cuenta activa en WintonCoin. Se le enviará una notificación para
+                        confirmar.
                     </small>
                 </div>
                 <div style="margin-top: 20px;">
                     <button type="submit" class="btn" style="width: 100%;">Agregar Tutor</button>
-                    <button type="button" class="btn tutor-modal-close" style="width: 100%; margin-top: 10px; background-color: #6c757d;">Cancelar</button>
+                    <button type="button" class="btn tutor-modal-close"
+                        style="width: 100%; margin-top: 10px; background-color: #6c757d;">Cancelar</button>
                 </div>
             </form>
         </div>
@@ -215,4 +234,5 @@
     <!-- ES Modules (Vite) -->
     <script type="module" src="src/pages/publish.js"></script>
 </body>
-</html> 
+
+</html>

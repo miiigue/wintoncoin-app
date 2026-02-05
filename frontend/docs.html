@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Documentación - WintonCoin</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&family=Poppins:wght@300;400;600&display=swap"
+        rel="stylesheet">
+
+    <style>
+        /* Estilos específicos para la página de docs */
+        .docs-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .docs-header h1 {
+            color: var(--primary-color, #6a5acd);
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .docs-header p {
+            color: var(--text-secondary-color, #BDBDBD);
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .docs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .doc-card {
+            background-color: var(--surface-color, #14245a);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 25px;
+            text-align: left;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .doc-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            border-color: var(--primary-color, #6a5acd);
+        }
+
+        .doc-icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            color: var(--primary-color, #6a5acd);
+        }
+
+        .doc-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+
+        .doc-description {
+            font-size: 0.9rem;
+            color: var(--text-secondary-color, #BDBDBD);
+            line-height: 1.5;
+            flex-grow: 1;
+        }
+
+        .doc-link-text {
+            margin-top: 20px;
+            color: var(--primary-color, #6a5acd);
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .external-icon {
+            width: 14px;
+            height: 14px;
+        }
+
+        .back-button-container {
+            margin-bottom: 20px;
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary-color, #BDBDBD);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .back-button:hover {
+            color: #fff;
+        }
+
+        /* Coming soon overlay */
+        .coming-soon {
+            opacity: 0.6;
+            cursor: default;
+        }
+
+        .coming-soon:hover {
+            transform: none;
+            box-shadow: none;
+            border-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .badge-soon {
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-left: auto;
+            align-self: flex-start;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container" style="max-width: 800px;">
+        <div class="back-button-container" style="text-align: left; margin-bottom: 20px;">
+            <a href="contract_interaction.html" class="back-button">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd"
+                        d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z" />
+                </svg>
+                Volver
+            </a>
+        </div>
+
+        <div class="docs-header">
+            <h1>Documentación Técnica</h1>
+            <p>Explora los detalles técnicos, guías avanzadas y la teoría económica detrás del ecosistema WintonCoin.
+            </p>
+        </div>
+
+        <div class="docs-grid">
+            <!-- Tarjeta 1: Boosters -->
+            <a href="https://boosters.wintoncoin.com" target="_blank" class="doc-card">
+                <div class="doc-icon">🚀</div>
+                <div class="doc-title">Plataforma de Impulsores</div>
+                <div class="doc-description">
+                    Documentación oficial sobre el programa de incentivos, reglas de participación y métricas para los
+                    impulsores del ecosistema.
+                </div>
+                <div class="doc-link-text">
+                    Visitar documentación externa
+                    <svg xmlns="http://www.w3.org/2000/svg" class="external-icon" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                </div>
+            </a>
+
+            <!-- Tarjeta: Economía de Tokens -->
+            <a href="https://boosters.wintoncoin.com/detalles/valor-blue.html" target="_blank" class="doc-card">
+                <div class="doc-icon">🪙</div>
+                <div class="doc-title">Economía BLUE y RED</div>
+                <div class="doc-description">
+                    Profundiza en la teoría monetaria dual: cómo se crea valor (BLUE) y cómo se financia el crecimiento
+                    (RED).
+                </div>
+                <div class="doc-link-text">
+                    Leer sección economía
+                    <svg xmlns="http://www.w3.org/2000/svg" class="external-icon" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                </div>
+            </a>
+
+            <!-- Tarjeta: Términos Legales -->
+            <a href="https://boosters.wintoncoin.com/detalles/legal.html" target="_blank" class="doc-card">
+                <div class="doc-icon">⚖️</div>
+                <div class="doc-title">TyC Programa Impulsores</div>
+                <div class="doc-description">
+                    Marco legal, condiciones de elegibilidad y normativas del programa de impulsores WintonCoin.
+                </div>
+                <div class="doc-link-text">
+                    Leer términos y condiciones
+                    <svg xmlns="http://www.w3.org/2000/svg" class="external-icon" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                </div>
+            </a>
+
+            <!-- Tarjeta 2: Whitepaper (Proximamente) -->
+            <div class="doc-card coming-soon">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; width:100%">
+                    <div class="doc-icon">📄</div>
+                    <span class="badge-soon">Próximamente</span>
+                </div>
+                <div class="doc-title">Whitepaper Oficial</div>
+                <div class="doc-description">
+                    El documento fundacional que explica la teoría económica de WintonCoin, el modelo BLUE/RED y la
+                    arquitectura del Smart Contract.
+                </div>
+            </div>
+
+            <!-- Tarjeta 3: Auditorías (Proximamente) -->
+            <div class="doc-card coming-soon">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; width:100%">
+                    <div class="doc-icon">🛡️</div>
+                    <span class="badge-soon">Próximamente</span>
+                </div>
+                <div class="doc-title">Auditorías de Seguridad</div>
+                <div class="doc-description">
+                    Informes transparentes sobre la seguridad del código, pruebas de penetración y verificaciones de
+                    reservas.
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

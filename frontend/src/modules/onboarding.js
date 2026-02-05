@@ -43,6 +43,13 @@ function checkAndRestartOnboarding() {
         setTimeout(() => {
             startBurnTour();
         }, 1500);
+    } else if (new URLSearchParams(window.location.search).get('start_publish_tour') === 'true') {
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.replaceState({ path: newUrl }, '', newUrl);
+
+        setTimeout(() => {
+            startPublishTour();
+        }, 500);
     } else {
         // Standard check
         const hasSeenTour = localStorage.getItem('wintoncoin_tour_completed');
@@ -354,7 +361,7 @@ function startTour() {
                 element: '.main-title-container',
                 popover: {
                     title: '¡Bienvenido a WintonCoin!',
-                    description: 'WintonCoin es una economía real de intercambio. Aquí generas <b>BLUE</b> para pagar y <b>RED</b> para financiarte.',
+                    description: 'WintonCoin es el <b>Primer Marketplace Universal</b>. Una economía de intercambio real donde usas <b>BLUE</b> para pagar y <b>RED</b> para financiarte.',
                     side: "bottom",
                     align: 'center'
                 }
@@ -423,4 +430,91 @@ function startTour() {
 export function restartTour() {
     localStorage.removeItem('wintoncoin_tour_completed');
     startTour();
+}
+
+/**
+ * Inicia el tour para Crear Publicación
+ */
+function startPublishTour() {
+    if (!window.driver || !window.driver.js) return;
+
+    // 1. Abrir el modal de tipos (si existe)
+    // Nota: Dependemos de que contract-interaction.html tenga este modal
+    const pubModal = document.getElementById('publicationTypeModal');
+    if (pubModal) {
+        pubModal.style.display = 'flex'; // Usualmente flex para centrar
+        // Asegurar que se vea por encima de todo si hay conflictos de z-index
+        pubModal.style.zIndex = '10000';
+    }
+
+    const driver = window.driver.js.driver;
+    const driverObj = driver({
+        showProgress: true,
+        animate: true,
+        allowClose: false,
+        overlayClickNext: false,
+        doneBtnText: '¡Entendido!',
+        nextBtnText: 'Siguiente →',
+        prevBtnText: '← Anterior',
+        progressText: 'Paso {{current}} de {{total}}',
+        onHighlightStarted: (element) => {
+            if (element) {
+                // Bloqueo visual suave
+                element.style.setProperty('pointer-events', 'none', 'important');
+            }
+        },
+        onDeselected: (element) => {
+            if (element) {
+                element.style.pointerEvents = '';
+            }
+        },
+        onDestroyStarted: () => {
+            // Al cerrar el tour, cerramos el modal si el usuario no hizo click en una opción
+            // Pero como el click en opción navega, si cancela el tour, cerramos modal.
+            if (pubModal) pubModal.style.display = 'none';
+            driverObj.destroy();
+        },
+        steps: [
+            {
+                element: '#publicationTypeModal .modal-content h2',
+                popover: {
+                    title: '📢 Crear Nueva Publicación',
+                    description: 'Aquí puedes elegir qué tipo de interacción quieres iniciar en el mercado.',
+                    side: "bottom",
+                    align: 'center'
+                }
+            },
+            {
+                element: '#publicationTypeModal .modal-option-button.request',
+                popover: {
+                    title: '🙋‍♂️ Solicitar Ayudante',
+                    description: 'Elige esta opción si necesitas contratar a alguien. <b>Pagarás con BLUE</b> (o generarás deuda RED si no tienes dinero).',
+                    side: "top",
+                    align: 'center'
+                }
+            },
+            {
+                element: '#publicationTypeModal .modal-option-button.sell',
+                popover: {
+                    title: '💼 Vender u Ofrecer',
+                    description: 'Elige esta opción para ofrecer tus habilidades, productos o monedas. <b>Ganarás BLUE</b>.',
+                    side: "top",
+                    align: 'center'
+                }
+            },
+            {
+                element: '#publicationTypeModal .modal-option-button.donation',
+                popover: {
+                    title: '🙏 Recibir Donaciones',
+                    description: 'Exclusivo para causas benéficas o emergencias reales. La comunidad podrá apoyarte con BLUE.',
+                    side: "top",
+                    align: 'center'
+                }
+            }
+        ]
+    });
+
+    setTimeout(() => {
+        driverObj.drive();
+    }, 500);
 }

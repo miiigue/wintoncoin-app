@@ -6143,3 +6143,155 @@ body.wallet-tour-active #prelaunchWalletModal {
 .driver-popover-arrow-side-bottom.driver-popover-arrow {
     border-bottom-color: #ffffff !important;
 }
+
+/* ==========================================================================
+   Mejoras Visuales Menú Desplegable (Elegante y Alto Contraste)
+   ========================================================================== */
+.dropdown-content {
+    background-color: #0f172a !important;
+    /* Fondo muy oscuro (Slate 900) */
+    border: 1px solid rgba(148, 163, 184, 0.25) !important;
+    /* Borde gris azulado más visible */
+    border-radius: 12px !important;
+    /* Sombra multicapa: profundidad + borde sutil + resplandor suave */
+    box-shadow:
+        0 20px 45px -5px rgba(0, 0, 0, 0.6),
+        0 10px 15px -5px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+        0 0 20px rgba(99, 102, 241, 0.15) !important;
+    /* Glow índigo sutil */
+    padding: 8px 0 !important;
+    min-width: 220px !important;
+    backdrop-filter: blur(12px);
+    overflow: hidden;
+    z-index: 9999 !important;
+}
+
+/* Enlaces del menú */
+.dropdown-content a {
+    color: #cbd5e1 !important;
+    /* Texto gris claro casi blanco */
+    padding: 12px 20px !important;
+    text-decoration: none !important;
+    display: flex !important;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.95rem !important;
+    font-weight: 500 !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    border-left: 3px solid transparent;
+    background-color: transparent !important;
+}
+
+/* Estado Hover elegante */
+.dropdown-content a:hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    color: #ffffff !important;
+    border-left-color: var(--primary-color, #6a5acd) !important;
+    padding-left: 25px !important;
+    /* Sutil desplazamiento a la derecha */
+}
+
+/* Separadores sutiles entre items (opcional, pero ayuda a la estructura) */
+.dropdown-content a:not(:last-child) {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+/* Ajuste específico para el logout si tuviera ID o clase especial, o last-child */
+.dropdown-content a#logoutLink {
+    color: #f87171 !important;
+    /* Rojo sutil */
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin-top: 4px;
+}
+
+.dropdown-content a#logoutLink:hover {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+    color: #ef4444 !important;
+    border-left-color: #ef4444 !important;
+}
+
+/* Nuevo: Estilo de Tarjetas con Borde Brillante */
+#publicationTypeModal .modal-option-button {
+    border: 1px solid rgba(135, 206, 250, 0.4) !important;
+    box-shadow: 0 0 15px rgba(135, 206, 250, 0.15) !important;
+    transition: all 0.3s ease !important;
+}
+
+#publicationTypeModal .modal-option-button:hover {
+    box-shadow: 0 0 25px rgba(135, 206, 250, 0.4) !important;
+    border-color: rgba(135, 206, 250, 0.8) !important;
+}
+
+/* Título Rosa (Cáncer de Mama) para Modal Donaciones */
+#donationWarningModal h3 {
+    color: #E91E63 !important;
+}
+
+/* ==========================================================================
+   Optimización Móvil: Modal de Selección de Publicación (Compacto)
+   ========================================================================== */
+@media (max-width: 600px) {
+    #publicationTypeModal .modal-content {
+        padding: 20px 15px !important;
+        width: 92% !important;
+        max-height: 85vh !important;
+        overflow-y: auto !important;
+    }
+
+    #publicationTypeModal h2 {
+        font-size: 1.25rem !important;
+        margin-bottom: 20px !important;
+    }
+
+    #publicationTypeModal .modal-options {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+        /* Espacio reducido entre tarjetas */
+    }
+
+    /* Transformar tarjetas verticales en filas horizontales compactas */
+    #publicationTypeModal .modal-option-button {
+        padding: 12px !important;
+        min-height: auto !important;
+        display: grid !important;
+        grid-template-columns: 50px 1fr !important;
+        /* Icono fijo | Contenido flexible */
+        align-items: center !important;
+        text-align: left !important;
+        margin: 0 !important;
+        height: auto !important;
+    }
+
+    #publicationTypeModal .option-icon {
+        margin: 0 !important;
+        width: 36px !important;
+        height: 36px !important;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: rgba(255, 255, 255, 0.05);
+        /* Fondo sutil para icono */
+        border-radius: 8px;
+    }
+
+    #publicationTypeModal .option-icon svg {
+        width: 20px !important;
+        height: 20px !important;
+    }
+
+    #publicationTypeModal h3 {
+        font-size: 0.95rem !important;
+        margin: 0 0 2px 0 !important;
+        grid-column: 2;
+    }
+
+    #publicationTypeModal p {
+        font-size: 0.75rem !important;
+        margin: 0 !important;
+        line-height: 1.3 !important;
+        grid-column: 2;
+        opacity: 0.8;
+    }
+}
