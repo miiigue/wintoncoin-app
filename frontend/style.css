@@ -5864,3 +5864,282 @@ input:checked+.slider:before {
         box-shadow: 0 0 0 0 rgba(74, 144, 217, 0);
     }
 }
+
+/* Ocultar modal de pre-lanzamiento durante el tour de billetera */
+body.wallet-tour-active #prelaunchWalletModal {
+    display: none !important;
+}
+
+/* ==========================================================================
+   Burn Modal Compact Styles (Diseño Compacto - Dark Theme)
+   ========================================================================== */
+.burn-modal-content {
+    padding: 20px !important;
+    max-width: 360px !important;
+    width: 95% !important;
+    border-radius: 16px !important;
+    background-color: #0f172a !important;
+    /* Fondo muy oscuro (Slate 900) */
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.burn-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.burn-description {
+    font-size: 0.9rem !important;
+    margin: 0 !important;
+    color: #cbd5e1 !important;
+    /* Texto claro */
+    line-height: 1.5;
+    text-align: center;
+}
+
+.burn-balance-info {
+    background-color: transparent !important;
+    /* Sin fondo blanco */
+    padding: 5px 0;
+    border: none !important;
+}
+
+.burn-balance-info h4 {
+    display: none !important;
+    /* Ocultar título redundante */
+}
+
+.burn-modal-balances {
+    display: flex;
+    flex-direction: column;
+    /* Vertical */
+    gap: 8px;
+    width: 100%;
+}
+
+/* Alineación de las líneas de balance */
+.balance-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.95rem !important;
+    color: #f1f5f9 !important;
+    /* Texto casi blanco */
+    padding: 6px 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.balance-line:last-child {
+    border-bottom: none;
+}
+
+.balance-line span:first-child {
+    font-weight: 500;
+    color: #94a3b8;
+    /* Etiqueta gris claro */
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+}
+
+/* Colores específicos para los valores */
+.saldo-blue-text {
+    color: #60a5fa !important;
+    font-weight: 700;
+}
+
+.saldo-escrow-text {
+    color: #93c5fd !important;
+}
+
+.saldo-red-text {
+    color: #f87171 !important;
+    font-weight: 700;
+}
+
+.burn-modal-divider {
+    border: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    /* Línea sutil */
+    margin: 2px 0;
+}
+
+#burnForm {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+#burnForm .form-group {
+    margin-bottom: 0 !important;
+}
+
+#burnForm label {
+    font-size: 0.9rem !important;
+    font-weight: 600;
+    color: #e2e8f0 !important;
+    /* Etiqueta clara */
+    margin-bottom: 8px;
+    display: block;
+}
+
+#burnForm input#burnAmount {
+    padding: 12px !important;
+    font-size: 1.1rem !important;
+    text-align: center;
+    border-radius: 10px !important;
+    border: 2px solid #334155 !important;
+    /* Borde oscuro */
+    background-color: #1e293b !important;
+    /* Input oscuro */
+    color: #ffffff !important;
+    /* Texto blanco en input */
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#burnForm input#burnAmount::placeholder {
+    color: #64748b;
+}
+
+#burnForm input#burnAmount:focus {
+    border-color: #ef4444 !important;
+    /* Rojo alerta */
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+.input-hint {
+    font-size: 0.75rem !important;
+    color: #94a3b8;
+    text-align: center;
+    display: block;
+    margin-top: 8px;
+}
+
+.burn-button {
+    width: 100%;
+    padding: 14px !important;
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%) !important;
+    box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3) !important;
+    margin-top: 5px !important;
+    border: none;
+    color: white;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.burn-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 15px rgba(239, 68, 68, 0.4) !important;
+    filter: brightness(1.1);
+}
+
+/* ==========================================================================
+   Driver.js Custom Styles (Tour Interactivo)
+   ========================================================================== */
+.driver-popover {
+    background-color: #ffffff !important;
+    border-radius: 16px !important;
+    padding: 24px !important;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15) !important;
+    font-family: 'Inter', system-ui, sans-serif !important;
+    max-width: 340px !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+}
+
+.driver-popover-title {
+    font-size: 1.25rem !important;
+    font-weight: 700 !important;
+    color: #1e293b !important;
+    margin-bottom: 10px !important;
+    letter-spacing: -0.02em !important;
+}
+
+.driver-popover-description {
+    font-size: 0.95rem !important;
+    color: #475569 !important;
+    line-height: 1.6 !important;
+    margin-bottom: 25px !important;
+}
+
+.driver-popover-footer {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 15px !important;
+    /* Separación solicitada */
+    margin-top: 10px !important;
+}
+
+/* Botón Siguiente (Elegante y Atractivo) */
+.driver-popover-next-btn {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1) !important;
+    padding: 10px 24px !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    cursor: pointer !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 0 4px 6px -1px rgba(79, 172, 254, 0.3), 0 2px 4px -1px rgba(79, 172, 254, 0.15) !important;
+    order: 2 !important;
+    /* Asegurar que vaya a la derecha visualmente si hay flex raro */
+}
+
+.driver-popover-next-btn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 10px 15px -3px rgba(79, 172, 254, 0.4), 0 4px 6px -2px rgba(79, 172, 254, 0.2) !important;
+    filter: brightness(1.05) !important;
+}
+
+.driver-popover-next-btn:active {
+    transform: translateY(0) !important;
+}
+
+/* Botón Anterior (Discreto) */
+.driver-popover-prev-btn {
+    background-color: transparent !important;
+    color: #64748b !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 9px 18px !important;
+    border-radius: 10px !important;
+    font-weight: 500 !important;
+    font-size: 0.9rem !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+
+.driver-popover-prev-btn:hover {
+    background-color: #f1f5f9 !important;
+    color: #334155 !important;
+    border-color: #94a3b8 !important;
+}
+
+/* Texto de progreso */
+.driver-popover-progress-text {
+    display: none !important;
+    /* Ocultar para limpiar el diseño, o estilizar si se prefiere */
+}
+
+/* Flecha del popover */
+.driver-popover-arrow-side-left.driver-popover-arrow {
+    border-left-color: #ffffff !important;
+}
+
+.driver-popover-arrow-side-right.driver-popover-arrow {
+    border-right-color: #ffffff !important;
+}
+
+.driver-popover-arrow-side-top.driver-popover-arrow {
+    border-top-color: #ffffff !important;
+}
+
+.driver-popover-arrow-side-bottom.driver-popover-arrow {
+    border-bottom-color: #ffffff !important;
+}

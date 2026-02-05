@@ -7,6 +7,7 @@
 function checkAndRestartOnboarding() {
     const urlParams = new URLSearchParams(window.location.search);
     const startTourParam = urlParams.get('start_tour');
+    const startWalletTourParam = urlParams.get('start_wallet_tour');
 
     if (startTourParam === 'true') {
         // Clear the completion flag
@@ -20,6 +21,28 @@ function checkAndRestartOnboarding() {
         setTimeout(() => {
             startTour();
         }, 1000);
+    } else if (startWalletTourParam === 'true') {
+        // Flag de seguridad para evitar que contract-interaction.js fuerce otra pestaña durante la carga
+        sessionStorage.setItem('pendingWalletTour', 'true');
+
+        // URL cleanup handled here too
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.replaceState({ path: newUrl }, '', newUrl);
+
+        // Wait for tab switch animation/render
+        setTimeout(() => {
+            startWalletTour();
+        }, 1500);
+    } else if (new URLSearchParams(window.location.search).get('start_burn_tour') === 'true') {
+        // Nuevo Tour: Quemar Deuda
+        sessionStorage.setItem('pendingWalletTour', 'true'); // También necesitamos ir a Billetera
+
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.replaceState({ path: newUrl }, '', newUrl);
+
+        setTimeout(() => {
+            startBurnTour();
+        }, 1500);
     } else {
         // Standard check
         const hasSeenTour = localStorage.getItem('wintoncoin_tour_completed');
@@ -33,6 +56,248 @@ function checkAndRestartOnboarding() {
 
 export function initOnboarding() {
     checkAndRestartOnboarding();
+}
+
+/**
+ * Inicia el tour específico de la Billetera
+ */
+function startWalletTour() {
+    if (!window.driver || !window.driver.js) {
+        console.error("Driver.js no está cargado");
+        return;
+    }
+
+    // 1. Forzar visualización de Billetera y ocultar modal via CSS
+    document.body.classList.add('wallet-tour-active');
+
+    // HACK: Pequeño delay para asegurar que el CSS aplique antes del click
+    setTimeout(() => {
+        const tabBilleteraBtn = document.getElementById('tabBilletera');
+        if (tabBilleteraBtn) {
+            tabBilleteraBtn.click();
+        }
+        // Ya estamos seguros, limpiar flag
+        sessionStorage.removeItem('pendingWalletTour');
+    }, 50);
+
+    const driver = window.driver.js.driver;
+    const driverObj = driver({
+        showProgress: true,
+        animate: true,
+        allowClose: false,
+        overlayClickNext: false,
+        doneBtnText: '¡Entendido!',
+        nextBtnText: 'Siguiente →',
+        prevBtnText: '← Anterior',
+        progressText: 'Paso {{current}} de {{total}}',
+        onHighlightStarted: (element) => {
+            if (element) {
+                element.style.setProperty('pointer-events', 'none', 'important');
+                element.addEventListener('click', blockInteraction, { capture: true });
+                element.addEventListener('mousedown', blockInteraction, { capture: true });
+                element.addEventListener('touchstart', blockInteraction, { capture: true });
+                const children = element.querySelectorAll('*');
+                children.forEach(child => child.style.setProperty('pointer-events', 'none', 'important'));
+            }
+        },
+        onDeselected: (element) => {
+            if (element) {
+                element.style.pointerEvents = '';
+                element.removeEventListener('click', blockInteraction, { capture: true });
+                element.removeEventListener('mousedown', blockInteraction, { capture: true });
+                element.removeEventListener('touchstart', blockInteraction, { capture: true });
+                const children = element.querySelectorAll('*');
+                children.forEach(child => child.style.pointerEvents = '');
+            }
+        },
+        onDestroyStarted: () => {
+            document.body.classList.remove('wallet-tour-active');
+            sessionStorage.removeItem('suppressWalletModal'); // Limpieza legacy por si acaso
+
+            // Asegurar desbloqueo de interacciones
+            const activeElement = document.querySelector('.driver-active-element');
+            if (activeElement) {
+                activeElement.style.pointerEvents = '';
+                activeElement.removeEventListener('click', blockInteraction, { capture: true });
+            }
+
+            // CORRECCIÓN: Asegurar que el modal se mantenga cerrado visualmente al quitar la clase CSS
+            const prelaunchModal = document.getElementById('prelaunchWalletModal');
+            if (prelaunchModal) {
+                prelaunchModal.style.display = 'none';
+            }
+
+            // Cerrar también el modal de quema si quedó abierto
+            const burnModal = document.getElementById('burnModal');
+            if (burnModal) {
+                burnModal.style.display = 'none';
+            }
+
+            // Forzar destrucción para evitar cuelgues
+            driverObj.destroy();
+        },
+        steps: [
+            {
+                element: '#tabBilletera',
+                popover: {
+                    title: '👛 Tu Billetera',
+                    description: 'Aquí gestionas tus fondos reales (BLUE y RED).',
+                    side: "bottom",
+                    align: 'center'
+                }
+            },
+            {
+                element: '.blue-section',
+                popover: {
+                    title: '🔵 Saldo BLUE',
+                    description: 'Este es tu dinero disponible. Úsalo para pagar, comprar, ahorrar o eliminar tu deuda RED.',
+                    side: "bottom",
+                    align: 'start'
+                }
+            },
+            {
+                element: '.red-section',
+                popover: {
+                    title: '🔴 Saldo RED (Deuda)',
+                    description: 'Es tu deuda pendiente. Recuerda quemarla con BLUE antes de su vencimiento.',
+                    side: "bottom",
+                    align: 'start'
+                }
+            },
+            {
+                element: '#burnTriggerBtn',
+                popover: {
+                    title: '🔥 Quemar Tokens',
+                    description: 'Si tienes deuda, toca este botón para abrir la ventana de pagos.',
+                    side: "top",
+                    align: 'center'
+                }
+            }
+        ]
+    });
+
+
+    driverObj.drive();
+}
+
+/**
+ * Inicia el tour para Quemar Deuda (incluye abrir modal)
+ */
+function startBurnTour() {
+    if (!window.driver || !window.driver.js) return;
+
+    // 1. Preparar entorno (igual que wallet tour)
+    document.body.classList.add('wallet-tour-active');
+
+    setTimeout(() => {
+        // Asegurar que estamos en Billetera
+        const tabBilleteraBtn = document.getElementById('tabBilletera');
+        if (tabBilleteraBtn) tabBilleteraBtn.click();
+        sessionStorage.removeItem('pendingWalletTour');
+
+        // Y ABRIR EL MODAL DE QUEMA
+        setTimeout(() => {
+            const burnTriggerBtn = document.getElementById('burnTriggerBtn');
+            if (burnTriggerBtn) burnTriggerBtn.click();
+        }, 100);
+
+    }, 50);
+
+    const driver = window.driver.js.driver;
+    const driverObj = driver({
+        showProgress: true,
+        animate: true,
+        allowClose: false,
+        overlayClickNext: false,
+        doneBtnText: '¡Entendido!',
+        nextBtnText: 'Siguiente →',
+        prevBtnText: '← Anterior',
+        progressText: 'Paso {{current}} de {{total}}',
+        onHighlightStarted: (element) => {
+            // Bloqueo estándar (copiado de arriba)
+            if (element) {
+                element.style.setProperty('pointer-events', 'none', 'important');
+                element.addEventListener('click', blockInteraction, { capture: true });
+                element.addEventListener('mousedown', blockInteraction, { capture: true });
+                element.addEventListener('touchstart', blockInteraction, { capture: true });
+                const children = element.querySelectorAll('*');
+                children.forEach(child => child.style.setProperty('pointer-events', 'none', 'important'));
+            }
+        },
+        onDeselected: (element) => {
+            if (element) {
+                element.style.pointerEvents = '';
+                element.removeEventListener('click', blockInteraction, { capture: true });
+                element.removeEventListener('mousedown', blockInteraction, { capture: true });
+                element.removeEventListener('touchstart', blockInteraction, { capture: true });
+                const children = element.querySelectorAll('*');
+                children.forEach(child => child.style.pointerEvents = '');
+            }
+        },
+        onDestroyStarted: () => {
+            document.body.classList.remove('wallet-tour-active');
+            sessionStorage.removeItem('suppressWalletModal');
+
+            const activeElement = document.querySelector('.driver-active-element');
+            if (activeElement) {
+                activeElement.style.pointerEvents = '';
+                activeElement.removeEventListener('click', blockInteraction, { capture: true });
+            }
+
+            // En este tour, cerramos el modal de quema al terminar
+            const burnModal = document.getElementById('burnModal');
+            if (burnModal) burnModal.style.display = 'none';
+
+            const prelaunchModal = document.getElementById('prelaunchWalletModal');
+            if (prelaunchModal) prelaunchModal.style.display = 'none';
+
+            driverObj.destroy();
+        },
+        steps: [
+            {
+                element: '#burnModalBalances',
+                popover: {
+                    title: '📊 Resumen de Saldos',
+                    description: 'Aquí verás tus balances disponibles actualizados.',
+                    side: "bottom",
+                    align: 'center'
+                }
+            },
+            {
+                element: '#burnAmount',
+                popover: {
+                    title: '📝 Cantidad a Pagar',
+                    description: 'Escribe aquí cuántos tokens RED quieres eliminar.',
+                    side: "top",
+                    align: 'center'
+                }
+            },
+            {
+                element: '#burnForm .burn-button',
+                popover: {
+                    title: '✅ Confirmar',
+                    description: 'Presiona el botón para ejecutar la quema. ¡Es irreversible!',
+                    side: "top",
+                    align: 'center'
+                }
+            }
+        ]
+    });
+
+    // Iniciar con delay mayor para que de tiempo a abrir el modal
+    setTimeout(() => {
+        driverObj.drive();
+    }, 500);
+}
+
+/**
+ * Función auxiliar para bloquear eventos de interacción
+ */
+function blockInteraction(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    return false;
 }
 
 function startTour() {
@@ -56,16 +321,30 @@ function startTour() {
         // Hooks para "Modo Museo": Bloquear interacción con el elemento resaltado
         onHighlightStarted: (element) => {
             if (element) {
-                // Forzar bloqueo de clicks
+                // 1. Bloqueo CSS (Visual y funcional básico)
                 element.style.setProperty('pointer-events', 'none', 'important');
-                // También bloquear hijos para asegurar
+
+                // 2. Bloqueo JS Agresivo (Event Trapping)
+                // Captura cualquier intento de click en la fase de captura (antes de que llegue al botón) y lo mata.
+                element.addEventListener('click', blockInteraction, { capture: true });
+                element.addEventListener('mousedown', blockInteraction, { capture: true });
+                element.addEventListener('touchstart', blockInteraction, { capture: true });
+
+                // Aplicar a hijos también por precaución
                 const children = element.querySelectorAll('*');
                 children.forEach(child => child.style.setProperty('pointer-events', 'none', 'important'));
             }
         },
         onDeselected: (element) => {
             if (element) {
+                // Restaurar CSS
                 element.style.pointerEvents = '';
+
+                // Remover bloqueo JS
+                element.removeEventListener('click', blockInteraction, { capture: true });
+                element.removeEventListener('mousedown', blockInteraction, { capture: true });
+                element.removeEventListener('touchstart', blockInteraction, { capture: true });
+
                 const children = element.querySelectorAll('*');
                 children.forEach(child => child.style.pointerEvents = '');
             }
@@ -87,24 +366,6 @@ function startTour() {
                     description: 'Aquí accedes al <b>P2P</b>, <b>Historial</b>, <b>Perfil de Impulsor</b> y otras funciones.',
                     side: "bottom",
                     align: 'center'
-                }
-            },
-            {
-                element: '.blue-section',
-                popover: {
-                    title: '🔵 Tu Activo (BLUE)',
-                    description: 'Aquí verás tus ganancias. <b>1 BLUE ≈ 1 USD</b> (al lanzamiento). Es dinero tuyo para gastar, ahorrar o vender.',
-                    side: "bottom",
-                    align: 'start'
-                }
-            },
-            {
-                element: '.red-section',
-                popover: {
-                    title: '🔴 Tu Crédito (RED)',
-                    description: '¿Quieres pagar algo y no tienes dinero? Te financias generando RED. Tienes 30 días para pagarlo (quemarlo) con BLUE antes de que venza.',
-                    side: "bottom",
-                    align: 'start'
                 }
             },
             {

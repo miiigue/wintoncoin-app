@@ -248,9 +248,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (panelImpulsor) panelImpulsor.classList.toggle('active', tabName === 'impulsor');
             if (panelBilletera) panelBilletera.classList.toggle('active', tabName === 'billetera');
 
-            // Show modal when switching to Billetera
+            // Show modal when switching to Billetera, UNLESS suppressed by tour
             if (tabName === 'billetera') {
-                showPrelaunchModal();
+                const isSuppressed = sessionStorage.getItem('suppressWalletModal') === 'true';
+                if (!isSuppressed) {
+                    showPrelaunchModal();
+                }
             }
 
             // Save preference
@@ -264,6 +267,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // Determine default tab based on server pre_launch_mode configuration
         getPlatformSettings().then(settings => {
             const isPreLaunch = settings?.pre_launch_mode_enabled === true || settings?.pre_launch_mode_enabled === 'true';
+
+            // MODIFICACIÓN: Detectar si se solicita tutorial de billetera
+            const urlParams = new URLSearchParams(window.location.search);
+            const isWalletTour = urlParams.get('start_wallet_tour') === 'true';
+            const isPendingTour = sessionStorage.getItem('pendingWalletTour') === 'true';
+
+            if (isWalletTour || isPendingTour) {
+                // Forzar billetera para el tutorial sin mostrar modal (UX Fluida)
+                if (isPendingTour) sessionStorage.setItem('suppressWalletModal', 'true');
+                switchToTab('billetera');
+                return;
+            }
 
             if (isPreLaunch) {
                 // Pre-launch: Always show Impulsor, ignore localStorage
@@ -1118,16 +1133,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elements.burnModalBalances) {
             elements.burnModalBalances.innerHTML = `
                 <div class="balance-line">
-                    <span>Disponible</span>
+                    <span>Disp.</span>
                     <span class="saldo-blue-text">${formatBalance(blueBalance)} BLUE</span>
                 </div>
                 <div class="balance-line">
-                    <span>Pendientes</span>
+                    <span>Pend.</span>
                     <span class="saldo-escrow-text">${formatBalance(escrowBlueBalance)} BLUE</span>
                 </div>
                 <hr class="burn-modal-divider">
                 <div class="balance-line">
-                    <span>Deuda Total</span>
+                    <span>Deuda</span>
                     <span class="saldo-red-text">${formatBalance(redBalance)} RED</span>
                 </div>
                 ${penalizedDebtHTML}
