@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,10 +11,11 @@
     <link id="main-stylesheet" rel="stylesheet" href="style.css">
     <link id="booster-stylesheet" rel="stylesheet" href="booster-style.css">
 </head>
+
 <body>
     <div class="container booster-container">
         <a href="contract_interaction.html" class="back-link">&larr; Volver</a>
-        
+
         <div id="booster-profile-content">
             <!-- El contenido se cargará aquí dinámicamente -->
             <div class="loading-spinner"></div>
@@ -31,5 +33,25 @@
             <button class="action-button alert-close-button">Cerrar</button>
         </div>
     </div>
+
+    <!-- Modal de Condiciones de Desbloqueo (Estilo Refinado Centrado) -->
+    <div class="prelaunch-modal-overlay" id="unlockConditionsModalOverlay">
+        <div class="prelaunch-modal">
+            <div class="prelaunch-modal-icon">🔒</div>
+            <h3 class="prelaunch-modal-title">Requisitos</h3>
+            <div class="prelaunch-modal-text">
+                <p style="margin-bottom: 20px;">Medidas de seguridad anti-fraude para el canje de recompensas y bonos:
+                </p>
+                <ul>
+                    <li>Tu usuario debe estar <strong>"Verificado" (KYC)</strong>, al igual que los referidos
+                        que hayan generado tus recompensas.</li>
+                    <li>Debes haber realizado <strong>al menos una transacción</strong> en la plataforma en los últimos
+                        30 días.</li>
+                </ul>
+            </div>
+            <button class="prelaunch-modal-btn" id="unlockModalAccept">Entendido</button>
+        </div>
+    </div>
 </body>
-</html> 
+
+</html>

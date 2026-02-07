@@ -35,10 +35,10 @@ function initializeBoosterProfilePage() {
             const response = await fetch(url, {
                 headers: isMe ? { 'Authorization': `Bearer ${token}` } : {}
             });
-            
+
             // Manejar sesión expirada (401)
             if (handleSessionExpired(response)) return;
-            
+
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Error al cargar el perfil de impulsor.');
@@ -70,6 +70,9 @@ function initializeBoosterProfilePage() {
 
         // Inicializar tooltips después de renderizar
         initializeBoosterTooltips();
+
+        // Inicializar modal de condiciones de desbloqueo
+        initializeUnlockModal();
 
         if (data.daily_improved) {
             const dailyCard = elements.content.querySelector('.booster-daily-goal');
@@ -216,7 +219,7 @@ function initializeBoosterProfilePage() {
             </div>
         `;
     }
-    
+
     function getHistoryHTML(transactions) {
         if (!transactions || transactions.length === 0) {
             return `<div class="history-section"><h2 class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-history">Historial de Actividades</h2><div id="tooltip-history" class="info-tooltip" role="tooltip" aria-hidden="true"><p>Registro detallado de tus ganancias como impulsor.</p></div><p class="empty-message">Aún no hay actividades registradas.</p></div>`;
@@ -287,6 +290,40 @@ function initializeBoosterProfilePage() {
         tooltips.forEach(({ trigger, tooltip }) => {
             if (document.querySelector(trigger) && document.querySelector(tooltip)) {
                 initializeInfoTooltip(trigger, tooltip);
+            }
+        });
+    }
+
+    function initializeUnlockModal() {
+        const modalOverlay = document.getElementById('unlockConditionsModalOverlay');
+        const acceptBtn = document.getElementById('unlockModalAccept');
+
+        if (!modalOverlay) return;
+
+        // Mostrar siempre al entrar
+        setTimeout(() => {
+            modalOverlay.style.display = 'flex'; // Importante para centrar con flexbox
+            // Forzar reflow
+            void modalOverlay.offsetWidth;
+            modalOverlay.classList.add('show');
+        }, 500);
+
+        if (acceptBtn) {
+            acceptBtn.addEventListener('click', () => {
+                modalOverlay.classList.remove('show');
+                setTimeout(() => {
+                    modalOverlay.style.display = 'none';
+                }, 400); // Dar tiempo a la animación de salida
+            });
+        }
+
+        // Cerrar al hacer clic fuera (en el overlay)
+        window.addEventListener('click', (event) => {
+            if (event.target === modalOverlay) {
+                modalOverlay.classList.remove('show');
+                setTimeout(() => {
+                    modalOverlay.style.display = 'none';
+                }, 400);
             }
         });
     }
