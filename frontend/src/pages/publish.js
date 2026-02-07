@@ -218,10 +218,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 preLaunchNoticeContainer.innerHTML = `
                     <div class="prelaunch-notice">
                         <h4>🚀 MODO PRE-LANZAMIENTO ACTIVO</h4>
-                        <p>¡Gracias por ser de los primeros! Las recompensas de esta tarea se acumularán en tu <strong>Perfil de Impulsor</strong>. Durante esta fase, no se generará deuda RED.</p>
+                        <p>¡Gracias por ser de los primeros!</p>
                     </div>
                 `;
                 preLaunchNoticeContainer.style.display = 'block';
+
+                // Bloquear botón de publicar para usuarios normales
+                const currentUser = localStorage.getItem('username');
+                // Asumir 'wintoncoin' o el que venga en settings, si no hay settings.platform_username, usar un valor seguro.
+                const platformUser = (settings.platform_username || 'wintoncoin').toLowerCase();
+
+                const isPlatform = currentUser && (currentUser.toLowerCase() === platformUser || currentUser.toLowerCase() === 'plataforma');
+
+                if (!isPlatform && submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.textContent = "Publicación Deshabilitada (Pre-lanzamiento)";
+                    submitButton.style.opacity = "0.6";
+                    submitButton.style.cursor = "not-allowed";
+
+                    // Aviso adicional junto al botón
+                    const existingWarning = document.getElementById('prelaunch-submit-warning');
+                    if (!existingWarning) {
+                        const warningMsg = document.createElement('p');
+                        warningMsg.id = 'prelaunch-submit-warning';
+                        warningMsg.style.color = '#ff9800'; // Naranja advertencia
+                        warningMsg.style.fontSize = '0.9rem';
+                        warningMsg.style.marginTop = '10px';
+                        warningMsg.style.textAlign = 'center';
+                        warningMsg.innerHTML = '🔒 Solo la plataforma puede publicar durante la fase pre-lanzamiento.';
+                        submitButton.parentElement.appendChild(warningMsg);
+                    }
+                }
             }
 
             // Commission notice (only if pre-launch is off)

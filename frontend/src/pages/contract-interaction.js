@@ -84,7 +84,9 @@ document.addEventListener('DOMContentLoaded', () => {
         tabImpulsor: document.getElementById('tabImpulsor'),
         tabBilletera: document.getElementById('tabBilletera'),
         panelImpulsor: document.getElementById('panelImpulsor'),
-        panelBilletera: document.getElementById('panelBilletera')
+        panelBilletera: document.getElementById('panelBilletera'),
+        createPostPrelaunchModal: document.getElementById('createPostPrelaunchModal'),
+        createPostPrelaunchAccept: document.getElementById('createPostPrelaunchAccept')
     };
 
     // Intervals for countdowns
@@ -337,8 +339,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (elements.openPublicationModalBtn) {
-            elements.openPublicationModalBtn.addEventListener('click', (event) => {
+            elements.openPublicationModalBtn.addEventListener('click', async (event) => {
                 event.preventDefault();
+
+                // Verificar configuración de Pre-Lanzamiento
+                const settings = await getPlatformSettings();
+
+                if (settings.pre_launch_mode_enabled && elements.createPostPrelaunchModal) {
+                    elements.createPostPrelaunchModal.style.display = 'flex';
+                } else {
+                    // Si NO es pre-lanzamiento, flujo normal directo
+                    checkPublicationPermissions();
+                    if (elements.publicationTypeModal) elements.publicationTypeModal.style.display = 'flex';
+                }
+            });
+        }
+
+        if (elements.createPostPrelaunchAccept) {
+            elements.createPostPrelaunchAccept.addEventListener('click', () => {
+                // Cerrar modal de aviso
+                if (elements.createPostPrelaunchModal) {
+                    elements.createPostPrelaunchModal.style.display = 'none';
+                }
+                // Continuar siempre con el flujo normal (mostrar opciones, aunque estén deshabilitadas)
                 checkPublicationPermissions();
                 if (elements.publicationTypeModal) elements.publicationTypeModal.style.display = 'flex';
             });
@@ -354,6 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (event.target === elements.burnModal && elements.burnModal) elements.burnModal.style.display = 'none';
             if (event.target === elements.ratingModal && elements.ratingModal) elements.ratingModal.style.display = 'none';
             if (event.target === elements.publicationTypeModal && elements.publicationTypeModal) elements.publicationTypeModal.style.display = 'none';
+            if (event.target === elements.createPostPrelaunchModal && elements.createPostPrelaunchModal) elements.createPostPrelaunchModal.style.display = 'none';
         });
 
         // Notification handlers
