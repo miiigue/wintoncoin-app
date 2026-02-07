@@ -6295,3 +6295,201 @@ body.wallet-tour-active #prelaunchWalletModal {
         opacity: 0.8;
     }
 }
+
+/* ==========================================================================
+   Emoji Personalizado WintonCoin (BLUE)
+   Uso: <span class="emoji-blue"></span>
+   ========================================================================== */
+.emoji-blue {
+    display: inline-block;
+    width: 1.1em;
+    /* Se adapta al tamaño del texto */
+    height: 1.1em;
+    background-image: url('assets/icons/favicon-32x32.png');
+    /* Usa la versión ligera */
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    vertical-align: -0.15em;
+    /* Ajuste fino de alineación vertical */
+    margin: 0 1px;
+}
+
+
+
+/* --- Toast Notification --- */
+.toast-notification {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background-color: #f8f9fa;
+    /* Fondo claro para resaltar */
+    color: #212529;
+    /* Texto oscuro para legibilidad */
+    padding: 12px 24px;
+    border-radius: 8px;
+    /* Bordes más suaves */
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    /* Sombra profunda para flotar */
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    z-index: 9999;
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+
+.toast-notification.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+#toast-action {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    padding: 0;
+}
+
+#toast-action:hover {
+    text-decoration: underline;
+}
+
+/* --- Nuevo Diseño de Tarjeta (Precio Izquierda / Menú Derecha) --- */
+.card-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+    height: 32px;
+    /* Altura mínima para contener price ribbon y menú */
+    /* Anular padding superior del padre visualmente */
+    margin-top: -1rem;
+    margin-left: -1rem;
+    /* Pegado al borde izq */
+    margin-right: -1rem;
+    /* Pegado al borde der */
+    padding: 0;
+    width: calc(100% + 2rem);
+    /* Compensar márgenes negativos */
+}
+
+.cost-ribbon-left {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 2px 8px;
+    /* Padding reducido para compensar fuente grande */
+    border-radius: 0 0 12px 0;
+    /* Solo redondeado abajo-derecha */
+    font-weight: 700;
+    /* Más negrita para legibilidad */
+    font-size: 1.15rem;
+    /* Fuente AUMENTADA significativamente */
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+    /* Ya no necesita absolute, fluye en el flexbox */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px;
+}
+
+/* Variantes de color para la cinta */
+.cost-ribbon-left.sell-mode {
+    background-color: #ff4d4d;
+    /* Rojo Venta */
+}
+
+.cost-ribbon-left.donation-mode {
+    background-color: #ffca28;
+    /* Amarillo Donación */
+    color: #333;
+}
+
+
+
+/* Estructura Base de Tarjeta */
+.publication-item {
+    position: relative;
+    /* Referencia para elementos absolutos (X) */
+    display: flex;
+    flex-direction: column;
+    /* Flujo vertical limpio */
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+/* Botón de cerrar "X" en la tarjeta - POSICIONAMIENTO ABSOLUTO FORZADO */
+.card-close-btn {
+    position: absolute;
+    /* Fuera del flujo flex */
+    top: 10px;
+    right: 10px;
+    z-index: 2000 !important;
+    /* Siempre encima DE TODO */
+
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    /* Fondo transparente (solo la X) */
+    border: none;
+    /* Sin borde */
+    border-radius: 50%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+    margin: 0;
+}
+
+.card-close-btn:hover {
+    background: rgba(220, 53, 69, 0.9);
+    /* Rojo intenso (Bootstrap danger) */
+    border-color: rgba(255, 255, 255, 0.8);
+    transform: scale(1.1);
+}
+
+.card-close-btn svg {
+    stroke: #ffffff !important;
+    stroke-width: 2.5 !important;
+    /* Más grueso */
+    width: 18px;
+    height: 18px;
+    pointer-events: none;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
+    /* Sombra para resaltar sobre cualquier fondo */
+}
+
+/* Título de la Publicación - Layout Limpio */
+.publication-header {
+    width: 100%;
+    margin: 10px 0 5px 0;
+    padding: 0;
+    display: block;
+}
+
+.publication-header h3 {
+    margin: 0;
+    width: 100%;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-color);
+    line-height: 1.4;
+    text-align: left;
+
+    /* Manejo de texto largo */
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
+    hyphens: auto;
+}

@@ -192,6 +192,8 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchAndDisplayBalances();
         fetchBoosterSummary();
     }
+    // Exponer globalmente
+    window.loadAllData = loadAllData;
 
     function setupDropdowns() {
         const setup = (trigger, dropdown) => {
@@ -884,11 +886,25 @@ document.addEventListener('DOMContentLoaded', () => {
             ? `<a href="profile.html?user=${pub.author_username}" class="profile-link" onclick="event.stopPropagation()">${pub.author_username}</a>`
             : pub.author_username;
 
+        // Estructura nueva: Precio a la izquierda, Menú a la derecha (en una fila superior)
         return `
             <a href="publication-detail.html?id=${pub.id}" class="publication-item-link">
                 <div class="publication-item ${expirationInfo.isExpired ? 'expired' : ''}" data-id="${pub.id}" data-author="${pub.author_username}">
+                    
+                    <!-- Fila Superior: Precio y Menú -->
+                    <div class="card-top-row">
+                        <div class="cost-ribbon-left ${ribbonClass}">${rewardText}</div>
+                        
+                        <button class="card-close-btn" onclick="event.preventDefault(); event.stopPropagation(); window.handleCardAction('hide', ${pub.id})">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+
                     ${statusMessageHTML}
-                    <div class="cost-ribbon ${ribbonClass}">${rewardText}</div>
+
                     <div class="publication-header">
                         <h3>${pub.title}</h3>
                     </div>
@@ -907,6 +923,166 @@ document.addEventListener('DOMContentLoaded', () => {
             </a>
         `;
     }
+
+    // Acción directa de ocultar
+    window.handleCardAction = async function (action, id) {
+        if (action === 'hide') {
+            await hidePublication(id);
+        }
+    };
+
+    async function hidePublication(id) {
+        try {
+            // Optimistic UI: Solo ocultar con display:none
+            const item = document.querySelector(`.publication-item[data-id="${id}"]`);
+            if (!item) return;
+
+            const cardLink = item.closest('.publication-item-link');
+
+            if (cardLink) {
+                // Animación de salida
+                cardLink.style.transition = 'all 0.3s ease';
+                cardLink.style.opacity = '0';
+                cardLink.style.transform = 'scale(0.9)';
+
+                // GUARDAR EL TIMER ID PARA PODER CANCELARLO
+                const timeoutId = setTimeout(() => {
+                    cardLink.style.display = 'none';
+                }, 300);
+                cardLink.dataset.hideTimeout = timeoutId;
+            }
+
+            const response = await fetch(`${API_URL}/publications/${id}/hide`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ username: localStorage.getItem('username') })
+            });
+
+            if (response.ok) {
+                showToast("Publicación oculta", "DESHACER", async () => {
+                    await unhidePublication(id);
+                });
+            } else {
+                console.error("Error al ocultar en servidor");
+                // Revertir UI si falla el servidor
+                if (cardLink) {
+                    // Cancelar timeout si estaba pendiente
+                    if (cardLink.dataset.hideTimeout) {
+                        clearTimeout(Number(cardLink.dataset.hideTimeout));
+                        delete cardLink.dataset.hideTimeout;
+                    }
+                    cardLink.style.display = '';
+                    setTimeout(() => {
+                        cardLink.style.opacity = '1';
+                        cardLink.style.transform = 'scale(1)';
+                    }, 50);
+                }
+            }
+        } catch (error) {
+            console.error("Error de red al ocultar:", error);
+            if (typeof window.loadAllData === 'function') window.loadAllData();
+            else window.location.reload();
+        }
+    }
+
+    // NUEVO: Función para DESHACER con lógica PROFESIONAL (Cancelación de Timer)
+    async function unhidePublication(id) {
+        try {
+            // Intentar restauración visual inmediata
+            const item = document.querySelector(`.publication-item[data-id="${id}"]`);
+            const cardLink = item?.closest('.publication-item-link');
+
+            if (cardLink) {
+                // 1. CANCELAR EL TIMEOUT DEL OCULTADO ANTERIOR (CRÍTICO)
+                if (cardLink.dataset.hideTimeout) {
+                    clearTimeout(Number(cardLink.dataset.hideTimeout));
+                    delete cardLink.dataset.hideTimeout;
+                }
+
+                // 2. Restaurar visualmente
+                cardLink.style.display = ''; // Quitar display:none
+
+                // Forzar reflow
+                void cardLink.offsetWidth;
+
+                cardLink.style.opacity = '1';
+                cardLink.style.transform = 'scale(1)';
+            }
+
+            const response = await fetch(`${API_URL}/publications/${id}/unhide`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ username: localStorage.getItem('username') })
+            });
+
+            if (!response.ok) {
+                console.error("Error en servidor al deshacer");
+                if (typeof window.loadAllData === 'function') window.loadAllData();
+                else window.location.reload();
+            } else {
+                if (!cardLink) {
+                    if (typeof window.loadAllData === 'function') window.loadAllData();
+                }
+            }
+        } catch (error) {
+            console.error("Error al deshacer:", error);
+            if (typeof window.loadAllData === 'function') window.loadAllData();
+            else window.location.reload();
+        }
+    }
+
+
+    // Simple Toast Notification Logic (Robust)
+    function showToast(message, actionText, actionCallback) {
+        // Eliminar toast anterior si existe
+        const existingToast = document.getElementById('toast-notification');
+        if (existingToast) existingToast.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'toast-notification';
+        toast.className = 'toast-notification';
+
+        toast.innerHTML = `
+            <span>${message}</span>
+            ${actionText ? `<button id="toast-action" type="button">${actionText}</button>` : ''}
+        `;
+
+        document.body.appendChild(toast);
+
+        // Forzar reflow para animación
+        void toast.offsetWidth;
+        toast.classList.add('show');
+
+        if (actionText && actionCallback) {
+            const btn = document.getElementById('toast-action');
+            btn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                actionCallback();
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300); // Limpiar DOM
+            };
+        }
+
+        // Auto-cierre extendido a 7 segundos
+        setTimeout(() => {
+            if (document.body.contains(toast)) {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (document.body.contains(toast)) toast.remove();
+                }, 300);
+            }
+        }, 7000);
+    }
+
+    // Close menus when clicking outside
+
 
     // --- Notifications ---
     async function fetchNotifications() {

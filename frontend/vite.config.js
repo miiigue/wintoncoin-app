@@ -15,13 +15,13 @@ import { resolve } from 'path';
 export default defineConfig({
   // Directorio raíz del proyecto
   root: '.',
-  
+
   // Base URL para assets (./ para rutas relativas - compatible con Hostinger)
   base: './',
-  
+
   // Directorio para archivos estáticos (se copian tal cual al dist)
   publicDir: 'public',
-  
+
   // Configuración de resolución de módulos
   resolve: {
     alias: {
@@ -30,23 +30,23 @@ export default defineConfig({
       '@styles': resolve(__dirname, 'src/styles'),
     }
   },
-  
+
   // ============================================================================
   // BUILD CONFIGURATION
   // ============================================================================
   build: {
     // Directorio de salida
     outDir: 'dist',
-    
+
     // Directorio para assets (CSS, JS, imágenes procesadas)
     assetsDir: 'assets',
-    
+
     // Generar sourcemaps para debugging (desactivar en producción si es necesario)
     sourcemap: true,
-    
+
     // Limpiar directorio antes de build
     emptyOutDir: true,
-    
+
     // Configuración de Rollup
     rollupOptions: {
       // Entry points - cada HTML es un entry point
@@ -55,7 +55,7 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         dashboard: resolve(__dirname, 'contract_interaction.html'),
         register: resolve(__dirname, 'register.html'),
-        
+
         // Páginas de funcionalidad
         publish: resolve(__dirname, 'publish.html'),
         publicationDetail: resolve(__dirname, 'publication-detail.html'),
@@ -64,43 +64,44 @@ export default defineConfig({
         transactions: resolve(__dirname, 'transactions.html'),
         referrals: resolve(__dirname, 'referrals.html'),
         boosterProfile: resolve(__dirname, 'booster-profile.html'),
-        
+
         // P2P
         p2p: resolve(__dirname, 'p2p.html'),
         p2pHistory: resolve(__dirname, 'p2p-history.html'),
-        
+
         // Páginas informativas
+        docs: resolve(__dirname, 'docs.html'),
         comoFunciona: resolve(__dirname, 'como-funciona.html'),
         love: resolve(__dirname, 'love.html'),
         terms: resolve(__dirname, 'terms.html'),
         privacy: resolve(__dirname, 'privacy.html'),
-        
+
         // Admin
         admin: resolve(__dirname, 'admin.html'),
         adminPanel: resolve(__dirname, 'admin-panel.html'),
       },
-      
+
       // Optimización de chunks
       output: {
         // Nombres de archivos con hash para cache busting
         entryFileNames: 'assets/[name].[hash].js',
         chunkFileNames: 'assets/[name].[hash].js',
         assetFileNames: 'assets/[name].[hash].[ext]',
-        
+
         // Separar vendors en chunk propio (mejor caching)
         manualChunks: {
           vendor: ['workbox-window'],
         }
       }
     },
-    
+
     // Target de navegadores
     target: 'es2020',
-    
+
     // Minificación
     minify: 'esbuild',
   },
-  
+
   // ============================================================================
   // PWA CONFIGURATION (Workbox)
   // ============================================================================
@@ -108,7 +109,7 @@ export default defineConfig({
     VitePWA({
       // Modo de registro del Service Worker
       registerType: 'autoUpdate',
-      
+
       // Assets que se incluyen siempre
       includeAssets: [
         'assets/icons/*.png',
@@ -117,17 +118,17 @@ export default defineConfig({
         'assets/*.svg',
         'manifest.json'
       ],
-      
+
       // No generar manifest, usar el existente
       manifest: false,
-      
+
       // Configuración de Workbox
       workbox: {
         // Patrones de archivos a precachear
         globPatterns: [
           '**/*.{js,css,html,png,jpg,jpeg,svg,ico,woff,woff2,ttf}'
         ],
-        
+
         // Excluir archivos
         globIgnores: [
           '**/node_modules/**',
@@ -135,7 +136,7 @@ export default defineConfig({
           'generate-*.js', // Scripts de generación
           'generate-*.html'
         ],
-        
+
         // ========================================
         // RUNTIME CACHING STRATEGIES
         // ========================================
@@ -158,7 +159,7 @@ export default defineConfig({
               }
             }
           },
-          
+
           // ----------------------------------------
           // CSS/JS con hash: Cache First (inmutable)
           // ----------------------------------------
@@ -176,7 +177,7 @@ export default defineConfig({
               }
             }
           },
-          
+
           // ----------------------------------------
           // Imágenes: Cache First con revalidación
           // ----------------------------------------
@@ -194,7 +195,7 @@ export default defineConfig({
               }
             }
           },
-          
+
           // ----------------------------------------
           // Fonts: Cache First (larga duración)
           // ----------------------------------------
@@ -212,7 +213,7 @@ export default defineConfig({
               }
             }
           },
-          
+
           // ----------------------------------------
           // Google Fonts: Cache First
           // ----------------------------------------
@@ -241,7 +242,7 @@ export default defineConfig({
               }
             }
           },
-          
+
           // ----------------------------------------
           // API Calls: Network Only (datos en tiempo real)
           // ----------------------------------------
@@ -257,7 +258,7 @@ export default defineConfig({
               }
             }
           },
-          
+
           // ----------------------------------------
           // CDN externos (QRCode, etc): Cache First
           // ----------------------------------------
@@ -276,16 +277,16 @@ export default defineConfig({
             }
           }
         ],
-        
+
         // Navegación offline
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api\//],
-        
+
         // Skip waiting y claim clients
         skipWaiting: true,
         clientsClaim: true,
       },
-      
+
       // Dev options
       devOptions: {
         enabled: true, // Habilitar en desarrollo para testing
@@ -293,17 +294,17 @@ export default defineConfig({
       }
     })
   ],
-  
+
   // ============================================================================
   // DEV SERVER CONFIGURATION
   // ============================================================================
   server: {
     // Puerto de desarrollo
     port: 5173,
-    
+
     // Abrir navegador automáticamente
     open: false,
-    
+
     // Proxy para API (evitar CORS en desarrollo)
     proxy: {
       '/api': {
@@ -317,14 +318,14 @@ export default defineConfig({
         secure: false
       }
     },
-    
+
     // CORS headers
     cors: true,
-    
+
     // Host para acceso desde LAN
     host: true
   },
-  
+
   // ============================================================================
   // PREVIEW SERVER (para probar builds)
   // ============================================================================

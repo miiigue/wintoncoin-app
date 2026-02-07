@@ -55,6 +55,8 @@ Regla: cada vez que se cree una pantalla nueva o se agregue un modal, actualizar
   - HTML: `frontend/como-funciona.html`
 - Panel principal / Interaccion
   - HTML: `frontend/contract_interaction.html`
+- Docs
+  - HTML: `frontend/docs.html`
 - Historial
   - HTML: `frontend/history.html`
 - Login

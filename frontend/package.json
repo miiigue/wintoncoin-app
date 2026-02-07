@@ -10,6 +10,7 @@
     "lint": "eslint src --ext .js"
   },
   "devDependencies": {
+    "sharp": "^0.34.5",
     "vite": "^5.0.0",
     "vite-plugin-pwa": "^0.17.0",
     "workbox-window": "^7.0.0"
