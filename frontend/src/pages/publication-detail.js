@@ -8,7 +8,7 @@ import { getApiUrl, showCustomAlert, showCustomConfirm, linkify, fetchAndStoreAp
 document.addEventListener('DOMContentLoaded', () => {
     // --- Configuration and State ---
     const API_URL = getApiUrl();
-    
+
     const storedUsername = localStorage.getItem('username');
     const urlParams = new URLSearchParams(window.location.search);
     const publicationId = urlParams.get('id');
@@ -49,9 +49,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const errorData = await publicationResponse.json();
                 throw new Error(errorData.message || 'Error al cargar la publicación.');
             }
-            
+
             const publication = await publicationResponse.json();
-            
+
             renderPublication(publication, platformSettings);
             setupEventListeners();
 
@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderPublication(pub, platformSettings) {
         const authorRatingHTML = generateStarRating(pub.author_average_rating, pub.author_ratings_count);
-        
+
         const authorNameHTML = appSettings.public_profiles_enabled
             ? `<a href="profile.html?user=${pub.author_username}" class="profile-link">${pub.author_username}</a>`
             : pub.author_username;
@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const stepNum = index + 1;
             const stepNumStr = String(stepNum);
             const hasFormFields = formFields && formFields[stepNumStr] && formFields[stepNumStr].length > 0;
-            
+
             let formInputsHTML = '';
             if (hasFormFields) {
                 const fieldsHTML = formFields[stepNumStr].map((field, fieldIndex) => `
@@ -202,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                required>
                     </div>
                 `).join('');
-                
+
                 formInputsHTML = `
                     <div class="step-form-container" data-step="${stepNum}">
                         <div class="step-form-header">
@@ -215,7 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
             }
-            
+
             return `
                 <li class="detail-step-item">
                     <div class="detail-step-node">
@@ -239,26 +239,26 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
     }
-    
+
     function getParticipantsSectionHTML(pub) {
         if (pub.author_username !== storedUsername || !pub.participants || pub.participants.length === 0) {
             return '';
         }
-    
+
         const participantsList = pub.participants.map(p => {
             const ratingHTML = generateStarRating(p.average_rating, p.ratings_count);
             const statusText = getStatusText(p.status);
             let actionButtons = '';
-    
+
             const participantNameHTML = appSettings.public_profiles_enabled
                 ? `<a href="profile.html?user=${p.username}" class="profile-link">${p.username}</a>`
                 : p.username;
 
             // Formatear fecha y hora de solicitud
-            const acceptedAtHTML = p.accepted_at 
+            const acceptedAtHTML = p.accepted_at
                 ? `<span class="participant-accepted-at">Solicitó: ${formatDateTime(p.accepted_at)}</span>`
                 : '';
-    
+
             if (p.status === 'pending_approval') {
                 actionButtons = `
                     <button class="action-button approve" data-action="approve" data-user="${p.username}">Aprobar</button>
@@ -297,7 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     `;
                 }).join('');
-                
+
                 formResponsesHTML = `
                     <div class="participant-form-responses">
                         <div class="form-responses-header">
@@ -310,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
             }
-    
+
             return `
                 <li class="participant-item ${p.form_responses ? 'has-responses' : ''}">
                     <div class="participant-info">
@@ -326,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </li>
             `;
         }).join('');
-    
+
         return `
             <div class="detail-participants-section">
                 <h2>Participantes</h2>
@@ -339,11 +339,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function formatDateTime(dateString) {
         const date = new Date(dateString);
-        const options = { 
-            day: '2-digit', 
-            month: 'short', 
+        const options = {
+            day: '2-digit',
+            month: 'short',
             year: 'numeric',
-            hour: '2-digit', 
+            hour: '2-digit',
             minute: '2-digit'
         };
         return date.toLocaleDateString('es-ES', options);
@@ -397,7 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 messageHTML = `<div class="action-message">Estás a punto de pagar <strong>${formatBalance(pub.blue_cost)} ${blueLabel}</strong> a <strong>${pub.author_username}</strong>.</div>`;
                 actionHTML = `<button class="action-button confirm" data-action="pay-quick-sale">Pagar Ahora</button>`;
             } else {
-                 messageHTML = `<div class="status-info">No tienes permiso para ver o actuar en esta venta.</div>`;
+                messageHTML = `<div class="status-info">No tienes permiso para ver o actuar en esta venta.</div>`;
             }
             return { messageHTML, actionHTML, acceptButtonHTML: '', duplicateCompleteButtonHTML: '' };
         }
@@ -416,9 +416,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const canManagePause = !allParticipantsPaid && !isExpired;
 
             if (pub.participants.length === 0 && !isExpired) {
-                 messageHTML = `<div class="status-pending">Aún no hay solicitudes para esta tarea.</div>`;
+                messageHTML = `<div class="status-pending">Aún no hay solicitudes para esta tarea.</div>`;
             }
-             
+
             if (canManagePause) {
                 actionHTML += `<button class="action-button pause" data-action="toggle-pause">${pub.is_paused ? 'Reanudar Solicitudes' : 'Pausar Solicitudes'}</button>`;
             }
@@ -436,7 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 verb = pub.is_sell_post ? 'Comprar' : 'Aceptar Tarea';
             }
             const action = pub.is_sell_post ? 'comprado' : 'realizado';
-            
+
             if (isExpired) {
                 messageHTML = `<div class="status-info">Esta tarea ha expirado y ya no acepta nuevos participantes.</div>`;
                 return { messageHTML, actionHTML, acceptButtonHTML };
@@ -519,11 +519,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function collectFormResponses() {
         const formResponses = {};
         const formContainers = document.querySelectorAll('.step-form-container');
-        
+
         formContainers.forEach((container) => {
             const stepNum = container.getAttribute('data-step');
             const inputs = container.querySelectorAll('.step-form-input');
-            
+
             if (inputs.length > 0) {
                 formResponses[stepNum] = {};
                 inputs.forEach((input) => {
@@ -533,14 +533,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         formResponses[stepNum][field] = value;
                     }
                 });
-                
+
                 // Si no hay respuestas para este paso, eliminarlo
                 if (Object.keys(formResponses[stepNum]).length === 0) {
                     delete formResponses[stepNum];
                 }
             }
         });
-        
+
         return formResponses;
     }
 
@@ -548,9 +548,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function setupEventListeners() {
         elements.content.addEventListener('click', handleActionClick);
         elements.ratingForm.addEventListener('submit', handleRatingSubmit);
-        
+
         const closeRatingBtn = elements.ratingModal.querySelector('.rating-close-button');
-        if(closeRatingBtn) {
+        if (closeRatingBtn) {
             closeRatingBtn.addEventListener('click', () => elements.ratingModal.style.display = 'none');
         }
         window.addEventListener('click', (event) => {
@@ -646,25 +646,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const title = pubContent.querySelector('.detail-title').textContent;
             const author = pubContent.querySelector('.detail-meta strong').textContent;
 
-            const referralResponse = await fetch(`${API_URL}/api/user/${storedUsername}/referral-code`);
-            if (!referralResponse.ok) throw new Error('No se pudo obtener tu código de referido.');
-            const referralData = await referralResponse.json();
-            const referralCode = referralData.referral_code;
-
-            const rewardAmount = appSettings.referral_reward_amount;
             const publicationUrl = window.location.href;
-            const registrationUrl = `${window.location.origin}/register.html?ref=${referralCode}`;
-            
-            const textToShare = `¡Echa un vistazo a esta publicación en WintonCoin! 🪙
+
+            const textToShare = `Hola!
+Te comparto esta publicacion,te puede ser util
 
 "${title}" por ${author}
 Puedes ver los detalles aquí:
-${publicationUrl}
-
----
-**¿Aún no tienes cuenta?**
-¡Usa mi código, regístrate y ambos ganaremos **${rewardAmount} BLUE**! 💰
-${registrationUrl}`;
+${publicationUrl}`;
 
             if (navigator.share) {
                 await navigator.share({
@@ -683,7 +672,7 @@ ${registrationUrl}`;
             showCustomAlert(error.message || 'Ocurrió un error al intentar compartir.');
         }
     }
-    
+
     async function confirmPaymentAndRate(pubId, authorUsername, acceptorUsername) {
         try {
             const result = await fetchFromServer(`/publications/${pubId}/confirm-payment`, 'POST', { confirmerUsername: storedUsername, workerUsername: acceptorUsername });
@@ -702,7 +691,7 @@ ${registrationUrl}`;
         try {
             await fetchFromServer('/rate', 'POST', body);
             elements.ratingModal.style.display = 'none';
-        } catch(error) {
+        } catch (error) {
             // Error already shown in fetchFromServer
         }
     }
@@ -718,7 +707,7 @@ ${registrationUrl}`;
                 options.body = JSON.stringify(body);
             }
             const response = await fetch(`${API_URL}${endpoint}`, options);
-            
+
             const responseText = await response.text();
             let result;
 
@@ -729,7 +718,7 @@ ${registrationUrl}`;
                 showCustomAlert(responseText || `Error inesperado del servidor.`);
                 throw new Error("Respuesta no-JSON del servidor");
             }
-            
+
             if (!response.ok) {
                 showCustomAlert(result.message || `Error en el servidor: ${response.status}`);
                 throw new Error(result.message);
@@ -738,7 +727,7 @@ ${registrationUrl}`;
             if (result.message) {
                 showCustomAlert(result.message);
             }
-            
+
             initializePage();
             return result;
 
@@ -756,7 +745,7 @@ ${registrationUrl}`;
         if (parts.length === 2) return `${parts[0]},<span class="decimal-part">${parts[1]}</span>`;
         return formattedString;
     }
-    
+
     function getStatusText(status) {
         const statusMap = {
             'open': 'Abierta', 'pending_approval': 'Pendiente', 'approved': 'Aprobado',
@@ -770,9 +759,9 @@ ${registrationUrl}`;
         const stars = '★'.repeat(Math.round(rating)) + '☆'.repeat(5 - Math.round(rating));
         return `<span class="stars" title="${parseFloat(rating).toFixed(1)} de 5">${stars}</span> <span class="rating-count">(${count})</span>`;
     }
-    
+
     function openRatingModal(publicationId, raterUsername, rateeUsername) {
-        elements.ratingForm.reset(); 
+        elements.ratingForm.reset();
         elements.ratingPublicationId.value = publicationId;
         elements.ratingRaterUsername.value = raterUsername;
         elements.ratingRateeUsername.value = rateeUsername;

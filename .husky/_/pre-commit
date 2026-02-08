@@ -1,6 +1,2 @@
-#!/bin/sh
-set -e
-
-npm run update:ui-inventory
 #!/usr/bin/env sh
 . "$(dirname "$0")/h"
