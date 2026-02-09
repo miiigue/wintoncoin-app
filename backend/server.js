@@ -124,9 +124,15 @@ async function checkDbConnection() {
 // Migraciones y lógica de inicialización movidas a src/config/databaseInit.js
 
 // 5. Función principal asíncrona para iniciar el servidor
+// 5. Función principal asíncrona para iniciar el servidor
 async function startServer() {
     try {
         await checkDbConnection();
+
+        // --- NUEVO: Ejecutar migraciones pendientes automáticamente ---
+        const { runPendingMigrations } = require('./scripts/migrationRunner');
+        await runPendingMigrations();
+
         await initializeDatabase();
         startAuditCleanupJob();
         console.log("Base de datos inicializada correctamente.");
