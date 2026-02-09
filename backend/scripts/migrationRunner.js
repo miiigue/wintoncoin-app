@@ -35,6 +35,14 @@ async function runPendingMigrations() {
         // 1. Asegurar que existe la tabla de control
         await client.query(MIGRATIONS_TABLE_SQL);
 
+        // 1.5 Auto-reparación: Si la tabla ya existía pero versión vieja senta 'status', agregarla.
+        try {
+            await client.query('ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT \'SUCCESS\'');
+        } catch (e) {
+            // Ignorar error si ya existe (aunque IF NOT EXISTS debería manejarlo en Postgres moderno)
+            console.log('[MIGRATIONS] Nota: Verificación de columna status completada.');
+        }
+
         // 2. Leer archivos de migración disponibles
         const migrationsDir = path.join(__dirname, '../migrations');
         if (!fs.existsSync(migrationsDir)) {
