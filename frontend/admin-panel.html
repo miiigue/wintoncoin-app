@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,7 +10,9 @@
     <title>Panel de Administración - Winton Coin</title>
     <link id="main-stylesheet" rel="stylesheet" href="style.css">
     <link id="admin-stylesheet" rel="stylesheet" href="admin-style.css">
+    <link rel="stylesheet" href="admin-switch.css">
 </head>
+
 <body>
     <div class="admin-grid-container">
         <!-- Barra Lateral de Navegación -->
@@ -23,9 +26,11 @@
                     <li><a href="#dashboard" class="nav-link active" data-section="dashboard">Dashboard</a></li>
                     <li><a href="#settings" class="nav-link" data-section="settings">Configuración</a></li>
                     <li><a href="#users" class="nav-link" data-section="users">Gestión de Usuarios</a></li>
-                    <li><a href="#publications" class="nav-link" data-section="publications">Gestión de Contenido</a></li>
+                    <li><a href="#publications" class="nav-link" data-section="publications">Gestión de Contenido</a>
+                    </li>
                     <li><a href="#debtors" class="nav-link" data-section="debtors">Panel de Deudores</a></li>
-                    <li><a href="#platform-wallet" class="nav-link" data-section="platform-wallet">Billetera Plataforma</a></li>
+                    <li><a href="#platform-wallet" class="nav-link" data-section="platform-wallet">Billetera
+                            Plataforma</a></li>
                     <li>
                         <a href="#platform-publications" class="nav-link" data-section="platform-publications">
                             Publicaciones Plataforma
@@ -35,7 +40,9 @@
                     <li><a href="#referrals" class="nav-link" data-section="referrals">Sistema de Referidos</a></li>
                     <li><a href="#boosters" class="nav-link" data-section="boosters">Gestión de Impulsores</a></li>
                     <li><a href="#audit-log" class="nav-link" data-section="audit-log">Auditoría</a></li>
-                    <li><a href="#database-management" class="nav-link" data-section="database-management">Gestión de Base de Datos</a></li>
+                    <li><a href="#notifications" class="nav-link" data-section="notifications">Notificaciones</a></li>
+                    <li><a href="#database-management" class="nav-link" data-section="database-management">Gestión de
+                            Base de Datos</a></li>
                     <!-- DANGER ZONE LINK (REMOVE AFTER USE) -->
                     <li><a href="#danger-zone" class="nav-link" data-section="danger-zone">Zona de Peligro</a></li>
                 </ul>
@@ -63,7 +70,7 @@
             <section id="settings-section" class="admin-section">
                 <h1>Gestión de Configuración</h1>
                 <p>Activa o desactiva funcionalidades de la aplicación en tiempo real.</p>
-                
+
                 <!-- Nueva sección para gestión de fases -->
                 <div class="settings-group">
                     <h2>Gestión de Fases y Publicaciones</h2>
@@ -74,7 +81,7 @@
 
                 <div class="settings-group">
                     <h2>Configuración General</h2>
-                <div id="settings-switches" class="settings-container">
+                    <div id="settings-switches" class="settings-container">
                         <!-- Los interruptores generales se cargarán aquí -->
                     </div>
                 </div>
@@ -84,7 +91,7 @@
             <section id="users-section" class="admin-section">
                 <h1>Gestión de Usuarios</h1>
                 <p>Explora y busca en la base de datos de usuarios.</p>
-                
+
                 <div class="table-controls">
                     <input type="text" id="userSearchInput" placeholder="Buscar por nombre de usuario...">
                     <select id="userStatusFilter">
@@ -136,7 +143,7 @@
             <section id="platform-wallet-section" class="admin-section">
                 <h1>Billetera de la Plataforma</h1>
                 <p>Aquí se registran todas las comisiones ganadas por la plataforma.</p>
-                
+
                 <!-- Tarjeta con el Saldo Total -->
                 <div id="platform-wallet-stats" class="stats-container" style="margin-bottom: 2rem;">
                     <div class="loading-spinner"></div>
@@ -155,7 +162,8 @@
                 <p>Registro inmutable de eventos críticos para trazabilidad y cumplimiento.</p>
 
                 <div class="table-controls">
-                    <input type="text" id="auditEventTypeInput" placeholder="Event type (ej: publication.confirmed_paid)">
+                    <input type="text" id="auditEventTypeInput"
+                        placeholder="Event type (ej: publication.confirmed_paid)">
                     <input type="text" id="auditActorInput" placeholder="Actor (username)">
                     <input type="text" id="auditTargetInput" placeholder="Target (username)">
                     <input type="text" id="auditCategoryInput" placeholder="Categoría (request, admin, etc)">
@@ -177,6 +185,59 @@
                 </div>
             </section>
 
+            <!-- Sección Notificaciones -->
+            <section id="notifications-section" class="admin-section">
+                <h1>Centro de Notificaciones VAPID</h1>
+                <p>Envía alertas push en tiempo real a los usuarios de forma segura.</p>
+
+                <div class="settings-group">
+                    <div class="settings-header">
+                        <h2>Enviar Notificación Manual</h2>
+                    </div>
+                    <form id="pushNotificationForm" class="admin-form">
+                        <div class="form-row-admin">
+                            <div class="form-group-admin">
+                                <label for="pushTargetUsername">Usuario Destino (Username):</label>
+                                <input type="text" id="pushTargetUsername" class="admin-input-dark"
+                                    placeholder="Ej: miiigue">
+                                <div class="admin-switch-container" style="margin-top: 5px;">
+                                    <label class="admin-switch">
+                                        <input type="checkbox" id="pushSendToAll">
+                                        <span class="slider round"></span>
+                                    </label>
+                                    <span class="switch-label">Enviar a TODOS los usuarios (Broadcast)</span>
+                                </div>
+                                <small class="input-hint">El nombre de usuario (ej: vitalik) al que le llegará la
+                                    alerta.</small>
+                            </div>
+
+                            <div class="form-group-admin">
+                                <label for="pushUrl">URL de Acción (Opcional):</label>
+                                <input type="text" id="pushUrl" class="admin-input-dark"
+                                    placeholder="Ej: /contract_interaction.html" value="/">
+                            </div>
+                        </div>
+
+                        <div class="form-group-admin">
+                            <label for="pushTitle">Título:</label>
+                            <input type="text" id="pushTitle" class="admin-input-dark"
+                                placeholder="Ej: Aviso Importante" required>
+                        </div>
+
+                        <div class="form-group-admin">
+                            <label for="pushMessage">Mensaje:</label>
+                            <textarea id="pushMessage" class="admin-input-dark" rows="3"
+                                placeholder="Redacta el mensaje corto..." required></textarea>
+                        </div>
+
+                        <div class="admin-form-actions">
+                            <button type="submit" id="sendPushBtn" class="action-button-admin publish">🚀 Enviar
+                                Notificación</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
             <!-- Nueva Sección para Publicaciones de la Plataforma -->
             <section id="platform-publications-section" class="admin-section">
                 <h1>Publicaciones de la Plataforma</h1>
@@ -188,166 +249,192 @@
                         <span class="accordion-icon">▼</span>
                     </div>
                     <div class="admin-accordion-content" id="platformFormContent" style="display: none;">
-                <form id="platformPublicationForm" class="admin-form">
-                    <div id="platformEditNotice" class="admin-edit-notice" style="display: none;"></div>
-                    <div class="form-group-admin">
-                        <label for="platformPubTitle">Título de la Publicación:</label>
-                        <input type="text" id="platformPubTitle" required>
-                    </div>
-                    <div class="form-group-admin">
-                        <label for="platformPubDescription">Descripción:</label>
-                        <textarea id="platformPubDescription" rows="4" required></textarea>
-                    </div>
-
-                    <div class="form-group-admin">
-                        <label>Describe las instrucciones paso a paso</label>
-                        <div class="admin-step-inputs" id="platformStepInputs">
-                            <div class="admin-step-input" data-step="1">
-                                <label for="platformStep1">Paso 1</label>
-                                <input type="text" id="platformStep1" placeholder="Describe el primer paso">
+                        <form id="platformPublicationForm" class="admin-form">
+                            <div id="platformEditNotice" class="admin-edit-notice" style="display: none;"></div>
+                            <div class="form-group-admin">
+                                <label for="platformPubTitle">Título de la Publicación:</label>
+                                <input type="text" id="platformPubTitle" required>
                             </div>
-                            <div class="admin-step-input" data-step="2">
-                                <label for="platformStep2">Paso 2</label>
-                                <input type="text" id="platformStep2" placeholder="Describe el segundo paso">
-                                <div class="step-form-toggle">
-                                    <label class="toggle-label">
-                                        <input type="checkbox" class="step-form-checkbox" data-step="2">
-                                        <span>Activar formulario para este paso</span>
-                                    </label>
-                                    <div class="step-form-fields" style="display: none;">
-                                        <p class="form-hint">Define los campos que el usuario debe completar:</p>
-                                        <div class="step-form-inputs">
-                                            <input type="text" class="step-form-field" placeholder="Campo 1 (ej: Tu usuario de Instagram)">
-                                            <input type="text" class="step-form-field" placeholder="Campo 2 (ej: Link del post)">
-                                            <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
+                            <div class="form-group-admin">
+                                <label for="platformPubDescription">Descripción:</label>
+                                <textarea id="platformPubDescription" rows="4" required></textarea>
+                            </div>
+
+                            <div class="form-group-admin">
+                                <label>Describe las instrucciones paso a paso</label>
+                                <div class="admin-step-inputs" id="platformStepInputs">
+                                    <div class="admin-step-input" data-step="1">
+                                        <label for="platformStep1">Paso 1</label>
+                                        <input type="text" id="platformStep1" placeholder="Describe el primer paso">
+                                    </div>
+                                    <div class="admin-step-input" data-step="2">
+                                        <label for="platformStep2">Paso 2</label>
+                                        <input type="text" id="platformStep2" placeholder="Describe el segundo paso">
+                                        <div class="step-form-toggle">
+                                            <label class="toggle-label">
+                                                <input type="checkbox" class="step-form-checkbox" data-step="2">
+                                                <span>Activar formulario para este paso</span>
+                                            </label>
+                                            <div class="step-form-fields" style="display: none;">
+                                                <p class="form-hint">Define los campos que el usuario debe completar:
+                                                </p>
+                                                <div class="step-form-inputs">
+                                                    <input type="text" class="step-form-field"
+                                                        placeholder="Campo 1 (ej: Tu usuario de Instagram)">
+                                                    <input type="text" class="step-form-field"
+                                                        placeholder="Campo 2 (ej: Link del post)">
+                                                    <input type="text" class="step-form-field"
+                                                        placeholder="Campo 3 (opcional)">
+                                                </div>
+                                                <button type="button" class="step-add-field-btn">+ Agregar más
+                                                    campos</button>
+                                            </div>
                                         </div>
-                                        <button type="button" class="step-add-field-btn">+ Agregar más campos</button>
+                                    </div>
+                                    <div class="admin-step-input" data-step="3">
+                                        <label for="platformStep3">Paso 3</label>
+                                        <input type="text" id="platformStep3" placeholder="Describe el tercer paso">
+                                        <div class="step-form-toggle">
+                                            <label class="toggle-label">
+                                                <input type="checkbox" class="step-form-checkbox" data-step="3">
+                                                <span>Activar formulario para este paso</span>
+                                            </label>
+                                            <div class="step-form-fields" style="display: none;">
+                                                <p class="form-hint">Define los campos que el usuario debe completar:
+                                                </p>
+                                                <div class="step-form-inputs">
+                                                    <input type="text" class="step-form-field" placeholder="Campo 1">
+                                                    <input type="text" class="step-form-field" placeholder="Campo 2">
+                                                    <input type="text" class="step-form-field"
+                                                        placeholder="Campo 3 (opcional)">
+                                                </div>
+                                                <button type="button" class="step-add-field-btn">+ Agregar más
+                                                    campos</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="admin-step-input" data-step="4">
+                                        <label for="platformStep4">Paso 4</label>
+                                        <input type="text" id="platformStep4" placeholder="Describe el cuarto paso">
+                                        <div class="step-form-toggle">
+                                            <label class="toggle-label">
+                                                <input type="checkbox" class="step-form-checkbox" data-step="4">
+                                                <span>Activar formulario para este paso</span>
+                                            </label>
+                                            <div class="step-form-fields" style="display: none;">
+                                                <p class="form-hint">Define los campos que el usuario debe completar:
+                                                </p>
+                                                <div class="step-form-inputs">
+                                                    <input type="text" class="step-form-field" placeholder="Campo 1">
+                                                    <input type="text" class="step-form-field" placeholder="Campo 2">
+                                                    <input type="text" class="step-form-field"
+                                                        placeholder="Campo 3 (opcional)">
+                                                </div>
+                                                <button type="button" class="step-add-field-btn">+ Agregar más
+                                                    campos</button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
+                                <button type="button" id="platformAddStepBtn" class="admin-step-add-btn">Agregar más
+                                    pasos</button>
                             </div>
-                            <div class="admin-step-input" data-step="3">
-                                <label for="platformStep3">Paso 3</label>
-                                <input type="text" id="platformStep3" placeholder="Describe el tercer paso">
-                                <div class="step-form-toggle">
-                                    <label class="toggle-label">
-                                        <input type="checkbox" class="step-form-checkbox" data-step="3">
-                                        <span>Activar formulario para este paso</span>
-                                    </label>
-                                    <div class="step-form-fields" style="display: none;">
-                                        <p class="form-hint">Define los campos que el usuario debe completar:</p>
-                                        <div class="step-form-inputs">
-                                            <input type="text" class="step-form-field" placeholder="Campo 1">
-                                            <input type="text" class="step-form-field" placeholder="Campo 2">
-                                            <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
-                                        </div>
-                                        <button type="button" class="step-add-field-btn">+ Agregar más campos</button>
+
+                            <div class="form-row-admin">
+                                <div class="form-group-admin">
+                                    <label>Tipo de Publicación:</label>
+                                    <div class="radio-group-admin">
+                                        <input type="radio" id="platformPubTypeRequest" name="platformPubType"
+                                            value="request" checked>
+                                        <label for="platformPubTypeRequest">Solicitud (paga BLUE)</label>
+                                        <input type="radio" id="platformPubTypeSell" name="platformPubType"
+                                            value="sell">
+                                        <label for="platformPubTypeSell">Venta (recibe BLUE)</label>
                                     </div>
                                 </div>
+                                <div class="form-group-admin">
+                                    <label for="platformPubCost">Valor (en BLUE):</label>
+                                    <input type="number" id="platformPubCost" required min="0.0001" step="any">
+                                </div>
+                                <div class="form-group-admin">
+                                    <label for="platformPubSlots">Cupos Disponibles:</label>
+                                    <input type="number" id="platformPubSlots" required min="1" step="1" value="1">
+                                </div>
                             </div>
-                            <div class="admin-step-input" data-step="4">
-                                <label for="platformStep4">Paso 4</label>
-                                <input type="text" id="platformStep4" placeholder="Describe el cuarto paso">
-                                <div class="step-form-toggle">
-                                    <label class="toggle-label">
-                                        <input type="checkbox" class="step-form-checkbox" data-step="4">
-                                        <span>Activar formulario para este paso</span>
-                                    </label>
-                                    <div class="step-form-fields" style="display: none;">
-                                        <p class="form-hint">Define los campos que el usuario debe completar:</p>
-                                        <div class="step-form-inputs">
-                                            <input type="text" class="step-form-field" placeholder="Campo 1">
-                                            <input type="text" class="step-form-field" placeholder="Campo 2">
-                                            <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
-                                        </div>
-                                        <button type="button" class="step-add-field-btn">+ Agregar más campos</button>
+
+                            <div class="form-group-checkbox">
+                                <input type="checkbox" id="platformAutoApprove">
+                                <label for="platformAutoApprove">Aprobar automáticamente a los participantes</label>
+                            </div>
+
+                            <div class="form-group-checkbox repeat-switch">
+                                <div class="switch-header">
+                                    <div class="switch-label-group">
+                                        <label for="platformAllowRepeatParticipation">Permitir que los usuarios repitan
+                                            esta tarea</label>
                                     </div>
+                                    <input type="checkbox" id="platformAllowRepeatParticipation">
+                                </div>
+                                <div class="repeat-limit-input" id="platformRepeatLimitWrapper" style="display: none;">
+                                    <label class="repeat-label" for="platformRepeatLimit">Veces que puede
+                                        repetir</label>
+                                    <div class="repeat-input-row">
+                                        <input type="number" id="platformRepeatLimit" min="2" step="1" value="2">
+                                    </div>
+                                    <small class="input-hint"></small>
+                                </div>
+                                <div class="repeat-limit-input" id="platformRepeatCooldownWrapper"
+                                    style="display: none;">
+                                    <label class="repeat-label">Tiempo mínimo para repetir</label>
+                                    <div class="repeat-cooldown-inputs repeat-input-row">
+                                        <div class="repeat-cooldown-field">
+                                            <input type="number" id="platformRepeatCooldownDays" min="0" step="1"
+                                                value="0" placeholder="Días">
+                                            <small class="repeat-cooldown-unit">d</small>
+                                        </div>
+                                        <div class="repeat-cooldown-field">
+                                            <input type="number" id="platformRepeatCooldownHours" min="0" step="1"
+                                                value="0" placeholder="Horas">
+                                            <small class="repeat-cooldown-unit">h</small>
+                                        </div>
+                                        <div class="repeat-cooldown-field">
+                                            <input type="number" id="platformRepeatCooldownMinutes" min="0" step="1"
+                                                value="12" placeholder="Minutos">
+                                            <small class="repeat-cooldown-unit">min</small>
+                                        </div>
+                                    </div>
+                                    <small class="input-hint"></small>
                                 </div>
                             </div>
-                        </div>
-                        <button type="button" id="platformAddStepBtn" class="admin-step-add-btn">Agregar más pasos</button>
-                    </div>
-                    
-                    <div class="form-row-admin">
-                        <div class="form-group-admin">
-                            <label>Tipo de Publicación:</label>
-                            <div class="radio-group-admin">
-                                <input type="radio" id="platformPubTypeRequest" name="platformPubType" value="request" checked>
-                                <label for="platformPubTypeRequest">Solicitud (paga BLUE)</label>
-                                <input type="radio" id="platformPubTypeSell" name="platformPubType" value="sell">
-                                <label for="platformPubTypeSell">Venta (recibe BLUE)</label>
-                            </div>
-                        </div>
-                        <div class="form-group-admin">
-                            <label for="platformPubCost">Valor (en BLUE):</label>
-                            <input type="number" id="platformPubCost" required min="0.0001" step="any">
-                        </div>
-                        <div class="form-group-admin">
-                            <label for="platformPubSlots">Cupos Disponibles:</label>
-                            <input type="number" id="platformPubSlots" required min="1" step="1" value="1">
-                        </div>
-                    </div>
 
-                    <div class="form-group-checkbox">
-                        <input type="checkbox" id="platformAutoApprove">
-                        <label for="platformAutoApprove">Aprobar automáticamente a los participantes</label>
-                    </div>
-
-                    <div class="form-group-checkbox repeat-switch">
-                        <div class="switch-header">
-                            <div class="switch-label-group">
-                                <label for="platformAllowRepeatParticipation">Permitir que los usuarios repitan esta tarea</label>
+                            <div class="form-group-checkbox booster-task-checkbox">
+                                <input type="checkbox" id="platformIsBoosterTask">
+                                <label for="platformIsBoosterTask">Tarea de Impulsor (Booster)</label>
+                                <small class="input-hint">Marcar si esta tarea otorga BLUE de Impulsor y cuenta para el
+                                    programa.</small>
                             </div>
-                            <input type="checkbox" id="platformAllowRepeatParticipation">
-                        </div>
-                        <div class="repeat-limit-input" id="platformRepeatLimitWrapper" style="display: none;">
-                            <label class="repeat-label" for="platformRepeatLimit">Veces que puede repetir</label>
-                            <div class="repeat-input-row">
-                                <input type="number" id="platformRepeatLimit" min="2" step="1" value="2">
-                            </div>
-                            <small class="input-hint"></small>
-                        </div>
-                        <div class="repeat-limit-input" id="platformRepeatCooldownWrapper" style="display: none;">
-                            <label class="repeat-label">Tiempo mínimo para repetir</label>
-                            <div class="repeat-cooldown-inputs repeat-input-row">
-                                <div class="repeat-cooldown-field">
-                                    <input type="number" id="platformRepeatCooldownDays" min="0" step="1" value="0" placeholder="Días">
-                                    <small class="repeat-cooldown-unit">d</small>
-                                </div>
-                                <div class="repeat-cooldown-field">
-                                    <input type="number" id="platformRepeatCooldownHours" min="0" step="1" value="0" placeholder="Horas">
-                                    <small class="repeat-cooldown-unit">h</small>
-                                </div>
-                                <div class="repeat-cooldown-field">
-                                    <input type="number" id="platformRepeatCooldownMinutes" min="0" step="1" value="12" placeholder="Minutos">
-                                    <small class="repeat-cooldown-unit">min</small>
-                                </div>
-                            </div>
-                            <small class="input-hint"></small>
-                        </div>
-                    </div>
 
-                    <div class="form-group-checkbox booster-task-checkbox">
-                        <input type="checkbox" id="platformIsBoosterTask">
-                        <label for="platformIsBoosterTask">Tarea de Impulsor (Booster)</label>
-                        <small class="input-hint">Marcar si esta tarea otorga BLUE de Impulsor y cuenta para el programa.</small>
-                    </div>
+                            <div class="form-group-admin target-user-group">
+                                <label for="platformTargetUsername">Usuario específico (opcional):</label>
+                                <input type="text" id="platformTargetUsername"
+                                    placeholder="Dejar vacío = visible para todos">
+                                <small class="input-hint">Si escribes un nombre de usuario, esta publicación SOLO será
+                                    visible para ese usuario.</small>
+                            </div>
 
-                    <div class="form-group-admin target-user-group">
-                        <label for="platformTargetUsername">Usuario específico (opcional):</label>
-                        <input type="text" id="platformTargetUsername" placeholder="Dejar vacío = visible para todos">
-                        <small class="input-hint">Si escribes un nombre de usuario, esta publicación SOLO será visible para ese usuario.</small>
-                    </div>
-                    
-                    <div class="admin-form-actions">
-                        <button type="submit" id="platformPublicationSubmitBtn" class="action-button-admin publish">Crear Publicación</button>
-                        <button type="button" id="platformCancelEditBtn" class="admin-edit-cancel" style="display: none;">Cancelar edición</button>
-                    </div>
-                </form>
+                            <div class="admin-form-actions">
+                                <button type="submit" id="platformPublicationSubmitBtn"
+                                    class="action-button-admin publish">Crear Publicación</button>
+                                <button type="button" id="platformCancelEditBtn" class="admin-edit-cancel"
+                                    style="display: none;">Cancelar edición</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
 
                 <div class="table-controls platform-publications-controls">
-                    <input type="text" id="platformPublicationSearchInput" placeholder="Buscar publicaciones (título o descripción)">
+                    <input type="text" id="platformPublicationSearchInput"
+                        placeholder="Buscar publicaciones (título o descripción)">
                     <select id="platformPublicationStatusFilter">
                         <option value="all" selected>Todos los estados</option>
                         <option value="active">Activas</option>
@@ -382,7 +469,7 @@
             <section id="referrals-section" class="admin-section">
                 <h1>Sistema de Referidos</h1>
                 <p>Gestiona la configuración del programa de referidos de la plataforma.</p>
-                
+
                 <div id="referrals-settings-container" class="settings-container">
                     <!-- Las opciones de configuración de referidos se cargarán aquí dinámicamente. -->
                     <div class="loading-spinner"></div>
@@ -401,7 +488,7 @@
             <section id="database-management-section" class="admin-section">
                 <h1>Gestión de Base de Datos</h1>
                 <p>Herramientas para mantener, limpiar y respaldar la base de datos de manera segura.</p>
-                
+
                 <!-- Estadísticas de la Base de Datos -->
                 <div class="database-stats-card">
                     <h2>📊 Estadísticas de la Base de Datos</h2>
@@ -417,7 +504,7 @@
                 <div class="backup-tools-card">
                     <h2>💾 Herramientas de Backup</h2>
                     <p>Crea copias de seguridad antes de realizar cualquier operación de limpieza.</p>
-                    
+
                     <div class="backup-actions">
                         <button id="create-backup-btn" class="action-button-admin backup">
                             💾 Crear Backup Completo
@@ -432,12 +519,13 @@
                 <div class="cleanup-tools-card">
                     <h2>🧹 Herramientas de Limpieza</h2>
                     <p class="warning-text">⚠️ Todas las operaciones crean un backup automático antes de ejecutarse.</p>
-                    
+
                     <div class="cleanup-options">
                         <!-- Limpiar Datos de Prueba -->
                         <div class="cleanup-option">
                             <h3>🗑️ Limpiar Datos de Prueba</h3>
-                            <p>Elimina usuarios y publicaciones que contengan 'test', 'demo' o 'example' en el nombre.</p>
+                            <p>Elimina usuarios y publicaciones que contengan 'test', 'demo' o 'example' en el nombre.
+                            </p>
                             <button id="cleanup-test-data-btn" class="action-button-admin cleanup">
                                 Limpiar Datos de Prueba
                             </button>
@@ -462,7 +550,8 @@
                             <p>Elimina publicaciones completadas que sean muy antiguas.</p>
                             <div class="input-group">
                                 <label for="old-publications-days">Días de antigüedad (mínimo 90):</label>
-                                <input type="number" id="old-publications-days" min="90" value="180" class="number-input">
+                                <input type="number" id="old-publications-days" min="90" value="180"
+                                    class="number-input">
                             </div>
                             <button id="cleanup-old-publications-btn" class="action-button-admin cleanup">
                                 Limpiar Publicaciones Antiguas
@@ -537,14 +626,17 @@
             <section id="danger-zone-section" class="admin-section">
                 <h1>Zona de Peligro</h1>
                 <p>Las acciones en esta sección son irreversibles y pueden causar la pérdida permanente de datos.</p>
-                
+
                 <div class="danger-zone-container">
                     <div class="danger-item">
                         <div class="danger-item-info">
                             <h4>Reiniciar la Base de Datos</h4>
-                            <p>Esta acción eliminará TODOS los usuarios (excepto el de la plataforma), publicaciones, transacciones, saldos y cualquier otro dato generado. La base de datos volverá a su estado inicial. <strong>Úsese con extrema precaución.</strong></p>
+                            <p>Esta acción eliminará TODOS los usuarios (excepto el de la plataforma), publicaciones,
+                                transacciones, saldos y cualquier otro dato generado. La base de datos volverá a su
+                                estado inicial. <strong>Úsese con extrema precaución.</strong></p>
                         </div>
-                        <button id="resetDatabaseBtn" class="action-button-admin danger">Reiniciar Base de Datos</button>
+                        <button id="resetDatabaseBtn" class="action-button-admin danger">Reiniciar Base de
+                            Datos</button>
                     </div>
                 </div>
             </section>
@@ -579,4 +671,5 @@
         </div>
     </div>
 </body>
-</html> 
+
+</html>

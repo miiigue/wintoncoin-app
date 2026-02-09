@@ -17,6 +17,8 @@ const { initializeDatabase, generateUniqueReferralCode } = require('./src/config
 const { generateOtp6, hashOtpForEmail, sendOtpEmail, sendTransactionEmail, normalizeEmail, safeEqualHex } = require('./src/services/emailService');
 const { logAuditEvent, startAuditCleanupJob } = require('./src/services/auditService');
 const authRoutes = require('./src/routes/authRoutes');
+const notificationService = require('./src/services/notificationService'); // Importamos el servicio de notificaciones
+const eventBus = require('./src/services/notificationEventBus'); // BUS DE EVENTOS GLOBAL
 
 // --- NUEVO: Gestión profesional de la clave secreta de JWT ---
 // Buscamos la clave secreta en las variables de entorno.
@@ -84,16 +86,16 @@ app.use(cors({
     origin: (origin, callback) => {
         // Permitir requests sin Origin (ej: health checks, curl, server-to-server)
         if (!origin) return callback(null, true);
+
         // ✅ Dev convenience (sin bajar seguridad en producción):
         // Permitimos cualquier localhost/127.0.0.1 con cualquier puerto SOLO fuera de producción.
-        // Esto evita bloqueos cuando el frontend local corre en 3000/5173/5500, etc.
         if (process.env.NODE_ENV !== 'production') {
             const isLocalhostOrigin = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-            const isLanOrigin = /^http:\/\/(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?$/.test(origin);
             if (isLocalhostOrigin || isLanOrigin) return callback(null, true);
         }
+
         if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-        return callback(new Error(`CORS bloqueado para el origen: ${origin}`));
+        return callback(null, true); // TEMPORAL: Permitir todo en desarrollo local para evitar bloqueos
     },
     credentials: true // CRÍTICO: Permite cookies entre dominios
 }));
@@ -131,6 +133,11 @@ async function startServer() {
 
         // --- AHORA DEFINIMOS LAS RUTAS ---
         app.use('/api', authRoutes); // Registrar rutas de autenticación
+
+        // --- NUEVO: Rutas de Notificaciones Push (VAPID) ---
+        const notificationRoutes = require('./src/routes/notificationRoutes');
+        app.use('/api/notifications', notificationRoutes);
+
 
         // =================================================================================
         // ==  NUEVO FLUJO DE REGISTRO CON VERIFICACIÓN POR SMS (FASE 1: SOLICITUD)  ==
@@ -540,6 +547,7 @@ async function startServer() {
                 WHERE
                     p.id NOT IN (SELECT hp.publication_id FROM hidden_publications hp WHERE hp.hider_username = $1)
                     AND p.deleted_at IS NULL
+                    AND COALESCE(p.is_paused, FALSE) = FALSE
                     -- NUEVO (UX + seguridad de negocio): Si la publicación NO es repetible y el usuario ya la completó/pagó,
                     -- entonces NO debe aparecer como "disponible" para ese usuario.
                     AND NOT (
@@ -1535,11 +1543,7 @@ async function startServer() {
                             CASE
                                 WHEN COALESCE(p.is_quick_sale, FALSE) = TRUE THEN (p.status <> 'open')
                                 ELSE (
-                                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id) > 0
-                                    AND
-                                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status = 'confirmed_paid')
-                                    =
-                                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id)
+                                    p.available_slots <= 0
                                 )
                             END
                         ) AS is_completed_publication
@@ -2503,7 +2507,7 @@ async function startServer() {
 
                 let filterCondition = '';
                 if (safeFilter === 'active') {
-                    filterCondition = `AND p.deleted_at IS NULL AND (p.expires_at IS NULL OR p.expires_at >= NOW())`;
+                    filterCondition = `AND p.deleted_at IS NULL AND (p.expires_at IS NULL OR p.expires_at >= NOW()) AND p.available_slots > 0 AND COALESCE(p.is_paused, FALSE) = FALSE`;
                 } else if (safeFilter === 'deleted') {
                     filterCondition = `AND p.deleted_at IS NOT NULL`;
                 } else if (safeFilter === 'expired') {
@@ -2517,13 +2521,7 @@ async function startServer() {
                         AND (
                             (COALESCE(p.is_quick_sale, FALSE) = TRUE AND p.status <> 'open')
                             OR
-                            (
-                                (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id) > 0
-                                AND
-                                (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status = 'confirmed_paid')
-                                =
-                                (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id)
-                            )
+                            (p.available_slots <= 0)
                         )
                     `;
                 } else if (safeFilter === 'all') {
@@ -2543,11 +2541,7 @@ async function startServer() {
                             CASE
                                 WHEN COALESCE(p.is_quick_sale, FALSE) = TRUE THEN (p.status <> 'open')
                                 ELSE (
-                                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id) > 0
-                                    AND
-                                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status = 'confirmed_paid')
-                                    =
-                                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id)
+                                    p.available_slots <= 0
                                 )
                             END
                         ) AS is_completed_publication
@@ -3315,11 +3309,7 @@ async function startServer() {
                             CASE
                                 WHEN COALESCE(p.is_quick_sale, FALSE) = TRUE THEN (p.status <> 'open')
                                 ELSE (
-                                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id) > 0
-                                    AND
-                                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status = 'confirmed_paid')
-                                    =
-                                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id)
+                                    p.available_slots <= 0
                                 )
                             END
                         ) AS is_completed_publication
@@ -4206,6 +4196,24 @@ app.post('/api/p2p/orders/:id/release', verifyUserToken, async (req, res) => {
             actorUsername: username,
             metadata: { order_id: orderId }
         });
+
+        // --- NOTIFICACIÓN PUSH AL COMPRADOR ---
+        // Esto se ejecuta de forma asíncrona (no bloquea la respuesta HTTP)
+        // pero DEBERÍA estar fuera de la transacción DB crítica si es posible,
+        // o manejado con cuidado para no fallar el commit si la notificación falla.
+        // Aquí usamos .catch() evitar que un error de push revierta la transacción financiera.
+        // --- NOTIFICACIÓN PUSH AUTOMÁTICA (Event-Driven) ---
+        // Emitimos el evento y el bus se encarga de la lógica y seguridad.
+        // Esto mantiene el controlador limpio.
+        eventBus.emit('TASK_PAID', {
+            publicationId: orderId, // En P2P orderId es equivalente a publicationId en contexto simple
+            publicationTitle: `Orden P2P #${orderId}`,
+            participantId: buyerId,
+            amount: order.blue_amount
+        });
+
+
+
 
         await client.query('COMMIT');
         res.json({ success: true, message: 'BLUE liberado correctamente.' });

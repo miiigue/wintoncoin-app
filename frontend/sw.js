@@ -46,14 +46,14 @@ const DYNAMIC_PAGES = [
 // ============================================================================
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing Service Worker v' + CACHE_VERSION);
-  
+
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('[SW] Caching App Shell');
         // Usamos addAll con catch individual para no fallar si un recurso no existe
         return Promise.allSettled(
-          STATIC_ASSETS.map(url => 
+          STATIC_ASSETS.map(url =>
             cache.add(url).catch(err => console.warn('[SW] Failed to cache:', url, err))
           )
         );
@@ -70,7 +70,7 @@ self.addEventListener('install', (event) => {
 // ============================================================================
 self.addEventListener('activate', (event) => {
   console.log('[SW] Activating Service Worker v' + CACHE_VERSION);
-  
+
   event.waitUntil(
     caches.keys()
       .then((cacheNames) => {
@@ -96,12 +96,12 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
-  
+
   // Ignorar requests que no son GET
   if (request.method !== 'GET') {
     return;
   }
-  
+
   // Ignorar requests a otros dominios (excepto fonts y CDNs conocidos)
   const allowedOrigins = [
     self.location.origin,
@@ -109,11 +109,11 @@ self.addEventListener('fetch', (event) => {
     'https://fonts.gstatic.com',
     'https://cdn.rawgit.com'
   ];
-  
+
   if (!allowedOrigins.some(origin => request.url.startsWith(origin))) {
     return;
   }
-  
+
   // API calls: Network Only (no cachear datos dinámicos)
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/notifications')) {
     event.respondWith(
@@ -122,8 +122,8 @@ self.addEventListener('fetch', (event) => {
           // Offline: devolver respuesta de error amigable para APIs
           return new Response(
             JSON.stringify({ error: 'offline', message: 'Sin conexión a internet' }),
-            { 
-              status: 503, 
+            {
+              status: 503,
               headers: { 'Content-Type': 'application/json' }
             }
           );
@@ -131,7 +131,7 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-  
+
   // Assets estáticos (CSS, JS, imágenes, fonts): Cache First
   if (isStaticAsset(url.pathname)) {
     event.respondWith(
@@ -146,7 +146,7 @@ self.addEventListener('fetch', (event) => {
                     .then(cache => cache.put(request, response));
                 }
               })
-              .catch(() => {});
+              .catch(() => { });
             return cachedResponse;
           }
           return fetch(request)
@@ -162,7 +162,7 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-  
+
   // Páginas HTML: Network First con Cache Fallback
   if (request.headers.get('accept')?.includes('text/html') || url.pathname.endsWith('.html')) {
     event.respondWith(
@@ -190,7 +190,7 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-  
+
   // Default: Network First
   event.respondWith(
     fetch(request)
@@ -219,7 +219,7 @@ function isStaticAsset(pathname) {
 // ============================================================================
 self.addEventListener('push', (event) => {
   console.log('[SW] Push notification received');
-  
+
   let data = {
     title: 'WintonCoin',
     body: 'Tienes una nueva notificación',
@@ -228,16 +228,19 @@ self.addEventListener('push', (event) => {
     tag: 'wintoncoin-notification',
     data: { url: '/contract_interaction.html' }
   };
-  
-  try {
-    if (event.data) {
+
+  if (event.data) {
+    try {
+      // Intentar parsear como JSON
       const payload = event.data.json();
       data = { ...data, ...payload };
+    } catch (e) {
+      // Si falla (es texto plano), usar el texto como cuerpo del mensaje
+      console.warn('[SW] Push data is not JSON, using as text:', e);
+      data.body = event.data.text();
     }
-  } catch (e) {
-    console.warn('[SW] Error parsing push data:', e);
   }
-  
+
   const options = {
     body: data.body,
     icon: data.icon,
@@ -251,7 +254,7 @@ self.addEventListener('push', (event) => {
       { action: 'dismiss', title: 'Cerrar' }
     ]
   };
-  
+
   event.waitUntil(
     self.registration.showNotification(data.title, options)
   );
@@ -262,22 +265,25 @@ self.addEventListener('push', (event) => {
 // ============================================================================
 self.addEventListener('notificationclick', (event) => {
   console.log('[SW] Notification clicked');
-  
+
   event.notification.close();
-  
+
   if (event.action === 'dismiss') {
     return;
   }
-  
+
   const urlToOpen = event.notification.data?.url || '/contract_interaction.html';
-  
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
         // Si ya hay una ventana abierta, enfocarla
         for (const client of clientList) {
           if (client.url.includes(self.location.origin) && 'focus' in client) {
-            client.navigate(urlToOpen);
+            // Intentar navegar si la URL es diferente
+            if (client.url !== urlToOpen) {
+              client.navigate(urlToOpen).catch(err => console.warn('[SW] Navigation failed:', err));
+            }
             return client.focus();
           }
         }
@@ -294,7 +300,7 @@ self.addEventListener('notificationclick', (event) => {
 // ============================================================================
 self.addEventListener('sync', (event) => {
   console.log('[SW] Background sync triggered:', event.tag);
-  
+
   if (event.tag === 'sync-notifications') {
     event.waitUntil(
       // Aquí se podría sincronizar notificaciones pendientes

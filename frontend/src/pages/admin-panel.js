@@ -96,7 +96,9 @@ document.addEventListener('DOMContentLoaded', () => {
         boosterSection: document.getElementById('boosters-section'),
         boostersSettingsContainer: document.getElementById('boosters-settings-container'),
         boostersDashboardStats: document.getElementById('boosters-dashboard-stats'),
-        boostersListContainer: document.getElementById('boosters-list-container')
+        boostersListContainer: document.getElementById('boosters-list-container'),
+        // --- NOTIFICACIONES ---
+        pushNotificationForm: document.getElementById('pushNotificationForm')
     };
 
     // --- Inicialización ---
@@ -352,6 +354,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
         }
+
+        // --- Notificaciones ---
+        if (elements.pushNotificationForm) {
+            elements.pushNotificationForm.addEventListener('submit', handlePushNotificationSubmit);
+        }
     }
 
     function showSection(sectionId) {
@@ -373,6 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (sectionId === 'platform-publications') loadPlatformManagementData();
         else if (sectionId === 'referrals') loadReferralsData();
         else if (sectionId === 'boosters') showBoosterTab('boosters-dashboard');
+        else if (sectionId === 'notifications') { /* No requiere carga inicial por ahora */ }
         else if (sectionId === 'audit-log') loadAuditLog();
         else if (sectionId === 'database-management') {
             loadDatabaseStats();
@@ -2089,7 +2097,8 @@ WHERE username = 'Plataforma WintonCoin';
             : `<span class="status-badge request">Solicitud</span>`;
 
         const valueHTML = formatBalance(pub.blue_cost);
-        const participantsHTML = `${pub.completed_count} / ${pub.participants_count}`;
+        const totalSlots = (Number(pub.available_slots) || 0) + (Number(pub.participants_count) || 0);
+        const participantsHTML = `${pub.participants_count} / ${totalSlots}`;
         const statusText = getPublicationStatusText(pub);
         const statusClass = getPublicationStatusClass(pub);
 
@@ -2445,5 +2454,108 @@ WHERE username = 'Plataforma WintonCoin';
         `;
 
         statsContainer.innerHTML = statsHTML;
+    }
+    // --- Notifications Management ---
+
+    // Configurar listener para el toggle de BroadCast
+    const pushSendToAllSwitch = document.getElementById('pushSendToAll');
+    if (pushSendToAllSwitch) {
+        pushSendToAllSwitch.addEventListener('change', (e) => {
+            const usernameInput = document.getElementById('pushTargetUsername');
+            if (e.target.checked) {
+                usernameInput.disabled = true;
+                usernameInput.value = '';
+                usernameInput.placeholder = 'ENVIANDO A TODOS LOS USUARIOS';
+                usernameInput.classList.add('input-disabled-broadcast');
+            } else {
+                usernameInput.disabled = false;
+                usernameInput.placeholder = 'Ej: miiigue';
+                usernameInput.classList.remove('input-disabled-broadcast');
+            }
+        });
+    }
+
+    async function handlePushNotificationSubmit(e) {
+        e.preventDefault();
+
+        const sendToAll = document.getElementById('pushSendToAll').checked;
+        const username = document.getElementById('pushTargetUsername').value;
+        const title = document.getElementById('pushTitle').value;
+        const message = document.getElementById('pushMessage').value;
+        const url = document.getElementById('pushUrl').value;
+
+        // Validaciones básicas
+        if (!title || !message) {
+            showCustomAlert('Por favor completa el título y el mensaje.');
+            return;
+        }
+
+        if (!sendToAll && !username) {
+            showCustomAlert('Debes especificar un usuario destino o seleccionar "Enviar a Todos".');
+            return;
+        }
+
+        // CONFIRMACIÓN DE SEGURIDAD PARA BROADCAST
+        if (sendToAll) {
+            const confirmed = await new Promise(resolve => {
+                showCustomConfirm(
+                    `⚠️ ¡ATENCIÓN! Estás a punto de enviar esta notificación a TODOS los usuarios registrados.\n\nTitulo: ${title}\n\n¿Estás seguro de proceder?`,
+                    () => resolve(true),
+                    () => resolve(false)
+                );
+            });
+            if (!confirmed) return;
+        }
+
+        const btn = document.getElementById('sendPushBtn');
+        const originalText = btn ? btn.textContent : 'Enviar';
+
+        if (btn) {
+            btn.textContent = sendToAll ? 'Enviando Masivo...' : 'Enviando...';
+            btn.disabled = true;
+        }
+
+        try {
+            const result = await apiFetch('/api/notifications/send', {
+                method: 'POST',
+                body: JSON.stringify({
+                    username: sendToAll ? null : username,
+                    title,
+                    message,
+                    url,
+                    sendToAll: sendToAll
+                })
+            });
+
+            if (result.success) {
+                let successMsg = `✅ Notificación enviada.`;
+                if (result.total_active) {
+                    successMsg += `\nDifusión completada: ${result.sent} enviados, ${result.failed} fallidos/limpiados.`;
+                } else if (result.sent > 0) {
+                    successMsg += `\n${result.sent} dispositivo(s) notificados.`;
+                } else {
+                    successMsg += `\nSin embargo, no se encontraron dispositivos activos para el destinatario.`;
+                }
+                showCustomAlert(successMsg);
+                e.target.reset(); // Limpiar formulario
+
+                // Resetear estado UI del switch
+                if (pushSendToAllSwitch) {
+                    pushSendToAllSwitch.checked = false;
+                    pushSendToAllSwitch.dispatchEvent(new Event('change'));
+                }
+            } else {
+                showCustomAlert(`⚠️ ${result.error || 'Error desconocido al enviar.'}`);
+            }
+
+        } catch (error) {
+            console.error('Error enviando push:', error);
+            showCustomAlert(`❌ Error al enviar notificación: ${error.message}`);
+        } finally {
+            if (btn) {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
     }
 });

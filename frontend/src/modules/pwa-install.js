@@ -20,7 +20,7 @@ if (typeof window.__pwaInstallInitialized === 'undefined') {
 function saveReferralCodeFromUrl() {
     const urlParams = new URLSearchParams(window.location.search);
     const refCode = urlParams.get('ref');
-    
+
     if (refCode) {
         localStorage.setItem('pending_referral_code', refCode.trim().toUpperCase());
         console.log('[PWA] Código de referido guardado:', refCode);
@@ -36,7 +36,7 @@ function saveReferralCodeFromUrl() {
 function hasPendingRegistration() {
     const pendingRefCode = localStorage.getItem('pending_referral_code');
     const token = localStorage.getItem('token');
-    
+
     // Si hay código de referido Y no hay sesión activa = registro pendiente
     return pendingRefCode && !token;
 }
@@ -48,7 +48,7 @@ function hasPendingRegistration() {
 export function restoreReferralCode() {
     const savedRefCode = localStorage.getItem('pending_referral_code');
     const referralInput = document.getElementById('referral_code');
-    
+
     if (savedRefCode && referralInput && !referralInput.value) {
         referralInput.value = savedRefCode;
         console.log('[PWA] Código de referido restaurado:', savedRefCode);
@@ -70,10 +70,17 @@ export function initPWAInstall() {
     console.log('[PWA] pathname:', window.location.pathname);
     console.log('[PWA] isPWAInstalled:', isPWAInstalled());
     console.log('[PWA] pwa_installed localStorage:', localStorage.getItem('pwa_installed'));
-    
+
+    // Register Service Worker explicitly
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('[PWA] Service Worker registrado:', reg.scope))
+            .catch(err => console.error('[PWA] Error registro SW:', err));
+    }
+
     // Siempre guardar el código de referido si viene en la URL
     const hasNewRefCode = saveReferralCodeFromUrl();
-    
+
     // VERIFICACIÓN 1: Si estamos DENTRO de la PWA instalada (modo standalone)
     // No mostrar botón, solo restaurar código de referido
     if (isPWAInstalled()) {
@@ -81,11 +88,11 @@ export function initPWAInstall() {
         restoreReferralCode();
         return;
     }
-    
+
     // Solo añadir listeners una vez globalmente
     if (!window.__pwaInstallInitialized) {
         window.__pwaInstallInitialized = true;
-        
+
         // Escuchar evento de instalación disponible
         window.addEventListener('beforeinstallprompt', (e) => {
             console.log('[PWA] beforeinstallprompt disparado');
@@ -103,7 +110,7 @@ export function initPWAInstall() {
             localStorage.setItem('pwa_installed', 'true');
         });
     }
-    
+
     // VERIFICACIÓN 2: Si hay un registro pendiente (código de referido + sin sesión)
     // SIEMPRE mostrar el botón para que el usuario pueda instalar y registrarse
     if (hasPendingRegistration()) {
@@ -111,7 +118,7 @@ export function initPWAInstall() {
         showInstallButton();
         return;
     }
-    
+
     // VERIFICACIÓN 3: Si la app YA FUE instalada anteriormente y NO hay registro pendiente
     // (detectado por localStorage, aplica cuando navegas en el browser normal)
     const alreadyInstalled = localStorage.getItem('pwa_installed') === 'true';
@@ -119,7 +126,7 @@ export function initPWAInstall() {
         console.log('[PWA] App ya fue instalada previamente - no mostrar botón');
         return;
     }
-    
+
     // Si llegamos aquí, la app NO está instalada - mostrar botón
     // En la página de registro, el botón es más grande
     console.log('[PWA] App NO instalada - mostrando botón de instalación');
@@ -132,7 +139,7 @@ export function initPWAInstall() {
  */
 function showInstallButton() {
     console.log('[PWA] showInstallButton llamado');
-    
+
     const existingBtn = document.getElementById('pwa-install-btn');
     if (existingBtn) {
         console.log('[PWA] Botón ya existe - saliendo');
@@ -144,23 +151,23 @@ function showInstallButton() {
     const currentPath = window.location.pathname;
     console.log('[PWA] currentPath:', currentPath);
     console.log('[PWA] allowedPages:', allowedPages);
-    
+
     const isAllowed = allowedPages.some(page => currentPath.includes(page) || currentPath === page);
     console.log('[PWA] isAllowed:', isAllowed);
-    
+
     if (!isAllowed) {
         console.log('[PWA] Página no permitida - saliendo');
         return;
     }
-    
+
     console.log('[PWA] Creando botón de instalación');
-    
+
     // Detectar si estamos en la página de registro para botón grande
     const onRegisterPage = isRegisterPage();
 
     const installBtn = document.createElement('button');
     installBtn.id = 'pwa-install-btn';
-    
+
     if (onRegisterPage) {
         // Botón GRANDE para página de registro
         installBtn.innerHTML = `
@@ -175,7 +182,7 @@ function showInstallButton() {
                 </div>
             </div>
         `;
-        
+
         // Estilos del botón GRANDE - 3x más alto
         installBtn.style.cssText = `
             position: fixed;
@@ -204,7 +211,7 @@ function showInstallButton() {
             </svg>
             <span>Instalar App</span>
         `;
-        
+
         // Estilos del botón normal - Verde centrado abajo
         installBtn.style.cssText = `
             position: fixed;
@@ -283,7 +290,7 @@ function showInstallButton() {
         `;
         document.head.appendChild(style);
     }
-    
+
     // Añadir clase para botón grande
     if (onRegisterPage) {
         installBtn.classList.add('pwa-large-btn');
@@ -312,14 +319,14 @@ async function handleInstallClick() {
         try {
             window.__deferredPrompt.prompt();
             const { outcome } = await window.__deferredPrompt.userChoice;
-            
+
             console.log('[PWA] Usuario eligió:', outcome);
-            
+
             if (outcome === 'accepted') {
                 const installBtn = document.getElementById('pwa-install-btn');
                 if (installBtn) installBtn.remove();
             }
-            
+
             window.__deferredPrompt = null;
         } catch (error) {
             console.error('[PWA] Error al mostrar prompt:', error);
@@ -340,9 +347,9 @@ function showInstallInstructions() {
     const isAndroid = /Android/.test(navigator.userAgent);
     const isChrome = /Chrome/.test(navigator.userAgent);
     const isSafari = /Safari/.test(navigator.userAgent) && !isChrome;
-    
+
     let instructions = '';
-    
+
     if (isIOS && isSafari) {
         instructions = '📱 Para instalar en iOS:\n\n1. Toca el botón "Compartir" (📤) en Safari\n2. Desplázate y toca "Añadir a pantalla de inicio"\n3. Toca "Añadir"';
     } else if (isAndroid && isChrome) {
@@ -352,7 +359,7 @@ function showInstallInstructions() {
     } else {
         instructions = '📱 Para instalar:\n\n1. Abre el menú de tu navegador\n2. Busca "Instalar" o "Añadir a pantalla de inicio"\n3. Confirma la instalación';
     }
-    
+
     // Mostrar modal con instrucciones
     showInstallModal(instructions);
 }
@@ -364,7 +371,7 @@ function showInstallModal(instructions) {
     // Remover modal existente si hay
     const existingModal = document.getElementById('pwa-install-modal');
     if (existingModal) existingModal.remove();
-    
+
     const modal = document.createElement('div');
     modal.id = 'pwa-install-modal';
     modal.innerHTML = `
@@ -379,7 +386,7 @@ function showInstallModal(instructions) {
             </div>
         </div>
     `;
-    
+
     // Estilos del modal
     const style = document.createElement('style');
     style.textContent = `
@@ -460,7 +467,7 @@ function showInstallModal(instructions) {
     `;
     document.head.appendChild(style);
     document.body.appendChild(modal);
-    
+
     // Event listeners
     modal.querySelector('.pwa-modal-close').addEventListener('click', () => modal.remove());
     modal.querySelector('.pwa-modal-backdrop').addEventListener('click', () => modal.remove());

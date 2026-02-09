@@ -14,6 +14,7 @@ import {
 } from '../modules/index.js';
 import { initPWAInstall } from '../modules/pwa-install.js';
 import { initOnboarding, restartTour } from '../modules/onboarding.js';
+import { registerPushNotifications } from '../modules/pushManager.js';
 
 // Expose functions globally for backward compatibility
 window.getApiUrl = getApiUrl;
@@ -124,6 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadReferralSettings();
     setupShareReferral();
     initPWAInstall(); // Inicializar botón de instalación PWA
+    registerPushNotifications(); // Inicializar notificaciones push
     setupWalletTabs(); // Inicializar tabs de billetera/impulsor
 
     // Iniciar tour de bienvenida si corresponde
