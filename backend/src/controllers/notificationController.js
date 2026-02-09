@@ -34,12 +34,56 @@ const subscribe = async (req, res) => {
 
 const pool = require('../config/db');
 
+const getNotificationSettings = async (req, res) => {
+    const userId = req.user.userId;
+    try {
+        const result = await pool.query('SELECT notification_preferences FROM users WHERE id = $1', [userId]);
+        if (result.rows.length === 0) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+        // Default values if null
+        const prefs = result.rows[0].notification_preferences || { security: true, social: true, marketing: true };
+        res.json(prefs);
+    } catch (error) {
+        console.error('Error fetching notification settings:', error);
+        res.status(500).json({ message: 'Error interno' });
+    }
+};
+
+const updateNotificationSettings = async (req, res) => {
+    const userId = req.user.userId;
+    const { social, marketing } = req.body; // security is NOT editable via API
+
+    try {
+        // Fetch current to merge
+        const currentRes = await pool.query('SELECT notification_preferences FROM users WHERE id = $1', [userId]);
+        const current = currentRes.rows[0].notification_preferences || { security: true, social: true, marketing: true };
+
+        const newPrefs = {
+            ...current,
+            security: true, // Force true always
+            social: social !== undefined ? social : current.social,
+            marketing: marketing !== undefined ? marketing : current.marketing
+        };
+
+        await pool.query('UPDATE users SET notification_preferences = $1 WHERE id = $2', [newPrefs, userId]);
+        res.json({ message: 'Preferencias actualizadas', settings: newPrefs });
+
+    } catch (error) {
+        console.error('Error updating notification settings:', error);
+        res.status(500).json({ message: 'Error interno' });
+    }
+};
+
 /**
  * Endpoint para enviar notificación (Solo Admin)
  * Soporta userId o username
  */
 const sendPush = async (req, res) => {
-    let { userId, username, title, message, url, sendToAll } = req.body;
+    // Aceptamos 'type' ('SOCIAL', 'MARKETING', 'SECURITY')
+    let { userId, username, title, message, url, sendToAll, type } = req.body;
+
+    // Default type if not provided
+    const notificationType = type ? type.toUpperCase() : 'SOCIAL';
 
     try {
         const payload = {
@@ -54,7 +98,8 @@ const sendPush = async (req, res) => {
             if (!title || !message) {
                 return res.status(400).json({ error: 'Faltan datos (title, message)' });
             }
-            const result = await notificationService.sendNotificationToAll(payload);
+            // Pasamos el tipo al broadcast
+            const result = await notificationService.sendNotificationToAll(payload, notificationType);
             return res.json({ success: true, ...result });
         }
 
@@ -72,7 +117,8 @@ const sendPush = async (req, res) => {
             return res.status(400).json({ error: 'Faltan datos (userId o username, title, message)' });
         }
 
-        const result = await notificationService.sendNotificationToUser(userId, payload);
+        // Pasamos el tipo al envío individual
+        const result = await notificationService.sendNotificationToUser(userId, payload, notificationType);
         res.json({ success: true, ...result });
 
     } catch (error) {
@@ -84,6 +130,7 @@ const sendPush = async (req, res) => {
 module.exports = {
     getVapidPublicKey,
     subscribe,
+    getNotificationSettings,
+    updateNotificationSettings,
     sendPush
-    // Nota: sendNotificationToUser ya no se exporta aquí, se debe importar desde el servicio
 };

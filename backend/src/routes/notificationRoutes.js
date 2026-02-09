@@ -9,6 +9,10 @@ router.get('/vapid-public-key', notificationController.getVapidPublicKey);
 // Requieren autenticación
 router.post('/subscribe', authenticateToken, notificationController.subscribe);
 
+// Preferencias de Notificaciones (Usuario)
+router.get('/settings', authenticateToken, notificationController.getNotificationSettings);
+router.put('/settings', authenticateToken, notificationController.updateNotificationSettings);
+
 // Ruta protegida para admin (simplificada, deberías añadir middleware de rol admin real)
 router.post('/send', authenticateAdmin, notificationController.sendPush);
 

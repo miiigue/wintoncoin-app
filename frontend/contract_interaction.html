@@ -34,7 +34,9 @@
     <!-- Splash screens for iOS -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
+
     <link id="main-stylesheet" rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="admin-switch.css">
     <!-- Importación de la fuente Poppins desde Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -66,6 +68,7 @@
                 <a href="booster-profile.html">Perfil de Impulsor</a>
                 <a href="love.html">Página LOVE</a>
                 <a href="docs.html">Documentación</a>
+                <a href="#" id="openSettingsModal">⚙️ Configuración</a>
                 <a href="#" id="logoutLink">Cerrar Sesión</a>
             </div>
         </div>
@@ -601,6 +604,68 @@
                 </p>
             </div>
             <button class="prelaunch-modal-btn" id="createPostPrelaunchAccept">Entendido</button>
+        </div>
+    </div>
+
+    <!-- Modal de Configuración -->
+    <div id="settingsModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close-button" id="closeSettingsModal">&times;</span>
+            <h2 style="margin-bottom: 20px;">⚙️ Configuración</h2>
+
+            <!-- Sección de Notificaciones -->
+            <div class="settings-section">
+                <h3 style="margin-bottom: 15px; color: #4a90d9;">🔔 Notificaciones</h3>
+                <p style="font-size: 0.9em; color: #888; margin-bottom: 20px;">
+                    Controla qué tipo de notificaciones deseas recibir.
+                </p>
+
+                <!-- Switch Seguridad (Bloqueado) -->
+                <div class="notification-setting-item">
+                    <div class="notification-setting-info">
+                        <strong>🔒 Seguridad y Transacciones</strong>
+                        <p style="font-size: 0.85em; color: #999; margin: 5px 0 0 0;">
+                            Alertas críticas de seguridad, pagos y verificaciones. <strong>Siempre activas.</strong>
+                        </p>
+                    </div>
+                    <label class="admin-switch" style="opacity: 0.6; cursor: not-allowed;">
+                        <input type="checkbox" id="notifSecuritySwitch" checked disabled>
+                        <span class="admin-slider"></span>
+                    </label>
+                </div>
+
+                <!-- Switch Social -->
+                <div class="notification-setting-item">
+                    <div class="notification-setting-info">
+                        <strong>👥 Actividad Social</strong>
+                        <p style="font-size: 0.85em; color: #999; margin: 5px 0 0 0;">
+                            Mensajes, interacciones, tareas completadas y actividad de tus publicaciones.
+                        </p>
+                    </div>
+                    <label class="admin-switch">
+                        <input type="checkbox" id="notifSocialSwitch" checked>
+                        <span class="admin-slider"></span>
+                    </label>
+                </div>
+
+                <!-- Switch Marketing -->
+                <div class="notification-setting-item">
+                    <div class="notification-setting-info">
+                        <strong>📢 Novedades y Promociones</strong>
+                        <p style="font-size: 0.85em; color: #999; margin: 5px 0 0 0;">
+                            Nuevas campañas, bonos, actualizaciones de la plataforma y ofertas especiales.
+                        </p>
+                    </div>
+                    <label class="admin-switch">
+                        <input type="checkbox" id="notifMarketingSwitch" checked>
+                        <span class="admin-slider"></span>
+                    </label>
+                </div>
+
+                <button id="saveNotificationSettings" class="action-button" style="margin-top: 25px; width: 100%;">
+                    Guardar Preferencias
+                </button>
+            </div>
         </div>
     </div>
 

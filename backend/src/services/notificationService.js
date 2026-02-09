@@ -72,19 +72,47 @@ const saveSubscription = async (userId, subscription, userAgent) => {
  * @param {number} userId - ID del usuario destino
  * @param {object} payload - { title, body, icon, url, ... }
  */
-const sendNotificationToUser = async (userId, payload) => {
+/**
+ * Envía una notificación a un usuario específico respetando sus preferencias
+ * @param {number} userId - ID del usuario destino
+ * @param {object} payload - { title, body, icon, url, ... }
+ * @param {string} type - Tipo de notificación: 'SECURITY', 'SOCIAL', 'MARKETING', 'TRANSACTIONAL'. Default: 'SOCIAL'
+ */
+const sendNotificationToUser = async (userId, payload, type = 'SOCIAL') => {
     try {
-        // 1. Obtener todas las suscripciones del usuario
-        const result = await pool.query(
-            'SELECT * FROM push_subscriptions WHERE user_id = $1',
-            [userId]
-        );
+        // 1. Obtener suscripciones Y preferencias del usuario
+        // Hacemos JOIN para no hacer dos queries
+        const query = `
+            SELECT ps.*, u.notification_preferences 
+            FROM push_subscriptions ps
+            JOIN users u ON ps.user_id = u.id
+            WHERE ps.user_id = $1
+        `;
+        const result = await pool.query(query, [userId]);
 
         if (result.rows.length === 0) {
-            return { sent: 0, failed: 0, message: 'Usuario sin dispositivos suscritos' };
+            return { sent: 0, failed: 0, message: 'Usuario sin dispositivos suscritos o no encontrado' };
         }
 
-        // 2. Enviar a cada dispositivo en paralelo
+        // 2. Verificar Preferencias
+        // SECURITY siempre pasa. Las demás dependen del JSONB.
+        const userPrefs = result.rows[0].notification_preferences || {}; // Por defecto vacío si es null
+
+        // Mapeo de tipos a claves del JSON
+        // SECURITY -> security (pero siempre es true implícitamente)
+        // SOCIAL -> social
+        // MARKETING -> marketing
+        // TRANSACTIONAL -> transactional (generalmente true por default)
+
+        const typeKey = type.toLowerCase();
+
+        // Si no es seguridad Y el usuario lo tiene desactivado explícitamente -> NO ENVIAR
+        if (type !== 'SECURITY' && userPrefs[typeKey] === false) {
+            console.log(`[PUSH] Notificación ${type} bloqueada por preferencia de usuario ${userId}`);
+            return { sent: 0, message: 'Usuario tiene desactivada esta categoría' };
+        }
+
+        // 3. Enviar a cada dispositivo en paralelo
         const notifications = result.rows.map(sub => {
             const pushSubscription = {
                 endpoint: sub.endpoint,
@@ -96,7 +124,6 @@ const sendNotificationToUser = async (userId, payload) => {
 
             return webpush.sendNotification(pushSubscription, JSON.stringify(payload))
                 .catch(err => {
-                    // Manejo profesional de errores http 410 (Gone) y 404 (Not Found)
                     if (err.statusCode === 410 || err.statusCode === 404) {
                         console.log(`[PUSH] Eliminando suscripción inactiva: ${sub.id}`);
                         return pool.query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
@@ -111,24 +138,40 @@ const sendNotificationToUser = async (userId, payload) => {
 
     } catch (error) {
         console.error('Error en servicio de notificaciones:', error);
-        // No lanzamos error para no romper flujos críticos (ej: transacciones)
-        // pero retornamos objeto de error para que quien llame sepa.
         return { sent: 0, error: error.message };
     }
 };
 
-const sendNotificationToAll = async (payload) => {
+/**
+ * Envía una notificación masiva (Broadcast).
+ * @param {object} payload 
+ * @param {string} type - 'MARKETING' (default) o 'SECURITY' (importante)
+ */
+const sendNotificationToAll = async (payload, type = 'MARKETING') => {
     try {
-        console.log('[PUSH BROADCAST] Iniciando envío masivo...');
-        const result = await pool.query('SELECT * FROM push_subscriptions');
+        console.log(`[PUSH BROADCAST] Iniciando envío masivo (${type})...`);
+
+        // Optimización: Traemos solo los usuarios que aceptan este tipo de notificaciones
+        // Si es SECURITY, traemos todos.
+        // Si es MARKETING, filtramos por JSONB.
+
+        let query = 'SELECT ps.* FROM push_subscriptions ps JOIN users u ON ps.user_id = u.id';
+
+        if (type !== 'SECURITY') {
+            const typeKey = type.toLowerCase();
+            // Postgres JSONB query: u.notification_preferences->>'marketing' != 'false' 
+            // (Asumimos true si es null o no existe)
+            query += ` WHERE COALESCE((u.notification_preferences->>'${typeKey}')::boolean, TRUE) = TRUE`;
+        }
+
+        const result = await pool.query(query);
 
         if (result.rows.length === 0) {
-            return { sent: 0, message: 'No hay usuarios suscritos en el sistema' };
+            return { sent: 0, message: 'No hay usuarios suscritos disponibles para esta categoría' };
         }
 
         console.log(`[PUSH BROADCAST] Encontrados ${result.rows.length} dispositivos para notificar.`);
 
-        // Enviar en paralelo (luego podremos optimizar en lotes si son > 1000)
         let successCount = 0;
         let failureCount = 0;
 
@@ -145,9 +188,7 @@ const sendNotificationToAll = async (payload) => {
                 await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
                 successCount++;
             } catch (err) {
-                // Manejar usuario desconectado/suscripción inválida
                 if (err.statusCode === 410 || err.statusCode === 404) {
-                    // Limpiar suscripción muerta silenciosamente
                     await pool.query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
                 } else {
                     console.error(`[PUSH FAIL] ID Subscripción ${sub.id}:`, err.message);
