@@ -71,12 +71,8 @@ export function initPWAInstall() {
     console.log('[PWA] isPWAInstalled:', isPWAInstalled());
     console.log('[PWA] pwa_installed localStorage:', localStorage.getItem('pwa_installed'));
 
-    // Register Service Worker explicitly
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('[PWA] Service Worker registrado:', reg.scope))
-            .catch(err => console.error('[PWA] Error registro SW:', err));
-    }
+    // Service Worker is registered by VitePWA via registerSW.js (sw-source.js)
+    // NO registrar sw.js manualmente aquí - interfiere con el SW que tiene push handlers
 
     // Siempre guardar el código de referido si viene en la URL
     const hasNewRefCode = saveReferralCodeFromUrl();
