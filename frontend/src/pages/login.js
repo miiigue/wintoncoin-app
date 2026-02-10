@@ -7,6 +7,7 @@
 import { getApiUrl, showCustomAlert } from '../modules/index.js';
 import { togglePasswordVisibility } from '../modules/password-toggle.js';
 import { initPWAInstall, isPWAInstalled } from '../modules/pwa-install.js';
+import { syncPendingPushSubscription } from '../modules/pushManager.js';
 
 // Hacer toggle disponible globalmente para el onclick del HTML
 window.togglePasswordVisibility = togglePasswordVisibility;
@@ -20,7 +21,7 @@ function checkPendingReferralAndRedirect() {
     const pendingRefCode = localStorage.getItem('pending_referral_code');
     const token = localStorage.getItem('token');
     const alreadyRedirected = sessionStorage.getItem('referral_redirect_done');
-    
+
     // Si hay código de referido pendiente, NO hay sesión activa,
     // y NO hemos redirigido ya en esta sesión
     if (pendingRefCode && !token && !alreadyRedirected) {
@@ -30,7 +31,7 @@ function checkPendingReferralAndRedirect() {
         window.location.href = 'register.html';
         return true; // Indica que se está redirigiendo
     }
-    
+
     return false; // No se redirige
 }
 
@@ -82,7 +83,7 @@ function initializeLoginForm() {
         return;
     }
 
-    loginForm.addEventListener('submit', async function(event) {
+    loginForm.addEventListener('submit', async function (event) {
         event.preventDefault();
 
         const username = document.getElementById('username').value;
@@ -100,10 +101,14 @@ function initializeLoginForm() {
 
             if (response.ok) {
                 const result = await response.json();
-                
+
                 if (result.token && result.username) {
                     localStorage.setItem('token', result.token);
                     localStorage.setItem('username', result.username);
+
+                    // Sincronizar suscripción push pendiente (si existe)
+                    await syncPendingPushSubscription();
+
                     window.location.href = 'contract_interaction.html';
                 } else {
                     showCustomAlert('Error: La respuesta del servidor no incluyó un token de sesión.');
@@ -129,7 +134,7 @@ function initializeLoginPage() {
     if (checkPendingReferralAndRedirect()) {
         return; // Salir, ya que se está redirigiendo
     }
-    
+
     initializePolicyModal();
     initializeLoginForm();
     initPWAInstall(); // Inicializar botón de instalación PWA

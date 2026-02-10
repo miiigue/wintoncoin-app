@@ -82,6 +82,9 @@ async function subscribeUser(registration) {
 /**
  * Envía la suscripción al Backend para guardarla/actualizarla.
  * Maneja internamente la autenticación.
+ * 
+ * CRÍTICO: Si el usuario NO está logueado, guarda la suscripción localmente
+ * para sincronizarla cuando haga login (UX estándar de PWAs).
  */
 async function sendSubscriptionToServer(subscription) {
     if (!subscription) return;
@@ -90,10 +93,10 @@ async function sendSubscriptionToServer(subscription) {
         // Obtener token (soporte para ambos storages por si acaso)
         const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 
-        // Si no hay token, no podemos asociarla al usuario aún.
-        // (Se reintentará cuando el usuario haga login)
+        // Si no hay token, GUARDAR LOCALMENTE para sincronizar después
         if (!token) {
-            console.log('[PUSH] Usuario no logueado, posponiendo sincronización.');
+            console.log('[PUSH] Usuario no logueado, guardando suscripción localmente para sincronización diferida...');
+            localStorage.setItem('pendingPushSubscription', JSON.stringify(subscription));
             return;
         }
 
@@ -143,4 +146,35 @@ function urlBase64ToUint8Array(base64String) {
         outputArray[i] = rawData.charCodeAt(i);
     }
     return outputArray;
+}
+
+/**
+ * Sincroniza una suscripción pendiente que fue guardada antes del login.
+ * Esta función debe ser llamada DESPUÉS de que el usuario se loguee exitosamente.
+ * 
+ * Estándar de la industria: Las PWAs deben poder solicitar permisos ANTES del login,
+ * y sincronizar automáticamente cuando el usuario se autentica.
+ */
+export async function syncPendingPushSubscription() {
+    try {
+        const pendingSubscription = localStorage.getItem('pendingPushSubscription');
+
+        if (!pendingSubscription) {
+            console.log('[PUSH] No hay suscripción pendiente para sincronizar.');
+            return;
+        }
+
+        console.log('[PUSH] Detectada suscripción pendiente, sincronizando con servidor...');
+
+        const subscription = JSON.parse(pendingSubscription);
+        await sendSubscriptionToServer(subscription);
+
+        // Limpiar después de sincronizar exitosamente
+        localStorage.removeItem('pendingPushSubscription');
+        console.log('[PUSH] ✅ Suscripción pendiente sincronizada exitosamente.');
+
+    } catch (error) {
+        console.error('[PUSH] Error sincronizando suscripción pendiente:', error);
+        // No eliminamos la suscripción pendiente para reintentar después
+    }
 }

@@ -7,6 +7,7 @@
 import { getApiUrl, showCustomAlert, checkAuthStatus } from '../modules/index.js';
 import { togglePasswordVisibility } from '../modules/password-toggle.js';
 import { initPWAInstall, restoreReferralCode, isPWAInstalled } from '../modules/pwa-install.js';
+import { syncPendingPushSubscription } from '../modules/pushManager.js';
 
 // Hacer toggle disponible globalmente para el onclick del HTML
 window.togglePasswordVisibility = togglePasswordVisibility;
@@ -808,6 +809,9 @@ async function initializeRegisterPage() {
                     localStorage.removeItem('pending_verification_email');
                     // Limpiar código de referido ya que el registro se completó
                     localStorage.removeItem('pending_referral_code');
+
+                    // Sincronizar suscripción push pendiente (si existe)
+                    await syncPendingPushSubscription();
 
                     window.location.href = 'contract_interaction.html';
                 } else {
