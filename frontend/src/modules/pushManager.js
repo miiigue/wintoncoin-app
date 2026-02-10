@@ -47,6 +47,17 @@ export async function registerPushNotifications() {
  */
 async function subscribeUser(registration) {
     try {
+        // CRÍTICO: Solicitar permiso explícitamente ANTES de suscribir
+        // Esto es necesario en navegadores móviles (Chrome Android, Safari iOS)
+        if (Notification.permission === 'default') {
+            console.log('[PUSH] Solicitando permiso de notificaciones al usuario...');
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                console.warn('[PUSH] Usuario rechazó el permiso de notificaciones');
+                return null;
+            }
+        }
+
         const response = await fetch(`${API_URL}/notifications/vapid-public-key`);
         if (!response.ok) throw new Error('Error obteniendo VAPID key');
         const { publicKey } = await response.json();
