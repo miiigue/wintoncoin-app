@@ -110,6 +110,12 @@ export default defineConfig({
       // Modo de registro del Service Worker
       registerType: 'autoUpdate',
 
+      // CRÍTICO: Usar injectManifest para incluir push notification handlers
+      // generateSW NO soporta custom event listeners (push, notificationclick)
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw-source.js',
+
       // Assets que se incluyen siempre
       includeAssets: [
         'assets/icons/*.png',
@@ -122,8 +128,8 @@ export default defineConfig({
       // No generar manifest, usar el existente
       manifest: false,
 
-      // Configuración de Workbox
-      workbox: {
+      // Configuración de InjectManifest
+      injectManifest: {
         // Patrones de archivos a precachear
         globPatterns: [
           '**/*.{js,css,html,png,jpg,jpeg,svg,ico,woff,woff2,ttf}'
@@ -132,164 +138,15 @@ export default defineConfig({
         // Excluir archivos
         globIgnores: [
           '**/node_modules/**',
-          'sw.js', // El viejo SW manual
-          'generate-*.js', // Scripts de generación
+          'sw.js',
+          'generate-*.js',
           'generate-*.html'
         ],
-
-        // ========================================
-        // RUNTIME CACHING STRATEGIES
-        // ========================================
-        runtimeCaching: [
-          // ----------------------------------------
-          // HTML: Network First (siempre contenido fresco)
-          // ----------------------------------------
-          {
-            urlPattern: /\.html$/,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'wintoncoin-html-v1',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 // 24 horas
-              },
-              networkTimeoutSeconds: 10,
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          },
-
-          // ----------------------------------------
-          // CSS/JS con hash: Cache First (inmutable)
-          // ----------------------------------------
-          {
-            urlPattern: /\/assets\/.*\.[a-f0-9]{8}\.(css|js)$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'wintoncoin-assets-v1',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 año (inmutables)
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          },
-
-          // ----------------------------------------
-          // Imágenes: Cache First con revalidación
-          // ----------------------------------------
-          {
-            urlPattern: /\.(png|jpg|jpeg|svg|gif|ico|webp)$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'wintoncoin-images-v1',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 días
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          },
-
-          // ----------------------------------------
-          // Fonts: Cache First (larga duración)
-          // ----------------------------------------
-          {
-            urlPattern: /\.(woff|woff2|ttf|otf)$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'wintoncoin-fonts-v1',
-              expiration: {
-                maxEntries: 20,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 año
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          },
-
-          // ----------------------------------------
-          // Google Fonts: Cache First
-          // ----------------------------------------
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com/,
-            handler: 'StaleWhileRevalidate',
-            options: {
-              cacheName: 'google-fonts-stylesheets',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365
-              }
-            }
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-webfonts',
-              expiration: {
-                maxEntries: 30,
-                maxAgeSeconds: 60 * 60 * 24 * 365
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          },
-
-          // ----------------------------------------
-          // API Calls: Network Only (datos en tiempo real)
-          // ----------------------------------------
-          {
-            urlPattern: /\/api\//,
-            handler: 'NetworkOnly',
-            options: {
-              backgroundSync: {
-                name: 'wintoncoin-api-queue',
-                options: {
-                  maxRetentionTime: 24 * 60 // 24 horas
-                }
-              }
-            }
-          },
-
-          // ----------------------------------------
-          // CDN externos (QRCode, etc): Cache First
-          // ----------------------------------------
-          {
-            urlPattern: /^https:\/\/cdn\.rawgit\.com/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'external-cdn',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 30
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          }
-        ],
-
-        // Navegación offline
-        navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/api\//],
-
-        // Skip waiting y claim clients
-        skipWaiting: true,
-        clientsClaim: true,
       },
 
       // Dev options
       devOptions: {
-        enabled: true, // Habilitar en desarrollo para testing
+        enabled: true,
         type: 'module'
       }
     })
