@@ -58,7 +58,7 @@ async function subscribeUser(registration) {
             }
         }
 
-        const response = await fetch(`${API_URL}/notifications/vapid-public-key`);
+        const response = await fetch(`${API_URL}/api/notifications/vapid-public-key`);
         if (!response.ok) throw new Error('Error obteniendo VAPID key');
         const { publicKey } = await response.json();
 
@@ -105,7 +105,7 @@ async function sendSubscriptionToServer(subscription) {
             'Authorization': `Bearer ${token}`
         };
 
-        const response = await fetch(`${API_URL}/notifications/subscribe`, {
+        const response = await fetch(`${API_URL}/api/notifications/subscribe`, {
             method: 'POST',
             body: JSON.stringify({
                 subscription,
