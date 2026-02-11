@@ -5753,6 +5753,67 @@ input:checked+.slider:before {
     height: 20px;
 }
 
+/* --- Logo en páginas de autenticación (login, registro, recuperación) --- */
+.auth-page-logo {
+    display: block;
+    margin: 0 auto 1rem auto;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 4px 16px rgba(106, 90, 205, 0.25);
+}
+
+/* --- Enlace "¿Olvidaste tu contraseña?" y enlaces de navegación de auth --- */
+.forgot-password-link {
+    font-size: 1rem;
+    color: var(--text-secondary-color);
+    text-decoration: none;
+    transition: color 0.2s ease, opacity 0.2s ease;
+    opacity: 0.9;
+}
+
+.forgot-password-link:hover {
+    color: var(--text-color);
+    opacity: 1;
+    text-decoration: underline;
+}
+
+/* --- Página de Recuperación de Contraseña --- */
+.forgot-password-step {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.forgot-password-step.active {
+    display: block;
+}
+
+.forgot-password-info {
+    font-size: 0.9rem;
+    color: var(--text-secondary-color);
+    margin-bottom: 1.2rem;
+    line-height: 1.5;
+}
+
+.forgot-password-email-display {
+    font-weight: 600;
+    color: var(--primary-color);
+    word-break: break-all;
+}
+
+.forgot-password-timer {
+    font-size: 0.85rem;
+    color: var(--text-secondary-color);
+    margin-top: 0.5rem;
+    text-align: center;
+}
+
+.forgot-password-success-icon {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+}
+
 .repeat-cooldown-inputs {
     display: flex;
     gap: 0.5rem;

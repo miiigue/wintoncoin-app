@@ -35,9 +35,20 @@ const resendOtpLimiter = rateLimit({
     message: 'Demasiadas solicitudes de reenvío desde esta IP. Por favor, inténtalo más tarde.'
 });
 
+// Rate limiter para recuperación de contraseña (más restrictivo)
+const forgotPasswordLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5, // máximo 5 solicitudes de recuperación por IP cada 15 minutos
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: 'Demasiados intentos de recuperación de contraseña desde esta IP. Por favor, inténtalo más tarde.'
+});
+
 module.exports = {
     loginLimiter,
     registerRequestLimiter,
     registerVerifyLimiter,
-    resendOtpLimiter
+    resendOtpLimiter,
+    forgotPasswordLimiter
 };
+

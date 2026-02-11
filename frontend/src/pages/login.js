@@ -86,7 +86,7 @@ function initializeLoginForm() {
     loginForm.addEventListener('submit', async function (event) {
         event.preventDefault();
 
-        const username = document.getElementById('username').value;
+        const identifier = document.getElementById('identifier').value.trim();
         const password = document.getElementById('password').value;
         const loginUrl = `${API_URL}/login`;
 
@@ -96,7 +96,7 @@ function initializeLoginForm() {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({ identifier, password })
             });
 
             if (response.ok) {

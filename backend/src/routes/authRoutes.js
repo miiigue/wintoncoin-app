@@ -5,7 +5,8 @@ const {
     loginLimiter,
     registerRequestLimiter,
     registerVerifyLimiter,
-    resendOtpLimiter
+    resendOtpLimiter,
+    forgotPasswordLimiter
 } = require('../middleware/rateLimiters');
 
 // --- Registration Routes (Email OTP / Fintech) ---
@@ -14,7 +15,7 @@ router.post('/register-request', registerRequestLimiter, authController.register
 // NUEVO FLUJO DE REGISTRO CON OTP POR EMAIL (FASE 2: VERIFICACIÓN)
 router.post('/register-verify', registerVerifyLimiter, authController.registerVerify);
 
-// Ruta de Inicio de Sesión
+// Ruta de Inicio de Sesión (acepta username o email)
 router.post('/login', loginLimiter, authController.login);
 
 // NUEVO: Endpoint para verificar el estado de autenticación y verificación del usuario
@@ -22,6 +23,10 @@ router.get('/auth/status', authController.getAuthStatus);
 
 // NUEVO: Endpoint para reenviar el código de verificación
 router.post('/auth/resend-code', resendOtpLimiter, authController.resendCode);
+
+// --- Recuperación de Contraseña ---
+router.post('/forgot-password/request', forgotPasswordLimiter, authController.forgotPasswordRequest);
+router.post('/forgot-password/verify', forgotPasswordLimiter, authController.forgotPasswordVerify);
 
 // Endpoint to check if a user has a pending verification (Recovery Logic)
 router.post('/auth/pending-status', authController.checkPendingStatus);

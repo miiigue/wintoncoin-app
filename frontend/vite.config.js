@@ -55,6 +55,7 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         dashboard: resolve(__dirname, 'contract_interaction.html'),
         register: resolve(__dirname, 'register.html'),
+        forgotPassword: resolve(__dirname, 'forgot-password.html'),
 
         // Páginas de funcionalidad
         publish: resolve(__dirname, 'publish.html'),

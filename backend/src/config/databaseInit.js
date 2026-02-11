@@ -1052,6 +1052,46 @@ async function initializeDatabase() {
         `);
 
         // ---------------------------------------------------------------------------------
+        // AUTO-MIGRACIÓN: Columnas para recuperación de contraseña (forgot password)
+        // password_reset_hash           → HMAC hash del OTP
+        // password_reset_expires_at     → expiración del OTP
+        // password_reset_attempts       → contador de intentos fallidos (anti-bruteforce)
+        // password_invalidate_before    → invalida JWTs emitidos antes de esta fecha
+        // ---------------------------------------------------------------------------------
+        await client.query(`
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'users' AND column_name = 'password_reset_hash'
+                ) THEN
+                    ALTER TABLE users ADD COLUMN password_reset_hash TEXT;
+                END IF;
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'users' AND column_name = 'password_reset_expires_at'
+                ) THEN
+                    ALTER TABLE users ADD COLUMN password_reset_expires_at TIMESTAMPTZ;
+                END IF;
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'users' AND column_name = 'password_reset_attempts'
+                ) THEN
+                    ALTER TABLE users ADD COLUMN password_reset_attempts INTEGER NOT NULL DEFAULT 0;
+                END IF;
+
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'users' AND column_name = 'password_invalidate_before'
+                ) THEN
+                    ALTER TABLE users ADD COLUMN password_invalidate_before TIMESTAMPTZ;
+                END IF;
+            END $$;
+        `);
+
+        // ---------------------------------------------------------------------------------
         // AUTO-MIGRACIÓN (compatibilidad): booster_transactions.related_publication_id
         // Algunas BD antiguas no tienen esta columna, pero el perfil de impulsor la usa para
         // enlazar/describir correctamente eventos asociados a publicaciones.

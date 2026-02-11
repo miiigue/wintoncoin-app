@@ -2,10 +2,12 @@ const pool = require('../config/db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { generateUniqueReferralCode } = require('../config/databaseInit');
-const { emailService, generateOtp6, hashOtpForEmail, sendOtpEmail, normalizeEmail, safeEqualHex } = require('../services/emailService');
+const { generateOtp6, hashOtpForEmail, sendOtpEmail, sendTransactionEmail, normalizeEmail, safeEqualHex } = require('../services/emailService');
+const { logAuditEvent } = require('../services/auditService');
 
 const jwtSecret = process.env.JWT_SECRET;
 const saltRounds = 10;
+const MAX_PASSWORD_RESET_ATTEMPTS = 5;
 
 exports.registerRequest = async (req, res) => {
     const { username, email, password, phone, date_of_birth } = req.body;
@@ -374,19 +376,33 @@ exports.registerVerify = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
-    const { username, password } = req.body;
+    const { identifier, password } = req.body;
 
-    if (!username || !password) {
-        return res.status(400).json({ message: "Usuario y contraseña son requeridos." });
+    if (!identifier || !password) {
+        return res.status(400).json({ message: "Usuario/Email y contraseña son requeridos." });
     }
 
     try {
-        const sql = `SELECT * FROM users WHERE username = $1`;
-        const result = await pool.query(sql, [username]);
+        // Determinar si el identificador es un email o un username
+        const isEmail = /^\S+@\S+\.\S+$/.test(identifier.trim());
+        let sql, params;
+
+        if (isEmail) {
+            // Búsqueda por email (case-insensitive)
+            sql = `SELECT * FROM users WHERE LOWER(email) = LOWER($1)`;
+            params = [identifier.trim()];
+        } else {
+            // Búsqueda por username (exact match)
+            sql = `SELECT * FROM users WHERE username = $1`;
+            params = [identifier.trim()];
+        }
+
+        const result = await pool.query(sql, params);
         const user = result.rows[0];
 
         if (!user) {
-            return res.status(404).json({ message: "Usuario no encontrado. Por favor, regístrese primero." });
+            // Mensaje genérico para no revelar si el usuario/email existe (seguridad fintech)
+            return res.status(401).json({ message: "Credenciales inválidas. Verifica tu usuario/email y contraseña." });
         }
 
         // VERIFICACIÓN DE ESTADO DEL USUARIO
@@ -398,14 +414,13 @@ exports.login = async (req, res) => {
         }
 
         if (!user.password_hash) {
-            console.error(`Intento de login para el usuario '${username}' falló: la cuenta está corrupta (no tiene password_hash).`);
-            return res.status(401).json({ message: 'Credenciales inválidas. La cuenta de usuario podría estar corrupta.' });
+            console.error(`Intento de login para el usuario '${user.username}' falló: la cuenta está corrupta (no tiene password_hash).`);
+            return res.status(401).json({ message: 'Credenciales inválidas. Verifica tu usuario/email y contraseña.' });
         }
 
         const match = await bcrypt.compare(password, user.password_hash);
 
         if (match) {
-            // PASO 1: Generar un token de sesión seguro (JWT) al iniciar sesión.
             const token = jwt.sign(
                 { userId: user.id, username: user.username },
                 jwtSecret,
@@ -414,15 +429,229 @@ exports.login = async (req, res) => {
 
             res.status(200).json({
                 message: "Inicio de sesión exitoso.",
-                token: token, // Se devuelve el token al cliente.
+                token: token,
                 username: user.username
             });
         } else {
-            res.status(401).json({ message: "Contraseña incorrecta." });
+            // Mensaje genérico (no revelamos si el usuario existe)
+            res.status(401).json({ message: "Credenciales inválidas. Verifica tu usuario/email y contraseña." });
         }
     } catch (error) {
         console.error("Error en el inicio de sesión:", error);
         res.status(500).json({ message: "Error interno del servidor." });
+    }
+};
+
+// ============================================================================
+// Recuperación de contraseña — Paso 1: Solicitar código OTP por email
+// ============================================================================
+exports.forgotPasswordRequest = async (req, res) => {
+    const { email } = req.body;
+    const normalizedEmail = normalizeEmail(email);
+
+    if (!normalizedEmail || !/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+        return res.status(400).json({ message: "El correo electrónico no es válido." });
+    }
+
+    try {
+        // Buscar usuario por email
+        const userResult = await pool.query(
+            'SELECT id, username, email, password_reset_expires_at FROM users WHERE LOWER(email) = LOWER($1)',
+            [normalizedEmail]
+        );
+
+        // Respuesta genérica (anti-enumeración): siempre devolvemos éxito
+        // para no revelar si un email está registrado o no.
+        if (userResult.rowCount === 0) {
+            return res.status(200).json({ message: 'Si el correo está registrado, recibirás un código de recuperación.' });
+        }
+
+        const user = userResult.rows[0];
+
+        // Cooldown: evitar spam de solicitudes (server-side)
+        if (user.password_reset_expires_at) {
+            const expiresAt = new Date(user.password_reset_expires_at);
+            const now = new Date();
+            const createdAt = new Date(expiresAt.getTime() - 10 * 60 * 1000);
+            const secondsSinceCreation = Math.floor((now.getTime() - createdAt.getTime()) / 1000);
+            if (secondsSinceCreation < 60) {
+                return res.status(200).json({ message: 'Si el correo está registrado, recibirás un código de recuperación.' });
+            }
+        }
+
+        // Generar OTP y hash
+        const otp = generateOtp6();
+        const otpHash = hashOtpForEmail(normalizedEmail, otp);
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
+
+        // Guardar hash, expiración y resetear contador de intentos
+        await pool.query(
+            `UPDATE users SET password_reset_hash = $1, password_reset_expires_at = $2, password_reset_attempts = 0 WHERE id = $3`,
+            [otpHash, expiresAt, user.id]
+        );
+
+        // [AUDIT] Registrar solicitud de recuperación
+        await logAuditEvent(pool, req, {
+            eventType: 'password_reset.requested',
+            actorUsername: user.username,
+            category: 'security',
+            metadata: { email: normalizedEmail }
+        });
+
+        // Enviar OTP por email
+        try {
+            const ipRaw = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString();
+            const ip = ipRaw.split(',')[0].trim();
+            const requestedAt = new Date().toISOString();
+            await sendOtpEmail({ toEmail: normalizedEmail, otp, context: { ip, requestedAt } });
+        } catch (emailError) {
+            console.error('Error al enviar OTP de recuperación (SES):', emailError);
+        }
+
+        res.status(200).json({ message: 'Si el correo está registrado, recibirás un código de recuperación.' });
+
+    } catch (error) {
+        console.error('Error en forgotPasswordRequest:', error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+};
+
+// ============================================================================
+// Recuperación de contraseña — Paso 2: Verificar OTP y establecer nueva contraseña
+// ============================================================================
+exports.forgotPasswordVerify = async (req, res) => {
+    const { email, code, newPassword } = req.body;
+    const normalizedEmail = normalizeEmail(email);
+
+    if (!normalizedEmail || !code || !newPassword) {
+        return res.status(400).json({ message: 'Email, código y nueva contraseña son requeridos.' });
+    }
+
+    if (newPassword.length < 8) {
+        return res.status(400).json({ message: 'La nueva contraseña debe tener al menos 8 caracteres.' });
+    }
+
+    try {
+        // Buscar usuario por email (incluimos columnas de seguridad)
+        const userResult = await pool.query(
+            `SELECT id, username, email, password_reset_hash, password_reset_expires_at, password_reset_attempts
+             FROM users WHERE LOWER(email) = LOWER($1)`,
+            [normalizedEmail]
+        );
+
+        if (userResult.rowCount === 0) {
+            return res.status(400).json({ message: 'Código de recuperación inválido o expirado.' });
+        }
+
+        const user = userResult.rows[0];
+
+        // Verificar que existe un reset pendiente
+        if (!user.password_reset_hash || !user.password_reset_expires_at) {
+            return res.status(400).json({ message: 'Código de recuperación inválido o expirado.' });
+        }
+
+        // [MEJORA 1] Anti-bruteforce por usuario: máximo de intentos por OTP
+        if ((user.password_reset_attempts || 0) >= MAX_PASSWORD_RESET_ATTEMPTS) {
+            // Invalidar el OTP tras exceder intentos
+            await pool.query(
+                'UPDATE users SET password_reset_hash = NULL, password_reset_expires_at = NULL, password_reset_attempts = 0 WHERE id = $1',
+                [user.id]
+            );
+            await logAuditEvent(pool, req, {
+                eventType: 'password_reset.failed',
+                actorUsername: user.username,
+                category: 'security',
+                metadata: { reason: 'max_attempts_exceeded', attempts: user.password_reset_attempts }
+            });
+            return res.status(400).json({ message: 'Demasiados intentos fallidos. El código ha sido invalidado. Solicita uno nuevo.' });
+        }
+
+        // Verificar expiración
+        if (new Date() > new Date(user.password_reset_expires_at)) {
+            await pool.query(
+                'UPDATE users SET password_reset_hash = NULL, password_reset_expires_at = NULL, password_reset_attempts = 0 WHERE id = $1',
+                [user.id]
+            );
+            return res.status(400).json({ message: 'El código de recuperación ha expirado. Solicita uno nuevo.' });
+        }
+
+        // Validar OTP con comparación timing-safe
+        const expectedHash = hashOtpForEmail(normalizedEmail, String(code).trim());
+        const otpIsValid = safeEqualHex(user.password_reset_hash, expectedHash);
+
+        if (!otpIsValid) {
+            // [MEJORA 1] Incrementar contador de intentos fallidos
+            await pool.query(
+                'UPDATE users SET password_reset_attempts = COALESCE(password_reset_attempts, 0) + 1 WHERE id = $1',
+                [user.id]
+            );
+            const remainingAttempts = MAX_PASSWORD_RESET_ATTEMPTS - (user.password_reset_attempts || 0) - 1;
+            await logAuditEvent(pool, req, {
+                eventType: 'password_reset.failed',
+                actorUsername: user.username,
+                category: 'security',
+                metadata: { reason: 'invalid_otp', attempts_used: (user.password_reset_attempts || 0) + 1 }
+            });
+            return res.status(400).json({
+                message: remainingAttempts > 0
+                    ? `Código incorrecto. Te quedan ${remainingAttempts} intento(s).`
+                    : 'Código incorrecto. Se ha agotado el último intento. Solicita un nuevo código.'
+            });
+        }
+
+        // ---- OTP VÁLIDO: Restablecer contraseña ----
+
+        const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+        const invalidateBefore = new Date(); // [MEJORA 2] Timestamp para invalidar sesiones anteriores
+
+        await pool.query(
+            `UPDATE users SET
+                password_hash = $1,
+                password_reset_hash = NULL,
+                password_reset_expires_at = NULL,
+                password_reset_attempts = 0,
+                password_invalidate_before = $2
+             WHERE id = $3`,
+            [newPasswordHash, invalidateBefore, user.id]
+        );
+
+        // [MEJORA 3] Audit log de éxito
+        await logAuditEvent(pool, req, {
+            eventType: 'password_reset.success',
+            actorUsername: user.username,
+            category: 'security',
+            metadata: { email: normalizedEmail }
+        });
+
+        // [MEJORA 4] Enviar email de notificación post-cambio de contraseña
+        try {
+            const ipRaw = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString();
+            const ip = ipRaw.split(',')[0].trim();
+            await sendTransactionEmail({
+                toEmail: normalizedEmail,
+                subject: '⚠️ Tu contraseña ha sido cambiada — WintonCoin',
+                title: 'Contraseña actualizada',
+                message: 'Tu contraseña de WintonCoin ha sido cambiada exitosamente. Si no fuiste tú quien realizó este cambio, contacta a soporte inmediatamente.',
+                amount: null,
+                details: [
+                    { label: 'Cuenta', value: user.username },
+                    { label: 'Fecha', value: new Date().toLocaleString('es-ES', { timeZone: 'America/Argentina/Buenos_Aires' }) },
+                    { label: 'IP de origen', value: ip || 'Desconocida' },
+                    { label: 'Acción requerida', value: 'Si no reconoces esta acción, contacta soporte@wintoncoin.com' }
+                ]
+            });
+        } catch (emailError) {
+            console.error('[AUTH] Error al enviar notificación post-reset:', emailError);
+            // No interrumpimos el flujo por un fallo de email
+        }
+
+        console.log(`[AUTH] Contraseña restablecida exitosamente para usuario '${user.username}' (ID: ${user.id})`);
+
+        res.status(200).json({ message: '¡Contraseña restablecida exitosamente! Ya puedes iniciar sesión con tu nueva contraseña.' });
+
+    } catch (error) {
+        console.error('Error en forgotPasswordVerify:', error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
     }
 };
 
@@ -518,8 +747,6 @@ exports.getAuthStatus = async (req, res) => {
         return res.status(200).json({ isAuthenticated: false });
     }
 
-    // FIX PROFESIONAL: verificamos con la misma clave con la que firmamos el JWT (JWT_SECRET).
-    // Si esto no coincide, el frontend verá "isAuthenticated=false" aunque tenga un token válido.
     jwt.verify(token, jwtSecret, async (err, user) => {
         if (err) {
             return res.status(200).json({ isAuthenticated: false });
@@ -528,14 +755,27 @@ exports.getAuthStatus = async (req, res) => {
         try {
             const client = await pool.connect();
             try {
-                const dbUser = await client.query('SELECT is_verified FROM users WHERE id = $1', [user.userId]);
+                const dbUser = await client.query(
+                    'SELECT is_verified, password_invalidate_before FROM users WHERE id = $1',
+                    [user.userId]
+                );
                 if (dbUser.rows.length === 0) {
                     return res.status(200).json({ isAuthenticated: false });
                 }
 
+                // [SEGURIDAD] Verificar si el token fue emitido antes de un cambio de contraseña
+                const row = dbUser.rows[0];
+                if (row.password_invalidate_before) {
+                    const invalidateBefore = new Date(row.password_invalidate_before);
+                    const tokenIssuedAt = new Date((user.iat || 0) * 1000);
+                    if (tokenIssuedAt < invalidateBefore) {
+                        return res.status(200).json({ isAuthenticated: false, reason: 'SESSION_INVALIDATED' });
+                    }
+                }
+
                 res.status(200).json({
                     isAuthenticated: true,
-                    is_verified: dbUser.rows[0].is_verified,
+                    is_verified: row.is_verified,
                     username: user.username
                 });
             } finally {
