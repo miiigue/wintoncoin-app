@@ -113,9 +113,16 @@ document.addEventListener('DOMContentLoaded', () => {
     function setupEventListeners() {
         elements.navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
+                // Si es un enlace externo o tiene target="_blank", no interceptar
+                if (link.getAttribute('href').startsWith('http') || link.getAttribute('target') === '_blank') {
+                    return;
+                }
+
                 e.preventDefault();
                 const sectionId = link.dataset.section;
-                showSection(sectionId);
+                if (sectionId) {
+                    showSection(sectionId);
+                }
             });
         });
 

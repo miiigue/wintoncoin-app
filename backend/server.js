@@ -19,6 +19,10 @@ const { logAuditEvent, startAuditCleanupJob } = require('./src/services/auditSer
 const authRoutes = require('./src/routes/authRoutes');
 const notificationService = require('./src/services/notificationService'); // Importamos el servicio de notificaciones
 const eventBus = require('./src/services/notificationEventBus'); // BUS DE EVENTOS GLOBAL
+const {
+    requireAcceptedLegalForAuthenticatedUser,
+    requireAcceptedLegalByUsernameField
+} = require('./src/middleware/legalAcceptanceMiddleware');
 
 // --- NUEVO: Gestión profesional de la clave secreta de JWT ---
 // Buscamos la clave secreta en las variables de entorno.
@@ -239,7 +243,7 @@ async function startServer() {
         app.use('/', authRoutes);
 
         // NUEVO: Endpoint para agregar tutor a cuenta de menor
-        app.post('/api/minor/add-tutor', async (req, res) => {
+        app.post('/api/minor/add-tutor', requireAcceptedLegalByUsernameField(['minorUsername']), async (req, res) => {
             const { minorUsername, tutorUsernameOrEmail } = req.body;
 
             if (!minorUsername || !tutorUsernameOrEmail) {
@@ -348,7 +352,7 @@ async function startServer() {
         }
 
         // Ruta para crear una nueva Publicación
-        app.post('/publish', async (req, res) => {
+        app.post('/publish', requireAcceptedLegalByUsernameField(['authorUsername']), async (req, res) => {
             const {
                 title, description, blueCost, blueSell, authorUsername,
                 availableSlots, autoApprove, publicationType,
@@ -630,7 +634,7 @@ async function startServer() {
         });
 
         // NUEVO: Endpoint para crear una Venta Rápida
-        app.post('/api/quick-sale', async (req, res) => {
+        app.post('/api/quick-sale', requireAcceptedLegalByUsernameField(['authorUsername']), async (req, res) => {
             let { title, amount, authorUsername, targetUsername } = req.body;
 
             const client = await pool.connect();
@@ -738,7 +742,7 @@ async function startServer() {
         });
 
         // NUEVO: Endpoint para PAGAR una Venta Rápida
-        app.post('/api/quick-sale/:id/pay', async (req, res) => {
+        app.post('/api/quick-sale/:id/pay', requireAcceptedLegalByUsernameField(['buyerUsername']), async (req, res) => {
             const { id } = req.params;
             const { buyerUsername } = req.body;
 
@@ -880,7 +884,7 @@ async function startServer() {
         });
 
         // Ruta para Aceptar una publicación
-        app.post('/publications/:id/accept', async (req, res) => {
+        app.post('/publications/:id/accept', requireAcceptedLegalByUsernameField(['acceptorUsername']), async (req, res) => {
             const { id } = req.params;
             const { acceptorUsername } = req.body;
 
@@ -1071,7 +1075,7 @@ async function startServer() {
         });
 
         // Ruta para Descartar a un usuario
-        app.post('/publications/:id/discard', async (req, res) => {
+        app.post('/publications/:id/discard', requireAcceptedLegalByUsernameField(['discarderUsername']), async (req, res) => {
             const { id } = req.params;
             const { discarderUsername, userToDiscard } = req.body;
 
@@ -1139,7 +1143,7 @@ async function startServer() {
         });
 
         // Ruta para Aprobar a un usuario
-        app.post('/publications/:id/approve', async (req, res) => {
+        app.post('/publications/:id/approve', requireAcceptedLegalByUsernameField(['approverUsername']), async (req, res) => {
             const { id } = req.params;
             const { approverUsername, userToApprove } = req.body;
 
@@ -1193,7 +1197,7 @@ async function startServer() {
         });
 
         // Ruta para Marcar como Culminada
-        app.post('/publications/:id/complete', async (req, res) => {
+        app.post('/publications/:id/complete', requireAcceptedLegalByUsernameField(['completerUsername']), async (req, res) => {
             const pubId = req.params.id;
             const { completerUsername, formResponses } = req.body;
 
@@ -1299,7 +1303,7 @@ async function startServer() {
         });
 
         // Ruta para Confirmar y Pagar (REFACTORIZADA PARA MÁXIMA SEGURIDAD)
-        app.post('/publications/:id/confirm-payment', async (req, res) => {
+        app.post('/publications/:id/confirm-payment', requireAcceptedLegalByUsernameField(['confirmerUsername']), async (req, res) => {
             const pubId = req.params.id;
             const { confirmerUsername, workerUsername } = req.body;
 
@@ -1498,7 +1502,7 @@ async function startServer() {
         });
 
         // Ruta para QUEMAR tokens (Ahora refactorizada para usar la función central)
-        app.post('/users/burn', async (req, res) => {
+        app.post('/users/burn', requireAcceptedLegalByUsernameField(['username']), async (req, res) => {
             const { username, amount } = req.body;
 
             const amountToBurnString = (amount || "0").toString().replace(',', '.');
@@ -1769,7 +1773,7 @@ async function startServer() {
         });
 
         // Ruta para crear una calificación
-        app.post('/rate', async (req, res) => {
+        app.post('/rate', requireAcceptedLegalByUsernameField(['rater_username']), async (req, res) => {
             const { publication_id, rater_username, ratee_username, rating, comment } = req.body;
             if (!publication_id || !rater_username || !ratee_username || !rating) {
                 return res.status(400).json({ message: 'Faltan datos requeridos para la calificación.' });
@@ -1811,7 +1815,7 @@ async function startServer() {
         });
 
         // Ruta para ELIMINAR una publicación
-        app.delete('/publications/:id', async (req, res) => {
+        app.delete('/publications/:id', requireAcceptedLegalByUsernameField(['deleterUsername']), async (req, res) => {
             const { id } = req.params;
             const { deleterUsername } = req.body;
             if (!deleterUsername) return res.status(400).json({ message: "Se requiere nombre de usuario." });
@@ -1870,7 +1874,7 @@ async function startServer() {
         });
 
         // Ruta para PAUSAR/REANUDAR una publicación (REFACTORIZADA PARA MÁXIMA SEGURIDAD)
-        app.post('/publications/:id/toggle-pause', async (req, res) => {
+        app.post('/publications/:id/toggle-pause', requireAcceptedLegalByUsernameField(['username']), async (req, res) => {
             const { id } = req.params;
             const { username } = req.body;
 
@@ -1923,7 +1927,7 @@ async function startServer() {
         });
 
         // Ruta para OCULTAR una publicación
-        app.post('/publications/:id/hide', async (req, res) => {
+        app.post('/publications/:id/hide', requireAcceptedLegalByUsernameField(['username']), async (req, res) => {
             const { id } = req.params;
             const { username } = req.body;
 
@@ -1938,7 +1942,7 @@ async function startServer() {
         });
 
         // Ruta para DESHACER OCULTAR (Unhide)
-        app.post('/publications/:id/unhide', async (req, res) => {
+        app.post('/publications/:id/unhide', requireAcceptedLegalByUsernameField(['username']), async (req, res) => {
             const { id } = req.params;
             const { username } = req.body;
 
@@ -3735,7 +3739,7 @@ app.get('/api/p2p/payment-methods', verifyUserToken, async (req, res) => {
 });
 
 // Crear oferta P2P
-app.post('/api/p2p/offers', verifyUserToken, async (req, res) => {
+app.post('/api/p2p/offers', verifyUserToken, requireAcceptedLegalForAuthenticatedUser(), async (req, res) => {
     const {
         offerType,
         currency,
@@ -3950,7 +3954,7 @@ app.get('/api/p2p/offers/mine', verifyUserToken, async (req, res) => {
 });
 
 // Crear orden P2P
-app.post('/api/p2p/orders', verifyUserToken, async (req, res) => {
+app.post('/api/p2p/orders', verifyUserToken, requireAcceptedLegalForAuthenticatedUser(), async (req, res) => {
     const { offerId, fiatAmount } = req.body;
     const requestingUser = req.user.username;
     const client = await pool.connect();
@@ -4100,7 +4104,7 @@ app.get('/api/p2p/orders', verifyUserToken, async (req, res) => {
 });
 
 // Marcar como pagado
-app.post('/api/p2p/orders/:id/mark-paid', verifyUserToken, async (req, res) => {
+app.post('/api/p2p/orders/:id/mark-paid', verifyUserToken, requireAcceptedLegalForAuthenticatedUser(), async (req, res) => {
     const orderId = req.params.id;
     const username = req.user.username;
     const client = await pool.connect();
@@ -4138,7 +4142,7 @@ app.post('/api/p2p/orders/:id/mark-paid', verifyUserToken, async (req, res) => {
 });
 
 // Liberar BLUE (vendedor)
-app.post('/api/p2p/orders/:id/release', verifyUserToken, async (req, res) => {
+app.post('/api/p2p/orders/:id/release', verifyUserToken, requireAcceptedLegalForAuthenticatedUser(), async (req, res) => {
     const orderId = req.params.id;
     const username = req.user.username;
     const client = await pool.connect();
@@ -4233,7 +4237,7 @@ app.post('/api/p2p/orders/:id/release', verifyUserToken, async (req, res) => {
 });
 
 // Cancelar orden (solo antes de pagar)
-app.post('/api/p2p/orders/:id/cancel', verifyUserToken, async (req, res) => {
+app.post('/api/p2p/orders/:id/cancel', verifyUserToken, requireAcceptedLegalForAuthenticatedUser(), async (req, res) => {
     const orderId = req.params.id;
     const username = req.user.username;
     const client = await pool.connect();
@@ -4308,7 +4312,7 @@ app.post('/api/p2p/orders/:id/cancel', verifyUserToken, async (req, res) => {
 });
 
 // Solicitar o aprobar extensión
-app.post('/api/p2p/orders/:id/request-extension', verifyUserToken, async (req, res) => {
+app.post('/api/p2p/orders/:id/request-extension', verifyUserToken, requireAcceptedLegalForAuthenticatedUser(), async (req, res) => {
     const orderId = req.params.id;
     const username = req.user.username;
     const client = await pool.connect();
@@ -4373,7 +4377,7 @@ app.post('/api/p2p/orders/:id/request-extension', verifyUserToken, async (req, r
 });
 
 // Disputa
-app.post('/api/p2p/orders/:id/dispute', verifyUserToken, async (req, res) => {
+app.post('/api/p2p/orders/:id/dispute', verifyUserToken, requireAcceptedLegalForAuthenticatedUser(), async (req, res) => {
     const orderId = req.params.id;
     const { reason } = req.body;
     const username = req.user.username;
@@ -4421,7 +4425,7 @@ app.post('/api/p2p/orders/:id/dispute', verifyUserToken, async (req, res) => {
 });
 
 // Calificar reputación P2P (obligatoria después de liberación)
-app.post('/api/p2p/orders/:id/rate', verifyUserToken, async (req, res) => {
+app.post('/api/p2p/orders/:id/rate', verifyUserToken, requireAcceptedLegalForAuthenticatedUser(), async (req, res) => {
     const orderId = req.params.id;
     const { rating, comment } = req.body;
     const rater = req.user.username;

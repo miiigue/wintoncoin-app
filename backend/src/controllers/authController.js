@@ -4,13 +4,19 @@ const jwt = require('jsonwebtoken');
 const { generateUniqueReferralCode } = require('../config/databaseInit');
 const { generateOtp6, hashOtpForEmail, sendOtpEmail, sendTransactionEmail, normalizeEmail, safeEqualHex } = require('../services/emailService');
 const { logAuditEvent } = require('../services/auditService');
+const {
+    getActiveLegalDocuments,
+    getUserLegalStatusByUserId,
+    validateAcceptedDocumentsPayload,
+    ensureAllActiveDocumentsAccepted
+} = require('../services/legalService');
 
 const jwtSecret = process.env.JWT_SECRET;
 const saltRounds = 10;
 const MAX_PASSWORD_RESET_ATTEMPTS = 5;
 
 exports.registerRequest = async (req, res) => {
-    const { username, email, password, phone, date_of_birth } = req.body;
+    const { username, email, password, phone, date_of_birth, acceptedLegalDocuments } = req.body;
     const normalizedEmail = normalizeEmail(email);
 
     // --- Validación Estricta de Usuario (Estándar de Industria) ---
@@ -79,26 +85,62 @@ exports.registerRequest = async (req, res) => {
             return res.status(409).json({ message: 'El nombre de usuario, email o teléfono ya está en uso o pendiente de verificación.' });
         }
 
-        // --- 3. Generar OTP (Email) y Fecha de Expiración ---
+        // --- 3. Validar aceptación legal explícita contra documentos activos ---
+        const payloadValidation = validateAcceptedDocumentsPayload(acceptedLegalDocuments);
+        if (!payloadValidation.isValid) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: payloadValidation.message });
+        }
+
+        const activeDocs = await getActiveLegalDocuments(client);
+        if (activeDocs.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(503).json({
+                message: 'No hay documentos legales activos publicados. Intenta nuevamente más tarde.'
+            });
+        }
+
+        const legalCoverage = ensureAllActiveDocumentsAccepted(activeDocs, payloadValidation.acceptedDocuments);
+        if (!legalCoverage.allAccepted) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+                message: 'Debes aceptar todos los documentos legales activos para registrarte.',
+                missingDocuments: legalCoverage.missingDocs
+            });
+        }
+
+        // --- 4. Generar OTP (Email) y Fecha de Expiración ---
         const verificationCode = generateOtp6(); // Código de 6 dígitos (crypto-secure)
         const verificationCodeHash = hashOtpForEmail(normalizedEmail, verificationCode);
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos de validez
         const lastSentAt = new Date();
 
-        // --- 4. Encriptar Contraseña y Guardar en Pendientes ---
+        // --- 5. Encriptar Contraseña y Guardar en Pendientes ---
         const passwordHash = await bcrypt.hash(password, saltRounds);
         await client.query(
             `INSERT INTO pending_verifications (
                 username, email, password_hash, phone_number, referral_code,
                 verification_code, verification_code_hash,
                 verification_attempts, resend_count, last_sent_at,
-                expires_at, date_of_birth, is_minor
+                expires_at, date_of_birth, is_minor, legal_acceptances_json
             )
-                VALUES ($1, $2, $3, $4, $5, NULL, $6, 0, 0, $7, $8, $9, $10)`,
-            [username, normalizedEmail, passwordHash, phone, null, verificationCodeHash, lastSentAt, expiresAt, date_of_birth, isMinor]
+                VALUES ($1, $2, $3, $4, $5, NULL, $6, 0, 0, $7, $8, $9, $10, $11::jsonb)`,
+            [
+                username,
+                normalizedEmail,
+                passwordHash,
+                phone,
+                null,
+                verificationCodeHash,
+                lastSentAt,
+                expiresAt,
+                date_of_birth,
+                isMinor,
+                JSON.stringify(payloadValidation.acceptedDocuments)
+            ]
         );
 
-        // --- 5. Enviar el OTP por Email usando AWS SES ---
+        // --- 6. Enviar el OTP por Email usando AWS SES ---
         try {
             const ipRaw = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString();
             const ip = ipRaw.split(',')[0].trim();
@@ -215,28 +257,45 @@ exports.registerVerify = async (req, res) => {
         // Marcamos la cuenta como verificada (email verificado)
         await client.query('UPDATE users SET is_verified = TRUE WHERE id = $1', [newUser.id]);
 
-        // --- 2.1 REGISTRO DE EVIDENCIA FORENSE (LEGAL AUDIT) ---
-        // Capturar IP y User Agent para el registro legal
+        // --- 2.1 REGISTRO LEGAL EXPLÍCITO ---
         const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '0.0.0.0';
         const userAgent = req.headers['user-agent'] || 'Unknown';
 
-        // Obtenemos la última versión activa de los documentos legales
-        const docsQuery = `SELECT type, version, content_hash FROM legal_documents WHERE is_active = TRUE`;
-        const docsResult = await client.query(docsQuery);
-
-        if (docsResult.rows.length > 0) {
-            for (const doc of docsResult.rows) {
-                await client.query(
-                    `INSERT INTO user_agreements_log 
-                    (user_id, document_type, document_version, document_hash, ip_address, user_agent)
-                    VALUES ($1, $2, $3, $4, $5, $6)`,
-                    [newUser.id, doc.type, doc.version, doc.content_hash, ipAddress, userAgent]
-                );
-            }
-            console.log(`[AUDIT] Evidencia legal registrada para usuario ${newUser.username} (IP: ${ipAddress})`);
-        } else {
-            console.warn(`[AUDIT WARNING] El usuario ${newUser.username} se registró pero NO se encontraron documentos legales activos para firmar.`);
+        const pendingAcceptedPayload = validateAcceptedDocumentsPayload(pendingUser.legal_acceptances_json);
+        if (!pendingAcceptedPayload.isValid) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+                message: 'No se encontró una aceptación legal válida. Inicia el registro nuevamente.'
+            });
         }
+
+        const activeDocs = await getActiveLegalDocuments(client);
+        if (activeDocs.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(503).json({
+                message: 'No hay documentos legales activos publicados. Intenta nuevamente más tarde.'
+            });
+        }
+
+        const legalCoverage = ensureAllActiveDocumentsAccepted(activeDocs, pendingAcceptedPayload.acceptedDocuments);
+        if (!legalCoverage.allAccepted) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                message: 'Los términos legales fueron actualizados. Debes reiniciar el registro y aceptar la versión vigente.',
+                missingDocuments: legalCoverage.missingDocs
+            });
+        }
+
+        for (const doc of activeDocs) {
+            await client.query(
+                `INSERT INTO user_agreements_log
+                    (user_id, document_type, document_version, document_hash, ip_address, user_agent)
+                 VALUES ($1, $2, $3, $4, $5, $6)
+                 ON CONFLICT (user_id, document_type, document_version, document_hash) DO NOTHING`,
+                [newUser.id, doc.type, doc.version, doc.content_hash, ipAddress, userAgent]
+            );
+        }
+        console.log(`[AUDIT] Evidencia legal registrada para usuario ${newUser.username} (IP: ${ipAddress})`);
 
         // --- 3. [LÓGICA REINTEGRADA] Aplicar bonos de bienvenida y referidos ---
         const settingKeys = [
@@ -421,6 +480,7 @@ exports.login = async (req, res) => {
         const match = await bcrypt.compare(password, user.password_hash);
 
         if (match) {
+            const legalStatus = await getUserLegalStatusByUserId(pool, user.id);
             const token = jwt.sign(
                 { userId: user.id, username: user.username },
                 jwtSecret,
@@ -430,7 +490,9 @@ exports.login = async (req, res) => {
             res.status(200).json({
                 message: "Inicio de sesión exitoso.",
                 token: token,
-                username: user.username
+                username: user.username,
+                requires_terms_acceptance: legalStatus.requires_terms_acceptance,
+                pending_documents: legalStatus.pending_documents
             });
         } else {
             // Mensaje genérico (no revelamos si el usuario existe)
@@ -773,10 +835,14 @@ exports.getAuthStatus = async (req, res) => {
                     }
                 }
 
+                const legalStatus = await getUserLegalStatusByUserId(client, user.userId);
+
                 res.status(200).json({
                     isAuthenticated: true,
                     is_verified: row.is_verified,
-                    username: user.username
+                    username: user.username,
+                    requires_terms_acceptance: legalStatus.requires_terms_acceptance,
+                    pending_documents: legalStatus.pending_documents
                 });
             } finally {
                 client.release();

@@ -8,7 +8,9 @@
 export const userSession = {
     isAuthenticated: false,
     is_verified: false,
-    username: null
+    username: null,
+    requires_terms_acceptance: false,
+    pending_documents: []
 };
 
 /**
@@ -53,6 +55,8 @@ export async function checkAuthStatus() {
         userSession.isAuthenticated = false;
         userSession.is_verified = false;
         userSession.username = null;
+        userSession.requires_terms_acceptance = false;
+        userSession.pending_documents = [];
         
         document.dispatchEvent(new CustomEvent('auth-status-checked', { detail: userSession }));
 
@@ -68,6 +72,8 @@ export function logout() {
     userSession.isAuthenticated = false;
     userSession.is_verified = false;
     userSession.username = null;
+    userSession.requires_terms_acceptance = false;
+    userSession.pending_documents = [];
     
     document.dispatchEvent(new CustomEvent('auth-logout'));
 }
@@ -111,6 +117,8 @@ export function handleSessionExpired(response) {
         userSession.isAuthenticated = false;
         userSession.is_verified = false;
         userSession.username = null;
+        userSession.requires_terms_acceptance = false;
+        userSession.pending_documents = [];
         
         // Importar showCustomAlert dinámicamente para evitar dependencia circular
         import('./alerts.js').then(({ showCustomAlert }) => {
@@ -126,4 +134,12 @@ export function handleSessionExpired(response) {
         return true; // Indica que la sesión expiró
     }
     return false; // La sesión está bien
+}
+
+/**
+ * Indica si el usuario puede ejecutar acciones de negocio.
+ * Si falta aceptación legal vigente, solo permitimos navegación/lectura.
+ */
+export function canPerformProtectedActions() {
+    return !!userSession.isAuthenticated && !userSession.requires_terms_acceptance;
 }

@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
+const legalController = require('../controllers/legalController');
+const { authenticateToken } = require('../middleware/authMiddleware');
 const {
     loginLimiter,
     registerRequestLimiter,
@@ -30,5 +32,10 @@ router.post('/forgot-password/verify', forgotPasswordLimiter, authController.for
 
 // Endpoint to check if a user has a pending verification (Recovery Logic)
 router.post('/auth/pending-status', authController.checkPendingStatus);
+
+// --- Legal / Términos y Condiciones ---
+router.get('/legal/documents/active', legalController.getActiveDocuments);
+router.get('/legal/status', authenticateToken, legalController.getMyLegalStatus);
+router.post('/legal/accept', authenticateToken, legalController.acceptActiveDocuments);
 
 module.exports = router;

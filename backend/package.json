@@ -4,6 +4,9 @@
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
+    "legal:publish": "node scripts/publish_legal_document.js",
+    "legal:publish:terms": "node scripts/publish_legal_document.js --type terms_and_conditions --file ../frontend/terms.html",
+    "legal:publish:privacy": "node scripts/publish_legal_document.js --type privacy_policy --file ../frontend/privacy.html",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

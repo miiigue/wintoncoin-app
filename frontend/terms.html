@@ -152,12 +152,13 @@
             <p>Para los efectos de estos Términos, se entenderá por:</p>
             <ul>
                 <li><strong>BLUE:</strong> Token digital que representa un activo en el sistema. Los tokens BLUE pueden ser utilizados para realizar pagos, recibirse como pago por servicios, o quemarse para reducir deudas RED.</li>
+                <li><strong>BLUE IOU:</strong> Anotación contable interna que representa una obligación futura de pago de la Plataforma frente al Usuario, generada durante el modo pre-lanzamiento. El BLUE IOU <strong>no constituye</strong> token BLUE circulante, no es transferible libremente por el Usuario, no es exigible de forma inmediata, no devenga intereses y su liquidación está sujeta a las condiciones establecidas en estos Términos.</li>
                 <li><strong>RED:</strong> Token digital que representa una deuda en el sistema. Se crea cuando un Usuario realiza un pago a otro Usuario.</li>
                 <li><strong>Quema (Burn):</strong> Proceso mediante el cual se eliminan simultáneamente tokens BLUE y RED del sistema, reduciendo la deuda del Usuario.</li>
                 <li><strong>Escrow:</strong> Período de espera durante el cual los tokens BLUE recibidos como pago permanecen bloqueados antes de estar disponibles para uso.</li>
                 <li><strong>LOVE (Lista de Obligaciones Vencidas):</strong> Registro público de Usuarios con deudas RED vencidas y no saldadas.</li>
                 <li><strong>Modo Pre-lanzamiento:</strong> Fase inicial de la Plataforma donde las transacciones o recompensas se registran en el perfil de impulsor en lugar de crear tokens circulantes.</li>
-                <li><strong>Perfil de Impulsor:</strong> Sistema de reputación y billetera separada donde se acumulan recompensas durante el modo pre-lanzamiento.</li>
+                <li><strong>Perfil de Impulsor:</strong> Módulo contable separado donde se registran y acumulan BLUE IOU y otros saldos provisionales durante el modo pre-lanzamiento.</li>
             </ul>
         </div>
 
@@ -320,8 +321,8 @@
             <h3>5.2. Perfil de Impulsor</h3>
             <p>Todas las recompensas obtenidas durante esta fase se acreditan <strong>exclusivamente</strong> a tu Perfil de Impulsor:</p>
             <ul>
-                <li>Estas acumulaciones <strong>NO son tokens BLUE reales</strong>, sino una deuda futura (no líquida) que la plataforma tiene contigo, registrada como tal y pagadera post-lanzamiento.</li>
-                <li>Los fondos del Perfil de Impulsor están <strong>completamente separados</strong> de tu billetera principal y no son transferibles directamente por ti.</li>
+                <li>Estas acumulaciones se registran como <strong>BLUE IOU</strong>. En esta etapa <strong>NO son tokens BLUE circulantes</strong> ni saldo líquido disponible para uso general.</li>
+                <li>Los BLUE IOU del Perfil de Impulsor están <strong>completamente separados</strong> de tu billetera principal y no son libremente transferibles por el Usuario como si fueran BLUE circulantes.</li>
             </ul>
 
             <h3>5.3. Pagos Post-Lanzamiento</h3>
@@ -331,7 +332,7 @@
                 <li>Se calcula un porcentaje de pago mensual basado en las comisiones disponibles vs. la deuda total con impulsores.</li>
                 <li>Los pagos se realizan con prioridad a los niveles más bajos primero, como beneficio para incentivar participación temprana.</li>
                 <li>Este proceso se repite mensualmente hasta saldar toda la deuda acumulada.</li>
-                <li><strong>Ningún BLUE se pagará sin respaldo de comisiones reales acumuladas por la plataforma durante el mes en curso.</strong></li>
+                <li><strong>Ningún BLUE IOU se liquidará sin respaldo de comisiones reales acumuladas por la plataforma durante el mes en curso.</strong></li>
             </ul>
 
             <h3>5.4. Sin Comisiones de Plataforma</h3>
@@ -407,22 +408,25 @@
             </ul>
 
             <h3>7.3. Mecanismo de Liquidación y Pagos (Programa de Impulsores)</h3>
-            <p><strong>Definición de Recompensas Acumuladas:</strong> A efectos de esta cláusula, se entienden por "recompensas acumuladas" la suma total de: (i) Bonos de Bienvenida, (ii) Comisiones por Referidos, y (iii) Pagos recibidos por tareas o servicios completados durante la fase de Pre-lanzamiento.</p>
+            <p><strong>Definición de Recompensas Acumuladas:</strong> A efectos de esta cláusula, se entienden por "recompensas acumuladas" la suma total de BLUE IOU originados por: (i) Bonos de Bienvenida, (ii) Comisiones por Referidos, y (iii) Pagos recibidos por tareas o servicios completados durante la fase de Pre-lanzamiento.</p>
             <p>Para garantizar la sostenibilidad económica del sistema y evitar la inflación descontrolada, el Usuario acepta que todos los saldos acumulados en el Perfil de Impulsor se pagarán bajo el siguiente <strong>Esquema de Liquidación Progresiva</strong>, cuyos detalles operativos completos se encuentran descritos en el <a href="https://boosters.wintoncoin.com/" target="_blank" rel="noopener noreferrer">Programa de Impulsores</a>, el cual forma parte integral de estos Términos:</p>
             <ol>
-                <li><strong>Fuente de Fondos:</strong> Los pagos provienen exclusivamente de las comisiones reales (fees) recaudadas por la Plataforma por la actividad económica de los usuarios. La Plataforma no emitirá tokens sin respaldo para pagar estas deudas.</li>
+                <li><strong>Fuente de Fondos:</strong> Los pagos provienen exclusivamente de las comisiones reales (fees) recaudadas por la Plataforma por la actividad económica de los usuarios. La Plataforma no emitirá tokens sin respaldo para liquidar BLUE IOU.</li>
                 <li><strong>Periodicidad Mensual:</strong> El sistema ejecutará un ciclo de pagos dentro de <strong>los primeros 5 días de cada mes</strong>, distribuyendo un porcentaje de las comisiones recaudadas el mes anterior entre los usuarios con saldo pendiente en su Perfil de Impulsor.</li>
                 <li><strong>Prioridad de Pago:</strong> Los pagos se realizarán priorizando los niveles de impulsor más bajos (usuarios iniciales) para incentivar la base de la comunidad, avanzando progresivamente hacia niveles superiores según la disponibilidad de fondos.</li>
                 <li><strong>Acreditación en Escrow:</strong> Los pagos realizados se acreditarán en el saldo de "BLUE Pendiente (Escrow)" del usuario y estarán sujetos al periodo de desbloqueo estándar de la plataforma antes de ser totalmente líquidos.</li>
-                <li><strong>Plazo Indeterminado:</strong> El Usuario reconoce que el pago total de su saldo acumulado puede tomar un tiempo indeterminado, ya que depende directamente del volumen de transacciones y éxito comercial de la Plataforma.</li>
+                <li><strong>Plazo Indeterminado:</strong> El Usuario reconoce que la liquidación total de su saldo acumulado en BLUE IOU puede tomar un tiempo indeterminado, ya que depende directamente del volumen de transacciones y éxito comercial de la Plataforma.</li>
             </ol>
 
             <h3>7.4. Condiciones de Seguridad y Anti-Fraude</h3>
             <p>Para garantizar la integridad de la economía de WintonCoin, las recompensas por referidos están sujetas a las siguientes condiciones de validación:</p>
             <ul>
-                <li><strong>Validación de Identidad del Referido:</strong> Las recompensas generadas por invitar a nuevos usuarios se acreditarán provisionalmente, pero <strong>solo se harán efectivas y liquidables una vez que el Usuario Referido haya completado y aprobado su propio proceso de Verificación de Identidad</strong>.</li>
-                <li><strong>Anulación por Fraude:</strong> Si el usuario referido no completa su verificación en un plazo razonable, o si el sistema detecta que la cuenta referida es falsa, duplicada (mismo dispositivo/IP) o inactiva, WintonCoin anulará automáticamente las recompensas tanto del referente como del referido sin derecho a reclamo.</li>
-                <li><strong>Reglas de Pre-lanzamiento:</strong> Durante esta fase, aunque la recompensa aparezca en el Perfil de Impulsor, su pago futuro sigue estando condicionado a la verificación de identidad de ambas partes.</li>
+                <li><strong>Acreditación Provisional y Sin Devengo Inmediato:</strong> Toda recompensa por referido se registra inicialmente como <strong>provisional</strong> y no constituye, por sí sola, un derecho adquirido, exigible ni liquidable por parte del Usuario.</li>
+                <li><strong>Condición Suspensiva de Validación (KYC):</strong> El canje, validación definitiva y/o liquidación de cualquier bono o comisión por referido queda sujeto a la aprobación satisfactoria del proceso de Verificación de Identidad (KYC) del <strong>Usuario Referido</strong>. Sin KYC aprobado del referido, la recompensa no devenga ni se paga.</li>
+                <li><strong>Verificación del Referente para Cobro:</strong> Aun cuando el referido complete KYC, el pago efectivo al referente permanecerá condicionado al cumplimiento de los requisitos de verificación y cumplimiento del propio referente, conforme a las políticas de riesgo y cumplimiento vigentes.</li>
+                <li><strong>Anulación Automática por Incumplimiento o Riesgo:</strong> WintonCoin podrá anular total o parcialmente recompensas provisionales cuando: (i) el referido no complete KYC dentro del plazo operativo definido por la Plataforma; (ii) exista evidencia de cuentas falsas, duplicadas, colusión, auto-referidos, suplantación, uso indebido de dispositivo/red o cualquier patrón fraudulento; (iii) el referido o referente sea suspendido por incumplimiento normativo.</li>
+                <li><strong>Reserva de Verificación y Auditoría:</strong> WintonCoin podrá solicitar información adicional para validar legitimidad de la relación de referido y conservará registros técnicos y de auditoría (incluyendo trazabilidad de eventos) para fines de prevención de fraude, cumplimiento legal y defensa ante controversias.</li>
+                <li><strong>Reglas de Pre-lanzamiento:</strong> Durante esta fase, aunque la recompensa figure en el Perfil de Impulsor, su eventual pago continúa condicionado a las reglas de liquidación del Programa de Impulsores y al cumplimiento de los requisitos de verificación y cumplimiento aplicables.</li>
             </ul>
         </div>
 
@@ -568,7 +572,7 @@
     <script>
         // Fecha de última actualización del contenido
         // IMPORTANTE: Actualizar esta fecha manualmente cuando se modifique el contenido del documento
-        const lastUpdateDate = new Date('2025-11-25'); // Formato: YYYY-MM-DD
+        const lastUpdateDate = new Date('2026-02-11'); // Formato: YYYY-MM-DD
         
         document.getElementById('lastUpdatedDate').textContent = lastUpdateDate.toLocaleDateString('es-ES', { 
             year: 'numeric', 

@@ -106,8 +106,20 @@ function initializeLoginForm() {
                     localStorage.setItem('token', result.token);
                     localStorage.setItem('username', result.username);
 
+                    if (result.requires_terms_acceptance) {
+                        localStorage.setItem('requires_terms_acceptance', 'true');
+                    } else {
+                        localStorage.removeItem('requires_terms_acceptance');
+                    }
+
                     // Sincronizar suscripción push pendiente (si existe)
                     await syncPendingPushSubscription();
+
+                    if (result.requires_terms_acceptance) {
+                        showCustomAlert(
+                            'Tu sesión está activa, pero necesitas aceptar los documentos legales vigentes para operar. Podrás entrar y explorar, pero las acciones estarán bloqueadas hasta aceptar.'
+                        );
+                    }
 
                     window.location.href = 'contract_interaction.html';
                 } else {

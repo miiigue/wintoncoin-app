@@ -19,6 +19,7 @@ let isPhoneTaken = false;
 let policyModalTimeout = null;
 let countdown;
 let timer = 60;
+let activeLegalDocuments = [];
 
 // --- Funciones de utilidad ---
 function safeShow(el) {
@@ -441,6 +442,22 @@ async function initializeRegisterPage() {
     const pendingEmail = localStorage.getItem('pendingVerificationEmail');
     validateAndSetInitialStep(API_URL, pendingPhone, pendingEmail, step1Div, step2Div);
 
+    async function loadActiveLegalDocuments() {
+        try {
+            const response = await fetch(`${API_URL}/api/legal/documents/active`);
+            if (!response.ok) {
+                throw new Error('No se pudieron cargar los documentos legales activos.');
+            }
+            const payload = await response.json();
+            activeLegalDocuments = Array.isArray(payload.activeDocuments) ? payload.activeDocuments : [];
+        } catch (error) {
+            console.error('[Register] Error cargando documentos legales activos:', error);
+            activeLegalDocuments = [];
+        }
+    }
+
+    await loadActiveLegalDocuments();
+
     // Comprobar estado de autenticación
     const session = await checkAuthStatus();
 
@@ -478,16 +495,18 @@ async function initializeRegisterPage() {
 
     // Configurar checkboxes de términos
     const termsGeneralCheck = document.getElementById('terms-general');
+    const privacyPolicyCheck = document.getElementById('privacy-policy');
     const termsPreLaunchCheck = document.getElementById('terms-pre-launch');
     const termsEconomicCheck = document.getElementById('terms-economic');
     const termsDebtCheck = document.getElementById('terms-debt');
     const termsRiskCheck = document.getElementById('terms-risk');
     const registerRequestBtn = document.getElementById('register-request-btn');
 
-    if (termsGeneralCheck && termsPreLaunchCheck && termsEconomicCheck && termsDebtCheck &&
+    if (termsGeneralCheck && privacyPolicyCheck && termsPreLaunchCheck && termsEconomicCheck && termsDebtCheck &&
         termsRiskCheck && registerRequestBtn) {
         const allCheckboxes = [
             termsGeneralCheck,
+            privacyPolicyCheck,
             termsPreLaunchCheck,
             termsEconomicCheck,
             termsDebtCheck,
@@ -714,10 +733,27 @@ async function initializeRegisterPage() {
             const dateOfBirth = document.getElementById('date_of_birth').value;
             // referral code
             const referralCode = document.getElementById('referral_code')?.value;
+            const termsGeneralAccepted = !!document.getElementById('terms-general')?.checked;
+            const privacyPolicyAccepted = !!document.getElementById('privacy-policy')?.checked;
+
+            const acceptedLegalDocuments = activeLegalDocuments.filter((doc) => {
+                if (doc.type === 'terms_and_conditions') return termsGeneralAccepted;
+                if (doc.type === 'privacy_policy') return privacyPolicyAccepted;
+                return false;
+            }).map((doc) => ({
+                type: doc.type,
+                version: doc.version,
+                content_hash: doc.content_hash
+            }));
 
             // ... (Resto de lógica de envío igual, pero ya validamos edad en el wizard)
 
             try {
+                if (activeLegalDocuments.length === 0) {
+                    showCustomAlert('No se pudieron cargar los documentos legales vigentes. Recarga la página e inténtalo nuevamente.');
+                    return;
+                }
+
                 // Deshabilitar botón para evitar doble envío
                 const submitBtn = document.getElementById('register-request-btn');
                 if (submitBtn) {
@@ -732,7 +768,8 @@ async function initializeRegisterPage() {
                     email,
                     phone,
                     date_of_birth: dateOfBirth,
-                    referral_code: referralCode
+                    referral_code: referralCode,
+                    acceptedLegalDocuments
                 };
 
                 const response = await fetch(`${API_URL}/api/register-request`, {

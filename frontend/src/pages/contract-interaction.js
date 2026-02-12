@@ -98,6 +98,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastBoosterFetch = 0;
     let platformSettingsCache = null;
     let publicationsCache = [];
+    let legalStatus = {
+        requires_terms_acceptance: false,
+        pending_documents: []
+    };
 
     // --- Initialize ---
     if (!storedUsername) {
@@ -111,12 +115,135 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.usernameDisplay.textContent = storedUsername;
     }
 
+    function setCriticalActionButtonsDisabled(disabled) {
+        const ids = ['openPublicationModalBtn', 'openQuickSaleModalBtn', 'burnTriggerBtn'];
+        ids.forEach((id) => {
+            const button = document.getElementById(id);
+            if (!button) return;
+            button.disabled = !!disabled;
+            button.style.opacity = disabled ? '0.55' : '';
+            button.style.cursor = disabled ? 'not-allowed' : '';
+            if (disabled) {
+                button.title = 'Debes aceptar los documentos legales vigentes para habilitar esta acción.';
+            } else {
+                button.removeAttribute('title');
+            }
+        });
+    }
+
+    function renderLegalAcceptanceBanner() {
+        const existingBanner = document.getElementById('legal-acceptance-banner');
+        if (!legalStatus.requires_terms_acceptance) {
+            if (existingBanner) existingBanner.remove();
+            setCriticalActionButtonsDisabled(false);
+            return;
+        }
+
+        const pendingNames = legalStatus.pending_documents
+            .map((d) => d.type === 'terms_and_conditions' ? 'Términos y Condiciones' : (d.type === 'privacy_policy' ? 'Política de Privacidad' : d.type))
+            .join(', ');
+
+        const banner = existingBanner || document.createElement('div');
+        banner.id = 'legal-acceptance-banner';
+        banner.style.background = '#fff3cd';
+        banner.style.color = '#5f370e';
+        banner.style.border = '1px solid #ffe69c';
+        banner.style.borderRadius = '10px';
+        banner.style.padding = '12px';
+        banner.style.margin = '12px auto';
+        banner.style.maxWidth = '1200px';
+        banner.innerHTML = `
+            <strong>Actualizamos nuestros términos.</strong>
+            Revisa y acepta para seguir operando.
+            <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+                <a href="terms.html" target="_blank" rel="noopener noreferrer" class="btn">Leer Términos</a>
+                <a href="privacy.html" target="_blank" rel="noopener noreferrer" class="btn">Leer Privacidad</a>
+                <button id="accept-legal-docs-btn" class="btn">He leído y acepto</button>
+            </div>
+        `;
+
+        if (!existingBanner) {
+            const rootContainer = document.querySelector('.container') || document.body;
+            rootContainer.prepend(banner);
+        }
+
+        const acceptBtn = document.getElementById('accept-legal-docs-btn');
+        if (acceptBtn) {
+            acceptBtn.onclick = async () => {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+                if (!Array.isArray(legalStatus.pending_documents) || legalStatus.pending_documents.length === 0) {
+                    showCustomAlert('No se encontraron documentos pendientes para aceptar. Recarga la página o contacta soporte.');
+                    return;
+                }
+
+                acceptBtn.disabled = true;
+                acceptBtn.textContent = 'Registrando aceptación...';
+                try {
+                    const response = await fetch(`${API_URL}/api/legal/accept`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            acceptedDocuments: legalStatus.pending_documents
+                        })
+                    });
+                    const payload = await response.json();
+                    if (!response.ok) {
+                        throw new Error(payload.message || 'No se pudo registrar la aceptación legal.');
+                    }
+                    legalStatus = {
+                        requires_terms_acceptance: !!payload.requires_terms_acceptance,
+                        pending_documents: payload.pending_documents || []
+                    };
+                    renderLegalAcceptanceBanner();
+                    showCustomAlert('Aceptación legal registrada correctamente. Ya puedes operar con normalidad.');
+                } catch (error) {
+                    console.error('[Legal] Error al aceptar documentos:', error);
+                    showCustomAlert(error.message || 'No se pudo registrar la aceptación legal.');
+                } finally {
+                    const liveBtn = document.getElementById('accept-legal-docs-btn');
+                    if (liveBtn) {
+                        liveBtn.disabled = false;
+                        liveBtn.textContent = 'He leído y acepto';
+                    }
+                }
+            };
+        }
+
+        setCriticalActionButtonsDisabled(true);
+    }
+
+    async function loadLegalStatus() {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        try {
+            const response = await fetch(`${API_URL}/api/legal/status`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!response.ok) {
+                throw new Error('No se pudo verificar el estado legal.');
+            }
+            const payload = await response.json();
+            legalStatus = {
+                requires_terms_acceptance: !!payload.requires_terms_acceptance,
+                pending_documents: payload.pending_documents || []
+            };
+            renderLegalAcceptanceBanner();
+        } catch (error) {
+            console.error('[Legal] Error consultando estado legal:', error);
+        }
+    }
+
     // Show cached balances immediately
     if (elements.saldoBlue) elements.saldoBlue.innerHTML = formatBalance(localStorage.getItem('blue_balance'));
     if (elements.saldoEscrowBlue) elements.saldoEscrowBlue.innerHTML = formatBalance(localStorage.getItem('escrow_blue_balance'));
     if (elements.saldoRed) elements.saldoRed.innerHTML = formatBalance(localStorage.getItem('red_balance'));
 
     // Load data
+    loadLegalStatus();
     loadAllData();
     setupDropdowns();
     setupEventListeners();
