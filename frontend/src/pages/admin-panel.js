@@ -87,8 +87,6 @@ document.addEventListener('DOMContentLoaded', () => {
         auditLimitSelect: document.getElementById('auditLimitSelect'),
         auditApplyFiltersBtn: document.getElementById('auditApplyFiltersBtn'),
         auditExportCsvBtn: document.getElementById('auditExportCsvBtn'),
-        // -- DANGER ZONE --
-        resetDatabaseBtn: document.getElementById('resetDatabaseBtn'),
         // --- REFERIDOS ---
         referralsSettingsContainer: document.getElementById('referrals-settings-container'),
         referralsLogContainer: document.getElementById('referrals-log-container'),
@@ -104,7 +102,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Inicialización ---
     let platformPublicationsCache = [];
     let platformEditId = null;
+
+    // --- NUEVO: Estado Legal para Admin ---
+    let legalStatus = null;
     setupEventListeners();
+    checkLegalStatus();
     showSection('dashboard');
     refreshPlatformPendingBadge();
     setInterval(refreshPlatformPendingBadge, 30000);
@@ -113,16 +115,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function setupEventListeners() {
         elements.navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
-                // Si es un enlace externo o tiene target="_blank", no interceptar
-                if (link.getAttribute('href').startsWith('http') || link.getAttribute('target') === '_blank') {
-                    return;
-                }
+                const sectionId = link.dataset.section;
+                if (!sectionId) return; // Allow external links to work normally
 
                 e.preventDefault();
-                const sectionId = link.dataset.section;
-                if (sectionId) {
-                    showSection(sectionId);
-                }
+                showSection(sectionId);
             });
         });
 
@@ -335,11 +332,6 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.platformManagementList.addEventListener('click', handlePlatformAction);
         }
 
-        // -- DANGER ZONE --
-        if (elements.resetDatabaseBtn) {
-            elements.resetDatabaseBtn.addEventListener('click', handleResetDatabase);
-        }
-
         // Auditoria
         if (elements.auditApplyFiltersBtn) {
             elements.auditApplyFiltersBtn.addEventListener('click', () => {
@@ -389,12 +381,6 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (sectionId === 'boosters') showBoosterTab('boosters-dashboard');
         else if (sectionId === 'notifications') { /* No requiere carga inicial por ahora */ }
         else if (sectionId === 'audit-log') loadAuditLog();
-        else if (sectionId === 'database-management') {
-            loadDatabaseStats();
-            setTimeout(() => {
-                setupDatabaseCleanupListeners();
-            }, 200);
-        }
     }
 
     function showBoosterTab(tabId) {
@@ -454,6 +440,51 @@ document.addEventListener('DOMContentLoaded', () => {
             if (error.message === 'Sesión expirada o no autorizada.') throw error;
             console.error(`Error en apiFetch a ${endpoint}:`, error);
             throw error;
+        }
+    }
+
+    // --- Gestión Legal ---
+    async function checkLegalStatus() {
+        try {
+            // Intentamos obtener el estado legal para el usuario 'Plataforma WintonCoin'
+            // que es el que usa el admin para firmar transacciones de sistema.
+            const status = await apiFetch(`/api/legal-status?username=${encodeURIComponent('Plataforma WintonCoin')}`);
+            legalStatus = status;
+
+            if (status && status.requires_terms_acceptance) {
+                console.warn("Se requiere aceptación de términos para la plataforma.");
+                showLegalModal(status);
+            }
+        } catch (error) {
+            console.error("Error al verificar estado legal:", error);
+        }
+    }
+
+    function showLegalModal(status) {
+        // Reutilizamos la lógica del modal legal si existe en el DOM o mostramos un aviso
+        if (typeof window.showLegalAcceptanceModal === 'function') {
+            window.showLegalAcceptanceModal(status, async (acceptedDocs) => {
+                try {
+                    await apiFetch('/api/accept-legal', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            username: 'Plataforma WintonCoin',
+                            acceptedDocuments: acceptedDocs
+                        })
+                    });
+                    legalStatus.requires_terms_acceptance = false;
+                    showCustomAlert("Términos aceptados para la plataforma.");
+                } catch (err) {
+                    showCustomAlert("Error al aceptar términos: " + err.message);
+                }
+            });
+        } else {
+            // Fallback si el script legal no está cargado: aviso persistente
+            const banner = document.createElement('div');
+            banner.style.cssText = "position:fixed;top:0;left:0;right:0;background:var(--admin-warning);color:white;padding:1rem;text-align:center;z-index:9999;font-weight:bold;";
+            banner.innerHTML = `Acción requerida: Hay nuevos términos legales pendientes para la Plataforma. 
+                               <a href="index.html" style="color:white;text-decoration:underline;margin-left:1rem;">Ir al inicio para aceptar</a>`;
+            document.body.prepend(banner);
         }
     }
 
@@ -1323,47 +1354,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             showCustomAlert(`Error al realizar la acción: ${error.message}`);
         }
-    }
-
-    // --- DANGER ZONE ---
-    function handleResetDatabase() {
-        const sqlCommand = `
-TRUNCATE TABLE 
-    platform_commission_log, 
-    ratings, 
-    hidden_publications, 
-    publication_acceptances, 
-    transactions, 
-    notifications, 
-    blue_token_escrows, 
-    red_token_debts, 
-    publications 
-RESTART IDENTITY CASCADE;
-
-DELETE FROM users WHERE username != 'Plataforma WintonCoin';
-
-UPDATE platform_wallet SET total_blue_commission_balance = 0.0000 WHERE id = 1;
-
-UPDATE users SET 
-    liquid_blue_balance = 100.0000, 
-    escrow_blue_balance = 0.0000, 
-    red_balance = 0.0000,
-    average_rating = 0,
-    ratings_count = 0
-WHERE username = 'Plataforma WintonCoin';
-        `.trim();
-
-        showCustomConfirm(
-            "¿Estás seguro de que quieres reiniciar la base de datos? Esta acción eliminará permanentemente todos los datos de usuarios, publicaciones y transacciones.",
-            () => {
-                showCustomConfirm(
-                    "CONFIRMACIÓN FINAL: Esta acción no se puede deshacer. ¿Estás absolutamente seguro?",
-                    () => {
-                        showCustomAlert(`ACCIÓN MANUAL REQUERIDA:\n\n1. Ve al panel de tu base de datos en Render.\n2. Abre la pestaña 'Shell'.\n3. Copia y pega el siguiente comando completo y presiona Enter:\n\n${sqlCommand}`);
-                    }
-                );
-            }
-        );
     }
 
     // --- Helpers ---
@@ -2257,211 +2247,6 @@ WHERE username = 'Plataforma WintonCoin';
         `;
     }
 
-    // --- Database Management ---
-    function setupDatabaseCleanupListeners() {
-        const cleanupTestDataBtn = document.getElementById('cleanup-test-data-btn');
-        if (cleanupTestDataBtn) cleanupTestDataBtn.addEventListener('click', handleCleanupTestData);
-
-        const cleanupInactiveUsersBtn = document.getElementById('cleanup-inactive-users-btn');
-        if (cleanupInactiveUsersBtn) cleanupInactiveUsersBtn.addEventListener('click', handleCleanupInactiveUsers);
-
-        const cleanupOldPublicationsBtn = document.getElementById('cleanup-old-publications-btn');
-        if (cleanupOldPublicationsBtn) cleanupOldPublicationsBtn.addEventListener('click', handleCleanupOldPublications);
-
-        const createBackupBtn = document.getElementById('create-backup-btn');
-        if (createBackupBtn) createBackupBtn.addEventListener('click', handleCreateBackup);
-
-        const refreshStatsBtn = document.getElementById('refresh-db-stats');
-        if (refreshStatsBtn) refreshStatsBtn.addEventListener('click', handleRefreshStats);
-    }
-
-    function showDatabaseStatus(message, isError = false) {
-        const statusContainer = document.getElementById('database-status');
-        if (statusContainer) {
-            statusContainer.innerHTML = `
-                <div class="status-message ${isError ? 'status-error' : 'status-success'}">
-                    ${escapeHtml(message)}
-                </div>
-            `;
-            setTimeout(() => {
-                statusContainer.innerHTML = '';
-            }, 10000);
-        }
-    }
-
-    async function handleCleanupTestData() {
-        if (!confirm('¿Estás seguro de que quieres eliminar todos los datos de prueba? Esta acción no se puede deshacer.')) return;
-
-        const btn = document.getElementById('cleanup-test-data-btn');
-        const originalText = btn.textContent;
-        btn.textContent = 'Procesando...';
-        btn.disabled = true;
-
-        try {
-            const response = await apiFetch('/api/admin/database/cleanup-test-data', { method: 'POST' });
-            showDatabaseStatus(`✅ Limpieza exitosa: ${response.results.testUsersDeleted} usuarios de prueba y ${response.results.testPublicationsDeleted} publicaciones eliminadas.`);
-            loadDatabaseStats();
-        } catch (error) {
-            showDatabaseStatus(`❌ Error: ${error.message}`, true);
-        } finally {
-            btn.textContent = originalText;
-            btn.disabled = false;
-        }
-    }
-
-    async function handleCleanupInactiveUsers() {
-        const daysInput = document.getElementById('inactive-users-days');
-        const days = parseInt(daysInput ? daysInput.value : 90);
-
-        if (days < 30) {
-            showDatabaseStatus('❌ Por seguridad, no se pueden eliminar usuarios con menos de 30 días de inactividad', true);
-            return;
-        }
-
-        if (!confirm(`¿Estás seguro de que quieres eliminar usuarios inactivos por más de ${days} días? Esta acción no se puede deshacer.`)) return;
-
-        const btn = document.getElementById('cleanup-inactive-users-btn');
-        const originalText = btn.textContent;
-        btn.textContent = 'Procesando...';
-        btn.disabled = true;
-
-        try {
-            const result = await apiFetch('/api/admin/database/cleanup-inactive-users', {
-                method: 'POST',
-                body: JSON.stringify({ daysInactive: days })
-            });
-            showDatabaseStatus(`✅ Limpieza exitosa: ${result.results.usersDeleted} usuarios inactivos eliminados.`);
-            loadDatabaseStats();
-        } catch (error) {
-            showDatabaseStatus(`❌ Error: ${error.message}`, true);
-        } finally {
-            btn.textContent = originalText;
-            btn.disabled = false;
-        }
-    }
-
-    async function handleCleanupOldPublications() {
-        const daysInput = document.getElementById('old-publications-days');
-        const days = parseInt(daysInput ? daysInput.value : 180);
-
-        if (days < 90) {
-            showDatabaseStatus('❌ Por seguridad, no se pueden eliminar publicaciones con menos de 90 días de antigüedad', true);
-            return;
-        }
-
-        if (!confirm(`¿Estás seguro de que quieres eliminar publicaciones completadas hace más de ${days} días? Esta acción no se puede deshacer.`)) return;
-
-        const btn = document.getElementById('cleanup-old-publications-btn');
-        const originalText = btn.textContent;
-        btn.textContent = 'Procesando...';
-        btn.disabled = true;
-
-        try {
-            const result = await apiFetch('/api/admin/database/cleanup-old-publications', {
-                method: 'POST',
-                body: JSON.stringify({ daysOld: days })
-            });
-            showDatabaseStatus(`✅ Limpieza exitosa: ${result.results.publicationsDeleted} publicaciones antiguas eliminadas.`);
-            loadDatabaseStats();
-        } catch (error) {
-            showDatabaseStatus(`❌ Error: ${error.message}`, true);
-        } finally {
-            btn.textContent = originalText;
-            btn.disabled = false;
-        }
-    }
-
-    async function handleCreateBackup() {
-        const btn = document.getElementById('create-backup-btn');
-        const originalText = btn.textContent;
-        btn.textContent = 'Creando...';
-        btn.disabled = true;
-
-        try {
-            const result = await apiFetch('/api/admin/database/backup', { method: 'POST' });
-            showDatabaseStatus(`✅ Backup creado exitosamente: ${result.filename}`);
-        } catch (error) {
-            showDatabaseStatus(`❌ Error: ${error.message}`, true);
-        } finally {
-            btn.textContent = originalText;
-            btn.disabled = false;
-        }
-    }
-
-    async function handleRefreshStats() {
-        const btn = document.getElementById('refresh-db-stats');
-        const originalText = btn.textContent;
-        btn.textContent = '🔄 Actualizando...';
-        btn.disabled = true;
-
-        try {
-            await loadDatabaseStats();
-            showDatabaseStatus('✅ Estadísticas actualizadas correctamente');
-        } catch (error) {
-            showDatabaseStatus('❌ Error al actualizar las estadísticas', true);
-        } finally {
-            btn.textContent = originalText;
-            btn.disabled = false;
-        }
-    }
-
-    async function loadDatabaseStats() {
-        const statsContainer = document.getElementById('database-stats-container');
-
-        try {
-            if (statsContainer) statsContainer.innerHTML = '<div class="loading-spinner"></div>';
-
-            const stats = await apiFetch('/api/admin/database/stats');
-            updateDatabaseStatsDisplay(stats);
-        } catch (error) {
-            console.error('Error al cargar estadísticas de base de datos:', error);
-            if (statsContainer) statsContainer.innerHTML = '<p style="color: #e74c3c;">Error de conexión</p>';
-        }
-    }
-
-    function updateDatabaseStatsDisplay(stats) {
-        const statsContainer = document.getElementById('database-stats-container');
-        if (!statsContainer) return;
-
-        const statsHTML = `
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-number">${escapeHtml(stats.total_users || '0')}</div>
-                    <div class="stat-label">Usuarios Totales</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number">${escapeHtml(stats.test_users || '0')}</div>
-                    <div class="stat-label">Usuarios de Prueba</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number">${escapeHtml(stats.inactive_users || '0')}</div>
-                    <div class="stat-label">Usuarios Inactivos</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number">${escapeHtml(stats.total_publications || '0')}</div>
-                    <div class="stat-label">Publicaciones Totales</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number">${escapeHtml(stats.old_publications || '0')}</div>
-                    <div class="stat-label">Publicaciones Antiguas</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number">${escapeHtml(stats.total_transactions || '0')}</div>
-                    <div class="stat-label">Transacciones</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number">${escapeHtml(stats.total_notifications || '0')}</div>
-                    <div class="stat-label">Notificaciones</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number">${escapeHtml(stats.database_size || 'N/A')}</div>
-                    <div class="stat-label">Tamaño de BD</div>
-                </div>
-            </div>
-        `;
-
-        statsContainer.innerHTML = statsHTML;
-    }
     // --- Notifications Management ---
 
     // Configurar listener para el toggle de BroadCast

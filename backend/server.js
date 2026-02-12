@@ -1075,7 +1075,7 @@ async function startServer() {
         });
 
         // Ruta para Descartar a un usuario
-        app.post('/publications/:id/discard', requireAcceptedLegalByUsernameField(['discarderUsername']), async (req, res) => {
+        app.post('/publications/:id/discard', verifyAdminToken, requireAcceptedLegalByUsernameField(['discarderUsername']), async (req, res) => {
             const { id } = req.params;
             const { discarderUsername, userToDiscard } = req.body;
 
@@ -1143,7 +1143,7 @@ async function startServer() {
         });
 
         // Ruta para Aprobar a un usuario
-        app.post('/publications/:id/approve', requireAcceptedLegalByUsernameField(['approverUsername']), async (req, res) => {
+        app.post('/publications/:id/approve', verifyAdminToken, requireAcceptedLegalByUsernameField(['approverUsername']), async (req, res) => {
             const { id } = req.params;
             const { approverUsername, userToApprove } = req.body;
 
@@ -1303,7 +1303,7 @@ async function startServer() {
         });
 
         // Ruta para Confirmar y Pagar (REFACTORIZADA PARA MÁXIMA SEGURIDAD)
-        app.post('/publications/:id/confirm-payment', requireAcceptedLegalByUsernameField(['confirmerUsername']), async (req, res) => {
+        app.post('/publications/:id/confirm-payment', verifyAdminToken, requireAcceptedLegalByUsernameField(['confirmerUsername']), async (req, res) => {
             const pubId = req.params.id;
             const { confirmerUsername, workerUsername } = req.body;
 

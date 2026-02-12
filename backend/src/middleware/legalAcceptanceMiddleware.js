@@ -28,6 +28,20 @@ function requireAcceptedLegalForAuthenticatedUser() {
         }
 
         try {
+            // [SUPER-BYPASS ADMIN] Si el usuario tiene rol de administrador o nombre admin, 
+            // no requiere aceptación de términos de usuario final para gestionar la app.
+            if (req.user && (req.user.role === 'admin' || req.user.name === 'admin')) {
+                return next();
+            }
+
+            // [BEST PRACTICE] Exención para el usuario de sistema autenticado
+            const platformUsername = (process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin').toLowerCase();
+            const currentUsername = (req.user?.username || '').toLowerCase();
+
+            if (currentUsername === platformUsername) {
+                return next();
+            }
+
             const legalStatus = await getUserLegalStatusByUserId(pool, userId);
             if (legalStatus.requires_terms_acceptance) {
                 return legalBlockedResponse(res, legalStatus);
@@ -55,9 +69,26 @@ function requireAcceptedLegalByUsernameField(fieldNames = []) {
                 });
             }
 
+            // [SECURE] La exención legal por campo de texto solo se permite
+            // si el usuario está autenticado y su identidad coincide con la plataforma.
+            // O si el que realiza la acción es un Administrador autenticado.
+            const platformUsername = (process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin').toLowerCase();
+            const targetUsername = username.toLowerCase();
+
+            if (targetUsername === platformUsername) {
+                // 1. Si es Administrador, permitimos actuar como plataforma
+                if (req.user && (req.user.role === 'admin' || req.user.name === 'admin')) {
+                    return next();
+                }
+                // 2. Si es el usuario sistema autenticado, también
+                if (req.user && req.user.username && req.user.username.toLowerCase() === platformUsername) {
+                    return next();
+                }
+            }
+
             const userResult = await pool.query(
-                `SELECT id FROM users WHERE username = $1`,
-                [username]
+                `SELECT id FROM users WHERE LOWER(username) = $1`,
+                [targetUsername]
             );
 
             if (userResult.rowCount === 0) {
