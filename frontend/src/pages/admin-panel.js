@@ -1641,9 +1641,35 @@ document.addEventListener('DOMContentLoaded', () => {
         const maxRepeatText = Number.isFinite(Number(pub.max_repeat_per_user)) ? ` (máx ${pub.max_repeat_per_user})` : '';
         const repeatText = pub.allow_repeat_participation ? `Sí${maxRepeatText}` : 'No';
 
-        const participantsHTML = pub.participants && pub.participants.length > 0
-            ? `<ul class="participants-list-admin">${pub.participants.map(p => getParticipantItemForManagementHTML(pub.id, p)).join('')}</ul>`
-            : '<p class="no-participants" style="padding: 1rem; text-align: center; color: var(--admin-text-secondary);">Sin participantes por ahora.</p>';
+        let participantsHTML = '<p class="no-participants" style="padding: 1rem; text-align: center; color: var(--admin-text-secondary);">Sin participantes por ahora.</p>';
+
+        if (pub.participants && pub.participants.length > 0) {
+            const totalParticipants = pub.participants.length;
+            const limit = 3;
+
+            if (totalParticipants <= limit) {
+                participantsHTML = `<ul class="participants-list-admin">${pub.participants.map(p => getParticipantItemForManagementHTML(pub.id, p)).join('')}</ul>`;
+            } else {
+                const firstBatch = pub.participants.slice(0, limit);
+                const secondBatch = pub.participants.slice(limit);
+                const uniqueId = `more-participants-${pub.id}`;
+
+                const firstHTML = `<ul class="participants-list-admin" style="margin-bottom: 0;">${firstBatch.map(p => getParticipantItemForManagementHTML(pub.id, p)).join('')}</ul>`;
+                const secondHTML = `<ul class="participants-list-admin" id="${uniqueId}" style="display: none; margin-top: 0; border-top: none;">${secondBatch.map(p => getParticipantItemForManagementHTML(pub.id, p)).join('')}</ul>`;
+
+                const buttonHTML = `
+                    <div style="text-align: center; padding: 0.5rem; background: rgba(255, 255, 255, 0.05); border-radius: 0 0 8px 8px;">
+                        <button class="action-button-admin secondary small" 
+                                onclick="document.getElementById('${uniqueId}').style.display='block'; this.parentNode.style.display='none';"
+                                style="width: auto; padding: 4px 12px; font-size: 0.85rem;">
+                            Ver todos (${totalParticipants})
+                        </button>
+                    </div>
+                `;
+
+                participantsHTML = firstHTML + secondHTML + buttonHTML;
+            }
+        }
 
         const { mainText, steps } = splitDescriptionWithSteps(pub.description);
         const stepsHTML = renderAdminStepFlow(steps);

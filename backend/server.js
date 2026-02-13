@@ -3308,7 +3308,11 @@ async function startServer() {
                                 'average_rating', u_participant.average_rating,
                                 'ratings_count', u_participant.ratings_count,
                                 'form_responses', pa.form_responses
-                            ) ORDER BY pa.created_at)
+                            ) ORDER BY 
+                                CASE WHEN pa.status = 'pending' THEN 1 ELSE 2 END ASC,
+                                CASE WHEN pa.status = 'pending' THEN pa.created_at END ASC,
+                                pa.created_at DESC
+                            )
                             FROM publication_acceptances pa
                             JOIN users u_participant ON pa.acceptor_username = u_participant.username
                             WHERE pa.publication_id = p.id
