@@ -60,10 +60,10 @@ function initializeBoosterProfilePage() {
             return;
         }
 
-        const { current_level_info, next_level_info, total_booster_blue, booster_tasks_completed_count, transactions } = data;
+        const { current_level_info, next_level_info, all_levels, total_booster_blue, booster_tasks_completed_count, transactions } = data;
         const headerHTML = getHeaderHTML(current_level_info);
         const cardsHTML = getAllCardsHTML(data, total_booster_blue, booster_tasks_completed_count || 0);
-        const progressHTML = getProgressHTML(total_booster_blue, current_level_info, next_level_info);
+        const progressHTML = getProgressHTML(total_booster_blue, current_level_info, next_level_info, all_levels);
         const historyHTML = getHistoryHTML(transactions);
 
         elements.content.innerHTML = `${headerHTML}${cardsHTML}${progressHTML}${historyHTML}`;
@@ -113,12 +113,12 @@ function initializeBoosterProfilePage() {
         return `
             <div class="booster-stat-block booster-summary-card">
                 <div class="ranking-title">
-                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-total-blue">Total BLUE iou de Impulsor</span>
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-total-blue">Total BLUE iou Acumulado</span>
                 </div>
                 <div id="tooltip-total-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
                     <p>BLUE iou ganados por completar tareas de plataforma y referidos.</p>
                 </div>
-                <div class="ranking-position booster-total-highlight">${formatBalance(totalBlue)}</div>
+                <div class="ranking-position booster-total-highlight">${formatBalance(totalBlue)} BLUE iou</div>
             </div>
         `;
     }
@@ -195,26 +195,80 @@ function initializeBoosterProfilePage() {
         `;
     }
 
-    function getProgressHTML(totalBlue, currentLevel, nextLevel) {
-        if (!nextLevel) {
-            return `<div class="progress-section"><h3>¡Felicidades! Has alcanzado el nivel máximo.</h3></div>`;
-        }
-        const blueForNextLevel = parseFloat(nextLevel.min_blue_required);
-        const blueInCurrentLevel = totalBlue - parseFloat(currentLevel.min_blue_required);
-        const neededForNextLevel = blueForNextLevel - parseFloat(currentLevel.min_blue_required);
-        const progressPercentage = Math.min((blueInCurrentLevel / neededForNextLevel) * 100, 100);
-        const remaining = blueForNextLevel - totalBlue;
-        const remainingFormatted = formatBalancePlain(remaining);
+    function getProgressHTML(totalBlue, currentLevel, nextLevel, allLevels) {
+        if (!allLevels || allLevels.length === 0) return '';
+
+        // Extraer el bono para manejarlo por separado y evitar que tape la escalera
+        const level3Data = allLevels.find(l => l.level === 3);
+        const bonusHTML = level3Data ? `
+            <div class="booster-milestone-header">
+                <div class="bonus-card-premium">
+                    <span class="milestone-badge">META DE NIVEL 3</span>
+                    <div class="bonus-main-info">
+                        <span class="chest-icon">🎁</span>
+                        <div class="bonus-text">
+                            <span class="amount">+50.000<span class="decimal-part">0000</span> <span class="unit">BLUE iou</span></span>
+                        </div>
+                    </div>
+                    <p class="bonus-desc">Activable por tareas completadas o verificación de identidad de tus referidos.</p>
+                </div>
+            </div>
+        ` : '';
+
+        const sortedLevels = [...allLevels].sort((a, b) => b.level - a.level); // Cima a Base
+
+        const stepsHTML = sortedLevels.map((lvl, index) => {
+            const isCompleted = lvl.level < currentLevel.level;
+            const isActive = lvl.level === currentLevel.level;
+
+            let statusClass = isCompleted ? 'completed' : (isActive ? 'active' : 'locked');
+
+            const minBlue = parseFloat(lvl.min_blue_required);
+            const reqText = minBlue === 0 ? 'START' : `${formatBalance(minBlue)} <span class="unit">BLUE iou</span>`;
+            const compactName = lvl.name.replace(/IMPULSOR/gi, '').trim();
+
+            return `
+                <div class="staircase-step ${statusClass}" style="z-index: ${index};">
+                    <div class="step-base">
+                        <span class="step-requirement">${reqText}</span>
+                        <div class="step-label">
+                            <span class="step-number">${String(lvl.level).padStart(2, '0')}</span>
+                            ${compactName}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        const neededBlue = nextLevel ? parseFloat(nextLevel.min_blue_required) - totalBlue : 0;
+
         return `
             <div class="progress-section">
-                <h3 class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-progress">Progreso a ${nextLevel.name}</h3>
-                <div id="tooltip-progress" class="info-tooltip" role="tooltip" aria-hidden="true">
-                    <p>Te faltan <strong>${remainingFormatted} BLUE iou</strong> para ${nextLevel.name}. ¡No te quedes atrás, otros impulsores ya están subiendo!</p>
+                <h3 class="section-title-premium">BOOSTER RANKING SYSTEM</h3>
+                
+                ${bonusHTML}
+
+                <div class="staircase-wrapper">
+                    <div class="staircase-container">
+                        ${stepsHTML}
+                    </div>
                 </div>
-                <div class="progress-bar-container"><div class="progress-bar" style="width: ${progressPercentage}%;"></div></div>
-                <div class="progress-labels">
-                    <span>${formatBalance(totalBlue)} BLUE</span>
-                    <span>${formatBalance(blueForNextLevel)} BLUE</span>
+
+                <div class="progress-footer-premium">
+                    <div class="footer-stat-group">
+                        <span class="stat-label">TOTAL BLUE iou ACUMULADO</span>
+                        <span class="stat-value highlight">${formatBalance(totalBlue)} <span class="unit">BLUE iou</span></span>
+                    </div>
+                    ${nextLevel
+                ? `<div class="footer-stat-group align-right">
+                                <span class="stat-label">SIGUIENTE NIVEL IMPULSOR: ${nextLevel.name}</span>
+                                <span class="stat-value progress">FALTAN ${formatBalance(neededBlue)} <span class="unit">BLUE iou</span></span>
+                           </div>`
+                : `<div class="footer-stat-group align-right">
+                                <span class="stat-label">RANGO ALCANZADO</span>
+                                <span class="stat-value max">NIVEL MÁXIMO</span>
+                           </div>`
+            }
                 </div>
             </div>
         `;
@@ -222,26 +276,51 @@ function initializeBoosterProfilePage() {
 
     function getHistoryHTML(transactions) {
         if (!transactions || transactions.length === 0) {
-            return `<div class="history-section"><h2 class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-history">Historial de Actividades</h2><div id="tooltip-history" class="info-tooltip" role="tooltip" aria-hidden="true"><p>Registro detallado de tus ganancias como impulsor.</p></div><p class="empty-message">Aún no hay actividades registradas.</p></div>`;
+            return `
+                <div class="history-section">
+                    <h2 class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-history">Historial de Ganancias</h2>
+                    <div id="tooltip-history" class="info-tooltip" role="tooltip" aria-hidden="true">
+                        <p>Registro detallado de tus ganancias como impulsor.</p>
+                    </div>
+                    <p class="empty-message">Aún no hay actividades registradas.</p>
+                </div>
+            `;
         }
+
         const historyRows = transactions.map(entry => {
             const amount = Number(entry.amount) || 0;
             const sign = amount >= 0 ? '+' : '−';
             const absAmount = Math.abs(amount);
             const rawDescription = (entry.description || '').toString();
             const description = rawDescription.startsWith('Backfill:') ? 'Ajuste de saldo histórico' : (rawDescription || '(Sin descripción)');
-            return `<tr><td>${new Date(entry.created_at).toLocaleDateString('es-ES')}</td><td>${description}</td><td class="saldo-blue-text">${sign}${formatBalance(absAmount)}</td></tr>`;
+
+            return `
+                <tr>
+                    <td>${new Date(entry.created_at).toLocaleDateString('es-ES')}</td>
+                    <td>${description}</td>
+                    <td class="saldo-blue-text">${sign}${formatBalance(absAmount)}</td>
+                </tr>
+            `;
         }).join('');
+
         return `
             <div class="history-section">
                 <h2 class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-history">Historial de Ganancias</h2>
                 <div id="tooltip-history" class="info-tooltip" role="tooltip" aria-hidden="true">
                     <p>Registro detallado de tus ganancias como impulsor.</p>
                 </div>
-                <div class="table-container">
+                <div class="history-table-wrapper">
                     <table id="booster-history-table">
-                        <thead><tr><th>Fecha</th><th>Descripción</th><th>BLUE Ganado</th></tr></thead>
-                        <tbody>${historyRows}</tbody>
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Descripción</th>
+                                <th>Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${historyRows}
+                        </tbody>
                     </table>
                 </div>
             </div>
@@ -254,7 +333,7 @@ function initializeBoosterProfilePage() {
         const [intPart, decPart] = fixed.split('.');
         // Agregar separador de miles manualmente
         const intWithSeparator = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        return `${intWithSeparator},<span class="decimal-part">${decPart}</span>`;
+        return `${intWithSeparator}, <span class="decimal-part">${decPart}</span>`;
     }
 
     function formatBalancePlain(value) {
@@ -262,7 +341,7 @@ function initializeBoosterProfilePage() {
         const fixed = num.toFixed(4);
         const [intPart, decPart] = fixed.split('.');
         const intWithSeparator = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-        return `${intWithSeparator},${decPart}`;
+        return `${intWithSeparator},${decPart} `;
     }
 
     function formatInteger(value) {
@@ -272,7 +351,7 @@ function initializeBoosterProfilePage() {
     function formatDelta(value) {
         const numeric = Number(value) || 0;
         const sign = numeric > 0 ? '+' : '';
-        return `${sign}${formatBalance(numeric)}`;
+        return `${sign}${formatBalance(numeric)} `;
     }
 
     function initializeBoosterTooltips() {
@@ -337,12 +416,12 @@ function initializeBoosterProfilePage() {
             const angle = Math.random() * Math.PI * 2;
             const distance = 40 + Math.random() * 70;
             particle.className = 'firework-particle';
-            particle.style.width = `${size}px`;
-            particle.style.height = `${size}px`;
+            particle.style.width = `${size} px`;
+            particle.style.height = `${size} px`;
             particle.style.background = colors[i % colors.length];
-            particle.style.setProperty('--fx-x', `${Math.cos(angle) * distance}px`);
-            particle.style.setProperty('--fx-y', `${Math.sin(angle) * distance}px`);
-            particle.style.animationDelay = `${Math.random() * 0.4}s`;
+            particle.style.setProperty('--fx-x', `${Math.cos(angle) * distance} px`);
+            particle.style.setProperty('--fx-y', `${Math.sin(angle) * distance} px`);
+            particle.style.animationDelay = `${Math.random() * 0.4} s`;
             container.appendChild(particle);
             setTimeout(() => particle.remove(), 4200);
         }

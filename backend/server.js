@@ -92,9 +92,10 @@ app.use(cors({
         if (!origin) return callback(null, true);
 
         // ✅ Dev convenience (sin bajar seguridad en producción):
-        // Permitimos cualquier localhost/127.0.0.1 con cualquier puerto SOLO fuera de producción.
+        // Permitimos cualquier localhost/127.0.0.1 o IP de red local con cualquier puerto SOLO fuera de producción.
         if (process.env.NODE_ENV !== 'production') {
             const isLocalhostOrigin = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+            const isLanOrigin = /^http:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin);
             if (isLocalhostOrigin || isLanOrigin) return callback(null, true);
         }
 
@@ -3625,8 +3626,10 @@ async function startServer() {
             await executeBoosterPayments();
         }, BOOSTER_PAYMENT_INTERVAL_MS);
 
-        app.listen(PORT, () => {
-            console.log(`Servidor corriendo en http://localhost:${PORT}`);
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`Servidor corriendo en:`);
+            console.log(`- Local: http://localhost:${PORT}`);
+            console.log(`- Red:   http://192.168.100.7:${PORT} (Usa esta en tu teléfono)`);
         });
 
     } catch (err) {
@@ -5091,6 +5094,7 @@ app.get('/api/users/:username/booster-profile', async (req, res) => {
             next_level_info: nextLevelInfo,
             booster_tasks_completed_count: tasksCompleted,
             transactions: ledgerHistoryResult.rows,
+            all_levels: allLevels,
             rank_position: rankData?.rank_position || null,
             rank_total: rankData?.rank_total || null,
             rank_percentile: rankData?.rank_percentile || null,
@@ -5208,6 +5212,7 @@ app.get('/api/me/booster-profile', verifyUserToken, async (req, res) => {
             next_level_info: nextLevelInfo,
             booster_tasks_completed_count: tasksCompleted,
             transactions: ledgerHistoryResult.rows,
+            all_levels: allLevels,
             rank_position: rankData?.rank_position || null,
             rank_total: rankData?.rank_total || null,
             rank_percentile: rankData?.rank_percentile || null,
