@@ -14,8 +14,11 @@ import {
 } from '../modules/index.js';
 import { initPWAInstall } from '../modules/pwa-install.js';
 import { initOnboarding, restartTour } from '../modules/onboarding.js';
-import { registerPushNotifications } from '../modules/pushManager.js';
+import { initNotificationGate } from '../modules/notificationGate.js';
 import { initializeNotificationSettings } from '../modules/notificationSettings.js';
+// ...
+// ...
+
 
 // Expose functions globally for backward compatibility
 window.getApiUrl = getApiUrl;
@@ -250,10 +253,9 @@ document.addEventListener('DOMContentLoaded', () => {
     checkPublicationPermissions();
     loadReferralSettings();
     setupShareReferral();
-    loadReferralSettings();
-    setupShareReferral();
+
     initPWAInstall(); // Inicializar botón de instalación PWA
-    registerPushNotifications(); // Inicializar notificaciones push
+    initNotificationGate(); // Inicializar GATE de notificaciones (Muro de Seguridad)
     initializeNotificationSettings(); // Inicializar configuración de notificaciones
     setupWalletTabs(); // Inicializar tabs de billetera/impulsor
 
