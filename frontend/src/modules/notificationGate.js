@@ -6,8 +6,9 @@ const styles = `
     position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
+    width: 100vw;
+    height: 100vh;      /* Fallback para navegadores viejos */
+    height: 100dvh;     /* Altura dinámica exacta para móviles */
     background-color: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(5px);
     z-index: 99999;
@@ -16,7 +17,8 @@ const styles = `
     justify-content: center;
     align-items: center;
     text-align: center;
-    padding: 20px;
+    padding: 0;         /* Quitamos padding del contenedor padre */
+    box-sizing: border-box;
     font-family: 'Poppins', sans-serif;
     animation: fadeIn 0.3s ease-out;
 }
@@ -30,9 +32,12 @@ const styles = `
     background: white;
     padding: 30px;
     border-radius: 24px;
-    max-width: 400px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+    max-width: 90%;      /* Ancho responsivo */
+    width: 380px;        /* Ancho ideal */
+    margin: 20px;        /* Margen de seguridad contra bordes */
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
     border: 1px solid rgba(0,0,0,0.05);
+    box-sizing: border-box;
 }
 
 .gate-icon {
