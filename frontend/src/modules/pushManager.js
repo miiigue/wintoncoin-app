@@ -127,6 +127,12 @@ async function sendSubscriptionToServer(subscription) {
 
     } catch (error) {
         console.error('[PUSH] Fallo al enviar al servidor:', error);
+
+        // ESTRATEGIA PROFESIONAL (Retry Pattern):
+        // Si falla la red, guardamos para reintentar automáticamente después.
+        // Esto asegura que NUNCA se pierda una suscripción aprobada.
+        console.log('[PUSH] ⚠️ Error de red/servidor. Guardando en cola local para reintento...');
+        localStorage.setItem('pendingPushSubscription', JSON.stringify(subscription));
     }
 }
 

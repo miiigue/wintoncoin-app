@@ -180,8 +180,8 @@ function getUIConfig(state) {
         default:
             return {
                 icon: '🔔',
-                title: 'Por seguridad',
-                text: 'Activa las notificaciones para mantenerte informado sobre tus transacciones.',
+                title: 'No te pierdas de nada',
+                text: 'Activa las notificaciones para recibir alertas de tus transacciones, novedades de la comunidad y actualizaciones importantes.',
                 btnText: 'Sí, Activar Alertas',
                 action: 'request',
                 showButton: true,
