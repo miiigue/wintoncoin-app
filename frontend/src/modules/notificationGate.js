@@ -1,210 +1,178 @@
 import { registerPushNotifications } from './pushManager.js';
 
-/**
- * Módulo: Notification Gate (Friendly UI)
- * Propósito: Invitar amigablemente al usuario a activar notificaciones.
- * Diseño: Azul confianza, Glassmorphism, lenguaje positivo.
- */
-
-const gateStyles = `
+// Estilos del muro (Overlay Amigable)
+const styles = `
 .notification-gate-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    /* Fondo Glassmorphism amigable */
-    background: rgba(10, 25, 50, 0.85); 
-    backdrop-filter: blur(8px);
-    z-index: 20000;
-    display: flex; flex-direction: column; justify-content: center; align-items: center;
-    font-family: 'Inter', system-ui, sans-serif;
-    animation: fadeInOverlay 0.5s ease-out;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(5px);
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+    font-family: 'Poppins', sans-serif;
+    animation: fadeIn 0.3s ease-out;
 }
 
-@keyframes fadeInOverlay { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
 
 .gate-content {
-    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); /* Azul Profundo Profesional */
-    padding: 40px 30px; 
+    background: white;
+    padding: 30px;
     border-radius: 24px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
-    max-width: 420px; width: 90%;
-    text-align: center;
-    color: white;
-    transform-origin: center;
-    animation: floatIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+    max-width: 400px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0,0,0,0.05);
 }
 
-@keyframes floatIn {
-    from { opacity: 0; transform: translateY(30px) scale(0.95); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+.gate-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+    display: block;
+    animation: float 3s ease-in-out infinite;
 }
 
-.gate-icon-wrapper {
-    width: 80px; height: 80px;
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 25px auto;
-    font-size: 36px;
-    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-    border: 1px solid rgba(255,255,255,0.2);
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
 }
 
-.gate-title { 
-    font-size: 24px; font-weight: 700; margin-bottom: 12px; 
-    color: #ffffff;
-    letter-spacing: -0.5px;
+.gate-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #333;
 }
 
-.gate-text { 
-    font-size: 15px; line-height: 1.6; margin-bottom: 30px; 
-    color: rgba(255, 255, 255, 0.9); 
+.gate-text {
+    font-size: 15px;
+    line-height: 1.5;
+    margin-bottom: 25px;
+    color: #666;
 }
 
 .gate-btn {
-    background: white; 
-    color: #1e3c72; 
-    border: none; padding: 16px 32px;
-    font-size: 16px; font-weight: 700; border-radius: 50px; cursor: pointer;
-    width: 100%; 
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-    transition: transform 0.2s, box-shadow 0.2s;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    background: #4F46E5; /* Soft Indigo */
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    font-size: 16px;
+    font-weight: 500;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
 }
 
-.gate-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
-.gate-btn:active { transform: translateY(0); }
+.gate-btn:hover {
+    background: #4338ca;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(79, 70, 229, 0.3);
+}
 
-.gate-tech-note {
-    margin-top: 25px; font-size: 13px; color: rgba(255,255,255,0.5);
-    background: rgba(0,0,0,0.2); padding: 10px 15px; border-radius: 10px;
+.gate-refresh-link {
+    margin-top: 15px;
+    font-size: 13px;
+    color: #999;
+    cursor: pointer;
+    text-decoration: underline;
+    background: none;
+    border: none;
 }
 `;
 
 export async function initNotificationGate() {
-    if (!document.getElementById('gate-styles')) {
-        const styleSheet = document.createElement("style");
-        styleSheet.id = 'gate-styles';
-        styleSheet.innerText = gateStyles;
-        document.head.appendChild(styleSheet);
-    }
-    evaluateEnvironmentAndPermissions();
+    // 1. Inyectar estilos
+    const styleSheet = document.createElement("style");
+    styleSheet.innerText = styles;
+    document.head.appendChild(styleSheet);
+
+    // 2. Verificar estado actual
+    checkPermissionAndGate();
 }
 
-function evaluateEnvironmentAndPermissions() {
-    if (!window.isSecureContext) {
-        renderGate('insecure');
-        return;
-    }
-    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-        renderGate('unsupported');
-        return;
-    }
+function checkPermissionAndGate() {
+    if (!('Notification' in window)) return;
 
     const permission = Notification.permission;
+
     if (permission === 'granted') {
-        closeGate();
-        registerPushNotifications().catch(console.error);
-    } else if (permission === 'denied') {
-        renderGate('denied');
-    } else {
-        renderGate('default');
+        removeGate();
+        registerPushNotifications();
+        return;
     }
+
+    // Mostrar Gate (tanto para default como denied)
+    showGate(permission === 'denied');
 }
 
-function renderGate(state) {
-    const existing = document.querySelector('.notification-gate-overlay');
-    if (existing) existing.remove();
-
-    const config = getUIConfig(state);
+function showGate(isDenied) {
+    if (document.querySelector('.notification-gate-overlay')) return;
 
     const overlay = document.createElement('div');
     overlay.className = 'notification-gate-overlay';
 
+    // Contenido Ligero y Positivo
+    const icon = isDenied ? '⚙️' : '🔔';
+    const title = isDenied ? 'Permisos necesarios' : 'Activar Notificaciones';
+
+    const text = isDenied
+        ? 'Para brindarte la mejor experiencia, necesitamos que habilites las notificaciones en la configuración de tu navegador.'
+        : 'Recibe actualizaciones importantes sobre tu cuenta en tiempo real.';
+
+    const btnText = isDenied ? 'Hecho, recargar página' : 'Continuar';
+
     overlay.innerHTML = `
         <div class="gate-content">
-            <div class="gate-icon-wrapper">
-                <span>${config.icon}</span>
-            </div>
-            <h2 class="gate-title">${config.title}</h2>
-            <p class="gate-text">${config.text}</p>
-            
-            ${config.showButton ? `<button class="gate-btn" id="gate-main-btn">${config.btnText}</button>` : ''}
-            
-            ${config.extraHtml ? config.extraHtml : ''}
+            <span class="gate-icon">${icon}</span>
+            <h2 class="gate-title">${title}</h2>
+            <p class="gate-text">${text}</p>
+            <button class="gate-btn" id="gate-action-btn">${btnText}</button>
+            ${isDenied ? '<button class="gate-refresh-link" onclick="window.location.reload()">¿Necesitas ayuda?</button>' : ''}
         </div>
     `;
 
     document.body.appendChild(overlay);
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden'; // Evitar scroll
 
-    const btn = document.getElementById('gate-main-btn');
-    if (btn) {
-        btn.addEventListener('click', async () => {
-            if (config.action === 'request') {
-                await requestPermissionStrict();
-            } else if (config.action === 'reload') {
-                window.location.reload();
-            }
-        });
-    }
+    document.getElementById('gate-action-btn').addEventListener('click', async () => {
+        if (isDenied) {
+            window.location.reload();
+        } else {
+            await requestPermissionFromGate();
+        }
+    });
 }
 
-function getUIConfig(state) {
-    switch (state) {
-        case 'insecure':
-            return {
-                icon: '🔒',
-                title: 'Conexión Privada Requerida',
-                text: 'Por tu seguridad, esta función solo está disponible en conexiones HTTPS seguras.<br><br><b>Nota Desarrollo:</b> Usa localhost o despliega en Hostinger/Vercel.',
-                showButton: false,
-                extraHtml: `<div class="gate-tech-note">URL detectada: ${window.location.protocol}//${window.location.host}</div>`
-            };
-        case 'unsupported':
-            return {
-                icon: '📱',
-                title: 'Navegador No Compatible',
-                text: 'Para la mejor experiencia, te recomendamos usar Chrome en Android o Safari en iOS (agregando a Inicio).',
-                showButton: false
-            };
-        case 'denied':
-            return {
-                icon: '⚙️',
-                title: 'Notificaciones Desactivadas',
-                text: 'Parece que las notificaciones están bloqueadas en tu navegador. Para recibir tus alertas, necesitas habilitarlas manualmente.',
-                btnText: 'Recargar Página',
-                action: 'reload',
-                showButton: true,
-                extraHtml: `<div class="gate-tech-note">Tip: Toca el candado 🔒 en la barra de dirección > Permisos > Reset</div>`
-            };
-        case 'default':
-        default:
-            return {
-                icon: '🔔',
-                title: 'No te pierdas de nada',
-                text: 'Activa las notificaciones para recibir alertas de tus transacciones, novedades de la comunidad y actualizaciones importantes.',
-                btnText: 'Sí, Activar Alertas',
-                action: 'request',
-                showButton: true,
-                extraHtml: ''
-            };
-    }
-}
-
-async function requestPermissionStrict() {
+async function requestPermissionFromGate() {
     try {
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
-            closeGate();
+            removeGate();
             await registerPushNotifications();
         } else {
-            renderGate('denied');
+            // Si rechaza, recargamos la interfaz para mostrar el estado "denegado" (opcional, o mantenemos el gate)
+            document.querySelector('.notification-gate-overlay').remove();
+            showGate(true);
         }
     } catch (error) {
-        console.error("Error solicitando permiso:", error);
+        console.error("Error:", error);
     }
 }
 
-function closeGate() {
+function removeGate() {
     const overlay = document.querySelector('.notification-gate-overlay');
     if (overlay) overlay.remove();
     document.body.style.overflow = '';
