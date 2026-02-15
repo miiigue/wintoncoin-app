@@ -144,7 +144,7 @@ function showGate(isDenied) {
     const title = isDenied ? 'Notificaciones Bloqueadas' : 'Activar Notificaciones';
 
     const text = isDenied
-        ? 'Has bloqueado las notificaciones. Para continuar:<br><br><strong>1. Toca el candado 🔒 (barra de dirección).<br>2. Configuración del sitio > Permisos.<br>3. Permite "Notificaciones" y regresa aquí.</strong>'
+        ? 'Has bloqueado las notificaciones. Para continuar:<br><br><strong>1. Toca el candado 🔒 o ajustes en la barra de dirección.<br>2. Selecciona "Permisos" (icono 🎛️ o ⚙️).<br>3. Activa "Notificaciones" y regresa aquí.</strong>'
         : 'Recibe actualizaciones importantes sobre tu cuenta en tiempo real.';
 
     const btnText = isDenied ? 'Ya las habilité' : 'Continuar';
