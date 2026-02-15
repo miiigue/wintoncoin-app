@@ -133,37 +133,169 @@ function checkPermissionAndGate() {
     return false;
 }
 
+// Wizard State
+let currentStep = 0;
+const wizardSteps = [
+    {
+        title: "Paso 1: Toca el Candado",
+        text: "En la barra de dirección de tu navegador, toca el icono del <strong>Candado 🔒</strong> o Ajustes.",
+        img: "assets/images/tutorial/step1_lock.png",
+        icon: "🔒"
+    },
+    {
+        title: "Paso 2: Permisos",
+        text: "En el menú que se abre, busca y selecciona <strong>'Permisos'</strong> (icono 🎛️ o ⚙️).",
+        img: "assets/images/tutorial/step2_permissions.png",
+        icon: "🎛️"
+    },
+    {
+        title: "Paso 3: Activar",
+        text: "Busca 'Notificaciones' y <strong>Activa el interruptor</strong> 🟢 para habilitarlas.",
+        img: "assets/images/tutorial/step3_toggle.png",
+        icon: "🔔"
+    }
+];
+
 function showGate(isDenied) {
     if (document.querySelector('.notification-gate-overlay')) return;
 
+    // Si NO está denegado (primera vez), mostrar prompt simple
+    if (!isDenied) {
+        showSimpleGate();
+        return;
+    }
+
+    // Si ESTÁ denegado, mostrar Wizard
+    showWizardGate();
+}
+
+function showSimpleGate() {
+    const overlay = document.createElement('div');
+    overlay.className = 'notification-gate-overlay';
+    overlay.innerHTML = `
+        <div class="gate-content">
+            <span class="gate-icon">🔔</span>
+            <h2 class="gate-title">Activar Notificaciones</h2>
+            <p class="gate-text">Recibe actualizaciones importantes sobre tu cuenta en tiempo real.</p>
+            <button class="gate-btn" id="gate-action-btn">Continuar</button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+
+    document.getElementById('gate-action-btn').addEventListener('click', async () => {
+        await requestPermissionFromGate();
+    });
+}
+
+function showWizardGate() {
     const overlay = document.createElement('div');
     overlay.className = 'notification-gate-overlay';
 
-    // Contenido Ligero y Positivo
-    const icon = isDenied ? '🔒' : '🔔';
-    const title = isDenied ? 'Notificaciones Bloqueadas' : 'Activar Notificaciones';
-
-    const text = isDenied
-        ? 'Has bloqueado las notificaciones. Para continuar:<br><br><strong>1. Toca el candado 🔒 o ajustes en la barra de dirección.<br>2. Selecciona "Permisos" (icono 🎛️ o ⚙️).<br>3. Activa "Notificaciones" y regresa aquí.</strong>'
-        : 'Recibe actualizaciones importantes sobre tu cuenta en tiempo real.';
-
-    const btnText = isDenied ? 'Ya las habilité' : 'Continuar';
+    // CSS dinámico para el Wizard
+    const wizardStyles = `
+        <style>
+            .gate-wizard-img-container {
+                width: 100%;
+                height: 160px;
+                background: #f0f2f5;
+                border-radius: 12px;
+                margin-bottom: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+            }
+            .gate-wizard-img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+            .gate-wizard-placeholder {
+                font-size: 50px;
+                opacity: 0.3;
+            }
+            .gate-dots {
+                display: flex;
+                justify-content: center;
+                gap: 6px;
+                margin-bottom: 20px;
+            }
+            .gate-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: #e0e0e0;
+                transition: all 0.3s ease;
+            }
+            .gate-dot.active {
+                background: #4F46E5;
+                width: 24px;
+                border-radius: 4px;
+            }
+            .gate-nav {
+                display: flex;
+                gap: 12px;
+            }
+            .gate-btn-secondary {
+                background: #f3f4f6;
+                color: #4b5563;
+                border: none;
+                padding: 12px 20px;
+                font-size: 16px;
+                font-weight: 500;
+                border-radius: 12px;
+                cursor: pointer;
+                flex: 1;
+            }
+        </style>
+    `;
 
     overlay.innerHTML = `
+        ${wizardStyles}
         <div class="gate-content">
-            <span class="gate-icon">${icon}</span>
-            <h2 class="gate-title">${title}</h2>
-            <p class="gate-text">${text}</p>
-            <button class="gate-btn" id="gate-action-btn">${btnText}</button>
-            ${isDenied ? '<div id="gate-msg" style="margin-top:10px; font-size:12px; color:#666;">Esperando cambio de permisos...</div>' : ''}
+            <div id="wizard-step-container">
+                <!-- Inyectado por JS -->
+            </div>
+            
+            <div class="gate-dots" id="wizard-dots">
+                <!-- Dots dinámicos -->
+            </div>
+
+            <div class="gate-nav">
+                <button class="gate-btn-secondary" id="wizard-prev" style="display:none">Atrás</button>
+                <button class="gate-btn" id="wizard-next">Siguiente</button>
+            </div>
+            
+            <div id="gate-msg" style="margin-top:15px; font-size:12px; color:#666; display:none"></div>
         </div>
     `;
 
     document.body.appendChild(overlay);
-    document.body.style.overflow = 'hidden'; // Evitar scroll
+    document.body.style.overflow = 'hidden';
 
-    // Listener automático para detectar el desbloqueo sin recargar (Chrome/Edge)
-    if (isDenied && 'permissions' in navigator) {
+    // Inicializar lógica
+    currentStep = 0;
+    renderWizardStep();
+
+    document.getElementById('wizard-next').addEventListener('click', () => {
+        if (currentStep < wizardSteps.length - 1) {
+            currentStep++;
+            renderWizardStep();
+        } else {
+            checkPermissionsAndFinish();
+        }
+    });
+
+    document.getElementById('wizard-prev').addEventListener('click', () => {
+        if (currentStep > 0) {
+            currentStep--;
+            renderWizardStep();
+        }
+    });
+
+    // Auto-detectar cambios
+    if ('permissions' in navigator) {
         navigator.permissions.query({ name: 'notifications' }).then(status => {
             status.onchange = () => {
                 if (status.state === 'granted') {
@@ -174,27 +306,61 @@ function showGate(isDenied) {
             };
         }).catch(() => { });
     }
+}
 
-    document.getElementById('gate-action-btn').addEventListener('click', async () => {
-        if (isDenied) {
-            // Verificar estado actual
-            if (Notification.permission === 'granted') {
-                removeGate();
-                await registerPushNotifications();
-                if (gateResolver) gateResolver();
-            } else {
-                // Si sigue bloqueado, forzar recarga para asegurar que el navegador actualice
-                const msg = document.getElementById('gate-msg');
-                if (msg) {
-                    msg.innerHTML = 'Recargando para verificar...';
-                    msg.style.color = '#4F46E5';
-                }
-                setTimeout(() => window.location.reload(), 800);
-            }
-        } else {
-            await requestPermissionFromGate();
+function renderWizardStep() {
+    const step = wizardSteps[currentStep];
+    const container = document.getElementById('wizard-step-container');
+    const dotsContainer = document.getElementById('wizard-dots');
+    const nextBtn = document.getElementById('wizard-next');
+    const prevBtn = document.getElementById('wizard-prev');
+
+    // Contenido del paso (con fallback de icono si la imagen falla)
+    container.innerHTML = `
+        <div class="gate-wizard-img-container">
+            <img src="${step.img}" class="gate-wizard-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+            <div class="gate-wizard-placeholder" style="display:none">${step.icon}</div>
+        </div>
+        <h2 class="gate-title">${step.title}</h2>
+        <p class="gate-text" style="min-height: 50px;">${step.text}</p>
+    `;
+
+    // Dots
+    dotsContainer.innerHTML = wizardSteps.map((_, idx) =>
+        `<div class="gate-dot ${idx === currentStep ? 'active' : ''}"></div>`
+    ).join('');
+
+    // Botones
+    prevBtn.style.display = currentStep === 0 ? 'none' : 'block';
+
+    if (currentStep === wizardSteps.length - 1) {
+        nextBtn.textContent = "Ya las habilité";
+        nextBtn.style.background = "#10B981"; // Green
+    } else {
+        nextBtn.textContent = "Siguiente";
+        nextBtn.style.background = "#4F46E5"; // Indigo
+    }
+}
+
+async function checkPermissionsAndFinish() {
+    if (Notification.permission === 'granted') {
+        removeGate();
+        await registerPushNotifications();
+        if (gateResolver) gateResolver();
+    } else {
+        const msg = document.getElementById('gate-msg');
+        if (msg) {
+            msg.innerHTML = '⚠️ Aún aparecen bloquedas. Si ya cambiaste el ajuste, pulsa aquí para recargar.';
+            msg.style.display = 'block';
+            msg.style.cursor = 'pointer';
+            msg.onclick = () => window.location.reload();
         }
-    });
+        // Animación "shake"
+        const btn = document.getElementById('wizard-next');
+        btn.style.transform = "translateX(5px)";
+        setTimeout(() => btn.style.transform = "translateX(-5px)", 100);
+        setTimeout(() => btn.style.transform = "none", 200);
+    }
 }
 
 async function requestPermissionFromGate() {
