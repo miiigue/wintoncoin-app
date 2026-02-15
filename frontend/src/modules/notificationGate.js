@@ -137,6 +137,12 @@ function checkPermissionAndGate() {
 let currentStep = 0;
 const wizardSteps = [
     {
+        title: "Ayúdanos a protegerte 🛡️",
+        text: "Las notificaciones son <strong>indispensables</strong> para la seguridad de tu cuenta y confirmar transacciones.<br><br>Parece que están bloqueadas. Te explicamos cómo activarlas en unos segundos.",
+        img: "assets/images/tutorial/intro_security.png",
+        icon: "🛡️"
+    },
+    {
         title: "Paso 1: Toca el Candado",
         text: "En la barra de dirección de tu navegador, toca el icono del <strong>Candado 🔒</strong> o Ajustes.",
         img: "assets/images/tutorial/step1_lock.png",
@@ -333,7 +339,10 @@ function renderWizardStep() {
     // Botones
     prevBtn.style.display = currentStep === 0 ? 'none' : 'block';
 
-    if (currentStep === wizardSteps.length - 1) {
+    if (currentStep === 0) {
+        nextBtn.textContent = "Mostrarme cómo";
+        nextBtn.style.background = "#4F46E5";
+    } else if (currentStep === wizardSteps.length - 1) {
         nextBtn.textContent = "Ya las habilité";
         nextBtn.style.background = "#10B981"; // Green
     } else {
