@@ -98,29 +98,39 @@ const styles = `
 }
 `;
 
-export async function initNotificationGate() {
-    // 1. Inyectar estilos
-    const styleSheet = document.createElement("style");
-    styleSheet.innerText = styles;
-    document.head.appendChild(styleSheet);
+let gateResolver = null;
 
-    // 2. Verificar estado actual
-    checkPermissionAndGate();
+export function initNotificationGate() {
+    return new Promise((resolve) => {
+        // 1. Inyectar estilos
+        const styleSheet = document.createElement("style");
+        styleSheet.innerText = styles;
+        document.head.appendChild(styleSheet);
+
+        // 2. Verificar estado actual
+        const alreadyGranted = checkPermissionAndGate();
+        if (alreadyGranted) {
+            resolve();
+        } else {
+            gateResolver = resolve;
+        }
+    });
 }
 
 function checkPermissionAndGate() {
-    if (!('Notification' in window)) return;
+    if (!('Notification' in window)) return true; // Si no soporta, pasa
 
     const permission = Notification.permission;
 
     if (permission === 'granted') {
         removeGate();
         registerPushNotifications();
-        return;
+        return true;
     }
 
     // Mostrar Gate (tanto para default como denied)
     showGate(permission === 'denied');
+    return false;
 }
 
 function showGate(isDenied) {
@@ -167,6 +177,8 @@ async function requestPermissionFromGate() {
         if (permission === 'granted') {
             removeGate();
             await registerPushNotifications();
+            // Resolver promesa para continuar flujo (ej: Tour)
+            if (gateResolver) gateResolver();
         } else {
             // Si rechaza, recargamos la interfaz para mostrar el estado "denegado" (opcional, o mantenemos el gate)
             document.querySelector('.notification-gate-overlay').remove();

@@ -255,12 +255,17 @@ document.addEventListener('DOMContentLoaded', () => {
     setupShareReferral();
 
     initPWAInstall(); // Inicializar botón de instalación PWA
-    initNotificationGate(); // Inicializar GATE de notificaciones (Muro de Seguridad)
-    initializeNotificationSettings(); // Inicializar configuración de notificaciones
-    setupWalletTabs(); // Inicializar tabs de billetera/impulsor
 
-    // Iniciar tour de bienvenida si corresponde
-    setTimeout(initOnboarding, 500);
+    initializeNotificationSettings();
+    setupWalletTabs(); // Configurar listeners
+
+    // SECUENCIA DE INICIO ORQUESTADA
+    // 1. Notificaciones -> 2. Estado Billetera/Modal -> 3. Tour
+    initNotificationGate()
+        .then(() => initializeWalletState())
+        .then(() => {
+            setTimeout(initOnboarding, 500);
+        });
 
     // Auto-refresh every 5 seconds
     setInterval(loadAllData, 5000);
@@ -350,85 +355,88 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Wallet Tabs (Impulsor / Billetera) ---
-    function setupWalletTabs() {
+    // --- Wallet Tabs & Initialization ---
+    function showPrelaunchModal() {
+        const modal = document.getElementById('prelaunchWalletModal');
+        if (modal) modal.style.display = 'flex';
+    }
+
+    function hidePrelaunchModal() {
+        const modal = document.getElementById('prelaunchWalletModal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function switchToTab(tabName) {
         const { tabImpulsor, tabBilletera, panelImpulsor, panelBilletera } = elements;
-        const prelaunchModal = document.getElementById('prelaunchWalletModal');
+
+        if (tabImpulsor) tabImpulsor.classList.toggle('active', tabName === 'impulsor');
+        if (tabBilletera) tabBilletera.classList.toggle('active', tabName === 'billetera');
+        if (panelImpulsor) panelImpulsor.classList.toggle('active', tabName === 'impulsor');
+        if (panelBilletera) panelBilletera.classList.toggle('active', tabName === 'billetera');
+
+        // Show modal when switching to Billetera, UNLESS suppressed
+        if (tabName === 'billetera') {
+            const isSuppressed = sessionStorage.getItem('suppressWalletModal') === 'true';
+            if (!isSuppressed) {
+                showPrelaunchModal();
+            }
+        }
+        localStorage.setItem('walletActiveTab', tabName);
+    }
+
+    function setupWalletTabs() {
+        const { tabImpulsor, tabBilletera } = elements;
         const prelaunchAcceptBtn = document.getElementById('prelaunchModalAccept');
 
-        if (!tabImpulsor || !tabBilletera) {
-            console.warn('[WalletTabs] Tabs not found in DOM');
-            return;
-        }
+        if (tabImpulsor) tabImpulsor.addEventListener('click', () => switchToTab('impulsor'));
+        if (tabBilletera) tabBilletera.addEventListener('click', () => switchToTab('billetera'));
 
-        // Show prelaunch modal
-        function showPrelaunchModal() {
-            if (prelaunchModal) {
-                prelaunchModal.style.display = 'flex';
-            }
-        }
-
-        // Close modal handler
         if (prelaunchAcceptBtn) {
-            prelaunchAcceptBtn.addEventListener('click', () => {
-                if (prelaunchModal) {
-                    prelaunchModal.style.display = 'none';
-                }
-            });
+            prelaunchAcceptBtn.addEventListener('click', hidePrelaunchModal);
         }
+    }
 
-        function switchToTab(tabName) {
-            // Update buttons
-            tabImpulsor.classList.toggle('active', tabName === 'impulsor');
-            tabBilletera.classList.toggle('active', tabName === 'billetera');
+    function initializeWalletState() {
+        return new Promise((resolve) => {
+            getPlatformSettings().then(settings => {
+                const isPreLaunch = settings?.pre_launch_mode_enabled === true || settings?.pre_launch_mode_enabled === 'true';
+                const urlParams = new URLSearchParams(window.location.search);
+                const isWalletTour = urlParams.get('start_wallet_tour') === 'true';
+                const isPendingTour = sessionStorage.getItem('pendingWalletTour') === 'true';
 
-            // Update panels
-            if (panelImpulsor) panelImpulsor.classList.toggle('active', tabName === 'impulsor');
-            if (panelBilletera) panelBilletera.classList.toggle('active', tabName === 'billetera');
+                let targetTab = 'billetera'; // Default fallback
 
-            // Show modal when switching to Billetera, UNLESS suppressed by tour
-            if (tabName === 'billetera') {
-                const isSuppressed = sessionStorage.getItem('suppressWalletModal') === 'true';
-                if (!isSuppressed) {
-                    showPrelaunchModal();
+                if (isWalletTour || isPendingTour) {
+                    if (isPendingTour) sessionStorage.setItem('suppressWalletModal', 'true');
+                    targetTab = 'billetera';
+                } else if (isPreLaunch) {
+                    targetTab = 'impulsor';
+                } else {
+                    targetTab = localStorage.getItem('walletActiveTab') || 'billetera';
                 }
-            }
 
-            // Save preference
-            localStorage.setItem('walletActiveTab', tabName);
-        }
+                // Ejecutar cambio
+                switchToTab(targetTab);
 
-        // Event listeners
-        tabImpulsor.addEventListener('click', () => switchToTab('impulsor'));
-        tabBilletera.addEventListener('click', () => switchToTab('billetera'));
+                // Si se abrió el modal (es billetera y no suprimido), esperar a que se cierre
+                const modal = document.getElementById('prelaunchWalletModal');
+                const btn = document.getElementById('prelaunchModalAccept');
 
-        // Determine default tab based on server pre_launch_mode configuration
-        getPlatformSettings().then(settings => {
-            const isPreLaunch = settings?.pre_launch_mode_enabled === true || settings?.pre_launch_mode_enabled === 'true';
-
-            // MODIFICACIÓN: Detectar si se solicita tutorial de billetera
-            const urlParams = new URLSearchParams(window.location.search);
-            const isWalletTour = urlParams.get('start_wallet_tour') === 'true';
-            const isPendingTour = sessionStorage.getItem('pendingWalletTour') === 'true';
-
-            if (isWalletTour || isPendingTour) {
-                // Forzar billetera para el tutorial sin mostrar modal (UX Fluida)
-                if (isPendingTour) sessionStorage.setItem('suppressWalletModal', 'true');
-                switchToTab('billetera');
-                return;
-            }
-
-            if (isPreLaunch) {
-                // Pre-launch: Always show Impulsor, ignore localStorage
+                if (targetTab === 'billetera' && modal && modal.style.display !== 'none' && btn) {
+                    // Hookear cierre para resolver promesa
+                    const resolveHandler = () => {
+                        btn.removeEventListener('click', resolveHandler);
+                        resolve();
+                    };
+                    btn.addEventListener('click', resolveHandler);
+                } else {
+                    resolve();
+                }
+            }).catch(error => {
+                console.warn('[WalletTabs] Error inicializando, default a Impulsor:', error);
                 switchToTab('impulsor');
-            } else {
-                // Post-launch: Respect user's saved preference or default to Billetera
-                const savedTab = localStorage.getItem('walletActiveTab');
-                switchToTab(savedTab || 'billetera');
-            }
-        }).catch(error => {
-            // Fallback: If server config fails, default to Impulsor (safe choice)
-            console.warn('[WalletTabs] Could not fetch platform settings, defaulting to Impulsor:', error);
-            switchToTab('impulsor');
+                resolve();
+            });
         });
     }
 
@@ -1674,7 +1682,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     month: 'long',
                                     day: 'numeric'
                                 });
-                                expiryText = `\n⏰ Válido hasta el ${formattedDate}\n`;
+                                expiryText = ` (válido hasta el ${formattedDate})`;
                             }
                         }
                     } catch (error) {
@@ -1682,18 +1690,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                const textToShare = `¡Únete a WintonCoin! 🪙\n\n` +
-                    `Entra a mi enlace de referidos y acumula ${rewardAmount} BLUE (IOU) al registrarte:\n` +
-                    `*${referralCode}*` +
-                    expiryText + `\n` +
-                    `¡Lo mejor es que tú también ganarás ${rewardAmount} BLUE por cada amigo que invites!\n\n` +
+                const textToShare = `Registrate en WintonCoin con mi codigo de referido y ambos ganamos ${rewardAmount} BLUE IOU${expiryText}\n\n` +
+                    `${referralCode}\n\n` +
+                    `Recuerda que Tú ganas ${rewardAmount} BLUE IOU por cada amigo que invites!\n\n` +
                     `Regístrate aquí: ${registrationUrl}`;
 
                 if (navigator.share) {
                     await navigator.share({
                         title: '¡Únete a WintonCoin!',
-                        text: textToShare,
-                        url: registrationUrl
+                        text: textToShare
                     });
                 } else {
                     await navigator.clipboard.writeText(textToShare);
