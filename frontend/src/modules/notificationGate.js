@@ -140,14 +140,14 @@ function showGate(isDenied) {
     overlay.className = 'notification-gate-overlay';
 
     // Contenido Ligero y Positivo
-    const icon = isDenied ? '⚙️' : '🔔';
-    const title = isDenied ? 'Permisos necesarios' : 'Activar Notificaciones';
+    const icon = isDenied ? '🔒' : '🔔';
+    const title = isDenied ? 'Notificaciones Bloqueadas' : 'Activar Notificaciones';
 
     const text = isDenied
-        ? 'Para brindarte la mejor experiencia, necesitamos que habilites las notificaciones en la configuración de tu navegador.'
+        ? 'Has bloqueado las notificaciones. Para continuar:<br><br><strong>1. Toca el candado 🔒 (barra de dirección).<br>2. Configuración del sitio > Permisos.<br>3. Permite "Notificaciones" y regresa aquí.</strong>'
         : 'Recibe actualizaciones importantes sobre tu cuenta en tiempo real.';
 
-    const btnText = isDenied ? 'Hecho, recargar página' : 'Continuar';
+    const btnText = isDenied ? 'Ya las habilité' : 'Continuar';
 
     overlay.innerHTML = `
         <div class="gate-content">
@@ -155,16 +155,42 @@ function showGate(isDenied) {
             <h2 class="gate-title">${title}</h2>
             <p class="gate-text">${text}</p>
             <button class="gate-btn" id="gate-action-btn">${btnText}</button>
-            ${isDenied ? '<button class="gate-refresh-link" onclick="window.location.reload()">¿Necesitas ayuda?</button>' : ''}
+            ${isDenied ? '<div id="gate-msg" style="margin-top:10px; font-size:12px; color:#666;">Esperando cambio de permisos...</div>' : ''}
         </div>
     `;
 
     document.body.appendChild(overlay);
     document.body.style.overflow = 'hidden'; // Evitar scroll
 
+    // Listener automático para detectar el desbloqueo sin recargar (Chrome/Edge)
+    if (isDenied && 'permissions' in navigator) {
+        navigator.permissions.query({ name: 'notifications' }).then(status => {
+            status.onchange = () => {
+                if (status.state === 'granted') {
+                    removeGate();
+                    registerPushNotifications();
+                    if (gateResolver) gateResolver();
+                }
+            };
+        }).catch(() => { });
+    }
+
     document.getElementById('gate-action-btn').addEventListener('click', async () => {
         if (isDenied) {
-            window.location.reload();
+            // Verificar estado actual
+            if (Notification.permission === 'granted') {
+                removeGate();
+                await registerPushNotifications();
+                if (gateResolver) gateResolver();
+            } else {
+                // Si sigue bloqueado, forzar recarga para asegurar que el navegador actualice
+                const msg = document.getElementById('gate-msg');
+                if (msg) {
+                    msg.innerHTML = 'Recargando para verificar...';
+                    msg.style.color = '#4F46E5';
+                }
+                setTimeout(() => window.location.reload(), 800);
+            }
         } else {
             await requestPermissionFromGate();
         }
