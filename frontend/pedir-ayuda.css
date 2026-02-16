@@ -1,0 +1,632 @@
+/* Estilos específicos para Pedir Ayuda */
+/* Custom BG for Help Page */
+.help-bg {
+    background: radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.15), transparent 60%),
+        radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.1), transparent 60%),
+        linear-gradient(to bottom, #020617, #0F172A);
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1;
+}
+
+.help-hero {
+    text-align: center;
+    padding-top: 15rem;
+    padding-bottom: 5rem;
+}
+
+.help-hero h1 {
+    font-size: 4rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    font-family: var(--font-heading);
+}
+
+.help-hero .hero-subtitle {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.text-gradient {
+    background: linear-gradient(90deg, #60A5FA, #2DD4BF);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Nav Back Button */
+.btn-back-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: white;
+    text-decoration: none;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s;
+    margin-right: auto;
+    /* Push others right if flex */
+}
+
+.btn-back-nav:hover {
+    background: white;
+    color: black;
+}
+
+/* Nav Override for Back Button */
+nav.glass-nav {
+    display: flex;
+    justify-content: space-between;
+    /* Ensure spreading */
+    padding: 1rem 5%;
+}
+
+/* Pasos */
+.steps-process {
+    padding: 3rem 0;
+}
+
+.step-card {
+    display: flex;
+    align-items: center;
+    gap: 3rem;
+    padding: 3rem;
+    margin-bottom: 3rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: transform 0.3s;
+}
+
+.step-card:hover {
+    transform: translateY(-5px);
+    border-color: rgba(96, 165, 250, 0.3);
+}
+
+.step-card.reverse {
+    flex-direction: row-reverse;
+    border-left: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    /* Igual que el resto */
+}
+
+.step-number {
+    font-size: 6rem;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.2);
+    /* Más visible */
+    text-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    /* Glow sutil */
+    line-height: 1;
+    min-width: 120px;
+    /* Evita que se colapse */
+    text-align: center;
+}
+
+.step-content {
+    flex: 1;
+}
+
+.step-highlight {
+    margin-top: 1rem;
+    padding: 0.8rem 1rem;
+    background: rgba(45, 212, 191, 0.1);
+    border-radius: 8px;
+    color: #2DD4BF;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.step-visual {
+    width: 200px;
+    height: 150px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Visual Mocks */
+.mock-post,
+.mock-profile,
+.transaction-mock {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    height: 80%;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.line {
+    height: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    margin-bottom: 0.5rem;
+    border-radius: 4px;
+}
+
+.desc-line {
+    width: 80%;
+}
+
+.short {
+    width: 50%;
+}
+
+.badge-offer {
+    background: var(--accent-blue);
+    color: white;
+    font-size: 0.7rem;
+    padding: 4px 8px;
+    border-radius: 4px;
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+}
+
+/* Debt Explanation Expanded */
+.debt-explanation {
+    padding: 5rem 0;
+    text-align: center;
+}
+
+.explanation-box {
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 3rem;
+    border-radius: 20px;
+    max-width: 900px;
+    /* Wider for new content */
+    margin: 0 auto;
+}
+
+/* Debt Cycle Grid */
+.debt-cycle {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    margin: 3rem 0;
+    gap: 2rem;
+}
+
+.cycle-step {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 1.5rem;
+    border-radius: 16px;
+}
+
+.step-icon {
+    font-size: 2.5rem;
+    display: block;
+    margin-bottom: 1rem;
+}
+
+.cycle-arrow {
+    font-size: 2rem;
+    color: #60A5FA;
+}
+
+/* Warning Zone (LOVE List) */
+.warning-zone {
+    margin: 3rem 0;
+    padding: 2rem;
+    background: rgba(239, 68, 68, 0.05);
+    border: 1px dashed rgba(239, 68, 68, 0.3);
+    border-radius: 16px;
+}
+
+.warning-zone h3 {
+    color: #EF4444;
+    margin-bottom: 2rem;
+    font-size: 1.5rem;
+}
+
+.love-card {
+    background: #000;
+    border: 2px solid #EF4444;
+    padding: 2rem;
+    border-radius: 16px;
+    display: block;
+    margin: 0 auto;
+    box-shadow: 0 0 40px rgba(239, 68, 68, 0.15);
+    width: 100%;
+    max-width: 600px;
+    box-sizing: border-box;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Efecto marca de agua */
+.love-card::before {
+    content: '⚠️';
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    font-size: 8rem;
+    opacity: 0.1;
+    pointer-events: none;
+}
+
+.love-title {
+    font-size: 4rem;
+    font-weight: 900;
+    color: #EF4444;
+    letter-spacing: 2px;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+
+.love-subtitle {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+    padding-bottom: 1rem;
+    display: inline-block;
+}
+
+.love-card p {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: #cbd5e1;
+    text-align: center;
+    max-width: 90%;
+    margin: 0 auto;
+}
+
+.math-equation {
+    font-size: 2rem;
+    margin: 2rem 0;
+    color: white;
+}
+
+.token.red {
+    color: var(--accent-red);
+    font-weight: 800;
+}
+
+.token.blue {
+    color: var(--accent-blue);
+    font-weight: 800;
+}
+
+.result {
+    color: #10B981;
+    font-weight: 800;
+}
+
+@media (max-width: 768px) {
+
+    .step-card,
+    .step-card.reverse {
+        flex-direction: column;
+        text-align: center;
+        gap: 1.5rem;
+    }
+
+    .debt-cycle {
+        flex-direction: column;
+    }
+
+    .explanation-box {
+        padding: 1.5rem;
+    }
+
+    .warning-zone {
+        padding: 1rem;
+    }
+
+    .cycle-arrow {
+        transform: rotate(90deg);
+    }
+
+    .love-title {
+        font-size: 2.5rem;
+        margin-bottom: 0.2rem;
+    }
+
+    .love-card {
+        padding: 1rem;
+        width: 100% !important;
+        margin-top: 1rem;
+    }
+
+    .love-subtitle {
+        font-size: 0.9rem;
+        letter-spacing: 0;
+    }
+
+    .help-hero h1 {
+        font-size: 2.5rem;
+    }
+}
+
+/* Estilos específicos para Pedir Ayuda - Sección FOMO */
+.fomo-viral-section {
+    padding: 6rem 0;
+    position: relative;
+    overflow: hidden;
+    background: #020617;
+    /* Fondo de seguridad */
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 10;
+}
+
+/* Fondo sutil tipo "Party" */
+.fomo-viral-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.1), transparent 40%),
+        radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.1), transparent 40%);
+    z-index: -1;
+}
+
+.viral-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    align-items: center;
+}
+
+/* Textos Explosivos */
+.viral-content h2 {
+    font-size: 3.5rem;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+    font-weight: 900;
+}
+
+.gradient-text-explosive {
+    background: linear-gradient(90deg, #F472B6, #8B5CF6, #FBBF24);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradientShift 3s linear infinite;
+}
+
+@keyframes gradientShift {
+    0% {
+        background-position: 0% center;
+    }
+
+    100% {
+        background-position: 200% center;
+    }
+}
+
+.badge-hot {
+    display: inline-block;
+    background: #DC2626;
+    color: white;
+    font-weight: 800;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    box-shadow: 0 0 15px rgba(220, 38, 38, 0.5);
+    animation: pulseHot 1.5s infinite;
+}
+
+@keyframes pulseHot {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.viral-copy {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.viral-highlight {
+    font-size: 1.1rem;
+    color: white;
+    font-weight: 600;
+    padding-left: 1rem;
+    border-left: 4px solid #FBBF24;
+    /* Yellow pop */
+    margin-bottom: 2rem;
+}
+
+/* Lista de Beneficios */
+.viral-benefits {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 2.5rem;
+}
+
+.viral-benefits li {
+    background: rgba(255, 255, 255, 0.05);
+    margin-bottom: 0.8rem;
+    padding: 1rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: transform 0.2s;
+}
+
+.viral-benefits li:hover {
+    transform: translateX(10px);
+    border-color: rgba(139, 92, 246, 0.5);
+}
+
+/* Botón Explosivo */
+.btn-explosive {
+    display: inline-block;
+    padding: 1.2rem 2.5rem;
+    background: linear-gradient(45deg, #EC4899, #8B5CF6);
+    color: white;
+    font-weight: 800;
+    text-transform: uppercase;
+    text-decoration: none;
+    border-radius: 50px;
+    box-shadow: 0 10px 25px rgba(236, 72, 153, 0.4);
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-explosive:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(236, 72, 153, 0.6);
+}
+
+/* Visuales e Imagen */
+.viral-visual {
+    position: relative;
+    perspective: 1000px;
+}
+
+.viral-hero-img {
+    width: 100%;
+    border-radius: 20px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    transform: rotateY(-10deg) rotateX(5deg);
+    transition: transform 0.5s;
+}
+
+.viral-visual:hover .viral-hero-img {
+    transform: rotateY(0deg) rotateX(0deg);
+}
+
+/* Iconos Flotantes */
+.float-icon {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white;
+    background-color: var(--accent-blue);
+    /* Fallback */
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+    animation: floatIcon 6s ease-in-out infinite;
+    z-index: 10;
+}
+
+.icon-fb {
+    top: -20px;
+    left: -20px;
+    background: #1877F2;
+    animation-delay: 0s;
+}
+
+.icon-ig {
+    bottom: 20px;
+    left: -30px;
+    background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+    animation-delay: 1s;
+}
+
+.icon-yt {
+    top: 40%;
+    right: -30px;
+    background: #FF0000;
+    animation-delay: 2s;
+}
+
+.icon-tt {
+    top: -40px;
+    right: 20px;
+    background: #000000;
+    border: 1px solid #333;
+    animation-delay: 1.5s;
+}
+
+.icon-coin {
+    bottom: -20px;
+    right: 40px;
+    background: #FFD700;
+    color: #B45309;
+    animation-delay: 0.5s;
+    font-size: 2rem;
+}
+
+@keyframes floatIcon {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-20px);
+    }
+}
+
+/* Responsive Extra adjustments */
+@media (max-width: 768px) {
+    .viral-grid {
+        grid-template-columns: 1fr;
+        text-align: center;
+        gap: 3rem;
+    }
+
+    .viral-visual {
+        order: -1;
+        margin-bottom: 1rem;
+    }
+
+    .viral-hero-img {
+        transform: none !important;
+        max-width: 100%;
+        margin: 0 auto;
+        display: block;
+    }
+
+    .viral-content h2 {
+        font-size: 2.5rem;
+    }
+
+    .float-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.2rem;
+    }
+
+    .icon-fb {
+        left: 0;
+    }
+
+    .icon-ig {
+        left: 0;
+    }
+
+    .icon-yt {
+        right: 0;
+    }
+}

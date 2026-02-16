@@ -3,96 +3,487 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <title>WintonCoin - Iniciar Sesión</title>
-
-    <!-- PWA Meta Tags -->
-    <meta name="description" content="Plataforma de intercambio de servicios con tokens BLUE y RED">
-    <meta name="theme-color" content="#4a90d9">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="WintonCoin">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="application-name" content="WintonCoin">
-    <meta name="msapplication-TileColor" content="#1a1a2e">
-
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
-
-    <!-- PWA Icons -->
-    <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16x16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png">
-
-    <link id="main-stylesheet" rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WintonCoin - La Nueva Economía Colaborativa</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@300;500;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="landing.css">
+    <link rel="stylesheet" href="landing-fomo.css?v=1"> <!-- Addon CSS -->
 </head>
 
 <body>
-    <div class="container"> <!-- Contenedor para centrar y dar estilo -->
-        <img src="assets/icons/icon-192x192.png" alt="WintonCoin" class="auth-page-logo">
-        <h1>Bienvenido</h1>
 
-        <form id="loginForm">
-            <div>
-                <label for="identifier">Inicia sesión con tu Usuario o Email:</label>
-                <input type="text" id="identifier" name="identifier"
-                    placeholder="Tu nombre de usuario o correo electrónico" required autocomplete="username">
-            </div>
-
-            <div>
-                <label for="password">Contraseña:</label>
-                <div class="password-wrapper">
-                    <input type="password" id="password" name="password" required autocomplete="current-password">
-                    <span class="password-toggle-icon" onclick="togglePasswordVisibility('password', this)">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-eye">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                            <circle cx="12" cy="12" r="3"></circle>
-                        </svg>
-                    </span>
-                </div>
-                <div style="text-align: right; margin-top: 6px;">
-                    <a href="forgot-password.html" class="forgot-password-link">¿Olvidaste tu contraseña?</a>
-                </div>
-            </div>
-
-            <div>
-                <button type="submit">Ingresar</button>
-            </div>
-        </form>
-
-        <a href="register.html" class="secondary-action-button">Registrarse</a>
+    <!-- Fondo Animado CSS + Imagen Hero -->
+    <div class="background-mesh">
+        <!-- Imagen de Fondo Hero (Debe estar en assets/images/landing/hero_bg.png) -->
+        <div class="hero-bg-image" style="background-image: url('assets/images/landing/hero_bg.png');"></div>
+        <div class="mesh-1"></div>
+        <div class="mesh-2"></div>
+        <div class="mesh-overlay"></div>
     </div>
+
+    <!-- Navegación Flotante -->
+    <nav class="glass-nav">
+        <div class="logo">
+            <img src="assets/branding/wintoncoin_logo.png" alt="WintonCoin Logo" class="logo-img">
+            WintonCoin
+        </div>
+        <div class="nav-links">
+            <a href="#como-funciona">Cómo Funciona</a>
+            <a href="#valores">Seguridad</a>
+            <a href="#economia">Tokenomics</a>
+            <a href="register.html" class="btn-primary-nav">Iniciar App</a>
+        </div>
+    </nav>
+
+    <!-- Héroe Principal -->
+    <header class="hero-section">
+        <div class="container">
+            <div class="hero-content">
+                <div class="badge-new">
+                    <span class="pulse"></span> Plataforma P2P Descentralizada
+                </div>
+                <h1 class="hero-title">
+                    ¿Necesitas ayuda y <span class="gradient-text">no tienes dinero?</span>
+                </h1>
+                <p class="hero-subtitle">
+                    En WintonCoin, tu capacidad de cumplir promesas es tu moneda.
+                    Solicita cualquier servicio hoy y paga con tu <strong>Compromiso (RED)</strong>.
+                    Sin bancos, sin intereses, solo colaboración real.
+                </p>
+                <div class="cta-group">
+                    <a href="register.html" class="btn-primary">Pedir Ayuda ahora <span class="arrow">→</span></a>
+                    <a href="#como-funciona" class="btn-secondary">Entender el Modelo</a>
+                </div>
+
+                <div class="stats-ticker">
+                    <div class="stat-item">
+                        <span class="stat-value">1 BLUE = 1 USD</span>
+                        <span class="stat-label">Valor Estable</span>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="stat-item">
+                        <span class="stat-value">0%</span>
+                        <span class="stat-label">Interés Bancario</span>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="stat-item">
+                        <span class="stat-value">Instantáneo</span>
+                        <span class="stat-label">Sin buró de crédito</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visual Abstracto: La Creación del Valor (Con imagen network_3d) -->
+            <div class="hero-visual">
+                <!-- Imagen 3D Network (Debe estar en assets/images/landing/network_3d.png) -->
+                <img src="assets/images/landing/network_3d.png" alt="Red Global" class="hero-image-3d floating-img">
+
+                <!-- Conector animado de Flujo (Restaurado) -->
+                <svg class="connector-svg" width="100%" height="100%" viewBox="0 0 600 400" preserveAspectRatio="none">
+                    <defs>
+                        <linearGradient id="flowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:0" />
+                            <stop offset="50%" style="stop-color:#06B6D4;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#EF4444;stop-opacity:0" />
+                        </linearGradient>
+                        <filter id="glow">
+                            <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+                            <feMerge>
+                                <feMergeNode in="coloredBlur" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+                    </defs>
+                    <!-- Línea curva conectando las tarjetas -->
+                    <path class="connection-path" d="M100,100 C300,50 300,350 500,300" fill="none"
+                        stroke="url(#flowGradient)" stroke-width="4" filter="url(#glow)" />
+
+                    <!-- Partícula viajando -->
+                    <circle r="6" fill="#fff" filter="url(#glow)">
+                        <animateMotion dur="3s" repeatCount="indefinite" path="M100,100 C300,50 300,350 500,300" />
+                    </circle>
+                </svg>
+
+                <!-- Tarjetas flotantes superpuestas -->
+                <div class="card-float card-blue">
+                    <div class="card-header">
+                        <!-- Icono Oficial BLUE (SVG) -->
+                        <img src="assets/branding/blue_token_icon.svg" alt="Token BLUE" class="brand-icon-tx">
+                        <span>Pagas Servicio</span>
+                    </div>
+                    <div class="card-amount">100 BLUE</div>
+                    <div class="card-status">Transferencia Instantánea</div>
+                </div>
+                <div class="card-float card-red">
+                    <div class="card-header">
+                        <!-- Logo Oficial WintonCoin (Adaptado a RED) -->
+                        <img src="assets/branding/wintoncoin_logo.png" alt="Token RED" class="brand-icon-tx"
+                            style="filter: brightness(0) saturate(100%) invert(22%) sepia(93%) saturate(7400%) hue-rotate(352deg) brightness(98%) contrast(115%);">
+                        <span>Recibes Compromiso</span>
+                    </div>
+                    <div class="card-amount">100 RED</div>
+                    <div class="card-status">Deuda sin Interés</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sección Comunidad (Imagen Wintoncoin Community Help) -->
+    <section class="community-visual-section">
+        <div class="container">
+            <div class="visual-split">
+                <div class="visual-image">
+                    <img src="assets/images/landing/wintoncoin_community_help.png" alt="Ayuda Comunitaria"
+                        class="rounded-glow-img">
+                </div>
+                <div class="visual-text">
+                    <h2>Una Comunidad que <br><span class="text-blue">Responde</span></h2>
+                    <p>
+                        Imagina un mundo donde pedir ayuda no depende de tu saldo bancario, sino de tu voluntad de
+                        ayudar a otros mañana.
+                        WintonCoin conecta a quienes necesitan con quienes pueden ofrecer, creando un tejido social
+                        irrompible.
+                    </p>
+                    <ul class="check-list">
+                        <li>🤝 Conexiones P2P directas</li>
+                        <li>🌍 Sin fronteras ni intermediarios</li>
+                        <li>⚡ Respuesta inmediata</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sección Paso a Paso (Cómo Funciona Simplificado) -->
+    <section class="steps-section" id="como-funciona">
+        <div class="container">
+            <div class="section-header">
+                <h2>El Poder de un Banco <br><span class="text-blue">en tus manos</span></h2>
+                <p>Olvídate del dinero FIAT. Aquí emites tu propia moneda al momento de pagar.</p>
+            </div>
+
+            <div class="steps-grid">
+                <!-- Paso 1 -->
+                <div class="step-card">
+                    <div class="step-number">01</div>
+                    <div class="step-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                    </div>
+                    <h3>Publicas tu Necesidad</h3>
+                    <p>Describe qué necesitas (ej. pintar una pared, desarrollo web). Ofrece una cantidad de BLUE.
+                        <strong>No necesitas tener saldo previo.</strong>
+                    </p>
+                </div>
+
+                <!-- Paso 2 -->
+                <div class="step-card">
+                    <div class="step-number">02</div>
+                    <div class="step-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                    </div>
+                    <h3>Eliges al Experto</h3>
+                    <p>Revisa perfiles y acepta a un colaborador calificado. La comunidad está llena de talento
+                        dispuesto a ayudar.</p>
+                </div>
+
+                <!-- Paso 3 -->
+                <div class="step-card highlight-step">
+                    <div class="step-number">03</div>
+                    <div class="step-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                            <polyline points="22 4 12 14.01 9 11.01" />
+                        </svg>
+                    </div>
+                    <h3>Confirmas y "Minteas"</h3>
+                    <p>Al confirmar el trabajo, el Smart Contract crea automáticamente los Tokens BLUE (para el
+                        trabajador) y RED (tu deuda). ¡Magia matemática!</p>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 3rem;">
+            <a href="pedir-ayuda.html" class="btn-secondary"
+                style="display: inline-block; padding: 1rem 2rem; border: 1px solid var(--accent-blue);">Ver Guía
+                Detallada</a>
+        </div>
+        </div>
+    </section>
+
+    <!-- Sección de Credibilidad y Seguridad (Imagen Global Network) -->
+    <section class="trust-section" id="valores">
+        <div class="container">
+            <div class="trust-grid">
+                <div class="trust-content">
+                    <h2>Anti-Especulación y <span class="gradient-text">100% Real</span></h2>
+                    <p class="trust-lead">Contrario a otras criptos, en WintonCoin no hay "aire". Todo valor está
+                        respaldado por trabajo ya realizado.</p>
+
+                    <div class="trust-points">
+                        <div class="point">
+                            <span class="icon-check">🛡️</span>
+                            <div>
+                                <h4>Sin Pre-Minado (No Ponzi)</h4>
+                                <p>No regalamos tokens. No emitimos moneda de la nada. Cada BLUE nace de un servicio
+                                    real prestado.</p>
+                            </div>
+                        </div>
+                        <div class="point">
+                            <span class="icon-check">⚖️</span>
+                            <div>
+                                <h4>Equilibrio Perfecto</h4>
+                                <p>Por cada 1 BLUE en el mercado, existe 1 RED reclamándolo. La oferta y demanda siempre
+                                    coinciden.</p>
+                            </div>
+                        </div>
+                        <div class="point">
+                            <span class="icon-check">🤝</span>
+                            <div>
+                                <h4>Red de Confianza</h4>
+                                <p>Tu reputación es tu mayor activo. Cumple tus deudas RED trabajando para otros y sube
+                                    de nivel.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="trust-visual">
+                    <!-- Imagen Global Network -->
+                    <img src="assets/images/landing/community_network.png" alt="Red Global Segura"
+                        class="rounded-glow-img">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECCIÓN DE SEGURIDAD BLOCKCHAIN "LA BÓVEDA INMUTABLE" -->
+    <section class="security-section">
+        <div class="container">
+            <div class="section-title-center">
+                <h2>Seguridad de Grado <span class="text-green">Militar</span></h2>
+                <p>Tu confianza está codificada en la Blockchain. Inmutable. Transparente. Eterna.</p>
+            </div>
+
+            <div class="security-grid">
+                <!-- Visual 3D Cube (CSS Puro) -->
+                <div class="cube-container">
+                    <div class="cube">
+                        <div class="face front">AUDITORÍA</div>
+                        <div class="face back">TRANSPARENCIA</div>
+                        <div class="face right">SEGURIDAD</div>
+                        <div class="face left">BLOCKCHAIN</div>
+                        <div class="face top">WINTONCOIN</div>
+                        <div class="face bottom">IMMUTABLE</div>
+                    </div>
+                    <div class="scanner-laser"></div>
+                </div>
+
+                <div class="security-features two-cols">
+                    <div class="sec-card data-block">
+                        <div class="data-header">
+                            <span class="block-id">BLK_001</span>
+                            <h3>Smart Contracts Auditados</h3>
+                        </div>
+                        <p>Código inquebrantable. Cada BLUE tiene su contraparte RED exacta. Cero errores humanos.</p>
+                    </div>
+
+                    <div class="sec-card data-block">
+                        <div class="data-header">
+                            <span class="block-id">BLK_002</span>
+                            <h3>Transparencia Radical</h3>
+                        </div>
+                        <p>Cada transacción es pública. Sin libros contables ocultos. Verificable por cualquiera, para
+                            siempre.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECCIÓN MARKETPLACE "UNIVERSO DE POSIBILIDADES" -->
+    <section class="marketplace-galaxy">
+        <div class="container">
+            <div class="galaxy-content">
+                <h2>Un Universo de <span class="gradient-text">Servicios</span></h2>
+                <p>Desde lo cotidiano hasta lo extraordinario. Si puedes imaginarlo, puedes pagarlo con Compromiso.</p>
+
+                <div class="tags-cloud">
+                    <span class="tag tag-large" style="--d:1s; --x:-20px; --y:-40px">Taxi</span>
+                    <span class="tag tag-medium" style="--d:2s; --x:60px; --y:30px">Jardinería</span>
+                    <span class="tag tag-small" style="--d:3s; --x:-80px; --y:60px">Abogacía</span>
+                    <span class="tag tag-large" style="--d:4s; --x:90px; --y:-70px">Marketing</span>
+                    <span class="tag tag-medium" style="--d:1.5s; --x:-100px; --y:-20px">Limpieza</span>
+                    <span class="tag tag-small" style="--d:2.5s; --x:40px; --y:100px">Plomería</span>
+                    <span class="tag tag-large" style="--d:3.5s; --x:-50px; --y:90px">Mudanza</span>
+                    <span class="tag tag-medium" style="--d:0.5s; --x:120px; --y:0px">Cuidado</span>
+                    <span class="tag tag-small" style="--d:4.5s; --x:-120px; --y:-80px">Mecánica</span>
+                    <span class="tag tag-medium" style="--d:1.2s; --x:0px; --y:-120px">Traducción</span>
+                </div>
+
+                <a href="register.html" class="btn-glow-large">Explorar Marketplace</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- GLASS WORK OPPORTUNITY (SUTIL Y ELEGANTE) -->
+    <section class="glass-action-section">
+        <div class="container">
+            <div class="glass-action-card">
+                <div class="glass-action-content">
+                    <h3>Tu Capacidad es tu Capital.</h3>
+                    <p>En el ecosistema Winton, el trabajo es una divisa líquida. Conecta con solicitudes reales,
+                        colabora y recibe BLUE (1:1 USD) de forma directa y soberana.</p>
+                </div>
+                <a href="ofrecer-ayuda.html" class="btn-ghost-silver">Comenzar a Generar</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sección de Economía Dual (El Core - Imagen Token Duality) -->
+    <section class="economics-section" id="economia">
+        <div class="bg-blur"></div>
+        <div class="container">
+            <div class="section-header">
+                <h2>Valor Real</h2>
+                <p>Un sistema diseñado para la estabilidad perpetua.</p>
+            </div>
+
+            <div class="economics-showcase">
+                <div class="balance-wrapper">
+                    <img src="assets/images/landing/blue_red_tokens_3d.png" alt="Equilibrio Perfecto"
+                        class="balance-img">
+                </div>
+            </div>
+
+            <div class="cards-duo">
+                <div class="token-card blue-theme">
+                    <div class="token-header">
+                        <h3>Token BLUE</h3>
+                        <span class="badge">Activo</span>
+                    </div>
+                    <div class="price-tag">
+                        1 <span class="unit-fx">BLUE</span>
+                        <span class="eq-fx">=</span>
+                        1 <span class="dollar-fx">USD</span>
+                    </div>
+                    <p>Es capital líquido. Protagoniza el ecosistema ganando BLUE a través de la ayuda mutua y
+                        conviértelo en tu motor de libertad financiera.</p>
+                </div>
+
+                <div class="token-card red-theme">
+                    <div class="token-header">
+                        <h3>Token RED</h3>
+                        <span class="badge">Pasivo</span>
+                    </div>
+                    <div class="price-tag">
+                        1 <span class="unit-fx">RED</span>
+                        <span class="eq-fx">=</span>
+                        -1 <span class="dollar-fx">USD</span>
+                    </div>
+                    <p>Es tu promesa de valor futuro. Representa el compromiso de trabajo que debes a la comunidad
+                        Winton.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Call to Action (FOMO) -->
+    <!-- SECCIÓN FOMO / VIRALIDAD (Call To Action Final) -->
+    <section class="fomo-viral-section">
+        <div class="container">
+            <div class="viral-grid">
+                <div class="viral-content">
+                    <div class="badge-hot">🔥 ¡LA FIEBRE DEL ORO DIGITAL!</div>
+                    <h2>¿Sueñas con ser <br><span class="gradient-text-explosive">VIRAL?</span></h2>
+                    <p class="viral-copy">
+                        Imagina miles de personas <strong>DESESPERADAS</strong> por ver tus videos, dar like a tus fotos
+                        y seguirte...
+                        ¡Solo para pagar su deuda en la red WintonCoin!
+                    </p>
+                    <ul class="viral-benefits">
+                        <li>
+                            <span class="icon">🚀</span>
+                            <span><strong>100% Atención Real:</strong> Usuarios reales motivados por su libertad
+                                financiera.</span>
+                        </li>
+                        <li>
+                            <span class="icon">💎</span>
+                            <span><strong>Cero Bots:</strong> Cada view, like y comentario es verificado en
+                                Blockchain.</span>
+                        </li>
+                    </ul>
+                    <a href="register.html" class="btn-explosive">¡Únete a la Fiebre AHORA!</a>
+                    <p class="disclaimer" style="margin-top: 1rem; font-size: 0.8rem; opacity: 0.6;">Únete a la
+                        revolución de la economía colaborativa hoy mismo.</p>
+                </div>
+                <div class="viral-visual">
+                    <img src="assets/images/landing/stickman_viral_fomo.png" alt="Influencers WintonCoin Stickman"
+                        class="viral-hero-img">
+                    <!-- Iconos flotantes decorativos CSS -->
+                    <div class="float-icon icon-fb">f</div>
+                    <div class="float-icon icon-ig">📷</div>
+                    <div class="float-icon icon-yt">▶</div>
+                    <div class="float-icon icon-tt">🎵</div>
+                    <div class="float-icon icon-coin">🪙</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <h4>WintonCoin</h4>
+                    <p>Homenaje a Nicholas Winton. Salvando economías, una tarea a la vez.</p>
+                </div>
+                <div class="footer-col">
+                    <h5>Plataforma</h5>
+                    <a href="register.html">Registrarse</a>
+                    <a href="login.html">Ingresar</a>
+                    <a href="#como-funciona">Cómo funciona</a>
+                </div>
+                <div class="footer-col">
+                    <h5>Recursos</h5>
+                    <a href="#">Whitepaper</a>
+                    <a href="pedir-ayuda.html">Guía de Ayuda</a>
+                    <a href="#">Términos y Condiciones</a>
+                    <a href="faq.html">Preguntas Frecuentes (FAQ)</a>
+                </div>
+                <div class="footer-col">
+                    <h5>Boosters</h5>
+                    <a href="https://boosters.wintoncoin.com/" target="_blank">Programa para Impulsores</a>
+                </div>
+                <div class="footer-col social">
+                    <h5>Comunidad</h5>
+                    <!-- Placeholder Social Icons -->
+                    <div class="social-icons">
+                        <span>𝕏</span>
+                        <span>in</span>
+                        <span>IG</span>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                &copy; 2026 WintonCoin Project. Descentralizando el futuro. <span
+                    style="opacity: 0.6; margin-left: 10px;">| Fase de Prelanzamiento <strong>BETA</strong></span>
+            </div>
+        </div>
+    </footer>
 
     <!-- ES Modules (Vite) -->
-    <script type="module" src="src/pages/login.js"></script>
-
-    <!-- Contenedor para alertas dinámicas -->
-    <div id="custom-alert-container"></div>
-
-    <!-- Modal de Alerta Personalizado (legacy) -->
-    <div id="customAlertModal" class="modal">
-        <div class="modal-content">
-            <span class="close-button alert-close-button">&times;</span>
-            <p id="customAlertMessage"></p>
-            <button class="action-button alert-close-button">Cerrar</button>
-        </div>
-    </div>
-
-    <!-- Modal de Advertencia de Cuenta Única -->
-    <div id="oneAccountPolicyModal" class="modal policy-modal">
-        <div class="modal-content">
-            <span class="close-button policy-close-button">&times;</span>
-            <h3>Aviso Importante</h3>
-            <p>Para mantener nuestra comunidad justa, segura y libre de estafadores, te recordamos que solo se permite
-                una cuenta por persona. ¡Gracias por tu colaboración!</p>
-            <button class="action-button policy-close-button">Entendido</button>
-        </div>
-    </div>
-
+    <script type="module" src="src/pages/landing.js"></script>
 </body>
 
 </html>

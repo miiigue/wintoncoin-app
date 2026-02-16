@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Misión y Oportunidad | WintonCoin</title>
+    <link rel="stylesheet" href="landing.css">
+    <link rel="stylesheet" href="landing-fomo.css">
+    <style>
+        body {
+            background: #020408;
+            color: white;
+        }
+
+        .manifesto-page {
+            padding: 15rem 0 10rem;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .mision-header {
+            text-align: center;
+            max-width: 900px;
+            margin-bottom: 8rem;
+        }
+
+        .mision-header h1 {
+            font-size: clamp(3rem, 10vw, 6rem);
+            font-weight: 200;
+            line-height: 0.9;
+            letter-spacing: -3px;
+            margin-bottom: 3rem;
+        }
+
+        .silver-text {
+            background: linear-gradient(180deg, #FFFFFF 0%, #94A3B8 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .mision-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4rem;
+            max-width: 1200px;
+            margin-bottom: 10rem;
+        }
+
+        .mision-step {
+            position: relative;
+            padding-top: 4rem;
+        }
+
+        .mision-step::before {
+            content: attr(data-step);
+            position: absolute;
+            top: 0;
+            left: 0;
+            font-size: 6rem;
+            font-weight: 900;
+            opacity: 0.05;
+            line-height: 1;
+        }
+
+        .mision-step h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .mision-step p {
+            color: var(--text-secondary);
+            line-height: 1.8;
+            font-size: 1.1rem;
+            font-weight: 300;
+        }
+
+        .final-call {
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 5rem;
+            width: 100%;
+        }
+
+        .btn-mision {
+            padding: 1.5rem 4rem;
+            background: white;
+            color: black;
+            text-decoration: none;
+            font-weight: 800;
+            border-radius: 100px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+        }
+
+        .btn-mision:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 50px rgba(255, 255, 255, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .mision-grid {
+                grid-template-columns: 1fr;
+                gap: 6rem;
+                padding: 0 2rem;
+            }
+
+            .manifesto-page {
+                padding: 10rem 0 5rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="glass-nav">
+        <div class="container nav-content">
+            <a href="landing.html" class="logo">Winton<span>Coin</span></a>
+            <div class="nav-links">
+                <a href="landing.html">Inicio</a>
+                <a href="faq.html">FAQ</a>
+                <a href="register.html" class="btn-primary">Protocolo de Acceso</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container">
+        <section class="manifesto-page">
+            <div class="mision-header">
+                <h1>Tu tiempo es el <br><span class="silver-text">nuevo oro.</span></h1>
+                <p class="ethereal-sub">
+                    En la red Winton, no existen los desempleados, solo colaboradores esperando su próxima misión.
+                    Convertimos el altruismo en capital y la necesidad en una fuente de ingresos soberana.
+                </p>
+            </div>
+
+            <div class="mision-grid">
+                <div class="mision-step" data-step="01">
+                    <h3>Identificar</h3>
+                    <p>Accede al mapa de misiones. Cada punto es una persona real que necesita una solución real y está
+                        dispuesta a pagar por ella.</p>
+                </div>
+                <div class="mision-step" data-step="02">
+                    <h3>Ejecutar</h3>
+                    <p>Aporta tu talento, tu fuerza o tu tiempo. Sin jefes, sin horarios, solo tú y el compromiso con la
+                        excelencia.</p>
+                </div>
+                <div class="mision-step" data-step="03">
+                    <h3>Liquidar</h3>
+                    <p>Al finalizar, el contrato inteligente libera tus tokens BLUE. Dinero honesto con paridad 1:1 al
+                        Dólar, listo para canjear o invertir.</p>
+                </div>
+            </div>
+
+            <div class="final-call">
+                <h2 class="ethereal-title" style="font-size: 2.5rem; margin-bottom: 3rem;">¿Listo para ser parte de la
+                    solución?</h2>
+                <a href="register.html" class="btn-mision">Activar Mi Perfil</a>
+            </div>
+        </section>
+    </main>
+
+    <footer style="margin-top: 10rem;">
+        <div class="container">
+            <div class="footer-bottom">
+                &copy; 2026 WintonCoin Project. El fin del desempleo algorítmico.
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Subtle reveal effect
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = 1;
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.mision-step').forEach(step => {
+            step.style.opacity = 0;
+            step.style.transform = 'translateY(30px)';
+            step.style.transition = 'all 0.8s ease-out';
+            observer.observe(step);
+        });
+    </script>
+</body>
+
+</html>

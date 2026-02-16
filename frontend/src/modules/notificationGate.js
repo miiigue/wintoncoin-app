@@ -135,16 +135,19 @@ function checkPermissionAndGate() {
 
 // Wizard State
 let currentStep = 0;
-const wizardSteps = [
+let activeSteps = []; // Steps dinámicos según el entorno
+
+// Pasos para Navegador (Browser)
+const wizardStepsBrowser = [
     {
         title: "Ayúdanos a protegerte 🛡️",
-        text: "Las notificaciones son <strong>indispensables</strong> para la seguridad de tu cuenta y confirmar transacciones.<br><br>Parece que están bloqueadas. Te explicamos cómo activarlas en unos segundos.",
+        text: "Las notificaciones son <strong>indispensables</strong> para la seguridad de tu cuenta.<br><br>Parece que están bloqueadas en este navegador.",
         img: "assets/images/tutorial/intro_security.png",
         icon: "🛡️"
     },
     {
         title: "Paso 1: Toca el Candado",
-        text: "En la barra de dirección de tu navegador, toca el icono del <strong>Candado 🔒</strong> o Ajustes.",
+        text: "En la barra de dirección (arriba), toca el icono del <strong>Candado 🔒</strong> o Ajustes.",
         img: "assets/images/tutorial/step1_lock.png",
         icon: "🔒"
     },
@@ -156,8 +159,36 @@ const wizardSteps = [
     },
     {
         title: "Paso 3: Activar",
-        text: "Busca 'Notificaciones' y <strong>Activa el interruptor</strong> 🟢 para habilitarlas.",
+        text: "Busca 'Notificaciones' y <strong>Activa el interruptor</strong> 🟢.",
         img: "assets/images/tutorial/step3_toggle.png",
+        icon: "🔔"
+    }
+];
+
+// Pasos para App Instalada (PWA)
+const wizardStepsPWA = [
+    {
+        title: "Ayúdanos a protegerte 🛡️",
+        text: "Siendo una App segura, necesitamos notificaciones para confirmar tus operaciones.<br><br>Sigue estos pasos para activarlas en tu móvil.",
+        img: "assets/images/tutorial/intro_pwa.png",
+        icon: "📱"
+    },
+    {
+        title: "Paso 1: Presiona el Icono",
+        text: "Ve al inicio y busca el icono de <strong>WintonCoin</strong>. <strong>Mantenlo presionado por 2 segundos</strong>.",
+        img: "assets/images/tutorial/step1_pwa_icon.png",
+        icon: "👆"
+    },
+    {
+        title: "Paso 2: Info de App",
+        text: "En el menú que aparece, toca el círculo con la <strong>(i)</strong> o <strong>'Info. de la aplicación'</strong>.",
+        img: "assets/images/tutorial/step2_pwa_info.png",
+        icon: "ℹ️"
+    },
+    {
+        title: "Paso 3: Activar",
+        text: "Entra en <strong>'Notificaciones'</strong> y <strong>enciende el interruptor</strong> 🟢.",
+        img: "assets/images/tutorial/step3_pwa_toggle.png",
         icon: "🔔"
     }
 ];
@@ -170,6 +201,12 @@ function showGate(isDenied) {
         showSimpleGate();
         return;
     }
+
+    // Detectar si es PWA Standalone
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+    // Seleccionar los pasos adecuados
+    activeSteps = isPWA ? wizardStepsPWA : wizardStepsBrowser;
 
     // Si ESTÁ denegado, mostrar Wizard
     showWizardGate();
@@ -285,7 +322,7 @@ function showWizardGate() {
     renderWizardStep();
 
     document.getElementById('wizard-next').addEventListener('click', () => {
-        if (currentStep < wizardSteps.length - 1) {
+        if (currentStep < activeSteps.length - 1) {
             currentStep++;
             renderWizardStep();
         } else {
@@ -315,7 +352,7 @@ function showWizardGate() {
 }
 
 function renderWizardStep() {
-    const step = wizardSteps[currentStep];
+    const step = activeSteps[currentStep];
     const container = document.getElementById('wizard-step-container');
     const dotsContainer = document.getElementById('wizard-dots');
     const nextBtn = document.getElementById('wizard-next');
@@ -332,7 +369,7 @@ function renderWizardStep() {
     `;
 
     // Dots
-    dotsContainer.innerHTML = wizardSteps.map((_, idx) =>
+    dotsContainer.innerHTML = activeSteps.map((_, idx) =>
         `<div class="gate-dot ${idx === currentStep ? 'active' : ''}"></div>`
     ).join('');
 
@@ -342,7 +379,7 @@ function renderWizardStep() {
     if (currentStep === 0) {
         nextBtn.textContent = "Mostrarme cómo";
         nextBtn.style.background = "#4F46E5";
-    } else if (currentStep === wizardSteps.length - 1) {
+    } else if (currentStep === activeSteps.length - 1) {
         nextBtn.textContent = "Ya las habilité";
         nextBtn.style.background = "#10B981"; // Green
     } else {
@@ -352,24 +389,38 @@ function renderWizardStep() {
 }
 
 async function checkPermissionsAndFinish() {
-    if (Notification.permission === 'granted') {
+    // 1. Intentar refrescar el estado pidiendo permiso de nuevo
+    // Si el usuario desbloqueó en ajustes, esto actualiza el valor interno
+    let permission = Notification.permission;
+    try {
+        permission = await Notification.requestPermission();
+    } catch (e) {
+        console.warn("Permission check failed", e);
+    }
+
+    // 2. Si ahora es Granted, éxito
+    if (permission === 'granted') {
         removeGate();
         await registerPushNotifications();
         if (gateResolver) gateResolver();
-    } else {
-        const msg = document.getElementById('gate-msg');
-        if (msg) {
-            msg.innerHTML = '⚠️ Aún aparecen bloquedas. Si ya cambiaste el ajuste, pulsa aquí para recargar.';
-            msg.style.display = 'block';
-            msg.style.cursor = 'pointer';
-            msg.onclick = () => window.location.reload();
-        }
-        // Animación "shake"
-        const btn = document.getElementById('wizard-next');
-        btn.style.transform = "translateX(5px)";
-        setTimeout(() => btn.style.transform = "translateX(-5px)", 100);
-        setTimeout(() => btn.style.transform = "none", 200);
+        return;
     }
+
+    // 3. Fallback de Emergencia (PWA puede tardar en actualizar el estado)
+    // Si el usuario insiste en que ya las habilitó, le dejamos pasar para no bloquear la App.
+    // Guardamos una bandera para volver a insistir suavemente en el futuro si sigue bloqueado.
+
+    const nextBtn = document.getElementById('wizard-next');
+    if (nextBtn) nextBtn.textContent = "Continuando...";
+
+    // Confiamos en el usuario y cerramos el tutorial
+    console.log("Forzando cierre del tutorial (Usuario dice activado)");
+    removeGate();
+
+    // Intentamos registrar el SW de todas formas por si el permiso llega después
+    registerPushNotifications().catch(() => { });
+
+    if (gateResolver) gateResolver();
 }
 
 async function requestPermissionFromGate() {

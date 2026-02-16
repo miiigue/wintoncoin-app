@@ -28,8 +28,8 @@ function checkPendingReferralAndRedirect() {
         console.log('[Login] Primera apertura con código de referido - redirigiendo a registro...');
         // Marcar que ya redirigimos para no hacerlo de nuevo en esta sesión
         sessionStorage.setItem('referral_redirect_done', 'true');
-        window.location.href = 'register.html';
-        return true; // Indica que se está redirigiendo
+        // window.location.href = 'register.html';
+        return false; // CORRECCIÓN: No estamos redirigiendo, permitir cargar el login
     }
 
     return false; // No se redirige

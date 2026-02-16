@@ -53,6 +53,7 @@ export default defineConfig({
       input: {
         // Páginas principales
         main: resolve(__dirname, 'index.html'),
+        login: resolve(__dirname, 'login.html'),
         dashboard: resolve(__dirname, 'contract_interaction.html'),
         register: resolve(__dirname, 'register.html'),
         forgotPassword: resolve(__dirname, 'forgot-password.html'),
@@ -65,6 +66,10 @@ export default defineConfig({
         transactions: resolve(__dirname, 'transactions.html'),
         referrals: resolve(__dirname, 'referrals.html'),
         boosterProfile: resolve(__dirname, 'booster-profile.html'),
+
+        // Páginas de Marketing
+        faq: resolve(__dirname, 'faq.html'),
+        ofrecerAyuda: resolve(__dirname, 'ofrecer-ayuda.html'),
 
         // P2P
         p2p: resolve(__dirname, 'p2p.html'),
