@@ -453,9 +453,9 @@ async function startServer() {
 
                 const sql = `
                     INSERT INTO publications
-                        (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, category, expires_at, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours)
+                        (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, category, expires_at, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, show_preflight_modal)
                     VALUES
-                        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                     RETURNING id
                 `;
                 const result = await client.query(sql, [
@@ -470,7 +470,8 @@ async function startServer() {
                     expiresAt,
                     allowRepeat,
                     maxRepeat,
-                    repeatCooldown
+                    repeatCooldown,
+                    !!req.body.show_preflight_modal
                 ]);
 
                 await logAuditEvent(client, req, {
@@ -3148,11 +3149,11 @@ async function startServer() {
                 }
 
                 const sql = `
-                    INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, is_booster_task, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, target_username, form_fields) 
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
+                    INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, is_booster_task, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, target_username, form_fields, show_preflight_modal) 
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
                     RETURNING id
                 `;
-                const result = await pool.query(sql, [title, description, cost, !!isSellPost, authorId, slots, !!autoApprove, !!isBoosterTask, allowRepeat, maxRepeat, repeatCooldown, sanitizedTargetUsername, sanitizedFormFields]);
+                const result = await pool.query(sql, [title, description, cost, !!isSellPost, authorId, slots, !!autoApprove, !!isBoosterTask, allowRepeat, maxRepeat, repeatCooldown, sanitizedTargetUsername, sanitizedFormFields, !!req.body.showPreflightModal]);
 
                 const newPubId = result.rows[0].id;
 
@@ -3263,8 +3264,9 @@ async function startServer() {
                         repeat_cooldown_hours = $10,
                         target_username = $11,
                         form_fields = $12,
+                        show_preflight_modal = $13,
                         updated_at = NOW()
-                    WHERE id = $13
+                    WHERE id = $14
                 `;
 
                 await pool.query(updateSql, [
@@ -3280,6 +3282,7 @@ async function startServer() {
                     repeatCooldown,
                     sanitizedTargetUsername,
                     sanitizedFormFields,
+                    !!req.body.showPreflightModal,
                     id
                 ]);
 
@@ -4669,7 +4672,7 @@ app.get('/api/publications/:id', async (req, res) => {
             SELECT
                 p.id, p.title, p.description, p.blue_cost, p.status, p.created_at, p.is_paused,
                 p.is_sell_post, p.available_slots, p.category, p.expires_at,
-                p.is_quick_sale, p.target_username, p.form_fields, -- CAMPOS AÑADIDOS
+                p.is_quick_sale, p.target_username, p.form_fields, p.show_preflight_modal, -- CAMPOS AÑADIDOS
                 u.username as author_username,
                 u.average_rating as author_average_rating,
                 u.ratings_count as author_ratings_count,
@@ -4712,6 +4715,28 @@ app.get('/api/publications/:id', async (req, res) => {
 
         const publication = result.rows[0];
         publication.participants = publication.participants || []; // Asegurarse de que sea un array
+
+        // --- NUEVO: Lógica de Modal Intersticial (Pre-flight) ---
+        if (publication.show_preflight_modal) {
+            const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+            const currentDay = days[new Date().getDay()];
+            const settingsKeys = ['daily_modal_title', `daily_modal_${currentDay}`];
+
+            const settingsResult = await client.query(
+                `SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1::text[])`,
+                [settingsKeys]
+            );
+
+            const settings = settingsResult.rows.reduce((acc, row) => {
+                acc[row.setting_key] = row.setting_value;
+                return acc;
+            }, {});
+
+            publication.preflight_modal = {
+                title: settings.daily_modal_title || 'Aviso Importante',
+                message: settings[`daily_modal_${currentDay}`] || 'Mensaje no configurado para hoy.'
+            };
+        }
 
         // --- INICIO DE LA LÓGICA DE SEGURIDAD PARA VENTA RÁPIDA ---
         if (publication.is_quick_sale) {

@@ -22,6 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
         ratingPublicationId: document.getElementById('ratingPublicationId'),
         ratingRaterUsername: document.getElementById('ratingRaterUsername'),
         ratingRateeUsername: document.getElementById('ratingRateeUsername'),
+        preflightModal: document.getElementById('preflightModal'),
+        preflightTitle: document.getElementById('preflightTitle'),
+        preflightMessage: document.getElementById('preflightMessage'),
+        preflightContinueBtn: document.getElementById('preflightContinueBtn'),
     };
 
     // --- Initialization ---
@@ -52,6 +56,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const publication = await publicationResponse.json();
 
+            // --- NUEVO: Mostrar Modal Intersticial si es necesario ---
+            if (publication.preflight_modal) {
+                showPreflightModal(publication.preflight_modal);
+            }
+
             renderPublication(publication, platformSettings);
             setupEventListeners();
 
@@ -76,6 +85,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const normalized = lines.map(l => l.slice(minIndent));
 
         return normalized.join('\n').trim();
+    }
+
+    function showPreflightModal(modalData) {
+        if (!elements.preflightModal) return;
+
+        elements.preflightTitle.textContent = modalData.title;
+        elements.preflightMessage.textContent = modalData.message;
+        elements.preflightModal.style.display = 'flex';
+
+        elements.preflightContinueBtn.onclick = () => {
+            elements.preflightModal.style.display = 'none';
+        };
     }
 
     function isPlatformPublication(pub, platformSettings) {

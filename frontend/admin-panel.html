@@ -231,6 +231,67 @@
                         </div>
                     </form>
                 </div>
+
+                <!-- Gestión de Mensajes Diarios (Pre-flight Modal) -->
+                <div class="settings-group">
+                    <div class="settings-header">
+                        <h2>Mensajes Diarios (Modal Intersticial)</h2>
+                        <p class="section-description">Configura el mensaje que aparece al abrir una tarea con el modal
+                            activado. El contenido cambia automáticamente según el día.</p>
+                    </div>
+
+                    <div class="admin-form">
+                        <div class="form-group-admin">
+                            <label for="daily_modal_title">Título Global del Modal:</label>
+                            <input type="text" id="setting_daily_modal_title" class="admin-input-dark"
+                                placeholder="Ej: Instrucciones Importantes" data-setting-key="daily_modal_title">
+                        </div>
+
+                        <div class="daily-messages-grid"
+                            style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                            <div class="form-group-admin">
+                                <label for="daily_modal_mon">Lunes:</label>
+                                <textarea id="setting_daily_modal_mon" class="admin-input-dark" rows="2"
+                                    data-setting-key="daily_modal_mon"></textarea>
+                            </div>
+                            <div class="form-group-admin">
+                                <label for="daily_modal_tue">Martes:</label>
+                                <textarea id="setting_daily_modal_tue" class="admin-input-dark" rows="2"
+                                    data-setting-key="daily_modal_tue"></textarea>
+                            </div>
+                            <div class="form-group-admin">
+                                <label for="daily_modal_wed">Miércoles:</label>
+                                <textarea id="setting_daily_modal_wed" class="admin-input-dark" rows="2"
+                                    data-setting-key="daily_modal_wed"></textarea>
+                            </div>
+                            <div class="form-group-admin">
+                                <label for="daily_modal_thu">Jueves:</label>
+                                <textarea id="setting_daily_modal_thu" class="admin-input-dark" rows="2"
+                                    data-setting-key="daily_modal_thu"></textarea>
+                            </div>
+                            <div class="form-group-admin">
+                                <label for="daily_modal_fri">Viernes:</label>
+                                <textarea id="setting_daily_modal_fri" class="admin-input-dark" rows="2"
+                                    data-setting-key="daily_modal_fri"></textarea>
+                            </div>
+                            <div class="form-group-admin">
+                                <label for="daily_modal_sat">Sábado:</label>
+                                <textarea id="setting_daily_modal_sat" class="admin-input-dark" rows="2"
+                                    data-setting-key="daily_modal_sat"></textarea>
+                            </div>
+                            <div class="form-group-admin">
+                                <label for="daily_modal_sun">Domingo:</label>
+                                <textarea id="setting_daily_modal_sun" class="admin-input-dark" rows="2"
+                                    data-setting-key="daily_modal_sun"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="admin-form-actions">
+                            <button type="button" id="saveDailyMessagesBtn" class="action-button-admin publish">💾
+                                Guardar Mensajes</button>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <!-- Nueva Sección para Publicaciones de la Plataforma -->
@@ -407,6 +468,14 @@
                                 <label for="platformIsBoosterTask">Tarea de Impulsor (Booster)</label>
                                 <small class="input-hint">Marcar si esta tarea otorga BLUE de Impulsor y cuenta para el
                                     programa.</small>
+                            </div>
+
+                            <div class="form-group-checkbox preflight-modal-checkbox">
+                                <input type="checkbox" id="platformShowPreflightModal">
+                                <label for="platformShowPreflightModal">Activar Modal de Instrucciones Diarias
+                                    (Intersticial)</label>
+                                <small class="input-hint">Muestra un bloqueo de pantalla con el mensaje del día antes de
+                                    ver la tarea.</small>
                             </div>
 
                             <div class="form-group-admin target-user-group">

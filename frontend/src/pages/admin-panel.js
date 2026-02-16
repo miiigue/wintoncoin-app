@@ -358,6 +358,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elements.pushNotificationForm) {
             elements.pushNotificationForm.addEventListener('submit', handlePushNotificationSubmit);
         }
+
+        const saveDailyMessagesBtn = document.getElementById('saveDailyMessagesBtn');
+        if (saveDailyMessagesBtn) {
+            saveDailyMessagesBtn.addEventListener('click', saveDailyModalSettings);
+        }
     }
 
     function showSection(sectionId) {
@@ -379,7 +384,9 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (sectionId === 'platform-publications') loadPlatformManagementData();
         else if (sectionId === 'referrals') loadReferralsData();
         else if (sectionId === 'boosters') showBoosterTab('boosters-dashboard');
-        else if (sectionId === 'notifications') { /* No requiere carga inicial por ahora */ }
+        else if (sectionId === 'notifications') {
+            loadDailyModalSettings();
+        }
         else if (sectionId === 'audit-log') loadAuditLog();
     }
 
@@ -1298,7 +1305,8 @@ document.addEventListener('DOMContentLoaded', () => {
             repeatCooldownMinutes: allowRepeat ? safeMinutes : 12,
             isBoosterTask: document.getElementById('platformIsBoosterTask').checked,
             targetUsername: targetUsername || null,
-            formFields: formFields
+            formFields: formFields,
+            showPreflightModal: document.getElementById('platformShowPreflightModal').checked
         };
         try {
             if (platformEditId) {
@@ -1797,6 +1805,12 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('platformAutoApprove').checked = !!pub.auto_approve;
         document.getElementById('platformAllowRepeatParticipation').checked = !!pub.allow_repeat_participation;
         document.getElementById('platformIsBoosterTask').checked = !!pub.is_booster_task;
+
+        const preflightToggle = document.getElementById('platformShowPreflightModal');
+        if (preflightToggle) {
+            preflightToggle.checked = !!pub.show_preflight_modal;
+        }
+
         if (elements.platformRepeatLimit) {
             const repeatValue = Number(pub.max_repeat_per_user);
             elements.platformRepeatLimit.value = Number.isFinite(repeatValue) && repeatValue >= 2 ? repeatValue : 2;
@@ -2376,4 +2390,50 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
+    async function loadDailyModalSettings() {
+        const section = document.getElementById('notifications-section');
+        if (!section) return;
+
+        try {
+            const settings = await apiFetch('/api/admin/settings');
+            const dailySettings = settings.filter(s => s.setting_key.startsWith('daily_modal_'));
+
+            dailySettings.forEach(s => {
+                const input = document.querySelector(`[data-setting-key="${s.setting_key}"]`);
+                if (input) {
+                    input.value = s.setting_value;
+                }
+            });
+        } catch (error) {
+            console.error("Error al cargar configuración de modal diario:", error);
+        }
+    }
+
+    async function saveDailyModalSettings() {
+        const section = document.getElementById('notifications-section');
+        const inputs = section.querySelectorAll('[data-setting-key^="daily_modal_"]');
+        const saveBtn = document.getElementById('saveDailyMessagesBtn');
+
+        const originalText = saveBtn.textContent;
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Guardando...';
+
+        try {
+            for (const input of inputs) {
+                const key = input.dataset.settingKey;
+                const value = input.value;
+                await apiFetch('/api/admin/settings', {
+                    method: 'POST',
+                    body: JSON.stringify({ key, value })
+                });
+            }
+            showCustomAlert('Mensajes diarios guardados correctamente.');
+        } catch (error) {
+            showCustomAlert(`Error al guardar: ${error.message}`);
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = originalText;
+        }
+    }
+
 });

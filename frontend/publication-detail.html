@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,6 +10,7 @@
     <title>Detalle de Publicación - WintonCoin</title>
     <link id="main-stylesheet" rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="container" id="publication-detail-container">
         <!-- Enlace para volver al panel principal -->
@@ -52,20 +54,41 @@
                 <div class="rating-form-header">
                     <h2 id="ratingModalTitle">Calificar al Usuario</h2>
                     <div class="star-rating">
-                        <input type="radio" id="5-stars" name="rating" value="5" required /><label for="5-stars" class="star">&#9733;</label>
-                        <input type="radio" id="4-stars" name="rating" value="4" /><label for="4-stars" class="star">&#9733;</label>
-                        <input type="radio" id="3-stars" name="rating" value="3" /><label for="3-stars" class="star">&#9733;</label>
-                        <input type="radio" id="2-stars" name="rating" value="2" /><label for="2-stars" class="star">&#9733;</label>
-                        <input type="radio" id="1-star" name="rating" value="1" /><label for="1-star" class="star">&#9733;</label>
+                        <input type="radio" id="5-stars" name="rating" value="5" required /><label for="5-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="4-stars" name="rating" value="4" /><label for="4-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="3-stars" name="rating" value="3" /><label for="3-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="2-stars" name="rating" value="2" /><label for="2-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="1-star" name="rating" value="1" /><label for="1-star"
+                            class="star">&#9733;</label>
                     </div>
                 </div>
                 <div class="form-group">
-                    <textarea id="ratingComment" name="comment" rows="2" placeholder="¿Qué te pareció la experiencia? (opcional)"></textarea>
+                    <textarea id="ratingComment" name="comment" rows="2"
+                        placeholder="¿Qué te pareció la experiencia? (opcional)"></textarea>
                 </div>
                 <button type="submit" class="action-button confirm">Enviar Calificación</button>
             </form>
         </div>
     </div>
+
+    <!-- Modal Intersticial (Pre-flight) -->
+    <div id="preflightModal" class="modal" style="display: none; background: rgba(0,0,0,0.9);">
+        <div class="modal-content" style="max-width: 500px; text-align: center; border: 1px solid var(--accent-light);">
+            <div class="preflight-header" style="margin-bottom: 20px;">
+                <h2 id="preflightTitle" style="color: var(--accent-light); margin: 0;"></h2>
+            </div>
+            <div id="preflightMessage"
+                style="margin-bottom: 30px; line-height: 1.6; font-size: 1.1rem; white-space: pre-wrap;"></div>
+            <button id="preflightContinueBtn" class="action-button confirm"
+                style="width: 100%; padding: 15px; font-weight: bold; text-transform: uppercase;">Continuar</button>
+        </div>
+    </div>
+
     <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
 </body>
-</html> 
+
+</html>
