@@ -779,6 +779,78 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: navegación inicial más clara y menos fricción en el primer uso.
 - **Evidencia (commits)**: pendiente de push.
 
+
+### 2026-01-26 a 2026-01-28 — Landing Page: Rediseño Visual y Contenido
+
+- **Contexto**: La página de inicio necesitaba transmitir profesionalismo y claridad sobre la propuesta de valor "Token Engineering" y "Proof of Task".
+- **Decisión**:
+  - Implementar nueva estructura visual con tarjetas de servicios ("Hyper-Scalar Economic Engineering").
+  - Integrar assets gráficos generados (imágenes 3D, dualidad de tokens).
+  - Refinar textos para enfatizar la innovación tecnológica y económica.
+- **Impacto**: Primera impresión mucho más potente y alineada con una Fintech de alto nivel.
+- **Evidencia**: Conversaciones "Refining Website Content And Layout".
+
+### 2026-01-29 a 2026-02-01 — Refactorización Backend: Autenticación Modular
+
+- **Contexto**: La lógica de autenticación estaba acoplada en `server.js`, dificultando el mantenimiento y la escalabilidad.
+- **Decisión**:
+  - Extraer lógica a `src/controllers/authController.js` y `src/routes/authRoutes.js`.
+  - Aislar validaciones y manejo de errores.
+  - Preparar el terreno para migración a arquitectura serverless/microservicios.
+- **Impacto**: Código backend más limpio, testearle y mantenible. Reducción de deuda técnica crítica.
+- **Evidencia**: Conversaciones "Refactoring Authentication Logic".
+
+### 2026-01-30 a 2026-02-05 — Seguridad y Políticas: Anti-Sybil y KYC
+
+- **Contexto**: Necesidad de proteger la economía del token contra granjas de cuentas y abusos.
+- **Decisión**:
+  - Definir e implementar políticas estrictas contra multi-cuentas (Sybil attacks).
+  - Condicionar recompensas de referidos a verificación de identidad (KYC).
+  - Actualizar Términos y Condiciones y mensajes de UI para reflejar estas reglas.
+- **Impacto**: Protección de la tesorería del proyecto y mayor confianza para inversores/usuarios legítimos.
+- **Evidencia**: Conversaciones "User Security Policy", "Refining Referral Policies".
+
+### 2026-02-01 a 2026-02-06 — Branding Integral y PWA Assets
+
+- **Contexto**: Inconsistencia en logos e iconos en diferentes dispositivos y resoluciones.
+- **Decisión**:
+  - Generar set completo de iconos estandarizados (manifest PWA, favicons, Apple touch icons).
+  - Implementar nuevos logos para Token BLUE y WintonCoin (círculo dorado).
+  - Actualizar `manifest.json` y headers HTML.
+- **Impacto**: Identidad de marca cohesiva y profesional en todas las plataformas (Web, Móvil, Desktop).
+- **Evidencia**: Conversaciones "Branding & Icon Generation".
+
+### 2026-02-07 a 2026-02-09 — Dashboard de Agentes y Gestión de Campañas
+
+- **Contexto**: Falta de herramientas para que los agentes gestionen su performance y para configurar campañas específicas.
+- **Decisión**:
+  - Crear Dashboard de Agente con KPIs (leads, conversión, actividad).
+  - Implementar configuración de "Targets" para campañas (Nicho, Plataforma, Presupuesto).
+  - Resolver discrepancias en filtros de tareas activas en Admin Panel.
+- **Impacto**: Empoderamiento de la fuerza de ventas (agentes) y campañas de marketing más precisas y medibles.
+- **Evidencia**: Conversaciones "Agent Performance Dashboard", "Campaign Target Configuration".
+
+### 2026-02-11 a 2026-02-14 — Seguridad en Pagos y Notificaciones Push
+
+- **Contexto**: Vulnerabilidades potenciales en confirmación de pagos admin y problemas con la entrega de notificaciones en PWA.
+- **Decisión**:
+  - Blindar lógica de confirmación de pagos (verificación de roles y sesión).
+  - Depurar flujo completo de Web Push Notifications (Service Worker, suscripción DB, entrega).
+  - Actualizar mensajes de referidos para mayor viralidad.
+- **Impacto**: Operativa financiera segura y canal de retención de usuarios (Push) funcional.
+- **Evidencia**: Conversaciones "Admin Payment Confirmation Security", "Push Notification Debugging".
+
+### 2026-02-14 a 2026-02-17 — Migración de Dominio, Roadmap y Pulido Final
+
+- **Contexto**: Preparación para lanzamiento en dominio principal (`www`) y necesidad de mostrar visión a largo plazo.
+- **Decisión**:
+  - Estrategia de migración de PWA de subdominio a dominio raíz.
+  - Creación de página `roadmap.html` con hitos visuales 2024-2027.
+  - Actualización de Whitepaper (`docs.html`) con protocolo "Proof-of-Task".
+  - Ajustes finos de UI: Footer profesional, iconos redes sociales SVG, textos de "Ayuda" optimizados.
+- **Impacto**: Plataforma lista para "Go Live" público con narrativa de futuro clara y experiencia de usuario pulida.
+- **Evidencia**: Conversaciones "PWA Domain Migration", "Roadmap & Icon Fixes".
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)
