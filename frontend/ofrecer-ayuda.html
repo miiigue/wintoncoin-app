@@ -9,8 +9,22 @@
     <link rel="stylesheet" href="landing-fomo.css">
     <style>
         body {
-            background: #020408;
+            background: #020408 url('assets/images/landing/capability_capital.png') no-repeat center center fixed;
+            background-size: cover;
             color: white;
+            position: relative;
+        }
+
+        /* Overlay oscuro para legibilidad */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(2, 4, 8, 0.85);
+            z-index: -1;
         }
 
         .manifesto-page {
@@ -52,15 +66,28 @@
 
         .mision-step {
             position: relative;
-            padding-top: 4rem;
+            padding: 3rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            transition: transform 0.3s, background 0.3s;
+            overflow: hidden;
+        }
+
+        .mision-step:hover {
+            transform: translateY(-10px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
         }
 
         .mision-step::before {
             content: attr(data-step);
             position: absolute;
-            top: 0;
-            left: 0;
-            font-size: 6rem;
+            top: -20px;
+            right: -20px;
+            left: auto;
+            font-size: 8rem;
             font-weight: 900;
             opacity: 0.05;
             line-height: 1;
@@ -72,6 +99,8 @@
             margin-bottom: 1.5rem;
             letter-spacing: 1px;
             text-transform: uppercase;
+            position: relative;
+            z-index: 2;
         }
 
         .mision-step p {
@@ -79,6 +108,8 @@
             line-height: 1.8;
             font-size: 1.1rem;
             font-weight: 300;
+            position: relative;
+            z-index: 2;
         }
 
         .final-call {
@@ -106,6 +137,15 @@
         }
 
         @media (max-width: 768px) {
+            body {
+                background-attachment: fixed;
+                background-position: center center;
+                /* Centrada verticalmente */
+                background-size: 100% auto;
+                /* Tamaño reducido para ver la imagen completa */
+                background-repeat: no-repeat;
+            }
+
             .mision-grid {
                 grid-template-columns: 1fr;
                 gap: 6rem;
@@ -122,9 +162,9 @@
 <body>
     <nav class="glass-nav">
         <div class="container nav-content">
-            <a href="landing.html" class="logo">Winton<span>Coin</span></a>
+            <a href="index.html" class="logo">WintonCoin</a>
             <div class="nav-links">
-                <a href="landing.html">Inicio</a>
+                <a href="index.html">← Volver</a>
                 <a href="faq.html">FAQ</a>
                 <a href="register.html" class="btn-primary">Protocolo de Acceso</a>
             </div>
@@ -136,7 +176,7 @@
             <div class="mision-header">
                 <h1>Tu tiempo es el <br><span class="silver-text">nuevo oro.</span></h1>
                 <p class="ethereal-sub">
-                    En la red Winton, no existen los desempleados, solo colaboradores esperando su próxima misión.
+                    En la red WintonCoin, no existen los desempleados, solo colaboradores esperando su próxima misión.
                     Convertimos el altruismo en capital y la necesidad en una fuente de ingresos soberana.
                 </p>
             </div>
@@ -144,8 +184,9 @@
             <div class="mision-grid">
                 <div class="mision-step" data-step="01">
                     <h3>Identificar</h3>
-                    <p>Accede al mapa de misiones. Cada punto es una persona real que necesita una solución real y está
-                        dispuesta a pagar por ella.</p>
+                    <p>Explora el tablero de oportunidades. Visualiza todas las tareas publicadas en tiempo real. Cada
+                        solicitud es una llamada directa de alguien que necesita tu solución y tiene los fondos listos.
+                    </p>
                 </div>
                 <div class="mision-step" data-step="02">
                     <h3>Ejecutar</h3>
@@ -155,7 +196,7 @@
                 <div class="mision-step" data-step="03">
                     <h3>Liquidar</h3>
                     <p>Al finalizar, el contrato inteligente libera tus tokens BLUE. Dinero honesto con paridad 1:1 al
-                        Dólar, listo para canjear o invertir.</p>
+                        Dólar.</p>
                 </div>
             </div>
 

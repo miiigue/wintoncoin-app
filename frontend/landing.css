@@ -36,6 +36,21 @@ body {
 }
 
 /* --- Fondo Animado (Mesh Gradient) + Hero Image --- */
+h2 {
+    font-family: var(--font-heading);
+    font-size: 3rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+    color: var(--text-primary);
+}
+
+@media (max-width: 768px) {
+    h2 {
+        font-size: 2.2rem;
+    }
+}
+
 .background-mesh {
     position: fixed;
     top: 0;
@@ -495,6 +510,379 @@ body {
 .community-visual-section {
     padding: 80px 0;
     background: linear-gradient(0deg, rgba(255, 255, 255, 0.02), transparent);
+}
+
+/* --- Coin Orbit Animation --- */
+.coin-orbit-container {
+    position: relative;
+    width: 100%;
+    height: 450px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    perspective: 1500px;
+}
+
+.coin {
+    position: absolute;
+    width: 140px;
+    height: 140px;
+    transform-style: preserve-3d;
+    animation: floatPendulum 6s ease-in-out infinite;
+    filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.4));
+}
+
+.coin-blue {
+    animation-delay: 0s;
+    left: 15%;
+    top: 20%;
+}
+
+.coin-red {
+    animation-delay: -2s;
+    right: 15%;
+    top: 20%;
+}
+
+/* Coin flip 3D effect */
+.coin-flip {
+    width: 160px;
+    height: 160px;
+}
+
+.coin-flipper {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    animation: coinFlip3D 3s ease-in-out infinite;
+    animation-delay: inherit;
+}
+
+.coin-front-logo,
+.coin-back-logo {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    overflow: hidden;
+    /* Added background and border for metallic look */
+    border: 4px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+
+.coin-front-logo {
+    transform: rotateY(0deg);
+    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.8));
+    /* Base metal */
+}
+
+/* BLUE Coin Front Specifics */
+.coin-blue .coin-front-logo {
+    background: radial-gradient(circle at 30% 30%, rgba(59, 130, 246, 0.2), rgba(30, 58, 138, 0.9));
+    border-color: rgba(59, 130, 246, 0.4);
+}
+
+/* RED Coin Front Specifics */
+.coin-red .coin-front-logo {
+    background: radial-gradient(circle at 30% 30%, rgba(239, 68, 68, 0.2), rgba(153, 27, 27, 0.9));
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
+
+.coin-back-logo {
+    transform: rotateY(180deg);
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    /* Darker back */
+    padding: 15px;
+    /* Padding for text */
+}
+
+.coin-logo-img {
+    width: 85%;
+    /* Slightly smaller than container */
+    height: 85%;
+    object-fit: contain;
+}
+
+.coin-blue .coin-logo-img {
+    filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.6)) hue-rotate(200deg) brightness(1.2);
+    /* Make gold logo look blueish/cyan */
+}
+
+.coin-red .coin-logo-img {
+    /* For new red logo, just shadow */
+    width: 100%;
+    /* Use full size for custom logo */
+    height: 100%;
+    filter: drop-shadow(0 0 15px rgba(239, 68, 68, 0.5));
+}
+
+.coin-back-text {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.85);
+    text-align: center;
+    line-height: 1.3;
+    font-weight: 400;
+    /* Regular weight like P2P */
+    text-transform: none;
+    /* No uppercase */
+    text-shadow: none;
+    /* Removed heavy shadow */
+}
+
+@keyframes coinFlip3D {
+
+    0%,
+    100% {
+        transform: rotateY(0deg) rotateX(5deg);
+    }
+
+    50% {
+        transform: rotateY(180deg) rotateX(-5deg);
+    }
+}
+
+.coin-neutral {
+    animation-delay: -4s;
+    left: 50%;
+    top: 45%;
+    /* Moved up from 60% to be more centered */
+    transform: translateX(-50%);
+}
+
+.coin-inner {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    animation: gentleSpin 8s ease-in-out infinite;
+    animation-delay: inherit;
+}
+
+.coin-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    backface-visibility: hidden;
+    box-shadow:
+        0 15px 40px rgba(0, 0, 0, 0.6),
+        inset 0 0 30px rgba(255, 255, 255, 0.1);
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    transition: all 0.3s ease;
+}
+
+.coin-front {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(6, 182, 212, 0.3));
+    backdrop-filter: blur(15px);
+}
+
+.coin-blue .coin-front {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.5), rgba(6, 182, 212, 0.5));
+    border-color: rgba(59, 130, 246, 0.6);
+    animation: glowPulseBlue 3s ease-in-out infinite;
+}
+
+.coin-red .coin-front {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.5), rgba(220, 38, 38, 0.5));
+    border-color: rgba(239, 68, 68, 0.6);
+    animation: glowPulseRed 3s ease-in-out infinite;
+}
+
+.coin-neutral .coin-front {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.5), rgba(168, 85, 247, 0.5));
+    border-color: rgba(139, 92, 246, 0.6);
+    animation: glowPulsePurple 3s ease-in-out infinite;
+}
+
+.coin-back {
+    background: linear-gradient(135deg, rgba(20, 25, 40, 0.9), rgba(30, 35, 50, 0.9));
+    backdrop-filter: blur(15px);
+    transform: rotateY(180deg);
+}
+
+.coin-icon {
+    width: 50px;
+    height: 50px;
+    margin-bottom: 10px;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+    animation: iconBounce 2s ease-in-out infinite;
+}
+
+.coin-symbol {
+    font-size: 3rem;
+    margin-bottom: 10px;
+    animation: iconBounce 2s ease-in-out infinite;
+}
+
+.coin-value {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: white;
+    text-shadow: 0 3px 10px rgba(0, 0, 0, 0.6);
+    letter-spacing: 1px;
+}
+
+.coin-label {
+    font-size: 1rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.95);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-top: 5px;
+}
+
+.coin-text {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.85);
+    text-align: center;
+    line-height: 1.3;
+}
+
+/* Floating pendulum animation */
+@keyframes floatPendulum {
+
+    0%,
+    100% {
+        transform: translateY(0) rotateZ(-5deg);
+    }
+
+    50% {
+        transform: translateY(-30px) rotateZ(5deg);
+    }
+}
+
+/* Gentle spin animation */
+@keyframes gentleSpin {
+
+    0%,
+    100% {
+        transform: rotateY(0deg) rotateX(5deg);
+    }
+
+    50% {
+        transform: rotateY(180deg) rotateX(-5deg);
+    }
+}
+
+/* Icon bounce */
+@keyframes iconBounce {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-5px);
+    }
+}
+
+/* Glow pulses */
+@keyframes glowPulseBlue {
+
+    0%,
+    100% {
+        box-shadow:
+            0 15px 40px rgba(0, 0, 0, 0.6),
+            inset 0 0 30px rgba(255, 255, 255, 0.1),
+            0 0 30px rgba(59, 130, 246, 0.6);
+    }
+
+    50% {
+        box-shadow:
+            0 15px 40px rgba(0, 0, 0, 0.6),
+            inset 0 0 30px rgba(255, 255, 255, 0.1),
+            0 0 50px rgba(59, 130, 246, 1);
+    }
+}
+
+@keyframes glowPulseRed {
+
+    0%,
+    100% {
+        box-shadow:
+            0 15px 40px rgba(0, 0, 0, 0.6),
+            inset 0 0 30px rgba(255, 255, 255, 0.1),
+            0 0 30px rgba(239, 68, 68, 0.6);
+    }
+
+    50% {
+        box-shadow:
+            0 15px 40px rgba(0, 0, 0, 0.6),
+            inset 0 0 30px rgba(255, 255, 255, 0.1),
+            0 0 50px rgba(239, 68, 68, 1);
+    }
+}
+
+@keyframes glowPulsePurple {
+
+    0%,
+    100% {
+        box-shadow:
+            0 15px 40px rgba(0, 0, 0, 0.6),
+            inset 0 0 30px rgba(255, 255, 255, 0.1),
+            0 0 30px rgba(139, 92, 246, 0.6);
+    }
+
+    50% {
+        box-shadow:
+            0 15px 40px rgba(0, 0, 0, 0.6),
+            inset 0 0 30px rgba(255, 255, 255, 0.1),
+            0 0 50px rgba(139, 92, 246, 1);
+    }
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .coin-orbit-container {
+        height: 350px;
+    }
+
+    .coin {
+        width: 100px;
+        height: 100px;
+    }
+
+    .coin-blue {
+        left: 10%;
+        top: 15%;
+    }
+
+    .coin-red {
+        right: 10%;
+        top: 15%;
+    }
+
+    .coin-neutral {
+        top: 55%;
+    }
+
+    .coin-icon {
+        width: 35px;
+        height: 35px;
+    }
+
+    .coin-symbol {
+        font-size: 2rem;
+    }
+
+    .coin-value {
+        font-size: 1.3rem;
+    }
+
+    .coin-label {
+        font-size: 0.8rem;
+    }
 }
 
 .visual-split {
@@ -1305,6 +1693,77 @@ body {
     }
 }
 
+/* --- GLASS ACTION PANEL (Subtle Work Opportunity) --- */
+.glass-action-section {
+    padding: 6rem 0;
+    position: relative;
+}
+
+.glass-action-card {
+    background: rgba(10, 10, 20, 0.4);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 3rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.glass-action-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.05), transparent 60%);
+    pointer-events: none;
+}
+
+.glass-action-content h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    line-height: 1.2;
+}
+
+.glass-action-content p {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    max-width: 600px;
+}
+
+.btn-ghost-silver {
+    padding: 1rem 2.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50px;
+    color: white;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.btn-ghost-silver:hover {
+    background: white;
+    color: black;
+    border-color: white;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+@media (max-width: 768px) {
+    .glass-action-card {
+        flex-direction: column;
+        text-align: center;
+        padding: 2.5rem;
+    }
+}
+
 /* Responsividad para nuevas secciones */
 @media (max-width: 768px) {
     .security-grid {
@@ -1417,76 +1876,6 @@ body {
         opacity: 0.7;
     }
 
-    /* --- GLASS ACTION PANEL (Subtle Work Opportunity) --- */
-    .glass-action-section {
-        padding: 6rem 0;
-        position: relative;
-    }
-
-    .glass-action-card {
-        background: rgba(10, 10, 20, 0.4);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 24px;
-        padding: 4rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 3rem;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .glass-action-card::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        background: radial-gradient(circle at top right, rgba(59, 130, 246, 0.05), transparent 60%);
-        pointer-events: none;
-    }
-
-    .glass-action-content h3 {
-        font-size: 2rem;
-        font-weight: 700;
-        margin-bottom: 1rem;
-        line-height: 1.2;
-    }
-
-    .glass-action-content p {
-        color: var(--text-secondary);
-        font-size: 1.1rem;
-        max-width: 600px;
-    }
-
-    .btn-ghost-silver {
-        padding: 1rem 2.5rem;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        border-radius: 50px;
-        color: white;
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 0.95rem;
-        transition: all 0.3s ease;
-        white-space: nowrap;
-    }
-
-    .btn-ghost-silver:hover {
-        background: white;
-        color: black;
-        border-color: white;
-        box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
-    }
-
-    @media (max-width: 768px) {
-        .glass-action-card {
-            flex-direction: column;
-            text-align: center;
-            padding: 2.5rem;
-        }
-    }
 
     @keyframes floatGalaxy {
 
@@ -1814,15 +2203,22 @@ body {
 
     .footer-col a {
         display: block;
-        color: var(--text-secondary);
+        color: #ffffff;
+        opacity: 0.7;
         text-decoration: none;
         margin-bottom: 0.8rem;
         font-size: 0.9rem;
-        transition: color 0.3s;
+        transition: all 0.3s;
+    }
+
+    .footer-col a:visited {
+        color: #ffffff;
     }
 
     .footer-col a:hover {
-        color: var(--text-primary);
+        opacity: 1;
+        color: #ffffff;
+        transform: translateX(5px);
     }
 
     .footer-grid {
@@ -1865,6 +2261,10 @@ body {
             display: none;
         }
 
+        .stats-ticker {
+            display: none;
+        }
+
         /* Simplificado para demo, idealmente un burger menu */
 
         .hero-title {
@@ -1875,6 +2275,11 @@ body {
             flex-direction: column;
             padding-top: 120px;
             text-align: center;
+        }
+
+        .cta-group {
+            justify-content: center;
+            flex-wrap: wrap;
         }
 
         .hero-visual {

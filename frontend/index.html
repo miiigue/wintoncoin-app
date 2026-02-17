@@ -18,8 +18,6 @@
 
     <!-- Fondo Animado CSS + Imagen Hero -->
     <div class="background-mesh">
-        <!-- Imagen de Fondo Hero (Debe estar en assets/images/landing/hero_bg.png) -->
-        <div class="hero-bg-image" style="background-image: url('assets/images/landing/hero_bg.png');"></div>
         <div class="mesh-1"></div>
         <div class="mesh-2"></div>
         <div class="mesh-overlay"></div>
@@ -51,12 +49,13 @@
                 </h1>
                 <p class="hero-subtitle">
                     En WintonCoin, tu capacidad de cumplir promesas es tu moneda.
-                    Solicita cualquier servicio hoy y paga con tu <strong>Compromiso (RED)</strong>.
+                    Solicita servicios y paga con <span class="text-blue">BLUE</span> sin necesidad de dinero,
+                    respaldando el intercambio con tu <span class="text-red">Compromiso (RED)</span>.
                     Sin bancos, sin intereses, solo colaboración real.
                 </p>
                 <div class="cta-group">
-                    <a href="register.html" class="btn-primary">Pedir Ayuda ahora <span class="arrow">→</span></a>
-                    <a href="#como-funciona" class="btn-secondary">Entender el Modelo</a>
+                    <a href="login.html" class="btn-secondary">Iniciar Sesión</a>
+                    <a href="register.html" class="btn-primary">Registrarse <span class="arrow">→</span></a>
                 </div>
 
                 <div class="stats-ticker">
@@ -108,25 +107,32 @@
                     </circle>
                 </svg>
 
-                <!-- Tarjetas flotantes superpuestas -->
-                <div class="card-float card-blue">
-                    <div class="card-header">
-                        <!-- Icono Oficial BLUE (SVG) -->
-                        <img src="assets/branding/blue_token_icon.svg" alt="Token BLUE" class="brand-icon-tx">
-                        <span>Pagas Servicio</span>
+                <!-- Monedas orbitando -->
+                <div class="coin-orbit-container">
+                    <div class="coin coin-blue coin-flip" style="--orbit-delay: 0s;">
+                        <div class="coin-flipper">
+                            <div class="coin-front-logo">
+                                <img src="assets/icons/icon-192x192.png" alt="BLUE Token" class="coin-logo-img">
+                            </div>
+                            <div class="coin-back-logo">
+                                <div class="coin-back-text">Pagos<br>Inmediatos</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="card-amount">100 BLUE</div>
-                    <div class="card-status">Transferencia Instantánea</div>
-                </div>
-                <div class="card-float card-red">
-                    <div class="card-header">
-                        <!-- Logo Oficial WintonCoin (Adaptado a RED) -->
-                        <img src="assets/branding/wintoncoin_logo.png" alt="Token RED" class="brand-icon-tx"
-                            style="filter: brightness(0) saturate(100%) invert(22%) sepia(93%) saturate(7400%) hue-rotate(352deg) brightness(98%) contrast(115%);">
-                        <span>Recibes Compromiso</span>
+
+                    <div class="coin coin-red coin-flip" style="--orbit-delay: -2s;">
+                        <div class="coin-flipper">
+                            <div class="coin-front-logo">
+                                <img src="assets/images/landing/red_token_logo.png" alt="RED Token"
+                                    class="coin-logo-img">
+                            </div>
+                            <div class="coin-back-logo">
+                                <div class="coin-back-text">Tu<br>Crédito</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="card-amount">100 RED</div>
-                    <div class="card-status">Deuda sin Interés</div>
+
+
                 </div>
             </div>
         </div>
@@ -316,7 +322,8 @@
         <div class="container">
             <div class="galaxy-content">
                 <h2>Un Universo de <span class="gradient-text">Servicios</span></h2>
-                <p>Desde lo cotidiano hasta lo extraordinario. Si puedes imaginarlo, puedes pagarlo con Compromiso.</p>
+                <p>Desde lo cotidiano hasta lo extraordinario. Si puedes imaginarlo, puedes publicarlo o pagarlo con tu
+                    Compromiso.</p>
 
                 <div class="tags-cloud">
                     <span class="tag tag-large" style="--d:1s; --x:-20px; --y:-40px">Taxi</span>
@@ -329,6 +336,10 @@
                     <span class="tag tag-medium" style="--d:0.5s; --x:120px; --y:0px">Cuidado</span>
                     <span class="tag tag-small" style="--d:4.5s; --x:-120px; --y:-80px">Mecánica</span>
                     <span class="tag tag-medium" style="--d:1.2s; --x:0px; --y:-120px">Traducción</span>
+                    <span class="tag tag-large" style="--d:2.2s; --x:-140px; --y:40px">Delivery</span>
+                    <span class="tag tag-medium" style="--d:3.8s; --x:140px; --y:-40px">Vender</span>
+                    <span class="tag tag-medium" style="--d:1.8s; --x:50px; --y:-140px">Comprar</span>
+                    <span class="tag tag-large" style="--d:0.8s; --x:-60px; --y:130px">Restaurant</span>
                 </div>
 
                 <a href="register.html" class="btn-glow-large">Explorar Marketplace</a>
@@ -342,8 +353,8 @@
             <div class="glass-action-card">
                 <div class="glass-action-content">
                     <h3>Tu Capacidad es tu Capital.</h3>
-                    <p>En el ecosistema Winton, el trabajo es una divisa líquida. Conecta con solicitudes reales,
-                        colabora y recibe BLUE (1:1 USD) de forma directa y soberana.</p>
+                    <p>En el ecosistema WintonCoin, el trabajo es una divisa líquida. Conecta con solicitudes reales,
+                        colabora y recibe BLUE (1:1 USD) de forma directa.</p>
                 </div>
                 <a href="ofrecer-ayuda.html" class="btn-ghost-silver">Comenzar a Generar</a>
             </div>
@@ -456,9 +467,10 @@
                 </div>
                 <div class="footer-col">
                     <h5>Recursos</h5>
-                    <a href="#">Whitepaper</a>
+                    <a href="docs.html">Whitepaper</a>
+                    <a href="roadmap.html">Roadmap & Hitos</a>
                     <a href="pedir-ayuda.html">Guía de Ayuda</a>
-                    <a href="#">Términos y Condiciones</a>
+                    <a href="terms.html">Términos y Condiciones</a>
                     <a href="faq.html">Preguntas Frecuentes (FAQ)</a>
                 </div>
                 <div class="footer-col">

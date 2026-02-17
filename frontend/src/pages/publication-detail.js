@@ -13,6 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const publicationId = urlParams.get('id');
 
+    let modalDismissed = false; // Flag para evitar que el modal reaparezca al refrescar con acciones
+
     const elements = {
         container: document.getElementById('publication-detail-container'),
         content: document.getElementById('publication-content'),
@@ -57,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const publication = await publicationResponse.json();
 
             // --- NUEVO: Mostrar Modal Intersticial si es necesario ---
-            if (publication.preflight_modal) {
+            if (publication.preflight_modal && !modalDismissed) {
                 showPreflightModal(publication.preflight_modal);
             }
 
@@ -96,6 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         elements.preflightContinueBtn.onclick = () => {
             elements.preflightModal.style.display = 'none';
+            modalDismissed = true; // Marcar como visto
         };
     }
 
