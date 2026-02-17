@@ -71,6 +71,7 @@ export default defineConfig({
         // Páginas de Marketing
         faq: resolve(__dirname, 'faq.html'),
         ofrecerAyuda: resolve(__dirname, 'ofrecer-ayuda.html'),
+        pedirAyuda: resolve(__dirname, 'pedir-ayuda.html'),
 
         // P2P
         p2p: resolve(__dirname, 'p2p.html'),
