@@ -78,6 +78,7 @@ export default defineConfig({
 
         // Páginas informativas
         docs: resolve(__dirname, 'docs.html'),
+        roadmap: resolve(__dirname, 'roadmap.html'),
         comoFunciona: resolve(__dirname, 'como-funciona.html'),
         love: resolve(__dirname, 'love.html'),
         terms: resolve(__dirname, 'terms.html'),
