@@ -34,7 +34,7 @@ console.log('[ContractInteraction] ES Module loaded');
 
 document.addEventListener('DOMContentLoaded', () => {
     // Verificar migración (sc.wintoncoin.com -> wintoncoin.com)
-    initMigrationCheck();
+    // initMigrationCheck();
 
     // --- Utility Functions ---
     function formatBalance(value) {

@@ -17,14 +17,26 @@ export function initMigrationCheck() {
     // Detectamos si es Android
     const isAndroid = /Android/i.test(navigator.userAgent);
 
-    renderMigrationModal(isAndroid);
+    // Detectamos si está en modo PWA instalada (Standalone)
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+    renderMigrationModal(isAndroid, isPWA);
 }
 
-function renderMigrationModal(isAndroid) {
+function renderMigrationModal(isAndroid, isPWA) {
     // URLs de destino
     const NEW_WEB_URL = 'https://www.wintoncoin.com';
     // TODO: Reemplazar con el link real de la Play Store cuando esté publicada
     const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.wintoncoin.app';
+
+    const uninstallTip = isPWA ? `
+        <div style="margin-top: 15px; padding: 10px; background: rgba(255, 193, 7, 0.15); border-radius: 8px; border: 1px solid rgba(255, 193, 7, 0.3);">
+            <p style="font-size: 13px; color: #ffca28; margin: 0; display: flex; align-items: start; text-align: left;">
+                <span style="margin-right: 8px; font-size: 16px;">🗑️</span>
+                <span><b>Tip:</b> Esta versión antigua dejará de funcionar. Puedes eliminar este icono de tu pantalla de inicio tras instalar la nueva.</span>
+            </p>
+        </div>
+    ` : '';
 
     const modalHtml = `
         <div id="migration-modal" style="
@@ -46,10 +58,13 @@ function renderMigrationModal(isAndroid) {
                 <div style="font-size: 54px; margin-bottom: 20px;">🚀</div>
                 <h2 style="margin: 0 0 12px 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px;">¡Nos estamos mudando!</h2>
                 <p style="margin: 0 0 25px 0; font-size: 16px; line-height: 1.6; color: rgba(255,255,255,0.9);">
-                    Hemos lanzado una <strong>nueva versión 2.0</strong> de WintonCoin. Esta versión dejará de funcionar en breve.
+                    Hemos lanzado una <strong>nueva versión 2.0</strong> de WintonCoin.
                 </p>
 
                 ${isAndroid ? getAndroidContent(PLAY_STORE_URL) : getWebContent(NEW_WEB_URL)}
+                
+                ${uninstallTip}
+
                 
                 <div style="margin-top: 25px; pt-3; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
                     <p style="font-size: 12px; opacity: 0.6; margin: 0;">

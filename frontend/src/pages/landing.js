@@ -4,9 +4,9 @@ import '../../landing-fomo.css';
 // Script para la Landing Page
 console.log('[Landing] Styles loaded via JS entry point');
 
-import { initMigrationCheck } from '../modules/migrationManager.js';
+// import { initMigrationCheck } from '../modules/migrationManager.js';
 
-initMigrationCheck();
+// initMigrationCheck();
 
 // Animaciones de Scroll (Migrado del inline script)
 document.addEventListener('DOMContentLoaded', () => {
