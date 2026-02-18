@@ -12,6 +12,7 @@ import {
     appSettings,
     handleSessionExpired
 } from '../modules/index.js';
+import { initMigrationCheck } from '../modules/migrationManager.js';
 import { initPWAInstall } from '../modules/pwa-install.js';
 import { initOnboarding, restartTour } from '../modules/onboarding.js';
 import { initNotificationGate } from '../modules/notificationGate.js';
@@ -32,6 +33,9 @@ window.restartTour = restartTour;
 console.log('[ContractInteraction] ES Module loaded');
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Verificar migración (sc.wintoncoin.com -> wintoncoin.com)
+    initMigrationCheck();
+
     // --- Utility Functions ---
     function formatBalance(value) {
         const num = Number(value) || 0;
