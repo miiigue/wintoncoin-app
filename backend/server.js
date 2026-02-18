@@ -999,9 +999,9 @@ async function startServer() {
                                 const remainingMinutes = Math.ceil((cooldownMs - elapsedMs) / (60 * 1000));
                                 if (remainingMinutes >= 60) {
                                     const remainingHours = Math.ceil(remainingMinutes / 60);
-                                    throw { status: 409, message: `Debes esperar ${remainingHours} hora${remainingHours === 1 ? '' : 's'} para volver a realizar esta tarea.` };
+                                    throw { status: 409, message: `Podrás volver a realizar esta tarea en ${remainingHours} hora${remainingHours === 1 ? '' : 's'}.` };
                                 }
-                                throw { status: 409, message: `Debes esperar ${remainingMinutes} minuto${remainingMinutes === 1 ? '' : 's'} para volver a realizar esta tarea.` };
+                                throw { status: 409, message: `Podrás volver a realizar esta tarea en ${remainingMinutes} minuto${remainingMinutes === 1 ? '' : 's'}.` };
                             }
                         }
                     }
