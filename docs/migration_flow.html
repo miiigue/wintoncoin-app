@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Diagrama de Migración WintonCoin</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #f4f4f9;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Estrategia de Migración: PWA Sunset</h1>
+    <div class="mermaid">
+        graph TD
+        %% Actores y Entrada
+        UserOld((👤 Usuario PWA Actual))
+        UserNew((👤 Nuevo Usuario))
+
+        %% Dominio Viejo (SC)
+        subgraph OLD_DOMAIN ["📉 Dominio Viejo (sc.wintoncoin.com)"]
+        style OLD_DOMAIN fill:#ffcccc,stroke:#cc0000,stroke-width:2px
+        PWA_Old[📱 PWA Vieja Instalada]
+        Logic_Check{¿En qué fase estamos?}
+
+        %% Fase 1: Aviso suave
+        Phase1[Fase 1: Coexistencia]
+        Banner[🔔 Mostrar Banner: <br>'Nueva versión disponible']
+
+        %% Fase 2: Bloqueo
+        Phase2[Fase 2: Sunset / Cierre]
+        Wall[⛔ Pantalla de Bloqueo: <br>'Esta versión ha caducado']
+
+        %% Acción de Migración
+        BtnMigrate[🔘 Clic: 'Ir a la nueva App']
+        GenToken[🔐 Generar Token de Sesión Temporal]
+        end
+
+        %% Dominio Nuevo (WWW)
+        subgraph NEW_DOMAIN ["🚀 Dominio Nuevo (www.wintoncoin.com)"]
+        style NEW_DOMAIN fill:#ccffcc,stroke:#009900,stroke-width:2px
+        Landing_New[🌐 Nueva Web / PWA]
+        AutoLogin{¿Viene con Token?}
+
+        Session_Restore[✅ Auto-Login: <br>Restaurar Sesión del Usuario]
+        Normal_Login[Pantalla de Login Normal]
+
+        Install_Prompt[📲 Prompt: <br>'Instalar Nueva PWA']
+        end
+
+        %% App Android
+        subgraph ANDROID ["🤖 App Android (Play Store)"]
+        style ANDROID fill:#e6f3ff,stroke:#0066cc,stroke-width:2px
+        NativeApp[App Nativa]
+        end
+
+        %% Backend Compartido
+        Database[(🗄️ Base de Datos Compartida)]
+        style Database fill:#ffffcc,stroke:#cccc00
+
+        %% Flujos
+        UserOld --> PWA_Old
+        PWA_Old --> Logic_Check
+
+        Logic_Check -->|Semana 1-2| Phase1
+        Phase1 --> Banner
+        Banner --> BtnMigrate
+
+        Logic_Check -->|Semana 3+| Phase2
+        Phase2 --> Wall
+        Wall --> BtnMigrate
+
+        BtnMigrate --> GenToken
+        GenToken -->|Redirección Segura| Landing_New
+
+        Landing_New --> AutoLogin
+        AutoLogin -->|Sí (Viene de sc)| Session_Restore
+        AutoLogin -->|No (Tráfico nuevo)| Normal_Login
+
+        Session_Restore --> Install_Prompt
+
+        %% Nuevos Usuarios y Android
+        UserNew --> Landing_New
+        UserNew --> NativeApp
+        NativeApp -.->|Conecta directo a API| Database
+        Landing_New -.->|Conecta a API| Database
+    </div>
+    <script>mermaid.initialize({ startOnLoad: true });</script>
+</body>
+
+</html>

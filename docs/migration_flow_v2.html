@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>WintonCoin Migration Strategy</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #fdfdfd;
+        }
+
+        .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+    </style>
+</head>
+
+<body>
+    <h2 style="text-align:center">Plan de Migración (PWA Sunset)</h2>
+    <div class="mermaid">
+        graph TD
+        UserOld((Usuario PWA Actual))
+        UserNew((Nuevo Usuario))
+
+        subgraph OLD_DOMAIN [Dominio Viejo sc.wintoncoin.com]
+        PWA_Old[PWA Vieja Instalada]
+        Check{¿Fase?}
+        Phase1[Fase 1: Coexistencia]
+        Banner[Banner: Nueva versión disponible]
+        Phase2[Fase 2: Bloqueo]
+        Wall[Pantalla Bloqueo: Caducado]
+        BtnMigrate[Clic: IR A NUEVA APP]
+        GenToken[Generar Token Sesión]
+        end
+
+        subgraph NEW_DOMAIN [Dominio Nuevo www.wintoncoin.com]
+        Landing_New[Nueva Web / PWA]
+        CheckSession{¿Viene con Token?}
+        SessionYes[Autologin: Restaurar Sesión]
+        SessionNo[Login Normal]
+        Prompt[Instalar Nueva PWA]
+        end
+
+        subgraph ANDROID [App Android Nativa]
+        NativeApp[App Play Store]
+        end
+
+        Database[(Base de Datos Unica)]
+
+        UserOld --> PWA_Old
+        PWA_Old --> Check
+        Check -->|Semana 1-2| Phase1
+        Phase1 --> Banner
+        Banner --> BtnMigrate
+        Check -->|Semana 3+| Phase2
+        Phase2 --> Wall
+        Wall --> BtnMigrate
+
+        BtnMigrate --> GenToken
+        GenToken --> Landing_New
+
+        Landing_New --> CheckSession
+        CheckSession -->|Sí| SessionYes
+        CheckSession -->|No| SessionNo
+        SessionYes --> Prompt
+
+        UserNew --> Landing_New
+        UserNew --> NativeApp
+
+        NativeApp -.-> Database
+        Landing_New -.-> Database
+    </div>
+    <script>mermaid.initialize({ startOnLoad: true });</script>
+</body>
+
+</html>

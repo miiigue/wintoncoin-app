@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Migración App Android (Fix)</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="mermaid">
+        graph TD
+        User((Usuario))
+
+        subgraph OLD_APP [PWA Vieja sc.wintoncoin.com]
+        Open[Abre PWA]
+        Check{¿Es Android?}
+
+        AndroidYes[SÍ ES ANDROID]
+        Banner[Muestra Banner Play Store]
+        BtnPlay[Clic: DESCARGAR APP]
+
+        AndroidNo[NO ES ANDROID]
+        BannerWeb[Muestra Banner Nueva Web]
+        BtnWeb[Clic: IR A NUEVA WEB]
+        end
+
+        DestinoPlay[Google Play Store]
+        DestinoWeb[www.wintoncoin.com]
+
+        AppNativa[App Android Instalada]
+
+        User --> Open
+        Open --> Check
+        Check -->|Sí. Android| AndroidYes
+        AndroidYes --> Banner
+        Banner --> BtnPlay
+        BtnPlay --> DestinoPlay
+        DestinoPlay -->|Instala| AppNativa
+
+        Check -->|No. iOS/PC| AndroidNo
+        AndroidNo --> BannerWeb
+        BannerWeb --> BtnWeb
+        BtnWeb --> DestinoWeb
+    </div>
+    <script>mermaid.initialize({ startOnLoad: true });</script>
+</body>
+
+</html>

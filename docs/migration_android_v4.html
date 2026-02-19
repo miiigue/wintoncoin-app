@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Migración Directa a Android</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #eef2f5;
+        }
+
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+
+        .note {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Estrategia: PWA a Android Nativa</h1>
+    <p class="note">El flujo para convertir usuarios de la vieja web app a la App Oficial de Play Store.</p>
+
+    <div class="mermaid">
+        graph TD
+        User((👤 Usuario PWA))
+
+        subgraph PWA_OLD [📱 PWA Vieja (sc.wintoncoin.com)]
+        AppOld[Abre App Vieja]
+        CheckOS{¿Sistema Operativo?}
+
+        %% Flujo Android
+        IsAndroid[🤖 Es Android]
+        BannerAndroid[Banner: '¡Ya tenemos App Oficial!']
+        BtnPlay[Botón: 'DESCARGAR EN PLAY STORE']
+
+        %% Flujo iOS / PC (Fallback)
+        IsOther[🍎 iOS / 💻 PC]
+        BannerWeb[Banner: 'Nueva Web Disponible']
+        BtnWeb[Botón: 'IR A NUEVA WEB']
+        end
+
+        subgraph STORES [🏪 Tiendas y Web]
+        PlayStore[Google Play Store <br> (Ficha WintonCoin)]
+        NewWeb[www.wintoncoin.com]
+        end
+
+        subgraph APP_NATIVE [🚀 App Android Instalada]
+        LoginNative[Login en App Nativa]
+        HappyUser[Usuario Feliz 😃]
+        end
+
+        User --> AppOld
+        AppOld --> CheckOS
+
+        CheckOS -->|Android| IsAndroid
+        IsAndroid --> BannerAndroid
+        BannerAndroid --> BtnPlay
+        BtnPlay -->|Abre Link| PlayStore
+
+        PlayStore -->|Instala| LoginNative
+        LoginNative --> HappyUser
+
+        CheckOS -->|Otros| IsOther
+        IsOther --> BannerWeb
+        BannerWeb --> BtnWeb
+        BtnWeb --> NewWeb
+
+        style BtnPlay fill:#00d084,color:white,stroke:none
+        style PlayStore fill:#e6f3ff,stroke:#0066cc
+    </div>
+
+    <script>mermaid.initialize({ startOnLoad: true });</script>
+</body>
+
+</html>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Secuencia de Migración WintonCoin</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #fdfdfd;
+        }
+
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            text-align: center;
+            color: #333;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Historia de Usuario: De la PWA Vieja a la Nueva</h2>
+    <div class="mermaid">
+        sequenceDiagram
+        actor Usuario
+        participant OldApp as 📱 PWA Vieja (sc)
+        participant UserDB as 🗄️ Backend
+        participant NewApp as 🚀 PWA Nueva (www)
+
+        Note over Usuario, OldApp: FASE 1: AVISO AMIGABLE
+        Usuario->>OldApp: Abre la App
+        OldApp->>OldApp: Detecta dominio 'sc.wintoncoin.com'
+        OldApp-->>Usuario: Muestra Banner: "¡Nos mudamos! Instala la nueva versión"
+
+        Usuario->>OldApp: Clic en "Ir a WintonCoin.com"
+        OldApp->>UserDB: Pide token de migración (Auth actual)
+        UserDB-->>OldApp: Devuelve Token Temporal (XYZ123)
+        OldApp->>NewApp: Redirige a www.wintoncoin.com?migrate=XYZ123
+
+        Note over Usuario, NewApp: LA MAGIA OCURRE AQUÍ
+        NewApp->>UserDB: Verifica token XYZ123
+        UserDB-->>NewApp: OK! Usuario es Miguel (Admin)
+        NewApp->>NewApp: Inicia Sesión Automática
+        NewApp-->>Usuario: Muestra Dashboard Logueado
+
+        Note over Usuario, NewApp: CIERRE DEFINITIVO
+        NewApp-->>Usuario: Prompt: "Instalar App WintonCoin"
+        Usuario->>NewApp: Instala Nueva PWA
+        Usuario->>OldApp: Borra PWA Vieja
+    </div>
+    <script>mermaid.initialize({ startOnLoad: true });</script>
+</body>
+
+</html>

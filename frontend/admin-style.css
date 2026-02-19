@@ -1,17 +1,21 @@
 /* --- Estilos Generales para el Panel de Administración --- */
 :root {
-    --admin-bg: #161a1d; /* Un negro/gris muy oscuro */
-    --admin-surface: #202528; /* Un gris un poco más claro */
+    --admin-bg: #161a1d;
+    /* Un negro/gris muy oscuro */
+    --admin-surface: #202528;
+    /* Un gris un poco más claro */
     --admin-border: #3a3f44;
     --admin-text: #f0f2f5;
     --admin-text-secondary: #b0b3b8;
-    --admin-primary: #0a84ff; /* Un azul brillante, tipo Apple */
+    --admin-primary: #0a84ff;
+    /* Un azul brillante, tipo Apple */
 }
 
 /* --- Layout Principal con Grid --- */
 .admin-grid-container {
     display: grid;
-    grid-template-columns: 240px 1fr; /* Columna fija para el sidebar, el resto para el main */
+    grid-template-columns: 240px 1fr;
+    /* Columna fija para el sidebar, el resto para el main */
     grid-template-rows: 1fr;
     height: 100vh;
     width: 100vw;
@@ -28,7 +32,8 @@
 
 .admin-main {
     padding: 2rem 3rem;
-    overflow-y: auto; /* Permitir scroll solo en el contenido principal */
+    overflow-y: auto;
+    /* Permitir scroll solo en el contenido principal */
 }
 
 /* --- Barra Lateral (Sidebar) --- */
@@ -106,23 +111,28 @@
 }
 
 .sidebar-footer {
-    margin-top: auto; /* Empuja el footer hacia abajo */
+    margin-top: auto;
+    /* Empuja el footer hacia abajo */
 }
 
 .sidebar-footer a {
     color: var(--admin-text-secondary);
     text-decoration: none;
 }
+
 .sidebar-footer a:hover {
     color: var(--error-color);
 }
 
 /* --- Secciones de Contenido --- */
 .admin-section {
-    display: none; /* Ocultas por defecto */
+    display: none;
+    /* Ocultas por defecto */
 }
+
 .admin-section.active-section {
-    display: block; /* La sección activa se muestra */
+    display: block;
+    /* La sección activa se muestra */
     animation: fadeIn 0.5s ease-in-out;
 }
 
@@ -193,14 +203,16 @@
 }
 
 .setting-item-control {
-    flex-shrink: 0; /* Evita que el input se encoja */
+    flex-shrink: 0;
+    /* Evita que el input se encoja */
 }
 
 /* --- Nuevo: Estilo para grupos de inputs numéricos --- */
 .setting-item-control-group {
     display: flex;
     gap: 1rem;
-    align-items: flex-end; /* Alinea los inputs y labels en la base */
+    align-items: flex-end;
+    /* Alinea los inputs y labels en la base */
 }
 
 .numeric-group-item {
@@ -216,8 +228,10 @@
 }
 
 .numeric-group-item .admin-numeric-input {
-    width: 70px; /* Ancho reducido para cada input */
+    width: 70px;
+    /* Ancho reducido para cada input */
 }
+
 /* --- Fin de lo nuevo --- */
 
 .admin-numeric-input {
@@ -238,7 +252,7 @@
     height: 34px;
 }
 
-.switch input { 
+.switch input {
     opacity: 0;
     width: 0;
     height: 0;
@@ -268,15 +282,15 @@
     border-radius: 50%;
 }
 
-input:checked + .slider {
+input:checked+.slider {
     background-color: var(--admin-primary);
 }
 
-input:focus + .slider {
+input:focus+.slider {
     box-shadow: 0 0 1px var(--admin-primary);
 }
 
-input:checked + .slider:before {
+input:checked+.slider:before {
     transform: translateX(26px);
 }
 
@@ -399,7 +413,8 @@ input:checked + .slider:before {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    cursor: help; /* Para indicar que se puede hacer hover y ver el título completo */
+    cursor: help;
+    /* Para indicar que se puede hacer hover y ver el título completo */
 }
 
 .admin-table .status-badge {
@@ -413,31 +428,59 @@ input:checked + .slider:before {
 
 /* Tipo de Publicación */
 .admin-table .status-badge.sell {
-    background-color: #ffc107; /* Amarillo */
+    background-color: #ffc107;
+    /* Amarillo */
     color: #111;
 }
 
 .admin-table .status-badge.request {
-    background-color: #17a2b8; /* Cyan */
+    background-color: #17a2b8;
+    /* Cyan */
 }
 
 /* Status de la Publicación */
-.admin-table .status-badge.open { background-color: #28a745; } /* Verde */
-.admin-table .status-badge.pausada { background-color: #6c757d; } /* Gris */
-.admin-table .status-badge.closed { background-color: #dc3545; } /* Rojo */
-.admin-table .status-badge.completed { background-color: #6f42c1; } /* Morado */
-.admin-table .status-badge.expired { background-color: #fd7e14; } /* Naranja */
-.admin-table .status-badge.deleted { background-color: #dc3545; } /* Rojo */
+.admin-table .status-badge.open {
+    background-color: #28a745;
+}
+
+/* Verde */
+.admin-table .status-badge.pausada {
+    background-color: #6c757d;
+}
+
+/* Gris */
+.admin-table .status-badge.closed {
+    background-color: #dc3545;
+}
+
+/* Rojo */
+.admin-table .status-badge.completed {
+    background-color: #6f42c1;
+}
+
+/* Morado */
+.admin-table .status-badge.expired {
+    background-color: #fd7e14;
+}
+
+/* Naranja */
+.admin-table .status-badge.deleted {
+    background-color: #dc3545;
+}
+
+/* Rojo */
 
 .action-button-admin {
-    padding: 6px 12px;
-    font-size: 0.8rem;
+    padding: 10px 4px;
+    font-size: 0.75rem;
     border: none;
     border-radius: 6px;
     color: white;
     cursor: pointer;
     font-weight: 600;
     transition: all 0.2s ease;
+    text-align: center;
+    line-height: 1;
 }
 
 .action-button-admin:hover {
@@ -450,21 +493,26 @@ input:checked + .slider:before {
 }
 
 .action-button-admin.approve {
-    background-color: #28a745; /* Verde */
+    background-color: #28a745;
+    /* Verde */
 }
 
 .action-button-admin.reject {
-    background-color: #dc3545; /* Rojo */
+    background-color: #dc3545;
+    /* Rojo */
 }
 
 .action-button-admin.confirm {
-    background-color: #6f42c1; /* Púrpura */
+    background-color: #6f42c1;
+    /* Púrpura */
 }
 
 .action-button-admin.danger {
-    background-color: #dc3545; /* Mismo color que eliminar */
+    background-color: #dc3545;
+    /* Mismo color que eliminar */
     border: 1px solid #ff7b7b;
 }
+
 .action-button-admin.danger:hover {
     background-color: #c82333;
 }
@@ -487,7 +535,8 @@ input:checked + .slider:before {
     font-size: 1rem;
     font-weight: 500;
     transition: all 0.2s ease;
-    transform: translateY(2px); /* Alinear con el borde inferior */
+    transform: translateY(2px);
+    /* Alinear con el borde inferior */
 }
 
 .tab-link:hover {
@@ -540,7 +589,8 @@ input:checked + .slider:before {
     border: 1px solid var(--admin-border);
     color: #111111;
     font-size: 1rem;
-    box-sizing: border-box; /* Importante para que el padding no desborde el contenedor */
+    box-sizing: border-box;
+    /* Importante para que el padding no desborde el contenedor */
 }
 
 .admin-text-input,
@@ -557,7 +607,8 @@ input:checked + .slider:before {
 
 .admin-textarea-input {
     resize: vertical;
-    min-height: 50px; /* Una altura mínima para que no sea tan pequeño */
+    min-height: 50px;
+    /* Una altura mínima para que no sea tan pequeño */
 }
 
 .form-group-admin textarea {
@@ -671,7 +722,8 @@ input:checked + .slider:before {
 .form-row-admin {
     display: flex;
     gap: 1.5rem;
-    align-items: flex-end; /* Alinear elementos en la base */
+    align-items: flex-end;
+    /* Alinear elementos en la base */
     margin-bottom: 1.5rem;
 }
 
@@ -682,11 +734,13 @@ input:checked + .slider:before {
 }
 
 .radio-group-admin input[type="radio"] {
-    accent-color: var(--admin-primary); /* Colorea el radio button con el color primario */
+    accent-color: var(--admin-primary);
+    /* Colorea el radio button con el color primario */
 }
 
 .radio-group-admin label {
-    margin-bottom: 0; /* Quitar el margen inferior para los labels de radio */
+    margin-bottom: 0;
+    /* Quitar el margen inferior para los labels de radio */
     font-weight: normal;
 }
 
@@ -696,6 +750,11 @@ input:checked + .slider:before {
 
 .action-button-admin.edit {
     background-color: #1f6feb;
+}
+
+.action-button-admin.copy {
+    background-color: #6c757d;
+    /* Gris profesional para acciones secundarias */
 }
 
 .admin-form-actions {
@@ -727,6 +786,8 @@ input:checked + .slider:before {
 .history-item-actions {
     display: flex;
     justify-content: flex-end;
+    gap: 24px;
+    /* Triple Separación entre botones */
     margin: 0.5rem 0 0.75rem;
 }
 
@@ -891,6 +952,7 @@ input:checked + .slider:before {
     color: var(--admin-primary);
     text-decoration: none;
 }
+
 .participant-info-admin strong a:hover {
     text-decoration: underline;
 }
@@ -900,6 +962,7 @@ input:checked + .slider:before {
     color: var(--admin-text-secondary);
     margin-left: 0.5rem;
 }
+
 .participant-info-admin .rating-display .stars {
     color: #ffc107;
 }
@@ -930,7 +993,7 @@ input:checked + .slider:before {
     width: 100%;
 }
 
-.participant-item-admin.has-responses > .participant-row-admin {
+.participant-item-admin.has-responses>.participant-row-admin {
     margin-bottom: 0.75rem;
 }
 
@@ -1017,8 +1080,9 @@ input:checked + .slider:before {
 /* Regla ultra-específica y autoritaria para los decimales */
 .decimal-part {
     font-size: 0.7em !important;
-    vertical-align: super; /* Alinea los decimales como un superíndice, visualmente más atractivo */
-} 
+    vertical-align: super;
+    /* Alinea los decimales como un superíndice, visualmente más atractivo */
+}
 
 /* --- ESTILOS PARA GESTIÓN DE BASE DE DATOS --- */
 
@@ -1146,7 +1210,8 @@ input:checked + .slider:before {
 }
 
 .action-button-admin.backup {
-    background-color: #17a2b8; /* Cyan */
+    background-color: #17a2b8;
+    /* Cyan */
 }
 
 .action-button-admin.backup:hover {
@@ -1154,7 +1219,8 @@ input:checked + .slider:before {
 }
 
 .action-button-admin.cleanup {
-    background-color: #ffc107; /* Amarillo */
+    background-color: #ffc107;
+    /* Amarillo */
     color: #212529;
     font-weight: 600;
 }
@@ -1169,7 +1235,8 @@ input:checked + .slider:before {
     margin-top: 1rem;
     font-size: 0.9rem;
     line-height: 1.4;
-    display: none; /* Oculto por defecto */
+    display: none;
+    /* Oculto por defecto */
     animation: fadeIn 0.3s ease-in;
 }
 
@@ -1244,7 +1311,7 @@ input:checked + .slider:before {
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
     transition: left 0.5s;
 }
 
@@ -1367,8 +1434,15 @@ input:checked + .slider:before {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Estilos para las estadísticas de base de datos */
@@ -1420,8 +1494,13 @@ input:checked + .slider:before {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 /* Estilos para la columna de acciones y el menú desplegable */
@@ -1430,7 +1509,8 @@ input:checked + .slider:before {
 }
 
 .action-menu-container {
-    position: relative; /* <-- CORRECCIÓN: De static a relative */
+    position: relative;
+    /* <-- CORRECCIÓN: De static a relative */
 }
 
 .action-menu-container .menu-toggle {
@@ -1451,9 +1531,12 @@ input:checked + .slider:before {
 .action-menu {
     display: none;
     position: absolute;
-    right: 0; /* Alineado a la derecha del contenedor */
-    top: 100%; /* Justo debajo del botón */
-    margin-top: 8px; /* Pequeño espacio para que no esté pegado */
+    right: 0;
+    /* Alineado a la derecha del contenedor */
+    top: 100%;
+    /* Justo debajo del botón */
+    margin-top: 8px;
+    /* Pequeño espacio para que no esté pegado */
     background-color: var(--admin-bg-light);
     border: 1px solid var(--admin-border-color);
     border-radius: 8px;
@@ -1497,12 +1580,14 @@ input:checked + .slider:before {
 }
 
 .status-badge.suspended {
-    background-color: #fff8e1; /* Amarillo claro */
+    background-color: #fff8e1;
+    /* Amarillo claro */
     color: #f57c00;
 }
 
 .status-badge.banned {
-    background-color: #fbe9e7; /* Rojo claro */
+    background-color: #fbe9e7;
+    /* Rojo claro */
     color: #d32f2f;
     font-weight: bold;
 }
@@ -1514,7 +1599,8 @@ input:checked + .slider:before {
 }
 
 .saldo-booster-text {
-    color: var(--escrow-token-color); /* Usamos el mismo color que escrow por consistencia */
+    color: var(--escrow-token-color);
+    /* Usamos el mismo color que escrow por consistencia */
     font-weight: 600;
 }
 

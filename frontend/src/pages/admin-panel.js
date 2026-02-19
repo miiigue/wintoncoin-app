@@ -1340,6 +1340,9 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'edit':
                 await startPlatformEdit(pubId);
                 return;
+            case 'copy':
+                await copyPlatformPublicationToForm(pubId);
+                return;
             case 'approve':
                 endpoint = `/publications/${pubId}/approve`;
                 body = { approverUsername: platformUsername, userToApprove: userInAction };
@@ -1695,6 +1698,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${stepsHTML}
                 <div class="history-item-actions">
                     <button class="action-button-admin edit" data-action="edit" data-pub-id="${escapeHtml(pub.id)}">Editar</button>
+                    <button class="action-button-admin copy" data-action="copy" data-pub-id="${escapeHtml(pub.id)}" title="Copiar datos al formulario">Copiar</button>
                 </div>
                 <div class="history-item-meta">
                     <span><strong>ID:</strong> ${escapeHtml(pub.id)}</span>
@@ -1796,6 +1800,56 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         platformEditId = pub.id;
+        fillPlatformForm(pub);
+
+        document.getElementById('platformSubmitButton').textContent = 'Guardar Cambios';
+        document.getElementById('cancelEditBtn').style.display = 'inline-block';
+        document.getElementById('platformManagementForm').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function copyPlatformPublicationToForm(publicationId) {
+        let pub = platformPublicationsCache.find(item => String(item.id) === String(publicationId));
+        if (!pub) {
+            try {
+                const publications = await apiFetch('/api/admin/platform/publications-with-participants');
+                platformPublicationsCache = publications || [];
+                pub = platformPublicationsCache.find(item => String(item.id) === String(publicationId));
+            } catch (error) {
+                showCustomAlert(`No se pudo cargar la publicación para copiar: ${error.message}`);
+                return;
+            }
+        }
+
+        if (!pub) {
+            showCustomAlert('No se encontró la publicación para copiar.');
+            return;
+        }
+
+        // Resetear ID de edición para asegurar que se cree una nueva
+        platformEditId = null;
+
+        // Rellenar formulario reutilizando la lógica
+        fillPlatformForm(pub);
+
+        // Ajustes específicos para COPIA
+        const submitBtn = document.getElementById('platformSubmitButton') || elements.platformPublicationSubmitBtn;
+        if (submitBtn) submitBtn.textContent = 'Crear Publicación';
+
+        const cancelBtn = document.getElementById('cancelEditBtn') || elements.platformCancelEditBtn;
+        if (cancelBtn) cancelBtn.style.display = 'none'; // No es modo edición
+
+        if (elements.platformEditNotice) {
+            elements.platformEditNotice.style.display = 'none'; // Ocultar aviso de edición
+        }
+
+
+
+        showCustomAlert('Datos copiados al formulario. Revisa y pulsa "Crear Publicación".');
+        const form = document.getElementById('platformManagementForm') || document.querySelector('.platform-management-form');
+        if (form) form.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function fillPlatformForm(pub) {
         const { mainText, steps } = splitDescriptionWithSteps(pub.description);
 
         document.getElementById('platformPubTitle').value = pub.title || '';
