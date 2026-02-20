@@ -96,7 +96,12 @@ document.addEventListener('DOMContentLoaded', () => {
         boostersDashboardStats: document.getElementById('boosters-dashboard-stats'),
         boostersListContainer: document.getElementById('boosters-list-container'),
         // --- NOTIFICACIONES ---
-        pushNotificationForm: document.getElementById('pushNotificationForm')
+        notificationsSection: document.getElementById('notifications-section'),
+        pushNotificationForm: document.getElementById('pushNotificationForm'),
+        emailBroadcastForm: document.getElementById('emailBroadcastForm'),
+        broadcastTargetGroup: document.getElementById('broadcastTargetGroup'),
+        broadcastSpecificUserGroup: document.getElementById('broadcastSpecificUserGroup'),
+        broadcastHistoryContainer: document.getElementById('email-broadcast-history-container')
     };
 
     // --- Inicialización ---
@@ -354,9 +359,26 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // --- Notificaciones ---
-        if (elements.pushNotificationForm) {
-            elements.pushNotificationForm.addEventListener('submit', handlePushNotificationSubmit);
+        if (elements.notificationsSection) {
+            const tabLinks = elements.notificationsSection.querySelectorAll('.tab-link');
+            tabLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    const tabId = link.dataset.tab;
+                    showNotificationsTab(tabId);
+                });
+            });
+        }
+
+        if (elements.broadcastTargetGroup) {
+            elements.broadcastTargetGroup.addEventListener('change', (e) => {
+                if (elements.broadcastSpecificUserGroup) {
+                    elements.broadcastSpecificUserGroup.style.display = e.target.value === 'specific' ? 'block' : 'none';
+                }
+            });
+        }
+
+        if (elements.emailBroadcastForm) {
+            elements.emailBroadcastForm.addEventListener('submit', handleBroadcastFormSubmit);
         }
 
         const saveDailyMessagesBtn = document.getElementById('saveDailyMessagesBtn');
@@ -385,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (sectionId === 'referrals') loadReferralsData();
         else if (sectionId === 'boosters') showBoosterTab('boosters-dashboard');
         else if (sectionId === 'notifications') {
-            loadDailyModalSettings();
+            showNotificationsTab('notifications-push');
         }
         else if (sectionId === 'audit-log') loadAuditLog();
     }
@@ -2488,6 +2510,150 @@ document.addEventListener('DOMContentLoaded', () => {
             saveBtn.disabled = false;
             saveBtn.textContent = originalText;
         }
+    }
+
+    function showNotificationsTab(tabId) {
+        if (!elements.notificationsSection) return;
+
+        elements.notificationsSection.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        elements.notificationsSection.querySelectorAll('.tab-link').forEach(link => link.classList.remove('active'));
+
+        const tabContent = document.getElementById(`${tabId}-tab`);
+        const tabLink = document.querySelector(`.tab-link[data-tab="${tabId}"]`);
+
+        if (tabContent) tabContent.classList.add('active');
+        if (tabLink) tabLink.classList.add('active');
+
+        switch (tabId) {
+            case 'notifications-push':
+                // Listener ya configurado en initialization
+                break;
+            case 'notifications-email':
+                loadBroadcastHistory();
+                break;
+            case 'notifications-daily':
+                loadDailyModalSettings();
+                break;
+        }
+    }
+
+    // --- Difusión de Email ---
+
+    async function handleBroadcastFormSubmit(e) {
+        e.preventDefault();
+        const targetGroup = document.getElementById('broadcastTargetGroup').value;
+        const targetUsername = document.getElementById('broadcastTargetUsername').value;
+        const subject = document.getElementById('broadcastSubject').value;
+        const title = document.getElementById('broadcastTitle').value;
+        const bodyHtml = document.getElementById('broadcastBody').value;
+        const buttonText = document.getElementById('broadcastButtonText').value;
+        const buttonUrl = document.getElementById('broadcastButtonUrl').value;
+
+        if (!subject || !title || !bodyHtml) {
+            showCustomAlert('Por favor completa todos los campos del correo.');
+            return;
+        }
+
+        const confirmed = await new Promise(resolve => {
+            showCustomConfirm(
+                `Estás por programar una difusión masiva de correo.\nCanal: ${targetGroup}\nAsunto: ${subject}\n\n¿Confirmas el envío?`,
+                () => resolve(true),
+                () => resolve(false)
+            );
+        });
+        if (!confirmed) return;
+
+        const btn = document.getElementById('sendBroadcastBtn');
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Programando...';
+
+        try {
+            const result = await apiFetch('/api/admin/broadcast-email', {
+                method: 'POST',
+                body: JSON.stringify({
+                    targetGroup,
+                    targetUsername: targetGroup === 'specific' ? targetUsername : null,
+                    subject,
+                    title,
+                    bodyHtml,
+                    buttonText,
+                    buttonUrl
+                })
+            });
+
+            if (result.success) {
+                showCustomAlert(`✅ Difusión programada exitosamente (#${result.broadcast_id}).\n${result.message}`);
+                e.target.reset();
+                if (elements.broadcastSpecificUserGroup) elements.broadcastSpecificUserGroup.style.display = 'none';
+                loadBroadcastHistory();
+            }
+        } catch (error) {
+            showCustomAlert(`❌ Error al programar difusión: ${error.message}`);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }
+    }
+
+    async function loadBroadcastHistory() {
+        if (!elements.broadcastHistoryContainer) return;
+        elements.broadcastHistoryContainer.innerHTML = '<div class="loading-spinner"></div>';
+        try {
+            const history = await apiFetch('/api/admin/broadcast-email');
+            renderBroadcastHistory(history);
+        } catch (error) {
+            elements.broadcastHistoryContainer.innerHTML = `<p class="error-message">Error al cargar historial: ${error.message}</p>`;
+        }
+    }
+
+    function renderBroadcastHistory(history) {
+        if (!elements.broadcastHistoryContainer) return;
+        if (!history || history.length === 0) {
+            elements.broadcastHistoryContainer.innerHTML = '<p class="empty-message">No hay difusiones previas registradas.</p>';
+            return;
+        }
+
+        const tableHTML = `
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Fecha</th>
+                        <th>Asunto</th>
+                        <th>Grupo</th>
+                        <th>Estado</th>
+                        <th>Enviados</th>
+                        <th>Fallidos</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${history.map(b => {
+            const date = new Date(b.created_at).toLocaleString();
+            const statusClass = b.status === 'completed' ? 'active' : (b.status === 'failed' ? 'suspended' : 'pending');
+            return `
+                        <tr>
+                            <td>#${b.id}</td>
+                            <td>${date}</td>
+                            <td title="${escapeHtml(b.subject)}">${escapeHtml(b.subject.substring(0, 30))}${b.subject.length > 30 ? '...' : ''}</td>
+                            <td><span class="status-badge">${b.target_group}</span></td>
+                            <td><span class="status-badge ${statusClass}">${b.status}</span></td>
+                            <td align="center"><strong>${b.sent_count}</strong></td>
+                            <td align="center"><span class="saldo-red-text">${b.failed_count}</span></td>
+                            <td align="center">${b.total_recipients}</td>
+                        </tr>
+                        `;
+        }).join('')}
+                </tbody>
+            </table>
+        `;
+        elements.broadcastHistoryContainer.innerHTML = tableHTML;
+    }
+
+    // Re-vincular el form de Push que podría haberse perdido si no se ejecuta bien
+    if (elements.pushNotificationForm) {
+        elements.pushNotificationForm.addEventListener('submit', handlePushNotificationSubmit);
     }
 
 });

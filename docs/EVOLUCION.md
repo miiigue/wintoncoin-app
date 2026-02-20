@@ -851,6 +851,18 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: Plataforma lista para "Go Live" público con narrativa de futuro clara y experiencia de usuario pulida.
 - **Evidencia**: Conversaciones "PWA Domain Migration", "Roadmap & Icon Fixes".
 
+### 2026-02-20 — Centro de Notificaciones y Difusión Masiva (Email Broadcast System)
+
+- **Contexto**: Necesidad de un canal de comunicación institucional para anuncios masivos y gestión de mensajes diarios sin intervención manual en base de datos.
+- **Decisión**:
+  - Implementar un **Sistema de Difusión Masiva** con interfaz de pestañas en el Panel Admin (Push, Email, Mensajes Diarios).
+  - Arquitectura de **Mail Worker (Queue-based)** utilizando PostgreSQL (`FOR UPDATE SKIP LOCKED`) para procesar envíos secuenciales de forma segura y auditable.
+  - Optimización de base de datos mediante **Bulk Inserts por lotes (1000 users)** para manejar miles de destinatarios sin saturar la memoria o el pool de conexiones.
+  - Implementar **auto-reparación de esquema** en el arranque (migrations idempotentes) para asegurar la integridad de las nuevas tablas transaccionales.
+  - Registro de auditoría detallado por cada difusión (quién envió, cuándo, éxito/error por destinatario).
+- **Impacto**: Infraestructura escalable para comunicaciones oficiales, con capacidad de procesar 50k+ correos diarios respetando límites de AWS SES y manteniendo trazabilidad total para auditorías Fintech.
+- **Evidencia**: Conversación "Admin Broadcast UI Implementation".
+
 ## Observaciones de manager (deuda técnica / riesgos)
 
 ### Higiene del repo (importante)

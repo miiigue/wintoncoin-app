@@ -583,7 +583,44 @@ async function applyMigrations(client) {
                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='publication_acceptances' AND column_name='form_responses_submitted_at') THEN
                     ALTER TABLE publication_acceptances ADD COLUMN form_responses_submitted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;
                 END IF;
-            END $$;`
+            END $$;`,
+            // MIGRACIÓN: Tabla de difusiones de correo (Email Broadcasts)
+            `CREATE TABLE IF NOT EXISTS email_broadcasts (
+                id SERIAL PRIMARY KEY,
+                admin_id INTEGER NOT NULL REFERENCES users(id),
+                subject VARCHAR(255) NOT NULL,
+                title VARCHAR(255),
+                body TEXT NOT NULL,
+                target_group VARCHAR(50) NOT NULL, -- 'all', 'verified', 'booster', 'specific'
+                target_username VARCHAR(255),
+                total_recipients INTEGER DEFAULT 0,
+                sent_count INTEGER DEFAULT 0,
+                failed_count INTEGER DEFAULT 0,
+                status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'sending', 'completed', 'failed'
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );`,
+            // Asegurar columna title si la tabla ya existía sin ella
+            `DO $$
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='email_broadcasts' AND column_name='title') THEN
+                    ALTER TABLE email_broadcasts ADD COLUMN title VARCHAR(255);
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='email_broadcasts' AND column_name='button_text') THEN
+                    ALTER TABLE email_broadcasts ADD COLUMN button_text VARCHAR(50);
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='email_broadcasts' AND column_name='button_url') THEN
+                    ALTER TABLE email_broadcasts ADD COLUMN button_url VARCHAR(255);
+                END IF;
+            END $$;`,
+            // MIGRACIÓN: Tabla de destinatarios de difusiones (Email Broadcast Recipients)
+            `CREATE TABLE IF NOT EXISTS email_broadcast_recipients (
+                id SERIAL PRIMARY KEY,
+                broadcast_id INTEGER REFERENCES email_broadcasts(id) ON DELETE CASCADE,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'sent', 'failed'
+                error_message TEXT,
+                sent_at TIMESTAMP WITH TIME ZONE
+            );`
         ];
 
         for (const migration of migrations) {
@@ -1006,9 +1043,7 @@ async function initializeDatabase() {
         await client.query('BEGIN');
 
         // Paso 1: Migraciones de esquema.
-        // En producción, se ejecutan mediante scripts versionados en backend/migrations
-        // para máxima trazabilidad y control (fintech/banca).
-        // await applyMigrations(client);
+        await applyMigrations(client);
 
         // --- NUEVO: Ejecutar limpieza antes que nada ---
         // await runOneTimeCleanup(client);

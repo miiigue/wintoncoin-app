@@ -4434,10 +4434,29 @@ body.love-page {
 }
 
 .main-title {
-    font-size: 1.1rem;
-    /* CORRECCIÓN: Tamaño reducido al 50% */
+    font-size: 1.4rem;
+    /* Un poco más grande para que el logo destaque */
     margin: 0;
-    line-height: 1.1;
+    line-height: 1;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    user-select: none;
+}
+
+.logo-winton {
+    color: #FFFFFF;
+    font-weight: 700;
+}
+
+.logo-coin {
+    color: #3b82f6;
+    font-weight: 700;
+    background: linear-gradient(135deg, #60a5fa 0%, #2563eb 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-left: 0;
 }
 
 .section-title {

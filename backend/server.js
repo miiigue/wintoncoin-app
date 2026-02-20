@@ -14,7 +14,7 @@ const cron = require('node-cron');
 const crypto = require('crypto');
 require('./config'); // Carga la configuración del entorno (development o production)
 const { initializeDatabase, generateUniqueReferralCode } = require('./src/config/databaseInit');
-const { generateOtp6, hashOtpForEmail, sendOtpEmail, sendTransactionEmail, normalizeEmail, safeEqualHex } = require('./src/services/emailService');
+const { generateOtp6, hashOtpForEmail, sendOtpEmail, sendTransactionEmail, sendAnnouncementEmail, processPendingBroadcasts, normalizeEmail, safeEqualHex } = require('./src/services/emailService');
 const { logAuditEvent, startAuditCleanupJob } = require('./src/services/auditService');
 const authRoutes = require('./src/routes/authRoutes');
 const notificationService = require('./src/services/notificationService'); // Importamos el servicio de notificaciones
@@ -3633,6 +3633,19 @@ async function startServer() {
             await executeBoosterPayments();
         }, BOOSTER_PAYMENT_INTERVAL_MS);
 
+        // --- MAIL WORKER: PROCESAMIENTO DE DIFUSIONES (BATCHING) ---
+        const MAIL_WORKER_INTERVAL_MS = 30 * 1000; // Procesar cada 30 segundos
+        async function runMailWorker() {
+            try {
+                await processPendingBroadcasts(pool);
+            } catch (err) {
+                console.error("Error en Mail Worker:", err);
+            } finally {
+                setTimeout(runMailWorker, MAIL_WORKER_INTERVAL_MS);
+            }
+        }
+        runMailWorker(); // Iniciar inmediatamente
+
         app.listen(PORT, '0.0.0.0', () => {
             console.log(`Servidor corriendo en:`);
             console.log(`- Local: http://localhost:${PORT}`);
@@ -6025,6 +6038,150 @@ app.put('/api/admin/users/:userId/referral-code', verifyAdminToken, async (req, 
         res.status(500).json({ message: 'Error interno del servidor.' });
     } finally {
         client.release();
+    }
+});
+
+// --- SISTEMA PROFESIONAL DE DIFUSIÓN DE CORREOS (BROADCAST) ---
+app.post('/api/admin/broadcast-email', verifyAdminToken, async (req, res) => {
+    const { subject, title, bodyHtml, targetGroup, targetUsername, buttonText, buttonUrl } = req.body;
+    let adminId = req.user?.userId;
+    let adminUsername = req.user?.username;
+
+    // Si es un token de admin antiguo/simple ({ name: 'admin' }), buscamos el ID del usuario plataforma
+    if (!adminId) {
+        try {
+            const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
+            const platformUser = await pool.query('SELECT id, username FROM users WHERE username = $1', [platformUsername]);
+            if (platformUser.rowCount > 0) {
+                adminId = platformUser.rows[0].id;
+                adminUsername = platformUser.rows[0].username;
+            }
+        } catch (err) {
+            console.error("Error al buscar usuario admin de plataforma:", err);
+        }
+    }
+
+    if (!adminId) {
+        return res.status(401).json({ message: "No se pudo identificar al administrador para esta operación." });
+    }
+
+    if (!subject || !title || !bodyHtml || !targetGroup) {
+        return res.status(400).json({ message: "Asunto, título, cuerpo y grupo objetivo son requeridos." });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Crear el registro maestro del broadcast
+        const { buttonText, buttonUrl } = req.body;
+        const broadcastResult = await client.query(
+            `INSERT INTO email_broadcasts (admin_id, subject, title, body, target_group, target_username, button_text, button_url, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending') RETURNING id`,
+            [adminId, subject, title, bodyHtml, targetGroup, targetUsername || null, buttonText || null, buttonUrl || null]
+        );
+        const broadcastId = broadcastResult.rows[0].id;
+
+        // 2. Identificar destinatarios según el filtro
+        let userQuery = 'SELECT id, email FROM users WHERE email IS NOT NULL';
+        let queryParams = [];
+
+        if (targetGroup === 'verified') {
+            userQuery += ' AND is_verified = true';
+        } else if (targetGroup === 'booster') {
+            userQuery += ' AND is_booster = true';
+        } else if (targetGroup === 'specific') {
+            userQuery += ' AND username = $1';
+            queryParams.push(targetUsername);
+        }
+
+        const usersResult = await client.query(userQuery, queryParams);
+
+        if (usersResult.rowCount === 0) {
+            throw { status: 400, message: "No se encontraron usuarios que cumplan con los criterios del filtro." };
+        }
+
+        // 3. Poblar la tabla de destinatarios pendientes (Bulk Insert optimizado por lotes)
+        const USERS_BATCH_SIZE = 1000;
+        for (let i = 0; i < usersResult.rows.length; i += USERS_BATCH_SIZE) {
+            const batchRows = usersResult.rows.slice(i, i + USERS_BATCH_SIZE);
+            const values = [];
+            const placeholders = [];
+            batchRows.forEach((user, index) => {
+                const offset = index * 2;
+                values.push(broadcastId, user.id);
+                placeholders.push(`($${offset + 1}, $${offset + 2}, 'pending')`);
+            });
+
+            const bulkInsertQuery = `
+                INSERT INTO email_broadcast_recipients (broadcast_id, user_id, status)
+                VALUES ${placeholders.join(',')}
+            `;
+            await client.query(bulkInsertQuery, values);
+        }
+
+        // 4. Actualizar total de destinatarios en el maestro
+        await client.query('UPDATE email_broadcasts SET total_recipients = $1 WHERE id = $2', [usersResult.rowCount, broadcastId]);
+
+        // 5. Registrar en el log de auditoría
+        await logAuditEvent(client, req, {
+            eventType: 'admin.email_broadcast.created',
+            actorUsername: adminUsername,
+            metadata: {
+                broadcast_id: broadcastId,
+                target_group: targetGroup,
+                recipients_count: usersResult.rowCount,
+                subject: subject
+            }
+        });
+
+        await client.query('COMMIT');
+        res.json({
+            success: true,
+            message: `Difusión programada correctamente para ${usersResult.rowCount} usuarios.`,
+            broadcast_id: broadcastId
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error al crear difusión de correo:', error);
+        res.status(error.status || 500).json({ message: error.message || 'Error interno al programar la difusión.' });
+    } finally {
+        client.release();
+    }
+});
+
+// Obtener lista de difusiones para auditoría y monitoreo
+app.get('/api/admin/broadcast-email', verifyAdminToken, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT b.*, u.username as admin_username 
+            FROM email_broadcasts b
+            JOIN users u ON b.admin_id = u.id
+            ORDER BY b.created_at DESC
+        `);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error al obtener difusiones:', error);
+        res.status(500).json({ message: 'Error interno al consultar difusiones.' });
+    }
+});
+
+// Obtener detalles de destinatarios de una difusión específica
+app.get('/api/admin/broadcast-email/:id/recipients', verifyAdminToken, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = await pool.query(`
+            SELECT r.*, u.email, u.username
+            FROM email_broadcast_recipients r
+            JOIN users u ON r.user_id = u.id
+            WHERE r.broadcast_id = $1
+            ORDER BY r.sent_at DESC NULLS LAST
+        `, [id]);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error al obtener destinatarios de difusión:', error);
+        res.status(500).json({ message: 'Error interno al consultar destinatarios.' });
     }
 });
 

@@ -58,7 +58,8 @@ typings/
 .env
 .env.development
 .env.demo.local
-backend/.env.demo.local
+.env.demo.example
+
 
 # next.js build output
 .next

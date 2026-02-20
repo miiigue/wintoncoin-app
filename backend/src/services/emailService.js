@@ -355,11 +355,202 @@ Si necesitas ayuda, contacta a ${SUPPORT_EMAIL}.
   await getSesClient().send(cmd);
 }
 
+/**
+ * Envía un comunicado oficial o anuncio (Broadcast) con diseño de alta gama.
+ * @param {Object} params
+ * @param {string} params.toEmail - Email del destinatario
+ * @param {string} params.subject - Asunto del correo
+ * @param {string} params.title - Título del anuncio
+ * @param {string} params.bodyHtml - Contenido principal en HTML (soporta párrafos)
+ * @param {string} params.buttonText - Texto del botón de acción (opcional)
+ * @param {string} params.buttonUrl - URL del botón de acción (opcional)
+ */
+async function sendAnnouncementEmail({ toEmail, subject, title, bodyHtml, buttonText, buttonUrl }) {
+  const email = normalizeEmail(toEmail);
+
+  if (!AWS_REGION || !SES_FROM_EMAIL) {
+    console.warn(`[DEV BROADCAST] Simulación de difusión a ${email}: ${subject}`);
+    return;
+  }
+
+  const safeBrandName = SES_FROM_NAME || 'WintonCoin';
+  const mainColor = '#0052FF'; // Azul corporativo
+  const safeLogoUrl = process.env.BRAND_LOGO_URL || '';
+
+  const htmlBody = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: 'Inter', -apple-system, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f9fafb; }
+        .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .header { padding: 40px; text-align: center; border-bottom: 1px solid #f3f4f6; }
+        .logo { height: 120px; margin-bottom: 24px; }
+        .content { padding: 40px; }
+        .title { font-size: 24px; font-weight: 700; color: #111827; margin-bottom: 24px; }
+        .body-text { font-size: 16px; color: #4b5563; margin-bottom: 32px; }
+        .button { display: inline-block; padding: 14px 28px; background-color: ${mainColor}; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; }
+        .footer { padding: 32px 40px; background-color: #f9fafb; border-top: 1px solid #f3f4f6; text-align: center; }
+        .footer-text { font-size: 13px; color: #6b7280; margin-bottom: 8px; }
+        .security-box { background-color: #f0f7ff; border: 1px dashed #0052FF; padding: 20px; border-radius: 8px; margin-top: 32px; text-align: left; }
+        .security-title { font-weight: 700; color: #0052FF; font-size: 14px; margin-bottom: 8px; display: block; }
+        .security-text { font-size: 12px; color: #1e40af; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          ${safeLogoUrl ? `<img src="${safeLogoUrl}" class="logo" alt="${safeBrandName}">` : `<div style="font-size:24px; font-weight:800; color:${mainColor}">${safeBrandName}</div>`}
+          <div class="title">${escapeHtml(title)}</div>
+        </div>
+        <div class="content">
+          <div class="body-text">${bodyHtml.replace(/\n/g, '<br>')}</div>
+          
+          ${buttonText && buttonUrl ? `
+            <div style="text-align: center; margin: 40px 0;">
+              <a href="${buttonUrl}" class="button">${escapeHtml(buttonText)}</a>
+            </div>
+          ` : ''}
+
+          <div class="security-box">
+             <span class="security-title">🛡️ Recordatorio de Seguridad</span>
+             <p class="security-text">
+               WintonCoin <strong>NUNCA</strong> te pedirá tu contraseña o claves privadas por correo. 
+               Si notas algo sospechoso, repórtalo a support@wintoncoin.com.
+             </p>
+          </div>
+        </div>
+        <div class="footer">
+          <p class="footer-text">© ${new Date().getFullYear()} ${safeBrandName}. Todos los derechos reservados.</p>
+          <p class="footer-text">Este es un comunicado oficial de servicio enviado a ${toEmail}.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `.trim();
+
+  const textBody = `${title}\n\n${subject}\n\n${bodyHtml.replace(/<[^>]*>?/gm, '')}\n\nSeguridad: Recordad que nunca pedimos contraseñas.`.trim();
+
+  const cmd = new SendEmailCommand({
+    Source: `${SES_FROM_NAME} <${SES_FROM_EMAIL}>`,
+    Destination: { ToAddresses: [toEmail] },
+    Message: {
+      Subject: { Data: subject, Charset: 'UTF-8' },
+      Body: {
+        Text: { Data: textBody, Charset: 'UTF-8' },
+        Html: { Data: htmlBody, Charset: 'UTF-8' }
+      }
+    }
+  });
+
+  await getSesClient().send(cmd);
+}
+
+function escapeHtml(unsafe) {
+  return unsafe
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+/**
+ * Procesa una tanda de correos electrónicos pendientes en la cola de difusiones.
+ * Esta función es el "Worker" que asegura que no saturemos AWS SES y sea auditable.
+ */
+async function processPendingBroadcasts(pool) {
+  const BATCH_SIZE = 20; // Enviar de 20 en 20 para mayor velocidad sin saturar SES (sandbox)
+  const client = await pool.connect();
+
+  try {
+    // 1. Buscar el primer broadcast que esté en progreso o pendiente
+    const broadcastResult = await client.query(
+      `SELECT id, subject, title, body, button_text, button_url FROM email_broadcasts 
+       WHERE status IN ('pending', 'sending') 
+       ORDER BY created_at ASC LIMIT 1`
+    );
+
+    if (broadcastResult.rowCount === 0) return;
+
+    const broadcast = broadcastResult.rows[0];
+
+    // Marcar como 'sending' si estaba 'pending'
+    await client.query("UPDATE email_broadcasts SET status = 'sending' WHERE id = $1", [broadcast.id]);
+
+    // 2. Obtener un lote de destinatarios pendientes de forma segura (Locking)
+    const recipientsResult = await client.query(
+      `SELECT ebr.id, u.email, u.id as user_id
+       FROM email_broadcast_recipients ebr
+       JOIN users u ON ebr.user_id = u.id
+       WHERE ebr.broadcast_id = $1 AND ebr.status = 'pending'
+       LIMIT $2
+       FOR UPDATE SKIP LOCKED`,
+      [broadcast.id, BATCH_SIZE]
+    );
+
+    if (recipientsResult.rowCount === 0) {
+      // Si no quedan más pendientes, marcar broadcast como completado
+      await client.query("UPDATE email_broadcasts SET status = 'completed' WHERE id = $1", [broadcast.id]);
+      return;
+    }
+
+    // 3. Enviar correos de forma secuencial o controlada
+    for (const recipient of recipientsResult.rows) {
+      try {
+        await sendAnnouncementEmail({
+          toEmail: recipient.email,
+          subject: broadcast.subject,
+          title: broadcast.title,
+          bodyHtml: broadcast.body,
+          buttonText: broadcast.button_text,
+          buttonUrl: broadcast.button_url
+        });
+
+        // Actualizar estado del destinatario a 'sent'
+        await client.query(
+          "UPDATE email_broadcast_recipients SET status = 'sent', sent_at = NOW() WHERE id = $1",
+          [recipient.id]
+        );
+
+        // Incrementar contador exitoso en el broadcast
+        await client.query(
+          "UPDATE email_broadcasts SET sent_count = sent_count + 1 WHERE id = $1",
+          [broadcast.id]
+        );
+
+      } catch (err) {
+        console.error(`Error enviando broadcast ${broadcast.id} a ${recipient.email}:`, err);
+
+        // Marcar como fallido con error
+        await client.query(
+          "UPDATE email_broadcast_recipients SET status = 'failed', error_message = $1 WHERE id = $2",
+          [err.message, recipient.id]
+        );
+
+        // Incrementar contador de fallos
+        await client.query(
+          "UPDATE email_broadcasts SET failed_count = failed_count + 1 WHERE id = $1",
+          [broadcast.id]
+        );
+      }
+    }
+
+  } catch (error) {
+    console.error("Error crítico en processPendingBroadcasts:", error);
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   generateOtp6,
   hashOtpForEmail,
   safeEqualHex,
   sendOtpEmail,
   sendTransactionEmail,
+  sendAnnouncementEmail,
+  processPendingBroadcasts,
   normalizeEmail
 };

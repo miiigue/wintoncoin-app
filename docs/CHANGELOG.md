@@ -217,3 +217,20 @@ Este archivo resume la evolución del proyecto **por hitos** a partir del histor
 ### Fixed
 - CORS en desarrollo: permitir IPs LAN para pruebas desde teléfono.
 
+## [2026-02-20]
+
+### Added
+- Centro de Notificaciones integral en Panel Admin con tres pestañas: Alertas Push, Difusión de Email y Mensajes Diarios.
+- Sistema de Difusión de Email con selección de grupos (Todos, Verificados, Impulsores, Específicos) y editor HTML.
+- Historial de difusiones con métricas en tiempo real (enviados, fallidos, total, estado).
+- Mail Worker profesional basado en colas de base de datos (`skip locked`) para envíos masivos controlados.
+- Optimización de Bulk Insert para destinatarios por lotes de 1000 para alta escalabilidad.
+- Auto-migración idempotente de esquemas al arranque del servidor.
+
+### Changed
+- Refactor de inicialización de servidor: cambio de `setInterval` a `setTimeout` recursivo para procesamiento de correos.
+- Mejora de capacidad de envío: aumento de lote del worker a 20 correos cada 30 segundos.
+
+### Security
+- Validación de contenido y confirmación obligatoria para envíos masivos.
+
