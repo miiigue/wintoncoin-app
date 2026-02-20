@@ -90,6 +90,9 @@ function initializeBoosterProfilePage() {
             <div class="booster-header">
                 <h1>${levelInfo ? levelInfo.name : 'Impulsor'}</h1>
                 <span class="level-badge info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-booster-level">Nivel ${levelInfo ? levelInfo.level : '?'}</span>
+                <div class="booster-value-display" style="margin-top: 12px; font-weight: 600; font-size: 0.95rem; letter-spacing: 0.5px;">
+                    <span class="shimmer-text">1 BLUE iou = 1 BLUE = 1 USD</span>
+                </div>
                 <div id="tooltip-booster-level" class="info-tooltip" role="tooltip" aria-hidden="true">
                     <p>${levelDescription}</p>
                 </div>

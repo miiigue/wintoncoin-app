@@ -847,10 +847,13 @@ hr {
     display: flex;
     justify-content: center;
     gap: 0;
-    padding: 4px;
+    padding: 2px;
     background: linear-gradient(180deg, rgba(15, 25, 50, 0.95) 0%, rgba(20, 36, 90, 0.98) 100%);
     border-radius: 40px;
-    margin-bottom: 1rem;
+    margin: 0 auto 1rem auto;
+    /* Centrado y separado */
+    max-width: 200px;
+    /* Reducido a la mitad del ancho usual */
     border: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow:
         0 6px 24px rgba(0, 0, 0, 0.35),
@@ -860,12 +863,12 @@ hr {
 
 .wallet-tab-btn {
     flex: 1;
-    padding: 0.65rem 1.25rem;
+    padding: 3px 8px;
     border: none;
     border-radius: 36px;
     background: transparent;
     color: rgba(255, 255, 255, 0.5);
-    font-size: 0.8rem;
+    font-size: 0.65rem;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
@@ -891,6 +894,11 @@ hr {
     color: rgba(255, 255, 255, 0.85);
 }
 
+.wallet-tab-btn:active {
+    transform: scale(0.96);
+    transition-duration: 0.1s;
+}
+
 .wallet-tab-btn:hover::before {
     opacity: 0.08;
     background: white;
@@ -903,11 +911,12 @@ hr {
 }
 
 .wallet-tab-btn.active[data-tab="impulsor"] {
-    background: linear-gradient(135deg, #16a34a 0%, #22c55e 50%, #4ade80 100%);
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    /* Verde Esmeralda Elegante */
     box-shadow:
-        0 6px 25px rgba(34, 197, 94, 0.6),
-        0 2px 8px rgba(34, 197, 94, 0.4),
-        inset 0 2px 0 rgba(255, 255, 255, 0.25);
+        0 4px 15px rgba(16, 185, 129, 0.4),
+        0 2px 6px rgba(16, 185, 129, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .wallet-tab-btn.active[data-tab="billetera"] {
@@ -916,6 +925,18 @@ hr {
         0 6px 25px rgba(59, 130, 246, 0.6),
         0 2px 8px rgba(59, 130, 246, 0.4),
         inset 0 2px 0 rgba(255, 255, 255, 0.25);
+}
+
+@media (max-width: 768px) {
+    .wallet-tabs-nav {
+        max-width: 200px !important;
+        margin: 0 auto 1.5rem !important;
+    }
+
+    .wallet-tab-btn {
+        font-size: 0.65rem !important;
+        padding: 3px 8px !important;
+    }
 }
 
 .wallet-tab-btn .tab-icon {
@@ -952,18 +973,14 @@ hr {
 #panelImpulsor .booster-banner {
     display: block;
     text-decoration: none;
-    background:
-        radial-gradient(ellipse at bottom right, rgba(16, 185, 129, 0.12) 0%, transparent 50%),
-        linear-gradient(160deg, #1a2744 0%, #0f1629 50%, #1a2744 100%);
-    border: 2px solid rgba(16, 185, 129, 0.5);
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
     padding: 1.5rem;
     position: relative;
     overflow: hidden;
-    box-shadow:
-        0 0 30px rgba(16, 185, 129, 0.15),
-        0 12px 40px rgba(0, 0, 0, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    /* Sombras sutiles removidas o reducidas significativamente para quitar la "oscuridad" */
+    box-shadow: none;
     transition: all 0.35s ease;
 }
 
@@ -973,7 +990,7 @@ hr {
         0 0 40px rgba(16, 185, 129, 0.25),
         0 18px 50px rgba(0, 0, 0, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    border-color: rgba(16, 185, 129, 0.7);
+    border-color: rgba(255, 255, 255, 0.25);
 }
 
 /* Brillo verde animado */
@@ -4212,7 +4229,7 @@ body.love-page {
 .main-title-row {
     display: flex;
     align-items: baseline;
-    justify-content: flex-start;
+    justify-content: center;
     gap: 0.5rem;
 }
 
@@ -6687,4 +6704,90 @@ body.wallet-tour-active #prelaunchWalletModal {
     background: #059669;
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+/* --- SISTEMA DE ESPACIADO Y RITMO VERTICAL (Equilibrio Visual) --- */
+
+/* 1. Reset de márgenes */
+.referral-motivation-section,
+.publications-section,
+.main-actions-container,
+.wallet-tabs-container {
+    margin-top: 0;
+}
+
+/* 2. ESTÁNDAR DE ESPACIADO: 2.5rem (40px) para TODOS los bloques principales */
+
+.pre-launch-ribbon {
+    margin-bottom: 2.5rem;
+}
+
+.main-title-container {
+    margin-top: 2rem;
+    /* Bajado para evitar solapamiento con header */
+    margin-bottom: 2.5rem;
+}
+
+.wallet-tabs-container {
+    margin-bottom: 2.5rem;
+}
+
+#panelImpulsor .booster-banner,
+.booster-banner {
+    margin: 0 !important;
+}
+
+.referral-motivation-section {
+    margin-bottom: 2.5rem;
+    /* Este es el estándar solicitado */
+}
+
+.referral-card {
+    margin: 0 !important;
+}
+
+.main-actions-container {
+    margin-bottom: 2.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Título de Lista -> Lista */
+.publications-title {
+    margin-bottom: 1.5rem;
+    /* Un poco menos para asociarlo a la lista */
+}
+
+/* Ajustes internos */
+.wallet-tab-panel {
+    padding-top: 0.5rem;
+    padding-bottom: 0;
+}
+
+.balances-container {
+    gap: 1.5rem;
+    margin-bottom: 0;
+    /* El margen lo da el contenedor padre si es necesario */
+}
+
+/* 4. Optimización para Móviles */
+@media (max-width: 768px) {
+    .container.interaction-container {
+        padding: 2rem 1.5rem;
+    }
+
+    /* MANTENER la misma separación también en móviles para consistencia total */
+    .pre-launch-ribbon,
+    .main-title-container,
+    .wallet-tabs-container,
+    .referral-motivation-section,
+    .main-actions-container {
+        margin-bottom: 2.5rem;
+    }
+
+    .main-title-container,
+    .publications-title {
+        margin-bottom: 1.5rem;
+    }
 }

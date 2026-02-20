@@ -599,17 +599,26 @@
     </style>
     <style>
         /* Mobile Menu Toggler Styles */
+        /* Mobile Menu Toggler Styles */
         .mobile-toc-toggle {
             display: none;
             width: 100%;
-            padding: 10px;
-            background: #e2e8f0;
+            padding: 12px;
+            background: white;
+            border: 2px solid #e2e8f0;
             text-align: center;
-            font-weight: 600;
-            border-radius: 6px;
+            font-weight: 700;
+            border-radius: 8px;
             margin-top: 10px;
             cursor: pointer;
-            color: #475569;
+            color: #334155;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .mobile-toc-toggle:active {
+            background: #f1f5f9;
+            transform: scale(0.98);
         }
 
         @media (max-width: 900px) {
@@ -617,9 +626,34 @@
                 display: block;
             }
 
+            .wp-sidebar {
+                position: sticky;
+                top: 0;
+                z-index: 1000;
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(10px);
+                border-bottom: 1px solid #e2e8f0;
+                padding: 1rem;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            }
+
+            .wp-toc {
+                display: none;
+                margin-top: 1rem;
+                border-top: 1px solid #e2e8f0;
+                padding-top: 1rem;
+            }
+
             .wp-toc.open {
                 display: block;
                 animation: slideDown 0.3s ease-out;
+            }
+
+            .wp-toc a {
+                padding: 12px 0;
+                /* Larger touch target */
+                border-bottom: 1px dashed #f1f5f9;
+                font-size: 1rem;
             }
         }
 
@@ -656,8 +690,11 @@
                     <li><a href="#tokenomics">3. Tokenomics Dual</a></li>
                     <li><a href="#blue-red"><span class="sub-item">3.1 BLUE & RED</span></a></li>
                     <li><a href="#real-mining"><span class="sub-item">3.2 Minería Real</span></a></li>
-                    <li><a href="#workflow">4. Mecanismo de Funcionamiento</a></li>
-                    <li><a href="#smart-contract-logic"><span class="sub-item">4.1 Flujo Smart Contract</span></a></li>
+                    <li><a href="#workflow">4. Funcionalidad del Ecosistema</a></li>
+                    <li><a href="#pub-types"><span class="sub-item">4.1 Tipos de Publicaciones</span></a></li>
+                    <li><a href="#p2p-exchange"><span class="sub-item">4.2 Intercambio P2P</span></a></li>
+                    <li><a href="#debt-burning"><span class="sub-item">4.3 Quema de Tokens</span></a></li>
+                    <li><a href="#smart-contract-logic"><span class="sub-item">4.4 Lógica de Contrato</span></a></li>
                     <li><a href="#debt-management">5. Gestión de Deuda y Riesgo</a></li>
                     <li><a href="#proof-of-attention"><span class="sub-item">5.1 Publicidad & Pagos</span></a></li>
                     <li><a href="#reputation"><span class="sub-item">5.2 Garantías y Reputación</span></a></li>
@@ -675,9 +712,10 @@
         <!-- Main Content -->
         <main class="wp-content">
             <header>
-                <h1 class="wp-title">Protocolo WintonCoin: Economía Colaborativa de "Minería Real"</h1>
+                <h1 class="wp-title">Protocolo WintonCoin: Liquidez Descentralizada bajo Demanda</h1>
                 <div class="wp-meta">
-                    <strong>Documento Técnico Oficial</strong> &bull; Basado en Crédito Mutuo y Tecnología Blockchain
+                    <strong>Whitepaper Técnico v2.0</strong> &bull; Arquitectura de Crédito Mutuo y Consenso
+                    Proof-of-Task (PoT)
                 </div>
             </header>
 
@@ -707,11 +745,20 @@
 
                 <h3 id="purpose">1.2 Propósito y Homenaje</h3>
                 <p>
-                    El proyecto rinde homenaje a <strong>Nicholas Winton</strong>, quien demostró que el valor de una
-                    vida se mide por las acciones altruistas. El objetivo es fomentar la ayuda mutua y la inclusión
-                    financiera mediante una red automatizada, segura y transparente sobre Blockchain. Buscamos
-                    democratizar el acceso a oportunidades económicas, eliminando las barreras de entrada del sistema
-                    bancario tradicional.
+                    El protocolo lleva el nombre de <strong>Sir Nicholas Winton</strong>, quien en 1939 organizó en
+                    secreto el rescate de <strong>669 niños</strong> (Kindertransport) de la Checoslovaquia ocupada por
+                    los nazis, cuando los gobiernos del mundo cerraban sus fronteras.
+                </p>
+                <div class="abstract-box" style="margin: 1.5rem 0; padding: 1.5rem; border-left: 4px solid #334155;">
+                    <em>"Si algo no es imposible, entonces debe haber una manera de hacerlo."</em> — Sir Nicholas
+                    Winton.
+                </div>
+                <p>
+                    Su legado no es solo de bondad, sino de <strong>eficiencia subversiva</strong>: demostró que un
+                    individuo decidido puede superar la parálisis de las instituciones para salvar el futuro. WintonCoin
+                    adopta esta filosofía operativa: proporcionamos la tecnología para que las personas puedan emitir su
+                    propio crédito y rescatarse mutuamente de la exclusión financiera, <strong>sin esperar permiso de la
+                        banca tradicional</strong>.
                 </p>
             </section>
 
@@ -767,26 +814,103 @@
 
                 <h3 id="real-mining">3.2 Protocolo de Consenso: Proof-of-Task (PoT)</h3>
                 <p>
-                    WintonCoin introduce un novedoso mecanismo de consenso denominado <strong>Proof-of-Task (Prueba de
-                        Tarea)</strong>.
+                    A diferencia de Proof-of-Work (Bitcoin) que gasta energía, o Proof-of-Stake (Ethereum) que requiere
+                    capital, <strong>Proof-of-Task</strong> es un mecanismo de consenso basado en la <strong>Validación
+                        de Valor Tangible</strong>.
                 </p>
                 <div class="note">
-                    <strong>Definición Técnica:</strong> PoT es un protocolo de validación donde la emisión de nuevos
-                    tokens no depende de la resolución de algoritmos computacionales (minado de bloques), sino de la
-                    <strong>validación criptográfica de una tarea humana completada</strong>.
+                    <strong>Principio de Emisión:</strong> La creación de masa monetaria (M0) es elástica y 100%
+                    colateralizada. El Smart Contract solo ejecuta la función <code>mint()</code> cuando una transacción
+                    de servicio ha sido firmada criptográficamente por ambas partes (Proveedor y Consumidor).
                 </div>
                 <p>
-                    En este modelo, la "energía" gastada no es electricidad, sino <strong>esfuerzo humano
-                        tangible</strong>.
-                    <em>"Solo se emiten nuevos tokens única y exclusivamente cuando se presenta una Prueba de Tarea
-                        válida, aceptada por la contraparte en la Blockchain."</em>
-                    Esto elimina la especulación inflacionaria, ya que cada unidad de moneda (BLUE) está respaldada
-                    colateralmente por una unidad de valor real (trabajo/servicio) ya ejecutado en la economía.
+                    Esto elimina la inflación especulativa: no se puede "imprimir" dinero sin haber generado primero un
+                    valor equivalente en la economía real.
                 </p>
             </section>
 
             <section id="workflow">
-                <h2>4. Mecanismo de Funcionamiento</h2>
+                <h2>4. Funcionalidad del Ecosistema</h2>
+                <p>
+                    WintonCoin no es solo una moneda, es un sistema operativo financiero completo. A continuación se
+                    detallan las herramientas principales que permiten a los usuarios interactuar con el protocolo.
+                </p>
+
+                <h3 id="pub-types">4.1 Tipos de Publicaciones (Smart Publications)</h3>
+                <p>
+                    El corazón de la plataforma son las publicaciones inteligentes. A diferencia de un foro tradicional,
+                    cada publicación aquí es un <strong>pre-contrato inteligente</strong> capaz de ejecutar
+                    transacciones financieras.
+                </p>
+
+                <div class="flow-container">
+                    <div class="flow-step highlight">
+                        <span class="flow-icon">📝</span>
+                        <strong>1. Orden de Servicio (Request)</strong>
+                        <p>
+                            El usuario publica una necesidad.<br>
+                            Se crea un <strong>Smart Contract en estado 'Pending'</strong>.<br>
+                            (Aún no hay emisión monetaria).
+                        </p>
+                    </div>
+                    <div class="flow-arrow">⇄</div>
+                    <div class="flow-step">
+                        <span class="flow-icon">✅</span>
+                        <strong>2. Liquidación (Settlement)</strong>
+                        <p>
+                            El servicio se completa y valida.<br>
+                            El contrato ejecuta el <strong>Atomic Swap</strong>:<br>
+                            Emisión de BLUE (Activo) y RED (Pasivo).
+                        </p>
+                    </div>
+                </div>
+
+                <div class="note">
+                    <strong>Validación P2P:</strong> Ninguna transacción ocurre hasta que ambas partes confirman el
+                    resultado. El solicitante debe marcar la tarea como "Completada" para liberar los fondos, actuando
+                    como un oráculo humano de veracidad.
+                </div>
+
+                <h3 id="p2p-exchange">4.2 Mercado P2P (Compra y Venta)</h3>
+                <p>
+                    ¿Qué pasa si un usuario tiene deuda (RED) pero no tiene tiempo para trabajar y saldarla? O ¿qué pasa
+                    si un trabajador tiene muchos BLUE y necesita dinero FIAT (Dólares/Euros)?
+                </p>
+                <p>
+                    La plataforma incluye un <strong>Mercado P2P Descentralizado</strong>:
+                </p>
+                <ul>
+                    <li><strong>Vender BLUE:</strong> Los "Impulsores" o trabajadores pueden vender sus tokens BLUE a
+                        otros usuarios a cambio de dinero real (transferencia bancaria, efectivo, USDT).</li>
+                    <li><strong>Comprar BLUE:</strong> Los usuarios con deuda (RED) compran BLUE en el mercado para
+                        poder "quemar" sus obligaciones y limpiar su reputación.</li>
+                </ul>
+
+                <h3 id="debt-burning">4.3 Compensación y Ciclo de Crédito</h3>
+                <p>
+                    El protocolo otorga un <strong>Periodo de Gracia (30 días)</strong> durante el cual el usuario puede
+                    mantener simultáneamente saldo deudor (RED) y liquidez (BLUE). Esto permite operar y generar flujo
+                    de caja sin bloqueo inmediato.
+                </p>
+                <div class="abstract-box" style="margin-bottom: 2rem;">
+                    <strong>Mecanismo de Ejecución (Settlement):</strong>
+                    <ul style="margin-top: 10px; font-style: normal;">
+                        <li><strong>Estado Pendiente (Vesting):</strong> Los BLUE ganados no son líquidos
+                            inmediatamente. Permanecen retenidos en un estado <strong>"Pendiente"</strong> durante el
+                            mismo ciclo de 30 días, alineando los tiempos de cobro y pago.</li>
+                        <li><strong>Compensación Prioritaria:</strong> Durante este lapso, estos fondos pendientes
+                            <strong>solo</strong> pueden utilizarse para "quemar" deuda propia (RED). Esto incentiva el
+                            saneamiento del balance personal antes que el lucro externo.
+                        </li>
+                        <li><strong>Cobro Forzoso (Default):</strong> Si una deuda vence (>30 días), el sistema ejecuta
+                            un <strong>Sweep Protocol</strong> implacable: confisca y destruye cualquier saldo
+                            disponible (sea Líquido o Pendiente) hasta extinguir la totalidad del pasivo vencido.</li>
+                    </ul>
+                </div>
+
+                <h3 id="smart-contract-logic">4.4 Lógica de Ejecución Técnica</h3>
+                <p>A nivel de código (Solidity), este es el flujo exacto que ocurre en la Blockchain:</p>
+
                 <div class="table-container"
                     style="overflow-x: auto; margin: 2rem 0; border: 1px solid #e2e8f0; border-radius: 8px;">
                     <table class="wp-table" style="margin: 0; min-width: 600px;">
@@ -854,22 +978,17 @@
                     tokens RED sean eventualmente "quemados" (saldados).
                 </p>
 
-                <h3 id="proof-of-attention">5.1 Tareas Digitales (Validación de Atención)</h3>
+                <h3 id="proof-of-attention">5.1 Tokenización de la Atención (Ad-Tech)</h3>
                 <p>
-                    Bajo el protocolo <strong>Proof-of-Task</strong>, no toda actividad requiere esfuerzo físico. La
-                    <strong>atención humana</strong> es un recurso escaso y valioso que también puede tokenizarse.
+                    Bajo el estándar <strong>Proof-of-Attention</strong>, el tiempo cognitivo del usuario es un activo
+                    validable.
                 </p>
                 <div class="note">
-                    Ver publicidad, dar likes o responder encuestas son consideradas <strong>Tareas Digitales
-                        Válidas</strong>. Permiten al usuario "minar" BLUE para saldar su deuda sin necesidad de
-                    desplazamiento físico.
+                    Las marcas subvencionan la deuda (RED) de los usuarios a cambio de interacción verificada
+                    (Viewability garantizada). El usuario "mina" solvencia consumiendo contenido publicitario
+                    segmentado, generando un modelo publicitario donde el valor fluye directamente al espectador
+                    (User-Centric Ad Model).
                 </div>
-                <p>
-                    <strong>Flujo de Monetización:</strong>
-                    <br>1. Empresa paga en BLUE por "Atención".
-                    <br>2. Usuario Deudor consume el contenido (Tarea).
-                    <br>3. Smart Contract valida la visualización y quema los RED del usuario automáticamente.
-                </p>
 
                 <h3 id="social-mining">5.2 Minería Social</h3>
                 <p>
@@ -879,47 +998,62 @@
 
                 <h3 id="reputation">5.3 Garantías y Supervisión</h3>
                 <ul>
-                    <li><strong>Reputación L.O.V.E.:</strong> (Lista de Obligaciones Vencidas). Un scoring dinámico que
-                        limita la capacidad de endeudamiento de usuarios morosos.</li>
-                    <li><strong>Colaterales:</strong> Posibilidad de bloquear otros criptoactivos como garantía.</li>
-                    <li><strong>Recordatorios Inteligentes:</strong> Integración obligatoria con calendarios para
-                        gestión de vencimientos.</li>
+                    <li><strong>Lista L.O.V.E. (Public Shame Ledger):</strong> Más que un simple bloqueo financiero, la
+                        <em>Lista de Obligaciones Vencidas</em> es un registro público e inmutable en la Blockchain.
+                        Exponer la morosidad ante la comunidad ejerce una poderosa presión social, ya que en una
+                        economía P2P, <strong>la reputación es el activo más valioso</strong>. Perderla significa la
+                        exclusión económica total.
+                    </li>
+                    <li><strong>Colaterales Criptográficos:</strong> Posibilidad de bloquear activos externos (como
+                        USDT/BTC) como garantía de cumplimiento para usuarios nuevos sin historial.</li>
+                    <li><strong>Notificaciones On-Chain:</strong> Recordatorios de vencimiento inmutables que quedan
+                        registrados permanentemente en el historial del usuario.</li>
                 </ul>
             </section>
 
             <section id="use-cases">
-                <h2>6. Casos de Uso y Oportunidades</h2>
-
-                <h4>Micro-Tareas Digitales</h4>
+                <h2>6. Alcance Universal y Verticales</h2>
                 <p>
-                    Desde probar una App, responder una encuesta, hasta asistir a un evento político o comercial. La
-                    "presencia" y la "atención" son commodities que se pueden tokenizar para pagar deudas en el
-                    ecosistema.
+                    WintonCoin es un protocolo agnóstico: la infraestructura permite el intercambio de <strong>cualquier
+                        bien, servicio o activo de valor</strong> imaginable.
+                </p>
+                <div class="note" style="border-left-color: #ef4444; background: #fef2f2; color: #991b1b;">
+                    <strong>Frontera de Legalidad:</strong> La única restricción operativa es la Ley. El protocolo
+                    prohíbe terminantemente y bloquea cualquier transacción relacionada con actividades ilícitas
+                    (drogas, armas, trata de personas, lavado de activos). Fuera de estos límites, <strong>la
+                        creatividad del mercado es infinita</strong>.
+                </div>
+
+                <h3>Verticales Ilustrativas</h3>
+                <p>A modo de ejemplo, estas son algunas aplicaciones de alto impacto ya identificadas:</p>
+
+                <h4>Validation-as-a-Service (Micro-Tasks)</h4>
+                <p>
+                    Plataformas de entrenamiento de IA (RLHF), encuestas de mercado y pruebas de UX descentralizadas. La
+                    validación humana se paga en créditos de liquidez inmediatos.
                 </p>
 
-                <h4>Transformación Empresarial (Stock por Vencer)</h4>
+                <h4>Recuperación de Inventario (Inventory Recovery)</h4>
                 <p>
-                    Empresas con productos perecederos (ej. alimentos próximos a vencer) pueden ofertarlos en la
-                    plataforma aceptando <strong>BLUE</strong>.
-                <ul>
-                    <li>Recuperan valor de inventario perdido.</li>
-                    <li>Ahorran costos de logística inversa y destrucción.</li>
-                    <li>Obtienen tokens BLUE que pueden usar para pagar servicios de la comunidad (limpieza,
-                        mantenimiento, publicidad).</li>
-                </ul>
+                    Comercios con stock perecedero o de baja rotación pueden liquidar inventario aceptando tokens BLUE,
+                    transformando pérdidas potenciales en créditos de servicio para mantenimiento, logística o personal
+                    temporal.
                 </p>
 
-                <h4>Filantropía Transparente</h4>
+                <h4>Trazabilidad de Ayudas (Transparent Aid)</h4>
                 <p>
-                    Donantes pueden comprar tokens BLUE y distribuirlos a poblaciones vulnerables. Como el token BLUE
-                    solo puede usarse para solicitar servicios o bienes dentro de la red, se garantiza el uso correcto
-                    de los fondos y la trazabilidad total.
+                    Organizaciones benéficas distribuyen BLUE (en lugar de efectivo) para garantizar que los fondos solo
+                    puedan canjearse por servicios o bienes esenciales dentro de la red, eliminando la malversación y
+                    asegurando el impacto local ("Last Mile Economy").
                 </p>
 
-                <h4>Ciudades Inteligentes</h4>
+                <h4>Financiación de Capital de Trabajo (Decentralized Factoring)</h4>
                 <p>
-                    Municipios pueden incentivar conductas cívicas (reciclaje, uso de bicicleta) recompensando con BLUE,
-                    que luego los ciudadanos pueden usar para pagar tasas municipales o servicios locales.
+                    Las PyMEs suelen sufrir crisis de liquidez por los plazos de pago largos (cobran a 90 días pero
+                    deben pagar salarios hoy). El protocolo les permite emitir deuda (RED) respaldada por su facturación
+                    futura para obtener liquidez operativa (BLUE) inmediata. Esto democratiza el "Factoring",
+                    permitiendo que proveedores y empleados cobren al día sin que la empresa dependa de préstamos
+                    bancarios con tasas abusivas.
                 </p>
             </section>
 
@@ -958,7 +1092,7 @@
             </section>
 
             <section id="roadmap">
-                <h2>8. Evolución y Hitos Estratégicos</h2>
+                <h2>8. Roadmap</h2>
                 <p>
                     Desde su concepción en 2024, WintonCoin ha seguido un desarrollo riguroso, priorizando la solidez
                     económica sobre la velocidad de despliegue.
@@ -978,12 +1112,10 @@
                         border: 1px solid rgba(255, 255, 255, 0.1);
                         transition: transform 0.3s;
                     ">
-                        🚀 Ver Roadmap Interactivo y Hitos
+                        🚀 Ver Roadmap Interactivo
                     </a>
                     <p style="margin-top: 1rem; font-size: 0.9rem; color: #64748b;">
                         Haga clic para explorar la línea de tiempo completa (2024-2027)
-                    </p>
-                </div>
             </section>
 
             <footer

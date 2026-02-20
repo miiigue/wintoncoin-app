@@ -50,6 +50,13 @@ function checkAndRestartOnboarding() {
         setTimeout(() => {
             startPublishTour();
         }, 500);
+    } else if (new URLSearchParams(window.location.search).get('start_task_tour') === 'true') {
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.replaceState({ path: newUrl }, '', newUrl);
+
+        setTimeout(() => {
+            startTaskTour();
+        }, 1500);
     } else {
         // Standard check
         const hasSeenTour = localStorage.getItem('wintoncoin_tour_completed');
@@ -517,4 +524,140 @@ function startPublishTour() {
     setTimeout(() => {
         driverObj.drive();
     }, 500);
+}
+
+/**
+ * Inicia el tour para explicar los detalles de una Tarea/Publicación
+ */
+function startTaskTour() {
+    if (!window.driver || !window.driver.js) return;
+
+    // Función de espera personalizada
+    const waitForElement = (selector, timeout = 8000) => {
+        return new Promise((resolve) => {
+            if (document.querySelector(selector)) {
+                return resolve(document.querySelector(selector));
+            }
+
+            const observer = new MutationObserver((mutations) => {
+                if (document.querySelector(selector)) {
+                    resolve(document.querySelector(selector));
+                    observer.disconnect();
+                }
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+
+            // Timeout de seguridad
+            setTimeout(() => {
+                observer.disconnect();
+                resolve(null);
+            }, timeout);
+        });
+    };
+
+    waitForElement('.publication-item').then((firstPub) => {
+        if (!firstPub) {
+            console.warn("No se encontraron publicaciones para el tour.");
+            // Podríamos mostrar un mensaje al usuario aquí si fuera necesario
+            return;
+        }
+
+        // Asegurar que sea visible y esté en el viewport
+        firstPub.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Dar un momento para el scroll y renderizado final
+        setTimeout(() => {
+            runTaskDriver(firstPub);
+        }, 800);
+    });
+}
+
+function runTaskDriver(pubElement) {
+    const driver = window.driver.js.driver;
+
+    // Identificar selectores relativos a la tarjeta encontrada
+    // Como driver.js usa selectores globales, vamos a añadir una clase temporal única a esta tarjeta
+    // para poder seleccionarla específicamente y evitar conflictos
+    const uniqueClass = 'driver-tour-highlight-' + Date.now();
+    pubElement.classList.add(uniqueClass);
+
+    const driverObj = driver({
+        showProgress: true,
+        animate: true,
+        allowClose: false,
+        overlayClickNext: false,
+        doneBtnText: '¡Entendido!',
+        nextBtnText: 'Siguiente →',
+        prevBtnText: '← Anterior',
+        progressText: 'Paso {{current}} de {{total}}',
+        onHighlightStarted: (element) => {
+            if (element) {
+                // Bloquear interacciones para que el usuario solo observe
+                element.style.setProperty('pointer-events', 'none', 'important');
+            }
+        },
+        onDeselected: (element) => {
+            if (element) {
+                element.style.pointerEvents = '';
+            }
+        },
+        onDestroyStarted: () => {
+            // Limpiar la clase temporal
+            pubElement.classList.remove(uniqueClass);
+            driverObj.destroy();
+        },
+        steps: [
+            {
+                element: `.${uniqueClass}`,
+                popover: {
+                    title: '📝 Tarjeta de Tarea',
+                    description: 'Cada recuadro representa una oportunidad de intercambio (tarea, venta o donación).',
+                    side: "bottom",
+                    align: 'center'
+                }
+            },
+            {
+                element: `.${uniqueClass} .publication-header h3`,
+                popover: {
+                    title: '📌 Título',
+                    description: 'Indica qué se necesita hacer o qué se está ofreciendo.',
+                    side: "bottom",
+                    align: 'start'
+                }
+            },
+            {
+                element: `.${uniqueClass} .cost-ribbon-left`,
+                popover: {
+                    title: '💰 Recompensa / Costo',
+                    description: 'La cantidad de <b>BLUE</b> involucrada en la transacción.',
+                    side: "right",
+                    align: 'center'
+                }
+            },
+            {
+                element: `.${uniqueClass} .pub-meta`,
+                popover: {
+                    title: '👤 Autor y Reputación',
+                    description: 'Muestra quién publicó. Las <b>estrellas</b> indican su confiabilidad basada en tratos anteriores.',
+                    side: "top",
+                    align: 'start'
+                }
+            },
+            {
+                element: `.${uniqueClass} .slots-info`,
+                popover: {
+                    title: '🔢 Cupos',
+                    description: 'Indica cuántas vacantes quedan disponibles para participar.',
+                    side: "top",
+                    align: 'end'
+                }
+            }
+        ]
+    });
+
+    driverObj.drive();
 }
