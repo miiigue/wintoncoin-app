@@ -386,7 +386,7 @@ async function sendAnnouncementEmail({ toEmail, subject, title, bodyHtml, button
         body { font-family: 'Inter', -apple-system, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f9fafb; }
         .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .header { padding: 40px; text-align: center; border-bottom: 1px solid #f3f4f6; }
-        .logo { height: 120px; margin-bottom: 24px; }
+        .logo { height: 50px; width: auto; max-width: 100%; margin-bottom: 24px; object-fit: contain; }
         .content { padding: 40px; }
         .title { font-size: 24px; font-weight: 700; color: #111827; margin-bottom: 24px; }
         .body-text { font-size: 16px; color: #4b5563; margin-bottom: 32px; }
