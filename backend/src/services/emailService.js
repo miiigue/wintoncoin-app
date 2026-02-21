@@ -423,6 +423,9 @@ async function sendAnnouncementEmail({ toEmail, subject, title, bodyHtml, button
         </div>
         <div class="footer">
           <p class="footer-text">© ${new Date().getFullYear()} ${safeBrandName}. Todos los derechos reservados.</p>
+          <p class="footer-text">
+            Soporte: <a href="mailto:customerservice@wintoncoin.com" style="color: #6b7280; text-decoration: underline;">customerservice@wintoncoin.com</a>
+          </p>
           <p class="footer-text">Este es un comunicado oficial de servicio enviado a ${toEmail}.</p>
         </div>
       </div>
