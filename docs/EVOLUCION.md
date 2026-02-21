@@ -893,3 +893,11 @@ Esto no rompe el producto, pero **sÃ­ rompe la mantenibilidad** (repo pesado, di
   - **Comparativa de Branding**: Estructura visual vertical para mostrar la transición de marca.
 - **Impacto**: Comunicaciones masivas efectivas, profesionalismo y mayor tasa de clics.
 - **Evidencia (commits)**: aa1defa, 653d488.
+
+### 2026-02-21 — Sincronización de Marca y Contacto Directo
+
+- **Cambios Realizados**:
+  - **Landing Page**: Sustitución del texto 'WintonCoin' por el logotipo oficial \wintoncoin_transparent_phrase.png\ en el encabezado.
+  - **Atención al Cliente**: Integración del correo \customerservice@wintoncoin.com\ en el footer de la web y en las plantillas de email.
+  - **UX Footer**: Limpieza de textos redundantes y reestructuración de la columna de contacto.
+- **Impacto**: Mejora significativa en la percepción de marca y profesionalismo del soporte técnico.
