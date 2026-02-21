@@ -82,6 +82,7 @@ export default defineConfig({
         documentation: resolve(__dirname, 'documentation.html'),
         roadmap: resolve(__dirname, 'roadmap.html'),
         comoFunciona: resolve(__dirname, 'como-funciona.html'),
+        legado: resolve(__dirname, 'legado.html'),
         love: resolve(__dirname, 'love.html'),
         terms: resolve(__dirname, 'terms.html'),
         privacy: resolve(__dirname, 'privacy.html'),
