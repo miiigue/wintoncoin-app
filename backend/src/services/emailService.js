@@ -11,7 +11,7 @@ const OTP_SECRET = process.env.OTP_SECRET;
 const JWT_SECRET = process.env.JWT_SECRET;
 const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || SES_FROM_EMAIL || 'support@wintoncoin.com';
 const BRAND_PRIMARY_COLOR = process.env.BRAND_PRIMARY_COLOR || '#0B5FFF';
-const BRAND_LOGO_URL = process.env.BRAND_LOGO_URL || '';
+const BRAND_LOGO_URL = process.env.BRAND_LOGO_URL || 'https://sc.wintoncoin.com/assets/branding/wintoncoin_phrase_blue.png';
 
 // Validación de configuración al cargar el módulo
 if (isProduction) {
@@ -424,7 +424,7 @@ async function sendAnnouncementEmail({ toEmail, subject, title, bodyHtml, button
         <div class="footer">
           <p class="footer-text">© ${new Date().getFullYear()} ${safeBrandName}. Todos los derechos reservados.</p>
           <p class="footer-text">
-            Soporte: <a href="mailto:customerservice@wintoncoin.com" style="color: #6b7280; text-decoration: underline;">customerservice@wintoncoin.com</a>
+            Soporte: <a href="mailto:support@wintoncoin.com" style="color: #6b7280; text-decoration: underline;">support@wintoncoin.com</a>
           </p>
           <p class="footer-text">Este es un comunicado oficial de servicio enviado a ${toEmail}.</p>
         </div>

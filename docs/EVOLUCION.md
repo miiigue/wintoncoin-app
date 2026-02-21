@@ -901,3 +901,6 @@ Esto no rompe el producto, pero **sÃ­ rompe la mantenibilidad** (repo pesado, di
   - **Atención al Cliente**: Integración del correo \customerservice@wintoncoin.com\ en el footer de la web y en las plantillas de email.
   - **UX Footer**: Limpieza de textos redundantes y reestructuración de la columna de contacto.
 - **Impacto**: Mejora significativa en la percepción de marca y profesionalismo del soporte técnico.
+  - **Build Config**: Registro de \legado.html\ en los entry points de Vite para asegurar su disponibilidad en el entorno de producción.
+- **Impacto**: Mejora significativa en la percepción de marca y profesionalismo del soporte técnico.
+- **Evidencia (commits)**: e896969, e981ebf.
