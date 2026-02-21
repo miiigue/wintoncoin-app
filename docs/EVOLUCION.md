@@ -881,3 +881,15 @@ Esto no rompe el producto, pero **sÃ­ rompe la mantenibilidad** (repo pesado, di
 - Automatizar changelog (por ejemplo con `git-cliff` o similar).
 - Definir checklist de release: migraciones, smoke tests frontend, endpoints crÃ­ticos, y validaciÃ³n de cookies/CORS en prod.
 
+
+### 2026-02-20 — Email Broadcast 2.0 y Evolución de Identidad Visual
+
+- **Contexto**: El sistema de difusión original era limitado y la marca necesitaba una actualización visual coherente.
+- **Decisión**:
+  - **Botones de Acción**: Habilitar campos de 'Texto' y 'URL' para el botón de acción.
+  - **Saltos de Línea Inteligentes**: Implementar conversión automática de \
+\ a \<br>\.
+  - **Seguridad Simplificada**: Refinar el 'Recordatorio de Seguridad' eliminando jerga técnica como 'OTP'.
+  - **Comparativa de Branding**: Estructura visual vertical para mostrar la transición de marca.
+- **Impacto**: Comunicaciones masivas efectivas, profesionalismo y mayor tasa de clics.
+- **Evidencia (commits)**: aa1defa, 653d488.
