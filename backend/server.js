@@ -145,6 +145,10 @@ async function startServer() {
         // --- AHORA DEFINIMOS LAS RUTAS ---
         app.use('/api', authRoutes); // Registrar rutas de autenticación
 
+        // --- NUEVO: Ruta para Mensajes Intersticiales Globales ---
+        const interstitialController = require('./src/controllers/interstitialController');
+        app.get('/api/interstitial/global', interstitialController.getGlobalInterstitial);
+
         // --- NUEVO: Rutas de Notificaciones Push (VAPID) ---
         const notificationRoutes = require('./src/routes/notificationRoutes');
         app.use('/api/notifications', notificationRoutes);

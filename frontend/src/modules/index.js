@@ -69,23 +69,23 @@ if (typeof window !== 'undefined') {
     window.showCustomConfirm = showCustomConfirm;
     window.closeCustomConfirm = closeCustomConfirm;
     window.handleConfirm = handleConfirm;
-    
+
     // --- Configuración ---
     window.appSettings = appSettings;
     window.getApiUrl = getApiUrl;
     window.fetchAndStoreAppSettings = fetchAndStoreAppSettings;
-    
+
     // --- Autenticación ---
     window.userSession = userSession;
     window.checkAuthStatus = checkAuthStatus;
-    
+
     // --- Utilidades ---
     window.linkify = linkify;
-    
+
     // --- Tooltips ---
     window.initializeInfoTooltip = initializeInfoTooltip;
     window.initializeAllInfoTooltips = initializeAllInfoTooltips;
-    
+
     // --- Banner ---
     window.initializeValueBanner = initializeValueBanner;
 }
@@ -115,10 +115,10 @@ function initializeApp() {
 
     // Inicializar listeners de alertas
     initializeAlertListeners();
-    
+
     // Inicializar tooltips
     initializeAllInfoTooltips();
-    
+
     // Inicializar banner de valor
     initializeValueBanner();
 }

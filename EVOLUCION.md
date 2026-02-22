@@ -17,5 +17,7 @@ Implementación de una página dedicada al legado de Sir Nicholas Winton, integr
 - Enlace desde la Landing Page (`index.html`) al nuevo portal del legado. ✅ INTEGRADO
 - Corrección de compatibilidad CSS en `legado.html`. ✅ OK
 
-### Conclusión
-El proyecto ahora cuenta con una base filosófica sólida y visible, elevando el propósito de WintonCoin de una simple plataforma tecnológica a un movimiento humanitario contemporáneo.
+### [2026-02-22] - Sistema de Comunicaciones Intersticiales Globales
+- **App-Wide Interstitials (Global Modal)**: Implementado sistema de modales informativos globales gestionables desde el Admin Panel. Incluye persistencia en base de datos, lógica de "una vez por sesión" y diseño premium con Glassmorphism. (Completado y Probado)
+- **Admin UI**: Añadido interruptor de activación global en el Centro de Notificaciones con feedback visual premium.
+- **Frontend UX**: Implementado modal con efecto Glassmorphism y control de frecuencia (una vez por sesión) para maximizar impacto sin reducir la usabilidad. ✅ DESPLEGADO

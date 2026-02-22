@@ -2472,14 +2472,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const settings = await apiFetch('/api/admin/settings');
-            const dailySettings = settings.filter(s => s.setting_key.startsWith('daily_modal_'));
 
+            // Cargar campos de texto de mensajes diarios (daily_modal_*)
+            const dailySettings = settings.filter(s => s.setting_key.startsWith('daily_modal_'));
             dailySettings.forEach(s => {
                 const input = document.querySelector(`[data-setting-key="${s.setting_key}"]`);
                 if (input) {
                     input.value = s.setting_value;
                 }
             });
+
+            // Cargar estado del switch de visualización global (checkbox)
+            const globalSetting = settings.find(s => s.setting_key === 'global_app_interstitial_enabled');
+            const globalCheckbox = document.getElementById('setting_global_app_interstitial_enabled');
+            if (globalSetting && globalCheckbox) {
+                globalCheckbox.checked = globalSetting.setting_value === 'true';
+            }
         } catch (error) {
             console.error("Error al cargar configuración de modal diario:", error);
         }
@@ -2495,6 +2503,7 @@ document.addEventListener('DOMContentLoaded', () => {
         saveBtn.textContent = 'Guardando...';
 
         try {
+            // Guardar campos de texto de mensajes diarios
             for (const input of inputs) {
                 const key = input.dataset.settingKey;
                 const value = input.value;
@@ -2503,6 +2512,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({ key, value })
                 });
             }
+
+            // Guardar estado del switch de visualización global
+            const globalCheckbox = document.getElementById('setting_global_app_interstitial_enabled');
+            if (globalCheckbox) {
+                await apiFetch('/api/admin/settings', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        key: 'global_app_interstitial_enabled',
+                        value: globalCheckbox.checked.toString()
+                    })
+                });
+            }
+
             showCustomAlert('Mensajes diarios guardados correctamente.');
         } catch (error) {
             showCustomAlert(`Error al guardar: ${error.message}`);

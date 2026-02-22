@@ -17,6 +17,7 @@ import { initPWAInstall } from '../modules/pwa-install.js';
 import { initOnboarding, restartTour } from '../modules/onboarding.js';
 import { initNotificationGate } from '../modules/notificationGate.js';
 import { initializeNotificationSettings } from '../modules/notificationSettings.js';
+import { initializeGlobalInterstitial } from '../modules/interstitials.js';
 // ...
 // ...
 
@@ -264,8 +265,9 @@ document.addEventListener('DOMContentLoaded', () => {
     setupWalletTabs(); // Configurar listeners
 
     // SECUENCIA DE INICIO ORQUESTADA
-    // 1. Notificaciones -> 2. Estado Billetera/Modal -> 3. Tour
+    // 1. Notificaciones -> 2. Modal Global -> 3. Estado Billetera/Modal -> 4. Tour
     initNotificationGate()
+        .then(() => initializeGlobalInterstitial())
         .then(() => initializeWalletState())
         .then(() => {
             setTimeout(initOnboarding, 500);
