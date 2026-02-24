@@ -21,3 +21,73 @@ Implementación de una página dedicada al legado de Sir Nicholas Winton, integr
 - **App-Wide Interstitials (Global Modal)**: Implementado sistema de modales informativos globales gestionables desde el Admin Panel. Incluye persistencia en base de datos, lógica de "una vez por sesión" y diseño premium con Glassmorphism. (Completado y Probado)
 - **Admin UI**: Añadido interruptor de activación global en el Centro de Notificaciones con feedback visual premium.
 - **Frontend UX**: Implementado modal con efecto Glassmorphism y control de frecuencia (una vez por sesión) para maximizar impacto sin reducir la usabilidad. ✅ DESPLEGADO
+
+### [2026-02-23] - Refactorización Profesional del Flujo de Donaciones
+#### Descripción
+Transformación del sistema de donaciones para alinearlo con estándares internacionales de Crowdfunding (Kickstarter/GoFundMe), profesionalizando la arquitectura y mejorando drásticamente la UX.
+
+#### Cambios realizados
+- **Arquitectura Backend**: Implementación de `goal_amount` y `current_amount` en la base de datos para seguimiento real de campañas.
+- **Flujo Directo (Fintech Standard)**: Eliminación de los pasos de "aprobación" y "culminación" para donaciones. Ahora las donaciones son instantáneas, procesando el pago BLUE eou y generando la deuda RED iou en un solo paso. ✅ COMPLETADO
+- **Dashboard UI**:
+    - **Visual Progress Bar**: Implementada barra de progreso animada con gradientes premium que muestra el avance de la recaudación en tiempo real.
+    - **Quick Donation Input**: Añadida caja de entrada numérica integrada en la tarjeta para donar montos variables con un solo clic.
+- **Página de Detalle**: Actualizada con la misma lógica profesional y barra de progreso para mantener la coherencia en todo el ecosistema.
+- **Modelo Económico**: Asegurada la integridad transaccional (Atomicity) mediante el uso de transacciones SQL (`BEGIN/COMMIT`) para el procesamiento de pagos y actualizaciones de meta. ✅ SEGURO
+
+#### Ajustes Estéticos y UX (Corrección)
+- **Identidad de Marca**: Se cambió el esquema de colores de las donaciones de verde a **Magenta/Rosa Winton** (coincidiendo con el ícono del corazón) para una coherencia visual total. ✅
+- **UI de Tarjetas**:
+    - Implementación de un **Meta Badge** destacado en la cabecera de las tarjetas para mejor visibilidad del objetivo.
+    - Rediseño del **Input de Donación Rápida**: Ahora tiene mayor ancho, mejor padding y placeholders descriptivos, facilitando la participación del usuario.
+- **Simplificación del Formulario (`publish.html`)**: Se ocultaron los campos de "Aprobación automática" y "Cupos disponibles" para el tipo donación, eliminando ruido visual y opciones irrelevantes para este flujo.
+
+#### Correcciones Técnicas y Estabilidad
+- **Base de Datos (Transaccionalidad)**: Implementación de la migración `028_add_blue_cost_to_acceptances` para añadir la columna `blue_cost` a la tabla de aceptaciones. Esto permite rastrear aportes individuales en donaciones variables de forma prolija. ✅ ERROR SQL RESUELTO
+- **Backend Integrity**: Actualizadas todas las rutas de aceptación para registrar el costo pactado en el momento de la acción, mejorando la integridad histórica de las transacciones financieras.
+- **Transparencia en UI**: La lista de participantes en la página de detalles ahora muestra el monto exacto aportado por cada donante (+X BLUE), utilizando el color magenta oficial para resaltar la generosidad de la comunidad. ✅ PROFESIONAL
+
+### [2026-02-24] - Winton Momentum — Sistema de Gestión de Influencers
+#### Descripción
+Implementación completa del módulo **Winton Momentum**, un sistema integral e independiente para gestionar el programa de influencers/creadores de contenido de WintonCoin. Incluye backend (DB, servicio, controlador, rutas), frontend (landing, dashboard, admin) y panel de administración.
+
+#### Arquitectura
+- **100% Modular**: Tablas propias (`momentum_*`), servicio dedicado, controlador separado, rutas aisladas.
+- **Integración mínima**: Solo 4 líneas añadidas a `server.js` (import + mount).
+- **Reutilización**: Se integra con `booster_blue_ledger`, `booster_transactions` y `emailService` existentes.
+
+#### Backend
+- **Migración** (`029_create_momentum_system.js`): 4 tablas nuevas — `momentum_profiles`, `momentum_global_config`, `momentum_campaigns`, `momentum_submissions`.
+- **Servicio** (`momentumService.js`): Lógica de negocio pura — config global, perfiles, campañas, entregas, cálculo de pagos (base × multiplicador + bono), acreditación de BLUE IOU.
+- **Controlador** (`momentumController.js`): Endpoints HTTP — públicos, influencer (auth JWT), admin (auth cookie).
+- **Rutas** (`momentumRoutes.js`): Factory pattern con inyección de dependencias (pool, auth middleware, audit).
+
+#### Frontend
+- **Landing Page** (`momentum-landing.html/css/js`): Hero, barra FOMO con cupos/countdown, simulador interactivo por tier, social proof, formulario de postulación. Estética Fintech Dark Mode.
+- **Dashboard Influencer** (`momentum-dashboard.html/css/js`): Balance confirmado/pendiente, marketplace de misiones con modal de entrega, historial de submissions con estados.
+- **Admin Panel** (`momentum-admin.html/js`): Config global, gestión de postulantes (asignar tiers), CRUD campañas, verificación de entregas (aprobar con bono / rechazar con nota obligatoria).
+- **Navegación**: Botón "⚡ Momentum" añadido al sidebar del `admin-panel.html`.
+
+#### Seguridad
+- Locks `FOR UPDATE` para concurrencia en aprobaciones.
+- Transacciones SQL para operaciones críticas (BLUE IOU + historial).
+- Validaciones en controller y servicio. XSS prevention en frontend.
+- Notas de auditoría obligatorias en rechazos.
+
+#### Mejoras y Estabilidad (Cierre de fase)
+- **Corrección de Autenticación**: Resuelto el bug crítico de nomenclatura (`isAuthenticated` vs `isLoggedIn`) que impedía a los influencers logueados acceder a su dashboard. ✅ ESTABLE
+- **Estrategia de Landing**: El formulario de postulación ahora es siempre visible, solicitando login solo al momento del envío para mejorar la conversión de creadores.
+- **Ajuste de Terminología (Pre-lanzamiento)**: Actualización de la marca en el módulo Momentum y su sección dedicada en la landing — donde decía "BLUE" ahora dice "**BLUE IOU**" para ser 100% transparentes con la comunidad sobre el estado del token del programa de creadores. ✅ TRANSPARENCIA
+- **Integridad Técnica**: Ejecución de las migraciones `029` y `030` para activar el sistema de recompensas y misiones repetibles.
+- **Solución Error 404 Admin**: Implementado endpoint de compatibilidad `/api/legal-status` en el backend para asegurar que componentes antiguos del panel administrativo no fallen al cargar. ✅ OK
+- **Refinamiento UX Dashboard**:
+    - **Interacción**: Arreglado problema CSS de `pointer-events` que impedía hacer clic en los botones "Entregar" debido a la superposición del efecto de borde iluminado.
+    - **Robustez**: Migración de listeners de eventos a un sistema de **Delegación de Eventos** en el contenedor principal, mejorando el rendimiento y la detección de clics en elementos dinámicos. ✅ FLUIDO
+- **Ajuste de Seguridad Económica**:
+    - **Multiplicador Neutral**: Se ha neutralizado el multiplicador global de **15x a 1x** mediante la migración auditable `031`. 
+    - **Razón**: Establecer un baseline de 1x (elemento neutro) garantiza que los pagos base sean los efectivos por defecto, permitiendo al Admin escalar la aceleración de forma controlada y segura para la economía de la plataforma. ✅ AUDITABLE
+
+#### Fórmula de Pago
+```
+Pago Final = (Tarifa Base del Tier × Multiplicador Global) + Bono Extra del Admin (en BLUE IOU)
+```

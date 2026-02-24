@@ -108,10 +108,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let platformPublicationsCache = [];
     let platformEditId = null;
 
-    // --- NUEVO: Estado Legal para Admin ---
-    let legalStatus = null;
+    // --- NUEVO: Estado Legal para Admin (Simplificado para gestión) ---
+    let legalStatus = { requires_terms_acceptance: false };
     setupEventListeners();
-    checkLegalStatus();
+    // checkLegalStatus(); // Ruta obsoleta eliminada para mayor fluidez del panel
     showSection('dashboard');
     refreshPlatformPendingBadge();
     setInterval(refreshPlatformPendingBadge, 30000);

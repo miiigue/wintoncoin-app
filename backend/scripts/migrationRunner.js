@@ -6,6 +6,18 @@ const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
 
+// CARGA DE CONFIGURACIÓN PROFESIONAL
+// Buscamos el archivo .env según el entorno (desarrollo, producción, etc.)
+const env = process.env.NODE_ENV || 'development';
+const envPath = path.resolve(__dirname, `../../.env.${env}`);
+require('dotenv').config({ path: envPath });
+
+if (!process.env.DATABASE_URL) {
+    console.error(`[MIGRATIONS] ❌ FATAL: No se encontró DATABASE_URL en ${envPath}`);
+    process.exit(1);
+}
+console.log(`[MIGRATIONS] 🛠 Cargando entorno: ${env}`);
+
 // Configuración de conexión (usará las mismas vars de entorno que el server)
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -124,3 +136,16 @@ function runMigrationScript(scriptPath) {
 }
 
 module.exports = { runPendingMigrations };
+
+// Permite ejecución directa desde terminal: node scripts/migrationRunner.js
+if (require.main === module) {
+    runPendingMigrations()
+        .then(() => {
+            console.log('[MIGRATIONS] 🏁 Proceso finalizado.');
+            process.exit(0);
+        })
+        .catch(err => {
+            console.error('[MIGRATIONS] ❌ Error en ejecución directa:', err);
+            process.exit(1);
+        });
+}

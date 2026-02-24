@@ -1036,36 +1036,55 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getPublicationCardHTML(pub, blueLabel, ratingHTML = '') {
-        const rewardText = `${formatBalance(pub.blue_cost)} ${blueLabel}`;
+        const isDonation = pub.category === 'donation';
+        const rewardText = isDonation ? `Meta: ${formatBalance(pub.goal_amount)} ${blueLabel}` : `${formatBalance(pub.blue_cost)} ${blueLabel}`;
         const statusMessageHTML = getCardStatusMessageHTML(pub);
 
         let ribbonClass = '';
         if (pub.is_booster_task) ribbonClass = 'booster-ribbon';
-        else if (pub.category === 'donation') ribbonClass = 'donation-ribbon';
+        else if (isDonation) ribbonClass = 'donation-ribbon';
         else if (pub.is_sell_post) ribbonClass = 'sell-ribbon';
 
         const slotsClass = pub.available_slots > 0 ? 'available' : 'full';
-        const slotsText = pub.available_slots > 0
-            ? `${pub.available_slots} cupo${pub.available_slots > 1 ? 's' : ''} disponible${pub.available_slots > 1 ? 's' : ''}`
-            : `Cupos agotados`;
+        const slotsText = isDonation
+            ? 'Campaña Activa'
+            : (pub.available_slots > 0 ? `${pub.available_slots} cupos` : 'Cupos agotados');
 
-        // Información de expiración
         const expirationInfo = getExpirationStatusHTML(pub);
 
-        // Enlace al perfil del autor (si los perfiles públicos están habilitados)
         const authorNameHTML = window.appSettings?.public_profiles_enabled
             ? `<a href="profile.html?user=${pub.author_username}" class="profile-link" onclick="event.stopPropagation()">${pub.author_username}</a>`
             : pub.author_username;
 
-        // Estructura nueva: Precio a la izquierda, Menú a la derecha (en una fila superior)
+        // Lógica de Barra de Progreso para Donaciones
+        let progressHTML = '';
+        if (isDonation) {
+            const current = parseFloat(pub.current_amount || 0);
+            const goal = parseFloat(pub.goal_amount || 0);
+            const percent = goal > 0 ? Math.min(100, Math.floor((current / goal) * 100)) : 0;
+
+            progressHTML = `
+                <div class="donation-progress-container">
+                    <div class="donation-progress-labels">
+                        <span>${formatBalance(current)} BLUE recaudados</span>
+                        <span>${percent}%</span>
+                    </div>
+                    <div class="donation-progress-bar">
+                        <div class="donation-progress-fill" style="width: ${percent}%"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Título de la tarjeta (simple para todos los tipos)
+        const cardTitle = `<h3>${pub.title}</h3>`;
+
         return `
             <a href="publication-detail.html?id=${pub.id}" class="publication-item-link">
-                <div class="publication-item ${expirationInfo.isExpired ? 'expired' : ''}" data-id="${pub.id}" data-author="${pub.author_username}">
+                <div class="publication-item ${expirationInfo.isExpired ? 'expired' : ''} ${isDonation ? 'donation-card' : ''}" data-id="${pub.id}" data-author="${pub.author_username}">
                     
-                    <!-- Fila Superior: Precio y Menú -->
                     <div class="card-top-row">
                         <div class="cost-ribbon-left ${ribbonClass}">${rewardText}</div>
-                        
                         <button class="card-close-btn" onclick="event.preventDefault(); event.stopPropagation(); window.handleCardAction('hide', ${pub.id})">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -1077,9 +1096,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${statusMessageHTML}
 
                     <div class="publication-header">
-                        <h3>${pub.title}</h3>
+                        ${cardTitle}
                     </div>
+                    
+                    ${progressHTML}
+
                     <p class="pub-description">${linkify(pub.description?.slice(0, 150) || '')}</p>
+                    
+
+
                     <div class="publication-footer">
                         <div class="pub-meta">
                             <span>Por: <strong>${authorNameHTML}</strong></span>
@@ -1094,6 +1119,44 @@ document.addEventListener('DOMContentLoaded', () => {
             </a>
         `;
     }
+
+    // --- ACCIÓN DE DONACIÓN DIRECTA ---
+    window.handleDirectDonation = async function (pubId, authorUsername) {
+        const input = document.getElementById(`don-input-${pubId}`);
+        const amount = parseFloat(input?.value);
+
+        if (!amount || amount <= 0 || isNaN(amount)) {
+            showCustomAlert('Por favor, ingresa un monto válido para donar.');
+            return;
+        }
+
+        const confirmMsg = `¿Deseas donar ${amount} BLUE a ${authorUsername}?\n\nEsta acción generará una deuda RED equivalente en tu cuenta según el modelo económico de WintonCoin.`;
+
+        showCustomConfirm(confirmMsg, async () => {
+            try {
+                const response = await fetch(`${API_URL}/publications/${pubId}/accept`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        acceptorUsername: storedUsername,
+                        donationAmount: amount
+                    })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    showCustomAlert(result.message || '¡Donación procesada con éxito!', () => {
+                        window.loadAllData();
+                    });
+                } else {
+                    showCustomAlert(result.message || 'Error al procesar la donación.');
+                }
+            } catch (error) {
+                console.error('Error en donación:', error);
+                showCustomAlert('Error de red al procesar la donación.');
+            }
+        });
+    };
 
     // Acción directa de ocultar
     window.handleCardAction = async function (action, id) {

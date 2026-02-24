@@ -6810,3 +6810,20 @@ body.wallet-tour-active #prelaunchWalletModal {
         margin-bottom: 1.5rem;
     }
 }
+/* Estilos Magenta */
+.donation-ribbon { background: #e84393 !important; color: white !important; }
+.donation-btn { background: #e84393 !important; color: white !important; border: none !important; box-shadow: none !important; }
+.donation-input { background: rgba(0,0,0,0.4) !important; color: white !important; border: 1px solid rgba(255,255,255,0.2) !important; }
+.donation-input:focus { background: rgba(255,255,255,0.1) !important; color: white !important; }
+.donation-card { border: 1px solid rgba(232, 67, 147, 0.4) !important; }
+.donation-goal-badge { background: #e84393; color: white; padding: 4px 12px; border-radius: 20px; font-weight: 700; }
+
+
+/* Detalle de Donación */
+.donation-meta-badge-detail { background: #e84393; color: white; padding: 6px 16px; border-radius: 8px; font-weight: 700; box-shadow: 0 4px 12px rgba(232, 67, 147, 0.3); }
+.donation-input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+.detail-don-btn { background: #e84393 !important; box-shadow: none !important; }
+
+
+.participant-donation-amount { background: rgba(232, 67, 147, 0.15); color: #e84393; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 0.85rem; margin-top: 4px; display: inline-block; }
+

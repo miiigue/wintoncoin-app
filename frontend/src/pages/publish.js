@@ -320,6 +320,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         submitButton.textContent = 'Crear Campaña';
 
+        // Ocultar campos innecesarios para donaciones
+        const autoApproveWrapper = document.getElementById('autoApprove')?.closest('.form-group') || document.getElementById('autoApprove')?.parentElement;
+        if (autoApproveWrapper) autoApproveWrapper.style.display = 'none';
+
+        const slotsWrapper = document.getElementById('availableSlots')?.closest('.form-group') || document.getElementById('availableSlots')?.parentElement;
+        if (slotsWrapper) slotsWrapper.style.display = 'none';
+
         // Show initial warning
         // Show initial warning always
         showDonationWarningModal('initial');
@@ -459,6 +466,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (steps.length) {
                 data.description = mergeDescriptionWithSteps(data.description, steps);
             }
+        }
+
+        // Si es una donación, mapeamos el valor de 'blueSell' a 'goalAmount'
+        if (publicationType === 'donation') {
+            data.goalAmount = data.blueSell;
+            // No necesitamos enviar blueSell ni blueCost para donaciones 
+            // ya que usamos goal_amount en el backend
+            delete data.blueSell;
+            delete data.blueCost;
         }
 
         try {

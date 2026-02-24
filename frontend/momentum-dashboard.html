@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Panel de control de Winton Momentum — Gestiona tus misiones, saldos y entregas.">
+    <title>Mi Dashboard — Winton Momentum</title>
+    <link rel="stylesheet" href="momentum-dashboard.css">
+    <link rel="icon" href="assets/icons/favicon.ico">
+</head>
+
+<body class="momentum-dashboard">
+
+    <!-- ========== HEADER ========== -->
+    <header class="mmd-header">
+        <div class="mmd-header__left">
+            <span class="mmd-header__logo">⚡ Momentum</span>
+            <span class="mmd-header__tier --pendiente" id="mmd-tier-badge">Cargando...</span>
+        </div>
+        <div class="mmd-header__right">
+            <span class="mmd-header__user" id="mmd-username"></span>
+            <a href="panel.html" class="mmd-header__back">← Panel Principal</a>
+        </div>
+    </header>
+
+    <!-- ========== MAIN CONTENT ========== -->
+    <main class="mmd-container" id="mmd-main">
+        <div class="mmd-loading" id="mmd-loading">
+            <div class="mmd-spinner"></div>
+        </div>
+    </main>
+
+    <!-- ========== SUBMIT TASK MODAL ========== -->
+    <div class="mmd-modal-overlay" id="mmd-modal-overlay">
+        <div class="mmd-modal">
+            <h3 class="mmd-modal__title" id="mmd-modal-title">Enviar Entrega</h3>
+            <p class="mmd-modal__subtitle" id="mmd-modal-subtitle">Pega el link de tu contenido para esta misión.</p>
+            <form id="mmd-submit-form">
+                <input type="hidden" id="mmd-modal-campaign-id">
+                <div class="mmd-modal__field">
+                    <label for="mmd-proof-link">URL de tu contenido</label>
+                    <input type="url" id="mmd-proof-link" placeholder="https://..." required>
+                </div>
+                <div class="mmd-modal__actions">
+                    <button type="button" class="mmd-btn mmd-btn--ghost" id="mmd-modal-cancel">Cancelar</button>
+                    <button type="submit" class="mmd-btn mmd-btn--gold" id="mmd-modal-submit">📤 Enviar Entrega</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="mmd-toast" id="mmd-toast"></div>
+
+    <script type="module" src="src/pages/momentum-dashboard.js"></script>
+</body>
+
+</html>

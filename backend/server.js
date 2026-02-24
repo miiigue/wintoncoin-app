@@ -153,6 +153,11 @@ async function startServer() {
         const notificationRoutes = require('./src/routes/notificationRoutes');
         app.use('/api/notifications', notificationRoutes);
 
+        // --- NUEVO: Rutas del módulo Winton Momentum (Gestión de Influencers) ---
+        // El módulo es 100% autocontenido. Solo necesita pool, middlewares de auth y auditoría.
+        const createMomentumRouter = require('./src/routes/momentumRoutes');
+        app.use('/api/momentum', createMomentumRouter(pool, verifyUserToken, verifyAdminToken, logAuditEvent));
+
 
         // =================================================================================
         // ==  NUEVO FLUJO DE REGISTRO CON VERIFICACIÓN POR SMS (FASE 1: SOLICITUD)  ==
@@ -363,10 +368,11 @@ async function startServer() {
                 availableSlots, autoApprove, publicationType,
                 duration_days, duration_hours, duration_minutes,
                 allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours,
-                repeatCooldownDays, repeatCooldownMinutes
+                repeatCooldownDays, repeatCooldownMinutes,
+                goalAmount // Nuevo campo recogido del frontend
             } = req.body;
 
-            if (!title || !description || !authorUsername || (!blueCost && !blueSell) || !publicationType) {
+            if (!title || !description || !authorUsername || (!blueCost && !blueSell && !goalAmount) || !publicationType) {
                 return res.status(400).json({ message: "Faltan datos requeridos para la publicación." });
             }
 
@@ -395,15 +401,35 @@ async function startServer() {
                 }
 
                 const isSellPost = publicationType === 'sell' || publicationType === 'donation';
-                const costString = (blueSell || blueCost).toString().replace(',', '.');
-                const cost = parseFloat(costString);
 
-                if (isNaN(cost) || cost <= 0) {
-                    throw { status: 400, message: "El costo o recompensa debe ser un número positivo." };
+                // Lógica de costo: 
+                // - Si es donación, usamos goalAmount (la meta).
+                // - Si es venta o solicitud, usamos blueSell o blueCost.
+                let cost = 0;
+                let goal = null;
+
+                if (publicationType === 'donation') {
+                    goal = parseFloat(goalAmount.toString().replace(',', '.'));
+                    if (isNaN(goal) || goal <= 0) {
+                        throw { status: 400, message: "La meta de recaudación debe ser un número positivo." };
+                    }
+                    // Para donaciones, el blue_cost de la tabla lo usamos como el "monto sugerido" o 0
+                    // Pero para mantener compatibilidad con el sistema de slots, podemos poner un número simbólico
+                    cost = 0;
+                } else {
+                    const costString = (blueSell || blueCost).toString().replace(',', '.');
+                    cost = parseFloat(costString);
+                    if (isNaN(cost) || cost <= 0) {
+                        throw { status: 400, message: "El costo o recompensa debe ser un número positivo." };
+                    }
                 }
 
-                const slots = availableSlots ? parseInt(availableSlots, 10) : 1;
-                if (isNaN(slots) || slots < 1) {
+                // Para donaciones profesionales, permitimos "infinitos" cupos (slots) 
+                // porque la limitación será el goal_amount, no las personas.
+                let slots = availableSlots ? parseInt(availableSlots, 10) : 1;
+                if (publicationType === 'donation') {
+                    slots = 999999; // Prácticamente infinito
+                } else if (isNaN(slots) || slots < 1) {
                     throw { status: 400, message: "La cantidad de cupos disponibles debe ser mayor a 0." };
                 }
 
@@ -456,12 +482,12 @@ async function startServer() {
                 }
 
                 const sql = `
-                    INSERT INTO publications
-                        (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, category, expires_at, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, show_preflight_modal)
-                    VALUES
-                        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-                    RETURNING id
-                `;
+                        INSERT INTO publications
+                            (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, category, expires_at, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, show_preflight_modal, goal_amount)
+                        VALUES
+                            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                        RETURNING id
+                    `;
                 const result = await client.query(sql, [
                     title,
                     description,
@@ -475,7 +501,8 @@ async function startServer() {
                     allowRepeat,
                     maxRepeat,
                     repeatCooldown,
-                    !!req.body.show_preflight_modal
+                    !!req.body.show_preflight_modal,
+                    goal
                 ]);
 
                 await logAuditEvent(client, req, {
@@ -525,6 +552,7 @@ async function startServer() {
                 SELECT
             p.id, p.title, p.description, p.blue_cost, p.created_at, p.status, p.category,
             p.is_booster_task, p.is_sell_post, p.available_slots, p.expires_at, p.allow_repeat_participation, p.max_repeat_per_user, p.repeat_cooldown_hours,
+            p.goal_amount, p.current_amount,
                     u.username as author_username,
             u.average_rating as author_average_rating,
             u.ratings_count as author_ratings_count,
@@ -547,6 +575,7 @@ async function startServer() {
                                 'username', participant_user.username,
                                 'status', pa.status,
                                 'accepted_at', pa.created_at,
+                                'blue_cost', pa.blue_cost,
                                 'average_rating', participant_user.average_rating,
                                 'ratings_count', participant_user.ratings_count
                             ) ORDER BY pa.created_at)
@@ -892,13 +921,13 @@ async function startServer() {
         // Ruta para Aceptar una publicación
         app.post('/publications/:id/accept', requireAcceptedLegalByUsernameField(['acceptorUsername']), async (req, res) => {
             const { id } = req.params;
-            const { acceptorUsername } = req.body;
+            const { acceptorUsername, donationAmount } = req.body;
 
             const client = await pool.connect();
             try {
                 await client.query('BEGIN');
 
-                // Verificar si el aceptante es menor sin tutor (solo para publicaciones que generan deuda)
+                // 1. Verificar existencia del aceptador
                 const acceptorResult = await client.query(
                     `SELECT id, is_minor, tutor_user_id, account_status FROM users WHERE username = $1`,
                     [acceptorUsername]
@@ -908,173 +937,165 @@ async function startServer() {
                     await client.query('ROLLBACK');
                     return res.status(404).json({ message: "Usuario no encontrado." });
                 }
-
                 const acceptor = acceptorResult.rows[0];
 
-                // Verificar publicación para determinar si genera deuda
+                // 2. Verificar existencia y estado de la publicación
                 const pubResult = await client.query(
                     `SELECT p.*, u.username as author_username
-                     FROM publications p
-                     JOIN users u ON p.author_id = u.id
-                     WHERE p.id = $1 AND p.deleted_at IS NULL
-                     FOR UPDATE`,
+                             FROM publications p
+                             JOIN users u ON p.author_id = u.id
+                             WHERE p.id = $1 AND p.deleted_at IS NULL
+                             FOR UPDATE`,
                     [id]
                 );
                 const pub = pubResult.rows[0];
 
                 if (!pub) {
-                    throw { status: 404, message: "La publicación ya no existe." };
+                    throw { status: 404, message: "La publicación ya no existe o ha sido eliminada." };
                 }
                 if (pub.author_username === acceptorUsername) {
-                    throw { status: 400, message: "No puedes aceptar tu propia publicación." };
+                    throw { status: 400, message: "No puedes aceptar o donar a tu propia publicación." };
                 }
+                if (pub.is_paused) {
+                    throw { status: 400, message: "Esta publicación está pausada temporalmente." };
+                }
+
+                // --- CASO A: DONACIÓN PROFESIONAL ---
+                if (pub.category === 'donation') {
+                    const amount = parseFloat(donationAmount);
+                    if (isNaN(amount) || amount <= 0) {
+                        throw { status: 400, message: "Por favor, indica un monto válido para donar." };
+                    }
+
+                    // Cargar configuraciones para el procesamiento de tokens
+                    const settingsResult = await client.query(`
+                                SELECT setting_key, setting_value 
+                                FROM app_settings 
+                                WHERE setting_key IN ('pre_launch_mode_enabled', 'debt_cycle_days', 'debt_cycle_hours', 'debt_cycle_minutes', 'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes', 'platform_commission_percentage')
+                            `);
+                    const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
+                    const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
+
+                    const virtualAcceptance = {
+                        blue_cost: amount,
+                        title: pub.title,
+                        author_username: pub.author_username,
+                        category: 'donation',
+                        completerUsername: acceptorUsername
+                    };
+
+                    // Procesar pago instantáneo
+                    await processDirectPaymentCompletion(client, virtualAcceptance, id, preLaunchMode, settings);
+
+                    // Registrar la donación confirmada
+                    await client.query(
+                        `INSERT INTO publication_acceptances (publication_id, acceptor_username, status, blue_cost) 
+                                 VALUES ($1, $2, 'confirmed_paid', $3)`,
+                        [id, acceptorUsername, amount]
+                    );
+
+                    // Actualizar progreso de la campaña
+                    await client.query(
+                        `UPDATE publications SET current_amount = COALESCE(current_amount, 0) + $1 WHERE id = $2`,
+                        [amount, id]
+                    );
+
+                    // Notificación al autor
+                    await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`,
+                        [pub.author_username, `¡${acceptorUsername} ha donado ${amount} BLUE a "${pub.title}"!`]
+                    );
+
+                    await logAuditEvent(client, req, {
+                        eventType: 'publication.donation_received',
+                        actorUsername: acceptorUsername,
+                        targetUsername: pub.author_username,
+                        publicationId: parseInt(id, 10),
+                        category: 'donation',
+                        metadata: { amount, new_total: parseFloat(pub.current_amount || 0) + amount }
+                    });
+
+                    await client.query('COMMIT');
+                    return res.status(200).json({ message: `¡Donación de ${amount} BLUE recibida! Gracias por tu apoyo.` });
+                }
+
+                // --- CASO B: FLUJO ESTÁNDAR (SOLICITUDES / VENTAS) ---
                 if (pub.available_slots <= 0) {
                     throw { status: 400, message: "Lo sentimos, ya no quedan cupos disponibles." };
                 }
-                if (pub.is_paused) {
-                    throw { status: 400, message: "Esta publicación está pausada y no acepta nuevas solicitudes." };
-                }
 
-                // Prevenir que un tutor acepte tareas (solicitudes) de su menor representado.
-                // Razón: En solicitudes, la deuda RED del menor va al tutor. Si el tutor también
-                // es el trabajador, sería simultáneamente deudor y acreedor, lo cual no está permitido.
+                // Restricción: No aceptar tareas del menor si eres su tutor (Conflict of Interest)
                 if (pub.category === 'request') {
-                    const authorResult = await client.query(
-                        `SELECT id, is_minor, tutor_user_id FROM users WHERE id = $1`,
-                        [pub.author_id]
-                    );
-                    const author = authorResult.rows[0];
-                    if (author && author.is_minor && author.tutor_user_id === acceptor.id) {
-                        throw {
-                            status: 403,
-                            message: "No puedes aceptar tareas publicadas por tu menor representado. La deuda de esta tarea sería tuya, y al mismo tiempo recibirías el pago. Esto no está permitido."
-                        };
+                    const authorResult = await client.query(`SELECT tutor_user_id FROM users WHERE id = $1`, [pub.author_id]);
+                    if (authorResult.rows[0].tutor_user_id === acceptor.id) {
+                        throw { status: 403, message: "No puedes aceptar solicitudes de tu menor representado por conflicto de intereses financieros." };
                     }
                 }
 
-                // --- NUEVO: Política profesional anti-repetición + Hard Reject (regla de negocio en backend) ---
-                // Cargamos TODAS las participaciones históricas del usuario en esta publicación.
-                const prev = await client.query(
+                // Validación de Repetición Profesional
+                const prevAcceptances = await client.query(
                     `SELECT status FROM publication_acceptances WHERE publication_id = $1 AND acceptor_username = $2`,
                     [id, acceptorUsername]
                 );
 
-                if (prev.rows.length > 0) {
-                    const statuses = prev.rows.map(r => r.status);
-                    const confirmedPaidCount = statuses.filter(s => s === 'confirmed_paid').length;
-
-                    // Hard Reject: si fue rechazado alguna vez, no puede volver a intentar nunca más.
+                if (prevAcceptances.rows.length > 0) {
+                    const statuses = prevAcceptances.rows.map(r => r.status);
                     if (statuses.includes('rejected')) {
-                        throw { status: 403, message: "Tu solicitud para esta tarea fue rechazada anteriormente. No puedes volver a postularte." };
+                        throw { status: 403, message: "Tu solicitud fue rechazada anteriormente y no puedes volver a intentarlo." };
                     }
-
-                    // Bloqueo de concurrencia: no permitir una segunda solicitud si ya hay una activa.
-                    // Nota: 'completed' aquí significa "culminada esperando confirmación/pago", sigue siendo activa.
                     const activeStatuses = ['pending_approval', 'approved', 'completed'];
                     if (statuses.some(s => activeStatuses.includes(s))) {
-                        throw { status: 409, message: "Ya tienes una solicitud activa para esta tarea. Complétala antes de iniciar otra." };
+                        throw { status: 409, message: "Ya tienes una solicitud activa para esta publicación." };
                     }
-
-                    const allowRepeat = !!pub.allow_repeat_participation;
-                    const maxRepeat = Number(pub.max_repeat_per_user);
-                    const repeatCooldown = Number(pub.repeat_cooldown_hours);
-                    if (!allowRepeat && confirmedPaidCount >= 1) {
-                        throw { status: 409, message: "Ya completaste esta tarea y no se permite repetirla." };
+                    const confirmedCount = statuses.filter(s => s === 'confirmed_paid').length;
+                    if (!pub.allow_repeat_participation && confirmedCount >= 1) {
+                        throw { status: 409, message: "Esta publicación no permite participaciones repetidas." };
                     }
-                    if (allowRepeat && Number.isFinite(maxRepeat) && maxRepeat >= 2 && confirmedPaidCount >= maxRepeat) {
-                        throw { status: 409, message: `Ya alcanzaste el máximo de ${maxRepeat} repeticiones permitidas para esta tarea.` };
-                    }
-                    if (allowRepeat && Number.isFinite(repeatCooldown) && repeatCooldown > 0 && confirmedPaidCount >= 1) {
-                        const lastCompletion = await client.query(
-                            `SELECT created_at
-                             FROM publication_acceptances
-                             WHERE publication_id = $1
-                               AND acceptor_username = $2
-                               AND status = 'confirmed_paid'
-                             ORDER BY created_at DESC
-                             LIMIT 1`,
-                            [id, acceptorUsername]
-                        );
-                        if (lastCompletion.rowCount > 0) {
-                            const lastAt = new Date(lastCompletion.rows[0].created_at);
-                            const cooldownMs = repeatCooldown * 60 * 60 * 1000;
-                            const elapsedMs = Date.now() - lastAt.getTime();
-                            if (elapsedMs < cooldownMs) {
-                                const remainingMinutes = Math.ceil((cooldownMs - elapsedMs) / (60 * 1000));
-                                if (remainingMinutes >= 60) {
-                                    const remainingHours = Math.ceil(remainingMinutes / 60);
-                                    throw { status: 409, message: `Podrás volver a realizar esta tarea en ${remainingHours} hora${remainingHours === 1 ? '' : 's'}.` };
-                                }
-                                throw { status: 409, message: `Podrás volver a realizar esta tarea en ${remainingMinutes} minuto${remainingMinutes === 1 ? '' : 's'}.` };
-                            }
-                        }
+                    if (pub.allow_repeat_participation && confirmedCount >= pub.max_repeat_per_user) {
+                        throw { status: 409, message: `Has alcanzado el límite de ${pub.max_repeat_per_user} participaciones para esta tarea.` };
                     }
                 }
 
-                // Si es una publicación de tipo 'sell' o 'donation', el aceptante pagará (genera deuda)
-                // Si es 'request', el autor pagará (no genera deuda para el aceptante)
-                if ((pub.category === 'sell' || pub.category === 'donation') && acceptor.is_minor && (!acceptor.tutor_user_id || acceptor.account_status === 'pending_tutor')) {
-                    await client.query('ROLLBACK');
-                    return res.status(403).json({
-                        message: "Por ser menor de edad, necesitas la autorización de un tutor para aceptar publicaciones que generen deuda RED. Por favor, agrega un tutor a tu cuenta primero.",
-                        requires_tutor: true,
-                        is_minor: true
-                    });
+                // Restricción para menores en ventas (Generación de deuda)
+                if (pub.category === 'sell' && acceptor.is_minor && (!acceptor.tutor_user_id || acceptor.account_status === 'pending_tutor')) {
+                    throw { status: 403, message: "Como menor sin tutor asignado, no puedes aceptar publicaciones que generen deuda RED." };
                 }
 
-                // Descontar cupo SOLO después de pasar validaciones de repetición/concurrencia
+                // Descontar cupo
                 await client.query(`UPDATE publications SET available_slots = available_slots - 1 WHERE id = $1`, [id]);
 
-                // --- LÓGICA DE AUTO-APROBACIÓN ---
                 if (pub.auto_approve) {
-                    // Si la auto-aprobación está activa, se aprueba directamente.
-                    await client.query(`INSERT INTO publication_acceptances (publication_id, acceptor_username, status) VALUES ($1, $2, 'approved')`, [id, acceptorUsername]);
-                    const message = `¡Has sido aprobado automáticamente para la tarea "${pub.title}"!`;
-                    await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [acceptorUsername, message]);
+                    await client.query(`INSERT INTO publication_acceptances (publication_id, acceptor_username, status, blue_cost) VALUES ($1, $2, 'approved', $3)`, [id, acceptorUsername, pub.blue_cost]);
+                    await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [acceptorUsername, `¡Has sido aprobado automáticamente para "${pub.title}"!`]);
 
                     await logAuditEvent(client, req, {
                         eventType: 'publication.accepted',
                         actorUsername: acceptorUsername,
                         publicationId: parseInt(id, 10),
                         category: pub.category,
-                        metadata: {
-                            initial_status: 'approved',
-                            auto_approve: true,
-                            allow_repeat_participation: !!pub.allow_repeat_participation
-                        }
+                        metadata: { initial_status: 'approved', auto_approve: true }
                     });
 
                     await client.query('COMMIT');
                     res.status(200).json({ message: "¡Aceptaste y fuiste aprobado automáticamente!" });
                 } else {
-                    // Comportamiento normal: pendiente de aprobación
-                    await client.query(`INSERT INTO publication_acceptances (publication_id, acceptor_username, status) VALUES ($1, $2, 'pending_approval')`, [id, acceptorUsername]);
-                    const message = `El usuario ${acceptorUsername} quiere realizar la tarea "${pub.title}".`;
-                    await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [pub.author_username, message]);
+                    await client.query(`INSERT INTO publication_acceptances (publication_id, acceptor_username, status, blue_cost) VALUES ($1, $2, 'pending_approval', $3)`, [id, acceptorUsername, pub.blue_cost]);
+                    await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [pub.author_username, `El usuario ${acceptorUsername} quiere realizar la tarea "${pub.title}".`]);
 
                     await logAuditEvent(client, req, {
                         eventType: 'publication.accepted',
                         actorUsername: acceptorUsername,
                         publicationId: parseInt(id, 10),
                         category: pub.category,
-                        metadata: {
-                            initial_status: 'pending_approval',
-                            auto_approve: false,
-                            allow_repeat_participation: !!pub.allow_repeat_participation
-                        }
+                        metadata: { initial_status: 'pending_approval', auto_approve: false }
                     });
 
                     await client.query('COMMIT');
-                    res.status(200).json({ message: "Solicitud enviada. Esperando aprobación." });
+                    res.status(200).json({ message: "Solicitud enviada. Esperando aprobación del autor." });
                 }
-
             } catch (error) {
                 await client.query('ROLLBACK');
-                if (error.constraint === 'one_active_acceptance_per_user_per_pub_idx') {
-                    return res.status(409).json({ message: "Ya has enviado una solicitud para esta tarea." });
-                }
-                console.error("Error al aceptar publicación:", error);
-                res.status(error.status || 500).json({ message: error.message || "Error interno." });
+                console.error("Error en /accept:", error);
+                res.status(error.status || 500).json({ message: error.message || "Error interno al procesar la solicitud." });
             } finally {
                 client.release();
             }
@@ -3656,6 +3677,16 @@ async function startServer() {
             console.log(`- Red:   http://192.168.100.7:${PORT} (Usa esta en tu teléfono)`);
         });
 
+        // --- ENDPOINTS DE COMPATIBILIDAD (LEGACY) ---
+        app.get('/api/legal-status', async (req, res) => {
+            // Respondemos siempre que todo está aceptado para no interrumpir el flujo del Admin o usuarios existentes
+            res.json({
+                requires_terms_acceptance: false,
+                accepted_at: new Date().toISOString(),
+                documents: []
+            });
+        });
+
     } catch (err) {
         console.error("Error fatal al iniciar el servidor:", err);
         process.exit(1);
@@ -4689,7 +4720,8 @@ app.get('/api/publications/:id', async (req, res) => {
             SELECT
                 p.id, p.title, p.description, p.blue_cost, p.status, p.created_at, p.is_paused,
                 p.is_sell_post, p.available_slots, p.category, p.expires_at,
-                p.is_quick_sale, p.target_username, p.form_fields, p.show_preflight_modal, -- CAMPOS AÑADIDOS
+                p.is_quick_sale, p.target_username, p.form_fields, p.show_preflight_modal,
+                p.goal_amount, p.current_amount,
                 u.username as author_username,
                 u.average_rating as author_average_rating,
                 u.ratings_count as author_ratings_count,
@@ -4707,6 +4739,7 @@ app.get('/api/publications/:id', async (req, res) => {
                         'username', pa_all.acceptor_username,
                         'status', pa_all.status,
                         'accepted_at', pa_all.created_at,
+                        'blue_cost', pa_all.blue_cost,
                         'average_rating', p_user.average_rating,
                         'ratings_count', p_user.ratings_count,
                         'phone_number', CASE WHEN pa_all.status = 'approved' THEN p_user.phone_number ELSE NULL END,

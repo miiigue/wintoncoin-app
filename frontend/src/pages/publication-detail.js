@@ -116,6 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderPublication(pub, platformSettings) {
+        const isDonation = pub.category === 'donation';
         const authorRatingHTML = generateStarRating(pub.author_average_rating, pub.author_ratings_count);
 
         const authorNameHTML = appSettings.public_profiles_enabled
@@ -138,15 +139,40 @@ document.addEventListener('DOMContentLoaded', () => {
         const stepsHTML = renderStepFlow(steps, pub.form_fields, pub.user_acceptance_status);
 
         let ribbonClass = '';
-        if (pub.category === 'donation') {
+        if (isDonation) {
             ribbonClass = 'donation-ribbon';
         } else if (pub.is_sell_post) {
             ribbonClass = 'sell-ribbon';
         }
 
+        const costLabel = isDonation ? `Meta: ${formatBalance(pub.goal_amount)} ${blueLabel}` : `${formatBalance(pub.blue_cost)} ${blueLabel}`;
+
+        const metaBadgeHTML = isDonation
+            ? `<div class="donation-meta-badge-detail">Meta: ${formatBalance(pub.goal_amount)} BLUE</div>`
+            : '';
+
+        // Barra de progreso para donaciones
+        let progressHTML = '';
+        if (isDonation) {
+            const current = parseFloat(pub.current_amount || 0);
+            const goal = parseFloat(pub.goal_amount || 0);
+            const percent = goal > 0 ? Math.min(100, Math.floor((current / goal) * 100)) : 0;
+            progressHTML = `
+                <div class="donation-progress-container detail-progress">
+                    <div class="donation-progress-labels">
+                        <span><strong>${formatBalance(current)}</strong> recaudados de ${formatBalance(goal)} BLUE</span>
+                        <span>${percent}%</span>
+                    </div>
+                    <div class="donation-progress-bar">
+                        <div class="donation-progress-fill" style="width: ${percent}%"></div>
+                    </div>
+                </div>
+            `;
+        }
+
         const publicationHTML = `
             <div class="detail-header">
-                <span class="detail-cost-badge ${ribbonClass}">${formatBalance(pub.blue_cost)} ${blueLabel}</span>
+                ${metaBadgeHTML}
                 <h1 class="detail-title">${pub.title}</h1>
                 <div class="detail-meta">
                     Publicado por <strong>${authorNameHTML}</strong> ${authorRatingHTML}
@@ -159,6 +185,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${acceptButtonHTML || ''}
                 ${shareButtonHTML}
             </div>
+
+            ${progressHTML}
 
             <hr>
 
@@ -335,11 +363,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
             }
 
+            const donationAmountHTML = (isDonation && p.blue_cost)
+                ? `<span class="participant-donation-amount">+${formatBalance(p.blue_cost)} BLUE</span>`
+                : '';
+
             return `
                 <li class="participant-item ${p.form_responses ? 'has-responses' : ''}">
                     <div class="participant-info">
                         <strong>${participantNameHTML}</strong>
                         <span class="rating-display">${ratingHTML}</span>
+                        ${donationAmountHTML}
                         ${acceptedAtHTML}
                     </div>
                     <div class="participant-status">
@@ -375,6 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getActionAndMessageHTML(pub, isExpired, blueLabel = 'BLUE') {
         const currentUser = storedUsername;
+        const isDonation = pub.category === 'donation';
 
         // Quick sale logic
         if (pub.is_quick_sale) {
@@ -453,53 +487,60 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
         } else {
-            let verb;
-            if (pub.category === 'donation') {
-                verb = 'Donar/Ayudar';
-            } else {
-                verb = pub.is_sell_post ? 'Comprar' : 'Aceptar Tarea';
-            }
-            const action = pub.is_sell_post ? 'comprado' : 'realizado';
-
             if (isExpired) {
                 messageHTML = `<div class="status-info">Esta tarea ha expirado y ya no acepta nuevos participantes.</div>`;
                 return { messageHTML, actionHTML, acceptButtonHTML };
             }
 
-            switch (userStatus) {
-                case 'pending_approval':
-                    messageHTML = `<div class="status-pending">Tu solicitud ha sido enviada. Esperando aprobación del autor.</div>`;
-                    break;
-                case 'approved': {
-                    const completeLabel = pub.is_sell_post ? 'He Recibido, Pagar' : 'He culminado';
-                    acceptButtonHTML = `
-                        <div class="detail-primary-actions">
-                            <span class="detail-primary-note">¡Has sido aprobado! Ahora puedes proceder a realizar la tarea.</span>
-                            <button class="action-button complete" data-action="complete">${completeLabel}</button>
+            if (isDonation) {
+                // FLUJO ESPECIAL DE DONACIÓN EN DETALLE
+                acceptButtonHTML = `
+                    <div class="donation-detail-flow">
+                        <div class="donation-input-group">
+                            <input type="number" step="any" placeholder="Monto a donar" class="donation-input" id="detail-don-input" min="1">
+                            <button class="donation-btn detail-don-btn" data-action="direct-donation">Donar Ahora</button>
                         </div>
-                    `;
-                    duplicateCompleteButtonHTML = `<button class="action-button complete" data-action="complete">${completeLabel}</button>`;
-                    break;
+                    </div>
+                `;
+            } else {
+                const verb = pub.is_sell_post ? 'Comprar' : 'Aceptar Tarea';
+                const action = pub.is_sell_post ? 'comprado' : 'realizado';
+
+                switch (userStatus) {
+                    case 'pending_approval':
+                        messageHTML = `<div class="status-pending">Tu solicitud ha sido enviada. Esperando aprobación del autor.</div>`;
+                        break;
+                    case 'approved': {
+                        const completeLabel = pub.is_sell_post ? 'He Recibido, Pagar' : 'He culminado';
+                        acceptButtonHTML = `
+                            <div class="detail-primary-actions">
+                                <span class="detail-primary-note">¡Has sido aprobado! Ahora puedes proceder a realizar la tarea.</span>
+                                <button class="action-button complete" data-action="complete">${completeLabel}</button>
+                            </div>
+                        `;
+                        duplicateCompleteButtonHTML = `<button class="action-button complete" data-action="complete">${completeLabel}</button>`;
+                        break;
+                    }
+                    case 'completed':
+                        messageHTML = `<p class="action-message status-pending">Has marcado la tarea como ${action}. Esperando confirmación final del autor.</p>`;
+                        break;
+                    case 'confirmed_paid':
+                        messageHTML = `<p class="action-message status-info">¡Transacción completada!</p>`;
+                        if (pub.available_slots > 0) {
+                            acceptButtonHTML = `<button class="action-button accept" data-action="accept">${verb} de nuevo</button>`;
+                        }
+                        break;
+                    case 'not_participating':
+                    default:
+                        if (pub.available_slots > 0 && !pub.is_paused) {
+                            acceptButtonHTML = `<button class="action-button accept" data-action="accept">${verb}</button>`;
+                        } else if (pub.is_paused) {
+                            messageHTML = `<div class="status-pending">El autor ha pausado las nuevas solicitudes para esta tarea.</div>`;
+                        } else {
+                            messageHTML = `<div class="status-accepted">Todos los cupos para esta tarea están llenos.</div>`;
+                        }
+                        break;
                 }
-                case 'completed':
-                    messageHTML = `<p class="action-message status-pending">Has marcado la tarea como ${action}. Esperando confirmación final del autor.</p>`;
-                    break;
-                case 'confirmed_paid':
-                    messageHTML = `<p class="action-message status-info">¡Transacción completada!</p>`;
-                    if (pub.available_slots > 0) {
-                        acceptButtonHTML = `<button class="action-button accept" data-action="accept">${verb} de nuevo</button>`;
-                    }
-                    break;
-                case 'not_participating':
-                default:
-                    if (pub.available_slots > 0 && !pub.is_paused) {
-                        acceptButtonHTML = `<button class="action-button accept" data-action="accept">${verb}</button>`;
-                    } else if (pub.is_paused) {
-                        messageHTML = `<div class="status-pending">El autor ha pausado las nuevas solicitudes para esta tarea.</div>`;
-                    } else {
-                        messageHTML = `<div class="status-accepted">Todos los cupos para esta tarea están llenos.</div>`;
-                    }
-                    break;
             }
         }
         return { messageHTML, actionHTML, acceptButtonHTML, duplicateCompleteButtonHTML };
@@ -605,6 +646,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 endpoint = `/publications/${publicationId}/accept`;
                 body = { acceptorUsername: storedUsername };
                 break;
+            case 'direct-donation': {
+                const amountInput = document.getElementById('detail-don-input');
+                const amount = parseFloat(amountInput?.value);
+                if (!amount || amount <= 0 || isNaN(amount)) {
+                    showCustomAlert('Indica un monto válido para donar.');
+                    return;
+                }
+                const author = document.querySelector('.detail-meta strong').textContent.trim();
+                showCustomConfirm(`¿Deseas donar ${amount} BLUE a ${author}?\n\nRecuerda que esto generará deuda RED en tu cuenta.`, async () => {
+                    await fetchFromServer(`/publications/${publicationId}/accept`, 'POST', {
+                        acceptorUsername: storedUsername,
+                        donationAmount: amount
+                    });
+                });
+                return;
+            }
             case 'approve':
                 endpoint = `/publications/${publicationId}/approve`;
                 body = { approverUsername: storedUsername, userToApprove: userInAction };

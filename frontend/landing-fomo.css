@@ -343,3 +343,245 @@
         right: 0%;
     }
 }
+
+
+/* ================================================================
+   SECCIÓN MOMENTUM CREATORS — Invitación a Creadores de Contenido
+   Tonalidad: Dorado/Oro (diferente del FOMO naranja/rojo)
+   ================================================================ */
+
+.momentum-creators-section {
+    padding: 6rem 0 5rem;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, #0a0a0c 0%, #08060c 50%, #0c0a10 100%);
+    border-top: 1px solid rgba(255, 215, 0, 0.08);
+    color: white;
+    text-align: center;
+}
+
+/* Glow de fondo dorado sutil */
+.momentum-creators-section::before {
+    content: '';
+    position: absolute;
+    top: -30%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 900px;
+    height: 900px;
+    background: radial-gradient(circle, rgba(255, 215, 0, 0.04) 0%, rgba(0, 0, 0, 0) 60%);
+    filter: blur(80px);
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* Línea decorativa dorada en la parte superior */
+.momentum-divider {
+    width: 80px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #FFD700, transparent);
+    margin: 0 auto 2rem;
+    border-radius: 2px;
+    opacity: 0.7;
+}
+
+/* Badge "Programa para Creadores" */
+.momentum-badge {
+    display: inline-block;
+    background: rgba(255, 215, 0, 0.08);
+    color: #FFD700;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 8px 20px;
+    border-radius: 50px;
+    border: 1px solid rgba(255, 215, 0, 0.2);
+    margin-bottom: 2rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    position: relative;
+    z-index: 2;
+}
+
+/* Título */
+.momentum-title {
+    font-family: var(--font-heading, 'Outfit', sans-serif);
+    font-size: 3rem;
+    line-height: 1.15;
+    font-weight: 800;
+    margin-bottom: 1.5rem;
+    position: relative;
+    z-index: 2;
+}
+
+/* Texto con gradiente dorado */
+.momentum-gradient-text {
+    background: linear-gradient(135deg, #FFD700 0%, #F0C040 40%, #FFE066 70%, #FFD700 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: momentum-gold-shift 4s ease infinite;
+}
+
+@keyframes momentum-gold-shift {
+
+    0%,
+    100% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+/* Subtítulo descriptivo */
+.momentum-subtitle {
+    font-size: 1.15rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.7);
+    max-width: 680px;
+    margin: 0 auto 3rem;
+    position: relative;
+    z-index: 2;
+}
+
+.momentum-subtitle strong {
+    color: rgba(255, 255, 255, 0.95);
+}
+
+/* 3 Pilares de valor */
+.momentum-pillars {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    max-width: 900px;
+    margin: 0 auto 3rem;
+    position: relative;
+    z-index: 2;
+}
+
+.momentum-pillar {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 215, 0, 0.08);
+    border-radius: 16px;
+    padding: 2rem 1.5rem;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(8px);
+}
+
+.momentum-pillar:hover {
+    background: rgba(255, 215, 0, 0.04);
+    border-color: rgba(255, 215, 0, 0.2);
+    transform: translateY(-6px);
+    box-shadow: 0 16px 40px rgba(255, 215, 0, 0.06);
+}
+
+.momentum-pillar__icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.momentum-pillar__title {
+    font-family: var(--font-heading, 'Outfit', sans-serif);
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.7rem;
+    color: #fff;
+}
+
+.momentum-pillar__desc {
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* CTA Button — Dorado Premium */
+.momentum-cta {
+    display: inline-block;
+    background: linear-gradient(135deg, #FFD700 0%, #F0A500 100%);
+    color: #0a0a0c;
+    font-family: var(--font-heading, 'Outfit', sans-serif);
+    font-weight: 800;
+    font-size: 1.1rem;
+    padding: 1.1rem 3rem;
+    border-radius: 50px;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 30px rgba(255, 215, 0, 0.25);
+    position: relative;
+    z-index: 2;
+    overflow: hidden;
+}
+
+.momentum-cta:hover {
+    transform: translateY(-4px) scale(1.03);
+    box-shadow: 0 16px 50px rgba(255, 215, 0, 0.4);
+    filter: brightness(1.1);
+}
+
+/* Efecto de brillo animado en el botón */
+.momentum-cta::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    transition: 0.5s;
+}
+
+.momentum-cta:hover::after {
+    left: 100%;
+}
+
+/* Disclaimer */
+.momentum-disclaimer {
+    margin-top: 1.2rem;
+    font-size: 0.8rem;
+    opacity: 0.45;
+    position: relative;
+    z-index: 2;
+}
+
+/* --- RESPONSIVE: Momentum Creators --- */
+@media (max-width: 992px) {
+    .momentum-title {
+        font-size: 2.5rem;
+    }
+
+    .momentum-pillars {
+        gap: 1rem;
+    }
+
+    .momentum-pillar {
+        padding: 1.5rem 1.2rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .momentum-creators-section {
+        padding: 4rem 0 3.5rem;
+    }
+
+    .momentum-title {
+        font-size: 2rem;
+    }
+
+    .momentum-pillars {
+        grid-template-columns: 1fr;
+        max-width: 400px;
+    }
+
+    .momentum-pillar {
+        padding: 1.5rem;
+    }
+
+    .momentum-cta {
+        font-size: 1rem;
+        padding: 1rem 2rem;
+    }
+}
