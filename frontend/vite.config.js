@@ -90,6 +90,11 @@ export default defineConfig({
         // Admin
         admin: resolve(__dirname, 'admin.html'),
         adminPanel: resolve(__dirname, 'admin-panel.html'),
+
+        // Momentum System
+        momentumLanding: resolve(__dirname, 'momentum-landing.html'),
+        momentumDashboard: resolve(__dirname, 'momentum-dashboard.html'),
+        momentumAdmin: resolve(__dirname, 'momentum-admin.html'),
       },
 
       // Optimización de chunks
