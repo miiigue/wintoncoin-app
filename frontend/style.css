@@ -16,7 +16,7 @@
     /* Gris más claro para textos secundarios */
     --error-color: #ff5252;
     /* --- Variables de Diseño Premium (Sapphire Edition) --- */
-    --card-blue-elegant: linear-gradient(180deg, #1436b4, #081d4e);
+    --card-blue-elegant: linear-gradient(180deg, #1447b4, #081d4e);
     --card-border-soft: rgba(255, 255, 255, 0.12);
     --card-shadow-premium: 0 12px 30px rgba(0, 0, 0, 0.45);
 }
