@@ -79,6 +79,25 @@ Implementación completa del módulo **Winton Momentum**, un sistema integral e 
 - **Estrategia de Landing**: El formulario de postulación ahora es siempre visible, solicitando login solo al momento del envío para mejorar la conversión de creadores.
 - **Ajuste de Terminología (Pre-lanzamiento)**: Actualización de la marca en el módulo Momentum y su sección dedicada en la landing — donde decía "BLUE" ahora dice "**BLUE IOU**" para ser 100% transparentes con la comunidad sobre el estado del token del programa de creadores. ✅ TRANSPARENCIA
 - **Integridad Técnica**: Ejecución de las migraciones `029` y `030` para activar el sistema de recompensas y misiones repetibles.
+
+## [2026-02-25] - Refinamiento Estético: Rediseño Premium de Publicaciones
+
+### Descripción
+Evolución visual de las tarjetas de publicación, reemplazando el esquema oscuro básico por una estética "Sapphire Premium" con efectos de profundidad y gradientes, alineada con los estándares de diseño de aplicaciones financieras modernas.
+
+### Cambios realizados
+- **Identidad Visual**: Migración del fondo `#1a1a2e` (oscuro plano) a un gradiente dinámico `Sapphire-to-Midnight` (`#1c2e6b` a `#121d4a`).
+- **Profundidad y Elevación**:
+    - Implementación de bordes semi-transparentes (`rgba(255,255,255,0.1)`) para un acabado tipo cristal (Glassmorphism).
+    - Refinamiento de sombras (`box-shadow`) para mayor sensación de jerarquía visual.
+- **Micro-interacciones**: Optimización de transiciones y efectos hover para una navegación más fluida y profesional.
+- **Coherencia de Tipos**: Ajuste de los bordes y acentos en tarjetas de donación y venta para que armonicen con el nuevo fondo azul elegante. ✅ ESTÉTICA MEJORADA
+- **Alineación de Marca**: Reajuste cromático del gradiente de las tarjetas para igualar el azul oficial `#3b82f6` y el gradiente `#60a5fa`-`#2563eb` de la palabra "Coin" en el logotipo.
+
+### Estándares Aplicados
+- **Modularidad**: Uso de variables CSS para facilitar cambios globales.
+- **UX/UI**: Mejora del contraste y legibilidad con tipografía blanca sobre fondos azules profundos.
+- **Auditoría**: Registro documentado en `EVOLUCION.md`.
 - **Solución Error 404 Admin**: Implementado endpoint de compatibilidad `/api/legal-status` en el backend para asegurar que componentes antiguos del panel administrativo no fallen al cargar. ✅ OK
 - **Refinamiento UX Dashboard**:
     - **Interacción**: Arreglado problema CSS de `pointer-events` que impedía hacer clic en los botones "Entregar" debido a la superposición del efecto de borde iluminado.
@@ -91,3 +110,24 @@ Implementación completa del módulo **Winton Momentum**, un sistema integral e 
 ```
 Pago Final = (Tarifa Base del Tier × Multiplicador Global) + Bono Extra del Admin (en BLUE IOU)
 ```
+
+### [2026-02-25] - Educación y Experiencia de Usuario: Onboarding & UI Coordination
+
+#### Descripción
+Implementación de un sistema de tutoriales dinámicos para educar a los usuarios sobre los detalles técnicos de las publicaciones y resolución del conflicto de superposición entre modales y tours (Modal Clash).
+
+#### Cambios realizados
+- **Tutorial Interactivo de Tareas**:
+    - Implementado `startTaskTour` en `onboarding.js`.
+    - Guía paso a paso sobre: Título, Recompensa/Costo, Autor, Reputación (estrellas) y Cupos.
+    - **Robustez Técnica**: Implementación de `waitForElement` (espera activa) y generación de `uniqueClass` dinámica por cada ejecución para evitar conflictos de selectores en el DOM. ✅ PROFESIONAL
+- **Coordinación de UI (Zero Overlap)**:
+    - **Evento Global**: Modificado `interstitials.js` para despachar el evento `winton_interstitial_closed` al cerrar mensajes del administrador.
+    - **Lógica Reactiva**: Implementada función `executeWhenSafe` en el sistema de onboarding. Los tours ahora "escuchan" a la plataforma y solo inician cuando la pantalla está libre de modales bloqueantes. ✅ UX MEJORADA
+- **Acceso Directo**: Añadida tarjeta "📝 Detalle de Tarea" en `como-funciona.html` para acceso manual al tutorial.
+- **Micro-ajuste Estético**: Actualización del gradiente Sapphire en tarjetas (`style.css`) a 180 grados para una transición de color más vertical y sobria.
+
+### Estándares de Ingeniería:
+- **Zero Hardcoded Secrets**: Mantenimiento de la integridad ambiental.
+- **Auditabilidad**: Todo cambio de lógica coordinado y documentado.
+- **Seguridad**: Bloqueo de interacciones del usuario durante los tours ("Modo Museo") para evitar estados inconsistentes.

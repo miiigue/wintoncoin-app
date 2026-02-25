@@ -3,6 +3,31 @@
  * Utiliza driver.js para guiar al usuario en su primera visita.
  */
 
+/**
+ * Ejecuta una función (como iniciar un tour) solo cuando sea seguro hacerlo.
+ * Si hay un modal intersticial bloqueando la pantalla, espera a que se cierre.
+ */
+function executeWhenSafe(callback, delay = 1000) {
+    const isModalVisible = !!document.getElementById('global-app-interstitial');
+
+    if (!isModalVisible) {
+        // No hay modal, procedemos con el delay normal
+        setTimeout(callback, delay);
+    } else {
+        // Hay un modal visible, esperamos al evento de cierre
+        console.log('[Onboarding] Modal detectado, posponiendo tour hasta que el usuario lo cierre...');
+
+        const onModalClosed = () => {
+            console.log('[Onboarding] Modal cerrado, iniciando tour...');
+            window.removeEventListener('winton_interstitial_closed', onModalClosed);
+            // Iniciamos con el delay solicitado tras el cierre
+            setTimeout(callback, delay);
+        };
+
+        window.addEventListener('winton_interstitial_closed', onModalClosed);
+    }
+}
+
 // function to handle URL parameter for restarting tour
 function checkAndRestartOnboarding() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -18,7 +43,7 @@ function checkAndRestartOnboarding() {
         window.history.replaceState({ path: newUrl }, '', newUrl);
 
         // Start tour with a slight delay
-        setTimeout(() => {
+        executeWhenSafe(() => {
             startTour();
         }, 1000);
     } else if (startWalletTourParam === 'true') {
@@ -30,7 +55,7 @@ function checkAndRestartOnboarding() {
         window.history.replaceState({ path: newUrl }, '', newUrl);
 
         // Wait for tab switch animation/render
-        setTimeout(() => {
+        executeWhenSafe(() => {
             startWalletTour();
         }, 1500);
     } else if (new URLSearchParams(window.location.search).get('start_burn_tour') === 'true') {
@@ -40,28 +65,28 @@ function checkAndRestartOnboarding() {
         const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
         window.history.replaceState({ path: newUrl }, '', newUrl);
 
-        setTimeout(() => {
+        executeWhenSafe(() => {
             startBurnTour();
         }, 1500);
     } else if (new URLSearchParams(window.location.search).get('start_publish_tour') === 'true') {
         const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
         window.history.replaceState({ path: newUrl }, '', newUrl);
 
-        setTimeout(() => {
+        executeWhenSafe(() => {
             startPublishTour();
         }, 500);
     } else if (new URLSearchParams(window.location.search).get('start_task_tour') === 'true') {
         const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
         window.history.replaceState({ path: newUrl }, '', newUrl);
 
-        setTimeout(() => {
+        executeWhenSafe(() => {
             startTaskTour();
         }, 1500);
     } else {
         // Standard check
         const hasSeenTour = localStorage.getItem('wintoncoin_tour_completed');
         if (!hasSeenTour) {
-            setTimeout(() => {
+            executeWhenSafe(() => {
                 startTour();
             }, 1500);
         }

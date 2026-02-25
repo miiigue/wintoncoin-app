@@ -148,6 +148,10 @@ function showGlobalInterstitialModal(title, message) {
     document.getElementById('close-interstitial-btn').addEventListener('click', () => {
         modalOverlay.style.opacity = '0';
         modalOverlay.style.transition = 'opacity 0.3s ease';
-        setTimeout(() => modalOverlay.remove(), 300);
+        setTimeout(() => {
+            modalOverlay.remove();
+            // Notificar que el modal se ha cerrado para coordinar otros elementos (como el tour)
+            window.dispatchEvent(new CustomEvent('winton_interstitial_closed'));
+        }, 300);
     });
 }

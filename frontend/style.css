@@ -15,6 +15,10 @@
     --text-secondary-color: #BDBDBD;
     /* Gris más claro para textos secundarios */
     --error-color: #ff5252;
+    /* --- Variables de Diseño Premium (Sapphire Edition) --- */
+    --card-blue-elegant: linear-gradient(180deg, #1436b4, #081d4e);
+    --card-border-soft: rgba(255, 255, 255, 0.12);
+    --card-shadow-premium: 0 12px 30px rgba(0, 0, 0, 0.45);
 }
 
 body {
@@ -2029,21 +2033,28 @@ hr {
 }
 
 .publication-item {
-    background-color: var(--background-color);
-    border: 1px solid #2a3b5c;
-    border-radius: 12px;
-    padding: 1rem;
+    background: var(--card-blue-elegant);
+    /* Gradiente azul elegante */
+    border: 1px solid var(--card-border-soft);
+    /* Borde estilo cristal */
+    border-radius: 16px;
+    /* Bordes modernos redondeados */
+    padding: 1.25rem;
     position: relative;
     overflow: hidden;
-    /* Mantenemos esto para la cinta de costo */
-    transition: box-shadow 0.3s ease, transform 0.3s ease;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    /* Animación elástica premium */
     display: flex;
     flex-direction: column;
+    box-shadow: var(--card-shadow-premium);
 }
 
 .publication-item:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    transform: translateY(-8px) scale(1.02);
+    /* Efecto de elevación */
+    box-shadow: 0 22px 50px rgba(0, 0, 0, 0.6);
+    border-color: rgba(255, 255, 255, 0.3);
+    /* Brillo en el borde al hacer hover */
 }
 
 .publication-header {
@@ -6539,6 +6550,7 @@ body.wallet-tour-active #prelaunchWalletModal {
     width: 100%;
     box-sizing: border-box;
     overflow: hidden;
+    /* Estilos heredados de la definición principal - DRY Principle */
 }
 
 /* Botón de cerrar "X" en la tarjeta - POSICIONAMIENTO ABSOLUTO FORZADO */
@@ -6810,20 +6822,74 @@ body.wallet-tour-active #prelaunchWalletModal {
         margin-bottom: 1.5rem;
     }
 }
+
 /* Estilos Magenta */
-.donation-ribbon { background: #e84393 !important; color: white !important; }
-.donation-btn { background: #e84393 !important; color: white !important; border: none !important; box-shadow: none !important; }
-.donation-input { background: rgba(0,0,0,0.4) !important; color: white !important; border: 1px solid rgba(255,255,255,0.2) !important; }
-.donation-input:focus { background: rgba(255,255,255,0.1) !important; color: white !important; }
-.donation-card { border: 1px solid rgba(232, 67, 147, 0.4) !important; }
-.donation-goal-badge { background: #e84393; color: white; padding: 4px 12px; border-radius: 20px; font-weight: 700; }
+.donation-ribbon {
+    background: #e84393 !important;
+    color: white !important;
+}
+
+.donation-btn {
+    background: #e84393 !important;
+    color: white !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.donation-input {
+    background: rgba(0, 0, 0, 0.4) !important;
+    color: white !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.donation-input:focus {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+}
+
+.donation-card {
+    border: 1px solid rgba(232, 67, 147, 0.3) !important;
+    box-shadow: 0 10px 40px rgba(232, 67, 147, 0.15) !important;
+}
+
+.donation-goal-badge {
+    background: #e84393;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 700;
+}
 
 
 /* Detalle de Donación */
-.donation-meta-badge-detail { background: #e84393; color: white; padding: 6px 16px; border-radius: 8px; font-weight: 700; box-shadow: 0 4px 12px rgba(232, 67, 147, 0.3); }
-.donation-input-group { display: flex; gap: 10px; margin-bottom: 20px; }
-.detail-don-btn { background: #e84393 !important; box-shadow: none !important; }
+.donation-meta-badge-detail {
+    background: #e84393;
+    color: white;
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(232, 67, 147, 0.3);
+}
+
+.donation-input-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.detail-don-btn {
+    background: #e84393 !important;
+    box-shadow: none !important;
+}
 
 
-.participant-donation-amount { background: rgba(232, 67, 147, 0.15); color: #e84393; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 0.85rem; margin-top: 4px; display: inline-block; }
-
+.participant-donation-amount {
+    background: rgba(232, 67, 147, 0.15);
+    color: #e84393;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin-top: 4px;
+    display: inline-block;
+}
