@@ -5,9 +5,14 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
-// URLs de las bases de datos
-const PROD_URL = 'postgresql://wintoncoin_user:xJ5VTRBcJB2CATETmchGhRa57EzmlY44@dpg-d206cfndiees73952i50-a.ohio-postgres.render.com/wintoncoin_prod';
-const DEMO_URL = 'postgresql://wintoncoin_demo_user:rAVHJfdN8O2bTlrXQO2FoszVHEOHhjbP@dpg-d5vor7npm1nc73cpmge0-a.ohio-postgres.render.com/wintoncoin_demo';
+// URLs de las bases de datos (Cargadas desde variables de entorno por seguridad)
+const PROD_URL = process.env.PROD_DATABASE_URL;
+const DEMO_URL = process.env.DEMO_DATABASE_URL;
+
+if (!PROD_URL || !DEMO_URL) {
+    console.error('❌ Error: PROD_DATABASE_URL o DEMO_DATABASE_URL no estn definidas en el entorno.');
+    process.exit(1);
+}
 
 const prodPool = new Pool({ connectionString: PROD_URL, ssl: { rejectUnauthorized: false } });
 const demoPool = new Pool({ connectionString: DEMO_URL, ssl: { rejectUnauthorized: false } });
