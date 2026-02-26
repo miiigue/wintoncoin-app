@@ -5,12 +5,12 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
-// URLs de las bases de datos (Cargadas desde variables de entorno por seguridad)
+// URLs de las bases de datos obtenidas de variables de entorno para evitar fuga de secretos
 const PROD_URL = process.env.PROD_DATABASE_URL;
 const DEMO_URL = process.env.DEMO_DATABASE_URL;
 
 if (!PROD_URL || !DEMO_URL) {
-    console.error('❌ Error: PROD_DATABASE_URL o DEMO_DATABASE_URL no estn definidas en el entorno.');
+    console.error('Error: Faltan las variables de entorno PROD_DATABASE_URL o DEMO_DATABASE_URL');
     process.exit(1);
 }
 
