@@ -131,3 +131,24 @@ Implementación de un sistema de tutoriales dinámicos para educar a los usuario
 - **Zero Hardcoded Secrets**: Mantenimiento de la integridad ambiental.
 - **Auditabilidad**: Todo cambio de lógica coordinado y documentado.
 - **Seguridad**: Bloqueo de interacciones del usuario durante los tours ("Modo Museo") para evitar estados inconsistentes.
+
+## [2026-02-26] - Corrección Crítica: Enforcement de Cooldown en Tareas Repetibles
+
+### Descripción
+Corrección de un bug donde el campo `repeat_cooldown_hours` se almacenaba correctamente en la base de datos al crear publicaciones repetibles, pero **nunca se validaba** durante el flujo de aceptación ni se filtraba en el feed. Los usuarios podían repetir tareas inmediatamente sin respetar el intervalo de espera configurado.
+
+### Bug identificado
+- `repeat_cooldown_hours` se guardaba en la tabla `publications` (ruta `/publish`).
+- La ruta `/publications/:id/accept` verificaba: rechazo, solicitud activa, máximo de repeticiones — pero **nunca el cooldown**.
+- La query `/publications/active` ocultaba publicaciones completadas o con máx. repeticiones — pero **nunca por cooldown activo**.
+- **Resultado**: Código muerto. El cooldown existía en la BD pero era ignorado por toda la lógica de negocio.
+
+### Cambios realizados
+- **Validación Backend (server.js - ruta `/accept`)**: Añadido paso #5 "COOLDOWN CHECK". Consulta `created_at` de la última aceptación `confirmed_paid` del usuario, calcula el tiempo transcurrido y lo compara con `repeat_cooldown_hours`. Si no ha pasado suficiente tiempo, retorna HTTP 429 con el tiempo restante formateado (ej: "Debes esperar 18h 30min antes de volver a participar"). ✅ SEGURO
+- **Filtro de Feed (server.js - query `/publications/active`)**: Añadido "Caso C" en el bloque `AND NOT (...)`. Oculta la publicación del feed si el usuario tiene una participación `confirmed_paid` cuyo `created_at` está dentro del período de cooldown (`NOW() - repeat_cooldown_hours * INTERVAL '1 hour'`). ✅ UX MEJORADA
+- **Query mejorada**: La consulta de aceptaciones previas ahora incluye `created_at` y está ordenada por `created_at DESC` para obtener la participación más reciente primero.
+
+### Estándares aplicados
+- **Defensa en profundidad**: Doble protección (feed + validación backend) para que incluso si el frontend falla, el servidor bloquee la repetición prematura.
+- **UX Informativa**: El mensaje de error incluye el tiempo restante exacto para que el usuario sepa cuándo puede volver.
+- **Auditabilidad**: Documentado en `EVOLUCION.md`. Código comentado exhaustivamente.

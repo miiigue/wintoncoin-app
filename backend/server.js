@@ -593,9 +593,10 @@ async function startServer() {
                     p.id NOT IN (SELECT hp.publication_id FROM hidden_publications hp WHERE hp.hider_username = $1)
                     AND p.deleted_at IS NULL
                     AND COALESCE(p.is_paused, FALSE) = FALSE
-                    -- NUEVO (UX + seguridad de negocio): Si la publicación NO es repetible y el usuario ya la completó/pagó,
+                    -- (UX + seguridad de negocio): Si la publicación NO es repetible y el usuario ya la completó/pagó,
                     -- entonces NO debe aparecer como "disponible" para ese usuario.
                     AND NOT (
+                        -- Caso A: Publicación NO repetible y el usuario ya la completó
                         (
                             COALESCE(p.allow_repeat_participation, FALSE) = FALSE
                             AND EXISTS (
@@ -607,6 +608,7 @@ async function startServer() {
                             )
                         )
                         OR
+                        -- Caso B: Publicación repetible pero el usuario ya alcanzó el máximo de repeticiones
                         (
                             COALESCE(p.allow_repeat_participation, FALSE) = TRUE
                             AND p.max_repeat_per_user IS NOT NULL
@@ -617,6 +619,36 @@ async function startServer() {
                                   AND pa_done.acceptor_username = $1
                                   AND pa_done.status = 'confirmed_paid'
                             ) >= p.max_repeat_per_user
+                        )
+                        OR
+                        -- Caso C: COOLDOWN ACTIVO — Publicación repetible pero el usuario completó una
+                        -- participación dentro del período de espera (repeat_cooldown_hours).
+                        -- Mientras el cooldown esté activo, la publicación se oculta del feed para
+                        -- evitar que el usuario intente aceptarla antes de tiempo.
+                        -- Ejemplo: si cooldown = 24h y completó hace 6h → oculta las próximas 18h.
+                        (
+                            COALESCE(p.allow_repeat_participation, FALSE) = TRUE
+                            AND p.repeat_cooldown_hours IS NOT NULL
+                            AND p.repeat_cooldown_hours > 0
+                            AND EXISTS (
+                                SELECT 1
+                                FROM publication_acceptances pa_cool
+                                WHERE pa_cool.publication_id = p.id
+                                  AND pa_cool.acceptor_username = $1
+                                  AND pa_cool.status = 'confirmed_paid'
+                                  AND pa_cool.created_at > NOW() - (p.repeat_cooldown_hours * INTERVAL '1 hour')
+                            )
+                            -- Solo aplicar cooldown si NO ha alcanzado el máximo (ese caso ya se cubre arriba)
+                            AND (
+                                p.max_repeat_per_user IS NULL
+                                OR (
+                                    SELECT COUNT(*)
+                                    FROM publication_acceptances pa_max
+                                    WHERE pa_max.publication_id = p.id
+                                      AND pa_max.acceptor_username = $1
+                                      AND pa_max.status = 'confirmed_paid'
+                                ) < p.max_repeat_per_user
+                            )
                         )
                     )
                     -- NUEVO (Hard Reject): Si el usuario fue rechazado alguna vez en esta publicación, ocultarla del feed.
@@ -1032,26 +1064,68 @@ async function startServer() {
                 }
 
                 // Validación de Repetición Profesional
+                // Se obtiene el historial completo de aceptaciones del usuario para esta publicación,
+                // incluyendo created_at para poder validar el período de cooldown entre repeticiones.
                 const prevAcceptances = await client.query(
-                    `SELECT status FROM publication_acceptances WHERE publication_id = $1 AND acceptor_username = $2`,
+                    `SELECT status, created_at FROM publication_acceptances WHERE publication_id = $1 AND acceptor_username = $2 ORDER BY created_at DESC`,
                     [id, acceptorUsername]
                 );
 
                 if (prevAcceptances.rows.length > 0) {
                     const statuses = prevAcceptances.rows.map(r => r.status);
+
+                    // 1. Hard Reject: Si fue rechazado, no puede volver a intentar.
                     if (statuses.includes('rejected')) {
                         throw { status: 403, message: "Tu solicitud fue rechazada anteriormente y no puedes volver a intentarlo." };
                     }
+
+                    // 2. Active Check: Si tiene una solicitud en proceso, no puede crear otra.
                     const activeStatuses = ['pending_approval', 'approved', 'completed'];
                     if (statuses.some(s => activeStatuses.includes(s))) {
                         throw { status: 409, message: "Ya tienes una solicitud activa para esta publicación." };
                     }
+
+                    // 3. Max Repeat Check: Si la publicación no permite repetición, bloquear.
                     const confirmedCount = statuses.filter(s => s === 'confirmed_paid').length;
                     if (!pub.allow_repeat_participation && confirmedCount >= 1) {
                         throw { status: 409, message: "Esta publicación no permite participaciones repetidas." };
                     }
+
+                    // 4. Max Repeat Limit: Si alcanzó el máximo de repeticiones, bloquear.
                     if (pub.allow_repeat_participation && confirmedCount >= pub.max_repeat_per_user) {
                         throw { status: 409, message: `Has alcanzado el límite de ${pub.max_repeat_per_user} participaciones para esta tarea.` };
+                    }
+
+                    // 5. COOLDOWN CHECK: Verificar que ha pasado suficiente tiempo desde
+                    //    la última participación completada antes de permitir otra repetición.
+                    //    Esto previene abuso de tareas repetibles con un intervalo mínimo obligatorio.
+                    //    Ej: Si cooldown = 24h, el usuario no puede volver a aceptar hasta 24h después
+                    //    de haber completado la tarea anterior.
+                    if (pub.allow_repeat_participation && confirmedCount > 0 && pub.repeat_cooldown_hours > 0) {
+                        // Obtener la fecha de la última participación completada (confirmed_paid)
+                        const lastConfirmedRow = prevAcceptances.rows.find(r => r.status === 'confirmed_paid');
+                        if (lastConfirmedRow) {
+                            const lastCompletedAt = new Date(lastConfirmedRow.created_at);
+                            const cooldownMs = pub.repeat_cooldown_hours * 60 * 60 * 1000; // Convertir horas a milisegundos
+                            const timeSinceLastMs = Date.now() - lastCompletedAt.getTime();
+
+                            if (timeSinceLastMs < cooldownMs) {
+                                // Calcular tiempo restante para mostrar mensaje informativo al usuario
+                                const remainingMs = cooldownMs - timeSinceLastMs;
+                                const remainingHours = Math.floor(remainingMs / (60 * 60 * 1000));
+                                const remainingMinutes = Math.ceil((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+
+                                // Formatear el tiempo restante de forma legible
+                                let timeStr = '';
+                                if (remainingHours > 0) timeStr += `${remainingHours}h `;
+                                timeStr += `${remainingMinutes}min`;
+
+                                throw {
+                                    status: 429,
+                                    message: `Debes esperar ${timeStr} antes de volver a participar en esta tarea.`
+                                };
+                            }
+                        }
                     }
                 }
 
