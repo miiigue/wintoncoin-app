@@ -79,25 +79,41 @@ async function runPendingMigrations() {
 
         console.log(`[MIGRATIONS] 📦 Se encontraron ${pending.length} migraciones pendientes.`);
 
-        // 4. Ejecutar pendientes
+        // 4. Ejecutar pendientes con transacciones individuales
         for (const file of pending) {
             console.log(`[MIGRATIONS] ▶️  Aplicando: ${file}...`);
 
-            // Leemos el contenido del archivo para extraer el SQL o la lógica
-            // NOTA IMPORTANTE: Tus archivos actuales se auto-ejecutan (runMigration()).
-            // Para este runner profesional, necesitamos que EXPORTEN su lógica, o leeremos su contenido si es simple.
-            // Dado que el archivo 019 se auto-ejecuta, vamos a usar un truco: child_process para correrlo como script aislado
-            // O MEJOR AUN: Extraemos la query si es posible (pero es frágil).
-            // LA MEJOR OPCION: Child Process para aislar el contexto.
+            const migrationPath = path.join(migrationsDir, file);
+            const migrationModule = require(migrationPath);
 
-            await runMigrationScript(path.join(migrationsDir, file));
+            try {
+                // Cada migración corre en su propia transacción para aislamiento
+                await client.query('BEGIN');
 
-            // Si tuvo éxito (no lanzó error), registramos
-            await client.query(
-                'INSERT INTO schema_migrations (migration_name, status) VALUES ($1, $2)',
-                [file, 'SUCCESS']
-            );
-            console.log(`[MIGRATIONS] ✅ ${file} completada y registrada.`);
+                // Ejecutar la función 'up' si existe (formato moderno)
+                if (typeof migrationModule.up === 'function') {
+                    await migrationModule.up(client);
+                } else {
+                    // Si no exporta up(), asumimos que se auto-ejecuta al requerirlo
+                    console.log(`[MIGRATIONS] ⚠️  ${file} no exporta up(). Se asume ejecución al importar.`);
+                }
+
+                // Registrar como exitosa DENTRO de la misma transacción
+                // Así si la migración falla, el registro NO se guarda (ROLLBACK)
+                await client.query(
+                    'INSERT INTO schema_migrations (migration_name, status) VALUES ($1, $2)',
+                    [file, 'SUCCESS']
+                );
+
+                await client.query('COMMIT');
+                console.log(`[MIGRATIONS] ✅ ${file} completada y registrada.`);
+
+            } catch (migrationError) {
+                // Si falla, revertimos TODO (la migración + el registro)
+                await client.query('ROLLBACK');
+                console.error(`[MIGRATIONS] ❌ Falló la migración ${file}:`, migrationError.message);
+                throw migrationError; // Propagar para detener el servidor
+            }
         }
 
         console.log('[MIGRATIONS] ✨ Todas las migraciones finalizaron correctamente.');
@@ -110,29 +126,6 @@ async function runPendingMigrations() {
     } finally {
         client.release();
     }
-}
-
-/**
- * Ejecuta un script de migración en un proceso hijo para evitar conflictos de variables y conexiones.
- */
-function runMigrationScript(scriptPath) {
-    return new Promise((resolve, reject) => {
-        const { fork } = require('child_process');
-
-        // Ejecutamos el script con las mismas variables de entorno
-        const child = fork(scriptPath, [], {
-            env: process.env,
-            stdio: 'inherit' // Para ver los logs del hijo en la consola principal
-        });
-
-        child.on('close', (code) => {
-            if (code === 0) {
-                resolve();
-            } else {
-                reject(new Error(`El script de migración falló con código ${code}`));
-            }
-        });
-    });
 }
 
 module.exports = { runPendingMigrations };
@@ -149,3 +142,4 @@ if (require.main === module) {
             process.exit(1);
         });
 }
+

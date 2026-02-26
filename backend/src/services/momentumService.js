@@ -19,14 +19,16 @@ const TIER_HIERARCHY = {
     PENDIENTE: 0,
     BRONCE: 1,
     PLATA: 2,
-    ORO: 3
+    ORO: 3,
+    PLATINO: 4
 };
 
 // Mapeo de tier → columna de pago base en momentum_campaigns
 const TIER_PAY_COLUMN = {
     BRONCE: 'base_pay_bronce',
     PLATA: 'base_pay_plata',
-    ORO: 'base_pay_oro'
+    ORO: 'base_pay_oro',
+    PLATINO: 'base_pay_platino'
 };
 
 // ============================================================================
@@ -239,7 +241,7 @@ async function assignTier(client, profileId, newTier, adminNotes) {
  * @returns {object} Campaña creada
  */
 async function createCampaign(client, campaignData, adminUserId) {
-    const { title, description, base_pay_bronce, base_pay_plata, base_pay_oro, allow_multiple } = campaignData;
+    const { title, description, base_pay_bronce, base_pay_plata, base_pay_oro, base_pay_platino, allow_multiple } = campaignData;
 
     // Validaciones de negocio
     if (!title || !description) {
@@ -252,12 +254,16 @@ async function createCampaign(client, campaignData, adminUserId) {
     if (base_pay_plata < base_pay_bronce || base_pay_oro < base_pay_plata) {
         throw { status: 400, message: 'Los pagos base deben ser crecientes: Bronce ≤ Plata ≤ Oro.' };
     }
+    // Platino debe ser >= Oro (si se proporcionó)
+    if (base_pay_platino > 0 && base_pay_platino < base_pay_oro) {
+        throw { status: 400, message: 'El pago Platino debe ser mayor o igual al de Oro.' };
+    }
 
     const result = await client.query(`
-        INSERT INTO momentum_campaigns (title, description, base_pay_bronce, base_pay_plata, base_pay_oro, allow_multiple, created_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO momentum_campaigns (title, description, base_pay_bronce, base_pay_plata, base_pay_oro, base_pay_platino, allow_multiple, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *
-    `, [title, description, base_pay_bronce, base_pay_plata, base_pay_oro, !!allow_multiple, adminUserId]);
+    `, [title, description, base_pay_bronce, base_pay_plata, base_pay_oro, base_pay_platino || 0, !!allow_multiple, adminUserId]);
 
     return result.rows[0];
 }
@@ -325,6 +331,7 @@ async function listAllCampaigns(client) {
         final_pay_bronce: parseFloat(campaign.base_pay_bronce) * multiplier,
         final_pay_plata: parseFloat(campaign.base_pay_plata) * multiplier,
         final_pay_oro: parseFloat(campaign.base_pay_oro) * multiplier,
+        final_pay_platino: parseFloat(campaign.base_pay_platino || 0) * multiplier,
         applied_multiplier: multiplier
     }));
 }
@@ -337,7 +344,7 @@ async function listAllCampaigns(client) {
  * @returns {object} Campaña actualizada
  */
 async function updateCampaign(client, campaignId, updates) {
-    const { title, description, base_pay_bronce, base_pay_plata, base_pay_oro, is_active, allow_multiple } = updates;
+    const { title, description, base_pay_bronce, base_pay_plata, base_pay_oro, base_pay_platino, is_active, allow_multiple } = updates;
 
     const result = await client.query(`
         UPDATE momentum_campaigns
@@ -347,12 +354,13 @@ async function updateCampaign(client, campaignId, updates) {
             base_pay_bronce = COALESCE($3, base_pay_bronce),
             base_pay_plata = COALESCE($4, base_pay_plata),
             base_pay_oro = COALESCE($5, base_pay_oro),
-            is_active = COALESCE($6, is_active),
-            allow_multiple = COALESCE($7, allow_multiple),
+            base_pay_platino = COALESCE($6, base_pay_platino),
+            is_active = COALESCE($7, is_active),
+            allow_multiple = COALESCE($8, allow_multiple),
             updated_at = NOW()
-        WHERE id = $8
+        WHERE id = $9
         RETURNING *
-    `, [title, description, base_pay_bronce, base_pay_plata, base_pay_oro, is_active, allow_multiple, campaignId]);
+    `, [title, description, base_pay_bronce, base_pay_plata, base_pay_oro, base_pay_platino, is_active, allow_multiple, campaignId]);
 
     if (result.rowCount === 0) {
         throw { status: 404, message: 'Campaña no encontrada.' };
@@ -471,7 +479,7 @@ async function approveSubmission(client, submissionId, adminUserId, adminNote, b
     const submissionResult = await client.query(`
         SELECT ms.*, mp.user_id, mp.tier, mp.nickname,
                mc.title as campaign_title,
-               mc.base_pay_bronce, mc.base_pay_plata, mc.base_pay_oro,
+               mc.base_pay_bronce, mc.base_pay_plata, mc.base_pay_oro, mc.base_pay_platino,
                u.username, u.email
         FROM momentum_submissions ms
         JOIN momentum_profiles mp ON ms.profile_id = mp.id
@@ -656,7 +664,7 @@ async function listSubmissions(client, filters = {}) {
         SELECT ms.*,
                mp.nickname, mp.tier, mp.user_id,
                mc.title as campaign_title,
-               mc.base_pay_bronce, mc.base_pay_plata, mc.base_pay_oro,
+               mc.base_pay_bronce, mc.base_pay_plata, mc.base_pay_oro, mc.base_pay_platino,
                u.username,
                reviewer.username as reviewed_by_username
         FROM momentum_submissions ms
@@ -756,7 +764,7 @@ async function getInfluencerBalance(client, profileId) {
 
     const pendingResult = await client.query(`
         SELECT ms.campaign_id, mp.tier,
-               mc.base_pay_bronce, mc.base_pay_plata, mc.base_pay_oro
+               mc.base_pay_bronce, mc.base_pay_plata, mc.base_pay_oro, mc.base_pay_platino
         FROM momentum_submissions ms
         JOIN momentum_profiles mp ON ms.profile_id = mp.id
         JOIN momentum_campaigns mc ON ms.campaign_id = mc.id

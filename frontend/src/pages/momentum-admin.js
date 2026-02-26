@@ -279,16 +279,20 @@ async function loadProfiles() {
                     <div class="mma-stat-card__label">Total Influencers</div>
                 </div>
                 <div class="mma-stat-card">
-                    <div class="mma-stat-card__value">${profiles.filter(p => p.tier === 'ORO').length}</div>
-                    <div class="mma-stat-card__label">🥇 Oro</div>
+                    <div class="mma-stat-card__value">${profiles.filter(p => p.tier === 'BRONCE').length}</div>
+                    <div class="mma-stat-card__label">🥉 Bronce</div>
                 </div>
                 <div class="mma-stat-card">
                     <div class="mma-stat-card__value">${profiles.filter(p => p.tier === 'PLATA').length}</div>
                     <div class="mma-stat-card__label">🥈 Plata</div>
                 </div>
                 <div class="mma-stat-card">
-                    <div class="mma-stat-card__value">${profiles.filter(p => p.tier === 'BRONCE').length}</div>
-                    <div class="mma-stat-card__label">🥉 Bronce</div>
+                    <div class="mma-stat-card__value">${profiles.filter(p => p.tier === 'ORO').length}</div>
+                    <div class="mma-stat-card__label">🥇 Oro</div>
+                </div>
+                <div class="mma-stat-card">
+                    <div class="mma-stat-card__value">${profiles.filter(p => p.tier === 'PLATINO').length}</div>
+                    <div class="mma-stat-card__label">💎 Platino</div>
                 </div>
             </div>
             <div class="mma-table-wrap">
@@ -359,6 +363,7 @@ async function loadCampaigns() {
                             <th>🥉 Bronce</th>
                             <th>🥈 Plata</th>
                             <th>🥇 Oro</th>
+                            <th>💎 Platino</th>
                             <th>Creada</th>
                             <th>Acciones</th>
                         </tr>
@@ -381,6 +386,7 @@ async function loadCampaigns() {
                                     <td>${parseFloat(c.base_pay_bronce).toLocaleString('es-ES')}</td>
                                     <td>${parseFloat(c.base_pay_plata).toLocaleString('es-ES')}</td>
                                     <td>${parseFloat(c.base_pay_oro).toLocaleString('es-ES')}</td>
+                                    <td>${parseFloat(c.base_pay_platino || 0).toLocaleString('es-ES')}</td>
                                     <td>${date}</td>
                                     <td>
                                         <button class="mmd-btn mmd-btn--ghost mmd-btn--small mma-toggle-status-btn" 
@@ -415,6 +421,7 @@ async function createCampaign() {
     const base_pay_bronce = parseFloat(document.getElementById('mma-camp-bronce')?.value) || 0;
     const base_pay_plata = parseFloat(document.getElementById('mma-camp-plata')?.value) || 0;
     const base_pay_oro = parseFloat(document.getElementById('mma-camp-oro')?.value) || 0;
+    const base_pay_platino = parseFloat(document.getElementById('mma-camp-platino')?.value) || 0;
     const allow_multiple = document.getElementById('mma-camp-multiple')?.checked || false;
 
     if (!title) {
@@ -422,7 +429,7 @@ async function createCampaign() {
         return;
     }
 
-    if (base_pay_bronce <= 0 && base_pay_plata <= 0 && base_pay_oro <= 0) {
+    if (base_pay_bronce <= 0 && base_pay_plata <= 0 && base_pay_oro <= 0 && base_pay_platino <= 0) {
         showToast('Al menos un pago base debe ser mayor a 0.', 'error');
         return;
     }
@@ -431,7 +438,7 @@ async function createCampaign() {
         const response = await adminFetch('/api/momentum/admin/campaigns', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, description, base_pay_bronce, base_pay_plata, base_pay_oro, allow_multiple })
+            body: JSON.stringify({ title, description, base_pay_bronce, base_pay_plata, base_pay_oro, base_pay_platino, allow_multiple })
         });
 
         const result = await response.json();
@@ -444,6 +451,7 @@ async function createCampaign() {
             document.getElementById('mma-camp-bronce').value = '';
             document.getElementById('mma-camp-plata').value = '';
             document.getElementById('mma-camp-oro').value = '';
+            document.getElementById('mma-camp-platino').value = '';
             document.getElementById('mma-camp-multiple').checked = false;
             // Recargar lista
             await loadCampaigns();
