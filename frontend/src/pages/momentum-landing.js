@@ -22,7 +22,8 @@ const API_URL = getApiUrl();
 const DEFAULT_BASE_PAYS = {
     BRONCE: 333,
     PLATA: 666,
-    ORO: 1000
+    ORO: 1000,
+    PLATINO: 2000
 };
 
 // Estado local del simulador
@@ -196,6 +197,7 @@ async function loadRecentPayments() {
  */
 function setupSimulator() {
     const tierBtns = document.querySelectorAll('.mm-simulator__tier-btn');
+    const baseEl = document.getElementById('mm-sim-base');
 
     tierBtns.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -205,10 +207,21 @@ function setupSimulator() {
             btn.classList.add('--active');
             // Actualizar tier seleccionado
             selectedTier = btn.dataset.tier;
+
+            // Actualizar el valor del input con el preset del nivel
+            if (baseEl) {
+                baseEl.value = DEFAULT_BASE_PAYS[selectedTier] || 333;
+            }
+
             // Recalcular
             updateSimulatorDisplay();
         });
     });
+
+    // Escuchar la escritura manual del creador
+    if (baseEl) {
+        baseEl.addEventListener('input', updateSimulatorDisplay);
+    }
 }
 
 /**
@@ -221,13 +234,13 @@ function updateSimulatorDisplay() {
 
     if (!baseEl || !multEl || !resultEl) return;
 
-    const basePay = DEFAULT_BASE_PAYS[selectedTier] || 333;
+    // Leer el valor escrito por el usuario en lugar de un preset estático
+    const basePay = parseFloat(baseEl.value) || 0;
     const result = basePay * currentMultiplier;
 
-    // Animar cambio de valores
-    baseEl.textContent = basePay.toLocaleString('es-ES');
+    // Actualizar pantalla (el input no se sobrescribe para evitar interferir)
     multEl.textContent = currentMultiplier;
-    resultEl.textContent = result.toLocaleString('es-ES');
+    resultEl.textContent = result.toLocaleString('es-ES', { maximumFractionDigits: 2 });
 
     // Efecto visual de "flash" al cambiar
     resultEl.style.transform = 'scale(1.1)';
@@ -463,7 +476,8 @@ function getTierEmoji(tier) {
         PENDIENTE: '⏳',
         BRONCE: '🥉',
         PLATA: '🥈',
-        ORO: '🥇'
+        ORO: '🥇',
+        PLATINO: '💎'
     };
     return emojis[tier] || '❓';
 }

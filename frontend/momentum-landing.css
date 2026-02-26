@@ -451,6 +451,11 @@ body.momentum-landing {
     color: #000;
 }
 
+.mm-proof-item__avatar.--platino {
+    background: linear-gradient(135deg, #E5E4E2, #7B9095);
+    color: #000;
+}
+
 .mm-proof-item__name {
     font-weight: 600;
     font-size: 0.9rem;
@@ -665,6 +670,11 @@ body.momentum-landing {
 .mm-tier-badge.--oro {
     background: rgba(255, 215, 0, 0.2);
     color: var(--mm-gold);
+}
+
+.mm-tier-badge.--platino {
+    background: rgba(229, 228, 226, 0.2);
+    color: #E5E4E2;
 }
 
 /* --- Loading Spinner --- */

@@ -61,17 +61,19 @@
 
             <!-- Selector de Tier -->
             <div class="mm-simulator__select-group" style="margin-bottom: 24px;">
-                <button class="mm-simulator__tier-btn --active" data-tier="BRONCE">🥉 Bronce</button>
-                <button class="mm-simulator__tier-btn" data-tier="PLATA">🥈 Plata</button>
-                <button class="mm-simulator__tier-btn" data-tier="ORO">🥇 Oro</button>
+                <button class="mm-simulator__tier-btn --active" data-tier="BRONCE">Bronce</button>
+                <button class="mm-simulator__tier-btn" data-tier="PLATA">Plata</button>
+                <button class="mm-simulator__tier-btn" data-tier="ORO">Oro</button>
+                <button class="mm-simulator__tier-btn" data-tier="PLATINO">Platino</button>
             </div>
 
             <!-- Fórmula Visual -->
             <div class="mm-simulator__grid">
                 <div class="mm-simulator__box">
-                    <div class="mm-simulator__box-label">Tarifa Base</div>
-                    <div class="mm-simulator__box-value" id="mm-sim-base">333</div>
-                    <span class="mm-simulator__unit">BLUE IOU</span>
+                    <div class="mm-simulator__box-label">Ingresa</div>
+                    <input type="number" class="mm-simulator__box-value" id="mm-sim-base" value="333" min="0" step="any"
+                        style="background: transparent; border: none; border-radius: 0; text-align: center; width: 100%; outline: none; box-shadow: none; padding: 0; margin: 0; -moz-appearance: textfield; appearance: textfield; height: 1.5em; line-height: 1.5em;">
+                    <span class="mm-simulator__unit">TU TARIFA</span>
                 </div>
                 <div class="mm-simulator__op">×</div>
                 <div class="mm-simulator__box">
@@ -87,8 +89,11 @@
                 </div>
             </div>
 
-            <p style="text-align: center; color: var(--mm-text-muted); font-size: 0.8rem; margin-top: 8px;">
-                * Valores de ejemplo. El monto final depende de la misión y tu nivel asignado.
+            <p
+                style="text-align: center; color: var(--mm-text-muted); font-size: 0.8rem; margin-top: 24px; max-width: 800px; margin-left: auto; margin-right: auto; line-height: 1.5;">
+                * Este simulador es <strong>puramente ilustrativo</strong> y no tiene carácter vinculante. Las ganancias
+                calculadas son de ejemplo y no constituyen una promesa de ingresos reales. El monto final y la
+                liquidación dependerán expresamente del valor de cada misión particular.
             </p>
         </section>
 
