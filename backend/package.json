@@ -7,7 +7,7 @@
     "legal:publish": "node scripts/publish_legal_document.js",
     "legal:publish:terms": "node scripts/publish_legal_document.js --type terms_and_conditions --file ../frontend/terms.html",
     "legal:publish:privacy": "node scripts/publish_legal_document.js --type privacy_policy --file ../frontend/privacy.html",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest --detectOpenHandles --forceExit"
   },
   "keywords": [],
   "author": "",
@@ -27,6 +27,9 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
-    "artillery": "^2.0.29"
+    "artillery": "^2.0.29",
+    "cross-env": "^10.1.0",
+    "jest": "^30.2.0",
+    "supertest": "^7.2.2"
   }
 }
