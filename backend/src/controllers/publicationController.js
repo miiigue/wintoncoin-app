@@ -2,203 +2,204 @@
 // src/controllers/publicationController.js
 // ============================================================================
 
-const { 
+const {
     resolveRepeatCooldownHours,
     updateUserBoosterLevel,
     processRequestPayment,
-    processDirectPaymentCompletion
+    processDirectPaymentCompletion,
+    processRequestCompletion
 } = require('../services/publicationService');
 
-module.exports = function(router, pool, requireAcceptedLegalByUsernameField, verifyAdminToken, logAuditEvent) {
+module.exports = function (router, pool, requireAcceptedLegalByUsernameField, verifyAdminToken, logAuditEvent) {
 
-// Ruta para crear una nueva Publicación
-        router.post('/publish', requireAcceptedLegalByUsernameField(['authorUsername']), async (req, res) => {
-            const {
-                title, description, blueCost, blueSell, authorUsername,
-                availableSlots, autoApprove, publicationType,
-                duration_days, duration_hours, duration_minutes,
-                allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours,
-                repeatCooldownDays, repeatCooldownMinutes,
-                goalAmount // Nuevo campo recogido del frontend
-            } = req.body;
+    // Ruta para crear una nueva Publicación
+    router.post('/publish', requireAcceptedLegalByUsernameField(['authorUsername']), async (req, res) => {
+        const {
+            title, description, blueCost, blueSell, authorUsername,
+            availableSlots, autoApprove, publicationType,
+            duration_days, duration_hours, duration_minutes,
+            allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours,
+            repeatCooldownDays, repeatCooldownMinutes,
+            goalAmount // Nuevo campo recogido del frontend
+        } = req.body;
 
-            if (!title || !description || !authorUsername || (!blueCost && !blueSell && !goalAmount) || !publicationType) {
-                return res.status(400).json({ message: "Faltan datos requeridos para la publicación." });
+        if (!title || !description || !authorUsername || (!blueCost && !blueSell && !goalAmount) || !publicationType) {
+            return res.status(400).json({ message: "Faltan datos requeridos para la publicación." });
+        }
+
+        const client = await pool.connect();
+        try {
+            // --- INICIO DE LA TRANSACCIÓN ---
+            await client.query('BEGIN');
+
+            // 1. VERIFICAR PERMISOS DE PUBLICACIÓN
+            const settingsKeys = [
+                'allow_request_publications',
+                'allow_sell_publications',
+                'allow_donation_publications'
+            ];
+            const settingsResult = await client.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1::text[])`, [settingsKeys]);
+            const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value === 'true' }), {});
+
+            const typePermissionMap = {
+                'request': settings.allow_request_publications,
+                'sell': settings.allow_sell_publications,
+                'donation': settings.allow_donation_publications
+            };
+
+            if (!typePermissionMap[publicationType]) {
+                throw { status: 403, message: `La creación de publicaciones de tipo "${publicationType}" está desactivada temporalmente.` };
             }
 
-            const client = await pool.connect();
-            try {
-                // --- INICIO DE LA TRANSACCIÓN ---
-                await client.query('BEGIN');
+            const isSellPost = publicationType === 'sell' || publicationType === 'donation';
 
-                // 1. VERIFICAR PERMISOS DE PUBLICACIÓN
-                const settingsKeys = [
-                    'allow_request_publications',
-                    'allow_sell_publications',
-                    'allow_donation_publications'
-                ];
-                const settingsResult = await client.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1::text[])`, [settingsKeys]);
-                const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value === 'true' }), {});
+            // Lógica de costo: 
+            // - Si es donación, usamos goalAmount (la meta).
+            // - Si es venta o solicitud, usamos blueSell o blueCost.
+            let cost = 0;
+            let goal = null;
 
-                const typePermissionMap = {
-                    'request': settings.allow_request_publications,
-                    'sell': settings.allow_sell_publications,
-                    'donation': settings.allow_donation_publications
-                };
-
-                if (!typePermissionMap[publicationType]) {
-                    throw { status: 403, message: `La creación de publicaciones de tipo "${publicationType}" está desactivada temporalmente.` };
+            if (publicationType === 'donation') {
+                goal = parseFloat(goalAmount.toString().replace(',', '.'));
+                if (isNaN(goal) || goal <= 0) {
+                    throw { status: 400, message: "La meta de recaudación debe ser un número positivo." };
                 }
-
-                const isSellPost = publicationType === 'sell' || publicationType === 'donation';
-
-                // Lógica de costo: 
-                // - Si es donación, usamos goalAmount (la meta).
-                // - Si es venta o solicitud, usamos blueSell o blueCost.
-                let cost = 0;
-                let goal = null;
-
-                if (publicationType === 'donation') {
-                    goal = parseFloat(goalAmount.toString().replace(',', '.'));
-                    if (isNaN(goal) || goal <= 0) {
-                        throw { status: 400, message: "La meta de recaudación debe ser un número positivo." };
-                    }
-                    // Para donaciones, el blue_cost de la tabla lo usamos como el "monto sugerido" o 0
-                    // Pero para mantener compatibilidad con el sistema de slots, podemos poner un número simbólico
-                    cost = 0;
-                } else {
-                    const costString = (blueSell || blueCost).toString().replace(',', '.');
-                    cost = parseFloat(costString);
-                    if (isNaN(cost) || cost <= 0) {
-                        throw { status: 400, message: "El costo o recompensa debe ser un número positivo." };
-                    }
+                // Para donaciones, el blue_cost de la tabla lo usamos como el "monto sugerido" o 0
+                // Pero para mantener compatibilidad con el sistema de slots, podemos poner un número simbólico
+                cost = 0;
+            } else {
+                const costString = (blueSell || blueCost).toString().replace(',', '.');
+                cost = parseFloat(costString);
+                if (isNaN(cost) || cost <= 0) {
+                    throw { status: 400, message: "El costo o recompensa debe ser un número positivo." };
                 }
+            }
 
-                // Para donaciones profesionales, permitimos "infinitos" cupos (slots) 
-                // porque la limitación será el goal_amount, no las personas.
-                let slots = availableSlots ? parseInt(availableSlots, 10) : 1;
-                if (publicationType === 'donation') {
-                    slots = 999999; // Prácticamente infinito
-                } else if (isNaN(slots) || slots < 1) {
-                    throw { status: 400, message: "La cantidad de cupos disponibles debe ser mayor a 0." };
+            // Para donaciones profesionales, permitimos "infinitos" cupos (slots) 
+            // porque la limitación será el goal_amount, no las personas.
+            let slots = availableSlots ? parseInt(availableSlots, 10) : 1;
+            if (publicationType === 'donation') {
+                slots = 999999; // Prácticamente infinito
+            } else if (isNaN(slots) || slots < 1) {
+                throw { status: 400, message: "La cantidad de cupos disponibles debe ser mayor a 0." };
+            }
+
+            const allowRepeat = !!allowRepeatParticipation;
+            let maxRepeat = null;
+            let repeatCooldown = 24;
+            if (allowRepeat) {
+                maxRepeat = parseInt(maxRepeatPerUser, 10);
+                if (!Number.isFinite(maxRepeat) || maxRepeat < 2) {
+                    throw { status: 400, message: "Indica el máximo de repeticiones por usuario (mínimo 2)." };
                 }
+                repeatCooldown = resolveRepeatCooldownHours({
+                    repeatCooldownDays,
+                    repeatCooldownHours,
+                    repeatCooldownMinutes
+                });
+            } else {
+                maxRepeat = 1;
+                repeatCooldown = 24;
+            }
 
-                const allowRepeat = !!allowRepeatParticipation;
-                let maxRepeat = null;
-                let repeatCooldown = 24;
-                if (allowRepeat) {
-                    maxRepeat = parseInt(maxRepeatPerUser, 10);
-                    if (!Number.isFinite(maxRepeat) || maxRepeat < 2) {
-                        throw { status: 400, message: "Indica el máximo de repeticiones por usuario (mínimo 2)." };
-                    }
-                    repeatCooldown = resolveRepeatCooldownHours({
-                        repeatCooldownDays,
-                        repeatCooldownHours,
-                        repeatCooldownMinutes
-                    });
-                } else {
-                    maxRepeat = 1;
-                    repeatCooldown = 24;
-                }
+            const userResult = await client.query(`SELECT id, is_minor, tutor_user_id, account_status FROM users WHERE username = $1`, [authorUsername]);
+            if (userResult.rowCount === 0) {
+                throw { status: 404, message: "El autor de la publicación no existe." };
+            }
+            const author = userResult.rows[0];
+            const authorId = author.id;
 
-                const userResult = await client.query(`SELECT id, is_minor, tutor_user_id, account_status FROM users WHERE username = $1`, [authorUsername]);
-                if (userResult.rowCount === 0) {
-                    throw { status: 404, message: "El autor de la publicación no existe." };
-                }
-                const author = userResult.rows[0];
-                const authorId = author.id;
+            // Verificar si es menor sin tutor
+            if (author.is_minor && (!author.tutor_user_id || author.account_status === 'pending_tutor')) {
+                await client.query('ROLLBACK');
+                return res.status(403).json({
+                    message: "Por ser menor de edad, necesitas la autorización de un tutor para crear publicaciones. Por favor, agrega un tutor a tu cuenta primero.",
+                    requires_tutor: true,
+                    is_minor: true
+                });
+            }
 
-                // Verificar si es menor sin tutor
-                if (author.is_minor && (!author.tutor_user_id || author.account_status === 'pending_tutor')) {
-                    await client.query('ROLLBACK');
-                    return res.status(403).json({
-                        message: "Por ser menor de edad, necesitas la autorización de un tutor para crear publicaciones. Por favor, agrega un tutor a tu cuenta primero.",
-                        requires_tutor: true,
-                        is_minor: true
-                    });
-                }
+            // --- NUEVO: Lógica para calcular la fecha de expiración ---
+            let expiresAt = null;
+            const days = parseInt(duration_days, 10) || 0;
+            const hours = parseInt(duration_hours, 10) || 0;
+            const minutes = parseInt(duration_minutes, 10) || 0;
 
-                // --- NUEVO: Lógica para calcular la fecha de expiración ---
-                let expiresAt = null;
-                const days = parseInt(duration_days, 10) || 0;
-                const hours = parseInt(duration_hours, 10) || 0;
-                const minutes = parseInt(duration_minutes, 10) || 0;
+            if (days > 0 || hours > 0 || minutes > 0) {
+                expiresAt = new Date();
+                expiresAt.setDate(expiresAt.getDate() + days);
+                expiresAt.setHours(expiresAt.getHours() + hours);
+                expiresAt.setMinutes(expiresAt.getMinutes() + minutes);
+            }
 
-                if (days > 0 || hours > 0 || minutes > 0) {
-                    expiresAt = new Date();
-                    expiresAt.setDate(expiresAt.getDate() + days);
-                    expiresAt.setHours(expiresAt.getHours() + hours);
-                    expiresAt.setMinutes(expiresAt.getMinutes() + minutes);
-                }
-
-                const sql = `
+            const sql = `
                         INSERT INTO publications
                             (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, category, expires_at, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, show_preflight_modal, goal_amount)
                         VALUES
                             ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
                         RETURNING id
                     `;
-                const result = await client.query(sql, [
-                    title,
-                    description,
-                    cost,
-                    isSellPost,
-                    authorId,
-                    slots,
-                    !!autoApprove,
-                    publicationType,
-                    expiresAt,
-                    allowRepeat,
-                    maxRepeat,
-                    repeatCooldown,
-                    !!req.body.show_preflight_modal,
-                    goal
-                ]);
+            const result = await client.query(sql, [
+                title,
+                description,
+                cost,
+                isSellPost,
+                authorId,
+                slots,
+                !!autoApprove,
+                publicationType,
+                expiresAt,
+                allowRepeat,
+                maxRepeat,
+                repeatCooldown,
+                !!req.body.show_preflight_modal,
+                goal
+            ]);
 
-                await logAuditEvent(client, req, {
-                    eventType: 'publication.created',
-                    actorUsername: authorUsername,
-                    publicationId: result.rows[0].id,
-                    category: publicationType,
-                    metadata: {
-                        blue_cost: cost,
-                        available_slots: slots,
-                        auto_approve: !!autoApprove,
-                        allow_repeat_participation: allowRepeat,
-                        max_repeat_per_user: maxRepeat,
-                        repeat_cooldown_hours: repeatCooldown,
-                        expires_at: expiresAt ? expiresAt.toISOString() : null
-                    }
-                });
+            await logAuditEvent(client, req, {
+                eventType: 'publication.created',
+                actorUsername: authorUsername,
+                publicationId: result.rows[0].id,
+                category: publicationType,
+                metadata: {
+                    blue_cost: cost,
+                    available_slots: slots,
+                    auto_approve: !!autoApprove,
+                    allow_repeat_participation: allowRepeat,
+                    max_repeat_per_user: maxRepeat,
+                    repeat_cooldown_hours: repeatCooldown,
+                    expires_at: expiresAt ? expiresAt.toISOString() : null
+                }
+            });
 
-                await client.query('COMMIT');
-                res.status(201).json({ message: "Publicación creada exitosamente.", publicationId: result.rows[0].id });
+            await client.query('COMMIT');
+            res.status(201).json({ message: "Publicación creada exitosamente.", publicationId: result.rows[0].id });
 
-            } catch (error) {
-                await client.query('ROLLBACK');
-                console.error("Error al guardar la publicación:", error);
-                res.status(error.status || 500).json({ message: error.message || "Error interno del servidor." });
-            } finally {
-                client.release();
-            }
-        });
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error("Error al guardar la publicación:", error);
+            res.status(error.status || 500).json({ message: error.message || "Error interno del servidor." });
+        } finally {
+            client.release();
+        }
+    });
 
-        // Ruta para obtener publicaciones activas
-        router.get('/publications/active', async (req, res) => {
-            const { user: requestingUser, search } = req.query; // search puede ser undefined
-            if (!requestingUser) return res.status(400).json({ message: "Es necesario especificar un usuario." });
+    // Ruta para obtener publicaciones activas
+    router.get('/publications/active', async (req, res) => {
+        const { user: requestingUser, search } = req.query; // search puede ser undefined
+        if (!requestingUser) return res.status(400).json({ message: "Es necesario especificar un usuario." });
 
-            // FIX DE SEGURIDAD: Usar parámetros de consulta para prevenir inyección de SQL
-            const queryParams = [requestingUser];
-            let searchCondition = "";
-            if (search) {
-                // El placeholder para el parámetro de búsqueda será el siguiente número disponible.
-                searchCondition = ` AND (p.title ILIKE $${queryParams.length + 1} OR p.description ILIKE $${queryParams.length + 1})`;
-                queryParams.push(`%${search}%`);
-            }
+        // FIX DE SEGURIDAD: Usar parámetros de consulta para prevenir inyección de SQL
+        const queryParams = [requestingUser];
+        let searchCondition = "";
+        if (search) {
+            // El placeholder para el parámetro de búsqueda será el siguiente número disponible.
+            searchCondition = ` AND (p.title ILIKE $${queryParams.length + 1} OR p.description ILIKE $${queryParams.length + 1})`;
+            queryParams.push(`%${search}%`);
+        }
 
-            // FIX FUNCIONAL: Añadido p.expires_at y p.allow_repeat_participation a la lista de campos
-            const sql = `
+        // FIX FUNCIONAL: Añadido p.expires_at y p.allow_repeat_participation a la lista de campos
+        const sql = `
                 SELECT
             p.id, p.title, p.description, p.blue_cost, p.created_at, p.status, p.category,
             p.is_booster_task, p.is_sell_post, p.available_slots, p.expires_at, p.allow_repeat_participation, p.max_repeat_per_user, p.repeat_cooldown_hours,
@@ -337,637 +338,637 @@ module.exports = function(router, pool, requireAcceptedLegalByUsernameField, ver
                     p.created_at DESC
             `;
 
-            try {
-                const result = await pool.query(sql, queryParams);
-                const publications = result.rows.map(p => ({
-                    ...p,
-                    participants: p.participants || [],
-                }));
-                res.status(200).json(publications);
-            } catch (error) {
-                console.error("Error al obtener las publicaciones activas:", error);
-                return res.status(500).json({ message: "Error interno del servidor." });
+        try {
+            const result = await pool.query(sql, queryParams);
+            const publications = result.rows.map(p => ({
+                ...p,
+                participants: p.participants || [],
+            }));
+            res.status(200).json(publications);
+        } catch (error) {
+            console.error("Error al obtener las publicaciones activas:", error);
+            return res.status(500).json({ message: "Error interno del servidor." });
+        }
+    });
+
+    // NUEVO: Endpoint para crear una Venta Rápida
+    router.post('/api/quick-sale', requireAcceptedLegalByUsernameField(['authorUsername']), async (req, res) => {
+        let { title, amount, authorUsername, targetUsername } = req.body;
+
+        const client = await pool.connect();
+        try {
+            // 0. VERIFICAR PERMISO GLOBAL
+            const settingsResult = await client.query("SELECT setting_value FROM app_settings WHERE setting_key = 'allow_quick_sale_publications'");
+            const allowQuickSale = settingsResult.rows.length > 0 && settingsResult.rows[0].setting_value === 'true';
+
+            if (!allowQuickSale) {
+                return res.status(403).json({ message: "La creación de Ventas Rápidas está desactivada temporalmente." });
             }
-        });
 
-        // NUEVO: Endpoint para crear una Venta Rápida
-        router.post('/api/quick-sale', requireAcceptedLegalByUsernameField(['authorUsername']), async (req, res) => {
-            let { title, amount, authorUsername, targetUsername } = req.body;
+            // 1. Validaciones de entrada básicas
+            if (!amount || !authorUsername) {
+                return res.status(400).json({ message: "Faltan datos requeridos: el monto y el autor son obligatorios." });
+            }
 
-            const client = await pool.connect();
-            try {
-                // 0. VERIFICAR PERMISO GLOBAL
-                const settingsResult = await client.query("SELECT setting_value FROM app_settings WHERE setting_key = 'allow_quick_sale_publications'");
-                const allowQuickSale = settingsResult.rows.length > 0 && settingsResult.rows[0].setting_value === 'true';
+            // Si el título viene vacío, se le asigna un valor por defecto.
+            if (!title || title.trim() === '') {
+                title = 'Venta Rápida';
+            }
 
-                if (!allowQuickSale) {
-                    return res.status(403).json({ message: "La creación de Ventas Rápidas está desactivada temporalmente." });
+            const cost = parseFloat(String(amount).replace(',', '.'));
+            if (isNaN(cost) || cost <= 0) {
+                return res.status(400).json({ message: "El monto debe ser un número positivo." });
+            }
+
+            // Sanitización simple del título para prevenir XSS básico.
+            const sanitizedTitle = title.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+            // const client = await pool.connect(); // ELIMINADO
+            // try { // ELIMINADO
+            await client.query('BEGIN');
+
+            // 2. Verificar que el autor existe y obtener su ID
+            const authorResult = await client.query('SELECT id FROM users WHERE username = $1', [authorUsername]);
+            if (authorResult.rowCount === 0) {
+                throw { status: 404, message: 'El usuario autor no existe.' };
+            }
+            const authorId = authorResult.rows[0].id;
+
+            // 3. (OPCIONAL) Verificar que el comprador objetivo existe, si se especificó
+            if (targetUsername && targetUsername.trim() !== '') {
+                if (targetUsername === authorUsername) {
+                    throw { status: 400, message: 'No puedes crearte una venta rápida a ti mismo.' };
                 }
-
-                // 1. Validaciones de entrada básicas
-                if (!amount || !authorUsername) {
-                    return res.status(400).json({ message: "Faltan datos requeridos: el monto y el autor son obligatorios." });
+                const targetUserResult = await client.query('SELECT id FROM users WHERE username = $1', [targetUsername]);
+                if (targetUserResult.rowCount === 0) {
+                    throw { status: 404, message: 'El usuario comprador especificado no existe.' };
                 }
+            }
 
-                // Si el título viene vacío, se le asigna un valor por defecto.
-                if (!title || title.trim() === '') {
-                    title = 'Venta Rápida';
-                }
+            // 4. Crear la publicación de Venta Rápida
+            const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutos desde ahora
 
-                const cost = parseFloat(String(amount).replace(',', '.'));
-                if (isNaN(cost) || cost <= 0) {
-                    return res.status(400).json({ message: "El monto debe ser un número positivo." });
-                }
-
-                // Sanitización simple del título para prevenir XSS básico.
-                const sanitizedTitle = title.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-                // const client = await pool.connect(); // ELIMINADO
-                // try { // ELIMINADO
-                await client.query('BEGIN');
-
-                // 2. Verificar que el autor existe y obtener su ID
-                const authorResult = await client.query('SELECT id FROM users WHERE username = $1', [authorUsername]);
-                if (authorResult.rowCount === 0) {
-                    throw { status: 404, message: 'El usuario autor no existe.' };
-                }
-                const authorId = authorResult.rows[0].id;
-
-                // 3. (OPCIONAL) Verificar que el comprador objetivo existe, si se especificó
-                if (targetUsername && targetUsername.trim() !== '') {
-                    if (targetUsername === authorUsername) {
-                        throw { status: 400, message: 'No puedes crearte una venta rápida a ti mismo.' };
-                    }
-                    const targetUserResult = await client.query('SELECT id FROM users WHERE username = $1', [targetUsername]);
-                    if (targetUserResult.rowCount === 0) {
-                        throw { status: 404, message: 'El usuario comprador especificado no existe.' };
-                    }
-                }
-
-                // 4. Crear la publicación de Venta Rápida
-                const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutos desde ahora
-
-                const insertQuery = `
+            const insertQuery = `
             INSERT INTO publications 
             (author_id, title, description, blue_cost, status, is_sell_post, is_quick_sale, target_username, expires_at, category) 
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
             RETURNING id;
         `;
-                const values = [
-                    authorId,
-                    sanitizedTitle,
-                    'Venta Rápida', // Descripción genérica
-                    cost,
-                    'open',       // Estado inicial
-                    true,         // Es un post de venta
-                    true,         // Es una Venta Rápida
-                    targetUsername && targetUsername.trim() !== '' ? targetUsername.trim() : null,
-                    expiresAt,
-                    'sell'        // Categoría
-                ];
+            const values = [
+                authorId,
+                sanitizedTitle,
+                'Venta Rápida', // Descripción genérica
+                cost,
+                'open',       // Estado inicial
+                true,         // Es un post de venta
+                true,         // Es una Venta Rápida
+                targetUsername && targetUsername.trim() !== '' ? targetUsername.trim() : null,
+                expiresAt,
+                'sell'        // Categoría
+            ];
 
-                const publicationResult = await client.query(insertQuery, values);
-                const newPublicationId = publicationResult.rows[0].id;
+            const publicationResult = await client.query(insertQuery, values);
+            const newPublicationId = publicationResult.rows[0].id;
 
-                await logAuditEvent(client, req, {
-                    eventType: 'quick_sale.created',
-                    actorUsername: authorUsername,
-                    targetUsername: targetUsername && targetUsername.trim() !== '' ? targetUsername.trim() : null,
-                    publicationId: newPublicationId,
-                    category: 'quick_sale',
-                    metadata: {
-                        amount: cost,
-                        expires_at: expiresAt.toISOString()
-                    }
-                });
+            await logAuditEvent(client, req, {
+                eventType: 'quick_sale.created',
+                actorUsername: authorUsername,
+                targetUsername: targetUsername && targetUsername.trim() !== '' ? targetUsername.trim() : null,
+                publicationId: newPublicationId,
+                category: 'quick_sale',
+                metadata: {
+                    amount: cost,
+                    expires_at: expiresAt.toISOString()
+                }
+            });
 
-                await client.query('COMMIT');
+            await client.query('COMMIT');
 
-                // 5. Devolver el ID de la nueva publicación para generar el QR
-                res.status(201).json({
-                    message: 'Venta Rápida creada con éxito.',
-                    publicationId: newPublicationId
-                });
+            // 5. Devolver el ID de la nueva publicación para generar el QR
+            res.status(201).json({
+                message: 'Venta Rápida creada con éxito.',
+                publicationId: newPublicationId
+            });
 
-            } catch (error) {
-                await client.query('ROLLBACK');
-                console.error('Error al crear la Venta Rápida:', error);
-                res.status(error.status || 500).json({ message: error.message || 'Error interno del servidor.' });
-            } finally {
-                client.release();
-            }
-        });
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error('Error al crear la Venta Rápida:', error);
+            res.status(error.status || 500).json({ message: error.message || 'Error interno del servidor.' });
+        } finally {
+            client.release();
+        }
+    });
 
-        // NUEVO: Endpoint para PAGAR una Venta Rápida
-        router.post('/api/quick-sale/:id/pay', requireAcceptedLegalByUsernameField(['buyerUsername']), async (req, res) => {
-            const { id } = req.params;
-            const { buyerUsername } = req.body;
+    // NUEVO: Endpoint para PAGAR una Venta Rápida
+    router.post('/api/quick-sale/:id/pay', requireAcceptedLegalByUsernameField(['buyerUsername']), async (req, res) => {
+        const { id } = req.params;
+        const { buyerUsername } = req.body;
 
-            if (!buyerUsername) {
-                return res.status(400).json({ message: "Se requiere el nombre de usuario del comprador." });
-            }
+        if (!buyerUsername) {
+            return res.status(400).json({ message: "Se requiere el nombre de usuario del comprador." });
+        }
 
-            const client = await pool.connect();
-            try {
-                await client.query('BEGIN');
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
 
-                // 1. Obtener los datos de la publicación y bloquear la fila
-                const pubResult = await client.query(
-                    `SELECT p.*, u.username as author_username 
+            // 1. Obtener los datos de la publicación y bloquear la fila
+            const pubResult = await client.query(
+                `SELECT p.*, u.username as author_username 
              FROM publications p
              JOIN users u ON p.author_id = u.id
              WHERE p.id = $1 FOR UPDATE`,
-                    [id]
-                );
+                [id]
+            );
 
-                if (pubResult.rowCount === 0) {
-                    throw { status: 404, message: "Venta Rápida no encontrada." };
-                }
-                const publication = pubResult.rows[0];
+            if (pubResult.rowCount === 0) {
+                throw { status: 404, message: "Venta Rápida no encontrada." };
+            }
+            const publication = pubResult.rows[0];
 
-                // Verificar si el comprador es menor sin tutor
-                const buyerResult = await client.query(
-                    `SELECT id, is_minor, tutor_user_id, account_status FROM users WHERE username = $1`,
-                    [buyerUsername]
-                );
+            // Verificar si el comprador es menor sin tutor
+            const buyerResult = await client.query(
+                `SELECT id, is_minor, tutor_user_id, account_status FROM users WHERE username = $1`,
+                [buyerUsername]
+            );
 
-                if (buyerResult.rowCount === 0) {
-                    await client.query('ROLLBACK');
-                    return res.status(404).json({ message: "Usuario comprador no encontrado." });
-                }
+            if (buyerResult.rowCount === 0) {
+                await client.query('ROLLBACK');
+                return res.status(404).json({ message: "Usuario comprador no encontrado." });
+            }
 
-                const buyer = buyerResult.rows[0];
+            const buyer = buyerResult.rows[0];
 
-                // Verificar si es menor sin tutor (las ventas rápidas generan deuda RED)
-                if (buyer.is_minor && (!buyer.tutor_user_id || buyer.account_status === 'pending_tutor')) {
-                    await client.query('ROLLBACK');
-                    return res.status(403).json({
-                        message: "Por ser menor de edad, necesitas la autorización de un tutor para realizar pagos que generen deuda RED. Por favor, agrega un tutor a tu cuenta primero.",
-                        requires_tutor: true,
-                        is_minor: true
-                    });
-                }
+            // Verificar si es menor sin tutor (las ventas rápidas generan deuda RED)
+            if (buyer.is_minor && (!buyer.tutor_user_id || buyer.account_status === 'pending_tutor')) {
+                await client.query('ROLLBACK');
+                return res.status(403).json({
+                    message: "Por ser menor de edad, necesitas la autorización de un tutor para realizar pagos que generen deuda RED. Por favor, agrega un tutor a tu cuenta primero.",
+                    requires_tutor: true,
+                    is_minor: true
+                });
+            }
 
-                // --- INICIO DE LAS VALIDACIONES DE PAGO CRÍTICAS ---
+            // --- INICIO DE LAS VALIDACIONES DE PAGO CRÍTICAS ---
 
-                // a. ¿Es realmente una Venta Rápida?
-                if (!publication.is_quick_sale) {
-                    throw { status: 400, message: "Esta acción solo es válida para Ventas Rápidas." };
-                }
+            // a. ¿Es realmente una Venta Rápida?
+            if (!publication.is_quick_sale) {
+                throw { status: 400, message: "Esta acción solo es válida para Ventas Rápidas." };
+            }
 
-                // b. ¿Ya ha sido pagada o está cerrada?
-                if (publication.status !== 'open') {
-                    throw { status: 400, message: "Esta venta ya no está disponible para pago." };
-                }
+            // b. ¿Ya ha sido pagada o está cerrada?
+            if (publication.status !== 'open') {
+                throw { status: 400, message: "Esta venta ya no está disponible para pago." };
+            }
 
-                // c. ¿Ha expirado?
-                const hasExpired = publication.expires_at && new Date(publication.expires_at) < new Date();
-                if (hasExpired) {
-                    throw { status: 400, message: "Esta Venta Rápida ha expirado." };
-                }
+            // c. ¿Ha expirado?
+            const hasExpired = publication.expires_at && new Date(publication.expires_at) < new Date();
+            if (hasExpired) {
+                throw { status: 400, message: "Esta Venta Rápida ha expirado." };
+            }
 
-                // d. ¿El comprador es el vendedor?
-                if (publication.author_username === buyerUsername) {
-                    throw { status: 400, message: "No puedes comprar tu propia venta." };
-                }
+            // d. ¿El comprador es el vendedor?
+            if (publication.author_username === buyerUsername) {
+                throw { status: 400, message: "No puedes comprar tu propia venta." };
+            }
 
-                // e. Si es una venta dirigida, ¿es el comprador correcto?
-                if (publication.target_username && publication.target_username !== buyerUsername) {
-                    throw { status: 403, message: "No tienes permiso para comprar esta venta." };
-                }
+            // e. Si es una venta dirigida, ¿es el comprador correcto?
+            if (publication.target_username && publication.target_username !== buyerUsername) {
+                throw { status: 403, message: "No tienes permiso para comprar esta venta." };
+            }
 
-                // --- FIN DE VALIDACIONES ---
+            // --- FIN DE VALIDACIONES ---
 
-                // 2. Obtener configuración del sistema (pre-lanzamiento, comisiones, etc.)
-                const settingsResult = await client.query(`
+            // 2. Obtener configuración del sistema (pre-lanzamiento, comisiones, etc.)
+            const settingsResult = await client.query(`
             SELECT setting_key, setting_value 
             FROM app_settings 
             WHERE setting_key IN ('pre_launch_mode_enabled', 'debt_cycle_days', 'debt_cycle_hours', 'debt_cycle_minutes', 'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes', 'platform_commission_percentage')
         `);
-                const settings = {};
-                settingsResult.rows.forEach(row => {
-                    settings[row.setting_key] = row.setting_value;
-                });
-                const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
+            const settings = {};
+            settingsResult.rows.forEach(row => {
+                settings[row.setting_key] = row.setting_value;
+            });
+            const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
 
-                // 3. Procesar el pago usando la misma lógica que las otras publicaciones (cumple reglas económicas)
-                // Esto crea tokens RED/BLUE según las reglas, no transfiere tokens existentes
-                const cost = parseFloat(publication.blue_cost);
-                const sellerUsername = publication.author_username;
+            // 3. Procesar el pago usando la misma lógica que las otras publicaciones (cumple reglas económicas)
+            // Esto crea tokens RED/BLUE según las reglas, no transfiere tokens existentes
+            const cost = parseFloat(publication.blue_cost);
+            const sellerUsername = publication.author_username;
 
-                // Crear un objeto acceptance similar al que usa processDirectPaymentCompletion
-                const acceptance = {
-                    blue_cost: cost,
-                    title: publication.title,
-                    author_username: sellerUsername,
-                    acceptance_id: null, // No hay acceptance para venta rápida
-                    category: 'sell',
-                    completerUsername: buyerUsername
-                };
+            // Crear un objeto acceptance similar al que usa processDirectPaymentCompletion
+            const acceptance = {
+                blue_cost: cost,
+                title: publication.title,
+                author_username: sellerUsername,
+                acceptance_id: null, // No hay acceptance para venta rápida
+                category: 'sell',
+                completerUsername: buyerUsername
+            };
 
-                // Procesar el pago según las reglas económicas
-                const result = await processDirectPaymentCompletion(client, acceptance, id, preLaunchMode, settings);
+            // Procesar el pago según las reglas económicas
+            const result = await processDirectPaymentCompletion(client, acceptance, id, preLaunchMode, settings);
 
-                // 4. Actualizar el estado de la publicación a 'completed'
-                await client.query(`UPDATE publications SET status = 'completed', available_slots = 0 WHERE id = $1`, [id]);
+            // 4. Actualizar el estado de la publicación a 'completed'
+            await client.query(`UPDATE publications SET status = 'completed', available_slots = 0 WHERE id = $1`, [id]);
 
-                // 5. Crear notificación para el vendedor
-                const notificationMessage = `¡Venta Rápida completada! ${buyerUsername} ha pagado por tu publicación: "${publication.title}".`;
-                await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [sellerUsername, notificationMessage]);
+            // 5. Crear notificación para el vendedor
+            const notificationMessage = `¡Venta Rápida completada! ${buyerUsername} ha pagado por tu publicación: "${publication.title}".`;
+            await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [sellerUsername, notificationMessage]);
 
-                await logAuditEvent(client, req, {
-                    eventType: 'quick_sale.paid',
-                    actorUsername: buyerUsername,
-                    targetUsername: sellerUsername,
-                    publicationId: parseInt(id, 10),
-                    category: 'quick_sale',
-                    metadata: {
-                        amount: cost,
-                        publication_title: publication.title
-                    }
-                });
-
-                await client.query('COMMIT');
-
-                res.status(200).json({ message: result.message || "Pago realizado con éxito." });
-
-            } catch (error) {
-                await client.query('ROLLBACK');
-                console.error(`Error al procesar el pago de la Venta Rápida ${id}:`, error);
-                res.status(error.status || 500).json({ message: error.message || "Error crítico en la transacción." });
-            } finally {
-                client.release();
-            }
-        });
-
-        // Ruta para Aceptar una publicación
-        router.post('/publications/:id/accept', requireAcceptedLegalByUsernameField(['acceptorUsername']), async (req, res) => {
-            const { id } = req.params;
-            const { acceptorUsername, donationAmount } = req.body;
-
-            const client = await pool.connect();
-            try {
-                await client.query('BEGIN');
-
-                // 1. Verificar existencia del aceptador
-                const acceptorResult = await client.query(
-                    `SELECT id, is_minor, tutor_user_id, account_status FROM users WHERE username = $1`,
-                    [acceptorUsername]
-                );
-
-                if (acceptorResult.rowCount === 0) {
-                    await client.query('ROLLBACK');
-                    return res.status(404).json({ message: "Usuario no encontrado." });
+            await logAuditEvent(client, req, {
+                eventType: 'quick_sale.paid',
+                actorUsername: buyerUsername,
+                targetUsername: sellerUsername,
+                publicationId: parseInt(id, 10),
+                category: 'quick_sale',
+                metadata: {
+                    amount: cost,
+                    publication_title: publication.title
                 }
-                const acceptor = acceptorResult.rows[0];
+            });
 
-                // 2. Verificar existencia y estado de la publicación
-                const pubResult = await client.query(
-                    `SELECT p.*, u.username as author_username
+            await client.query('COMMIT');
+
+            res.status(200).json({ message: result.message || "Pago realizado con éxito." });
+
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error(`Error al procesar el pago de la Venta Rápida ${id}:`, error);
+            res.status(error.status || 500).json({ message: error.message || "Error crítico en la transacción." });
+        } finally {
+            client.release();
+        }
+    });
+
+    // Ruta para Aceptar una publicación
+    router.post('/publications/:id/accept', requireAcceptedLegalByUsernameField(['acceptorUsername']), async (req, res) => {
+        const { id } = req.params;
+        const { acceptorUsername, donationAmount } = req.body;
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // 1. Verificar existencia del aceptador
+            const acceptorResult = await client.query(
+                `SELECT id, is_minor, tutor_user_id, account_status FROM users WHERE username = $1`,
+                [acceptorUsername]
+            );
+
+            if (acceptorResult.rowCount === 0) {
+                await client.query('ROLLBACK');
+                return res.status(404).json({ message: "Usuario no encontrado." });
+            }
+            const acceptor = acceptorResult.rows[0];
+
+            // 2. Verificar existencia y estado de la publicación
+            const pubResult = await client.query(
+                `SELECT p.*, u.username as author_username
                              FROM publications p
                              JOIN users u ON p.author_id = u.id
                              WHERE p.id = $1 AND p.deleted_at IS NULL
                              FOR UPDATE`,
-                    [id]
-                );
-                const pub = pubResult.rows[0];
+                [id]
+            );
+            const pub = pubResult.rows[0];
 
-                if (!pub) {
-                    throw { status: 404, message: "La publicación ya no existe o ha sido eliminada." };
-                }
-                if (pub.author_username === acceptorUsername) {
-                    throw { status: 400, message: "No puedes aceptar o donar a tu propia publicación." };
-                }
-                if (pub.is_paused) {
-                    throw { status: 400, message: "Esta publicación está pausada temporalmente." };
+            if (!pub) {
+                throw { status: 404, message: "La publicación ya no existe o ha sido eliminada." };
+            }
+            if (pub.author_username === acceptorUsername) {
+                throw { status: 400, message: "No puedes aceptar o donar a tu propia publicación." };
+            }
+            if (pub.is_paused) {
+                throw { status: 400, message: "Esta publicación está pausada temporalmente." };
+            }
+
+            // --- CASO A: DONACIÓN PROFESIONAL ---
+            if (pub.category === 'donation') {
+                const amount = parseFloat(donationAmount);
+                if (isNaN(amount) || amount <= 0) {
+                    throw { status: 400, message: "Por favor, indica un monto válido para donar." };
                 }
 
-                // --- CASO A: DONACIÓN PROFESIONAL ---
-                if (pub.category === 'donation') {
-                    const amount = parseFloat(donationAmount);
-                    if (isNaN(amount) || amount <= 0) {
-                        throw { status: 400, message: "Por favor, indica un monto válido para donar." };
-                    }
-
-                    // Cargar configuraciones para el procesamiento de tokens
-                    const settingsResult = await client.query(`
+                // Cargar configuraciones para el procesamiento de tokens
+                const settingsResult = await client.query(`
                                 SELECT setting_key, setting_value 
                                 FROM app_settings 
                                 WHERE setting_key IN ('pre_launch_mode_enabled', 'debt_cycle_days', 'debt_cycle_hours', 'debt_cycle_minutes', 'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes', 'platform_commission_percentage')
                             `);
-                    const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
-                    const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
+                const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
+                const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
 
-                    const virtualAcceptance = {
-                        blue_cost: amount,
-                        title: pub.title,
-                        author_username: pub.author_username,
-                        category: 'donation',
-                        completerUsername: acceptorUsername
-                    };
+                const virtualAcceptance = {
+                    blue_cost: amount,
+                    title: pub.title,
+                    author_username: pub.author_username,
+                    category: 'donation',
+                    completerUsername: acceptorUsername
+                };
 
-                    // Procesar pago instantáneo
-                    await processDirectPaymentCompletion(client, virtualAcceptance, id, preLaunchMode, settings);
+                // Procesar pago instantáneo
+                await processDirectPaymentCompletion(client, virtualAcceptance, id, preLaunchMode, settings);
 
-                    // Registrar la donación confirmada
-                    await client.query(
-                        `INSERT INTO publication_acceptances (publication_id, acceptor_username, status, blue_cost) 
+                // Registrar la donación confirmada
+                await client.query(
+                    `INSERT INTO publication_acceptances (publication_id, acceptor_username, status, blue_cost) 
                                  VALUES ($1, $2, 'confirmed_paid', $3)`,
-                        [id, acceptorUsername, amount]
-                    );
-
-                    // Actualizar progreso de la campaña
-                    await client.query(
-                        `UPDATE publications SET current_amount = COALESCE(current_amount, 0) + $1 WHERE id = $2`,
-                        [amount, id]
-                    );
-
-                    // Notificación al autor
-                    await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`,
-                        [pub.author_username, `¡${acceptorUsername} ha donado ${amount} BLUE a "${pub.title}"!`]
-                    );
-
-                    await logAuditEvent(client, req, {
-                        eventType: 'publication.donation_received',
-                        actorUsername: acceptorUsername,
-                        targetUsername: pub.author_username,
-                        publicationId: parseInt(id, 10),
-                        category: 'donation',
-                        metadata: { amount, new_total: parseFloat(pub.current_amount || 0) + amount }
-                    });
-
-                    await client.query('COMMIT');
-                    return res.status(200).json({ message: `¡Donación de ${amount} BLUE recibida! Gracias por tu apoyo.` });
-                }
-
-                // --- CASO B: FLUJO ESTÁNDAR (SOLICITUDES / VENTAS) ---
-                if (pub.available_slots <= 0) {
-                    throw { status: 400, message: "Lo sentimos, ya no quedan cupos disponibles." };
-                }
-
-                // Restricción: No aceptar tareas del menor si eres su tutor (Conflict of Interest)
-                if (pub.category === 'request') {
-                    const authorResult = await client.query(`SELECT tutor_user_id FROM users WHERE id = $1`, [pub.author_id]);
-                    if (authorResult.rows[0].tutor_user_id === acceptor.id) {
-                        throw { status: 403, message: "No puedes aceptar solicitudes de tu menor representado por conflicto de intereses financieros." };
-                    }
-                }
-
-                // Validación de Repetición Profesional
-                // Se obtiene el historial completo de aceptaciones del usuario para esta publicación,
-                // incluyendo created_at para poder validar el período de cooldown entre repeticiones.
-                const prevAcceptances = await client.query(
-                    `SELECT status, created_at FROM publication_acceptances WHERE publication_id = $1 AND acceptor_username = $2 ORDER BY created_at DESC`,
-                    [id, acceptorUsername]
+                    [id, acceptorUsername, amount]
                 );
 
-                if (prevAcceptances.rows.length > 0) {
-                    const statuses = prevAcceptances.rows.map(r => r.status);
+                // Actualizar progreso de la campaña
+                await client.query(
+                    `UPDATE publications SET current_amount = COALESCE(current_amount, 0) + $1 WHERE id = $2`,
+                    [amount, id]
+                );
 
-                    // 1. Hard Reject: Si fue rechazado, no puede volver a intentar.
-                    if (statuses.includes('rejected')) {
-                        throw { status: 403, message: "Tu solicitud fue rechazada anteriormente y no puedes volver a intentarlo." };
-                    }
+                // Notificación al autor
+                await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`,
+                    [pub.author_username, `¡${acceptorUsername} ha donado ${amount} BLUE a "${pub.title}"!`]
+                );
 
-                    // 2. Active Check: Si tiene una solicitud en proceso, no puede crear otra.
-                    const activeStatuses = ['pending_approval', 'approved', 'completed'];
-                    if (statuses.some(s => activeStatuses.includes(s))) {
-                        throw { status: 409, message: "Ya tienes una solicitud activa para esta publicación." };
-                    }
+                await logAuditEvent(client, req, {
+                    eventType: 'publication.donation_received',
+                    actorUsername: acceptorUsername,
+                    targetUsername: pub.author_username,
+                    publicationId: parseInt(id, 10),
+                    category: 'donation',
+                    metadata: { amount, new_total: parseFloat(pub.current_amount || 0) + amount }
+                });
 
-                    // 3. Max Repeat Check: Si la publicación no permite repetición, bloquear.
-                    const confirmedCount = statuses.filter(s => s === 'confirmed_paid').length;
-                    if (!pub.allow_repeat_participation && confirmedCount >= 1) {
-                        throw { status: 409, message: "Esta publicación no permite participaciones repetidas." };
-                    }
+                await client.query('COMMIT');
+                return res.status(200).json({ message: `¡Donación de ${amount} BLUE recibida! Gracias por tu apoyo.` });
+            }
 
-                    // 4. Max Repeat Limit: Si alcanzó el máximo de repeticiones, bloquear.
-                    if (pub.allow_repeat_participation && confirmedCount >= pub.max_repeat_per_user) {
-                        throw { status: 409, message: `Has alcanzado el límite de ${pub.max_repeat_per_user} participaciones para esta tarea.` };
-                    }
+            // --- CASO B: FLUJO ESTÁNDAR (SOLICITUDES / VENTAS) ---
+            if (pub.available_slots <= 0) {
+                throw { status: 400, message: "Lo sentimos, ya no quedan cupos disponibles." };
+            }
 
-                    // 5. COOLDOWN CHECK: Verificar que ha pasado suficiente tiempo desde
-                    //    la última participación completada antes de permitir otra repetición.
-                    //    Esto previene abuso de tareas repetibles con un intervalo mínimo obligatorio.
-                    //    Ej: Si cooldown = 24h, el usuario no puede volver a aceptar hasta 24h después
-                    //    de haber completado la tarea anterior.
-                    if (pub.allow_repeat_participation && confirmedCount > 0 && pub.repeat_cooldown_hours > 0) {
-                        // Obtener la fecha de la última participación completada (confirmed_paid)
-                        const lastConfirmedRow = prevAcceptances.rows.find(r => r.status === 'confirmed_paid');
-                        if (lastConfirmedRow) {
-                            const lastCompletedAt = new Date(lastConfirmedRow.created_at);
-                            const cooldownMs = pub.repeat_cooldown_hours * 60 * 60 * 1000; // Convertir horas a milisegundos
-                            const timeSinceLastMs = Date.now() - lastCompletedAt.getTime();
+            // Restricción: No aceptar tareas del menor si eres su tutor (Conflict of Interest)
+            if (pub.category === 'request') {
+                const authorResult = await client.query(`SELECT tutor_user_id FROM users WHERE id = $1`, [pub.author_id]);
+                if (authorResult.rows[0].tutor_user_id === acceptor.id) {
+                    throw { status: 403, message: "No puedes aceptar solicitudes de tu menor representado por conflicto de intereses financieros." };
+                }
+            }
 
-                            if (timeSinceLastMs < cooldownMs) {
-                                // Calcular tiempo restante para mostrar mensaje informativo al usuario
-                                const remainingMs = cooldownMs - timeSinceLastMs;
-                                const remainingHours = Math.floor(remainingMs / (60 * 60 * 1000));
-                                const remainingMinutes = Math.ceil((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+            // Validación de Repetición Profesional
+            // Se obtiene el historial completo de aceptaciones del usuario para esta publicación,
+            // incluyendo created_at para poder validar el período de cooldown entre repeticiones.
+            const prevAcceptances = await client.query(
+                `SELECT status, created_at FROM publication_acceptances WHERE publication_id = $1 AND acceptor_username = $2 ORDER BY created_at DESC`,
+                [id, acceptorUsername]
+            );
 
-                                // Formatear el tiempo restante de forma legible
-                                let timeStr = '';
-                                if (remainingHours > 0) timeStr += `${remainingHours}h `;
-                                timeStr += `${remainingMinutes}min`;
+            if (prevAcceptances.rows.length > 0) {
+                const statuses = prevAcceptances.rows.map(r => r.status);
 
-                                throw {
-                                    status: 429,
-                                    message: `Debes esperar ${timeStr} antes de volver a participar en esta tarea.`
-                                };
-                            }
+                // 1. Hard Reject: Si fue rechazado, no puede volver a intentar.
+                if (statuses.includes('rejected')) {
+                    throw { status: 403, message: "Tu solicitud fue rechazada anteriormente y no puedes volver a intentarlo." };
+                }
+
+                // 2. Active Check: Si tiene una solicitud en proceso, no puede crear otra.
+                const activeStatuses = ['pending_approval', 'approved', 'completed'];
+                if (statuses.some(s => activeStatuses.includes(s))) {
+                    throw { status: 409, message: "Ya tienes una solicitud activa para esta publicación." };
+                }
+
+                // 3. Max Repeat Check: Si la publicación no permite repetición, bloquear.
+                const confirmedCount = statuses.filter(s => s === 'confirmed_paid').length;
+                if (!pub.allow_repeat_participation && confirmedCount >= 1) {
+                    throw { status: 409, message: "Esta publicación no permite participaciones repetidas." };
+                }
+
+                // 4. Max Repeat Limit: Si alcanzó el máximo de repeticiones, bloquear.
+                if (pub.allow_repeat_participation && confirmedCount >= pub.max_repeat_per_user) {
+                    throw { status: 409, message: `Has alcanzado el límite de ${pub.max_repeat_per_user} participaciones para esta tarea.` };
+                }
+
+                // 5. COOLDOWN CHECK: Verificar que ha pasado suficiente tiempo desde
+                //    la última participación completada antes de permitir otra repetición.
+                //    Esto previene abuso de tareas repetibles con un intervalo mínimo obligatorio.
+                //    Ej: Si cooldown = 24h, el usuario no puede volver a aceptar hasta 24h después
+                //    de haber completado la tarea anterior.
+                if (pub.allow_repeat_participation && confirmedCount > 0 && pub.repeat_cooldown_hours > 0) {
+                    // Obtener la fecha de la última participación completada (confirmed_paid)
+                    const lastConfirmedRow = prevAcceptances.rows.find(r => r.status === 'confirmed_paid');
+                    if (lastConfirmedRow) {
+                        const lastCompletedAt = new Date(lastConfirmedRow.created_at);
+                        const cooldownMs = pub.repeat_cooldown_hours * 60 * 60 * 1000; // Convertir horas a milisegundos
+                        const timeSinceLastMs = Date.now() - lastCompletedAt.getTime();
+
+                        if (timeSinceLastMs < cooldownMs) {
+                            // Calcular tiempo restante para mostrar mensaje informativo al usuario
+                            const remainingMs = cooldownMs - timeSinceLastMs;
+                            const remainingHours = Math.floor(remainingMs / (60 * 60 * 1000));
+                            const remainingMinutes = Math.ceil((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+
+                            // Formatear el tiempo restante de forma legible
+                            let timeStr = '';
+                            if (remainingHours > 0) timeStr += `${remainingHours}h `;
+                            timeStr += `${remainingMinutes}min`;
+
+                            throw {
+                                status: 429,
+                                message: `Debes esperar ${timeStr} antes de volver a participar en esta tarea.`
+                            };
                         }
                     }
                 }
-
-                // Restricción para menores en ventas (Generación de deuda)
-                if (pub.category === 'sell' && acceptor.is_minor && (!acceptor.tutor_user_id || acceptor.account_status === 'pending_tutor')) {
-                    throw { status: 403, message: "Como menor sin tutor asignado, no puedes aceptar publicaciones que generen deuda RED." };
-                }
-
-                // Descontar cupo
-                await client.query(`UPDATE publications SET available_slots = available_slots - 1 WHERE id = $1`, [id]);
-
-                if (pub.auto_approve) {
-                    await client.query(`INSERT INTO publication_acceptances (publication_id, acceptor_username, status, blue_cost) VALUES ($1, $2, 'approved', $3)`, [id, acceptorUsername, pub.blue_cost]);
-                    await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [acceptorUsername, `¡Has sido aprobado automáticamente para "${pub.title}"!`]);
-
-                    await logAuditEvent(client, req, {
-                        eventType: 'publication.accepted',
-                        actorUsername: acceptorUsername,
-                        publicationId: parseInt(id, 10),
-                        category: pub.category,
-                        metadata: { initial_status: 'approved', auto_approve: true }
-                    });
-
-                    await client.query('COMMIT');
-                    res.status(200).json({ message: "¡Aceptaste y fuiste aprobado automáticamente!" });
-                } else {
-                    await client.query(`INSERT INTO publication_acceptances (publication_id, acceptor_username, status, blue_cost) VALUES ($1, $2, 'pending_approval', $3)`, [id, acceptorUsername, pub.blue_cost]);
-                    await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [pub.author_username, `El usuario ${acceptorUsername} quiere realizar la tarea "${pub.title}".`]);
-
-                    await logAuditEvent(client, req, {
-                        eventType: 'publication.accepted',
-                        actorUsername: acceptorUsername,
-                        publicationId: parseInt(id, 10),
-                        category: pub.category,
-                        metadata: { initial_status: 'pending_approval', auto_approve: false }
-                    });
-
-                    await client.query('COMMIT');
-                    res.status(200).json({ message: "Solicitud enviada. Esperando aprobación del autor." });
-                }
-            } catch (error) {
-                await client.query('ROLLBACK');
-                console.error("Error en /accept:", error);
-                res.status(error.status || 500).json({ message: error.message || "Error interno al procesar la solicitud." });
-            } finally {
-                client.release();
             }
-        });
 
-        // Ruta para Descartar a un usuario
-        router.post('/publications/:id/discard', verifyAdminToken, requireAcceptedLegalByUsernameField(['discarderUsername']), async (req, res) => {
-            const { id } = req.params;
-            const { discarderUsername, userToDiscard } = req.body;
+            // Restricción para menores en ventas (Generación de deuda)
+            if (pub.category === 'sell' && acceptor.is_minor && (!acceptor.tutor_user_id || acceptor.account_status === 'pending_tutor')) {
+                throw { status: 403, message: "Como menor sin tutor asignado, no puedes aceptar publicaciones que generen deuda RED." };
+            }
 
-            const client = await pool.connect();
-            try {
-                await client.query('BEGIN');
+            // Descontar cupo
+            await client.query(`UPDATE publications SET available_slots = available_slots - 1 WHERE id = $1`, [id]);
 
-                const pubResult = await client.query(
-                    `SELECT p.*, u.username as author_username
+            if (pub.auto_approve) {
+                await client.query(`INSERT INTO publication_acceptances (publication_id, acceptor_username, status, blue_cost) VALUES ($1, $2, 'approved', $3)`, [id, acceptorUsername, pub.blue_cost]);
+                await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [acceptorUsername, `¡Has sido aprobado automáticamente para "${pub.title}"!`]);
+
+                await logAuditEvent(client, req, {
+                    eventType: 'publication.accepted',
+                    actorUsername: acceptorUsername,
+                    publicationId: parseInt(id, 10),
+                    category: pub.category,
+                    metadata: { initial_status: 'approved', auto_approve: true }
+                });
+
+                await client.query('COMMIT');
+                res.status(200).json({ message: "¡Aceptaste y fuiste aprobado automáticamente!" });
+            } else {
+                await client.query(`INSERT INTO publication_acceptances (publication_id, acceptor_username, status, blue_cost) VALUES ($1, $2, 'pending_approval', $3)`, [id, acceptorUsername, pub.blue_cost]);
+                await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [pub.author_username, `El usuario ${acceptorUsername} quiere realizar la tarea "${pub.title}".`]);
+
+                await logAuditEvent(client, req, {
+                    eventType: 'publication.accepted',
+                    actorUsername: acceptorUsername,
+                    publicationId: parseInt(id, 10),
+                    category: pub.category,
+                    metadata: { initial_status: 'pending_approval', auto_approve: false }
+                });
+
+                await client.query('COMMIT');
+                res.status(200).json({ message: "Solicitud enviada. Esperando aprobación del autor." });
+            }
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error("Error en /accept:", error);
+            res.status(error.status || 500).json({ message: error.message || "Error interno al procesar la solicitud." });
+        } finally {
+            client.release();
+        }
+    });
+
+    // Ruta para Descartar a un usuario
+    router.post('/publications/:id/discard', verifyAdminToken, requireAcceptedLegalByUsernameField(['discarderUsername']), async (req, res) => {
+        const { id } = req.params;
+        const { discarderUsername, userToDiscard } = req.body;
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            const pubResult = await client.query(
+                `SELECT p.*, u.username as author_username
                      FROM publications p
                      JOIN users u ON p.author_id = u.id
                      WHERE p.id = $1 AND u.username = $2 AND p.deleted_at IS NULL
                      FOR UPDATE`,
-                    [id, discarderUsername]
-                );
-                const pub = pubResult.rows[0];
-                if (!pub) {
-                    throw { status: 403, message: "No tienes permiso para gestionar esta tarea." };
-                }
+                [id, discarderUsername]
+            );
+            const pub = pubResult.rows[0];
+            if (!pub) {
+                throw { status: 403, message: "No tienes permiso para gestionar esta tarea." };
+            }
 
-                // ✅ Enfoque profesional: NO borramos el historial.
-                // En su lugar marcamos la solicitud como 'rejected' (Hard Reject).
-                const updateResult = await client.query(
-                    `UPDATE publication_acceptances
+            // ✅ Enfoque profesional: NO borramos el historial.
+            // En su lugar marcamos la solicitud como 'rejected' (Hard Reject).
+            const updateResult = await client.query(
+                `UPDATE publication_acceptances
                      SET status = 'rejected'
                      WHERE publication_id = $1
                        AND acceptor_username = $2
                        AND status = 'pending_approval'
                      RETURNING *`,
-                    [id, userToDiscard]
-                );
+                [id, userToDiscard]
+            );
 
-                if (updateResult.rowCount === 0) {
-                    throw { status: 404, message: "No se encontró una solicitud pendiente para este usuario." };
-                }
-
-                // Devolver el cupo (la solicitud ya no ocupa un slot)
-                await client.query(`UPDATE publications SET available_slots = available_slots + 1 WHERE id = $1`, [id]);
-
-                const message = `Tu solicitud para la tarea "${pub.title}" fue rechazada.`;
-                await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [userToDiscard, message]);
-
-                await logAuditEvent(client, req, {
-                    eventType: 'publication.rejected',
-                    actorUsername: discarderUsername,
-                    targetUsername: userToDiscard,
-                    publicationId: parseInt(id, 10),
-                    category: pub.category,
-                    metadata: {
-                        from_status: 'pending_approval',
-                        to_status: 'rejected'
-                    }
-                });
-
-                await client.query('COMMIT');
-                res.status(200).json({ message: `Has rechazado la solicitud de ${userToDiscard}.` });
-
-            } catch (error) {
-                await client.query('ROLLBACK');
-                console.error("Error al descartar solicitud:", error);
-                res.status(error.status || 500).json({ message: error.message || "Error interno." });
-            } finally {
-                client.release();
+            if (updateResult.rowCount === 0) {
+                throw { status: 404, message: "No se encontró una solicitud pendiente para este usuario." };
             }
-        });
 
-        // Ruta para Aprobar a un usuario
-        router.post('/publications/:id/approve', verifyAdminToken, requireAcceptedLegalByUsernameField(['approverUsername']), async (req, res) => {
-            const { id } = req.params;
-            const { approverUsername, userToApprove } = req.body;
+            // Devolver el cupo (la solicitud ya no ocupa un slot)
+            await client.query(`UPDATE publications SET available_slots = available_slots + 1 WHERE id = $1`, [id]);
 
-            const client = await pool.connect();
-            try {
-                await client.query('BEGIN');
+            const message = `Tu solicitud para la tarea "${pub.title}" fue rechazada.`;
+            await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [userToDiscard, message]);
 
-                const pubResult = await client.query(
-                    `SELECT p.*, u.username as author_username
+            await logAuditEvent(client, req, {
+                eventType: 'publication.rejected',
+                actorUsername: discarderUsername,
+                targetUsername: userToDiscard,
+                publicationId: parseInt(id, 10),
+                category: pub.category,
+                metadata: {
+                    from_status: 'pending_approval',
+                    to_status: 'rejected'
+                }
+            });
+
+            await client.query('COMMIT');
+            res.status(200).json({ message: `Has rechazado la solicitud de ${userToDiscard}.` });
+
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error("Error al descartar solicitud:", error);
+            res.status(error.status || 500).json({ message: error.message || "Error interno." });
+        } finally {
+            client.release();
+        }
+    });
+
+    // Ruta para Aprobar a un usuario
+    router.post('/publications/:id/approve', verifyAdminToken, requireAcceptedLegalByUsernameField(['approverUsername']), async (req, res) => {
+        const { id } = req.params;
+        const { approverUsername, userToApprove } = req.body;
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            const pubResult = await client.query(
+                `SELECT p.*, u.username as author_username
                      FROM publications p
                      JOIN users u ON p.author_id = u.id
                      WHERE p.id = $1 AND u.username = $2 AND p.deleted_at IS NULL`,
-                    [id, approverUsername]
-                );
-                const pub = pubResult.rows[0];
-                if (!pub) throw { status: 403, message: "No tienes permiso para aprobar solicitudes." };
+                [id, approverUsername]
+            );
+            const pub = pubResult.rows[0];
+            if (!pub) throw { status: 403, message: "No tienes permiso para aprobar solicitudes." };
 
-                const updateResult = await client.query(
-                    `UPDATE publication_acceptances SET status = 'approved' WHERE publication_id = $1 AND acceptor_username = $2 AND status = 'pending_approval' RETURNING *`,
-                    [id, userToApprove]
-                );
+            const updateResult = await client.query(
+                `UPDATE publication_acceptances SET status = 'approved' WHERE publication_id = $1 AND acceptor_username = $2 AND status = 'pending_approval' RETURNING *`,
+                [id, userToApprove]
+            );
 
-                if (updateResult.rowCount === 0) {
-                    throw { status: 404, message: "No se encontró una solicitud pendiente válida para este usuario." };
-                }
-
-                const message = `¡Has sido aprobado para la tarea "${pub.title}"!`;
-                await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [userToApprove, message]);
-
-                await logAuditEvent(client, req, {
-                    eventType: 'publication.approved',
-                    actorUsername: approverUsername,
-                    targetUsername: userToApprove,
-                    publicationId: parseInt(id, 10),
-                    category: pub.category,
-                    metadata: {
-                        from_status: 'pending_approval',
-                        to_status: 'approved'
-                    }
-                });
-
-                await client.query('COMMIT');
-                res.status(200).json({ message: `Has aprobado a ${userToApprove}.` });
-            } catch (error) {
-                await client.query('ROLLBACK');
-                console.error("Error al aprobar:", error);
-                res.status(error.status || 500).json({ message: error.message || "Error interno." });
-            } finally {
-                client.release();
+            if (updateResult.rowCount === 0) {
+                throw { status: 404, message: "No se encontró una solicitud pendiente válida para este usuario." };
             }
-        });
 
-        // Ruta para Marcar como Culminada
-        router.post('/publications/:id/complete', requireAcceptedLegalByUsernameField(['completerUsername']), async (req, res) => {
-            const pubId = req.params.id;
-            const { completerUsername, formResponses } = req.body;
+            const message = `¡Has sido aprobado para la tarea "${pub.title}"!`;
+            await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [userToApprove, message]);
 
-            const client = await pool.connect();
-            try {
-                await client.query('BEGIN');
+            await logAuditEvent(client, req, {
+                eventType: 'publication.approved',
+                actorUsername: approverUsername,
+                targetUsername: userToApprove,
+                publicationId: parseInt(id, 10),
+                category: pub.category,
+                metadata: {
+                    from_status: 'pending_approval',
+                    to_status: 'approved'
+                }
+            });
 
-                // 1. OBTENER CONFIGURACIONES DE LA PLATAFORMA (incluyendo comisiones)
-                const settingsResult = await client.query(`
+            await client.query('COMMIT');
+            res.status(200).json({ message: `Has aprobado a ${userToApprove}.` });
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error("Error al aprobar:", error);
+            res.status(error.status || 500).json({ message: error.message || "Error interno." });
+        } finally {
+            client.release();
+        }
+    });
+
+    // Ruta para Marcar como Culminada
+    router.post('/publications/:id/complete', requireAcceptedLegalByUsernameField(['completerUsername']), async (req, res) => {
+        const pubId = req.params.id;
+        const { completerUsername, formResponses } = req.body;
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // 1. OBTENER CONFIGURACIONES DE LA PLATAFORMA (incluyendo comisiones)
+            const settingsResult = await client.query(`
                     SELECT setting_key, setting_value 
                     FROM app_settings 
                     WHERE setting_key IN ('pre_launch_mode_enabled', 'debt_cycle_days', 'debt_cycle_hours', 'debt_cycle_minutes', 'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes', 'platform_commission_percentage')
                 `);
-                const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
-                const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
+            const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
+            const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
 
-                // 2. FETCH ACCEPTANCE DATA
-                const acceptanceResult = await client.query(
-                    `SELECT p.blue_cost, p.is_sell_post, p.title, p.category, p.form_fields,
+            // 2. FETCH ACCEPTANCE DATA
+            const acceptanceResult = await client.query(
+                `SELECT p.blue_cost, p.is_sell_post, p.title, p.category, p.form_fields,
                             u.username as author_username,
                             pa.id as acceptance_id,
                             pa.form_responses_submitted_at
@@ -976,96 +977,96 @@ module.exports = function(router, pool, requireAcceptedLegalByUsernameField, ver
                      JOIN publication_acceptances pa ON p.id = pa.publication_id
                      WHERE p.id = $1 AND pa.acceptor_username = $2 AND pa.status = 'approved'
                      FOR UPDATE`,
-                    [pubId, completerUsername]
-                );
+                [pubId, completerUsername]
+            );
 
-                const acceptance = acceptanceResult.rows[0];
-                if (!acceptance) {
-                    throw { status: 404, message: "No se encontró una tarea o compra aprobada para procesar." };
-                }
+            const acceptance = acceptanceResult.rows[0];
+            if (!acceptance) {
+                throw { status: 404, message: "No se encontró una tarea o compra aprobada para procesar." };
+            }
 
-                // Guardar respuestas del formulario si se proporcionan y la publicación tiene form_fields
-                const shouldSaveResponses = !!formResponses
-                    && acceptance.form_fields
-                    && typeof formResponses === 'object'
-                    && Object.keys(formResponses).length > 0;
+            // Guardar respuestas del formulario si se proporcionan y la publicación tiene form_fields
+            const shouldSaveResponses = !!formResponses
+                && acceptance.form_fields
+                && typeof formResponses === 'object'
+                && Object.keys(formResponses).length > 0;
 
-                if (shouldSaveResponses) {
-                    const updateResponsesResult = await client.query(
-                        `UPDATE publication_acceptances
+            if (shouldSaveResponses) {
+                const updateResponsesResult = await client.query(
+                    `UPDATE publication_acceptances
                          SET form_responses = $1,
                              form_responses_submitted_at = COALESCE(form_responses_submitted_at, NOW())
                          WHERE id = $2
                          RETURNING form_responses_submitted_at`,
-                        [formResponses, acceptance.acceptance_id]
-                    );
+                    [formResponses, acceptance.acceptance_id]
+                );
 
-                    if (!acceptance.form_responses_submitted_at) {
-                        await logAuditEvent(client, req, {
-                            eventType: 'publication.form_responses_submitted',
-                            actorUsername: completerUsername,
-                            targetUsername: acceptance.author_username,
-                            publicationId: parseInt(pubId, 10),
-                            category: acceptance.category,
-                            metadata: {
-                                acceptance_id: acceptance.acceptance_id,
-                                submitted_at: updateResponsesResult.rows[0]?.form_responses_submitted_at
-                            }
-                        });
-                    }
+                if (!acceptance.form_responses_submitted_at) {
+                    await logAuditEvent(client, req, {
+                        eventType: 'publication.form_responses_submitted',
+                        actorUsername: completerUsername,
+                        targetUsername: acceptance.author_username,
+                        publicationId: parseInt(pubId, 10),
+                        category: acceptance.category,
+                        metadata: {
+                            acceptance_id: acceptance.acceptance_id,
+                            submitted_at: updateResponsesResult.rows[0]?.form_responses_submitted_at
+                        }
+                    });
                 }
-
-                // Añadir completerUsername al objeto acceptance para pasarlo a los helpers
-                acceptance.completerUsername = completerUsername;
-
-                let result;
-                switch (acceptance.category) {
-                    case 'sell':
-                    case 'donation':
-                        result = await processDirectPaymentCompletion(client, acceptance, pubId, preLaunchMode, settings);
-                        break;
-                    case 'request':
-                        result = await processRequestCompletion(client, acceptance);
-                        break;
-                    default:
-                        throw { status: 400, message: "Categoría de publicación no válida." };
-                }
-
-                await logAuditEvent(client, req, {
-                    eventType: 'publication.completed',
-                    actorUsername: completerUsername,
-                    publicationId: parseInt(pubId, 10),
-                    category: acceptance.category,
-                    metadata: {
-                        acceptance_id: acceptance.acceptance_id
-                    }
-                });
-
-                await client.query('COMMIT');
-                res.status(200).json({ message: result.message });
-
-            } catch (error) {
-                await client.query('ROLLBACK');
-                console.error("Error al completar tarea/venta:", error);
-                res.status(error.status || 500).json({ message: error.message || "Error interno." });
-            } finally {
-                client.release();
             }
-        });
 
-        // Ruta para Confirmar y Pagar (REFACTORIZADA PARA MÁXIMA SEGURIDAD)
-        router.post('/publications/:id/confirm-payment', verifyAdminToken, requireAcceptedLegalByUsernameField(['confirmerUsername']), async (req, res) => {
-            const pubId = req.params.id;
-            const { confirmerUsername, workerUsername } = req.body;
+            // Añadir completerUsername al objeto acceptance para pasarlo a los helpers
+            acceptance.completerUsername = completerUsername;
 
-            const client = await pool.connect();
-            try {
-                await client.query('BEGIN');
+            let result;
+            switch (acceptance.category) {
+                case 'sell':
+                case 'donation':
+                    result = await processDirectPaymentCompletion(client, acceptance, pubId, preLaunchMode, settings);
+                    break;
+                case 'request':
+                    result = await processRequestCompletion(client, acceptance);
+                    break;
+                default:
+                    throw { status: 400, message: "Categoría de publicación no válida." };
+            }
 
-                // 1. OBTENER DATOS Y VERIFICAR PERMISOS
-                // Se obtiene la publicación y se asegura que el `confirmerUsername` es el autor.
-                const acceptanceResult = await client.query(
-                    `SELECT p.blue_cost, p.title, p.category, p.is_booster_task,
+            await logAuditEvent(client, req, {
+                eventType: 'publication.completed',
+                actorUsername: completerUsername,
+                publicationId: parseInt(pubId, 10),
+                category: acceptance.category,
+                metadata: {
+                    acceptance_id: acceptance.acceptance_id
+                }
+            });
+
+            await client.query('COMMIT');
+            res.status(200).json({ message: result.message });
+
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error("Error al completar tarea/venta:", error);
+            res.status(error.status || 500).json({ message: error.message || "Error interno." });
+        } finally {
+            client.release();
+        }
+    });
+
+    // Ruta para Confirmar y Pagar (REFACTORIZADA PARA MÁXIMA SEGURIDAD)
+    router.post('/publications/:id/confirm-payment', verifyAdminToken, requireAcceptedLegalByUsernameField(['confirmerUsername']), async (req, res) => {
+        const pubId = req.params.id;
+        const { confirmerUsername, workerUsername } = req.body;
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // 1. OBTENER DATOS Y VERIFICAR PERMISOS
+            // Se obtiene la publicación y se asegura que el `confirmerUsername` es el autor.
+            const acceptanceResult = await client.query(
+                `SELECT p.blue_cost, p.title, p.category, p.is_booster_task,
                     u.id as author_id,
                     u.username as author_username,
                     w.id as worker_id,
@@ -1077,96 +1078,96 @@ module.exports = function(router, pool, requireAcceptedLegalByUsernameField, ver
                      JOIN users w ON pa.acceptor_username = w.username
              WHERE p.id = $1 AND pa.acceptor_username = $2 AND pa.status = 'completed'
              FOR UPDATE`, // FOR UPDATE bloquea la fila para evitar concurrencia
-                    [pubId, workerUsername]
-                );
+                [pubId, workerUsername]
+            );
 
-                const acceptance = acceptanceResult.rows[0];
-                if (!acceptance) {
-                    throw { status: 404, message: "No se encontró una tarea completada válida para este trabajador." };
-                }
+            const acceptance = acceptanceResult.rows[0];
+            if (!acceptance) {
+                throw { status: 404, message: "No se encontró una tarea completada válida para este trabajador." };
+            }
 
-                // 2. Fallar rápido si el usuario no es el autor.
-                if (acceptance.author_username !== confirmerUsername) {
-                    throw { status: 403, message: "No tienes permiso para confirmar el pago de esta tarea." };
-                }
+            // 2. Fallar rápido si el usuario no es el autor.
+            if (acceptance.author_username !== confirmerUsername) {
+                throw { status: 403, message: "No tienes permiso para confirmar el pago de esta tarea." };
+            }
 
-                // 2.1 Seguridad: no confiar en el username enviado por cliente.
-                // Usamos el acceptor_username real de la DB como "worker".
-                if (workerUsername && acceptance.acceptor_username !== workerUsername) {
-                    await logAuditEvent(client, req, {
-                        eventType: 'publication.confirm_payment.mismatch',
-                        actorUsername: confirmerUsername,
-                        targetUsername: workerUsername,
-                        publicationId: parseInt(pubId, 10),
-                        category: 'request',
-                        metadata: {
-                            acceptance_id: acceptance.acceptance_id,
-                            db_acceptor: acceptance.acceptor_username
-                        }
-                    });
-                    throw { status: 400, message: "El trabajador indicado no coincide con el registrado en la solicitud." };
-                }
-
-                // VALIDACIÓN: Esta ruta es solo para 'requests'
-                if (acceptance.category !== 'request') {
-                    throw { status: 400, message: "Esta acción solo es válida para publicaciones de tipo 'solicitud'." };
-                }
-
-                // 3. OBTENER CONFIGURACIONES DE LA PLATAFORMA
-                const settingsResult = await client.query(`
-            SELECT setting_key, setting_value FROM app_settings 
-            WHERE setting_key IN ('pre_launch_mode_enabled', 'debt_cycle_days', 'debt_cycle_hours', 'debt_cycle_minutes', 'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes', 'platform_commission_percentage')
-        `);
-                const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
-                const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
-
-                // 4. PROCESAR EL PAGO
-                acceptance.workerUsername = acceptance.acceptor_username; // Usar el valor de DB (no el del cliente)
-                acceptance.workerId = acceptance.worker_id;
-                const result = await processRequestPayment(client, acceptance, pubId, preLaunchMode, settings);
-
-                // 5. ACTUALIZAR ESTADO FINAL
-                await client.query(`UPDATE publication_acceptances SET status = 'confirmed_paid' WHERE id = $1`, [acceptance.acceptance_id]);
-
+            // 2.1 Seguridad: no confiar en el username enviado por cliente.
+            // Usamos el acceptor_username real de la DB como "worker".
+            if (workerUsername && acceptance.acceptor_username !== workerUsername) {
                 await logAuditEvent(client, req, {
-                    eventType: 'publication.confirmed_paid',
+                    eventType: 'publication.confirm_payment.mismatch',
                     actorUsername: confirmerUsername,
                     targetUsername: workerUsername,
                     publicationId: parseInt(pubId, 10),
                     category: 'request',
                     metadata: {
                         acceptance_id: acceptance.acceptance_id,
-                        blue_cost: acceptance.blue_cost,
-                        is_booster_task: !!acceptance.is_booster_task
+                        db_acceptor: acceptance.acceptor_username
                     }
                 });
-
-                await client.query('COMMIT');
-                res.status(200).json({ message: result.message });
-
-            } catch (error) {
-                await client.query('ROLLBACK');
-                console.error("Error en confirm-payment:", error);
-                res.status(error.status || 500).json({ message: error.message || "Error crítico en la transacción." });
-            } finally {
-                if (client) client.release();
+                throw { status: 400, message: "El trabajador indicado no coincide con el registrado en la solicitud." };
             }
-        });
 
-// --- NUEVO: Endpoint para obtener los detalles completos de UNA SOLA publicación ---
-router.get('/api/publications/:id', async (req, res) => {
-    const { id } = req.params;
-    const { user: requestingUser } = req.query; // Necesitamos saber quién está pidiendo la info
+            // VALIDACIÓN: Esta ruta es solo para 'requests'
+            if (acceptance.category !== 'request') {
+                throw { status: 400, message: "Esta acción solo es válida para publicaciones de tipo 'solicitud'." };
+            }
 
-    if (!requestingUser) {
-        return res.status(400).json({ message: "Se requiere el nombre de usuario que realiza la solicitud." });
-    }
+            // 3. OBTENER CONFIGURACIONES DE LA PLATAFORMA
+            const settingsResult = await client.query(`
+            SELECT setting_key, setting_value FROM app_settings 
+            WHERE setting_key IN ('pre_launch_mode_enabled', 'debt_cycle_days', 'debt_cycle_hours', 'debt_cycle_minutes', 'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes', 'platform_commission_percentage')
+        `);
+            const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
+            const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
 
-    const client = await pool.connect();
-    try {
-        // Una única consulta más compleja que reúne toda la información necesaria.
-        // Esto es más eficiente que hacer múltiples consultas a la base de datos.
-        const query = `
+            // 4. PROCESAR EL PAGO
+            acceptance.workerUsername = acceptance.acceptor_username; // Usar el valor de DB (no el del cliente)
+            acceptance.workerId = acceptance.worker_id;
+            const result = await processRequestPayment(client, acceptance, pubId, preLaunchMode, settings);
+
+            // 5. ACTUALIZAR ESTADO FINAL
+            await client.query(`UPDATE publication_acceptances SET status = 'confirmed_paid' WHERE id = $1`, [acceptance.acceptance_id]);
+
+            await logAuditEvent(client, req, {
+                eventType: 'publication.confirmed_paid',
+                actorUsername: confirmerUsername,
+                targetUsername: workerUsername,
+                publicationId: parseInt(pubId, 10),
+                category: 'request',
+                metadata: {
+                    acceptance_id: acceptance.acceptance_id,
+                    blue_cost: acceptance.blue_cost,
+                    is_booster_task: !!acceptance.is_booster_task
+                }
+            });
+
+            await client.query('COMMIT');
+            res.status(200).json({ message: result.message });
+
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error("Error en confirm-payment:", error);
+            res.status(error.status || 500).json({ message: error.message || "Error crítico en la transacción." });
+        } finally {
+            if (client) client.release();
+        }
+    });
+
+    // --- NUEVO: Endpoint para obtener los detalles completos de UNA SOLA publicación ---
+    router.get('/api/publications/:id', async (req, res) => {
+        const { id } = req.params;
+        const { user: requestingUser } = req.query; // Necesitamos saber quién está pidiendo la info
+
+        if (!requestingUser) {
+            return res.status(400).json({ message: "Se requiere el nombre de usuario que realiza la solicitud." });
+        }
+
+        const client = await pool.connect();
+        try {
+            // Una única consulta más compleja que reúne toda la información necesaria.
+            // Esto es más eficiente que hacer múltiples consultas a la base de datos.
+            const query = `
             SELECT
                 p.id, p.title, p.description, p.blue_cost, p.status, p.created_at, p.is_paused,
                 p.is_sell_post, p.available_slots, p.category, p.expires_at,
@@ -1207,68 +1208,68 @@ router.get('/api/publications/:id', async (req, res) => {
                 p.id = $1;
         `;
 
-        const result = await client.query(query, [id, requestingUser]);
+            const result = await client.query(query, [id, requestingUser]);
 
-        if (result.rowCount === 0) {
-            return res.status(404).json({ message: "Publicación no encontrada." });
-        }
-
-        const publication = result.rows[0];
-        publication.participants = publication.participants || []; // Asegurarse de que sea un array
-
-        // --- NUEVO: Lógica de Modal Intersticial (Pre-flight) ---
-        if (publication.show_preflight_modal) {
-            const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-            const currentDay = days[new Date().getDay()];
-            const settingsKeys = ['daily_modal_title', `daily_modal_${currentDay}`];
-
-            const settingsResult = await client.query(
-                `SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1::text[])`,
-                [settingsKeys]
-            );
-
-            const settings = settingsResult.rows.reduce((acc, row) => {
-                acc[row.setting_key] = row.setting_value;
-                return acc;
-            }, {});
-
-            publication.preflight_modal = {
-                title: settings.daily_modal_title || 'Aviso Importante',
-                message: settings[`daily_modal_${currentDay}`] || 'Mensaje no configurado para hoy.'
-            };
-        }
-
-        // --- INICIO DE LA LÓGICA DE SEGURIDAD PARA VENTA RÁPIDA ---
-        if (publication.is_quick_sale) {
-            const isAuthor = publication.author_username === requestingUser;
-            const isTargetedUser = publication.target_username === requestingUser;
-            const isPublicQuickSale = !publication.target_username;
-            const hasExpired = publication.expires_at && new Date(publication.expires_at) < new Date();
-
-            // Si ha expirado, nadie puede verla, ni siquiera el autor, para mantener la consistencia.
-            if (hasExpired) {
-                return res.status(404).json({ message: "Esta venta rápida ha expirado." });
-            }
-
-            // Reglas de acceso:
-            // 1. El autor siempre puede verla (mientras no haya expirado).
-            // 2. Si tiene un comprador específico, solo él puede verla.
-            // 3. Si es pública (sin comprador específico), cualquier usuario logueado que no sea el autor puede verla.
-            if (!isAuthor && !isTargetedUser && !(isPublicQuickSale && !isAuthor)) {
-                // Devolvemos 404 para no revelar la existencia de la venta.
+            if (result.rowCount === 0) {
                 return res.status(404).json({ message: "Publicación no encontrada." });
             }
+
+            const publication = result.rows[0];
+            publication.participants = publication.participants || []; // Asegurarse de que sea un array
+
+            // --- NUEVO: Lógica de Modal Intersticial (Pre-flight) ---
+            if (publication.show_preflight_modal) {
+                const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+                const currentDay = days[new Date().getDay()];
+                const settingsKeys = ['daily_modal_title', `daily_modal_${currentDay}`];
+
+                const settingsResult = await client.query(
+                    `SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1::text[])`,
+                    [settingsKeys]
+                );
+
+                const settings = settingsResult.rows.reduce((acc, row) => {
+                    acc[row.setting_key] = row.setting_value;
+                    return acc;
+                }, {});
+
+                publication.preflight_modal = {
+                    title: settings.daily_modal_title || 'Aviso Importante',
+                    message: settings[`daily_modal_${currentDay}`] || 'Mensaje no configurado para hoy.'
+                };
+            }
+
+            // --- INICIO DE LA LÓGICA DE SEGURIDAD PARA VENTA RÁPIDA ---
+            if (publication.is_quick_sale) {
+                const isAuthor = publication.author_username === requestingUser;
+                const isTargetedUser = publication.target_username === requestingUser;
+                const isPublicQuickSale = !publication.target_username;
+                const hasExpired = publication.expires_at && new Date(publication.expires_at) < new Date();
+
+                // Si ha expirado, nadie puede verla, ni siquiera el autor, para mantener la consistencia.
+                if (hasExpired) {
+                    return res.status(404).json({ message: "Esta venta rápida ha expirado." });
+                }
+
+                // Reglas de acceso:
+                // 1. El autor siempre puede verla (mientras no haya expirado).
+                // 2. Si tiene un comprador específico, solo él puede verla.
+                // 3. Si es pública (sin comprador específico), cualquier usuario logueado que no sea el autor puede verla.
+                if (!isAuthor && !isTargetedUser && !(isPublicQuickSale && !isAuthor)) {
+                    // Devolvemos 404 para no revelar la existencia de la venta.
+                    return res.status(404).json({ message: "Publicación no encontrada." });
+                }
+            }
+            // --- FIN DE LA LÓGICA DE SEGURIDAD ---
+
+            res.status(200).json(publication);
+
+        } catch (error) {
+            console.error(`Error fetching publication details for ID ${id}:`, error);
+            res.status(500).json({ message: "Error interno del servidor al obtener los detalles de la publicación." });
+        } finally {
+            client.release();
         }
-        // --- FIN DE LA LÓGICA DE SEGURIDAD ---
-
-        res.status(200).json(publication);
-
-    } catch (error) {
-        console.error(`Error fetching publication details for ID ${id}:`, error);
-        res.status(500).json({ message: "Error interno del servidor al obtener los detalles de la publicación." });
-    } finally {
-        client.release();
-    }
-});
+    });
 
 };
