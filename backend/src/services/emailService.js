@@ -449,16 +449,6 @@ async function sendAnnouncementEmail({ toEmail, subject, title, bodyHtml, button
 
   await getSesClient().send(cmd);
 }
-
-function escapeHtml(unsafe) {
-  return unsafe
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
 /**
  * Procesa una tanda de correos electrónicos pendientes en la cola de difusiones.
  * Esta función es el "Worker" que asegura que no saturemos AWS SES y sea auditable.

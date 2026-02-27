@@ -1,4 +1,4 @@
-// 0. Cargar variables de entorno
+﻿// 0. Cargar variables de entorno
 require('dotenv').config();
 
 // 1. Importar las librerías necesarias
@@ -4580,3 +4580,6 @@ app.get('/api/admin/broadcast-email/:id/recipients', verifyAdminToken, async (re
 
 // =================================================================================
 // ==  OBTENER PUBLICACIONES DE UN USUARIO (PARA SU PERFIL PÚBLICO)               ==
+
+// === EXPORTAR PARA TESTING AUTORIZADO ===
+module.exports = { app, pool, startServer };

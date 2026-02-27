@@ -1824,9 +1824,8 @@ document.addEventListener('DOMContentLoaded', () => {
         platformEditId = pub.id;
         fillPlatformForm(pub);
 
-        document.getElementById('platformSubmitButton').textContent = 'Guardar Cambios';
-        document.getElementById('cancelEditBtn').style.display = 'inline-block';
-        document.getElementById('platformManagementForm').scrollIntoView({ behavior: 'smooth' });
+        const form = document.getElementById('platformPublicationForm') || document.querySelector('.admin-form');
+        if (form) form.scrollIntoView({ behavior: 'smooth' });
     }
 
     async function copyPlatformPublicationToForm(publicationId) {
@@ -1867,7 +1866,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         showCustomAlert('Datos copiados al formulario. Revisa y pulsa "Crear Publicación".');
-        const form = document.getElementById('platformManagementForm') || document.querySelector('.platform-management-form');
+        const form = document.getElementById('platformPublicationForm') || document.querySelector('.admin-form');
         if (form) form.scrollIntoView({ behavior: 'smooth' });
     }
 
@@ -1917,7 +1916,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('platformPubTypeRequest').checked = true;
         }
 
-        populatePlatformSteps(steps);
+        populatePlatformSteps(steps, pub.form_fields || pub.form_options);
 
         if (elements.platformPublicationSubmitBtn) {
             elements.platformPublicationSubmitBtn.textContent = 'Guardar cambios';
@@ -1984,7 +1983,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function populatePlatformSteps(steps) {
+    function populatePlatformSteps(steps, formFields) {
         if (!elements.platformStepInputs) return;
         resetPlatformEditStepsOnly();
         steps.forEach((step, index) => {
@@ -1992,6 +1991,46 @@ document.addEventListener('DOMContentLoaded', () => {
             ensurePlatformStepInput(position);
             const input = document.getElementById(`platformStep${position}`);
             if (input) input.value = step;
+
+            // Load sub-forms if they exist for this step
+            if (formFields && formFields[position]) {
+                const container = elements.platformStepInputs.querySelector(`.admin-step-input[data-step="${position}"]`);
+                if (container) {
+                    const checkbox = container.querySelector('.step-form-checkbox');
+                    const fieldsContainer = container.querySelector('.step-form-fields');
+                    const inputsContainer = container.querySelector('.step-form-inputs');
+
+                    if (checkbox && fieldsContainer && inputsContainer) {
+                        checkbox.checked = true;
+                        fieldsContainer.style.display = 'block';
+
+                        // Clear placeholders
+                        inputsContainer.innerHTML = '';
+
+                        // Parse values
+                        formFields[position].forEach((fieldText, i) => {
+                            const newField = document.createElement('input');
+                            newField.type = 'text';
+                            newField.className = 'step-form-field';
+                            newField.value = fieldText;
+                            newField.placeholder = `Campo ${i + 1}`;
+                            inputsContainer.appendChild(newField);
+                        });
+
+                        // Keep a minimum of 3 fields visually available to add new ones
+                        const currentFields = formFields[position].length;
+                        if (currentFields < 3) {
+                            for (let i = currentFields; i < 3; i++) {
+                                const newField = document.createElement('input');
+                                newField.type = 'text';
+                                newField.className = 'step-form-field';
+                                newField.placeholder = `Campo ${i + 1}`;
+                                inputsContainer.appendChild(newField);
+                            }
+                        }
+                    }
+                }
+            }
         });
     }
 
@@ -2004,6 +2043,25 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 const input = item.querySelector('input');
                 if (input) input.value = '';
+
+                // Reset step forms properties
+                const checkbox = item.querySelector('.step-form-checkbox');
+                if (checkbox) checkbox.checked = false;
+
+                const formFields = item.querySelector('.step-form-fields');
+                if (formFields) formFields.style.display = 'none';
+
+                const inputsContainer = item.querySelector('.step-form-inputs');
+                if (inputsContainer) {
+                    inputsContainer.innerHTML = '';
+                    for (let i = 1; i <= 3; i++) {
+                        const newField = document.createElement('input');
+                        newField.type = 'text';
+                        newField.className = 'step-form-field';
+                        newField.placeholder = `Campo ${i}`;
+                        inputsContainer.appendChild(newField);
+                    }
+                }
             }
         });
         if (elements.platformAddStepBtn) {
@@ -2014,24 +2072,67 @@ document.addEventListener('DOMContentLoaded', () => {
     function ensurePlatformStepInput(position) {
         const maxSteps = 20;
         if (position > maxSteps) return;
-        const existing = document.getElementById(`platformStep${position}`);
+        const existing = document.getElementById(`platformStep${position} `);
         if (existing) return;
 
         const wrapper = document.createElement('div');
         wrapper.className = 'admin-step-input';
+        wrapper.setAttribute('data-step', position);
 
         const label = document.createElement('label');
-        label.setAttribute('for', `platformStep${position}`);
-        label.textContent = `Paso ${position}`;
+        label.setAttribute('for', `platformStep${position} `);
+        label.textContent = `Paso ${position} `;
 
         const input = document.createElement('input');
         input.type = 'text';
-        input.id = `platformStep${position}`;
-        input.placeholder = `Describe el paso ${position}`;
+        input.id = `platformStep${position} `;
+        input.placeholder = `Describe el paso ${position} `;
+
+        // Ensure steps >= 5 also get the step-form configuration block dynamically
+        const toggleWrapper = document.createElement('div');
+        toggleWrapper.className = 'step-form-toggle';
+        toggleWrapper.innerHTML = `
+                            < label class="toggle-label" >
+                <input type="checkbox" class="step-form-checkbox" data-step="${position}">
+                <span>Activar formulario para este paso</span>
+            </label>
+            <div class="step-form-fields" style="display: none;">
+                <p class="form-hint">Define los campos que el usuario debe completar:</p>
+                <div class="step-form-inputs">
+                    <input type="text" class="step-form-field" placeholder="Campo 1">
+                    <input type="text" class="step-form-field" placeholder="Campo 2">
+                    <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
+                </div>
+                <button type="button" class="step-add-field-btn">+ Agregar más campos</button>
+            </div>
+        `;
 
         wrapper.appendChild(label);
         wrapper.appendChild(input);
+        wrapper.appendChild(toggleWrapper);
         elements.platformStepInputs.appendChild(wrapper);
+
+        // Attach event listener natively dynamically
+        const toggleCheck = toggleWrapper.querySelector('.step-form-checkbox');
+        const formFieldsContainer = toggleWrapper.querySelector('.step-form-fields');
+        if (toggleCheck) {
+            toggleCheck.addEventListener('change', (e) => {
+                formFieldsContainer.style.display = e.target.checked ? 'block' : 'none';
+            });
+        }
+
+        const addBtn = toggleWrapper.querySelector('.step-add-field-btn');
+        const inputsContainer = toggleWrapper.querySelector('.step-form-inputs');
+        if (addBtn && inputsContainer) {
+            addBtn.addEventListener('click', () => {
+                const currentCount = inputsContainer.querySelectorAll('.step-form-field').length;
+                const newField = document.createElement('input');
+                newField.type = 'text';
+                newField.className = 'step-form-field';
+                newField.placeholder = `Campo ${currentCount + 1}`;
+                inputsContainer.appendChild(newField);
+            });
+        }
 
         if (elements.platformStepInputs.querySelectorAll('.admin-step-input').length >= maxSteps) {
             elements.platformAddStepBtn.disabled = true;

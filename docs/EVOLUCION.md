@@ -882,25 +882,32 @@ Esto no rompe el producto, pero **sÃ­ rompe la mantenibilidad** (repo pesado, di
 - Definir checklist de release: migraciones, smoke tests frontend, endpoints crÃ­ticos, y validaciÃ³n de cookies/CORS en prod.
 
 
-### 2026-02-20 — Email Broadcast 2.0 y Evolución de Identidad Visual
+### 2026-02-20 ï¿½ Email Broadcast 2.0 y Evoluciï¿½n de Identidad Visual
 
-- **Contexto**: El sistema de difusión original era limitado y la marca necesitaba una actualización visual coherente.
-- **Decisión**:
-  - **Botones de Acción**: Habilitar campos de 'Texto' y 'URL' para el botón de acción.
-  - **Saltos de Línea Inteligentes**: Implementar conversión automática de \
+- **Contexto**: El sistema de difusiï¿½n original era limitado y la marca necesitaba una actualizaciï¿½n visual coherente.
+- **Decisiï¿½n**:
+  - **Botones de Acciï¿½n**: Habilitar campos de 'Texto' y 'URL' para el botï¿½n de acciï¿½n.
+  - **Saltos de Lï¿½nea Inteligentes**: Implementar conversiï¿½n automï¿½tica de \
 \ a \<br>\.
-  - **Seguridad Simplificada**: Refinar el 'Recordatorio de Seguridad' eliminando jerga técnica como 'OTP'.
-  - **Comparativa de Branding**: Estructura visual vertical para mostrar la transición de marca.
+  - **Seguridad Simplificada**: Refinar el 'Recordatorio de Seguridad' eliminando jerga tï¿½cnica como 'OTP'.
+  - **Comparativa de Branding**: Estructura visual vertical para mostrar la transiciï¿½n de marca.
 - **Impacto**: Comunicaciones masivas efectivas, profesionalismo y mayor tasa de clics.
 - **Evidencia (commits)**: aa1defa, 653d488.
 
-### 2026-02-21 — Sincronización de Marca y Contacto Directo
+### 2026-02-21 ï¿½ Sincronizaciï¿½n de Marca y Contacto Directo
 
 - **Cambios Realizados**:
-  - **Landing Page**: Sustitución del texto 'WintonCoin' por el logotipo oficial \wintoncoin_transparent_phrase.png\ en el encabezado.
-  - **Atención al Cliente**: Integración del correo \customerservice@wintoncoin.com\ en el footer de la web y en las plantillas de email.
-  - **UX Footer**: Limpieza de textos redundantes y reestructuración de la columna de contacto.
-- **Impacto**: Mejora significativa en la percepción de marca y profesionalismo del soporte técnico.
-  - **Build Config**: Registro de \legado.html\ en los entry points de Vite para asegurar su disponibilidad en el entorno de producción.
-- **Impacto**: Mejora significativa en la percepción de marca y profesionalismo del soporte técnico.
+  - **Landing Page**: Sustituciï¿½n del texto 'WintonCoin' por el logotipo oficial \wintoncoin_transparent_phrase.png\ en el encabezado.
+  - **Atenciï¿½n al Cliente**: Integraciï¿½n del correo \customerservice@wintoncoin.com\ en el footer de la web y en las plantillas de email.
+  - **UX Footer**: Limpieza de textos redundantes y reestructuraciï¿½n de la columna de contacto.
+- **Impacto**: Mejora significativa en la percepciï¿½n de marca y profesionalismo del soporte tï¿½cnico.
+  - **Build Config**: Registro de \legado.html\ en los entry points de Vite para asegurar su disponibilidad en el entorno de producciï¿½n.
+- **Impacto**: Mejora significativa en la percepciï¿½n de marca y profesionalismo del soporte tï¿½cnico.
 - **Evidencia (commits)**: e896969, e981ebf.
+
+### 2026-02-27 - Fijacion de Formularios, Arquitectura de Testing y Bugfix
+
+- **Contexto**: Bug en configuracion de sub-formularios Admin y necesidad de validacion estricta.
+- **Decision**: Reescritura frontend para inyectar formFields. Integracion de Unit Tests con Jest (Mocking DB, Cron y Migrations). Bugfix critico de escapeHtml en emailService.js resuelto.
+- **Impacto**: UI restaurada, Testing modular blindando rutas de backend.
+- **Evidencia (commits)**: pendiente de push.
