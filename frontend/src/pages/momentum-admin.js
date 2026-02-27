@@ -193,6 +193,7 @@ async function loadApplicants() {
                                 <td>
                                     <select class="mma-tier-select" data-profile-id="${a.id}">
                                         <option value="">Seleccionar...</option>
+                                        <option value="VISIONARIO">👀 Visionario</option>
                                         <option value="BRONCE">🥉 Bronce</option>
                                         <option value="PLATA">🥈 Plata</option>
                                         <option value="ORO">🥇 Oro</option>
@@ -279,6 +280,10 @@ async function loadProfiles() {
                     <div class="mma-stat-card__label">Total Influencers</div>
                 </div>
                 <div class="mma-stat-card">
+                    <div class="mma-stat-card__value">${profiles.filter(p => p.tier === 'VISIONARIO').length}</div>
+                    <div class="mma-stat-card__label">👀 Visionario</div>
+                </div>
+                <div class="mma-stat-card">
                     <div class="mma-stat-card__value">${profiles.filter(p => p.tier === 'BRONCE').length}</div>
                     <div class="mma-stat-card__label">🥉 Bronce</div>
                 </div>
@@ -360,6 +365,7 @@ async function loadCampaigns() {
                             <th>Título</th>
                             <th>Estado</th>
                             <th>Tipo</th>
+                            <th>👀 Visionario</th>
                             <th>🥉 Bronce</th>
                             <th>🥈 Plata</th>
                             <th>🥇 Oro</th>
@@ -383,6 +389,7 @@ async function loadCampaigns() {
                                     <td><strong>${escapeHtml(c.title)}</strong></td>
                                     <td>${statusBadge}</td>
                                     <td>${typeBadge}</td>
+                                    <td>${parseFloat(c.base_pay_visionario || 0).toLocaleString('es-ES')}</td>
                                     <td>${parseFloat(c.base_pay_bronce).toLocaleString('es-ES')}</td>
                                     <td>${parseFloat(c.base_pay_plata).toLocaleString('es-ES')}</td>
                                     <td>${parseFloat(c.base_pay_oro).toLocaleString('es-ES')}</td>
@@ -418,6 +425,7 @@ async function loadCampaigns() {
 async function createCampaign() {
     const title = document.getElementById('mma-camp-title')?.value?.trim();
     const description = document.getElementById('mma-camp-desc')?.value?.trim();
+    const base_pay_visionario = parseFloat(document.getElementById('mma-camp-visionario')?.value) || 0;
     const base_pay_bronce = parseFloat(document.getElementById('mma-camp-bronce')?.value) || 0;
     const base_pay_plata = parseFloat(document.getElementById('mma-camp-plata')?.value) || 0;
     const base_pay_oro = parseFloat(document.getElementById('mma-camp-oro')?.value) || 0;
@@ -429,7 +437,7 @@ async function createCampaign() {
         return;
     }
 
-    if (base_pay_bronce <= 0 && base_pay_plata <= 0 && base_pay_oro <= 0 && base_pay_platino <= 0) {
+    if (base_pay_visionario <= 0 && base_pay_bronce <= 0 && base_pay_plata <= 0 && base_pay_oro <= 0 && base_pay_platino <= 0) {
         showToast('Al menos un pago base debe ser mayor a 0.', 'error');
         return;
     }
@@ -438,7 +446,7 @@ async function createCampaign() {
         const response = await adminFetch('/api/momentum/admin/campaigns', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, description, base_pay_bronce, base_pay_plata, base_pay_oro, base_pay_platino, allow_multiple })
+            body: JSON.stringify({ title, description, base_pay_visionario, base_pay_bronce, base_pay_plata, base_pay_oro, base_pay_platino, allow_multiple })
         });
 
         const result = await response.json();
@@ -448,6 +456,7 @@ async function createCampaign() {
             // Limpiar formulario
             document.getElementById('mma-camp-title').value = '';
             document.getElementById('mma-camp-desc').value = '';
+            document.getElementById('mma-camp-visionario').value = '';
             document.getElementById('mma-camp-bronce').value = '';
             document.getElementById('mma-camp-plata').value = '';
             document.getElementById('mma-camp-oro').value = '';

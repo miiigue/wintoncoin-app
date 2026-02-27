@@ -20,6 +20,7 @@ const API_URL = getApiUrl();
 
 // Tarifas base de ejemplo por tier (se sobreescriben si hay campañas reales)
 const DEFAULT_BASE_PAYS = {
+    VISIONARIO: 100,
     BRONCE: 333,
     PLATA: 666,
     ORO: 1000,
@@ -27,7 +28,7 @@ const DEFAULT_BASE_PAYS = {
 };
 
 // Estado local del simulador
-let selectedTier = 'BRONCE';
+let selectedTier = 'VISIONARIO';
 let currentMultiplier = 15;
 let landingData = null;
 
@@ -474,6 +475,7 @@ function escapeHtml(str) {
 function getTierEmoji(tier) {
     const emojis = {
         PENDIENTE: '⏳',
+        VISIONARIO: '👀',
         BRONCE: '🥉',
         PLATA: '🥈',
         ORO: '🥇',

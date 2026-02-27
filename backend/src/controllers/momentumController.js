@@ -571,7 +571,7 @@ async function assignTier(req, res) {
  * Crea una nueva campaña de misiones.
  */
 async function createCampaign(req, res) {
-    const { title, description, base_pay_bronce, base_pay_plata, base_pay_oro, base_pay_platino } = req.body;
+    const { title, description, base_pay_visionario, base_pay_bronce, base_pay_plata, base_pay_oro, base_pay_platino } = req.body;
 
     const pool = req.app.get('pool');
     const client = await pool.connect();
@@ -595,6 +595,7 @@ async function createCampaign(req, res) {
         const campaign = await momentumService.createCampaign(client, {
             title,
             description,
+            base_pay_visionario: parseFloat(base_pay_visionario) || 0,
             base_pay_bronce: parseFloat(base_pay_bronce) || 0,
             base_pay_plata: parseFloat(base_pay_plata) || 0,
             base_pay_oro: parseFloat(base_pay_oro) || 0,
