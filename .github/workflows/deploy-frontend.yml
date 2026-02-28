@@ -27,10 +27,10 @@ jobs:
           npm run build
       
       - name: Sincronizar archivos por FTP
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        uses: kevin-david/ftp-sync@v2
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./frontend/dist/
-          server-dir: /
+          local_dir: frontend/dist/
+          remote_dir: /
