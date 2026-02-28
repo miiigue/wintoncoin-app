@@ -161,4 +161,6 @@ Análisis y propuesta de arquitectura de Despliegue Continuo (Continuous Deploym
 ### Acciones
 - Revisión de `package.json` y estructura del proyecto.
 - Propuesta de soluciones basadas en Hostinger Git Integration (Webhooks) y GitHub Actions.
-- **Implementación de GitHub Actions**: Creación del flujo automatizado `.github/workflows/deploy-frontend.yml` para despliegue por FTP exclusivo de la carpeta `frontend/` hacia `public_html/`. Se protege el backend de exposición pública cumpliendo el estándar **Zero Hardcoded Secrets**.
+- **Implementación de GitHub Actions (CD Ciberseguro)**: Creación del flujo automatizado `.github/workflows/deploy-frontend.yml` para despliegue por FTP exclusivo de la carpeta `frontend/dist/`. 
+    - Implementación de script nativo **LFTP** en Ubuntu para evitar comportamientos anómalos de subcarpetas (`public_html/public_html`) causados por plugins obstinados de terceros (`ftp-deploy-action`).
+    - Se protege el backend de exposición pública cumpliendo el estándar **Zero Hardcoded Secrets** para Hostinger.
