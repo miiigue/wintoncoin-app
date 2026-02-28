@@ -26,11 +26,12 @@ jobs:
           npm install
           npm run build
       
-      - name: Sincronizar archivos por FTP
-        uses: kevin-david/ftp-sync@v2
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local_dir: frontend/dist/
-          remote_dir: /
+      - name: Sincronizar archivos por lftp (Script Nativo)
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          sudo apt-get update && sudo apt-get install -y lftp
+          cd frontend/dist
+          lftp -c "set ssl:verify-certificate no; open -u $FTP_USERNAME,$FTP_PASSWORD $FTP_SERVER; mirror -Rnev ./ ./ --parallel=10"
