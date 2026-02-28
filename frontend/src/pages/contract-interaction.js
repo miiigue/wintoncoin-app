@@ -258,6 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
     checkPublicationPermissions();
     loadReferralSettings();
     setupShareReferral();
+    fetchMomentumProfileStatus(); // Dynamic Momentum Button Check
 
     initPWAInstall(); // Inicializar botón de instalación PWA
 
@@ -292,6 +293,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 allow_sell_publications: true,
                 allow_donation_publications: true
             };
+        }
+    }
+
+    async function fetchMomentumProfileStatus() {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        try {
+            const response = await fetch(`${API_URL}/api/momentum/profile`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const profile = await response.json();
+                // Check if profile.username matches storedUsername to prevent multi-tab localstorage leaks
+                if (profile && profile.username === storedUsername && profile.tier !== 'PENDIENTE' && profile.tier !== 'RECHAZADO') {
+                    const momentumLink = document.getElementById('momentumMenuLink');
+                    if (momentumLink) {
+                        momentumLink.style.display = 'block';
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('[Momentum] Error checking profile status:', error);
         }
     }
 

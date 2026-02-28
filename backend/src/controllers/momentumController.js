@@ -111,6 +111,23 @@ async function applyAsInfluencer(req, res) {
         return res.status(400).json({ message: 'El link de red social debe ser una URL válida.' });
     }
 
+    // Sanitización básica para evitar inyección de código (XSS)
+    const sanitizeHTML = (str) => {
+        if (!str) return str;
+        return str.replace(/[&<>'"]/g,
+            tag => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#39;',
+                '"': '&quot;'
+            }[tag] || tag)
+        );
+    };
+
+    const sanitizedNickname = sanitizeHTML(nickname.trim());
+    const sanitizedNiche = niche ? sanitizeHTML(niche.trim()) : null;
+
     const pool = req.app.get('pool');
     const client = await pool.connect();
 
@@ -118,12 +135,12 @@ async function applyAsInfluencer(req, res) {
         await client.query('BEGIN');
 
         const profile = await momentumService.createProfile(client, userId, {
-            nickname: nickname.trim(),
+            nickname: sanitizedNickname,
             social_platform: social_platform.trim(),
             social_link: social_link.trim(),
             social_screenshot_url: social_screenshot_url || null,
             followers_count: parseInt(followers_count) || 0,
-            niche: niche ? niche.trim() : null
+            niche: sanitizedNiche
         });
 
         // Auditoría
@@ -564,6 +581,67 @@ async function assignTier(req, res) {
     }
 }
 
+/**
+ * PUT /api/momentum/admin/profiles/:id/reject
+ * Rechaza la postulación de un influencer.
+ */
+async function rejectProfile(req, res) {
+    const profileId = parseInt(req.params.id);
+    if (isNaN(profileId)) {
+        return res.status(400).json({ message: 'ID de perfil inválido.' });
+    }
+
+    const { admin_notes } = req.body;
+    if (!admin_notes || admin_notes.trim().length === 0) {
+        return res.status(400).json({ message: 'La nota de rechazo es obligatoria (motivo para auditoría).' });
+    }
+
+    const pool = req.app.get('pool');
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        const profile = await momentumService.rejectProfile(client, profileId, admin_notes);
+
+        // Notificación al usuario si podemos obtener su nombre
+        const userResult = await client.query('SELECT username FROM users WHERE id = $1', [profile.user_id]);
+        const username = userResult.rows[0]?.username;
+
+        if (username) {
+            await client.query(
+                `INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`,
+                [
+                    username,
+                    `❌ Tu postulación a Winton Momentum ha sido rechazada. Motivo: ${admin_notes}`
+                ]
+            );
+        }
+
+        // Auditoría
+        if (req.logAuditEvent) {
+            await req.logAuditEvent(client, req, {
+                eventType: 'momentum.profile_rejected',
+                actorUsername: req.user?.username || 'admin',
+                targetUsername: username,
+                metadata: { profile_id: profileId, reason: admin_notes }
+            });
+        }
+
+        await client.query('COMMIT');
+        res.json({
+            message: `El perfil de ${username || 'influencer'} ha sido rechazado correctamente.`,
+            profile
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[MOMENTUM ADMIN] Error al rechazar perfil:', error);
+        res.status(error.status || 500).json({ message: error.message || 'Error interno.' });
+    } finally {
+        client.release();
+    }
+}
+
 // --- CAMPAÑAS (Admin) ---
 
 /**
@@ -944,5 +1022,6 @@ module.exports = {
     getAdminSubmissions,
     approveSubmission,
     rejectSubmission,
-    exportLedger
+    exportLedger,
+    rejectProfile
 };

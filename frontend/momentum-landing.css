@@ -136,6 +136,105 @@ body.momentum-landing {
     animation: mm-fade-in 0.6s ease 0.1s both;
 }
 
+.mm-hero__title-wrapper {
+    display: none;
+    /* Deprecated */
+}
+
+/* --- Hero Social Icons Animation --- */
+.mm-hero__social-anim {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 24px;
+    margin-bottom: 32px;
+}
+
+.mm-hero-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--mm-bg-card);
+    border: 1px solid var(--mm-border);
+    animation: mm-bounce-icon 3s infinite ease-in-out;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.mm-hero-icon svg {
+    width: 22px;
+    height: 22px;
+    fill: currentColor;
+    transition: transform 0.3s ease;
+}
+
+.mm-hero-icon:hover svg {
+    transform: scale(1.15);
+}
+
+.mm-hero-icon.ig {
+    color: #E1306C;
+    animation-delay: 0s;
+}
+
+.mm-hero-icon.ig:hover {
+    box-shadow: 0 0 20px rgba(225, 48, 108, 0.6);
+    transform: scale(1.25) translateY(-6px) rotate(-8deg);
+    border-color: #E1306C;
+}
+
+.mm-hero-icon.tk {
+    color: #ffffff;
+    animation-delay: 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+
+.mm-hero-icon.tk:hover {
+    box-shadow: -4px 4px 0 #00f2fe, 4px -4px 0 #fe0979;
+    transform: scale(1.25) translateY(-6px);
+    border-color: #ffffff;
+}
+
+.mm-hero-icon.yt {
+    color: #FF0000;
+    animation-delay: 0.4s;
+}
+
+.mm-hero-icon.yt:hover {
+    box-shadow: 0 0 20px rgba(255, 0, 0, 0.6);
+    transform: scale(1.25) translateY(-6px) rotate(8deg);
+    border-color: #FF0000;
+}
+
+.mm-hero-icon.x {
+    color: #ffffff;
+    animation-delay: 0.6s;
+}
+
+.mm-hero-icon.x:hover {
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+    transform: scale(1.25) translateY(-6px) rotate(4deg);
+    border-color: #ffffff;
+}
+
+@keyframes mm-bounce-icon {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
 .mm-hero__subtitle {
     font-size: 1.1rem;
     color: var(--mm-text-secondary);

@@ -106,6 +106,9 @@ function createMomentumRouter(pool, verifyUserToken, verifyAdminToken, logAuditE
     router.post('/admin/submissions/:id/approve', verifyAdminToken, momentumController.approveSubmission);
     router.post('/admin/submissions/:id/reject', verifyAdminToken, momentumController.rejectSubmission);
 
+    // --- Rechazo de Postulantes ---
+    router.put('/admin/profiles/:id/reject', verifyAdminToken, momentumController.rejectProfile);
+
     // --- Exportación ---
     router.get('/admin/export-ledger', verifyAdminToken, momentumController.exportLedger);
 

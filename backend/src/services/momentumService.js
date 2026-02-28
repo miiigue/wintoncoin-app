@@ -231,6 +231,39 @@ async function assignTier(client, profileId, newTier, adminNotes) {
     return result.rows[0];
 }
 
+/**
+ * Rechaza la postulación de un influencer (Admin).
+ * Cambia el tier a 'RECHAZADO', deteniendo el proceso de aplicación definitivamente.
+ * @param {object} client - Cliente PostgreSQL
+ * @param {number} profileId - ID del perfil
+ * @param {string} adminNotes - Razón del rechazo obligatoria
+ * @returns {object} Perfil actualizado
+ */
+async function rejectProfile(client, profileId, adminNotes) {
+    const result = await client.query(`
+        UPDATE momentum_profiles
+        SET tier = 'RECHAZADO',
+            admin_notes = COALESCE($1, admin_notes),
+            updated_at = NOW()
+        WHERE id = $2 AND tier = 'PENDIENTE'
+        RETURNING *
+    `, [adminNotes, profileId]);
+
+    if (result.rowCount === 0) {
+        throw { status: 404, message: 'Perfil de influencer no encontrado o ya no está en estado PENDIENTE.' };
+    }
+
+    // Liberar el cupo ocupado de la página de public landing
+    await client.query(`
+        UPDATE momentum_global_config
+        SET occupied_slots = GREATEST(0, occupied_slots - 1),
+            updated_at = NOW()
+        WHERE id = 1
+    `);
+
+    return result.rows[0];
+}
+
 // ============================================================================
 // CAMPAÑAS / TAREAS
 // ============================================================================
@@ -867,5 +900,6 @@ module.exports = {
     // Datos públicos y saldos
     getRecentPayments,
     getInfluencerBalance,
-    exportLedger
+    exportLedger,
+    rejectProfile
 };
