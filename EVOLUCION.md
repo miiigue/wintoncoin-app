@@ -152,3 +152,13 @@ Corrección de un bug donde el campo `repeat_cooldown_hours` se almacenaba corre
 - **Defensa en profundidad**: Doble protección (feed + validación backend) para que incluso si el frontend falla, el servidor bloquee la repetición prematura.
 - **UX Informativa**: El mensaje de error incluye el tiempo restante exacto para que el usuario sepa cuándo puede volver.
 - **Auditabilidad**: Documentado en `EVOLUCION.md`. Código comentado exhaustivamente.
+
+## [2026-02-27] - Automatización de Despliegue (Investigación CD)
+
+### Descripción
+Análisis y propuesta de arquitectura de Despliegue Continuo (Continuous Deployment) para conectar el repositorio de GitHub con Hostinger.
+
+### Acciones
+- Revisión de `package.json` y estructura del proyecto.
+- Propuesta de soluciones basadas en Hostinger Git Integration (Webhooks) y GitHub Actions.
+- **Implementación de GitHub Actions**: Creación del flujo automatizado `.github/workflows/deploy-frontend.yml` para despliegue por FTP exclusivo de la carpeta `frontend/` hacia `public_html/`. Se protege el backend de exposición pública cumpliendo el estándar **Zero Hardcoded Secrets**.
