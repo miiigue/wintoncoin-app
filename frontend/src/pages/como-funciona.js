@@ -3,7 +3,7 @@
 // ============================================================================
 // Esta página es principalmente informativa, solo necesita las utilidades base
 
-import '../modules/index.js';
+import { getApiUrl } from '../modules/index.js';
 
 // La página de "cómo funciona" es principalmente estática
 // Solo inicializamos los componentes base de la aplicación
@@ -19,7 +19,7 @@ if (document.readyState === 'interactive' || document.readyState === 'complete')
     initYouTubeAcademy();
 }
 
-const API_URL = ''; // Usamos rutas relativas para compatibilidad total con el dominio actual
+const API_URL = getApiUrl(); // Usamos la configuración centralizada de la aplicación
 
 function initYouTubeAcademy() {
     const modal = document.getElementById('youtubeModal');
