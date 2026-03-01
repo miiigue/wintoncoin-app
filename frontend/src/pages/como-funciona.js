@@ -19,9 +19,7 @@ if (document.readyState === 'interactive' || document.readyState === 'complete')
     initYouTubeAcademy();
 }
 
-const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:3000'
-    : 'https://server.wintoncoin.com';
+const API_URL = ''; // Usamos rutas relativas para compatibilidad total con el dominio actual
 
 function initYouTubeAcademy() {
     const modal = document.getElementById('youtubeModal');
