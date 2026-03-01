@@ -164,3 +164,27 @@ Análisis y propuesta de arquitectura de Despliegue Continuo (Continuous Deploym
 - **Implementación de GitHub Actions (CD Ciberseguro)**: Creación del flujo automatizado `.github/workflows/deploy-frontend.yml` para despliegue por FTP exclusivo de la carpeta `frontend/dist/`. 
     - Implementación de script nativo **LFTP** en Ubuntu para evitar comportamientos anómalos de subcarpetas (`public_html/public_html`) causados por plugins obstinados de terceros (`ftp-deploy-action`).
     - Se protege el backend de exposición pública cumpliendo el estándar **Zero Hardcoded Secrets** para Hostinger.
+### [2026-03-01] - Winton Academy CMS & Sistema de Tutoriales Interactivos
+
+#### Descripción
+Implementación de un sistema integral de gestión de contenidos (CMS) para la "Winton Academy", permitiendo administrar dinámicamente los tutoriales interactivos que guían a los usuarios en el ecosistema WintonCoin.
+
+#### Cambios realizados
+- **CMS de Academia**: Implementación completa de un sistema de gestión de videos dentro del Admin Panel. Los administradores pueden agregar, ocultar, reordenar y eliminar videos de YouTube de forma dinámica.
+- **Backend (Arquitectura)**:
+    - **Fase de Datos**: Creación de la tabla `academy_videos` mediante la migración `036_create_academy_videos.js`.
+    - **Controlador API**: Implementación de `academyController.js` con soporte para CRUD y respuestas estandarizadas (`success: true`).
+    - **Rutas**: Creación de `academyRoutes.js` con separación estricta entre rutas públicas (`/public`) y protegidas por administrador (`/all`, `/add`, etc.).
+- **Admin Panel (UI/UX)**:
+    - **Nueva Sección**: Añadido el módulo "Winton Academy" al sidebar del panel de control.
+    - **Gestor de Contenidos**: Formulario con detección inteligente de YouTube IDs (soporta URLs largas, cortas e IDs directos).
+    - **Visualización**: Tabla de administración con previsualización de miniaturas (thumbnails) oficiales de YouTube.
+    - **Interactividad**: Botones de acción rápida para publicar/ocultar videos y borrado definitivo con diálogos de confirmación premium.
+- **Página Pública (`como-funciona.html`)**:
+    - **Galería Dinámica**: Refactorización de la cuadrícula de videos para cargar datos desde la API del CMS en tiempo real vía `fetch`.
+    - **Optimización (Lazy Loading)**: El reproductor de video se carga dentro de un modal solo cuando el usuario hace clic, mejorando drásticamente el rendimiento inicial de la página.
+- **Estabilidad y Ciberseguridad**:
+    - **Resolución de Conflictos**: Fix de un bug de routing que causaba cierres de sesión (401) al solaparse middlewares de usuario y administrador.
+    - **Integridad de Datos**: Corregido el envío de payloads del frontend (snake_case) para coincidir con la estructura de la base de datos PostgreSQL.
+    - **Codificación**: Reparación de errores de encoding (UTF-8) en textos informativos para visualización correcta de tildes en español.
+- **Mantenimiento de Servidor**: Limpieza forzada de procesos de Node.js en memoria para asegurar la persistencia de los cambios del CMS. ✅ DESPLEGADO Y AUDITABLE
