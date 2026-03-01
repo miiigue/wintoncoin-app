@@ -101,7 +101,15 @@ document.addEventListener('DOMContentLoaded', () => {
         emailBroadcastForm: document.getElementById('emailBroadcastForm'),
         broadcastTargetGroup: document.getElementById('broadcastTargetGroup'),
         broadcastSpecificUserGroup: document.getElementById('broadcastSpecificUserGroup'),
-        broadcastHistoryContainer: document.getElementById('email-broadcast-history-container')
+        broadcastHistoryContainer: document.getElementById('email-broadcast-history-container'),
+
+        // --- WINTON ACADEMY ---
+        academySection: document.getElementById('academy-section'),
+        academyVideoForm: document.getElementById('academyVideoForm'),
+        academyTableContainer: document.getElementById('academy-table-container'),
+        academyVideoUrl: document.getElementById('academyVideoUrl'),
+        academyVideoTitle: document.getElementById('academyVideoTitle'),
+        academyVideoOrder: document.getElementById('academyVideoOrder')
     };
 
     // --- Inicialización ---
@@ -410,6 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showNotificationsTab('notifications-push');
         }
         else if (sectionId === 'audit-log') loadAuditLog();
+        else if (sectionId === 'academy') loadAcademyVideos();
     }
 
     function showBoosterTab(tabId) {
@@ -2772,6 +2781,183 @@ document.addEventListener('DOMContentLoaded', () => {
             </table>
         `;
         elements.broadcastHistoryContainer.innerHTML = tableHTML;
+    }
+
+    // --- WINTON ACADEMY MANAGEMENT ---
+
+    async function loadAcademyVideos() {
+        if (!elements.academyTableContainer) return;
+        elements.academyTableContainer.innerHTML = '<div class="loading-spinner"></div>';
+
+        try {
+            const videos = await apiFetch('/api/academy/all');
+            renderAcademyVideosTable(videos);
+        } catch (error) {
+            elements.academyTableContainer.innerHTML = `<p class="error-message">Error al cargar videos: ${error.message}</p>`;
+        }
+    }
+
+    function renderAcademyVideosTable(videos) {
+        if (!elements.academyTableContainer) return;
+
+        if (!videos || videos.length === 0) {
+            elements.academyTableContainer.innerHTML = '<p class="empty-message">No hay videos interactivos registrados actualmente.</p>';
+            return;
+        }
+
+        const tableHTML = `
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">Orden</th>
+                        <th>Video</th>
+                        <th>Título Interactivo</th>
+                        <th style="width: 100px;">ID YouTube</th>
+                        <th style="width: 100px;">Estado</th>
+                        <th style="width: 150px;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${videos.map(video => getAcademyVideoRowHTML(video)).join('')}
+                </tbody>
+            </table>
+        `;
+
+        elements.academyTableContainer.innerHTML = tableHTML;
+
+        // Attach Event Listeners to the dynamically generated buttons
+        elements.academyTableContainer.querySelectorAll('.action-button-admin').forEach(btn => {
+            btn.addEventListener('click', handleAcademyVideoAction);
+        });
+    }
+
+    function getAcademyVideoRowHTML(video) {
+        const isActive = video.is_active;
+        const statusClass = isActive ? 'active' : 'suspended';
+        const statusText = isActive ? '✅ Público' : '❌ Oculto';
+
+        // Use the official thumbnail for the video
+        const thumbUrl = `https://img.youtube.com/vi/${escapeHtml(video.youtube_id)}/hqdefault.jpg`;
+
+        return `
+            <tr>
+                <td align="center"><strong>${escapeHtml(video.order_num)}</strong></td>
+                <td>
+                    <div style="width: 120px; height: 68px; border-radius: 4px; overflow: hidden; background: #000;">
+                        <img src="${thumbUrl}" alt="Thumbnail" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                </td>
+                <td style="font-weight: bold;">${escapeHtml(video.title)}</td>
+                <td><code>${escapeHtml(video.youtube_id)}</code></td>
+                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                <td>
+                    <button class="action-button-admin ${isActive ? 'danger' : 'approve'}" 
+                            data-action="toggle-video-status" 
+                            data-video-id="${escapeHtml(video.id)}"
+                            data-current-status="${isActive}">
+                        ${isActive ? 'Ocultar' : 'Publicar'}
+                    </button>
+                    <button class="action-button-admin delete" 
+                            data-action="delete-video" 
+                            data-video-id="${escapeHtml(video.id)}">
+                        🗑️
+                    </button>
+                </td>
+            </tr>
+        `;
+    }
+
+    if (elements.academyVideoForm) {
+        elements.academyVideoForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const submitBtn = elements.academyVideoForm.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+
+            const youtubeUrl = elements.academyVideoUrl.value.trim();
+            const title = elements.academyVideoTitle.value.trim();
+            const orderNum = parseInt(elements.academyVideoOrder.value, 10) || 0;
+
+            if (!youtubeUrl || !title) {
+                showCustomAlert("Por favor, ingresa el enlace y el título del video.");
+                return;
+            }
+
+            submitBtn.textContent = 'Guardando...';
+            submitBtn.disabled = true;
+
+            try {
+                const result = await apiFetch('/api/academy/add', {
+                    method: 'POST',
+                    body: JSON.stringify({ youtube_url: youtubeUrl, title, order_num: orderNum })
+                });
+
+                if (result.success) {
+                    showCustomAlert(`✅ Tutorial agregado exitosamente: ${result.video.title}`);
+                    elements.academyVideoForm.reset();
+                    loadAcademyVideos(); // Refresh table
+                }
+            } catch (error) {
+                showCustomAlert(`❌ Error al agregar video: ${error.message}`);
+            } finally {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+    }
+
+    async function handleAcademyVideoAction(e) {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+
+        const action = btn.dataset.action;
+        const videoId = btn.dataset.videoId;
+
+        if (action === 'toggle-video-status') {
+            const isCurrentlyActive = btn.dataset.currentStatus === 'true';
+            const newStatus = !isCurrentlyActive;
+
+            btn.disabled = true;
+            try {
+                const result = await apiFetch(`/api/academy/${videoId}/status`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ is_active: newStatus })
+                });
+
+                if (result.success) {
+                    loadAcademyVideos(); // Refresh visual
+                }
+            } catch (error) {
+                showCustomAlert(`Error al actualizar estado: ${error.message}`);
+                btn.disabled = false;
+            }
+
+        } else if (action === 'delete-video') {
+            const confirmed = await new Promise(resolve => {
+                showCustomConfirm(
+                    `🗑️ ¿Estás completamente seguro de ELIMINAR este tutorial interactivo?\n\nEsta acción no se puede deshacer y desaparecerá de la página 'Cómo Funciona'.`,
+                    () => resolve(true),
+                    () => resolve(false)
+                );
+            });
+
+            if (!confirmed) return;
+
+            btn.disabled = true;
+            try {
+                const result = await apiFetch(`/api/academy/${videoId}`, {
+                    method: 'DELETE'
+                });
+
+                if (result.success) {
+                    showCustomAlert("✅ Video eliminado permanentemente.");
+                    loadAcademyVideos();
+                }
+            } catch (error) {
+                showCustomAlert(`Error al eliminar: ${error.message}`);
+                btn.disabled = false;
+            }
+        }
     }
 
     // Re-vincular el form de Push que podría haberse perdido si no se ejecuta bien

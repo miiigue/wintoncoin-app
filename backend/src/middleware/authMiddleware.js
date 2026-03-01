@@ -55,27 +55,27 @@ const authenticateToken = (req, res, next) => {
         next();
     });
 };
-
 /**
  * Middleware para autenticar ADMINISTRADORES.
  * Usa ADMIN_SECRET_KEY y cookies 'admin_token'.
  * ESTÁNDAR PROFESIONAL: Separación estricta de roles.
  */
 const authenticateAdmin = (req, res, next) => {
-    const token = req.cookies ? req.cookies.admin_token : null;
+    const token = req.cookies && req.cookies.admin_token ? req.cookies.admin_token : null;
 
     if (!token) {
         return res.status(401).json({ message: 'Acceso denegado. Se requiere autenticación de administrador.' });
     }
 
-    try {
-        const adminUser = jwt.verify(token, process.env.ADMIN_SECRET_KEY);
-        req.user = { ...adminUser, role: 'admin' };
+    jwt.verify(token, process.env.ADMIN_SECRET_KEY, (err, user) => {
+        if (err) {
+            console.error('[AUTH ADMIN] Token inválido:', err.message);
+            return res.status(403).json({ message: 'Token de administrador inválido o expirado.' });
+        }
+
+        req.user = { ...user, role: 'admin' };
         next();
-    } catch (err) {
-        console.error('[AUTH ADMIN] Token inválido:', err.message);
-        return res.status(403).json({ message: 'Token de administrador inválido o expirado.' });
-    }
+    });
 };
 
 module.exports = {

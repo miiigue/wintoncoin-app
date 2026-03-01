@@ -173,6 +173,10 @@ async function startServer() {
         const createMomentumRouter = require('./src/routes/momentumRoutes');
         app.use('/api/momentum', createMomentumRouter(pool, verifyUserToken, verifyAdminToken, logAuditEvent));
 
+        // --- NUEVO: Rutas de Winton Academy CMS ---
+        const academyRoutes = require('./src/routes/academyRoutes');
+        app.use('/api/academy', academyRoutes);
+
 
         // =================================================================================
         // ==  NUEVO FLUJO DE REGISTRO CON VERIFICACIÓN POR SMS (FASE 1: SOLICITUD)  ==
@@ -979,10 +983,9 @@ async function startServer() {
                 res.cookie('admin_token', accessToken, {
                     httpOnly: true, // No accesible vía JavaScript del navegador (previene XSS robo de token)
                     secure: process.env.NODE_ENV === 'production', // Solo HTTPS en producción
-                    // Para frontend en Hostinger (dominio distinto al backend), necesitamos cookies cross-site:
-                    // SameSite=None + Secure=true (estándar moderno).
                     sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
-                    maxAge: 8 * 60 * 60 * 1000 // 8 horas en milisegundos
+                    maxAge: 8 * 60 * 60 * 1000, // 8 horas en milisegundos
+                    path: '/' // CRÍTICO: Asegura que el cookie fluye a /api/academy y no solo a /api/admin
                 });
 
                 res.json({ message: "Login exitoso" });
@@ -993,7 +996,7 @@ async function startServer() {
 
         // NUEVO: Endpoint para Logout (Borrar cookie)
         app.post('/api/admin/logout', (req, res) => {
-            res.clearCookie('admin_token');
+            res.clearCookie('admin_token', { path: '/' });
             res.json({ message: "Logout exitoso" });
         });
 

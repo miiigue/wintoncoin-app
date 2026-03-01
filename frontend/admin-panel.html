@@ -40,6 +40,8 @@
                     <li><a href="#audit-log" class="nav-link" data-section="audit-log">Auditoría</a></li>
                     <li><a href="#notifications" class="nav-link" data-section="notifications">Notificaciones</a></li>
                     <li><a href="https://www.crm.wintoncoin.com" target="_blank" class="nav-link">CRM</a></li>
+                    <li><a href="#academy" class="nav-link" data-section="academy" style="color: #4da6ff;">🎓 Winton
+                            Academy</a></li>
                     <li><a href="momentum-admin.html" class="nav-link" style="color: #FFD700;">⚡ Momentum</a></li>
                 </ul>
             </nav>
@@ -694,6 +696,56 @@
                     <p>Registro de todas las recompensas distribuidas mensualmente.</p>
                     <div id="boosters-payments-log-container" class="table-container-admin">
                         <div class="loading-spinner"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Winton Academy Section -->
+            <section id="academy-section" class="admin-section">
+                <h1>Winton Academy 🎓</h1>
+                <p>Gestiona los videotutoriales interactivos mostrados en la página "Cómo Funciona".</p>
+
+                <div class="admin-grid" style="grid-template-columns: 1fr;">
+                    <!-- Formulario Nuevo Video -->
+                    <div class="admin-card">
+                        <h3>Agregar Nuevo Video</h3>
+                        <form id="academyVideoForm"
+                            style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
+                            <div class="form-group">
+                                <label for="academyVideoUrl">Enlace de YouTube:</label>
+                                <input type="url" id="academyVideoUrl" class="admin-input"
+                                    placeholder="Ej: https://youtu.be/bx0BuO7l7MQ" required
+                                    style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                                <small style="color: #888; display: block; margin-top: 5px;">El sistema detectará
+                                    automáticamente el ID del video (acepta links completos o cortos).</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="academyVideoTitle">Título Interactivo:</label>
+                                <input type="text" id="academyVideoTitle" class="admin-input"
+                                    placeholder="Ej: Aprende a crear tu primera publicación WintonCoin 🚀" required
+                                    style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                            </div>
+
+                            <div class="form-group"
+                                style="display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: 10px;">
+                                <label for="academyVideoOrder">Orden Lógico (#):</label>
+                                <input type="number" id="academyVideoOrder" class="admin-input" placeholder="0"
+                                    value="0"
+                                    style="padding: 10px; border-radius: 5px; border: 1px solid #ccc; width: 100px;">
+                            </div>
+
+                            <button type="submit" class="admin-btn primary action-button-admin"
+                                style="align-self: flex-start;">Guardar Tutorial</button>
+                        </form>
+                    </div>
+
+                    <!-- Lista de Videos -->
+                    <div class="admin-card">
+                        <h3>Videos en Cartelera</h3>
+                        <div id="academy-table-container" class="table-container-admin" style="margin-top: 15px;">
+                            <div class="loading-spinner"></div>
+                        </div>
                     </div>
                 </div>
             </section>

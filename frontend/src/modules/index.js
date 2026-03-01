@@ -59,7 +59,6 @@ import {
 
 import { linkify } from './linkify.js';
 import { togglePasswordVisibility } from './password-toggle.js';
-import { registerSW } from 'virtual:pwa-register';
 
 // Solo ejecutar en el navegador (no en Node.js)
 if (typeof window !== 'undefined') {
@@ -97,21 +96,7 @@ if (typeof window !== 'undefined') {
 // ============================================================================
 
 function initializeApp() {
-    // Register the Service Worker once (required for push)
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-        if (!window.__swRegistered) {
-            window.__swRegistered = true;
-            registerSW({
-                immediate: true,
-                onRegistered(swRegistration) {
-                    console.log('[PWA] Service Worker registered', swRegistration);
-                },
-                onRegisterError(error) {
-                    console.error('[PWA] Service Worker registration failed', error);
-                }
-            });
-        }
-    }
+    // Servicio removido para prevenir bloqueos de CORS en desarrollo estático
 
     // Inicializar listeners de alertas
     initializeAlertListeners();

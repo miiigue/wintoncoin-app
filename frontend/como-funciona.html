@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 
 <head>
@@ -18,6 +18,8 @@
         <div class="main-title-container">
             <p class="subtitle">Guía rápida para entender la plataforma.</p>
         </div>
+
+
 
         <div class="how-section">
             <h2>Tutoriales Interactivos</h2>
@@ -79,6 +81,31 @@
             </div>
 
         </div>
+
+        <div class="main-title-container" style="margin-top: 2rem;">
+            <p class="subtitle" style="color: var(--primary-color); font-weight: 600; letter-spacing: 1px;">WINTON
+                ACADEMY</p>
+            <h2 style="margin-bottom: 0.5rem; color: var(--text-color);">Aprende paso a paso</h2>
+            <p style="font-size: 0.9rem; margin-bottom: 0;">Descubre cómo aprovechar al máximo la economía colaborativa.
+            </p>
+        </div>
+
+        <div class="academy-grid" id="dynamic-academy-grid">
+            <!-- Los videos de Winton Academy se cargarán dinámicamente aquí vía JS -->
+            <div class="loading-spinner" style="grid-column: 1 / -1; margin: 40px auto;"></div>
+        </div>
+
+        <!-- YouTube Modal -->
+        <div class="youtube-modal-overlay" id="youtubeModal">
+            <div class="youtube-modal-content">
+                <button class="youtube-close-btn" id="youtubeCloseBtn">&times;</button>
+                <div class="youtube-video-wrapper" id="youtubeVideoContainer">
+                    <!-- iframe injected by JS -->
+                </div>
+            </div>
+        </div>
+
+
 
         <div class="how-section">
             <h2>Pantalla Principal</h2>
