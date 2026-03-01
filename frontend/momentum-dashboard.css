@@ -383,6 +383,32 @@ body.momentum-dashboard {
     margin-bottom: 20px;
 }
 
+.mmd-modal-mission-info {
+    background: rgba(255, 215, 0, 0.03);
+    border: 1px solid rgba(255, 215, 0, 0.1);
+    border-radius: 10px;
+    padding: 16px;
+    font-size: 0.9rem;
+    color: var(--mm-text-primary);
+    margin-bottom: 20px;
+    max-height: 200px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    /* Mantiene los saltos de línea de las instrucciones */
+    line-height: 1.5;
+    scrollbar-width: thin;
+    scrollbar-color: var(--mm-gold-dim) transparent;
+}
+
+.mmd-modal-mission-info::-webkit-scrollbar {
+    width: 6px;
+}
+
+.mmd-modal-mission-info::-webkit-scrollbar-thumb {
+    background: var(--mm-gold-dim);
+    border-radius: 10px;
+}
+
 .mmd-modal__field {
     margin-bottom: 16px;
 }

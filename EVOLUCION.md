@@ -205,3 +205,16 @@ Resolución de un error de base de datos (PostgreSQL) que impedía la creación 
 - **Estándares de Ingeniería**:
     - Implementación de **Auto-reparación de Esquema** al arranque del servidor para garantizar que la base de datos siempre coincida con la lógica de negocio del código. ✅ PROFESIONAL
 - **Auditabilidad**: Todos los cambios registrados y documentados para cumplimiento de normas técnicas.
+
+### [2026-03-01] - UX Upgrade: Visualización Completa de Misiones Momentum
+
+#### Descripción
+Mejora en la experiencia de usuario (UX) para influencers. Se ha resuelto el problema de las descripciones truncadas permitiendo abrir un modal informativo con las instrucciones completas de la misión al tocar la tarjeta.
+
+#### Cambios realizados
+- **Interactividad Total**: Se habilitó la delegación de eventos para que **toda la tarjeta de la misión** abra los detalles, facilitando el acceso en dispositivos móviles.
+- **Rediseño de Modal (Dual Function)**: El modal de entrega ahora incluye un bloque de "Instrucciones" con scroll interno y respeto de saltos de línea (`pre-wrap`).
+- **Frontend (Modularidad)**:
+    - Adición de variables de datos (`data-campaign-desc`) en las tarjetas generadas dinámicamente.
+    - Estilización premium del contenedor de información con efectos de transparencia y bordes dorados suaves.
+- **Beneficio**: Los influencers ahora pueden leer las instrucciones detalladas paso a paso en el mismo lugar donde envían el link, eliminando errores en las tareas. ✅ PROFESIONAL

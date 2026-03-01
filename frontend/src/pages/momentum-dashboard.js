@@ -55,13 +55,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     const mainEl = document.getElementById('mmd-main');
     if (mainEl) {
         mainEl.addEventListener('click', (e) => {
+            // Caso 1: Click en el botón "Entregar"
             const btn = e.target.closest('.mmd-submit-trigger');
-            if (btn) {
+            // Caso 2: Click en cualquier parte de la tarjeta
+            const card = e.target.closest('.mmd-campaign-card');
+
+            if (btn || card) {
+                const target = btn || card;
                 e.preventDefault();
                 e.stopPropagation();
-                const campaignId = btn.dataset.id;
-                const campaignTitle = btn.dataset.title;
-                openModal(campaignId, campaignTitle);
+
+                const campaignId = target.dataset.campaignId || target.dataset.id;
+                const campaignTitle = target.dataset.campaignTitle || target.dataset.title;
+                const campaignDesc = target.dataset.campaignDesc;
+
+                openModal(campaignId, campaignTitle, campaignDesc);
             }
         });
     }
@@ -258,7 +266,10 @@ function renderCampaigns(data) {
         const isRepeatable = c.allow_multiple;
 
         return `
-            <div class="mmd-campaign-card" data-campaign-id="${c.id}" data-campaign-title="${escapeAttr(c.title)}">
+            <div class="mmd-campaign-card" 
+                 data-campaign-id="${c.id}" 
+                 data-campaign-title="${escapeAttr(c.title)}" 
+                 data-campaign-desc="${escapeAttr(c.description)}">
                 <div class="mmd-campaign-card__header">
                     <h4 class="mmd-campaign-card__title">
                         ${escapeHtml(c.title)}
@@ -269,7 +280,10 @@ function renderCampaigns(data) {
                 <p class="mmd-campaign-card__desc">${escapeHtml(c.description)}</p>
                 <div class="mmd-campaign-card__footer">
                     <span class="mmd-campaign-card__meta">Base: ${basePay} × ${c.applied_multiplier}</span>
-                    <button class="mmd-btn mmd-btn--gold mmd-btn--small mmd-submit-trigger" data-id="${c.id}" data-title="${escapeAttr(c.title)}">
+                    <button class="mmd-btn mmd-btn--gold mmd-btn--small mmd-submit-trigger" 
+                            data-id="${c.id}" 
+                            data-title="${escapeAttr(c.title)}"
+                            data-campaign-desc="${escapeAttr(c.description)}">
                         📤 Entregar
                     </button>
                 </div>
@@ -333,15 +347,21 @@ function setupModal() {
     }
 }
 
-function openModal(campaignId, campaignTitle) {
+function openModal(campaignId, campaignTitle, campaignDesc) {
     const overlay = document.getElementById('mmd-modal-overlay');
     const titleEl = document.getElementById('mmd-modal-title');
     const subtitleEl = document.getElementById('mmd-modal-subtitle');
+    const descEl = document.getElementById('mmd-modal-mission-desc');
     const campaignIdInput = document.getElementById('mmd-modal-campaign-id');
     const proofInput = document.getElementById('mmd-proof-link');
 
-    if (titleEl) titleEl.textContent = `📤 Entregar: ${campaignTitle}`;
-    if (subtitleEl) subtitleEl.textContent = 'Pega el link de tu contenido publicado para esta misión.';
+    if (titleEl) titleEl.textContent = `📋 Detalle: ${campaignTitle}`;
+    if (subtitleEl) subtitleEl.textContent = 'Revisa las instrucciones y pega el link de tu contenido.';
+
+    if (descEl) {
+        descEl.textContent = campaignDesc || 'Sin descripción disponible.';
+    }
+
     if (campaignIdInput) campaignIdInput.value = campaignId;
     if (proofInput) proofInput.value = '';
 
