@@ -188,3 +188,20 @@ Implementación de un sistema integral de gestión de contenidos (CMS) para la "
     - **Integridad de Datos**: Corregido el envío de payloads del frontend (snake_case) para coincidir con la estructura de la base de datos PostgreSQL.
     - **Codificación**: Reparación de errores de encoding (UTF-8) en textos informativos para visualización correcta de tildes en español.
 - **Mantenimiento de Servidor**: Limpieza forzada de procesos de Node.js en memoria para asegurar la persistencia de los cambios del CMS. ✅ DESPLEGADO Y AUDITABLE
+
+### [2026-03-01] - Debugging Crítico: Reparación de Consistencia en Campañas Momentum
+
+#### Descripción
+Resolución de un error de base de datos (PostgreSQL) que impedía la creación de nuevas campañas en el módulo Winton Momentum debido a una discrepancia de esquema entre los entornos local y producción (Render).
+
+#### Cambios realizados
+- **Investigación de Error**: Identificado fallo `column "allow_multiple" does not exist` al intentar publicar campañas desde el Admin Panel en producción (Render).
+- **Backend (Reparación de Esquema)**:
+    - **Nueva Migración (`037_ensure_momentum_campaigns_columns.js`)**: Implementación de una migración de "seguridad" que utiliza `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` para garantizar la presencia de las columnas `allow_multiple`, `base_pay_visionario` y `base_pay_platino`.
+    - Esta migración soluciona inconsistencias técnicas que impedían la persistencia de datos de campañas. ✅ RESUELTO
+- **Frontend & UI/UX**:
+    - **Hero Animation**: Añadida animación dinámica con iconos de redes sociales (Instagram, YouTube, X, TikTok) en la landing de Momentum ("¿Eres creador de contenido?").
+    - **Dashboard Cleanup**: Eliminación del botón "← Panel Principal" en el header del dashboard de Momentum para una interfaz más limpia y enfocada.
+- **Estándares de Ingeniería**:
+    - Implementación de **Auto-reparación de Esquema** al arranque del servidor para garantizar que la base de datos siempre coincida con la lógica de negocio del código. ✅ PROFESIONAL
+- **Auditabilidad**: Todos los cambios registrados y documentados para cumplimiento de normas técnicas.
