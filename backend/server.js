@@ -166,7 +166,7 @@ async function startServer() {
 
         // --- NUEVO: Rutas de Notificaciones Push (VAPID) ---
         const notificationRoutes = require('./src/routes/notificationRoutes');
-        app.use('/api/notifications', notificationRoutes);
+        app.use('/api/notifications', notificationRoutes(pool));
 
         // --- NUEVO: Rutas del módulo Winton Momentum (Gestión de Influencers) ---
         // El módulo es 100% autocontenido. Solo necesita pool, middlewares de auth y auditoría.
@@ -2144,6 +2144,20 @@ async function startServer() {
                     : "Publicación de la plataforma creada exitosamente.";
 
                 res.status(201).json({ message, publicationId: newPubId });
+
+                // PUSH NOTIFICATION BROADCAST (Notificar a todos)
+                try {
+                    console.log(`[ROUTE DIAGNOSTIC] 🔔 Disparando notificación push oficial para: ${title}`);
+                    // Usamos 'SOCIAL' como categoría por defecto para las tareas
+                    await notificationService.sendNotificationToAll({
+                        title: '🚀 Nueva Tarea Oficial',
+                        body: `${title}. ¡Gana BLUE IOU participando en esta tarea de la plataforma!`,
+                        icon: '/assets/icons/icon-192x192.png',
+                        data: { url: '/momentum-dashboard.html' }
+                    }, 'SOCIAL');
+                } catch (pushErr) {
+                    console.error("[PUSH DIAGNOSTIC] Error al disparar broadcast oficial:", pushErr.message);
+                }
 
             } catch (error) {
                 console.error("Error al crear publicación de la plataforma:", error);

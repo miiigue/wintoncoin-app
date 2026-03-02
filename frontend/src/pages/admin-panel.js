@@ -2164,7 +2164,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button class="action-button-admin reject" data-pub-id="${escapeHtml(pubId)}" data-action="discard" data-user="${escapeHtml(participant.acceptor_username)}">Rechazar</button>
             `;
         } else if (participant.status === 'completed') {
-            actionButton = `<button class="action-button-admin confirm" data-pub-id="${escapeHtml(pubId)}" data-action="confirm-payment" data-user="${escapeHtml(participant.acceptor_username)}">Confirmar Pago</button>`;
+            actionButton = `
+                <button class="action-button-admin confirm" data-pub-id="${escapeHtml(pubId)}" data-action="confirm-payment" data-user="${escapeHtml(participant.acceptor_username)}">Confirmar Pago</button>
+                <button class="action-button-admin reject" data-pub-id="${escapeHtml(pubId)}" data-action="discard" data-user="${escapeHtml(participant.acceptor_username)}">Rechazar</button>
+            `;
         }
 
         // Mostrar respuestas del formulario si existen

@@ -1,19 +1,22 @@
 const express = require('express');
-const router = express.Router();
-const notificationController = require('../controllers/notificationController');
-const { authenticateToken, authenticateAdmin } = require('../middleware/authMiddleware'); // Asumiendo que existe este middleware
 
-// Rutas públicas (aunque requieren token para vincular al usuario, el endpoint en sí es accesible)
-router.get('/vapid-public-key', notificationController.getVapidPublicKey);
+module.exports = function (pool) {
+    const router = express.Router();
+    const notificationController = require('../controllers/notificationController')(pool);
+    const { authenticateToken, authenticateAdmin } = require('../middleware/authMiddleware');
 
-// Requieren autenticación
-router.post('/subscribe', authenticateToken, notificationController.subscribe);
+    // Rutas públicas
+    router.get('/vapid-public-key', notificationController.getVapidPublicKey);
 
-// Preferencias de Notificaciones (Usuario)
-router.get('/settings', authenticateToken, notificationController.getNotificationSettings);
-router.put('/settings', authenticateToken, notificationController.updateNotificationSettings);
+    // Requieren autenticación
+    router.post('/subscribe', authenticateToken, notificationController.subscribe);
 
-// Ruta protegida para admin (simplificada, deberías añadir middleware de rol admin real)
-router.post('/send', authenticateAdmin, notificationController.sendPush);
+    // Preferencias de Notificaciones (Usuario)
+    router.get('/settings', authenticateToken, notificationController.getNotificationSettings);
+    router.put('/settings', authenticateToken, notificationController.updateNotificationSettings);
 
-module.exports = router;
+    // Ruta protegida para admin
+    router.post('/send', authenticateAdmin, notificationController.sendPush);
+
+    return router;
+};

@@ -29,9 +29,6 @@ const getVapidPublicKey = () => {
 
 /**
  * Guarda o actualiza la suscripción de un usuario
- * @param {number} userId - ID del usuario
- * @param {object} subscription - Objeto de suscripción del navegador
- * @param {string} userAgent - User agent del dispositivo
  */
 const saveSubscription = async (userId, subscription, userAgent) => {
     if (!subscription || !subscription.endpoint || !subscription.keys) {
@@ -69,21 +66,11 @@ const saveSubscription = async (userId, subscription, userAgent) => {
 
 /**
  * Envía una notificación a un usuario específico
- * @param {number} userId - ID del usuario destino
- * @param {object} payload - { title, body, icon, url, ... }
- */
-/**
- * Envía una notificación a un usuario específico respetando sus preferencias
- * @param {number} userId - ID del usuario destino
- * @param {object} payload - { title, body, icon, url, ... }
- * @param {string} type - Tipo de notificación: 'SECURITY', 'SOCIAL', 'MARKETING', 'TRANSACTIONAL'. Default: 'SOCIAL'
  */
 const sendNotificationToUser = async (userId, payload, type = 'SOCIAL') => {
     try {
-        // 1. Obtener suscripciones Y preferencias del usuario
-        // Hacemos JOIN para no hacer dos queries
         const query = `
-            SELECT ps.*, u.notification_preferences 
+            SELECT ps.*, u.notification_preferences, u.username 
             FROM push_subscriptions ps
             JOIN users u ON ps.user_id = u.id
             WHERE ps.user_id = $1
@@ -91,130 +78,112 @@ const sendNotificationToUser = async (userId, payload, type = 'SOCIAL') => {
         const result = await pool.query(query, [userId]);
 
         if (result.rows.length === 0) {
-            return { sent: 0, failed: 0, message: 'Usuario sin dispositivos suscritos o no encontrado' };
+            return { sent: 0, failed: 0, message: 'Usuario sin dispositivos suscritos' };
         }
 
-        // 2. Verificar Preferencias
-        // SECURITY siempre pasa. Las demás dependen del JSONB.
-        const userPrefs = result.rows[0].notification_preferences || {}; // Por defecto vacío si es null
-
-        // Mapeo de tipos a claves del JSON
-        // SECURITY -> security (pero siempre es true implícitamente)
-        // SOCIAL -> social
-        // MARKETING -> marketing
-        // TRANSACTIONAL -> transactional (generalmente true por default)
-
+        const userPrefs = result.rows[0].notification_preferences || {};
         const typeKey = type.toLowerCase();
 
-        // Si no es seguridad Y el usuario lo tiene desactivado explícitamente -> NO ENVIAR
         if (type !== 'SECURITY' && userPrefs[typeKey] === false) {
-            console.log(`[PUSH] Notificación ${type} bloqueada por preferencia de usuario ${userId}`);
-            return { sent: 0, message: 'Usuario tiene desactivada esta categoría' };
+            console.log(`[PUSH] Notificación ${type} bloqueada por usuario ${userId}`);
+            return { sent: 0, message: 'Filtro de preferencias activo' };
         }
 
-        // 3. Enviar a cada dispositivo en paralelo
         const notifications = result.rows.map(sub => {
             const pushSubscription = {
                 endpoint: sub.endpoint,
-                keys: {
-                    p256dh: sub.keys_p256dh,
-                    auth: sub.keys_auth
-                }
+                keys: { p256dh: sub.keys_p256dh, auth: sub.keys_auth }
             };
 
             return webpush.sendNotification(pushSubscription, JSON.stringify(payload))
                 .catch(err => {
                     if (err.statusCode === 410 || err.statusCode === 404) {
-                        console.log(`[PUSH] Eliminando suscripción inactiva: ${sub.id}`);
                         return pool.query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
                     }
-                    console.error('[PUSH] Error enviando:', err);
-                    throw err;
+                    console.error('Error en envío individual push:', err.message);
                 });
         });
 
         await Promise.allSettled(notifications);
-        return { sent: notifications.length, message: 'Notificaciones enviadas' };
+        return { sent: notifications.length };
 
     } catch (error) {
-        console.error('Error en servicio de notificaciones:', error);
+        console.error('Error enviando notificación push:', error);
         return { sent: 0, error: error.message };
     }
 };
 
 /**
- * Envía una notificación masiva (Broadcast).
- * @param {object} payload 
- * @param {string} type - 'MARKETING' (default) o 'SECURITY' (importante)
+ * Envía una notificación masiva (Broadcast) con LOGS DE DIAGNÓSTICO PROFESIONALES
  */
-const sendNotificationToAll = async (payload, type = 'MARKETING') => {
+const sendNotificationToAll = async (payload, type = 'SOCIAL', batchSize = 50) => {
     try {
-        console.log(`[PUSH BROADCAST] Iniciando envío masivo (${type})...`);
-
-        // Optimización: Traemos solo los usuarios que aceptan este tipo de notificaciones
-        // Si es SECURITY, traemos todos.
-        // Si es MARKETING, filtramos por JSONB.
-
+        console.log(`[PUSH DIAGNOSTIC] 📡 Iniciando broadcast masivo. Tipo: ${type}`);
+        
         let query = 'SELECT ps.* FROM push_subscriptions ps JOIN users u ON ps.user_id = u.id';
-
         if (type !== 'SECURITY') {
             const typeKey = type.toLowerCase();
-            // Postgres JSONB query: u.notification_preferences->>'marketing' != 'false' 
-            // (Asumimos true si es null o no existe)
             query += ` WHERE COALESCE((u.notification_preferences->>'${typeKey}')::boolean, TRUE) = TRUE`;
         }
 
         const result = await pool.query(query);
+        const total = result.rows.length;
 
-        if (result.rows.length === 0) {
-            return { sent: 0, message: 'No hay usuarios suscritos disponibles para esta categoría' };
-        }
+        console.log(`[PUSH DIAGNOSTIC] 👥 Usuarios encontrados para enviar: ${total}`);
 
-        console.log(`[PUSH BROADCAST] Encontrados ${result.rows.length} dispositivos para notificar.`);
+        if (total === 0) return { sent: 0 };
 
         let successCount = 0;
-        let failureCount = 0;
+        let failCount = 0;
 
-        const promises = result.rows.map(async (sub) => {
-            const pushSubscription = {
-                endpoint: sub.endpoint,
-                keys: {
-                    p256dh: sub.keys_p256dh,
-                    auth: sub.keys_auth
+        for (let i = 0; i < total; i += batchSize) {
+            const chunk = result.rows.slice(i, i + batchSize);
+            const promises = chunk.map(async (sub) => {
+                const pushSubscription = {
+                    endpoint: sub.endpoint,
+                    keys: { p256dh: sub.keys_p256dh, auth: sub.keys_auth }
+                };
+
+                try {
+                    await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
+                    successCount++;
+                } catch (err) {
+                    if (err.statusCode === 410 || err.statusCode === 404) {
+                        await pool.query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
+                    }
+                    failCount++;
                 }
-            };
+            });
 
-            try {
-                await webpush.sendNotification(pushSubscription, JSON.stringify(payload));
-                successCount++;
-            } catch (err) {
-                if (err.statusCode === 410 || err.statusCode === 404) {
-                    await pool.query('DELETE FROM push_subscriptions WHERE id = $1', [sub.id]);
-                } else {
-                    console.error(`[PUSH FAIL] ID Subscripción ${sub.id}:`, err.message);
-                }
-                failureCount++;
-            }
-        });
+            await Promise.all(promises);
+            console.log(`[PUSH DIAGNOSTIC] 📦 Lote procesado. Éxitos acumulados: ${successCount}`);
+        }
 
-        await Promise.all(promises);
-
-        return {
-            sent: successCount,
-            failed: failureCount,
-            total_active: result.rows.length,
-            message: `Difusión completada. Éxito: ${successCount}, Fallos/Limpieza: ${failureCount}`
-        };
+        console.log(`[PUSH DIAGNOSTIC] ✅ Broadcast finalizado. TOTAL EXITOS: ${successCount}, FALLOS: ${failCount}`);
+        return { sent: successCount, failed: failCount };
 
     } catch (error) {
-        console.error('[PUSH BROADCAST ERROR]', error);
-        return { sent: 0, error: 'Error crítico enviando difusión masiva' };
+        console.error('[PUSH DIAGNOSTIC CRITICAL ERROR]', error);
+        throw error;
     }
+};
+
+const getUserPreferences = async (userId) => {
+    const result = await pool.query('SELECT notification_preferences FROM users WHERE id = $1', [userId]);
+    return result.rows[0]?.notification_preferences || { security: true, social: true, marketing: true };
+};
+
+const updateUserPreferences = async (userId, newPrefs) => {
+    const cleanPrefs = { ...newPrefs, security: true }; // Seguridad inmutable
+    await pool.query('UPDATE users SET notification_preferences = $1 WHERE id = $2', [cleanPrefs, userId]);
+    return cleanPrefs;
 };
 
 module.exports = {
     getVapidPublicKey,
     saveSubscription,
+    getUserPreferences,
+    updateUserPreferences,
     sendNotificationToUser,
     sendNotificationToAll
 };

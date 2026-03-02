@@ -10,6 +10,8 @@ const {
     processRequestCompletion
 } = require('../services/publicationService');
 
+const notificationService = require('../services/notificationService');
+
 module.exports = function (router, pool, requireAcceptedLegalByUsernameField, verifyAdminToken, logAuditEvent) {
 
     // Ruta para crear una nueva Publicación
@@ -173,7 +175,23 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             });
 
             await client.query('COMMIT');
+            console.log(`[ROUTE DIAGNOSTIC] ✅ Transacción de publicación confirmada. ID: ${result.rows[0].id}`);
+
             res.status(201).json({ message: "Publicación creada exitosamente.", publicationId: result.rows[0].id });
+
+            // Enviamos la notificación DESPUÉS de responder al cliente (Non-blocking)
+            // para que si falla el push, el usuario no reciba error de "Failed to fetch"
+            try {
+                console.log(`[ROUTE DIAGNOSTIC] 🔔 Disparando notificación push para: ${title}`);
+                await notificationService.sendNotificationToAll({
+                    title: '🚀 Nueva Tarea Disponible',
+                    body: `${title}. ¡Participa ahora y gana BLUE IOU en tu perfil de impulsor!`,
+                    icon: '/assets/icons/icon-192x192.png',
+                    data: { url: '/momentum-dashboard.html' }
+                }, 'SOCIAL');
+            } catch (pushErr) {
+                console.error("[PUSH DIAGNOSTIC] Error al disparar broadcast:", pushErr.message);
+            }
 
         } catch (error) {
             await client.query('ROLLBACK');
@@ -683,10 +701,17 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                     [amount, id]
                 );
 
-                // Notificación al autor
+                // Notificación al autor (BD)
                 await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`,
                     [pub.author_username, `¡${acceptorUsername} ha donado ${amount} BLUE a "${pub.title}"!`]
                 );
+
+                // PUSH NOTIFICATION (Donación Recibida)
+                await notificationService.sendNotificationToUser(pub.author_id, {
+                    title: '¡Donación Recibida! 🎁',
+                    body: `${acceptorUsername} ha aportado ${amount.toFixed(2)} BLUE IOU a tu campaña: ${pub.title}`,
+                    url: '/history.html'
+                }, 'SOCIAL');
 
                 await logAuditEvent(client, req, {
                     eventType: 'publication.donation_received',
@@ -792,6 +817,13 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 await client.query(`INSERT INTO publication_acceptances (publication_id, acceptor_username, status, blue_cost) VALUES ($1, $2, 'approved', $3)`, [id, acceptorUsername, pub.blue_cost]);
                 await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [acceptorUsername, `¡Has sido aprobado automáticamente para "${pub.title}"!`]);
 
+                // PUSH NOTIFICATION (Auto-Aprobación)
+                await notificationService.sendNotificationToUser(acceptor.id, {
+                    title: '¡Tarea Aprobada! ✅',
+                    body: `Has sido aprobado automáticamente para: ${pub.title}. ¡Empieza ahora!`,
+                    url: '/momentum-dashboard.html'
+                }, 'SOCIAL');
+
                 await logAuditEvent(client, req, {
                     eventType: 'publication.accepted',
                     actorUsername: acceptorUsername,
@@ -805,6 +837,13 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             } else {
                 await client.query(`INSERT INTO publication_acceptances (publication_id, acceptor_username, status, blue_cost) VALUES ($1, $2, 'pending_approval', $3)`, [id, acceptorUsername, pub.blue_cost]);
                 await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [pub.author_username, `El usuario ${acceptorUsername} quiere realizar la tarea "${pub.title}".`]);
+
+                // PUSH NOTIFICATION (Solicitud de Tarea)
+                await notificationService.sendNotificationToUser(pub.author_id, {
+                    title: 'Nueva Solicitud 📩',
+                    body: `${acceptorUsername} quiere participar en: ${pub.title}`,
+                    url: '/momentum-dashboard.html'
+                }, 'SOCIAL');
 
                 await logAuditEvent(client, req, {
                     eventType: 'publication.accepted',
@@ -850,18 +889,19 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             // ✅ Enfoque profesional: NO borramos el historial.
             // En su lugar marcamos la solicitud como 'rejected' (Hard Reject).
+            // Permitimos rechazar tanto solicitudes pendientes como culminadas (por si el trabajo es inválido).
             const updateResult = await client.query(
                 `UPDATE publication_acceptances
                      SET status = 'rejected'
                      WHERE publication_id = $1
                        AND acceptor_username = $2
-                       AND status = 'pending_approval'
+                       AND status IN ('pending_approval', 'completed')
                      RETURNING *`,
                 [id, userToDiscard]
             );
 
             if (updateResult.rowCount === 0) {
-                throw { status: 404, message: "No se encontró una solicitud pendiente para este usuario." };
+                throw { status: 404, message: "No se encontró una solicitud válida (pendiente o culminada) para este usuario." };
             }
 
             // Devolver el cupo (la solicitud ya no ocupa un slot)
@@ -924,6 +964,17 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             const message = `¡Has sido aprobado para la tarea "${pub.title}"!`;
             await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [userToApprove, message]);
+
+            // PUSH NOTIFICATION (Aprobación Manual)
+            // Necesitamos el ID del usuario aprobado, lo buscamos rápido
+            const userToApproveRes = await client.query('SELECT id FROM users WHERE username = $1', [userToApprove]);
+            if (userToApproveRes.rowCount > 0) {
+                await notificationService.sendNotificationToUser(userToApproveRes.rows[0].id, {
+                    title: 'Solicitud Aprobada ✅',
+                    body: `El autor ha aprobado tu participación en: ${pub.title}`,
+                    url: '/momentum-dashboard.html'
+                }, 'SOCIAL');
+            }
 
             await logAuditEvent(client, req, {
                 eventType: 'publication.approved',
@@ -1032,6 +1083,16 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                     throw { status: 400, message: "Categoría de publicación no válida." };
             }
 
+            // PUSH NOTIFICATION (Tarea Culminada - Aviso al Autor)
+            const authorData = await client.query('SELECT id FROM users WHERE username = $1', [acceptance.author_username]);
+            if (authorData.rowCount > 0) {
+                await notificationService.sendNotificationToUser(authorData.rows[0].id, {
+                    title: '¡Tarea Terminada! 🚨',
+                    body: `${completerUsername} ha culminado: ${acceptance.title}. Revísala ahora.`,
+                    url: '/momentum-dashboard.html'
+                }, 'SOCIAL');
+            }
+
             await logAuditEvent(client, req, {
                 eventType: 'publication.completed',
                 actorUsername: completerUsername,
@@ -1128,6 +1189,13 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             // 5. ACTUALIZAR ESTADO FINAL
             await client.query(`UPDATE publication_acceptances SET status = 'confirmed_paid' WHERE id = $1`, [acceptance.acceptance_id]);
+
+            // PUSH NOTIFICATION (Pago Confirmado)
+            await notificationService.sendNotificationToUser(acceptance.worker_id, {
+                title: '¡Pago Recibido! 🏆',
+                body: `Tu trabajo en "${acceptance.title}" ha sido pagado. +${parseFloat(acceptance.blue_cost).toFixed(2)} BLUE IOU acreditados.`,
+                url: '/history.html'
+            }, 'SOCIAL');
 
             await logAuditEvent(client, req, {
                 eventType: 'publication.confirmed_paid',

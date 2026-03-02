@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { generateUniqueReferralCode } = require('../config/databaseInit');
 const { generateOtp6, hashOtpForEmail, sendOtpEmail, sendTransactionEmail, normalizeEmail, safeEqualHex } = require('../services/emailService');
 const { logAuditEvent } = require('../services/auditService');
+const notificationService = require('../services/notificationService');
 const {
     getActiveLegalDocuments,
     getUserLegalStatusByUserId,
@@ -386,12 +387,26 @@ exports.registerVerify = async (req, res) => {
                 await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [referrer.id, `Recompensa (perfil impulsor) por referir a ${newUser.username}`, rewardAmount]);
                 await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [referrer.username, `¡Felicidades! Has ganado ${rewardAmount.toFixed(4)} BLUE en tu perfil de impulsor porque ${newUser.username} se registró con tu código.`]);
 
+                // PUSH NOTIFICATION (Referente)
+                await notificationService.sendNotificationToUser(referrer.id, {
+                    title: '¡Nuevo Referido! ⚡',
+                    body: `${newUser.username} se unió con tu código. +${rewardAmount.toFixed(2)} BLUE IOU acreditados.`,
+                    url: '/history.html'
+                }, 'SOCIAL');
+
                 // Recompensa para el nuevo usuario: Registra en booster_blue_ledger (cumple reglas económicas)
                 await client.query('SELECT record_booster_event($1, \'referral_reward\', $2, NULL)', [newUser.id, rewardAmount]);
                 await client.query('UPDATE users SET is_booster = true WHERE id = $1', [newUser.id]);
                 await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_received', $2, $3)`, [newUser.id, rewardAmount, `Bono por usar el código de ${referrer.username}`]);
                 await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [newUser.id, `Recompensa (perfil impulsor) por usar el código de ${referrer.username}`, rewardAmount]);
                 await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Por usar un código de referido, has ganado ${rewardAmount.toFixed(4)} BLUE en tu perfil de impulsor.`]);
+
+                // PUSH NOTIFICATION (Nuevo Usuario)
+                await notificationService.sendNotificationToUser(newUser.id, {
+                    title: '¡Bienvenido a la Familia! 🎁',
+                    body: `Has recibido ${rewardAmount.toFixed(2)} BLUE IOU de regalo por usar referido.`,
+                    url: '/history.html'
+                }, 'SOCIAL');
             }
         }
         // Lógica de Bono de Bienvenida (si no hay referente, solo en modo pre-lanzamiento)
@@ -404,6 +419,13 @@ exports.registerVerify = async (req, res) => {
                 await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, welcomeBonusAmount, 'Bono de Bienvenida por registro']);
                 await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, 'Bono de bienvenida (perfil impulsor)', welcomeBonusAmount]);
                 await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Has recibido ${welcomeBonusAmount.toFixed(4)} BLUE en tu perfil de impulsor como bono de bienvenida.`]);
+
+                // PUSH NOTIFICATION (Bienvenida General)
+                await notificationService.sendNotificationToUser(newUser.id, {
+                    title: '¡Bienvenido! 🚀',
+                    body: `Recibiste ${welcomeBonusAmount.toFixed(2)} BLUE IOU de regalo por tu registro.`,
+                    url: '/history.html'
+                }, 'SOCIAL');
             }
         }
 
