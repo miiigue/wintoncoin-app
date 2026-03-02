@@ -273,5 +273,19 @@ Finalización de la refactorización profunda del sistema de comunicaciones en t
 #### Estado Final
 El sistema de notificaciones push está ahora sincronizado en todo el ecosistema (Admin y Usuarios), con logs de diagnóstico profesional activos para facilitar el mantenimiento futuro.
 
+### [2026-03-02] - Reparación Crítica: Gestión Administrativa de Rechazos (Discard Fix)
+
+#### Descripción
+Resolución de un error de permisos y lógica en producción que impedía a los administradores rechazar tareas marcadas como "Culminadas" por los usuarios. Se profesionaliza el flujo de supervisión.
+
+#### Cambios realizados
+- **Backend (Reparación de Lógica)**:
+    - **Admin Override**: Se modificó la ruta `/publications/:id/discard` en `publicationController.js` para permitir que usuarios con rol de `admin` gestionen rechazos, eliminando la restricción que solo permitía al autor original realizar esta acción.
+    - **Flexibilidad de Estados**: Ahora el sistema permite rechazar tareas en estados `pending`, `pending_approval` y `completed`, asegurando que el administrador pueda invalidar entregas mal realizadas.
+- **Notificaciones Push (Vincular al Usuario)**:
+    - Se integró el envío automático de notificaciones push al usuario cuya tarea ha sido rechazada: *"Tarea Rechazada ❌: [Título]"*.
+- **Integridad Técnica**:
+    - Se corrigió el uso del cliente de base de datos en los logs de auditoría para evitar errores de referencia nula durante el proceso de descarte. ✅ RESUELTO Y AUDITABLE
+
 ---
 

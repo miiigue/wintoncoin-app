@@ -865,7 +865,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         }
     });
 
-    // Ruta para Descartar a un usuario
+    // Ruta para Descartar/Rechazar a un usuario (Admin o Autor)
     router.post('/publications/:id/discard', verifyAdminToken, requireAcceptedLegalByUsernameField(['discarderUsername']), async (req, res) => {
         const { id } = req.params;
         const { discarderUsername, userToDiscard } = req.body;
@@ -874,42 +874,71 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         try {
             await client.query('BEGIN');
 
+            // 1. Verificar existencia de la publicación
             const pubResult = await client.query(
                 `SELECT p.*, u.username as author_username
                      FROM publications p
                      JOIN users u ON p.author_id = u.id
-                     WHERE p.id = $1 AND u.username = $2 AND p.deleted_at IS NULL
+                     WHERE p.id = $1 AND p.deleted_at IS NULL
                      FOR UPDATE`,
-                [id, discarderUsername]
+                [id]
             );
+
             const pub = pubResult.rows[0];
             if (!pub) {
-                throw { status: 403, message: "No tienes permiso para gestionar esta tarea." };
+                throw { status: 404, message: "La tarea no existe o ha sido eliminada." };
             }
 
-            // ✅ Enfoque profesional: NO borramos el historial.
-            // En su lugar marcamos la solicitud como 'rejected' (Hard Reject).
-            // Permitimos rechazar tanto solicitudes pendientes como culminadas (por si el trabajo es inválido).
+            // 2. Verificar permisos: Debe ser el autor O un administrador
+            // En este contexto, verifyAdminToken asegura que es un admin o el autor autenticado.
+            // Pero para ser doblemente seguros en el monolito:
+            const isAdmin = req.user && req.user.role === 'admin';
+            if (pub.author_username !== discarderUsername && !isAdmin) {
+                throw { status: 403, message: "No tienes permisos de administración sobre esta tarea." };
+            }
+
+            // 3. Ejecutar el rechazo profesional
+            // Estados válidos para rechazar: pending (solicitud básica), pending_approval (en espera de autor), completed (culminada pero mal hecha)
             const updateResult = await client.query(
                 `UPDATE publication_acceptances
                      SET status = 'rejected'
                      WHERE publication_id = $1
                        AND acceptor_username = $2
-                       AND status IN ('pending_approval', 'completed')
+                       AND status IN ('pending', 'pending_approval', 'completed')
                      RETURNING *`,
                 [id, userToDiscard]
             );
 
             if (updateResult.rowCount === 0) {
-                throw { status: 404, message: "No se encontró una solicitud válida (pendiente o culminada) para este usuario." };
+                throw { status: 404, message: "No se encontró una solicitud activa para este usuario en esta tarea." };
             }
 
-            // Devolver el cupo (la solicitud ya no ocupa un slot)
+            const acceptance = updateResult.rows[0];
+
+            // 4. Devolver el cupo (la solicitud ya no ocupa un slot)
             await client.query(`UPDATE publications SET available_slots = available_slots + 1 WHERE id = $1`, [id]);
 
-            const message = `Tu solicitud para la tarea "${pub.title}" fue rechazada.`;
-            await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [userToDiscard, message]);
+            // 5. Notificación Interna (DB)
+            const internalMsg = `Tu solicitud/entrega para la tarea "${pub.title}" fue rechazada por la administración.`;
+            await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [userToDiscard, internalMsg]);
 
+            // 6. NOTIFICACIÓN PUSH (Real-time)
+            try {
+                // Buscamos el ID del usuario destino para el push
+                const targetUserRes = await client.query('SELECT id FROM users WHERE username = $1', [userToDiscard]);
+                if (targetUserRes.rowCount > 0) {
+                    await notificationService.sendNotificationToUser(targetUserRes.rows[0].id, {
+                        title: 'Tarea Rechazada ❌',
+                        body: `Tu participación en "${pub.title}" ha sido rechazada. Revisa los detalles en tu perfil.`,
+                        icon: '/assets/icons/icon-192x192.png',
+                        data: { url: '/momentum-dashboard.html' }
+                    }, 'TRANSACTIONAL');
+                }
+            } catch (pushErr) {
+                console.error("[PUSH ERROR] Fallo al notificar rechazo:", pushErr.message);
+            }
+
+            // 7. Auditoría Bancaria
             await logAuditEvent(client, req, {
                 eventType: 'publication.rejected',
                 actorUsername: discarderUsername,
@@ -917,8 +946,9 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 publicationId: parseInt(id, 10),
                 category: pub.category,
                 metadata: {
-                    from_status: 'pending_approval',
-                    to_status: 'rejected'
+                    from_status: acceptance.status,
+                    to_status: 'rejected',
+                    admin_override: isAdmin && pub.author_username !== discarderUsername
                 }
             });
 
