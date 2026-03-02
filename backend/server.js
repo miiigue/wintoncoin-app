@@ -400,6 +400,23 @@ async function startServer() {
             }
         });
 
+        // --- ENDPOINT PROFESIONAL: Historial completo (Leídas y No Leídas) ---
+        app.get('/api/me/notifications/history', verifyUserToken, async (req, res) => {
+            const username = req.user?.username;
+            if (!username) {
+                return res.status(401).json({ message: "No autenticado." });
+            }
+            // Retornamos las últimas 50 para no sobrecargar el frontend, pero con historial completo
+            const sql = `SELECT * FROM notifications WHERE recipient_username = $1 ORDER BY created_at DESC LIMIT 50`;
+            try {
+                const result = await pool.query(sql, [username]);
+                res.status(200).json(result.rows);
+            } catch (error) {
+                console.error("Error al obtener historial de notificaciones:", error);
+                res.status(500).json({ message: "Error interno del servidor." });
+            }
+        });
+
         // Ruta para marcar notificaciones como leídas
         app.post('/notifications/mark-read', async (req, res) => {
             const { username } = req.body;
@@ -2150,7 +2167,7 @@ async function startServer() {
                     console.log(`[ROUTE DIAGNOSTIC] 🔔 Disparando notificación push oficial para: ${title}`);
                     await notificationService.sendNotificationToAll({
                         title: '🚀 Nueva Tarea Oficial',
-                        body: `¡Nueva oportunidad! ${title}. Participa ahora para ganar BLUE IOU.`,
+                        body: `¡Nueva oportunidad! 📝 ${title}. Participa ahora para ganar BLUE IOU.`,
                         icon: '/assets/icons/icon-192x192.png',
                         badge: '/assets/icons/icon-72x72.png',
                         data: { url: '/dashboard.html' }

@@ -1149,7 +1149,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const amount = parseFloat(input?.value);
 
         if (!amount || amount <= 0 || isNaN(amount)) {
-            showCustomAlert('Por favor, ingresa un monto válido para donar.');
+            showCustomAlert('⚠️ Por favor, ingresa un monto válido para donar.');
             return;
         }
 
@@ -1358,8 +1358,26 @@ document.addEventListener('DOMContentLoaded', () => {
             dropdown.innerHTML = '';
 
             if (notifications.length === 0) {
-                dropdown.innerHTML = '<div class="no-notifications">No tienes notificaciones nuevas.</div>';
+                dropdown.innerHTML = `
+                    <div class="notification-header-actions">
+                        <button class="noti-action-link" onclick="window.openNotificationHistory()">Ver historial</button>
+                    </div>
+                    <div class="no-notifications">No tienes notificaciones nuevas.</div>
+                `;
             } else {
+                // CABECERA CON ACCIONES (ARRIBA)
+                const header = document.createElement('div');
+                header.className = 'notification-header-actions-container';
+                header.innerHTML = `
+                    <div class="notification-footer-actions">
+                        <button class="noti-action-link" onclick="window.clearAllNotifications()">Limpiar</button>
+                        <span class="noti-divider">|</span>
+                        <button class="noti-action-link" onclick="window.openNotificationHistory()">Ver historial</button>
+                    </div>
+                `;
+                dropdown.appendChild(header);
+
+                // LISTA DE NOTIFICACIONES
                 notifications.forEach(notification => {
                     const item = document.createElement('div');
                     item.className = 'notification-item';
@@ -1370,11 +1388,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     `;
                     dropdown.appendChild(item);
                 });
-
-                const footer = document.createElement('div');
-                footer.className = 'notification-footer';
-                footer.innerHTML = '<a href="#" class="notification-footer-link">Limpiar todas</a>';
-                dropdown.appendChild(footer);
             }
 
             updateNotificationBadge(notifications.length);
@@ -1415,17 +1428,108 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function clearAllNotifications() {
+    window.clearAllNotifications = async function () {
         try {
             const response = await postToServer('/api/me/notifications/mark-read', {}, { silent: true, reload: false });
             if (response.success) {
                 const dropdown = document.getElementById('notificationDropdown');
-                if (dropdown) dropdown.innerHTML = '<div class="no-notifications">No tienes notificaciones nuevas.</div>';
+                if (dropdown) dropdown.innerHTML = `
+                    <div class="notification-header-actions">
+                        <button class="noti-action-link" onclick="window.openNotificationHistory()">Ver historial</button>
+                    </div>
+                    <div class="no-notifications">No tienes notificaciones nuevas.</div>
+                `;
                 updateNotificationBadge(0);
             }
         } catch (error) {
             console.error("Error al limpiar notificaciones:", error);
         }
+    }
+
+    // --- CENTRO DE HISTORIAL PROFESIONAL ---
+    window.openNotificationHistory = async function () {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_URL}/api/me/notifications/history`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
+
+            if (!response.ok) throw new Error('No se pudo cargar el historial.');
+            const history = await response.json();
+
+            renderHistoryModal(history);
+
+        } catch (error) {
+            console.error("Error al abrir historial:", error);
+            showCustomAlert("No se pudo cargar el historial de notificaciones.");
+        }
+    }
+
+    function renderHistoryModal(history) {
+        // Eliminar modal previo si existe
+        const oldModal = document.getElementById('notificationHistoryModal');
+        if (oldModal) oldModal.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'notificationHistoryModal';
+        modal.className = 'custom-modal'; // Usamos la clase de modal de la plataforma
+        modal.style.display = 'flex';
+
+        let itemsHTML = '';
+        if (history.length === 0) {
+            itemsHTML = '<p class="empty-history">Aún no tienes notificaciones en tu historial.</p>';
+        } else {
+            itemsHTML = history.map(noti => {
+                const date = new Date(noti.created_at).toLocaleString();
+                let icon = '🔔'; // Default
+                let statusClass = '';
+
+                // Detección inteligente de iconos por contenido
+                const msg = noti.message.toLowerCase();
+                if (msg.includes('aprobada') || msg.includes('has sido aprobado') || msg.includes('🎉') || msg.includes('✅')) {
+                    icon = '✅';
+                    statusClass = 'noti-success';
+                } else if (msg.includes('rechazada') || msg.includes('error') || msg.includes('⚠️') || msg.includes('❌')) {
+                    icon = '⚠️';
+                    statusClass = 'noti-warning';
+                } else if (msg.includes('pagada') || msg.includes('acreditado') || msg.includes('ganado') || msg.includes('💰')) {
+                    icon = '💰';
+                    statusClass = 'noti-money';
+                } else if (msg.includes('quiere participar') || msg.includes('solicitud') || msg.includes('📩')) {
+                    icon = '📩';
+                    statusClass = 'noti-request';
+                }
+
+                return `
+                    <div class="history-noti-item ${noti.is_read ? 'is-read' : 'is-unread'} ${statusClass}">
+                        <div class="history-noti-icon">${icon}</div>
+                        <div class="history-noti-content">
+                            <p>${noti.message}</p>
+                            <span class="history-noti-date">${date}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        modal.innerHTML = `
+            <div class="custom-modal-content history-modal">
+                <div class="custom-modal-header">
+                    <h2>Historial de Notificaciones</h2>
+                    <span class="custom-modal-close" onclick="document.getElementById('notificationHistoryModal').remove()">&times;</span>
+                </div>
+                <div class="custom-modal-body history-body">
+                    <div class="history-list">
+                        ${itemsHTML}
+                    </div>
+                </div>
+                <div class="custom-modal-footer">
+                    <button class="action-button-admin secondary" onclick="document.getElementById('notificationHistoryModal').remove()">Cerrar</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
     }
 
     // --- Balances ---

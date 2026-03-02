@@ -815,7 +815,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             if (pub.auto_approve) {
                 await client.query(`INSERT INTO publication_acceptances (publication_id, acceptor_username, status, blue_cost) VALUES ($1, $2, 'approved', $3)`, [id, acceptorUsername, pub.blue_cost]);
-                await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [acceptorUsername, `¡Has sido aprobado automáticamente para "${pub.title}"!`]);
+                await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [acceptorUsername, `¡Has sido aprobado automáticamente para 🎉 "${pub.title}"!`]);
 
                 // PUSH NOTIFICATION (Auto-Aprobación)
                 await notificationService.sendNotificationToUser(acceptor.id, {
@@ -836,7 +836,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 res.status(200).json({ message: "¡Aceptaste y fuiste aprobado automáticamente!" });
             } else {
                 await client.query(`INSERT INTO publication_acceptances (publication_id, acceptor_username, status, blue_cost) VALUES ($1, $2, 'pending_approval', $3)`, [id, acceptorUsername, pub.blue_cost]);
-                await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [pub.author_username, `El usuario ${acceptorUsername} quiere realizar la tarea "${pub.title}".`]);
+                await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [pub.author_username, `El usuario ${acceptorUsername} quiere realizar la tarea 📩 "${pub.title}".`]);
 
                 // PUSH NOTIFICATION (Solicitud de Tarea)
                 await notificationService.sendNotificationToUser(pub.author_id, {
@@ -919,7 +919,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             await client.query(`UPDATE publications SET available_slots = available_slots + 1 WHERE id = $1`, [id]);
 
             // 5. Notificación Interna (DB)
-            const internalMsg = `Tu solicitud/entrega para la tarea "${pub.title}" fue rechazada por la administración.`;
+            const internalMsg = `Tu solicitud/entrega para la tarea "${pub.title}" fue rechazada ❌ por la administración. Revisa los requisitos.`;
             await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [userToDiscard, internalMsg]);
 
             // 6. NOTIFICACIÓN PUSH (Real-time)
