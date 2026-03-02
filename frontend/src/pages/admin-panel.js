@@ -1994,14 +1994,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function populatePlatformSteps(steps, formFields) {
         if (!elements.platformStepInputs) return;
-        resetPlatformEditStepsOnly();
+
+        // LIMPIEZA ATÓMICA: Eliminamos TODOS los pasos previos para evitar duplicidades
+        elements.platformStepInputs.innerHTML = '';
+
         steps.forEach((step, index) => {
             const position = index + 1;
             ensurePlatformStepInput(position);
             const input = document.getElementById(`platformStep${position}`);
             if (input) input.value = step;
 
-            // Load sub-forms if they exist for this step
+            // Cargar sub-formularios si existen para este paso
             if (formFields && formFields[position]) {
                 const container = elements.platformStepInputs.querySelector(`.admin-step-input[data-step="${position}"]`);
                 if (container) {
@@ -2013,10 +2016,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         checkbox.checked = true;
                         fieldsContainer.style.display = 'block';
 
-                        // Clear placeholders
+                        // Limpiar campos por defecto
                         inputsContainer.innerHTML = '';
 
-                        // Parse values
+                        // Renderizar campos guardados
                         formFields[position].forEach((fieldText, i) => {
                             const newField = document.createElement('input');
                             newField.type = 'text';
@@ -2026,7 +2029,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             inputsContainer.appendChild(newField);
                         });
 
-                        // Keep a minimum of 3 fields visually available to add new ones
+                        // Asegurar mínimo de 3 campos visuales para facilitar edición
                         const currentFields = formFields[position].length;
                         if (currentFields < 3) {
                             for (let i = currentFields; i < 3; i++) {
@@ -2045,34 +2048,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function resetPlatformEditStepsOnly() {
         if (!elements.platformStepInputs) return;
-        const allStepInputs = elements.platformStepInputs.querySelectorAll('.admin-step-input');
-        allStepInputs.forEach((item, index) => {
-            if (index > 3) {
-                item.remove();
-            } else {
-                const input = item.querySelector('input');
-                if (input) input.value = '';
 
-                // Reset step forms properties
-                const checkbox = item.querySelector('.step-form-checkbox');
-                if (checkbox) checkbox.checked = false;
+        // Limpiamos todo el contenedor
+        elements.platformStepInputs.innerHTML = '';
 
-                const formFields = item.querySelector('.step-form-fields');
-                if (formFields) formFields.style.display = 'none';
+        // Restauramos los 4 pasos básicos por defecto que tiene el formulario original
+        for (let i = 1; i <= 4; i++) {
+            ensurePlatformStepInput(i);
+        }
 
-                const inputsContainer = item.querySelector('.step-form-inputs');
-                if (inputsContainer) {
-                    inputsContainer.innerHTML = '';
-                    for (let i = 1; i <= 3; i++) {
-                        const newField = document.createElement('input');
-                        newField.type = 'text';
-                        newField.className = 'step-form-field';
-                        newField.placeholder = `Campo ${i}`;
-                        inputsContainer.appendChild(newField);
-                    }
-                }
-            }
-        });
         if (elements.platformAddStepBtn) {
             elements.platformAddStepBtn.disabled = false;
         }
@@ -2081,7 +2065,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function ensurePlatformStepInput(position) {
         const maxSteps = 20;
         if (position > maxSteps) return;
-        const existing = document.getElementById(`platformStep${position} `);
+        const existing = document.getElementById(`platformStep${position}`);
         if (existing) return;
 
         const wrapper = document.createElement('div');
@@ -2089,19 +2073,18 @@ document.addEventListener('DOMContentLoaded', () => {
         wrapper.setAttribute('data-step', position);
 
         const label = document.createElement('label');
-        label.setAttribute('for', `platformStep${position} `);
-        label.textContent = `Paso ${position} `;
+        label.setAttribute('for', `platformStep${position}`);
+        label.textContent = `Paso ${position}`;
 
         const input = document.createElement('input');
         input.type = 'text';
-        input.id = `platformStep${position} `;
-        input.placeholder = `Describe el paso ${position} `;
+        input.id = `platformStep${position}`;
+        input.placeholder = `Describe el paso ${position}`;
 
-        // Ensure steps >= 5 also get the step-form configuration block dynamically
         const toggleWrapper = document.createElement('div');
         toggleWrapper.className = 'step-form-toggle';
         toggleWrapper.innerHTML = `
-                            < label class="toggle-label" >
+            <label class="toggle-label">
                 <input type="checkbox" class="step-form-checkbox" data-step="${position}">
                 <span>Activar formulario para este paso</span>
             </label>
@@ -2121,7 +2104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         wrapper.appendChild(toggleWrapper);
         elements.platformStepInputs.appendChild(wrapper);
 
-        // Attach event listener natively dynamically
+        // Lógica de interacción dinámica
         const toggleCheck = toggleWrapper.querySelector('.step-form-checkbox');
         const formFieldsContainer = toggleWrapper.querySelector('.step-form-fields');
         if (toggleCheck) {

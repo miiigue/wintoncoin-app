@@ -2148,12 +2148,12 @@ async function startServer() {
                 // PUSH NOTIFICATION BROADCAST (Notificar a todos)
                 try {
                     console.log(`[ROUTE DIAGNOSTIC] 🔔 Disparando notificación push oficial para: ${title}`);
-                    // Usamos 'SOCIAL' como categoría por defecto para las tareas
                     await notificationService.sendNotificationToAll({
                         title: '🚀 Nueva Tarea Oficial',
-                        body: `${title}. ¡Gana BLUE IOU participando en esta tarea de la plataforma!`,
+                        body: `¡Nueva oportunidad! ${title}. Participa ahora para ganar BLUE IOU.`,
                         icon: '/assets/icons/icon-192x192.png',
-                        data: { url: '/momentum-dashboard.html' }
+                        badge: '/assets/icons/icon-72x72.png',
+                        data: { url: '/dashboard.html' }
                     }, 'SOCIAL');
                 } catch (pushErr) {
                     console.error("[PUSH DIAGNOSTIC] Error al disparar broadcast oficial:", pushErr.message);

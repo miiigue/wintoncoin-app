@@ -287,5 +287,9 @@ Resolución de un error de permisos y lógica en producción que impedía a los 
 - **Integridad Técnica**:
     - Se corrigió el uso del cliente de base de datos en los logs de auditoría para evitar errores de referencia nula durante el proceso de descarte. ✅ RESUELTO Y AUDITABLE
 
+- **Fine-Tuning de Marca & Navegación**:
+    - Se ajustó la URL de redirección global para que las notificaciones de plataforma lleven al **Dashboard General** (`/dashboard.html`), unificando la entrada al ecosistema.
+    - Implementación de `badge` de marca (72x72) para visualización profesional en la barra de estado de dispositivos Android. ✅ OPTIMIZADO
+
 ---
 
