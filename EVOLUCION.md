@@ -93,6 +93,7 @@ Evolución visual de las tarjetas de publicación, reemplazando el esquema oscur
 - **Micro-interacciones**: Optimización de transiciones y efectos hover para una navegación más fluida y profesional.
 - **Coherencia de Tipos**: Ajuste de los bordes y acentos en tarjetas de donación y venta para que armonicen con el nuevo fondo azul elegante. ✅ ESTÉTICA MEJORADA
 - **Alineación de Marca**: Reajuste cromático del gradiente de las tarjetas para igualar el azul oficial `#3b82f6` y el gradiente `#60a5fa`-`#2563eb` de la palabra "Coin" en el logotipo.
+- **Optimización UX**: Compactación de las descripciones de tareas a 1 sola línea (`line-clamp: 1`) para lograr tarjetas más delgadas y una mayor densidad de información en pantalla. ✅ UX MEJORADA
 
 ### Estándares Aplicados
 - **Modularidad**: Uso de variables CSS para facilitar cambios globales.

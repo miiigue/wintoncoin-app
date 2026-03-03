@@ -2084,13 +2084,13 @@ hr {
     flex-grow: 1;
     /* La descripción ocupa el espacio sobrante */
 
-    /* --- Magia para truncar el texto a 3 líneas --- */
+    /* --- Magia para truncar el texto a 1 sola línea (Compacto) --- */
     overflow: hidden;
     text-overflow: ellipsis;
     display: -webkit-box;
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: 1;
     /* Número de líneas a mostrar */
-    line-clamp: 3;
+    line-clamp: 1;
     /* Propiedad estándar para máxima compatibilidad */
     -webkit-box-orient: vertical;
 }
