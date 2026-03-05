@@ -95,6 +95,9 @@ export default defineConfig({
         momentumLanding: resolve(__dirname, 'momentum-landing.html'),
         momentumDashboard: resolve(__dirname, 'momentum-dashboard.html'),
         momentumAdmin: resolve(__dirname, 'momentum-admin.html'),
+
+        // WintonCoin Solidario (Casos Humanitarios)
+        solicitudSolidaria: resolve(__dirname, 'solicitud-solidaria.html'),
       },
 
       // Optimización de chunks
