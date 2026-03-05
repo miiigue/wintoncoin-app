@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Postulación Solidaria - WintonCoin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@300;500;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        :root {
+            --pink-winton: #DB2777;
+            --pink-glow: rgba(219, 39, 119, 0.3);
+        }
+
+        body {
+            background-color: #05050A;
+            color: white;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .postulacion-container {
+            max-width: 800px;
+            margin: 100px auto;
+            padding: 3rem;
+            background: rgba(20, 20, 35, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .header-solidario {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .icon-heart {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+            animation: pulse-s 2s infinite;
+        }
+
+        @keyframes pulse-s {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(90deg, #F472B6, #DB2777);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .form-group {
+            margin-bottom: 2rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.8rem;
+            font-weight: 600;
+            color: #94A3B8;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--pink-winton);
+            box-shadow: 0 0 15px var(--pink-glow);
+        }
+
+
+        .btn-submit {
+            width: 100%;
+            padding: 1.2rem;
+            background: linear-gradient(135deg, #DB2777, #9D174D);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: 700;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 10px 20px rgba(219, 39, 119, 0.2);
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(219, 39, 119, 0.4);
+        }
+
+        .info-box {
+            background: rgba(59, 130, 246, 0.1);
+            border-left: 4px solid #3B82F6;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .footer-text {
+            text-align: center;
+            margin-top: 2rem;
+            font-size: 0.85rem;
+            color: #64748B;
+        }
+
+        .user-validation-msg {
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+
+        .user-error {
+            color: #EF4444;
+            display: block;
+        }
+
+        .user-success {
+            color: #10B981;
+            display: block;
+        }
+
+        .register-hint {
+            color: var(--pink-winton);
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        /* --- Estilos del Modal --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.4s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: #11111E;
+            border: 1px solid rgba(219, 39, 119, 0.3);
+            border-radius: 24px;
+            padding: 2.5rem;
+            max-width: 550px;
+            width: 90%;
+            box-shadow: 0 0 50px rgba(219, 39, 119, 0.2);
+            transform: scale(0.9);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+            color: white;
+            text-align: center;
+        }
+
+        .modal-body {
+            color: #94A3B8;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+        }
+
+        .modal-body ul {
+            padding-left: 1.2rem;
+            margin: 1rem 0;
+        }
+
+        .modal-body li {
+            margin-bottom: 0.8rem;
+        }
+
+        .modal-highlight {
+            color: white;
+            font-weight: 600;
+        }
+
+        .modal-footer {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .btn-modal-close {
+            padding: 1rem 3rem;
+            background: linear-gradient(90deg, #DB2777, #9D174D);
+            border: none;
+            border-radius: 50px;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s;
+        }
+
+        .btn-modal-close:hover {
+            transform: scale(1.03);
+            box-shadow: 0 10px 20px rgba(219, 39, 119, 0.3);
+        }
+
+        .modal-link {
+            color: var(--pink-winton);
+            text-decoration: underline;
+            font-size: 0.9rem;
+        }
+
+        /* Responsividad para Móvil */
+        @media (max-width: 600px) {
+            .modal-content {
+                padding: 1.5rem;
+                border-radius: 20px;
+            }
+
+            .modal-title {
+                font-size: 1.4rem;
+                margin-bottom: 1rem;
+            }
+
+            .modal-body {
+                font-size: 0.85rem;
+                line-height: 1.4;
+                margin-bottom: 1.5rem;
+            }
+
+            .btn-modal-close {
+                padding: 0.8rem 2rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="postulacion-container">
+        <div class="header-solidario">
+            <span class="icon-heart">❤️</span>
+            <h1>WintonCoin Solidario</h1>
+            <p>Postula tu causa y recibe donaciones en BLUE IOU de tus referidos</p>
+        </div>
+
+        <div class="info-box">
+            <strong>Recuerda:</strong> Solo las personas que invites a través de tu enlace o codigo de referido podrán
+            donarte
+            sus BLUE IOU. Asegúrate de que tu historia sea honesta y digna de confianza. Cada caso es revisado
+            manualmente por nuestro equipo de confianza.
+        </div>
+
+        <form id="formHumanitario">
+            <div class="form-group">
+                <label for="username">Nombre de Usuario (Registrado)</label>
+                <input type="text" id="username" placeholder="Ingresa tu usuario registrado para validar tu identidad"
+                    required>
+                <div id="userValidationMsg" class="user-validation-msg"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="titulo">Título de la Causa</label>
+                <input type="text" id="titulo" placeholder="Ej: Apoyo para tratamiento médico post-operatorio" required>
+            </div>
+
+            <div class="form-group">
+                <label for="historia">Tu Historia (Dignidad y Claridad)</label>
+                <textarea id="historia" rows="6"
+                    placeholder="Cuéntanos tu situación y cómo te ayudará el sistema de WintonCoin..."
+                    required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="meta">Meta Necesaria (BLUE IOU)</label>
+                <input type="number" id="meta" placeholder="Monto total que necesitas recaudar" required>
+            </div>
+
+            <div class="form-group">
+                <label for="evidenciaLink">Enlace de Evidencia (Drive, Dropbox, Fotos iCloud)</label>
+                <input type="url" id="evidenciaLink" placeholder="Pega aquí el enlace a tus documentos de respaldo"
+                    required>
+                <p style="font-size: 0.75rem; color: #64748B; margin-top: 0.5rem;">
+                    ⚠️ Para mantener la integridad, asegúrate de que el enlace sea permanente y de solo lectura.
+                </p>
+            </div>
+
+            <button type="submit" class="btn-submit">Enviar para Auditoría</button>
+        </form>
+
+        <p class="footer-text">Al enviar tu postulación, aceptas que los datos serán revisados para fines de
+            verificación humanitaria bajo los estándares de Sir Nicholas Winton.</p>
+    </div>
+
+    <div class="modal-overlay" id="termsModal">
+        <div class="modal-content">
+            <h2 class="modal-title">ℹ️ Condiciones del Espacio Solidario</h2>
+            <div class="modal-body">
+                <ul>
+                    <li><span class="modal-highlight">Canje:</span> BLUE IOU +- <span class="modal-highlight">1
+                            USD</span> tras el lanzamiento (aprox).</li>
+                    <li><span class="modal-highlight">Sin Costo:</span> Tus referidos donan BLUE IOU acumulados gratis;
+                        <strong>no deben invertir nada</strong>.
+                    </li>
+                    <li><span class="modal-highlight">Prioridad:</span> Casos aprobados serán los primeros en canjear a
+                        partir de febrero 2027.</li>
+                </ul>
+                <p>Más información en: <a href="https://boosters.wintoncoin.com/detalles/pagos.html"
+                        class="modal-link">Método de Pago</a>.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-close" onclick="closeModal()">Entiendo y acepto</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Mostrar modal al cargar la página
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('termsModal').classList.add('active');
+            }, 300);
+        });
+
+        // Función para cerrar modal
+        window.closeModal = function () {
+            document.getElementById('termsModal').classList.remove('active');
+        };
+
+        const usernameInput = document.getElementById('username');
+        const validationMsg = document.getElementById('userValidationMsg');
+        let isUserValid = false;
+
+        // Lógica de validación de usuario REAL (Conexión con Backend)
+        usernameInput.addEventListener('blur', async () => {
+            const username = usernameInput.value.trim().toLowerCase();
+            if (username === '') {
+                validationMsg.innerHTML = '';
+                isUserValid = false;
+                return;
+            }
+
+            validationMsg.className = 'user-validation-msg user-success';
+            validationMsg.innerHTML = 'Validando usuario...';
+            validationMsg.style.display = 'block';
+
+            try {
+                // Llamada a la API real del backend (que ya consulta la base de datos)
+                const response = await fetch(`/api/check-username/${username}`);
+                const data = await response.json();
+
+                // Nota: El endpoint devuelve available: false si el usuario EXISTE (ya está en uso)
+                // Para nuestro propósito, si available es false, significa que el usuario está registrado.
+                if (data.available === false && !data.error) {
+                    validationMsg.className = 'user-validation-msg user-success';
+                    validationMsg.innerHTML = '✅ Usuario verificado en la base de datos.';
+                    isUserValid = true;
+                } else {
+                    validationMsg.className = 'user-validation-msg user-error';
+                    validationMsg.innerHTML = '⚠️ Usuario no registrado. <a href="index.html" class="register-hint">Regístrate aquí primero</a> para poder postular.';
+                    isUserValid = false;
+                }
+            } catch (error) {
+                console.error('Error al validar usuario:', error);
+                validationMsg.className = 'user-validation-msg user-error';
+                validationMsg.innerHTML = '❌ Error de conexión con el servidor.';
+                isUserValid = false;
+            }
+        });
+
+        // Lógica para manejo del formulario
+        document.getElementById('formHumanitario').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!isUserValid) {
+                alert('Por favor, ingresa un nombre de usuario registrado y válido.');
+                usernameInput.focus();
+                return;
+            }
+
+            const btn = e.target.querySelector('button');
+            const originalText = btn.innerText;
+            btn.innerText = 'Registrando en Auditoría...';
+            btn.disabled = true;
+
+            const formData = {
+                username: usernameInput.value.trim(),
+                titulo: document.getElementById('titulo').value.trim(),
+                historia: document.getElementById('historia').value.trim(),
+                meta: document.getElementById('meta').value.trim(),
+                evidencia_link: document.getElementById('evidenciaLink').value.trim()
+            };
+
+            try {
+                const response = await fetch('/api/solidario/postulacion', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert('✅ Postulación registrada exitosamente.\n\n📬 Recibirás una notificación en la app y en tu correo cuando nuestro equipo revise tu caso.\n\nPuedes ver el estado de tu solicitud en tu bandeja de notificaciones.');
+                    window.location.href = 'index.html';
+                } else {
+                    alert('❌ Error: ' + (result.message || 'No se pudo registrar la postulación.'));
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error al enviar postulación:', error);
+                alert('❌ Error de conexión con el servidor.');
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+
+</html>

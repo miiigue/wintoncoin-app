@@ -268,6 +268,111 @@ async function startServer() {
             }
         });
 
+        // =================================================================================
+        // ==  ENDPOINT DE POSTULACIÓN SOLIDARIA (CASOS HUMANITARIOS)                    ==
+        // ==  Usa la tabla humanitarian_causes creada por migración 038                 ==
+        // ==  Seguridad: Validación de URL, límites de longitud, sanitización           ==
+        // =================================================================================
+        app.post('/api/solidario/postulacion', async (req, res) => {
+            const { username, titulo, historia, meta, evidencia_link } = req.body;
+
+            // --- VALIDACIÓN 1: Campos obligatorios ---
+            if (!username || !titulo || !historia || !meta || !evidencia_link) {
+                return res.status(400).json({ message: "Todos los campos son obligatorios, incluyendo el enlace de evidencia." });
+            }
+
+            // --- VALIDACIÓN 2: Límites de longitud (Prevención de payload excesivo) ---
+            if (username.length > 50) {
+                return res.status(400).json({ message: "El nombre de usuario es demasiado largo." });
+            }
+            if (titulo.length > 255) {
+                return res.status(400).json({ message: "El título no puede exceder 255 caracteres." });
+            }
+            if (historia.length > 5000) {
+                return res.status(400).json({ message: "La historia no puede exceder 5000 caracteres." });
+            }
+            if (evidencia_link.length > 2048) {
+                return res.status(400).json({ message: "El enlace de evidencia es demasiado largo." });
+            }
+
+            // --- VALIDACIÓN 3: Monto numérico positivo ---
+            const goalAmount = parseFloat(meta);
+            if (isNaN(goalAmount) || goalAmount <= 0) {
+                return res.status(400).json({ message: "La meta debe ser un número positivo." });
+            }
+
+            // --- VALIDACIÓN 4: URL segura (solo HTTPS para proteger la integridad) ---
+            try {
+                const url = new URL(evidencia_link.trim());
+                if (url.protocol !== 'https:') {
+                    return res.status(400).json({ message: "El enlace de evidencia debe usar HTTPS por seguridad." });
+                }
+            } catch (e) {
+                return res.status(400).json({ message: "El enlace de evidencia no es una URL válida." });
+            }
+
+            try {
+                // 1. Verificar que el usuario existe en la base de datos (Seguridad: doble verificación)
+                const userResult = await pool.query(
+                    'SELECT id FROM users WHERE LOWER(username) = LOWER($1)',
+                    [username.trim()]
+                );
+                if (userResult.rowCount === 0) {
+                    return res.status(404).json({ message: "El usuario no existe en el sistema." });
+                }
+                const userId = userResult.rows[0].id;
+
+                // 2. Insertar en la tabla humanitarian_causes (Migración 038)
+                // evidence_urls es JSONB, guardamos el link como un array de URLs
+                const evidenceUrls = JSON.stringify([evidencia_link.trim()]);
+                const insertSql = `
+                    INSERT INTO humanitarian_causes 
+                    (user_id, title, story, goal_amount, evidence_urls, status)
+                    VALUES ($1, $2, $3, $4, $5::jsonb, 'pending')
+                    RETURNING id, created_at
+                `;
+                const result = await pool.query(insertSql, [
+                    userId,
+                    titulo.trim(),
+                    historia.trim(),
+                    goalAmount,
+                    evidenceUrls
+                ]);
+
+                // 3. Registrar en Auditoría (Estándar Bancario: Trazabilidad total)
+                await logAuditEvent(pool, req, {
+                    eventType: 'SOLIDARIO_POSTULACION',
+                    actorUsername: username.trim(),
+                    category: 'HUMANITARIAN',
+                    metadata: {
+                        cause_id: result.rows[0].id,
+                        title: titulo.trim(),
+                        goal_amount: goalAmount
+                    }
+                });
+
+                // 4. Notificación in-app (mismo patrón que el resto del sistema)
+                // Queda registrada en la bandeja de notificaciones del usuario
+                await pool.query(
+                    `INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`,
+                    [
+                        username.trim(),
+                        `📋 Tu postulación solidaria "${titulo.trim()}" ha sido recibida (ID: #${result.rows[0].id}). Nuestro equipo la revisará y recibirás una notificación con la decisión.`
+                    ]
+                );
+
+                res.status(201).json({
+                    success: true,
+                    message: "Tu postulación ha sido registrada exitosamente. Recibirás una notificación cuando nuestro equipo revise tu caso.",
+                    id: result.rows[0].id
+                });
+
+            } catch (error) {
+                console.error('Error al procesar la postulación solidaria:', error);
+                res.status(500).json({ message: "Error interno del servidor al procesar la postulación." });
+            }
+        });
+
         // Rutas de Autenticación movidas a src/routes/authRoutes.js
         app.use('/', authRoutes);
 
