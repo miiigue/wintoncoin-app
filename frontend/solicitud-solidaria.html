@@ -358,6 +358,10 @@
     </div>
 
     <script type="module">
+        // Importar configuración centralizada del API (resuelve URL según entorno)
+        import { getApiUrl } from './src/modules/config.js';
+        const API_URL = getApiUrl();
+
         // Mostrar modal al cargar la página
         window.addEventListener('load', () => {
             setTimeout(() => {
@@ -388,8 +392,8 @@
             validationMsg.style.display = 'block';
 
             try {
-                // Llamada a la API real del backend (que ya consulta la base de datos)
-                const response = await fetch(`/api/check-username/${username}`);
+                // Llamada a la API real del backend usando URL centralizada
+                const response = await fetch(`${API_URL}/api/check-username/${username}`);
                 const data = await response.json();
 
                 // Nota: El endpoint devuelve available: false si el usuario EXISTE (ya está en uso)
@@ -435,7 +439,8 @@
             };
 
             try {
-                const response = await fetch('/api/solidario/postulacion', {
+                // Envío al backend usando URL centralizada
+                const response = await fetch(`${API_URL}/api/solidario/postulacion`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
