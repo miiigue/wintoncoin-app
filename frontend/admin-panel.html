@@ -43,6 +43,12 @@
                     <li><a href="#academy" class="nav-link" data-section="academy" style="color: #4da6ff;">🎓 Winton
                             Academy</a></li>
                     <li><a href="momentum-admin.html" class="nav-link" style="color: #FFD700;">⚡ Momentum</a></li>
+                    <li>
+                        <a href="#humanitarian" class="nav-link" data-section="humanitarian" style="color: #F472B6;">❤️
+                            Solidario
+                            <span class="nav-badge" id="humanitarianBadge" aria-label="Pendientes"></span>
+                        </a>
+                    </li>
                 </ul>
             </nav>
             <div class="sidebar-footer">
@@ -749,6 +755,43 @@
                     </div>
                 </div>
             </section>
+
+            <!-- Sección Winton Solidario (Causas Humanitarias) -->
+            <section id="humanitarian-section" class="admin-section">
+                <h1>❤️ Winton Solidario</h1>
+                <p>Gestión de postulaciones de causas humanitarias. Revisa, aprueba o rechaza solicitudes.</p>
+
+                <div class="table-controls">
+                    <input type="text" id="humanitarianSearchInput" placeholder="Buscar por título o usuario...">
+                    <select id="humanitarianStatusFilter">
+                        <option value="all">Todos los estados</option>
+                        <option value="pending" selected>Pendientes</option>
+                        <option value="approved">Aprobadas</option>
+                        <option value="rejected">Rechazadas</option>
+                        <option value="completed">Completadas</option>
+                    </select>
+                </div>
+
+                <!-- Estadísticas rápidas -->
+                <div id="humanitarian-stats" class="stats-container" style="margin-bottom: 1.5rem;">
+                    <div class="loading-spinner"></div>
+                </div>
+
+                <!-- Tabla de causas -->
+                <div id="humanitarian-table-container" class="table-container-admin">
+                    <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- Modal de Detalle de Causa Humanitaria -->
+            <div id="humanitarianDetailModal" class="modal">
+                <div class="modal-content" style="max-width: 650px;">
+                    <span class="close-button humanitarian-modal-close">&times;</span>
+                    <h2 id="humanitarianModalTitle" style="margin-bottom: 1rem;">Detalle de Causa</h2>
+                    <div id="humanitarianModalBody"></div>
+                    <div id="humanitarianModalActions" class="modal-actions" style="margin-top: 1.5rem;"></div>
+                </div>
+            </div>
 
         </main>
     </div>

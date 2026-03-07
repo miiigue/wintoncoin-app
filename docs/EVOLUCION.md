@@ -911,3 +911,16 @@ Esto no rompe el producto, pero **sí rompe la mantenibilidad** (repo pesado, di
 - **Decision**: Reescritura frontend para inyectar formFields. Integracion de Unit Tests con Jest (Mocking DB, Cron y Migrations). Bugfix critico de escapeHtml en emailService.js resuelto.
 - **Impacto**: UI restaurada, Testing modular blindando rutas de backend.
 - **Evidencia (commits)**: pendiente de push.
+### 2026-03-06 — Winton Solidario: Gestión Admin + Motor Hold & Release (BLUE IOU)
+
+- **Contexto**: Las causas humanitarias requieren un nivel de verificación superior para evitar fraudes y asegurar que los fondos (BLUE IOU) provengan de personas reales antes de ser efectivos.
+- **Decisión**:
+  - Implementar **Panel de Administración Solidario** para la postulación privada de casos.
+  - Diseñar motor de **"Hold & Release"**: Las donaciones de BLUE IOU se debitan del donante pero quedan en "Hold" (espera).
+  - Condicionar la liberación: Los fondos solo se acreditan al beneficiario cuando el administrador aprueba el **KYC del donante**.
+  - Aislamiento económico: La transferencia ocurre exclusivamente entre balances de impulsor (`booster_balance`), sin tocar el sistema de tokens RED.
+- **Impacto**:
+  - Seguridad bancaria: Blindaje contra bots y multicuentas que intenten "inflar" causas.
+  - Transparencia: El beneficiario sabe que su saldo depende de la verificación de su red.
+  - Trazabilidad: Cada gramo de BLUE IOU donado tiene un origen humano verificado.
+- **Evidencia**: Implementación modular en `humanitarianController.js` y `humanitarianRoutes.js`.

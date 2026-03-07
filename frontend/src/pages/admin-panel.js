@@ -109,7 +109,17 @@ document.addEventListener('DOMContentLoaded', () => {
         academyTableContainer: document.getElementById('academy-table-container'),
         academyVideoUrl: document.getElementById('academyVideoUrl'),
         academyVideoTitle: document.getElementById('academyVideoTitle'),
-        academyVideoOrder: document.getElementById('academyVideoOrder')
+        academyVideoOrder: document.getElementById('academyVideoOrder'),
+        // --- WINTON SOLIDARIO (Causas Humanitarias) ---
+        humanitarianStatsContainer: document.getElementById('humanitarian-stats'),
+        humanitarianTableContainer: document.getElementById('humanitarian-table-container'),
+        humanitarianSearchInput: document.getElementById('humanitarianSearchInput'),
+        humanitarianStatusFilter: document.getElementById('humanitarianStatusFilter'),
+        humanitarianBadge: document.getElementById('humanitarianBadge'),
+        humanitarianDetailModal: document.getElementById('humanitarianDetailModal'),
+        humanitarianModalTitle: document.getElementById('humanitarianModalTitle'),
+        humanitarianModalBody: document.getElementById('humanitarianModalBody'),
+        humanitarianModalActions: document.getElementById('humanitarianModalActions')
     };
 
     // --- Inicialización ---
@@ -122,7 +132,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // checkLegalStatus(); // Ruta obsoleta eliminada para mayor fluidez del panel
     showSection('dashboard');
     refreshPlatformPendingBadge();
+    refreshHumanitarianBadge();
     setInterval(refreshPlatformPendingBadge, 30000);
+    setInterval(refreshHumanitarianBadge, 30000);
 
     // --- Lógica de la Interfaz ---
     function setupEventListeners() {
@@ -393,6 +405,31 @@ document.addEventListener('DOMContentLoaded', () => {
         if (saveDailyMessagesBtn) {
             saveDailyMessagesBtn.addEventListener('click', saveDailyModalSettings);
         }
+
+        // --- WINTON SOLIDARIO: Event Listeners ---
+        let humanitarianSearchTimeout;
+        if (elements.humanitarianSearchInput) {
+            elements.humanitarianSearchInput.addEventListener('keyup', () => {
+                clearTimeout(humanitarianSearchTimeout);
+                humanitarianSearchTimeout = setTimeout(() => loadHumanitarianCauses(), 300);
+            });
+        }
+        if (elements.humanitarianStatusFilter) {
+            elements.humanitarianStatusFilter.addEventListener('change', () => loadHumanitarianCauses());
+        }
+        // Cerrar modal humanitario
+        if (elements.humanitarianDetailModal) {
+            elements.humanitarianDetailModal.querySelectorAll('.humanitarian-modal-close').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    elements.humanitarianDetailModal.style.display = 'none';
+                });
+            });
+            elements.humanitarianDetailModal.addEventListener('click', (e) => {
+                if (e.target === elements.humanitarianDetailModal) {
+                    elements.humanitarianDetailModal.style.display = 'none';
+                }
+            });
+        }
     }
 
     function showSection(sectionId) {
@@ -419,6 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         else if (sectionId === 'audit-log') loadAuditLog();
         else if (sectionId === 'academy') loadAcademyVideos();
+        else if (sectionId === 'humanitarian') loadHumanitarianCauses();
     }
 
     function showBoosterTab(tabId) {
@@ -2949,6 +2987,282 @@ document.addEventListener('DOMContentLoaded', () => {
     // Re-vincular el form de Push que podría haberse perdido si no se ejecuta bien
     if (elements.pushNotificationForm) {
         elements.pushNotificationForm.addEventListener('submit', handlePushNotificationSubmit);
+    }
+
+    // ============================================================================
+    // WINTON SOLIDARIO - Gestión de Causas Humanitarias
+    // ============================================================================
+    // Funciones para cargar, renderizar y gestionar causas humanitarias
+    // desde el panel de administración.
+    // ============================================================================
+
+    /**
+     * Carga las causas humanitarias desde el backend con filtros aplicados.
+     * Usa el endpoint /api/admin/humanitarian/causes con query params.
+     */
+    async function loadHumanitarianCauses() {
+        if (!elements.humanitarianTableContainer) return;
+        elements.humanitarianTableContainer.innerHTML = '<div class="loading-spinner"></div>';
+        if (elements.humanitarianStatsContainer) {
+            elements.humanitarianStatsContainer.innerHTML = '<div class="loading-spinner"></div>';
+        }
+
+        try {
+            const status = elements.humanitarianStatusFilter?.value || 'pending';
+            const search = elements.humanitarianSearchInput?.value || '';
+            const data = await apiFetch(`/api/admin/humanitarian/causes?status=${encodeURIComponent(status)}&search=${encodeURIComponent(search)}`);
+
+            renderHumanitarianStats(data);
+            renderHumanitarianTable(data.causes || []);
+        } catch (error) {
+            elements.humanitarianTableContainer.innerHTML = `<p class="error-message">Error al cargar causas: ${escapeHtml(error.message)}</p>`;
+            if (elements.humanitarianStatsContainer) {
+                elements.humanitarianStatsContainer.innerHTML = '';
+            }
+        }
+    }
+
+    /**
+     * Renderiza las estadísticas rápidas de causas humanitarias.
+     * Muestra total de causas y pendientes en tarjetas de resumen.
+     */
+    function renderHumanitarianStats(data) {
+        if (!elements.humanitarianStatsContainer) return;
+        elements.humanitarianStatsContainer.innerHTML = `
+            <div class="stat-card">
+                <div class="stat-value">${data.pending_count || 0}</div>
+                <div class="stat-label">Pendientes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${data.total || 0}</div>
+                <div class="stat-label">Total (filtro actual)</div>
+            </div>
+        `;
+    }
+
+    /**
+     * Renderiza la tabla de causas humanitarias.
+     * Cada fila tiene botón para ver detalle en modal.
+     */
+    function renderHumanitarianTable(causes) {
+        if (!elements.humanitarianTableContainer) return;
+
+        if (!causes || causes.length === 0) {
+            elements.humanitarianTableContainer.innerHTML = '<p class="no-data-message">No se encontraron causas con los filtros seleccionados.</p>';
+            return;
+        }
+
+        // Helper para generar badge de estado con colores profesionales
+        const statusBadge = (status) => {
+            const map = {
+                'pending': { label: '⏳ Pendiente', color: '#F59E0B', bg: 'rgba(245,158,11,0.15)' },
+                'approved': { label: '✅ Aprobada', color: '#10B981', bg: 'rgba(16,185,129,0.15)' },
+                'rejected': { label: '❌ Rechazada', color: '#EF4444', bg: 'rgba(239,68,68,0.15)' },
+                'completed': { label: '🏆 Completada', color: '#6366F1', bg: 'rgba(99,102,241,0.15)' }
+            };
+            const s = map[status] || { label: status, color: '#888', bg: 'rgba(136,136,136,0.15)' };
+            return `<span style="padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; color: ${s.color}; background: ${s.bg};">${s.label}</span>`;
+        };
+
+        let html = `
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Usuario</th>
+                        <th>Título</th>
+                        <th>Meta (BLUE)</th>
+                        <th>Recaudado</th>
+                        <th>Estado</th>
+                        <th>Fecha</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        causes.forEach(cause => {
+            const date = new Date(cause.created_at).toLocaleDateString('es-ES', {
+                year: 'numeric', month: 'short', day: 'numeric'
+            });
+            const goalFormatted = Number(cause.goal_amount).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const currentFormatted = Number(cause.current_amount).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            html += `
+                <tr>
+                    <td>#${cause.id}</td>
+                    <td><strong>${escapeHtml(cause.username)}</strong></td>
+                    <td>${escapeHtml(cause.title)}</td>
+                    <td>${goalFormatted}</td>
+                    <td>${currentFormatted}</td>
+                    <td>${statusBadge(cause.status)}</td>
+                    <td>${date}</td>
+                    <td>
+                        <button class="action-button" onclick="window._viewHumanitarianCause(${cause.id})" style="font-size: 0.8rem; padding: 6px 12px;">
+                            👁️ Ver
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table>';
+        elements.humanitarianTableContainer.innerHTML = html;
+    }
+
+    /**
+     * Abre el modal de detalle de una causa humanitaria.
+     * Muestra toda la información y botones de acción (aprobar/rechazar).
+     */
+    window._viewHumanitarianCause = async function (causeId) {
+        if (!elements.humanitarianDetailModal) return;
+
+        elements.humanitarianModalTitle.textContent = 'Cargando...';
+        elements.humanitarianModalBody.innerHTML = '<div class="loading-spinner"></div>';
+        elements.humanitarianModalActions.innerHTML = '';
+        elements.humanitarianDetailModal.style.display = 'flex';
+
+        try {
+            const data = await apiFetch(`/api/admin/humanitarian/causes/${causeId}`);
+            const cause = data.cause;
+            const date = new Date(cause.created_at).toLocaleString('es-ES');
+
+            // Renderizar evidencia (array de URLs)
+            let evidenceHtml = '<em>Sin evidencia</em>';
+            if (cause.evidence_urls && Array.isArray(cause.evidence_urls) && cause.evidence_urls.length > 0) {
+                evidenceHtml = cause.evidence_urls.map((url, i) =>
+                    `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="color: #3B82F6; text-decoration: underline; display: block; margin-bottom: 4px;">📎 Evidencia ${i + 1}</a>`
+                ).join('');
+            }
+
+            elements.humanitarianModalTitle.textContent = `Causa #${cause.id}: ${cause.title}`;
+            elements.humanitarianModalBody.innerHTML = `
+                <div style="display: grid; gap: 12px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div>
+                            <strong style="color: #94A3B8;">Usuario:</strong>
+                            <p style="margin: 4px 0;">${escapeHtml(cause.username)}</p>
+                        </div>
+                        <div>
+                            <strong style="color: #94A3B8;">Email:</strong>
+                            <p style="margin: 4px 0;">${escapeHtml(cause.email || 'N/A')}</p>
+                        </div>
+                        <div>
+                            <strong style="color: #94A3B8;">Meta BLUE IOU:</strong>
+                            <p style="margin: 4px 0; font-weight: 700; color: #3B82F6;">${Number(cause.goal_amount).toLocaleString('es-ES')} BLUE</p>
+                        </div>
+                        <div>
+                            <strong style="color: #94A3B8;">Recaudado:</strong>
+                            <p style="margin: 4px 0; font-weight: 700; color: #10B981;">${Number(cause.current_amount).toLocaleString('es-ES')} BLUE</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <strong style="color: #94A3B8;">Historia:</strong>
+                        <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; margin-top: 6px; max-height: 200px; overflow-y: auto; line-height: 1.6;">
+                            ${escapeHtml(cause.story)}
+                        </div>
+                    </div>
+
+                    <div>
+                        <strong style="color: #94A3B8;">Evidencia:</strong>
+                        <div style="margin-top: 6px;">${evidenceHtml}</div>
+                    </div>
+
+                    <div style="display: flex; gap: 20px; font-size: 0.85rem; color: #64748B;">
+                        <span>📅 Registrada: ${date}</span>
+                        <span>🔖 Estado: <strong>${cause.status}</strong></span>
+                    </div>
+
+                    ${cause.admin_notes ? `
+                        <div style="background: rgba(239,68,68,0.1); padding: 12px; border-radius: 8px; border-left: 3px solid #EF4444;">
+                            <strong style="color: #EF4444;">Notas del Admin:</strong>
+                            <p style="margin: 4px 0;">${escapeHtml(cause.admin_notes)}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+
+            // Botones de acción solo para causas pendientes
+            if (cause.status === 'pending') {
+                elements.humanitarianModalActions.innerHTML = `
+                    <div style="display: flex; gap: 12px; width: 100%;">
+                        <div style="flex: 1;">
+                            <label style="display: block; margin-bottom: 6px; font-size: 0.85rem; color: #94A3B8;">Notas del Admin (obligatorio para rechazar):</label>
+                            <textarea id="humanitarianAdminNotes" rows="2" style="width: 100%; padding: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white; font-size: 0.9rem;" placeholder="Escribe notas o razón de rechazo..."></textarea>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 12px; margin-top: 12px;">
+                        <button id="btnApproveCause" class="action-button" style="flex: 1; padding: 10px; background: linear-gradient(135deg, #10B981, #059669); border: none; border-radius: 8px; color: white; font-weight: 700; cursor: pointer;">
+                            ✅ Aprobar Causa
+                        </button>
+                        <button id="btnRejectCause" class="action-button" style="flex: 1; padding: 10px; background: linear-gradient(135deg, #EF4444, #DC2626); border: none; border-radius: 8px; color: white; font-weight: 700; cursor: pointer;">
+                            ❌ Rechazar Causa
+                        </button>
+                    </div>
+                `;
+
+                // Event listeners para los botones de acción
+                document.getElementById('btnApproveCause').addEventListener('click', () => {
+                    const notes = document.getElementById('humanitarianAdminNotes')?.value || '';
+                    handleHumanitarianAction(causeId, 'approve', notes);
+                });
+                document.getElementById('btnRejectCause').addEventListener('click', () => {
+                    const notes = document.getElementById('humanitarianAdminNotes')?.value || '';
+                    handleHumanitarianAction(causeId, 'reject', notes);
+                });
+            } else {
+                elements.humanitarianModalActions.innerHTML = `
+                    <p style="text-align: center; color: #64748B; font-style: italic;">Esta causa ya fue procesada (${cause.status}).</p>
+                `;
+            }
+
+        } catch (error) {
+            elements.humanitarianModalBody.innerHTML = `<p class="error-message">Error al cargar detalle: ${escapeHtml(error.message)}</p>`;
+        }
+    };
+
+    /**
+     * Maneja la acción de aprobar o rechazar una causa.
+     * Pide confirmación, envía al backend y recarga la tabla.
+     */
+    async function handleHumanitarianAction(causeId, action, notes) {
+        const actionLabel = action === 'approve' ? 'APROBAR' : 'RECHAZAR';
+        const confirmMsg = action === 'approve'
+            ? `¿Estás seguro de APROBAR esta causa #${causeId}? El usuario será notificado y sus referidos podrán donarle.`
+            : `¿Estás seguro de RECHAZAR esta causa #${causeId}? Se requiere una razón detallada.`;
+
+        showCustomConfirm(confirmMsg, async () => {
+            try {
+                const result = await apiFetch(`/api/admin/humanitarian/causes/${causeId}/${action}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ admin_notes: notes })
+                });
+
+                showCustomAlert(`✅ ${result.message}`);
+                elements.humanitarianDetailModal.style.display = 'none';
+                loadHumanitarianCauses();
+                refreshHumanitarianBadge();
+            } catch (error) {
+                showCustomAlert(`❌ Error al ${actionLabel.toLowerCase()}: ${error.message}`);
+            }
+        });
+    }
+
+    /**
+     * Actualiza el badge de pendientes en el sidebar (conteo de causas pendientes).
+     * Se ejecuta al cargar y cada 30 segundos automáticamente.
+     */
+    async function refreshHumanitarianBadge() {
+        try {
+            const data = await apiFetch('/api/admin/humanitarian/pending-count');
+            if (elements.humanitarianBadge) {
+                elements.humanitarianBadge.textContent = data.count > 0 ? data.count : '';
+                elements.humanitarianBadge.style.display = data.count > 0 ? 'inline-flex' : 'none';
+            }
+        } catch (error) {
+            console.warn('[SOLIDARIO] No se pudo actualizar badge de pendientes:', error.message);
+        }
     }
 
 });

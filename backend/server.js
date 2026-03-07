@@ -177,6 +177,10 @@ async function startServer() {
         const academyRoutes = require('./src/routes/academyRoutes');
         app.use('/api/academy', academyRoutes);
 
+        // --- NUEVO: Rutas de Gestión Admin de Causas Humanitarias (Winton Solidario) ---
+        const humanitarianRoutes = require('./src/routes/humanitarianRoutes');
+        app.use('/api/admin/humanitarian', humanitarianRoutes);
+
 
         // =================================================================================
         // ==  NUEVO FLUJO DE REGISTRO CON VERIFICACIÓN POR SMS (FASE 1: SOLICITUD)  ==
