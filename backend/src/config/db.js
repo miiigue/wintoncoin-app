@@ -4,13 +4,14 @@ const { Pool } = require('pg');
 let useSsl = false;
 const dbUrl = process.env.DATABASE_URL || '';
 
-// Detectar si la conexión es a una base de datos local
-const isLocalUrl = dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1');
-
-// Estándar de la industria (Zero Trust):
-// Si la base de datos no está en la máquina local del desarrollador,
-// SIEMPRE forzar túnel SSL encriptado. Heroku, AWS y Render lo exigen.
-if (!isLocalUrl) {
+// 1. Si es una URL interna de Render (.internal), NUNCA usar SSL (viaja por red privada).
+// 2. Si es local (localhost/127.0.0.1), tampoco usar SSL.
+// 3. Si es una URL externa pública (cualquier otra), FORZAR SSL obligatorio.
+if (dbUrl.includes('.internal')) {
+    useSsl = false;
+} else if (dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1')) {
+    useSsl = false;
+} else {
     useSsl = { rejectUnauthorized: false };
 }
 
