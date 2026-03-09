@@ -2,23 +2,20 @@ require('dotenv').config();
 const { Pool } = require('pg');
 
 let useSsl = false;
+const dbUrl = process.env.DATABASE_URL || '';
 
-if (process.env.RENDER) {
-    // Estamos ejecutándonos DENTRO de Render (la nube).
-    // Render intercepta incluso la URL externa y la envía por su red privada interna.
-    // En su red privada NO soportan SSL, por lo que PostgreSQL rechaza la conexión si lo usamos.
-    useSsl = false;
-} else if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com')) {
-    // Estamos ejecutándonos FUERA de Render (ej. tu localhost conectándose a la nube de Render).
-    // Para admitinos desde afuera, Render EXIGE estrictamente estar blindados con SSL.
-    useSsl = { rejectUnauthorized: false };
-} else if (process.env.NODE_ENV === 'production') {
-    // Entorno de producción en otro proveedor que no sea Render
+// Detectar si la conexión es a una base de datos local
+const isLocalUrl = dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1');
+
+// Estándar de la industria (Zero Trust):
+// Si la base de datos no está en la máquina local del desarrollador,
+// SIEMPRE forzar túnel SSL encriptado. Heroku, AWS y Render lo exigen.
+if (!isLocalUrl) {
     useSsl = { rejectUnauthorized: false };
 }
 
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: dbUrl,
     ssl: useSsl
 });
 
