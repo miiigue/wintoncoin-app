@@ -924,3 +924,30 @@ Esto no rompe el producto, pero **sí rompe la mantenibilidad** (repo pesado, di
   - Transparencia: El beneficiario sabe que su saldo depende de la verificación de su red.
   - Trazabilidad: Cada gramo de BLUE IOU donado tiene un origen humano verificado.
 - **Evidencia**: Implementación modular en `humanitarianController.js` y `humanitarianRoutes.js`.
+
+### 2026-03-07 — Winton Solidario: Motor Hold & Release + Servicio de Donaciones
+
+- **Contexto**: Con el Panel Admin listo, se necesitaba el motor financiero que procese las donaciones de BLUE IOU con garantía de integridad y trazabilidad.
+- **Decisión**:
+  - **Migración 039** (`039_solidario_hold_release_engine.js`): Crea la tabla `humanitarian_donations` y un **Trigger de PostgreSQL** (`fn_release_humanitarian_donations`) que libera automáticamente las donaciones en "Hold" cuando el donante pasa el KYC (`is_verified = true`).
+  - **Servicio reescrito** (`humanitarianService.js`): Corregidos errores críticos del borrador inicial (consultaba columna inexistente, usaba UPDATE directo en lugar de Event Sourcing). Ahora usa `record_booster_event()` y `booster_blue_ledger` para compatibilidad total con la arquitectura existente.
+  - **Rutas de usuario** (`humanitarianUserRoutes.js`): Endpoints para postular causas, donar BLUE IOU, consultar mis causas y ver detalle de donaciones. Protegidas con `authenticateToken`.
+  - **Aislamiento modular**: Rutas admin (`/api/admin/humanitarian`) y rutas de usuario (`/api/humanitarian`) en archivos separados con middlewares distintos.
+- **Impacto**:
+  - Motor financiero a nivel de Base de Datos (Trigger): garantiza liberación automática sin depender del código de Node.js.
+  - Compatibilidad con Event Sourcing: todas las operaciones de saldo usan `record_booster_event`.
+  - Seguridad anti-fraude: validación de saldo, prevención de auto-donación, KYC obligatorio para liberar fondos.
+- **Evidencia (commits)**: pendiente de push.
+
+### 2026-03-08 — Winton Solidario: Interfaz Pública y Tarjeta Dashboard
+
+- **Contexto**: Las causas solidarias requerían visibilidad tanto para el público general/donantes como para el propio creador de la causa, manteniendo una experiencia nivel fintech.
+- **Decisión**:
+  - **Página Pública Dedicada (`causa-solidaria.html` y `.js`)**: UI moderna con barra de progreso, lista de donantes (clasificados por estado de acreditación u "on hold") y modal seguro para realizar donaciones de BLUE IOU verificando el KYC del donante (`/api/auth/status`).
+  - **Botón Compartir**: Integración con Web Share API (nativo móvil) o WhatsApp web (fallback).
+  - **Tarjeta en el Dashboard (`contract_interaction.html` y `.js`)**: Un widget en el panel principal (`contract-interaction`) que muestra al usuario el progreso en tiempo real de su causa, su estado (pendiente, aprobada, rechazada) y acceso rápido para compartirla.
+- **Impacto**:
+  - Creadores empoderados: pueden seguir el progreso en su dashboard.
+  - Donantes seguros: la barrera de aporte tiene UX premium y alertas claras (KYC impactando el "Hold" de los fondos).
+  - Efecto de red facilitado gracias al botón de compartir.
+- **Evidencia (commits)**: pendiente de push.

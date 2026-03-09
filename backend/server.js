@@ -181,6 +181,11 @@ async function startServer() {
         const humanitarianRoutes = require('./src/routes/humanitarianRoutes');
         app.use('/api/admin/humanitarian', humanitarianRoutes);
 
+        // --- NUEVO: Rutas Públicas de Winton Solidario (Donaciones BLUE IOU) ---
+        // Permite a usuarios autenticados: postular causas, donar, y consultar estado
+        const humanitarianUserRoutes = require('./src/routes/humanitarianUserRoutes');
+        app.use('/api/humanitarian', humanitarianUserRoutes);
+
 
         // =================================================================================
         // ==  NUEVO FLUJO DE REGISTRO CON VERIFICACIÓN POR SMS (FASE 1: SOLICITUD)  ==
@@ -273,6 +278,34 @@ async function startServer() {
         });
 
         // =================================================================================
+        // ==  ENDPOINT PARA VALIDAR CAUSAS ACTIVAS DE UN USUARIO (SOLIDARIO)           ==
+        // =================================================================================
+        app.get('/api/solidario/check-active/:username', async (req, res) => {
+            const { username } = req.params;
+            try {
+                const userResult = await pool.query('SELECT id FROM users WHERE LOWER(username) = LOWER($1)', [username.trim()]);
+                if (userResult.rowCount === 0) {
+                    return res.status(404).json({ error: 'User not found' });
+                }
+                const userId = userResult.rows[0].id;
+
+                const activeCauses = await pool.query(`
+                    SELECT id FROM humanitarian_causes 
+                    WHERE user_id = $1 AND status IN ('pending', 'approved')
+                `, [userId]);
+
+                if (activeCauses.rowCount > 0) {
+                    return res.json({ hasActive: true, message: 'El usuario ya tiene una causa activa o pendiente.' });
+                }
+
+                return res.json({ hasActive: false, message: 'El usuario puede postular una causa.' });
+            } catch (err) {
+                console.error('Error checking active causes:', err.message);
+                return res.status(500).json({ error: 'Database error' });
+            }
+        });
+
+        // =================================================================================
         // ==  ENDPOINT DE POSTULACIÓN SOLIDARIA (CASOS HUMANITARIOS)                    ==
         // ==  Usa la tabla humanitarian_causes creada por migración 038                 ==
         // ==  Seguridad: Validación de URL, límites de longitud, sanitización           ==
@@ -325,6 +358,16 @@ async function startServer() {
                     return res.status(404).json({ message: "El usuario no existe en el sistema." });
                 }
                 const userId = userResult.rows[0].id;
+
+                // --- NUEVO: Validar que el usuario no tenga otra causa activa ('pending' o 'approved') ---
+                const activeCausesCheck = await pool.query(`
+                    SELECT id FROM humanitarian_causes 
+                    WHERE user_id = $1 AND status IN ('pending', 'approved')
+                `, [userId]);
+
+                if (activeCausesCheck.rowCount > 0) {
+                    return res.status(400).json({ message: "Actualmente posees una causa en curso o en revisión. Debes culminarla antes de postular una nueva." });
+                }
 
                 // 2. Insertar en la tabla humanitarian_causes (Migración 038)
                 // evidence_urls es JSONB, guardamos el link como un array de URLs
