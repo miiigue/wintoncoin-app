@@ -340,8 +340,8 @@
             <h2 class="modal-title">ℹ️ Condiciones del Espacio Solidario</h2>
             <div class="modal-body">
                 <ul>
-                    <li><span class="modal-highlight">Canje:</span> BLUE IOU +- <span class="modal-highlight">1
-                            USD</span> tras el lanzamiento (aprox).</li>
+                    <li><span class="modal-highlight">Canje:</span> Tras el lanzamiento 1 BLUE IOU = 1 token BLUE +-
+                        <span class="modal-highlight">1 USD</span> (aprox).</li>
                     <li><span class="modal-highlight">Sin Costo:</span> Tus referidos donan BLUE IOU acumulados gratis;
                         <strong>no deben invertir nada</strong>.
                     </li>
@@ -401,7 +401,30 @@
                 if (data.available === false && !data.error) {
                     validationMsg.className = 'user-validation-msg user-success';
                     validationMsg.innerHTML = '✅ Usuario verificado en la base de datos.';
-                    isUserValid = true;
+
+                    // --- NUEVO Lógica: Verificar si ya tiene causas activas antes de dejarlo seguir ---
+                    const activeCheckRes = await fetch(`${API_URL}/api/solidario/check-active/${username}`);
+                    const activeCheckData = await activeCheckRes.json();
+
+                    if (activeCheckData.hasActive === true) {
+                        validationMsg.className = 'user-validation-msg user-error';
+                        validationMsg.innerHTML = '⚠️ Atención: Tienes una causa activa o en revisión (' + activeCheckData.message + '). No puedes postular otra hasta que la actual sea cancelada o completada.';
+                        isUserValid = false;
+
+                        // Disable submit button explicitly to ensure they understand
+                        const submitBtn = document.querySelector('.btn-submit');
+                        if (submitBtn) {
+                            submitBtn.style.opacity = '0.5';
+                            submitBtn.style.pointerEvents = 'none';
+                        }
+                    } else {
+                        isUserValid = true;
+                        const submitBtn = document.querySelector('.btn-submit');
+                        if (submitBtn) {
+                            submitBtn.style.opacity = '1';
+                            submitBtn.style.pointerEvents = 'auto';
+                        }
+                    }
                 } else {
                     validationMsg.className = 'user-validation-msg user-error';
                     validationMsg.innerHTML = '⚠️ Usuario no registrado. <a href="index.html" class="register-hint">Regístrate aquí primero</a> para poder postular.';

@@ -104,6 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let escrowCountdownInterval = null;
     let availableCountdownInterval = null;
     let lastBoosterFetch = 0;
+    let lastSolidarioFetch = 0;
     let platformSettingsCache = null;
     let publicationsCache = [];
     let legalStatus = {
@@ -336,9 +337,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 element.style.cursor = 'pointer';
                 const newElement = element.cloneNode(true);
                 element.parentNode.replaceChild(newElement, element);
-                newElement.addEventListener('click', () => {
+                newElement.addEventListener('click', (e) => {
+                    e.preventDefault();
                     setTimeout(() => {
-                        window.location.href = `publish.html?type=${type}`;
+                        if (type === 'donation' && settings.pre_launch_mode_enabled) {
+                            window.location.href = 'solicitud-solidaria.html';
+                        } else {
+                            window.location.href = `publish.html?type=${type}`;
+                        }
                     }, 50);
                 });
             }
@@ -360,6 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchNotifications();
         fetchAndDisplayBalances();
         fetchBoosterSummary();
+        fetchSolidarioSummary();
     }
     // Exponer globalmente
     window.loadAllData = loadAllData;
@@ -1966,6 +1973,203 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('Error al cargar el resumen de impulsor:', error);
         }
+    }
+
+    // --- WINTON SOLIDARIO: Tarjeta resumen en el dashboard ---
+    async function fetchSolidarioSummary() {
+        const card = document.getElementById('solidarioDashboardCard');
+        if (!card) return;
+
+        // Caché de 60 segundos para no sobrecargar la API
+        const now = Date.now();
+        if (now - lastSolidarioFetch < 60000) return;
+        lastSolidarioFetch = now;
+
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        try {
+            const response = await fetch(`${API_URL}/api/humanitarian/causes/my`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                card.style.display = 'none';
+                return;
+            }
+
+            const data = await response.json();
+
+            // Si no tiene causas, ocultar la tarjeta
+            if (!data.success || !data.causes || data.causes.length === 0) {
+                card.style.display = 'none';
+                return;
+            }
+
+            // Buscar la primera causa activa (approved o pending)
+            const activeCause = data.causes.find(c => c.status === 'approved' || c.status === 'pending');
+
+            if (activeCause) {
+                displaySolidarioCard(card, activeCause);
+            } else {
+                // Si no hay activas, ocultamos la tarjeta principal del dashboard
+                // Y dependerá del menú lateral ver el historial
+                card.style.display = 'none';
+            }
+
+            // ======= NUEVO: Lógica del Historial DESDE EL MENÚ =======
+            const historyMenuLink = document.getElementById('menuSolidarioHistory');
+            const historyLinkContainer = document.getElementById('solidarioHistoryLinkContainer');
+            const historyBtn = document.getElementById('solidarioHistoryBtn'); // El del modal
+            const historyModal = document.getElementById('solidarioHistoryModal');
+            const historyCloseBtn = document.querySelector('.solidario-history-close');
+            const historyList = document.getElementById('solidarioHistoryList');
+
+            if (data.causes.length > 0) {
+                // Si hay historial, mostrar el link en la tarjeta
+                if (historyLinkContainer && activeCause) historyLinkContainer.style.display = 'block';
+
+                const openHistory = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    // Generar la lista dinámica de historial
+                    historyList.innerHTML = '';
+                    data.causes.forEach((cause, idx) => {
+                        const total = (parseFloat(cause.current_amount) || 0) + (parseFloat(cause.amount_on_hold) || 0);
+                        const dates = new Date(cause.created_at).toLocaleDateString('es-ES');
+
+                        let statusBadge = '';
+                        if (cause.status === 'completed') statusBadge = '<span style="background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem;">Culminada</span>';
+                        else if (cause.status === 'approved') statusBadge = '<span style="background: rgba(168, 85, 247, 0.2); color: #a855f7; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem;">Activa</span>';
+                        else if (cause.status === 'pending') statusBadge = '<span style="background: rgba(234, 179, 8, 0.2); color: #eab308; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem;">Pendiente</span>';
+                        else statusBadge = `<span style="background: rgba(239, 68, 68, 0.2); color: #ef4444; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem;">${cause.status}</span>`;
+
+                        const linkHTML = (cause.status === 'approved' || cause.status === 'completed') ? `<a href="causa-solidaria.html?id=${cause.id}" style="color: #e83e8c; font-size: 0.8rem; text-decoration: underline; margin-top: 5px; display: inline-block;">Ver Detalle Público</a>` : '';
+
+                        const cardHTML = `
+                            <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; position: relative;">
+                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                                    <h4 style="margin:0; font-size: 0.95rem; color: #f8fafc; line-height: 1.3; max-width: 70%;">${cause.title}</h4>
+                                    ${statusBadge}
+                                </div>
+                                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; color: #94a3b8;">
+                                    <span>Recaudado: <strong style="color:white;">${total.toLocaleString('es-ES', { minimumFractionDigits: 4, maximumFractionDigits: 4 })} BLUE</strong></span>
+                                    <span>${dates}</span>
+                                </div>
+                                ${linkHTML}
+                            </div>
+                        `;
+                        historyList.innerHTML += cardHTML;
+                    });
+
+                    historyModal.style.display = 'flex';
+                };
+
+                if (historyBtn && historyModal && historyCloseBtn && historyList) {
+                    historyBtn.onclick = openHistory;
+                    historyCloseBtn.onclick = () => { historyModal.style.display = 'none'; };
+                    window.addEventListener('click', (e) => {
+                        if (e.target === historyModal) {
+                            historyModal.style.display = 'none';
+                        }
+                    });
+                }
+
+                if (historyMenuLink) {
+                    historyMenuLink.style.display = 'block';
+                    historyMenuLink.onclick = (e) => {
+                        const profileDropdown = document.getElementById('profileDropdown');
+                        if (profileDropdown) profileDropdown.classList.remove('show');
+                        openHistory(e);
+                    };
+                }
+
+            } else {
+                if (historyLinkContainer) historyLinkContainer.style.display = 'none';
+                if (historyMenuLink) historyMenuLink.style.display = 'none';
+            }
+
+        } catch (error) {
+            console.error('[Solidario] Error al cargar resumen:', error);
+            card.style.display = 'none';
+        }
+    }
+
+    function displaySolidarioCard(card, cause) {
+        card.style.display = 'block';
+
+        // --- NUEVO: Hacer la tarjeta clicable ---
+        card.onclick = () => {
+            if (cause.status === 'approved' || cause.status === 'completed') {
+                window.location.href = `causa-solidaria.html?id=${cause.id}`;
+            }
+        };
+
+        // --- NUEVO: Título dinámico con el autor ---
+        const headerTitleEl = document.getElementById('solidarioCardHeaderTitle');
+        if (headerTitleEl) {
+            headerTitleEl.textContent = `Donación a la causa de ${storedUsername}`;
+        }
+
+        // Título de la causa
+        const titleEl = document.getElementById('solidarioCardCauseTitle');
+        if (titleEl) titleEl.textContent = cause.title;
+
+        // Progreso (Opción A: Apilada)
+        const currentAmount = parseFloat(cause.current_amount) || 0;
+        const totalOnHold = parseFloat(cause.amount_on_hold) || 0;
+        const goalAmount = parseFloat(cause.goal_amount) || 0;
+        const totalRaised = currentAmount + totalOnHold;
+
+        const percentageReleased = goalAmount > 0 ? Math.min((currentAmount / goalAmount) * 100, 100) : 0;
+        const percentageOnHold = goalAmount > 0 ? Math.min((totalOnHold / goalAmount) * 100, 100 - percentageReleased) : 0;
+
+        const amountEl = document.getElementById('solidarioCardAmount');
+        const goalEl = document.getElementById('solidarioCardGoal');
+        const fillEl = document.getElementById('solidarioCardProgressFill');
+        const fillHoldEl = document.getElementById('solidarioCardProgressFillHold');
+
+        if (amountEl) amountEl.textContent = totalRaised.toLocaleString('es-ES', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+        if (goalEl) goalEl.textContent = goalAmount.toLocaleString('es-ES', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+
+        if (fillEl) {
+            fillEl.style.width = `${percentageReleased.toFixed(1)}%`;
+            fillEl.style.background = ''; // Allow CSS gradient to apply
+            fillEl.style.borderRadius = percentageOnHold > 0 ? '6px 0 0 6px' : '6px';
+        }
+
+        if (fillHoldEl) {
+            fillHoldEl.style.width = `${percentageOnHold.toFixed(1)}%`;
+            fillHoldEl.style.borderRadius = '0 3px 3px 0';
+        }
+
+        // Botón compartir
+        const shareBtn = document.getElementById('solidarioCardShareBtn');
+        if (shareBtn) {
+            if (cause.status === 'approved') {
+                shareBtn.style.opacity = '1';
+                shareBtn.style.pointerEvents = 'auto';
+                shareBtn.onclick = (e) => {
+                    e.stopPropagation(); // Evitar click en la tarjeta general
+                    const url = `${window.location.origin}/causa-solidaria.html?id=${cause.id}`;
+                    const text = `💙 Apoya mi causa "${cause.title}" en WintonCoin.\n\nDona tus BLUE IOU y marca la diferencia:\n${url}`;
+
+                    if (navigator.share) {
+                        navigator.share({ title: `Winton Solidario: ${cause.title}`, text, url }).catch(() => { });
+                    } else {
+                        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                        window.open(whatsappUrl, '_blank');
+                    }
+                };
+            } else {
+                shareBtn.style.opacity = '0.5';
+                shareBtn.style.pointerEvents = 'none';
+            }
+        }
+
+        // ====== NUEVO: Botón Cancelar Causa ======
+        // Removido a pedido del usuarió y reubicado en causa-solidaria
     }
 
     // --- VENTA RÁPIDA (recuperado del historial de Git) ---
