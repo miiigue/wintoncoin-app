@@ -12,7 +12,35 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { resolve } from 'path';
 
-export default defineConfig({
+// Plugin personalizado para inyectar alertas visuales de DEMO en la interfaz
+const demoModePlugin = (mode) => {
+  return {
+    name: 'html-transform-demo',
+    transformIndexHtml(html) {
+      if (mode === 'demo') {
+        // Ribbon diagonal profesional 
+        const demoRibbon = `
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        `;
+
+        // Inyectamos el ribbon estático antes del cierre del body
+        let modifiedHtml = html.replace('</body>', `${demoRibbon}\n</body>`);
+
+        // Interceptamos la etiqueta title para anteponerle la palabra [DEMO]
+        modifiedHtml = modifiedHtml.replace(/<title>(.*?)<\/title>/, '<title>[DEMO] $1</title>');
+
+        return modifiedHtml;
+      }
+      return html;
+    }
+  };
+};
+
+export default defineConfig(({ mode }) => ({
   // Directorio raíz del proyecto
   root: '.',
 
@@ -123,9 +151,10 @@ export default defineConfig({
   },
 
   // ============================================================================
-  // PWA CONFIGURATION (Workbox)
+  // PWA CONFIGURATION (Workbox) & CUSTOM PLUGINS
   // ============================================================================
   plugins: [
+    demoModePlugin(mode), // Inyecta listones visuales si mode === 'demo'
     VitePWA({
       // Modo de registro del Service Worker
       registerType: 'autoUpdate',
@@ -210,4 +239,4 @@ export default defineConfig({
     port: 4173,
     host: true
   }
-});
+}));
