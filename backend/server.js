@@ -311,11 +311,11 @@ async function startServer() {
         // ==  Seguridad: Validación de URL, límites de longitud, sanitización           ==
         // =================================================================================
         app.post('/api/solidario/postulacion', async (req, res) => {
-            const { username, titulo, historia, meta, evidencia_link } = req.body;
+            const { username, titulo, historia, meta, evidencia_link, redes_sociales } = req.body;
 
             // --- VALIDACIÓN 1: Campos obligatorios ---
-            if (!username || !titulo || !historia || !meta || !evidencia_link) {
-                return res.status(400).json({ message: "Todos los campos son obligatorios, incluyendo el enlace de evidencia." });
+            if (!username || !titulo || !historia || !meta || !evidencia_link || !redes_sociales) {
+                return res.status(400).json({ message: "Todos los campos son obligatorios, incluyendo tus redes sociales." });
             }
 
             // --- VALIDACIÓN 2: Límites de longitud (Prevención de payload excesivo) ---
@@ -339,13 +339,25 @@ async function startServer() {
             }
 
             // --- VALIDACIÓN 4: URL segura (solo HTTPS para proteger la integridad) ---
+            let redesArray = [];
             try {
                 const url = new URL(evidencia_link.trim());
                 if (url.protocol !== 'https:') {
                     return res.status(400).json({ message: "El enlace de evidencia debe usar HTTPS por seguridad." });
                 }
+
+                // Procesar redes sociales (separadas por espacio)
+                const redesCrudas = redes_sociales.trim().split(/\s+/);
+                for (const link of redesCrudas) {
+                    if (!link) continue;
+                    const urlRedes = new URL(link);
+                    if (urlRedes.protocol !== 'https:') {
+                        return res.status(400).json({ message: "Todos los enlaces de redes sociales deben usar HTTPS." });
+                    }
+                    redesArray.push(link);
+                }
             } catch (e) {
-                return res.status(400).json({ message: "El enlace de evidencia no es una URL válida." });
+                return res.status(400).json({ message: "Uno de los enlaces proporcionados no es válido. Asegúrate de incluir https://" });
             }
 
             try {
@@ -370,8 +382,9 @@ async function startServer() {
                 }
 
                 // 2. Insertar en la tabla humanitarian_causes (Migración 038)
-                // evidence_urls es JSONB, guardamos el link como un array de URLs
-                const evidenceUrls = JSON.stringify([evidencia_link.trim()]);
+                // evidence_urls es JSONB, guardamos todos los links como un array de URLs
+                const allUrls = [evidencia_link.trim(), ...redesArray];
+                const evidenceUrls = JSON.stringify(allUrls);
                 const insertSql = `
                     INSERT INTO humanitarian_causes 
                     (user_id, title, story, goal_amount, evidence_urls, status)

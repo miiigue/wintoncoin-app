@@ -323,16 +323,20 @@
                 <label for="evidenciaLink">Enlace de Evidencia (Drive, Dropbox, Fotos iCloud)</label>
                 <input type="url" id="evidenciaLink" placeholder="Pega aquí el enlace a tus documentos de respaldo"
                     required>
-                <p style="font-size: 0.75rem; color: #64748B; margin-top: 0.5rem;">
-                    ⚠️ Para mantener la integridad, asegúrate de que el enlace sea permanente y de solo lectura.
-                </p>
+            </div>
+
+            <div class="form-group">
+                <label for="redesSociales">Enlaces a tus Redes Sociales (Para Verificación)</label>
+                <input type="text" id="redesSociales"
+                    placeholder="Ej: https://instagram.com/juan https://tiktok.com/@juan (Separados por espacio)"
+                    required>
             </div>
 
             <button type="submit" class="btn-submit">Enviar para Auditoría</button>
         </form>
 
-        <p class="footer-text">Al enviar tu postulación, aceptas que los datos serán revisados para fines de
-            verificación humanitaria bajo los estándares de Sir Nicholas Winton.</p>
+        <p class="footer-text">Al enviar tu postulación, aceptas los T&C y la revisión de tus datos para verificar tu
+            caso.</p>
     </div>
 
     <div class="modal-overlay" id="termsModal">
@@ -341,7 +345,8 @@
             <div class="modal-body">
                 <ul>
                     <li><span class="modal-highlight">Canje:</span> Tras el lanzamiento 1 BLUE IOU = 1 token BLUE +-
-                        <span class="modal-highlight">1 USD</span> (aprox).</li>
+                        <span class="modal-highlight">1 USD</span> (aprox).
+                    </li>
                     <li><span class="modal-highlight">Sin Costo:</span> Tus referidos donan BLUE IOU acumulados gratis;
                         <strong>no deben invertir nada</strong>.
                     </li>
@@ -458,7 +463,8 @@
                 titulo: document.getElementById('titulo').value.trim(),
                 historia: document.getElementById('historia').value.trim(),
                 meta: document.getElementById('meta').value.trim(),
-                evidencia_link: document.getElementById('evidenciaLink').value.trim()
+                evidencia_link: document.getElementById('evidenciaLink').value.trim(),
+                redes_sociales: document.getElementById('redesSociales').value.trim()
             };
 
             try {
