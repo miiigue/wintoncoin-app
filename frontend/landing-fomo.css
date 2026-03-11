@@ -218,6 +218,7 @@
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
     z-index: 3;
     animation: float-icon 4s ease-in-out infinite;
+    will-change: transform;
 }
 
 .icon-fb {
@@ -328,7 +329,7 @@
         /* Poner imagen primero en mobile si se desea, o dejar abajo */
     }
 
-    /* Ajuste iconos flotantes en mobile para que no se salgan */
+    /* Ajuste iconos flotantes en mobile para que no se salgan de los bordes laterales */
     .float-icon {
         width: 50px;
         height: 50px;
@@ -336,11 +337,11 @@
     }
 
     .icon-fb {
-        left: 5%;
+        left: 10%; /* Margen de seguridad */
     }
 
     .icon-ig {
-        right: 0%;
+        right: 10%; /* Margen de seguridad para evitar desbordamiento horizontal */
     }
 }
 

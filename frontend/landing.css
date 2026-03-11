@@ -98,6 +98,8 @@ h2 {
     opacity: 0.5;
     border-radius: 50%;
     animation: float 20s infinite ease-in-out;
+    will-change: transform;
+    transform: translateZ(0);
 }
 
 .mesh-1 {
@@ -353,48 +355,8 @@ h2 {
     /* Profundidad 3D mejorada */
 }
 
-/* Núcleo de Energía Central */
-.hero-visual::before {
-    content: '';
-    position: absolute;
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
-    border-radius: 50%;
-    z-index: 0;
-    animation: corePulse 4s infinite alternate;
-}
-
-@keyframes corePulse {
-    0% {
-        transform: scale(0.8);
-        opacity: 0.5;
-    }
-
-    100% {
-        transform: scale(1.2);
-        opacity: 0.8;
-        box-shadow: 0 0 100px rgba(6, 182, 212, 0.2);
-    }
-}
-
-/* Anillos Orbitales */
-.hero-visual::after {
-    content: '';
-    position: absolute;
-    width: 400px;
-    height: 400px;
-    border: 1px dashed rgba(255, 255, 255, 0.1);
-    border-radius: 50%;
-    animation: spinSlow 20s linear infinite;
-    z-index: 0;
-}
-
-@keyframes spinSlow {
-    to {
-        transform: rotate(360deg);
-    }
-}
+/* Elementos estéticos de fondo trasero removidos para diseño limpio */
+/* (corePulse y spinSlow eliminados) */
 
 /* Tarjetas con Levitación Magnética 3D */
 .card-float {
@@ -409,6 +371,7 @@ h2 {
     box-shadow: 0 30px 60px rgba(0, 0, 0, 0.7), inset 0 0 20px rgba(255, 255, 255, 0.05);
     z-index: 2;
     transform-style: preserve-3d;
+    will-change: transform;
 }
 
 .card-blue {
@@ -535,13 +498,13 @@ h2 {
 .coin-blue {
     animation-delay: 0s;
     left: 15%;
-    top: 20%;
+    top: 45%;
 }
 
 .coin-red {
     animation-delay: -2s;
     right: 15%;
-    top: 20%;
+    top: 45%;
 }
 
 /* Coin flip 3D effect */
@@ -557,6 +520,7 @@ h2 {
     transform-style: preserve-3d;
     animation: coinFlip3D 3s ease-in-out infinite;
     animation-delay: inherit;
+    will-change: transform;
 }
 
 .coin-front-logo,
@@ -1499,7 +1463,6 @@ h2 {
     background: rgba(16, 20, 30, 0.8);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(16, 185, 129, 0.2);
-    border-left: 4px solid #10B981;
     padding: 2rem;
     position: relative;
     overflow: hidden;
@@ -1583,7 +1546,6 @@ h2 {
     padding: 1.5rem;
     background: rgba(255, 255, 255, 0.03);
     border-radius: 16px;
-    border-left: 4px solid #10B981;
     transition: transform 0.3s;
 }
 
@@ -1778,7 +1740,6 @@ h2 {
         padding: 1.5rem;
         background: rgba(255, 255, 255, 0.03);
         border-radius: 16px;
-        border-left: 4px solid #10B981;
         transition: transform 0.3s;
     }
 
@@ -2734,5 +2695,234 @@ h2 {
         padding: 1.5rem;
         border-radius: 30px;
         text-align: center;
+    }
+}
+
+/* ================================================================
+   SECCIÓN: INMUNIDAD MATEMÁTICA (ANTI-RUG PULL)
+   ================================================================ */
+.anti-rug-section {
+    padding: 100px 0;
+    background: linear-gradient(180deg, rgba(5, 5, 10, 0.6), rgba(16, 20, 30, 0.9));
+    position: relative;
+    overflow: hidden;
+    border-top: 1px solid rgba(16, 185, 129, 0.1);
+}
+
+.anti-rug-header {
+    text-align: center;
+    margin-bottom: 4rem;
+}
+
+.shield-badge {
+    display: inline-block;
+    padding: 6px 16px;
+    background: rgba(16, 185, 129, 0.1);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 1.5rem;
+}
+
+.text-green-neon {
+    color: #10B981;
+    background: linear-gradient(90deg, #10B981, #06B6D4);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+}
+
+.anti-rug-subtitle {
+    font-size: 1.2rem;
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.anti-rug-grid {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 2rem;
+    margin-bottom: 4rem;
+}
+
+.rug-card {
+    background: rgba(20, 25, 40, 0.6);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 2.5rem;
+    border-radius: 20px;
+    flex: 1;
+    max-width: 450px;
+    transition: transform 0.3s;
+}
+
+.rug-card:hover {
+    transform: translateY(-5px);
+}
+
+.card-fail {
+    border-top: 4px solid var(--accent-red);
+    box-shadow: 0 10px 30px rgba(239, 68, 68, 0.05);
+}
+
+.card-success {
+    border-top: 4px solid #10B981;
+    box-shadow: 0 10px 30px rgba(16, 185, 129, 0.05);
+}
+
+.rug-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.rug-card h3 {
+    font-size: 1.4rem;
+    font-family: var(--font-heading);
+    margin-bottom: 1rem;
+    color: white;
+}
+
+.rug-card p {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+.rug-connector {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.connector-arrow {
+    font-size: 3rem;
+    color: var(--text-secondary);
+    opacity: 0.3;
+}
+
+.rug-attack-scenario {
+    background: linear-gradient(135deg, rgba(20, 25, 40, 0.8), rgba(10, 15, 25, 0.9));
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 2.5rem;
+    max-width: 1000px;
+    margin: 0 auto;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+
+.scenario-title {
+    font-size: 1.4rem;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    color: white;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.pulsing-dot-red {
+    width: 12px;
+    height: 12px;
+    background: var(--accent-red);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--accent-red);
+    animation: pulse 1.5s infinite;
+}
+
+.scenario-content p {
+    color: rgba(255,255,255, 0.8);
+    font-size: 1.1rem;
+    margin-bottom: 1.5rem;
+    line-height: 1.7;
+}
+
+.scenario-content p strong {
+    color: white;
+}
+
+.highlight-success {
+    color: #10B981 !important;
+    font-weight: 600;
+    padding-left: 1.5rem;
+    border-left: 4px solid #10B981;
+    background: rgba(16, 185, 129, 0.05);
+    padding: 1rem 1rem 1rem 1.5rem;
+    border-radius: 0 10px 10px 0;
+}
+
+/* Versión Teléfonos Celulares (Mobile First) */
+@media (max-width: 768px) {
+    .anti-rug-grid {
+        flex-direction: column;
+    }
+    .connector-arrow {
+        transform: rotate(90deg);
+        margin: 1rem 0;
+    }
+    .rug-attack-scenario {
+        padding: 1.5rem;
+    }
+    .scenario-title {
+        font-size: 1.2rem;
+    }
+}
+
+/* ================================================================
+   BOTÓN FLOTANTE "VOLVER ARRIBA"
+   ================================================================ */
+.back-to-top-btn {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: rgba(16, 20, 30, 0.6);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #10B981;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4), 0 0 15px rgba(16, 185, 129, 0.1);
+}
+
+.back-to-top-btn.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.back-to-top-btn:hover {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.8);
+    transform: translateY(-5px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 20px rgba(16, 185, 129, 0.3);
+}
+
+.back-to-top-btn:active {
+    transform: translateY(-2px);
+}
+
+/* Optimización táctil y Mobile */
+@media (max-width: 768px) {
+    .back-to-top-btn {
+        bottom: 20px;
+        right: 20px;
+        width: 45px;
+        height: 45px;
     }
 }
