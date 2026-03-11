@@ -1989,12 +1989,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!token) return;
 
         try {
+            const historyMenuLink = document.getElementById('menuSolidarioHistory');
+
             const response = await fetch(`${API_URL}/api/humanitarian/causes/my`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
             if (!response.ok) {
                 card.style.display = 'none';
+                if (historyMenuLink) {
+                    historyMenuLink.style.display = 'block';
+                    historyMenuLink.href = 'solicitud-solidaria.html';
+                }
                 return;
             }
 
@@ -2003,6 +2009,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Si no tiene causas, ocultar la tarjeta
             if (!data.success || !data.causes || data.causes.length === 0) {
                 card.style.display = 'none';
+                if (historyMenuLink) {
+                    historyMenuLink.style.display = 'block';
+                    historyMenuLink.href = 'solicitud-solidaria.html';
+                }
                 return;
             }
 
@@ -2018,7 +2028,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // ======= NUEVO: Lógica del Historial DESDE EL MENÚ =======
-            const historyMenuLink = document.getElementById('menuSolidarioHistory');
             const historyLinkContainer = document.getElementById('solidarioHistoryLinkContainer');
             const historyBtn = document.getElementById('solidarioHistoryBtn'); // El del modal
             const historyModal = document.getElementById('solidarioHistoryModal');
@@ -2078,6 +2087,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (historyMenuLink) {
                     historyMenuLink.style.display = 'block';
+                    historyMenuLink.href = '#'; // Restablecemos el ancla para que la modal funcione sin saltos
                     historyMenuLink.onclick = (e) => {
                         const profileDropdown = document.getElementById('profileDropdown');
                         if (profileDropdown) profileDropdown.classList.remove('show');
@@ -2087,12 +2097,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
             } else {
                 if (historyLinkContainer) historyLinkContainer.style.display = 'none';
-                if (historyMenuLink) historyMenuLink.style.display = 'none';
+                if (historyMenuLink) {
+                    historyMenuLink.style.display = 'block';
+                    historyMenuLink.href = 'solicitud-solidaria.html';
+                    historyMenuLink.onclick = null; // Limpiar listeners anteriores para que sea enlace nativo
+                }
             }
 
         } catch (error) {
             console.error('[Solidario] Error al cargar resumen:', error);
             card.style.display = 'none';
+            // Fallback seguro en caso de error de red
+            const historyMenuLink = document.getElementById('menuSolidarioHistory');
+            if (historyMenuLink) {
+                historyMenuLink.style.display = 'block';
+                historyMenuLink.href = 'solicitud-solidaria.html';
+            }
         }
     }
 
