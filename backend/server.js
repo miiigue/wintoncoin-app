@@ -1,4 +1,4 @@
-﻿// 0. Cargar variables de entorno
+// 0. Cargar variables de entorno
 require('dotenv').config();
 
 // 1. Importar las librerías necesarias
@@ -35,6 +35,8 @@ const {
     processDirectPaymentCompletion
 } = require('./src/services/publicationService');
 const publicationRoutes = require('./src/routes/publicationRoutes');
+const validationRoutes = require('./src/routes/validationRoutes');
+const solidarioRoutes = require('./src/routes/solidarioRoutes');
 
 // --- NUEVO: Gestión profesional de la clave secreta de JWT ---
 // Buscamos la clave secreta en las variables de entorno.
@@ -156,6 +158,8 @@ async function startServer() {
 
         // --- AHORA DEFINIMOS LAS RUTAS ---
         app.use('/api', authRoutes); // Registrar rutas de autenticación
+        app.use('/api', validationRoutes); // Registrar rutas de validación de disponibilidad
+        app.use('/api/solidario', solidarioRoutes); // Registrar rutas de Winton Solidario
 
         // Registrar rutas de Publicaciones
         app.use('/', publicationRoutes(pool, requireAcceptedLegalByUsernameField, verifyAdminToken, logAuditEvent)); // Registrar rutas de autenticación
@@ -189,7 +193,9 @@ async function startServer() {
 
         // =================================================================================
         // ==  NUEVO FLUJO DE REGISTRO CON VERIFICACIÓN POR SMS (FASE 1: SOLICITUD)  ==
+        // ==  (MOVIDO A validationRoutes.js)                                         ==
         // =================================================================================
+        /*
         // Endpoint to check if username exists (Industry Standard for UX)
         app.get('/api/check-username/:username', async (req, res) => {
             const { username } = req.params;
@@ -276,10 +282,13 @@ async function startServer() {
                 return res.status(500).json({ error: 'Database error' });
             }
         });
+        */
 
         // =================================================================================
         // ==  ENDPOINT PARA VALIDAR CAUSAS ACTIVAS DE UN USUARIO (SOLIDARIO)           ==
+        // ==  (MOVIDO A solidarioRoutes.js)                                          ==
         // =================================================================================
+        /*
         app.get('/api/solidario/check-active/:username', async (req, res) => {
             const { username } = req.params;
             try {
@@ -432,6 +441,7 @@ async function startServer() {
                 res.status(500).json({ message: "Error interno del servidor al procesar la postulación." });
             }
         });
+        */
 
         // Rutas de Autenticación movidas a src/routes/authRoutes.js
         app.use('/', authRoutes);
@@ -1195,19 +1205,32 @@ async function startServer() {
         // Ruta pública para obtener configuración de referidos
         app.get('/api/referral-settings', async (req, res) => {
             try {
-                // Intentar obtener referral_reward_amount primero, luego referral_bonus_amount como fallback
-                let result = await pool.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key = 'referral_reward_amount'`);
+                // Obtenemos todas las configuraciones relevantes de una vez
+                const keys = [
+                    'referral_reward_amount',
+                    'referral_bonus_amount',
+                    'referral_reward_after_expiry',
+                    'referral_codes_expiry_date'
+                ];
+                
+                const result = await pool.query(
+                    'SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1)',
+                    [keys]
+                );
 
-                if (result.rows.length === 0) {
-                    // Si no existe referral_reward_amount, intentar con referral_bonus_amount
-                    result = await pool.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key = 'referral_bonus_amount'`);
-                }
+                const settings = {};
+                result.rows.forEach(row => {
+                    settings[row.setting_key] = row.setting_value;
+                });
 
-                if (result.rows.length > 0) {
-                    res.status(200).json({ referral_bonus_amount: result.rows[0].setting_value });
-                } else {
-                    res.status(404).json({ message: "Configuración de referidos no encontrada." });
-                }
+                // Lógica de compatibilidad/fallback
+                const rewardAmount = settings['referral_reward_amount'] || settings['referral_bonus_amount'] || '0.00';
+                
+                res.status(200).json({
+                    referral_reward_amount: rewardAmount,
+                    referral_reward_after_expiry: settings['referral_reward_after_expiry'] || '0.00',
+                    referral_codes_expiry_date: settings['referral_codes_expiry_date'] || null
+                });
             } catch (error) {
                 console.error("Error al obtener configuración de referidos:", error);
                 res.status(500).json({ message: "Error interno del servidor." });

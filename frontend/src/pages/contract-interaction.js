@@ -1834,19 +1834,83 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Referral Settings & Share ---
+    let promoInterval;
+
+    function startReferralPromoCountdown(expiryDateStr) {
+        if (!expiryDateStr) return;
+        
+        // Formatear para asegurar compatibilidad total (YYYY-MM-DDT23:59:59)
+        let formattedDateStr = expiryDateStr.includes('T') ? expiryDateStr : `${expiryDateStr}T23:59:59`;
+        const expiryDate = new Date(formattedDateStr);
+        
+        if (isNaN(expiryDate.getTime())) {
+            console.error("Fecha de expiración inválida:", expiryDateStr);
+            return;
+        }
+
+        const daysEl = document.getElementById('timer-days');
+        const hoursEl = document.getElementById('timer-hours');
+        const minsEl = document.getElementById('timer-mins');
+        const secsEl = document.getElementById('timer-secs');
+
+        if (!daysEl || !hoursEl || !minsEl || !secsEl) return;
+
+        if (promoInterval) clearInterval(promoInterval);
+
+        function updateTimer() {
+            const now = new Date();
+            const diff = expiryDate - now;
+
+            if (diff <= 0) {
+                clearInterval(promoInterval);
+                daysEl.textContent = '00';
+                hoursEl.textContent = '00';
+                minsEl.textContent = '00';
+                secsEl.textContent = '00';
+                return;
+            }
+
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+            daysEl.textContent = days.toString().padStart(2, '0');
+            hoursEl.textContent = hours.toString().padStart(2, '0');
+            minsEl.textContent = mins.toString().padStart(2, '0');
+            secsEl.textContent = secs.toString().padStart(2, '0');
+
+            // Efecto "Hot" si queda menos de 3 días
+            if (diff < (3 * 24 * 60 * 60 * 1000)) {
+                [daysEl, hoursEl, minsEl, secsEl].forEach(el => el.classList.add('hot'));
+            }
+        }
+
+        updateTimer();
+        promoInterval = setInterval(updateTimer, 1000);
+    }
+
     async function loadReferralSettings() {
         try {
             const response = await fetch(`${API_URL}/api/referral-settings`);
             if (response.ok) {
                 const data = await response.json();
+                
+                // Actualizar montos en la tarjeta
                 const amountElement = document.getElementById('referralAmount');
-                if (amountElement && data.referral_bonus_amount) {
-                    const amount = parseInt(parseFloat(data.referral_bonus_amount));
-                    if (!isNaN(amount)) {
-                        amountElement.textContent = amount;
-                    } else {
-                        amountElement.textContent = '10';
-                    }
+                const amountNextElement = document.getElementById('referralAmountNext');
+                
+                if (amountElement && data.referral_reward_amount) {
+                    amountElement.textContent = parseInt(data.referral_reward_amount);
+                }
+                
+                if (amountNextElement && data.referral_reward_after_expiry) {
+                    amountNextElement.textContent = parseInt(data.referral_reward_after_expiry);
+                }
+
+                // Iniciar el cronómetro si hay fecha
+                if (data.referral_codes_expiry_date) {
+                    startReferralPromoCountdown(data.referral_codes_expiry_date);
                 }
             }
         } catch (error) {
@@ -1870,7 +1934,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (referralResponse.ok) {
                 const data = await referralResponse.json();
                 const referralCode = data.referral_code;
-                const rewardAmount = document.getElementById('referralAmount')?.textContent || '10';
+                const rewardAmount = document.getElementById('referralAmount')?.textContent || '1000';
                 const registrationUrl = `${window.location.origin}/register.html?ref=${referralCode}`;
 
                 let expiryText = '';

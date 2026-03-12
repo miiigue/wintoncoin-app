@@ -290,3 +290,38 @@ Inicio de la fase de trabajo sobre la Landing Page principal. Se ha realizado un
 - **Auditoría de Contexto**: Lectura integral de `index.html`, `landing.css`, `landing.js` y `ECONOMIC_RULES.md`.
 - **Sincronización de Diseño**: Verificación de la paleta Sapphire Premium y efectos Glassmorphism.
 - **Preparación**: Identificación de puntos de mejora en modularidad y responsividad. ✅ CONTEXTO COMPLETADO
+
+### [2026-03-12] - Actualización de Referidos: Sistema de Promoción Dinámica (FOMO)
+#### Descripción
+Implementación de un sistema de "Sentido de Urgencia" (FOMO) en el módulo de referidos. Ahora los usuarios ven en tiempo real cuánto tiempo queda para aprovechar la recompensa máxima de 1000 BLUE IOU antes de que baje a su valor base.
+
+#### Cambios realizados
+- **Arquitectura de Base de Datos**: 
+    - Creación de la migración `040_add_referral_promo_settings.js`.
+    - Adición del parámetro `referral_reward_after_expiry` (valor base pos-promo) en `app_settings`.
+- **Backend (Optimización de API)**:
+    - Actualización del endpoint `/api/referral-settings` para centralizar toda la información de la promoción (monto actual, monto futuro, fecha de expiración).
+- **Frontend (Rediseño Sapphire Premium)**:
+    - **UI Renovada**: Transformación del botón simple de referidos en una tarjeta de promoción de alto impacto visual.
+    - **Countdown Timer**: Implementación de un cronómetro en tiempo real (`ReferralPromoTimer`) que calcula los días, horas y minutos restantes comparando la hora local con la fecha configurada en el Admin Panel.
+    - **Tiered Rewards**: Visualización clara de "Recompensa actual" vs "Después de la promo", utilizando tachado visual para incentivar el registro inmediato.
+- **Refinamiento Estético y Funcional Final**: 
+    - **Compactación Ultra-Slim**: Rediseño de la tarjeta para ocupar el mínimo espacio vertical, moviendo unidades de tiempo (`d, h, m, s`) y etiquetas de moneda (`BLUE IOU`) a una disposición horizontal integrada.
+    - **Psicología de Conversión**: Actualización de copys estratégicos ("Bono por referir hoy" y "Después baja a") junto con un icono de tendencia bajista para maximizar el FOMO.
+    - **Estética Sobria**: Eliminación de animaciones y efectos de destello exagerados para mantener un aspecto profesional, limpio y centrado en la información de valor.
+    - **Admin Panel**: Integración completa para control dinámico de la recompensa pos-promoción. ✅ FINALIZADO Y PULIDO
+### [2026-03-12] - Modularización del Backend: Fase 1 (Seguridad y Validación)
+#### Descripción
+Inicio de la refactorización arquitectónica del monolito `server.js`. Siguiendo un protocolo de "Zero Risk", se han extraído las primeras funcionalidades hacia módulos independientes en `src/routes/` para mejorar la mantenibilidad y auditabilidad.
+
+#### Cambios realizados
+- **Arquitectura de Rutas**:
+    - Creación de `backend/src/routes/validationRoutes.js`: Centralización de validaciones de disponibilidad de usuario, email y teléfono.
+    - Creación de `backend/src/routes/solidarioRoutes.js`: Modularización completa del módulo "Winton Solidario" (Postulaciones Humanitarias).
+- **Control de Calidad (Protocolo de Fidelidad)**:
+    - Auditoría línea por línea para asegurar copias exactas de la lógica original.
+    - Verificación técnica mediante pruebas de API directas (`Invoke-RestMethod`) tras cada movimiento.
+- **Transición Segura**:
+    - El código original en `server.js` ha sido **comentado** (no eliminado) temporalmente como medida de respaldo mientras se validan los nuevos módulos en el entorno de ejecución.
+- **Sincronización de Mejoras**:
+    - Integración forzada de la nueva lógica de `/api/referral-settings` (sistema FOMO) dentro del flujo modularizado, asegurando compatibilidad con los cambios manuales del usuario. ✅ ESTRUCTURA PROFESIONAL

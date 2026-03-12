@@ -4116,68 +4116,241 @@ body.love-page {
     }
 }
 
-.referral-motivation-section .referral-text {
-    color: white;
-    font-size: 0.95rem;
-    font-weight: 500;
-    line-height: 1.3;
+/* --- Referral Promo Card (Sapphire Premium) --- */
+.referral-motivation-section {
+    margin: 1.5rem 0;
+    padding: 0;
 }
 
-.referral-motivation-section .referral-text #referralAmount {
+.referral-promo-card {
+    background: linear-gradient(90deg, #1e1b4b 0%, #4338ca 50%, #1e1b4b 100%); /* Violeta Difuminado */
+    border: 1px solid rgba(124, 58, 237, 0.3);
+    border-radius: 12px;
+    padding: 0.5rem 0.8rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-width: 450px;
+    margin: 0 auto;
+}
+
+/* Efecto Brillo / Glassmorphism Shine */
+.referral-promo-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.referral-promo-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(
+        to right,
+        transparent,
+        rgba(255, 255, 255, 0.1),
+        transparent
+    );
+    transform: skewX(-25deg);
+    animation: shineSweep 4s infinite;
+}
+
+@keyframes shineSweep {
+    0% { left: -100%; }
+    20% { left: 200%; }
+    100% { left: 200%; }
+}
+
+.promo-timer-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1rem;
+    background: transparent;
+    padding: 0;
+}
+
+.promo-timer-label {
+    font-size: 0.6rem;
+    font-weight: 800;
+    color: #ff4d4d; /* Rojo más vibrante */
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    text-shadow: 0 0 5px rgba(255, 77, 77, 0.2);
+}
+
+.promo-timer-display {
+    display: flex;
+    gap: 0.6rem;
+}
+
+.timer-unit {
+    display: flex;
+    align-items: baseline;
+    gap: 1px;
+}
+
+.timer-unit span {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 1.35rem; /* Más balanceado */
+    font-weight: 900;
+    color: #fff;
+    line-height: 1;
+}
+
+.timer-unit span.hot {
+    color: #f97316;
+}
+
+.timer-unit small {
+    font-size: 0.65rem;
+    color: #94a3b8; /* Más claro para visibilidad */
+    text-transform: lowercase;
     font-weight: 700;
-    color: #ffd700;
-    font-size: 1rem;
+    margin-left: 2px;
 }
 
-.referral-motivation-section .referral-action {
+.promo-reward-info {
+    padding: 0.1rem 0;
+}
+
+.reward-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    gap: 0.5rem;
+}
+
+.reward-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1; /* Ocupan espacio equilibrado */
+    min-width: 0;
+}
+
+.reward-label {
+    font-size: 0.5rem;
+    color: #cbd5e1; /* Lighter for visibility */
+    text-transform: uppercase;
+    font-weight: 800;
+    margin-bottom: 2px;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.reward-value.gold-premium {
+    font-size: 1.2rem; /* Tamaño Unificado */
+    font-weight: 950;
+    background: linear-gradient(180deg, #FFF5C3 0%, #FFD700 25%, #B8860B 50%, #FFD700 75%, #FFF5C3 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+
+.reward-value.gold-premium small {
+    display: inline;
+    font-size: 0.5rem;
+    -webkit-text-fill-color: #DAA520;
+    font-weight: 700;
+}
+
+.reward-trend {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    color: rgba(255, 255, 255, 0.8);
-    font-size: 0.8rem;
-    font-weight: 400;
-    font-style: italic;
-    transition: all 0.3s ease;
+    justify-content: center;
+    padding: 0 2px;
 }
 
-.referral-motivation-section .share-text {
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 0.7rem;
-    font-style: italic;
+.trend-down-icon {
+    width: 18px;
+    height: 18px;
+    color: #ef4444;
 }
 
-.referral-motivation-section .referral-card:hover .referral-action {
-    color: rgba(255, 255, 255, 0.9);
+.reward-value-base {
+    font-size: 1.2rem;
+    font-weight: 900;
+    color: #ffffff; /* White for maximum visibility */
+    text-align: center;
 }
 
-.referral-motivation-section .referral-card:hover .share-text {
-    color: rgba(255, 255, 255, 0.8);
+.reward-value-base small {
+    display: inline;
+    font-size: 0.5rem;
+    color: #cbd5e1;
+    margin-left: 2px;
 }
 
-/* Responsive para móviles */
+.referral-share-button {
+    background: linear-gradient(135deg, #9333ea 0%, #7e22ce 100%);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 0.5rem;
+    color: white;
+    font-weight: 600; /* Texto más delgado y elegante */
+    font-size: 0.75rem;
+    letter-spacing: 0.3px; /* Espaciado sutil para mejorar legibilidad */
+    cursor: pointer;
+    flex: 0 0 30%;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px rgba(126, 34, 206, 0.2);
+}
+
+.referral-share-button:hover {
+    filter: brightness(1.15);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(126, 34, 206, 0.4);
+}
+
+.referral-share-button:active {
+    transform: translateY(0);
+}
+
+.referral-share-button .button-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.referral-share-button svg {
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.3));
+}
+
+.timer-unit span.hot {
+    color: #f59e0b;
+    animation: timerPulse 1s infinite alternate;
+}
+
+@keyframes timerPulse {
+    from { text-shadow: 0 0 5px rgba(245, 158, 11, 0.3); }
+    to { text-shadow: 0 0 15px rgba(245, 158, 11, 0.8); }
+}
+
 @media (max-width: 480px) {
-    .referral-motivation-section .referral-content {
-        flex-direction: column;
-        text-align: center;
-        gap: 0.75rem;
-    }
-
-    .referral-motivation-section .referral-header {
-        justify-content: center;
-    }
-
-    .referral-motivation-section .referral-icon {
-        font-size: 1.25rem;
-    }
-
-    .referral-motivation-section .referral-text {
-        font-size: 0.9rem;
-    }
-
-    .referral-motivation-section .referral-button {
-        font-size: 0.8rem;
-        padding: 0.4rem 0.8rem;
-    }
+    .promo-reward-info { gap: 1.5rem; }
+    .reward-value { font-size: 1rem; }
+    .timer-unit span { font-size: 1rem; }
 }
 
 .modal-option-button.disabled {
