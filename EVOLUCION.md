@@ -325,3 +325,32 @@ Inicio de la refactorización arquitectónica del monolito `server.js`. Siguiend
     - El código original en `server.js` ha sido **comentado** (no eliminado) temporalmente como medida de respaldo mientras se validan los nuevos módulos en el entorno de ejecución.
 - **Sincronización de Mejoras**:
     - Integración forzada de la nueva lógica de `/api/referral-settings` (sistema FOMO) dentro del flujo modularizado, asegurando compatibilidad con los cambios manuales del usuario. ✅ ESTRUCTURA PROFESIONAL
+
+### [2026-03-13] - Refuerzo de Marca: Inmunidad Económica (Anti-Ballenas)
+#### Descripción
+Actualización de la narrativa de seguridad en la Landing Page principal para resaltar la protección contra la manipulación de mercado por grandes capitales (Ballenas), integrando el concepto dentro del bloque de Inmunidad Matemática.
+
+#### Cambios realizados
+- **Landing UI (`index.html`)**: 
+    - Rediseño de la tarjeta **BLK_003** para integrar **"Anti-Ballenas"** justo debajo de "Anti-Rug Pull", unificando tipografías para un look 100% simétrico.
+    - Actualización del copy de seguridad: *"Es imposible robar liquidez o manipular el mercado."*
+    - Simplificación del copy en la sección Marketplace: Eliminación de referencias redundantes para mayor impacto visual. ✅ PROFESIONAL
+- **Arquitectura Visual**: Implementación de un contenedor `flex-column` dentro del `data-header` para mantener la jerarquía sin romper el diseño responsive.
+
+### [2026-03-13] - Rediseño del Footer: Minimalismo y Corrección Estructural
+#### Descripción
+Evolución visual del pie de página (Footer) para lograr un estilo institucional, eliminando colores secundarios y corrigiendo un error técnico en el CSS que impedía la visualización correcta en desktop.
+
+#### Cambios realizados
+- **Corrección de Ámbito (Scope Fix)**: Se detectó que los estilos del footer estaban atrapados dentro de una media query móvil accidental. Se movieron todos los estilos a un **ámbito global**, garantizando que el diseño premium se vea en todas las resoluciones.
+- **Estética "Total White"**: 
+    - Se forzaron todos los enlaces a blanco puro (`#ffffff`) con `!important`.
+    - **No Underline**: Se eliminó el subrayado (`text-decoration: none`) para que los enlaces parezcan "palabras normales", siguiendo las tendencias de diseño minimalista de la industria.
+- **Distribución Multicapa**: 
+    - **Desktop**: 5 columnas equitativas.
+    - **Tablet**: 3 columnas.
+    - **Mobile**: 1-2 columnas con centrado automático.
+- **Enriquecimiento de Contenido**:
+    - **Sección Solidario**: Integración del acceso directo a "Postular Causa" en la primera columna, reforzando el ADN social del proyecto. ✅
+    - **Winton Academy**: Inclusión del acceso a tutoriales interactivos en la sección de Recursos. ✅
+- **Optimización de UX**: Se mantuvo el efecto hover (desplazamiento lateral y opacidad al 100%) para dar feedback sin ensuciar la estética limpia. ✅ PROFESIONAL
