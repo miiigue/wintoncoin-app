@@ -146,7 +146,7 @@ async function sendOtpEmail({ toEmail, otp, context = {} }) {
                   <tr>
                     <td align="left" style="font-family: Arial, sans-serif;">
                       <!-- Logo Pure CSS: Anti-Spam, no se deforma, carga en milisegundos -->
-                      <div style="font-size:26px; font-weight:800; letter-spacing:-0.5px; margin:0; font-style:italic;">
+                      <div style="font-size:26px; font-weight:800; letter-spacing:-0.5px; margin:0;">
                         <span style="color:#FFFFFF;">Winton</span><span style="color:${safeBrandPrimary};">Coin</span>
                       </div>
                     </td>
@@ -281,7 +281,7 @@ async function sendTransactionEmail({ toEmail, subject, title, message, amount, 
           <tr>
             <td style="padding: 32px 40px; text-align: center; background-color: #0A0F1C; border-bottom: none;">
                <!-- Logo Pure CSS para máxima entregabilidad -->
-               <div style="font-size:32px; font-weight:800; letter-spacing:-0.5px; margin-bottom: 24px; font-style:italic;">
+               <div style="font-size:32px; font-weight:800; letter-spacing:-0.5px; margin-bottom: 24px;">
                  <span style="color:#FFFFFF;">Winton</span><span style="color:${mainColor};">Coin</span>
                </div>
                <h1 style="margin: 0; font-size: 24px; color: #FFFFFF; font-weight: 700;">${escapeHtml(title)}</h1>
@@ -409,7 +409,7 @@ async function sendAnnouncementEmail({ toEmail, subject, title, bodyHtml, button
       <div class="container">
         <div class="header">
           <!-- Logo Pure CSS: Anti-Spam y Alta Carga -->
-          <div style="font-size:32px; font-weight:800; letter-spacing:-0.5px; margin-bottom: 24px; font-style:italic;">
+          <div style="font-size:32px; font-weight:800; letter-spacing:-0.5px; margin-bottom: 24px;">
             <span style="color:#FFFFFF;">Winton</span><span style="color:${mainColor};">Coin</span>
           </div>
           <div class="title-dark-bg">${escapeHtml(title)}</div>
@@ -629,7 +629,7 @@ async function sendGovernanceEmail({ toEmail, subject, title, body, actionUrl, a
                   <tr>
                     <td align="left" style="font-family: Arial, sans-serif;">
                       <!-- Logo Pure CSS: Anti-Spam y Alta Carga -->
-                      <div style="font-size:26px; font-weight:800; letter-spacing:-0.5px; margin:0; font-style:italic;">
+                      <div style="font-size:26px; font-weight:800; letter-spacing:-0.5px; margin:0;">
                         <span style="color:#FFFFFF;">Winton</span><span style="color:${safeBrandPrimary};">Coin</span>
                       </div>
                     </td>
