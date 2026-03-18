@@ -78,7 +78,53 @@ const authenticateAdmin = (req, res, next) => {
     });
 };
 
+/**
+ * Middleware de AUTORIZACIÓN para guardianes activos.
+ * Debe usarse DESPUÉS de authenticateToken (requiere req.user.userId).
+ *
+ * Patrón RBAC (Role-Based Access Control): Autenticación ≠ Autorización.
+ * authenticateToken verifica QUIÉN eres; este middleware verifica QUÉ PUEDES HACER.
+ *
+ * Resultado: agrega req.guardian con los datos del guardián al request.
+ */
+const requireActiveGuardian = async (req, res, next) => {
+    try {
+        const userId = req.user?.userId;
+        if (!userId) {
+            return res.status(401).json({ error: 'Autenticación requerida.' });
+        }
+
+        const result = await pool.query(
+            `SELECT g.id, g.user_id, g.role, g.status, u.username
+             FROM governance_guardians g
+             JOIN users u ON g.user_id = u.id
+             WHERE g.user_id = $1`,
+            [userId]
+        );
+
+        if (result.rowCount === 0 || result.rows[0].status !== 'active') {
+            return res.status(403).json({
+                error: 'Acceso denegado. Solo guardianes activos del sistema Winton-Consensus pueden acceder a este recurso.',
+                code: 'GUARDIAN_REQUIRED',
+            });
+        }
+
+        req.guardian = result.rows[0];
+        next();
+    } catch (err) {
+        if (err.code === '42P01') {
+            return res.status(403).json({
+                error: 'El sistema de gobernanza no ha sido inicializado.',
+                code: 'GOVERNANCE_NOT_INITIALIZED',
+            });
+        }
+        console.error('[AUTH GUARDIAN]', err);
+        return res.status(500).json({ error: 'Error al verificar estado de guardián.' });
+    }
+};
+
 module.exports = {
     authenticateToken,
-    authenticateAdmin
+    authenticateAdmin,
+    requireActiveGuardian,
 };

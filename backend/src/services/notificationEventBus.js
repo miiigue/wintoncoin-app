@@ -1,6 +1,64 @@
+const crypto = require('crypto');
 const EventEmitter = require('events');
 const notificationService = require('./notificationService');
+const { sendGovernanceEmail } = require('./emailService');
+const { logAuditEvent } = require('./auditService');
 const pool = require('../config/db');
+
+async function _getUserEmail(userId) {
+    const res = await pool.query('SELECT email FROM users WHERE id = $1', [userId]);
+    return res.rows[0]?.email || null;
+}
+
+async function _getUsersEmails(userIds) {
+    if (!userIds || userIds.length === 0) return [];
+    const res = await pool.query('SELECT id, email FROM users WHERE id = ANY($1::int[])', [userIds]);
+    return res.rows;
+}
+
+async function _getRecentConfigChanges(limit = 5) {
+    try {
+        const res = await pool.query(`
+            SELECT
+                event_type,
+                actor_username,
+                metadata,
+                created_at
+            FROM audit_log
+            WHERE event_type IN ('admin.settings.updated', 'GOV_EXECUTION_SUCCESS')
+            ORDER BY created_at DESC
+            LIMIT $1
+        `, [limit]);
+        return res.rows.reduce((acc, row) => {
+            try {
+                const meta = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : (row.metadata || {});
+                acc.push({
+                    key: meta.setting_key || meta.targetKey || 'N/A',
+                    value: meta.new_value || 'N/A',
+                    actor: row.actor_username || 'sistema',
+                    date: new Date(row.created_at).toLocaleString('es-ES', { timeZone: 'America/Bogota', dateStyle: 'short', timeStyle: 'short' }),
+                    viaGovernance: row.event_type === 'GOV_EXECUTION_SUCCESS',
+                });
+            } catch (_) { /* skip row with corrupt metadata */ }
+            return acc;
+        }, []);
+    } catch (err) {
+        console.error('[EVENT-BUS] Error fetching recent config changes:', err);
+        return [];
+    }
+}
+
+function _maskEmail(email) {
+    const normalized = String(email || '').trim().toLowerCase();
+    const atIndex = normalized.indexOf('@');
+    if (atIndex <= 1) return normalized || 'sin-email';
+
+    const local = normalized.slice(0, atIndex);
+    const domain = normalized.slice(atIndex + 1);
+    const maskedLocal = `${local.slice(0, 2)}***`;
+    const maskedDomain = domain.length > 3 ? `${domain.slice(0, 3)}***` : '***';
+    return `${maskedLocal}@${maskedDomain}`;
+}
 
 class NotificationEventBus extends EventEmitter { }
 const eventBus = new NotificationEventBus();
@@ -117,5 +175,306 @@ eventBus.on('P2P_ORDER_TAKEN', async ({ orderId, ownerId, takerUsername, type })
     }
 });
 
+
+// ════════════════════════════════════════════════════════════════════════════
+// GOBERNANZA: Eventos del sistema Winton-Consensus
+// Notificación redundante (Push) a todos los guardianes relevantes.
+// ════════════════════════════════════════════════════════════════════════════
+
+// 10. GOBERNANZA: Nueva solicitud creada → Push + Email a TODOS los guardianes
+eventBus.on('GOV_REQUEST_CREATED', async ({ requestId, description, actionType, requesterId, requesterUsername, guardianUserIds }) => {
+    const actionLabel = actionType === 'config_change' ? 'Cambio de Configuración' : 'Cambio de Membresía';
+    const panelUrl = `/governance-panel.html?id=${requestId}`;
+    const dispatchRef = typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : crypto.randomBytes(16).toString('hex');
+
+    const [emails, recentChanges] = await Promise.all([
+        _getUsersEmails(guardianUserIds).catch(() => []),
+        _getRecentConfigChanges(5),
+    ]);
+    const votingGuardianCount = guardianUserIds.filter(id => Number(id) !== Number(requesterId)).length;
+    const recipientsPreview = emails
+        .map(row => _maskEmail(row.email))
+        .filter(Boolean)
+        .slice(0, 3)
+        .join(', ');
+
+    await logAuditEvent(pool, null, {
+        eventType: 'GOV_REQUEST_NOTIFICATION_DISPATCHED',
+        actorId: requesterId,
+        actorUsername: requesterUsername,
+        category: 'GOVERNANCE',
+        metadata: {
+            requestId,
+            dispatchRef,
+            requesterIncluded: true,
+            intendedRecipients: guardianUserIds,
+            recipientCount: guardianUserIds.length,
+            recipientEmailCount: emails.length,
+            votingGuardianCount,
+        },
+    });
+
+    for (const userId of guardianUserIds) {
+        const isRequester = Number(userId) === Number(requesterId);
+        const pushTitle = isRequester
+            ? `📝 Solicitud de Gobernanza #${requestId} Creada`
+            : `🔐 Solicitud de Gobernanza #${requestId}`;
+        const pushBody = isRequester
+            ? `Tu solicitud de ${actionLabel} fue creada y distribuida a los guardianes activos para revisión.`
+            : `${requesterUsername} propone: ${actionLabel}. "${description}". Tienes 24h para votar.`;
+
+        try {
+            await notificationService.sendNotificationToUser(userId, {
+                title: pushTitle,
+                body: pushBody,
+                icon: '/assets/icons/icon-192x192.png',
+                data: { url: panelUrl }
+            }, 'GOVERNANCE');
+        } catch (err) {
+            console.error(`[EVENT-BUS] Error push guardián ${userId} GOV_REQUEST:`, err);
+        }
+
+        const userEmail = emails.find(e => e.id === userId)?.email;
+        if (userEmail) {
+            sendGovernanceEmail({
+                toEmail: userEmail,
+                subject: isRequester
+                    ? `Solicitud de Gobernanza #${requestId} — Creada y distribuida`
+                    : `Solicitud de Gobernanza #${requestId} — Voto requerido`,
+                title: isRequester
+                    ? `Solicitud Creada: ${actionLabel}`
+                    : `Nueva Solicitud: ${actionLabel}`,
+                body: isRequester
+                    ? `Tu solicitud fue registrada correctamente y distribuida a los guardianes activos. Recuerda que, por el principio Maker ≠ Checker, tú no participas en la votación de esta solicitud.`
+                    : `${requesterUsername} ha creado una solicitud que requiere tu voto. Tienes 24 horas para votar.`,
+                actionUrl: panelUrl,
+                actionText: isRequester ? 'Ver Estado de la Solicitud' : 'Votar Ahora',
+                details: [
+                    { label: 'Solicitud', value: `#${requestId}` },
+                    { label: 'Tipo', value: actionLabel },
+                    { label: 'Descripción', value: description },
+                    ...(isRequester ? [
+                        { label: 'Guardianes con voto notificados', value: String(votingGuardianCount) },
+                        { label: 'Correos emitidos', value: String(emails.length) },
+                        { label: 'Vista parcial destinatarios', value: recipientsPreview || 'No disponible' },
+                        { label: 'Referencia de distribución', value: dispatchRef },
+                    ] : []),
+                ],
+                severity: isRequester ? 'info' : 'warning',
+                recentChanges,
+            }).catch(err => console.error(`[EVENT-BUS] Error email guardián ${userId} GOV_REQUEST:`, err));
+        }
+    }
+});
+
+// 11. GOBERNANZA: Voto registrado → Push + Email al proponente y guardianes pendientes
+eventBus.on('GOV_VOTE_SUBMITTED', async ({ requestId, voterUsername, vote, requesterId, pendingGuardianIds }) => {
+    const voteLabel = vote === 'approve' ? 'APROBÓ' : 'RECHAZÓ';
+    const panelUrl = `/governance-panel.html?id=${requestId}`;
+
+    try {
+        await notificationService.sendNotificationToUser(requesterId, {
+            title: `Voto en Solicitud #${requestId}`,
+            body: `${voterUsername} ${voteLabel} tu solicitud de gobernanza.`,
+            icon: '/assets/icons/icon-192x192.png',
+            data: { url: panelUrl }
+        }, 'GOVERNANCE');
+    } catch (err) {
+        console.error('[EVENT-BUS] Error push proponente voto:', err);
+    }
+
+    const requesterEmail = await _getUserEmail(requesterId).catch(() => null);
+    if (requesterEmail) {
+        sendGovernanceEmail({
+            toEmail: requesterEmail,
+            subject: `Voto registrado en Solicitud #${requestId}`,
+            title: `${voterUsername} ${voteLabel} tu solicitud`,
+            body: `Se ha registrado un voto en tu solicitud de gobernanza #${requestId}.`,
+            actionUrl: panelUrl,
+            details: [
+                { label: 'Solicitud', value: `#${requestId}` },
+                { label: 'Votante', value: voterUsername },
+                { label: 'Decisión', value: vote === 'approve' ? 'Aprobación' : 'Rechazo' },
+            ],
+            severity: 'info',
+        }).catch(err => console.error('[EVENT-BUS] Error email proponente voto:', err));
+    }
+
+    const pendingEmails = await _getUsersEmails(pendingGuardianIds || []).catch(() => []);
+    for (const userId of (pendingGuardianIds || [])) {
+        try {
+            await notificationService.sendNotificationToUser(userId, {
+                title: `Actividad en Solicitud #${requestId}`,
+                body: `${voterUsername} ya votó. Tu voto aún está pendiente.`,
+                icon: '/assets/icons/icon-192x192.png',
+                data: { url: panelUrl }
+            }, 'GOVERNANCE');
+        } catch (err) {
+            console.error(`[EVENT-BUS] Error push guardián pendiente ${userId}:`, err);
+        }
+
+        const userEmail = pendingEmails.find(e => e.id === userId)?.email;
+        if (userEmail) {
+            sendGovernanceEmail({
+                toEmail: userEmail,
+                subject: `Solicitud #${requestId} — Tu voto está pendiente`,
+                title: 'Tu voto es necesario',
+                body: `${voterUsername} ya emitió su voto. Tu voto aún está pendiente para alcanzar quórum.`,
+                actionUrl: panelUrl,
+                actionText: 'Votar Ahora',
+                details: [{ label: 'Solicitud', value: `#${requestId}` }],
+                severity: 'warning',
+            }).catch(err => console.error(`[EVENT-BUS] Error email guardián pendiente ${userId}:`, err));
+        }
+    }
+});
+
+// 12. GOBERNANZA: Solicitud aprobada con Time-Lock → Push + Email a TODOS
+eventBus.on('GOV_REQUEST_APPROVED', async ({ requestId, executionTime, guardianUserIds }) => {
+    const execDate = new Date(executionTime).toLocaleString('es-ES', { timeZone: 'America/Bogota' });
+    const panelUrl = `/governance-panel.html?id=${requestId}`;
+
+    const [emails, recentChanges] = await Promise.all([
+        _getUsersEmails(guardianUserIds).catch(() => []),
+        _getRecentConfigChanges(5),
+    ]);
+
+    for (const userId of guardianUserIds) {
+        try {
+            await notificationService.sendNotificationToUser(userId, {
+                title: `✅ Solicitud #${requestId} Aprobada`,
+                body: `Quórum alcanzado. Ejecución programada: ${execDate}. Puedes cancelar durante la ventana de Time-Lock.`,
+                icon: '/assets/icons/icon-192x192.png',
+                data: { url: panelUrl }
+            }, 'GOVERNANCE');
+        } catch (err) {
+            console.error(`[EVENT-BUS] Error push aprobación ${userId}:`, err);
+        }
+
+        const userEmail = emails.find(e => e.id === userId)?.email;
+        if (userEmail) {
+            sendGovernanceEmail({
+                toEmail: userEmail,
+                subject: `Solicitud #${requestId} Aprobada — Time-Lock activo`,
+                title: 'Solicitud Aprobada',
+                body: 'El quórum de aprobación ha sido alcanzado. La acción se ejecutará después del período de Time-Lock. Cualquier guardián puede cancelar durante esta ventana.',
+                actionUrl: panelUrl,
+                details: [
+                    { label: 'Solicitud', value: `#${requestId}` },
+                    { label: 'Ejecución programada', value: execDate },
+                ],
+                severity: 'success',
+                recentChanges,
+            }).catch(err => console.error(`[EVENT-BUS] Error email aprobación ${userId}:`, err));
+        }
+    }
+});
+
+// 13. GOBERNANZA: Solicitud ejecutada → Push + Email a TODOS
+eventBus.on('GOV_REQUEST_EXECUTED', async ({ requestId, actionType, targetKey, guardianUserIds }) => {
+    const actionLabel = actionType === 'config_change' ? 'Configuración' : 'Membresía';
+    const panelUrl = `/governance-panel.html?id=${requestId}`;
+
+    const [emails, recentChanges] = await Promise.all([
+        _getUsersEmails(guardianUserIds).catch(() => []),
+        _getRecentConfigChanges(5),
+    ]);
+
+    for (const userId of guardianUserIds) {
+        try {
+            await notificationService.sendNotificationToUser(userId, {
+                title: `⚡ Cambio Ejecutado — Solicitud #${requestId}`,
+                body: `${actionLabel} actualizada: ${targetKey || 'ver detalle'}.`,
+                icon: '/assets/icons/icon-192x192.png',
+                data: { url: panelUrl }
+            }, 'GOVERNANCE');
+        } catch (err) {
+            console.error(`[EVENT-BUS] Error push ejecución ${userId}:`, err);
+        }
+
+        const userEmail = emails.find(e => e.id === userId)?.email;
+        if (userEmail) {
+            sendGovernanceEmail({
+                toEmail: userEmail,
+                subject: `Cambio Ejecutado — Solicitud #${requestId}`,
+                title: 'Cambio de Gobernanza Aplicado',
+                body: `La solicitud #${requestId} ha sido ejecutada exitosamente. El cambio ya está activo en el sistema.`,
+                actionUrl: panelUrl,
+                details: [
+                    { label: 'Solicitud', value: `#${requestId}` },
+                    { label: 'Tipo', value: actionLabel },
+                    { label: 'Clave', value: targetKey || 'N/A' },
+                ],
+                severity: 'success',
+                recentChanges,
+            }).catch(err => console.error(`[EVENT-BUS] Error email ejecución ${userId}:`, err));
+        }
+    }
+});
+
+// 14. GOBERNANZA: Recordatorio de voto pendiente (llamado por cron) → Push + Email
+eventBus.on('GOV_VOTE_REMINDER', async ({ requestId, description, expiresAt, guardianUserId }) => {
+    const hoursLeft = Math.round((new Date(expiresAt) - new Date()) / (1000 * 60 * 60));
+    const panelUrl = `/governance-panel.html?id=${requestId}`;
+
+    try {
+        await notificationService.sendNotificationToUser(guardianUserId, {
+            title: `⏰ Recordatorio: Voto pendiente #${requestId}`,
+            body: `"${description}" expira en ~${hoursLeft}h. Tu voto es necesario para alcanzar quórum.`,
+            icon: '/assets/icons/icon-192x192.png',
+            data: { url: panelUrl }
+        }, 'GOVERNANCE');
+    } catch (err) {
+        console.error(`[EVENT-BUS] Error push recordatorio ${guardianUserId}:`, err);
+    }
+
+    const userEmail = await _getUserEmail(guardianUserId).catch(() => null);
+    if (userEmail) {
+        sendGovernanceEmail({
+            toEmail: userEmail,
+            subject: `Recordatorio: Voto pendiente — Solicitud #${requestId}`,
+            title: 'Voto Pendiente',
+            body: `La solicitud "${description}" expira en aproximadamente ${hoursLeft} horas. Tu voto es necesario para alcanzar quórum.`,
+            actionUrl: panelUrl,
+            actionText: 'Votar Ahora',
+            details: [
+                { label: 'Solicitud', value: `#${requestId}` },
+                { label: 'Tiempo restante', value: `~${hoursLeft} horas` },
+            ],
+            severity: 'warning',
+        }).catch(err => console.error(`[EVENT-BUS] Error email recordatorio ${guardianUserId}:`, err));
+    }
+});
+
+// 15. GOBERNANZA: Solicitud rechazada → Push + Email al proponente
+eventBus.on('GOV_REQUEST_REJECTED', async ({ requestId, requesterId }) => {
+    const panelUrl = `/governance-panel.html?id=${requestId}`;
+
+    try {
+        await notificationService.sendNotificationToUser(requesterId, {
+            title: `❌ Solicitud #${requestId} Rechazada`,
+            body: 'El quórum de rechazo fue alcanzado. La solicitud no se ejecutará.',
+            icon: '/assets/icons/icon-192x192.png',
+            data: { url: panelUrl }
+        }, 'GOVERNANCE');
+    } catch (err) {
+        console.error('[EVENT-BUS] Error push rechazo:', err);
+    }
+
+    const userEmail = await _getUserEmail(requesterId).catch(() => null);
+    if (userEmail) {
+        sendGovernanceEmail({
+            toEmail: userEmail,
+            subject: `Solicitud #${requestId} Rechazada`,
+            title: 'Solicitud Rechazada',
+            body: `El quórum de rechazo fue alcanzado para la solicitud #${requestId}. La acción propuesta no se ejecutará.`,
+            actionUrl: panelUrl,
+            details: [{ label: 'Solicitud', value: `#${requestId}` }],
+            severity: 'danger',
+        }).catch(err => console.error('[EVENT-BUS] Error email rechazo:', err));
+    }
+});
 
 module.exports = eventBus;

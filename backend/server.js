@@ -190,6 +190,12 @@ async function startServer() {
         const humanitarianUserRoutes = require('./src/routes/humanitarianUserRoutes');
         app.use('/api/humanitarian', humanitarianUserRoutes);
 
+        // --- NUEVO: Sistema de Gobernanza Winton-Consensus (Multifirma + WebAuthn) ---
+        // Bootstrap (admin), solicitudes, votación biométrica, break glass
+        const createGovernanceRouter = require('./src/routes/governanceRoutes');
+        const { requireActiveGuardian } = require('./src/middleware/authMiddleware');
+        app.use('/api/governance', createGovernanceRouter(pool, verifyUserToken, verifyAdminToken, requireActiveGuardian, logAuditEvent));
+
 
         // =================================================================================
         // ==  NUEVO FLUJO DE REGISTRO CON VERIFICACIÓN POR SMS (FASE 1: SOLICITUD)  ==
@@ -1259,14 +1265,31 @@ async function startServer() {
                 return res.status(400).json({ message: "Se requiere 'key' y 'value'." });
             }
             try {
-                // ------------------------------------------------------------
+                // ──────────────────────────────────────────────────────────
+                // GOVERNANCE GUARD: Si el sistema de gobernanza está activo,
+                // los cambios de configuración DEBEN pasar por gobernanza.
+                // El admin no puede saltarse el flujo de multifirma.
+                // ──────────────────────────────────────────────────────────
+                try {
+                    const govCheck = await pool.query(
+                        `SELECT COUNT(*) as count FROM governance_guardians WHERE status = 'active'`
+                    );
+                    if (parseInt(govCheck.rows[0].count, 10) > 0) {
+                        return res.status(403).json({
+                            message: `El sistema de gobernanza está activo. Los cambios de configuración deben realizarse a través del panel de gobernanza (Winton-Consensus). ` +
+                                     `Crea una solicitud de tipo "config_change" con la clave "${key}" para que los guardianes la aprueben.`,
+                            governance_required: true,
+                            setting_key: key,
+                        });
+                    }
+                } catch (govErr) {
+                    // La tabla governance_guardians no existe aún (pre-migración 041): continuar sin bloqueo
+                    if (govErr.code !== '42P01') throw govErr;
+                }
+
                 // FINTECH GUARD (fail-closed):
                 // Si se intenta desactivar pre-launch, validamos que el esquema
                 // soporte el flujo normal (usa user_id en red_token_debts y blue_token_escrows).
-                //
-                // Motivo: evitar que un toggle de feature rompa pagos en producción
-                // por deriva de esquema (schema drift). Este guard NO modifica datos.
-                // ------------------------------------------------------------
                 if (key === 'pre_launch_mode_enabled' && value === 'false') {
                     const missing = [];
 
@@ -2067,6 +2090,21 @@ async function startServer() {
                 return res.status(400).json({ message: 'Faltan datos requeridos: nivel, nombre y BLUE mínimo.' });
             }
             try {
+                // GOVERNANCE GUARD
+                try {
+                    const govCheck = await pool.query(
+                        `SELECT COUNT(*) as count FROM governance_guardians WHERE status = 'active'`
+                    );
+                    if (parseInt(govCheck.rows[0].count, 10) > 0) {
+                        return res.status(403).json({
+                            message: 'El sistema de gobernanza está activo. Los cambios en niveles de impulsor deben realizarse a través del panel de gobernanza (Winton-Consensus).',
+                            governance_required: true,
+                        });
+                    }
+                } catch (govErr) {
+                    if (govErr.code !== '42P01') throw govErr;
+                }
+
                 const result = await pool.query(
                     `UPDATE booster_level_settings 
                      SET name = $1, min_blue_required = $2, description = $3 
@@ -3797,6 +3835,62 @@ app.post('/api/admin/p2p/disputes/:id/resolve', verifyAdminToken, async (req, re
     }
 });
 
+// --- GOBERNANZA: Cron Jobs del sistema Winton-Consensus ---
+// Ejecuta time-locks vencidos, expira solicitudes viejas, y envía recordatorios
+const governanceCron = require('./src/services/governanceService');
+const { purgeExpiredChallenges: purgeWebAuthnChallenges } = require('./src/services/webauthnService');
+
+cron.schedule('*/1 * * * *', async () => {
+    try {
+        const timeLockResults = await governanceCron.processTimeLocked(pool);
+
+        for (const r of timeLockResults) {
+            if (r.status === 'executed') {
+                const guardianRes = await pool.query(
+                    `SELECT user_id FROM governance_guardians WHERE status = 'active'`
+                );
+                eventBus.emit('GOV_REQUEST_EXECUTED', {
+                    requestId: r.requestId,
+                    actionType: r.actionType || 'unknown',
+                    targetKey: r.targetKey || null,
+                    guardianUserIds: guardianRes.rows.map(g => g.user_id),
+                });
+            }
+        }
+
+        await governanceCron.expireStaleRequests(pool);
+    } catch (err) {
+        console.error('[GOV-CRON] Error en procesamiento periódico:', err);
+    }
+});
+
+cron.schedule('0 */6 * * *', async () => {
+    try {
+        const reminders = await governanceCron.getPendingReminders(pool);
+        for (const r of reminders) {
+            for (const g of r.pendingGuardians) {
+                eventBus.emit('GOV_VOTE_REMINDER', {
+                    requestId: r.request.id,
+                    description: r.request.description,
+                    expiresAt: r.request.expires_at,
+                    guardianUserId: g.user_id,
+                });
+            }
+        }
+    } catch (err) {
+        console.error('[GOV-CRON] Error enviando recordatorios:', err);
+    }
+});
+
+cron.schedule('0 3 * * *', async () => {
+    try {
+        const purged = await purgeWebAuthnChallenges(pool);
+        if (purged > 0) console.log(`[GOV-CRON] Limpiados ${purged} challenges WebAuthn expirados.`);
+    } catch (err) {
+        console.error('[GOV-CRON] Error limpiando challenges:', err);
+    }
+});
+
 // --- P2P: Expirar órdenes vencidas (liberar escrow) ---
 cron.schedule('*/1 * * * *', async () => {
     try {
@@ -4483,12 +4577,26 @@ app.post('/settings', verifyAdminToken, async (req, res) => {
         welcome_bonus_amount
     } = req.body;
 
-    // Validación básica
     if (typeof platform_commission_percentage === 'undefined' || typeof public_profiles_enabled === 'undefined') {
         return res.status(400).json({ message: 'Faltan parámetros de configuración requeridos.' });
     }
 
     try {
+        // GOVERNANCE GUARD: bloquear cambios directos si hay guardianes activos
+        try {
+            const govCheck = await pool.query(
+                `SELECT COUNT(*) as count FROM governance_guardians WHERE status = 'active'`
+            );
+            if (parseInt(govCheck.rows[0].count, 10) > 0) {
+                return res.status(403).json({
+                    message: 'El sistema de gobernanza está activo. Los cambios de configuración deben realizarse a través del panel de gobernanza (Winton-Consensus).',
+                    governance_required: true,
+                });
+            }
+        } catch (govErr) {
+            if (govErr.code !== '42P01') throw govErr;
+        }
+
         await pool.query(
             `UPDATE app_settings SET
                 allow_new_registrations = $1,

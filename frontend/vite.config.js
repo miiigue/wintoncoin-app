@@ -127,6 +127,9 @@ export default defineConfig(({ mode }) => ({
         // WintonCoin Solidario (Casos Humanitarios)
         solicitudSolidaria: resolve(__dirname, 'solicitud-solidaria.html'),
         causaSolidaria: resolve(__dirname, 'causa-solidaria.html'),
+
+        // Governance (Winton-Consensus)
+        governancePanel: resolve(__dirname, 'governance-panel.html'),
       },
 
       // Optimización de chunks

@@ -9,6 +9,7 @@ const cron = require('node-cron');
 
 async function logAuditEvent(clientOrPool, req, {
     eventType,
+    actorId = null,
     actorUsername = null,
     targetUsername = null,
     publicationId = null,
@@ -16,16 +17,17 @@ async function logAuditEvent(clientOrPool, req, {
     metadata = {}
 }) {
     try {
-        const ipAddress = req?.clientIp || req?.ip || null; // request-ip middleware sets req.clientIp
+        const ipAddress = req?.clientIp || req?.ip || null;
         const userAgent = req?.headers?.['user-agent'] || null;
         const sql = `
             INSERT INTO audit_log
-                (event_type, actor_username, target_username, publication_id, category, ip_address, user_agent, metadata)
+                (event_type, actor_id, actor_username, target_username, publication_id, category, ip_address, user_agent, metadata)
             VALUES
-                ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
         `;
         const params = [
             eventType,
+            actorId,
             actorUsername,
             targetUsername,
             publicationId,
@@ -36,7 +38,6 @@ async function logAuditEvent(clientOrPool, req, {
         ];
         await clientOrPool.query(sql, params);
     } catch (err) {
-        // Never break business logic due to logging failures, but record server-side.
         console.error('[AUDIT_LOG] Failed to write audit event:', err);
     }
 }

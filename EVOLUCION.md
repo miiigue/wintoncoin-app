@@ -354,3 +354,13 @@ Evolución visual del pie de página (Footer) para lograr un estilo instituciona
     - **Sección Solidario**: Integración del acceso directo a "Postular Causa" en la primera columna, reforzando el ADN social del proyecto. ✅
     - **Winton Academy**: Inclusión del acceso a tutoriales interactivos en la sección de Recursos. ✅
 - **Optimización de UX**: Se mantuvo el efecto hover (desplazamiento lateral y opacidad al 100%) para dar feedback sin ensuciar la estética limpia. ✅ PROFESIONAL
+
+### [2026-03-15] - Infraestructura AWS: Auditoría de Facturación Global
+#### Descripción
+Análisis preventivo tras recibir notificación oficial de AWS sobre el cambio de remitente para facturas electrónicas (`invoicing@aws.com`) a partir del 25 de marzo de 2026.
+
+#### Acciones realizadas
+- **Auditoría de Código**: Búsqueda exhaustiva en el backend y scripts de mantenimiento para detectar dependencias de automatización (parsers/scrapers) vinculadas a correos de AWS.
+- **Resultado**: No se detectaron dependencias técnicas activas. El impacto en el código es NULO.
+- **Recomendación Operativa**: Actualizar filtros de correo en la cuenta administrativa de Gmail para asegurar que las facturas no sean marcadas como spam o ignoren reglas de reenvío contables. ✅ CIBERSEGURO
+

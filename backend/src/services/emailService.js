@@ -537,6 +537,212 @@ async function processPendingBroadcasts(pool) {
   }
 }
 
+/**
+ * Sends a governance-related email with the same branding as OTP/transaction emails.
+ * Used for: vote requests, approvals, rejections, executions, reminders.
+ * @param {Object} params
+ * @param {string} params.toEmail - Recipient email
+ * @param {string} params.subject - Email subject
+ * @param {string} params.title - Main heading (e.g. "Nueva Solicitud de Gobernanza")
+ * @param {string} params.body - Main descriptive paragraph
+ * @param {string} [params.actionUrl] - CTA button URL
+ * @param {string} [params.actionText] - CTA button label (default "Ver en Panel")
+ * @param {Array<{label: string, value: string}>} [params.details] - Key-value detail rows
+ * @param {'info'|'success'|'warning'|'danger'} [params.severity] - Visual accent color
+ */
+async function sendGovernanceEmail({ toEmail, subject, title, body, actionUrl, actionText = 'Ver en Panel', details = [], severity = 'info', recentChanges = [] }) {
+  const email = normalizeEmail(toEmail);
+
+  if (!AWS_REGION || !SES_FROM_EMAIL) {
+    console.warn(`[DEV GOV-EMAIL] ${email}: ${subject}`);
+    return;
+  }
+
+  const brandName = SES_FROM_NAME || 'WintonCoin';
+  const safeBrandName = escapeHtml(brandName);
+  const safeLogoUrl = BRAND_LOGO_URL ? escapeHtml(BRAND_LOGO_URL) : '';
+  const safeSupportEmail = escapeHtml(SUPPORT_EMAIL);
+  const safeBrandPrimary = escapeHtml(BRAND_PRIMARY_COLOR);
+
+  const accentColors = {
+    info: BRAND_PRIMARY_COLOR,
+    success: '#059669',
+    warning: '#D97706',
+    danger: '#DC2626',
+  };
+  const accent = accentColors[severity] || BRAND_PRIMARY_COLOR;
+
+  const detailsRows = details.map(d => `
+                  <tr>
+                    <td style="padding:10px 0; border-bottom:1px solid #EEF2F6; color:#667085; font-size:14px;">${escapeHtml(d.label)}</td>
+                    <td style="padding:10px 0; border-bottom:1px solid #EEF2F6; color:#101828; font-size:14px; font-weight:500; text-align:right;">${escapeHtml(d.value)}</td>
+                  </tr>
+  `).join('');
+
+  const buttonBlock = actionUrl ? `
+                <div style="text-align:center; margin:24px 0 0 0;">
+                  <a href="${escapeHtml(actionUrl)}" style="display:inline-block; padding:12px 28px; background:${accent}; color:#FFFFFF; text-decoration:none; border-radius:8px; font-weight:700; font-size:14px; font-family:Arial,sans-serif;">${escapeHtml(actionText)}</a>
+                </div>
+  ` : '';
+
+  const preheader = `${title} — ${subject}`;
+  const htmlBody = `
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="supported-color-schemes" content="light">
+    <title>${safeBrandName}</title>
+  </head>
+  <body style="margin:0; padding:0; background:#F5F7FB;">
+    <!-- Preheader (texto oculto) -->
+    <div style="display:none; font-size:1px; color:#F5F7FB; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden;">
+      ${escapeHtml(preheader)}
+    </div>
+
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F5F7FB;">
+      <tr>
+        <td align="center" style="padding:24px 12px;">
+
+          <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:600px; max-width:600px; background:#FFFFFF; border-radius:14px; overflow:hidden; box-shadow:0 6px 24px rgba(16,24,40,0.08);">
+            <!-- Barra de severidad -->
+            <tr>
+              <td style="padding:0; height:4px; background:${accent};"></td>
+            </tr>
+
+            <!-- Header: Logo + Etiqueta (mismo layout que OTP) -->
+            <tr>
+              <td style="padding:22px 24px; border-bottom:1px solid #EEF2F6;">
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr>
+                    <td align="left" style="font-family: Arial, sans-serif;">
+                      ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="${safeBrandName}" height="96" style="display:block; height:96px; width:96px; max-height:96px; max-width:96px;">` : `<div style="font-size:16px; font-weight:700; color:#0B1220;">${safeBrandName}</div>`}
+                    </td>
+                    <td align="right" style="font-family: Arial, sans-serif; font-size:12px; color:#667085;">
+                      Sistema de Gobernanza
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Contenido principal -->
+            <tr>
+              <td style="padding:24px; font-family: Arial, sans-serif; color:#0B1220;">
+                <h1 style="margin:0 0 10px 0; font-size:20px; line-height:28px; font-weight:700;">${escapeHtml(title)}</h1>
+                <p style="margin:0 0 18px 0; font-size:14px; line-height:22px; color:#344054;">
+                  ${escapeHtml(body)}
+                </p>
+
+                ${details.length > 0 ? `
+                <div style="margin:0 0 16px 0; padding:16px; background:#F8FAFC; border:1px solid #EEF2F6; border-radius:12px;">
+                  <table width="100%" cellspacing="0" cellpadding="0" border="0">
+                    ${detailsRows}
+                  </table>
+                </div>
+                ` : ''}
+
+                ${buttonBlock}
+
+                ${recentChanges.length > 0 ? `
+                <div style="margin:20px 0 0 0; padding:16px; background:#F0F4FF; border:1px solid #D0D9F0; border-radius:12px;">
+                  <p style="margin:0 0 10px 0; font-size:13px; font-weight:700; color:#1E3A5F;">
+                    Últimos ${recentChanges.length} cambios de configuración:
+                  </p>
+                  <table width="100%" cellspacing="0" cellpadding="0" border="0" style="font-size:12px; color:#344054;">
+                    <tr style="border-bottom:1px solid #D0D9F0;">
+                      <td style="padding:6px 4px; font-weight:600; color:#667085;">Clave</td>
+                      <td style="padding:6px 4px; font-weight:600; color:#667085;">Valor</td>
+                      <td style="padding:6px 4px; font-weight:600; color:#667085;">Actor</td>
+                      <td style="padding:6px 4px; font-weight:600; color:#667085;">Fecha</td>
+                    </tr>
+                    ${recentChanges.map(c => `
+                    <tr style="border-bottom:1px solid #EEF2F6;">
+                      <td style="padding:6px 4px; font-size:11px;">${escapeHtml(c.key)}</td>
+                      <td style="padding:6px 4px; font-size:11px;">${escapeHtml(String(c.value).substring(0, 30))}</td>
+                      <td style="padding:6px 4px; font-size:11px;">${escapeHtml(c.actor)}${c.viaGovernance ? ' <span style="color:#059669;">(gov)</span>' : ''}</td>
+                      <td style="padding:6px 4px; font-size:11px; white-space:nowrap;">${escapeHtml(c.date)}</td>
+                    </tr>
+                    `).join('')}
+                  </table>
+                  <p style="margin:8px 0 0 0; font-size:11px; color:#667085; font-style:italic;">
+                    Revisa si detectas patrones inusuales o cambios no autorizados.
+                  </p>
+                </div>
+                ` : ''}
+
+                <!-- Caja de seguridad (mismos colores que OTP) -->
+                <div style="margin:18px 0 0 0; padding:14px 16px; background:#FFF7ED; border:1px solid #FFEDD5; border-radius:12px;">
+                  <p style="margin:0; font-size:12px; line-height:18px; color:#9A3412;">
+                    <strong>Consejo de seguridad:</strong> ${safeBrandName} nunca te pedirá contraseñas ni códigos de recuperación por teléfono, chat o redes sociales.
+                    Si no esperabas este correo, ignóralo o contacta a soporte.
+                  </p>
+                </div>
+
+                <p style="margin:18px 0 0 0; font-size:12px; line-height:18px; color:#667085;">
+                  Soporte: <a href="mailto:${safeSupportEmail}" style="color:${safeBrandPrimary}; text-decoration:none;">${safeSupportEmail}</a>
+                </p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td style="padding:16px 24px; background:#F8FAFC; border-top:1px solid #EEF2F6; font-family: Arial, sans-serif; font-size:11px; line-height:16px; color:#667085;">
+                Este correo fue enviado automáticamente por el sistema Winton-Consensus. No respondas a este mensaje.
+              </td>
+            </tr>
+          </table>
+
+          <!-- Copyright fuera de la card -->
+          <div style="max-width:600px; margin-top:14px; font-family: Arial, sans-serif; font-size:11px; line-height:16px; color:#98A2B3;">
+            &copy; ${new Date().getFullYear()} ${safeBrandName}. Todos los derechos reservados.
+          </div>
+
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
+    `.trim();
+
+  const recentChangesText = recentChanges.length > 0
+    ? [
+        '',
+        `Últimos ${recentChanges.length} cambios de configuración:`,
+        ...recentChanges.map(c => `  • ${c.key} = ${String(c.value).substring(0, 30)} | ${c.actor}${c.viaGovernance ? ' (gov)' : ''} | ${c.date}`),
+        'Revisa si detectas patrones inusuales.',
+      ]
+    : [];
+
+  const textBody = [
+    title,
+    '─'.repeat(50),
+    body,
+    '',
+    ...details.map(d => `${d.label}: ${d.value}`),
+    ...recentChangesText,
+    '',
+    `Seguridad: ${brandName} nunca te pedirá contraseñas ni códigos de recuperación por correo.`,
+    `Soporte: ${SUPPORT_EMAIL}`,
+  ].join('\n');
+
+  const cmd = new SendEmailCommand({
+    Source: `${SES_FROM_NAME} <${SES_FROM_EMAIL}>`,
+    Destination: { ToAddresses: [email] },
+    Message: {
+      Subject: { Data: subject, Charset: 'UTF-8' },
+      Body: {
+        Text: { Data: textBody, Charset: 'UTF-8' },
+        Html: { Data: htmlBody, Charset: 'UTF-8' },
+      },
+    },
+  });
+
+  await getSesClient().send(cmd);
+}
+
 module.exports = {
   generateOtp6,
   hashOtpForEmail,
@@ -544,6 +750,7 @@ module.exports = {
   sendOtpEmail,
   sendTransactionEmail,
   sendAnnouncementEmail,
+  sendGovernanceEmail,
   processPendingBroadcasts,
   normalizeEmail
 };

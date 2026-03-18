@@ -501,9 +501,18 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(`${API_URL}${endpoint}`, { ...defaultOptions, ...options });
 
-            if (response.status === 401 || response.status === 403) {
+            if (response.status === 401) {
                 window.location.href = 'admin.html';
                 throw new Error('Sesión expirada o no autorizada.');
+            }
+
+            if (response.status === 403) {
+                const errorData = await response.json();
+                if (errorData.governance_required) {
+                    throw new Error(errorData.message);
+                }
+                window.location.href = 'admin.html';
+                throw new Error('No autorizado.');
             }
 
             if (!response.ok) {
@@ -1247,7 +1256,13 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             console.log(`Setting actualizado.`);
         } catch (error) {
-            showCustomAlert(`Error al guardar la configuración: ${error.message}`);
+            if (error.message.includes('gobernanza')) {
+                showCustomAlert(
+                    `🔐 ${error.message}\n\nDirige tu solicitud al panel de gobernanza.`
+                );
+            } else {
+                showCustomAlert(`Error al guardar la configuración: ${error.message}`);
+            }
             loadSettings();
         }
     }
@@ -1260,7 +1275,13 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             console.log(`Nivel de impulsor actualizado.`);
         } catch (error) {
-            showCustomAlert(`Error al guardar el nivel: ${error.message}`);
+            if (error.message.includes('gobernanza')) {
+                showCustomAlert(
+                    `🔐 ${error.message}\n\nDirige tu solicitud al panel de gobernanza.`
+                );
+            } else {
+                showCustomAlert(`Error al guardar el nivel: ${error.message}`);
+            }
             loadBoosterSettings();
         }
     }

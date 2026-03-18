@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WintonCoin — Gobernanza</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="admin-style.css">
+    <link rel="icon" href="assets/icons/favicon.ico">
+    <style>
+        /* Force dark admin theme (style.css may override with flex/light theme) */
+        body {
+            background-color: var(--admin-bg);
+            color: var(--admin-text);
+            margin: 0;
+            display: block;
+            min-height: 100vh;
+        }
+
+        .admin-main h1 {
+            color: var(--admin-text);
+            font-size: 1.5rem;
+            margin: 0 0 8px 0;
+        }
+
+        .admin-main > section > p {
+            color: var(--admin-text-secondary);
+            margin: 0 0 24px 0;
+        }
+
+        /* Governance-specific overrides */
+        .gov-status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .gov-status-badge.active { background: rgba(16, 185, 129, 0.15); color: #10B981; }
+        .gov-status-badge.inactive { background: rgba(239, 68, 68, 0.15); color: #EF4444; }
+        .gov-status-badge.pending { background: rgba(245, 158, 11, 0.15); color: #F59E0B; }
+        .gov-status-badge.approved { background: rgba(59, 130, 246, 0.15); color: #3B82F6; }
+        .gov-status-badge.rejected { background: rgba(239, 68, 68, 0.15); color: #EF4444; }
+        .gov-status-badge.executed { background: rgba(16, 185, 129, 0.15); color: #10B981; }
+        .gov-status-badge.expired { background: rgba(107, 114, 128, 0.15); color: #6B7280; }
+        .gov-status-badge.cancelled { background: rgba(107, 114, 128, 0.15); color: #6B7280; }
+
+        .gov-card {
+            background: var(--admin-surface);
+            border: 1px solid var(--admin-border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .gov-card h3 { margin: 0 0 16px 0; font-size: 1rem; color: var(--admin-text); }
+
+        .gov-info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--admin-border);
+            font-size: 0.9rem;
+        }
+
+        .gov-info-row:last-child { border-bottom: none; }
+        .gov-info-label { color: #9CA3AF; }
+        .gov-info-value { color: var(--admin-text); font-weight: 500; }
+
+        .gov-vote-buttons { display: flex; gap: 12px; margin-top: 16px; }
+        .gov-vote-buttons button { flex: 1; padding: 12px; border-radius: 8px; font-weight: 600; font-size: 0.95rem; cursor: pointer; border: none; transition: opacity 0.2s; }
+        .gov-vote-buttons button:hover { opacity: 0.85; }
+
+        .gov-btn-approve { background: #059669; color: white; }
+        .gov-btn-reject { background: #DC2626; color: white; }
+
+        .gov-detail-section { margin-top: 20px; }
+        .gov-detail-section h4 { font-size: 0.85rem; color: #9CA3AF; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+
+        .gov-vote-list { list-style: none; padding: 0; margin: 0; }
+        .gov-vote-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+        }
+
+        .gov-quorum-bar {
+            height: 8px;
+            background: var(--admin-border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+
+        .gov-quorum-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+
+        .gov-form-group { margin-bottom: 20px; }
+        .gov-form-group label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: #9CA3AF; font-weight: 500; }
+        .gov-form-group input,
+        .gov-form-group select,
+        .gov-form-group textarea {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--admin-bg);
+            border: 1px solid var(--admin-border);
+            border-radius: 8px;
+            color: var(--admin-text);
+            font-size: 0.9rem;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+
+        .gov-form-group textarea { min-height: 80px; resize: vertical; }
+
+        .gov-empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: #6B7280;
+        }
+
+        .gov-empty-state p { margin: 8px 0; }
+
+        .gov-request-card {
+            background: var(--admin-surface);
+            border: 1px solid var(--admin-border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .gov-request-card:hover { border-color: var(--admin-primary); }
+
+        .gov-request-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .gov-request-id { font-weight: 700; color: var(--admin-primary); }
+        .gov-request-desc { color: #D1D5DB; font-size: 0.9rem; margin-bottom: 8px; }
+        .gov-request-meta { display: flex; gap: 16px; font-size: 0.8rem; color: #6B7280; }
+
+        .gov-tabs { display: flex; border-bottom: 1px solid var(--admin-border); margin-bottom: 24px; gap: 4px; }
+        .gov-tab {
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            color: #9CA3AF;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            background: none;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+            font-family: inherit;
+        }
+
+        .gov-tab:hover { color: var(--admin-text); }
+        .gov-tab.active { color: var(--admin-primary); border-bottom-color: var(--admin-primary); }
+
+        .gov-tab-content { display: none; }
+        .gov-tab-content.active { display: block; }
+
+        .gov-webauthn-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+        }
+
+        .gov-webauthn-status.registered { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); }
+        .gov-webauthn-status.not-registered { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); }
+
+        .gov-recovery-codes {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 8px;
+            margin: 16px 0;
+        }
+
+        .gov-recovery-code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            padding: 8px 12px;
+            background: var(--admin-bg);
+            border: 1px solid var(--admin-border);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: #F59E0B;
+            text-align: center;
+        }
+
+        .gov-autocomplete-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 260px;
+            overflow-y: auto;
+            background: var(--admin-surface);
+            border: 1px solid var(--admin-primary);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            z-index: 100;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+
+        .gov-autocomplete-dropdown.visible { display: block; }
+
+        .gov-autocomplete-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--admin-border);
+            transition: background 0.15s;
+        }
+
+        .gov-autocomplete-item:last-child { border-bottom: none; }
+        .gov-autocomplete-item:hover,
+        .gov-autocomplete-item.highlighted { background: rgba(59, 130, 246, 0.15); }
+
+        .gov-autocomplete-item .item-label {
+            display: block;
+            color: var(--admin-text);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .gov-autocomplete-item .item-key {
+            display: block;
+            color: #6B7280;
+            font-size: 0.75rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            margin-top: 2px;
+        }
+
+        .gov-autocomplete-item .item-value {
+            display: inline-block;
+            color: #10B981;
+            font-size: 0.75rem;
+            margin-top: 2px;
+        }
+
+        /* Modal overrides for dark governance theme */
+        #custom-alert-container .modal-content,
+        #customConfirmModal .modal-content {
+            background-color: var(--admin-surface);
+            border: 1px solid var(--admin-border);
+            color: var(--admin-text);
+            max-width: 480px;
+        }
+
+        #custom-alert-container .modal-content p,
+        #customConfirmMessage {
+            color: var(--admin-text);
+            line-height: 1.6;
+            white-space: pre-line;
+        }
+
+        #custom-alert-container .action-button {
+            background: var(--admin-primary);
+            color: white;
+            border-radius: 8px;
+        }
+
+        #customConfirmModal .action-button.confirm-button {
+            background: #059669;
+            color: white;
+            border-radius: 8px;
+        }
+
+        #customConfirmModal .action-button.cancel-button {
+            background: #4B5563;
+            color: white;
+            border-radius: 8px;
+        }
+
+        #customConfirmModal .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .gov-tabs { flex-wrap: wrap; }
+            .gov-tab { flex: 1; min-width: auto; text-align: center; font-size: 0.8rem; padding: 8px 12px; }
+            .gov-vote-buttons { flex-direction: column; }
+            .gov-request-meta { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="admin-grid-container">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar">
+            <div class="sidebar-header">
+                <h2>🔐 Gobernanza</h2>
+                <p style="font-size: 0.75rem; color: #6B7280; margin-top: 4px;">Winton-Consensus</p>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li><a href="#status" class="nav-link active" data-section="status">Mi Estado</a></li>
+                    <li>
+                        <a href="#requests" class="nav-link" data-section="requests">
+                            Solicitudes
+                            <span class="nav-badge" id="pendingRequestsBadge"></span>
+                        </a>
+                    </li>
+                    <li><a href="#create" class="nav-link" data-section="create">Nueva Solicitud</a></li>
+                    <li><a href="#break-glass" class="nav-link" data-section="break-glass" style="color: #EF4444;">Emergencia</a></li>
+                    <li style="margin-top: 24px; border-top: 1px solid var(--admin-border); padding-top: 12px;">
+                        <a href="#" class="nav-link" id="govLogoutBtn" style="color: #EF4444;">Cerrar Sesión</a>
+                    </li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main -->
+        <main class="admin-main">
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- SECCIÓN: MI ESTADO -->
+            <!-- ═══════════════════════════════════════════ -->
+            <section id="status-section" class="admin-section active-section">
+                <h1>Mi Estado de Guardián</h1>
+                <p>Tu rol en el sistema Winton-Consensus y estado de autenticación biométrica.</p>
+
+                <div id="guardian-status-container">
+                    <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- SECCIÓN: SOLICITUDES -->
+            <!-- ═══════════════════════════════════════════ -->
+            <section id="requests-section" class="admin-section">
+                <h1>Solicitudes de Gobernanza</h1>
+                <p>Solicitudes activas y pasadas del sistema Winton-Consensus.</p>
+
+                <div class="gov-tabs">
+                    <button class="gov-tab active" data-filter="pending">Pendientes</button>
+                    <button class="gov-tab" data-filter="approved">Aprobadas</button>
+                    <button class="gov-tab" data-filter="all">Todas</button>
+                </div>
+
+                <div id="requests-list-container">
+                    <div class="loading-spinner"></div>
+                </div>
+
+                <!-- Detalle de solicitud (se muestra al hacer click) -->
+                <div id="request-detail-container" style="display: none;"></div>
+            </section>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- SECCIÓN: CREAR SOLICITUD -->
+            <!-- ═══════════════════════════════════════════ -->
+            <section id="create-section" class="admin-section">
+                <h1>Nueva Solicitud de Gobernanza</h1>
+                <p>Propone un cambio que será votado por los guardianes del sistema.</p>
+
+                <div class="gov-card">
+                    <form id="createRequestForm">
+                        <div class="gov-form-group">
+                            <label for="govActionType">Tipo de Acción</label>
+                            <select id="govActionType" required>
+                                <option value="">Selecciona...</option>
+                                <option value="config_change">Cambio de Configuración</option>
+                                <option value="membership_change">Cambio de Membresía</option>
+                            </select>
+                        </div>
+
+                        <!-- Campos para config_change -->
+                        <div id="configFields" style="display: none;">
+                            <div class="gov-form-group" style="position: relative;">
+                                <label for="govSettingSearch">Configuración a Cambiar</label>
+                                <input type="text" id="govSettingSearch" placeholder="Escribe para buscar... ej: Donación, Deuda, Comisión" autocomplete="off">
+                                <input type="hidden" id="govTargetKey">
+                                <div id="govSettingDropdown" class="gov-autocomplete-dropdown"></div>
+                            </div>
+                            <div class="gov-form-group">
+                                <label for="govOldValue">Valor Actual <span style="color: #6B7280; font-weight: normal; font-size: 0.8em;">(se llena automáticamente)</span></label>
+                                <input type="text" id="govOldValue" readonly style="opacity: 0.7; cursor: not-allowed;">
+                            </div>
+                            <div class="gov-form-group">
+                                <label for="govNewValue">Nuevo Valor</label>
+                                <input type="text" id="govNewValue" placeholder="Valor propuesto">
+                            </div>
+                        </div>
+
+                        <!-- Campos para membership_change -->
+                        <div id="membershipFields" style="display: none;">
+                            <div class="gov-form-group">
+                                <label for="govMemberAction">Acción</label>
+                                <select id="govMemberAction">
+                                    <option value="add">Agregar / Actualizar Guardián</option>
+                                    <option value="remove">Remover Guardián</option>
+                                </select>
+                            </div>
+                            <div class="gov-form-group">
+                                <label for="govMemberUserId">ID del Usuario</label>
+                                <input type="number" id="govMemberUserId" placeholder="ID numérico del usuario">
+                            </div>
+                            <div class="gov-form-group" id="govMemberRoleGroup">
+                                <label for="govMemberRole">Rol</label>
+                                <select id="govMemberRole">
+                                    <option value="supervisor">Supervisor</option>
+                                    <option value="auxiliary">Auxiliar</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="gov-form-group">
+                            <label for="govDescription">Descripción / Justificación</label>
+                            <textarea id="govDescription" required placeholder="Explica por qué se necesita este cambio..."></textarea>
+                        </div>
+
+                        <button type="submit" class="action-button" id="govSubmitRequestBtn">Crear Solicitud</button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- SECCIÓN: BREAK GLASS -->
+            <!-- ═══════════════════════════════════════════ -->
+            <section id="break-glass-section" class="admin-section">
+                <h1 style="color: #EF4444;">Emergencia — Break Glass</h1>
+                <p>Protocolo de recuperación de emergencia. Solo usar cuando el sistema de gobernanza no puede operar normalmente.</p>
+
+                <!-- Warning banner -->
+                <div class="gov-card" style="border-color: rgba(239, 68, 68, 0.5); background: rgba(239, 68, 68, 0.05); margin-bottom: 24px;">
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                        <span style="font-size: 1.5rem; line-height: 1;">🚨</span>
+                        <div>
+                            <h3 style="color: #EF4444; margin: 0 0 8px 0;">Zona de Máxima Seguridad</h3>
+                            <ul style="color: #9CA3AF; font-size: 0.85rem; margin: 0; padding-left: 18px; line-height: 1.7;">
+                                <li>Este protocolo <strong style="color: #EF4444;">desactiva todos los guardianes actuales</strong> y los reemplaza con nuevos.</li>
+                                <li>Se requieren al menos <strong>3 de 5</strong> códigos de recuperación válidos (esquema M-de-N).</li>
+                                <li>Rate-limit estricto: <strong>3 intentos por hora por IP</strong>. Intentos fallidos se registran en audit log.</li>
+                                <li>Los códigos de recuperación actuales se <strong>invalidan permanentemente</strong> y se generan nuevos.</li>
+                                <li>Toda la operación queda registrada con IP, User-Agent y evidencia forense.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <form id="breakGlassForm">
+                    <!-- Step 1: Codes -->
+                    <div class="gov-card" style="border-color: rgba(239, 68, 68, 0.3);">
+                        <h3 style="color: #F59E0B;">Paso 1 — Códigos de Recuperación</h3>
+                        <p style="color: #9CA3AF; font-size: 0.85rem; margin-bottom: 16px;">
+                            Ingresa al menos 3 de tus 5 códigos de recuperación. Los códigos se ocultan por defecto por seguridad.
+                        </p>
+                        <div class="gov-form-group">
+                            <label for="bgCode1">Código de Recuperación 1</label>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="password" id="bgCode1" placeholder="BG-XXXXX-XXXXX-XXXXX" autocomplete="off" spellcheck="false" style="flex: 1;">
+                                <button type="button" class="bg-toggle-visibility" data-target="bgCode1" title="Mostrar/ocultar código" style="flex-shrink: 0; width: 36px; height: 36px; background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 8px; color: #6B7280; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center;">👁️</button>
+                            </div>
+                        </div>
+                        <div class="gov-form-group">
+                            <label for="bgCode2">Código de Recuperación 2</label>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="password" id="bgCode2" placeholder="BG-XXXXX-XXXXX-XXXXX" autocomplete="off" spellcheck="false" style="flex: 1;">
+                                <button type="button" class="bg-toggle-visibility" data-target="bgCode2" title="Mostrar/ocultar código" style="flex-shrink: 0; width: 36px; height: 36px; background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 8px; color: #6B7280; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center;">👁️</button>
+                            </div>
+                        </div>
+                        <div class="gov-form-group">
+                            <label for="bgCode3">Código de Recuperación 3</label>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="password" id="bgCode3" placeholder="BG-XXXXX-XXXXX-XXXXX" autocomplete="off" spellcheck="false" style="flex: 1;">
+                                <button type="button" class="bg-toggle-visibility" data-target="bgCode3" title="Mostrar/ocultar código" style="flex-shrink: 0; width: 36px; height: 36px; background: var(--admin-surface); border: 1px solid var(--admin-border); border-radius: 8px; color: #6B7280; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center;">👁️</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Action -->
+                    <div class="gov-card" style="border-color: rgba(239, 68, 68, 0.3);">
+                        <h3 style="color: #F59E0B;">Paso 2 — Acción de Emergencia</h3>
+                        <div class="gov-form-group">
+                            <label for="bgAction">Acción</label>
+                            <select id="bgAction" required>
+                                <option value="">Selecciona una acción...</option>
+                                <option value="reset_guardians">Restablecer Guardianes (desactivar actuales y asignar nuevos)</option>
+                            </select>
+                        </div>
+                        <div class="gov-form-group">
+                            <label for="bgReason">Razón de la Emergencia <span style="color: #EF4444;">*</span></label>
+                            <textarea id="bgReason" placeholder="Describe detalladamente por qué se ejecuta este protocolo de emergencia (mín. 10 caracteres)..." required minlength="10" style="min-height: 80px; resize: vertical;"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: New Guardians -->
+                    <div class="gov-card" id="bgGuardiansCard" style="border-color: rgba(239, 68, 68, 0.3); display: none;">
+                        <h3 style="color: #F59E0B;">Paso 3 — Nuevos Guardianes</h3>
+                        <p style="color: #9CA3AF; font-size: 0.85rem; margin-bottom: 16px;">
+                            Define al menos <strong>2 guardianes</strong> nuevos (mínimo 2 supervisores). Las cuentas de sistema no pueden ser guardianes.
+                        </p>
+                        <div id="bgGuardiansList">
+                            <!-- Guardian row template rendered by JS -->
+                        </div>
+                        <button type="button" id="bgAddGuardianBtn" style="margin-top: 12px; padding: 8px 16px; border-radius: 8px; background: transparent; border: 1px dashed var(--admin-border); color: var(--admin-text-secondary); cursor: pointer; font-family: inherit; font-size: 0.85rem; width: 100%; transition: border-color 0.2s;">
+                            + Agregar otro guardián
+                        </button>
+                    </div>
+
+                    <!-- Submit -->
+                    <div class="gov-card" style="border-color: rgba(239, 68, 68, 0.5); text-align: center;">
+                        <p style="color: #EF4444; font-weight: 600; font-size: 0.9rem; margin-bottom: 16px;">
+                            Esta acción es irreversible. Los guardianes actuales serán desactivados y los códigos de recuperación actuales se invalidarán permanentemente.
+                        </p>
+                        <button type="submit" id="bgSubmitBtn" class="action-button" style="background: #DC2626; padding: 14px 32px; font-size: 1rem; font-weight: 700; letter-spacing: 0.5px;">
+                            Ejecutar Protocolo Break Glass
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Recovery codes result (rendered by JS after successful execution) -->
+                <div id="bgRecoveryCodesResult" style="display: none;"></div>
+            </section>
+
+        </main>
+    </div>
+
+    <script type="module" src="src/pages/governance-panel.js"></script>
+
+    <div id="custom-alert-container"></div>
+    <div id="customConfirmModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button confirm-close-button">&times;</span>
+            <p id="customConfirmMessage"></p>
+            <div class="modal-actions">
+                <button class="action-button cancel-button">No, volver</button>
+                <button class="action-button confirm-button">Sí, confirmar</button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

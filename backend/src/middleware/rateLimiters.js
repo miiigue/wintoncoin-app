@@ -44,11 +44,22 @@ const forgotPasswordLimiter = rateLimit({
     message: 'Demasiados intentos de recuperación de contraseña desde esta IP. Por favor, inténtalo más tarde.'
 });
 
+// Rate limiter ultra-restrictivo para Break Glass (anti brute-force de códigos de recuperación)
+// 3 intentos por hora por IP — un ataque legítimo de emergencia no requiere más
+const breakGlassLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hora
+    max: 3,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: 'Demasiados intentos de Break Glass desde esta IP. Endpoint bloqueado por 1 hora.'
+});
+
 module.exports = {
     loginLimiter,
     registerRequestLimiter,
     registerVerifyLimiter,
     resendOtpLimiter,
-    forgotPasswordLimiter
+    forgotPasswordLimiter,
+    breakGlassLimiter
 };
 
