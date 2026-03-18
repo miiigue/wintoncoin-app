@@ -145,9 +145,11 @@ async function sendOtpEmail({ toEmail, otp, context = {} }) {
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                   <tr>
                     <td align="left" style="font-family: Arial, sans-serif;">
-                      <!-- Logo Pure CSS: Anti-Spam, no se deforma, carga en milisegundos -->
-                      <div style="font-family: 'Outfit', Arial, sans-serif; font-size:28px; font-weight:800; letter-spacing:-1px; margin:0;">
-                        <span style="color:#FFFFFF;">Winton</span><span style="color:${safeBrandPrimary};">Coin</span>
+                      <!-- Logo Pure CSS con efecto Mesh y tipografía Semibold -->
+                      <div style="display: inline-block; padding: 12px 20px; background: radial-gradient(circle at center, #0F172A 0%, #0A0F1C 100%); border-radius: 8px;">
+                        <div style="font-family: 'Outfit', Arial, sans-serif; font-size:26px; font-weight:600; letter-spacing:-0.5px; margin:0; line-height: 1;">
+                          <span style="color:#FFFFFF; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">Winton</span><span style="color:#3B82F6; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">Coin</span>
+                        </div>
                       </div>
                     </td>
                     <td align="right" style="font-family: Arial, sans-serif; font-size:13px; color:#94A3B8; font-weight:500;">
@@ -278,11 +280,12 @@ async function sendTransactionEmail({ toEmail, subject, title, message, amount, 
         <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="background:#FFFFFF; border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.05); max-width: 600px; width: 100%;">
           
           <!-- Encabezado Oscuro Premium -->
-          <tr>
-            <td style="padding: 32px 40px; text-align: center; background-color: #0A0F1C; border-bottom: none;">
-               <!-- Logo Pure CSS para máxima entregabilidad -->
-               <div style="font-family: 'Outfit', Arial, sans-serif; font-size:34px; font-weight:800; letter-spacing:-1px; margin-bottom: 24px;">
-                 <span style="color:#FFFFFF;">Winton</span><span style="color:${mainColor};">Coin</span>
+            <td style="padding: 32px 40px; text-align: center; background: radial-gradient(circle at center, #0F172A 0%, #0A0F1C 100%); border-bottom: none;">
+               <!-- Logo Pure CSS con efecto Mesh y tipografía Semibold -->
+               <div style="display: inline-block; margin-bottom: 24px;">
+                 <div style="font-family: 'Outfit', Arial, sans-serif; font-size:32px; font-weight:600; letter-spacing:-0.5px; line-height: 1;">
+                   <span style="color:#FFFFFF; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">Winton</span><span style="color:#3B82F6; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">Coin</span>
+                 </div>
                </div>
                <h1 style="margin: 0; font-size: 24px; color: #FFFFFF; font-weight: 700;">${escapeHtml(title)}</h1>
             </td>
@@ -407,10 +410,12 @@ async function sendAnnouncementEmail({ toEmail, subject, title, bodyHtml, button
     </head>
     <body>
       <div class="container">
-        <div class="header">
-          <!-- Logo Pure CSS: Anti-Spam y Alta Carga -->
-          <div style="font-family: 'Outfit', Arial, sans-serif; font-size:34px; font-weight:800; letter-spacing:-1px; margin-bottom: 24px;">
-            <span style="color:#FFFFFF;">Winton</span><span style="color:${mainColor};">Coin</span>
+        <div class="header" style="background: radial-gradient(circle at center, #111827 0%, #0A0F1C 100%);">
+          <!-- Logo Pure CSS con efecto Mesh y tipografía Semibold -->
+          <div style="display: inline-block; margin-bottom: 24px;">
+            <div style="font-family: 'Outfit', Arial, sans-serif; font-size:32px; font-weight:600; letter-spacing:-0.5px; line-height: 1;">
+              <span style="color:#FFFFFF; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">Winton</span><span style="color:#3B82F6; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">Coin</span>
+            </div>
           </div>
           <div class="title-dark-bg">${escapeHtml(title)}</div>
         </div>
@@ -628,9 +633,11 @@ async function sendGovernanceEmail({ toEmail, subject, title, body, actionUrl, a
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                   <tr>
                     <td align="left" style="font-family: Arial, sans-serif;">
-                      <!-- Logo Pure CSS: Anti-Spam y Alta Carga -->
-                      <div style="font-family: 'Outfit', Arial, sans-serif; font-size:28px; font-weight:800; letter-spacing:-1px; margin:0;">
-                        <span style="color:#FFFFFF;">Winton</span><span style="color:${safeBrandPrimary};">Coin</span>
+                      <!-- Logo Pure CSS con efecto Mesh y tipografía Semibold -->
+                      <div style="display: inline-block; padding: 12px 20px; background: radial-gradient(circle at center, #0F172A 0%, #0A0F1C 100%); border-radius: 8px;">
+                        <div style="font-family: 'Outfit', Arial, sans-serif; font-size:26px; font-weight:600; letter-spacing:-0.5px; margin:0; line-height: 1;">
+                          <span style="color:#FFFFFF; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">Winton</span><span style="color:#3B82F6; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">Coin</span>
+                        </div>
                       </div>
                     </td>
                     <td align="right" style="font-family: Arial, sans-serif; font-size:13px; color:#94A3B8; font-weight:500;">
