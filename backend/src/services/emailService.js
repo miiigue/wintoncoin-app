@@ -141,13 +141,16 @@ async function sendOtpEmail({ toEmail, otp, context = {} }) {
 
           <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:600px; max-width:600px; background:#FFFFFF; border-radius:14px; overflow:hidden; box-shadow:0 6px 24px rgba(16,24,40,0.08);">
             <tr>
-              <td style="padding:22px 24px; border-bottom:1px solid #EEF2F6;">
+              <td style="padding:24px 32px; background-color:#0A0F1C; border-bottom:none;">
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                   <tr>
                     <td align="left" style="font-family: Arial, sans-serif;">
-                      ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="${safeBrandName}" height="96" style="display:block; height:96px; width:96px; max-height:96px; max-width:96px;">` : `<div style="font-size:16px; font-weight:700; color:#0B1220;">${safeBrandName}</div>`}
+                      <!-- Logo Pure CSS: Anti-Spam, no se deforma, carga en milisegundos -->
+                      <div style="font-size:26px; font-weight:800; letter-spacing:-0.5px; margin:0; font-style:italic;">
+                        <span style="color:#FFFFFF;">Winton</span><span style="color:${safeBrandPrimary};">Coin</span>
+                      </div>
                     </td>
-                    <td align="right" style="font-family: Arial, sans-serif; font-size:12px; color:#667085;">
+                    <td align="right" style="font-family: Arial, sans-serif; font-size:13px; color:#94A3B8; font-weight:500;">
                       Verificación de cuenta
                     </td>
                   </tr>
@@ -274,11 +277,14 @@ async function sendTransactionEmail({ toEmail, subject, title, message, amount, 
       <td align="center">
         <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="background:#FFFFFF; border-radius:16px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.05); max-width: 600px; width: 100%;">
           
-          <!-- Encabezado -->
+          <!-- Encabezado Oscuro Premium -->
           <tr>
-            <td style="padding: 32px 40px; text-align: center; border-bottom: 1px solid #F2F4F7;">
-               ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="${safeBrandName}" height="120" style="height:120px; margin-bottom: 24px;">` : `<div style="font-size:24px; font-weight:800; color:${mainColor}; margin-bottom: 16px;">${safeBrandName}</div>`}
-               <h1 style="margin: 0; font-size: 24px; color: #101828; font-weight: 700;">${escapeHtml(title)}</h1>
+            <td style="padding: 32px 40px; text-align: center; background-color: #0A0F1C; border-bottom: none;">
+               <!-- Logo Pure CSS para máxima entregabilidad -->
+               <div style="font-size:32px; font-weight:800; letter-spacing:-0.5px; margin-bottom: 24px; font-style:italic;">
+                 <span style="color:#FFFFFF;">Winton</span><span style="color:${mainColor};">Coin</span>
+               </div>
+               <h1 style="margin: 0; font-size: 24px; color: #FFFFFF; font-weight: 700;">${escapeHtml(title)}</h1>
             </td>
           </tr>
 
@@ -385,10 +391,11 @@ async function sendAnnouncementEmail({ toEmail, subject, title, bodyHtml, button
       <style>
         body { font-family: 'Inter', -apple-system, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f9fafb; }
         .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .header { padding: 40px; text-align: center; border-bottom: 1px solid #f3f4f6; }
+        .header { padding: 40px; text-align: center; background-color: #0A0F1C; }
         .logo { height: 50px; width: auto; max-width: 100%; margin-bottom: 24px; object-fit: contain; }
         .content { padding: 40px; }
         .title { font-size: 24px; font-weight: 700; color: #111827; margin-bottom: 24px; }
+        .title-dark-bg { font-size: 24px; font-weight: 700; color: #FFFFFF; margin-bottom: 24px; }
         .body-text { font-size: 16px; color: #4b5563; margin-bottom: 32px; }
         .button { display: inline-block; padding: 14px 28px; background-color: ${mainColor}; color: #ffffff !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; }
         .footer { padding: 32px 40px; background-color: #f9fafb; border-top: 1px solid #f3f4f6; text-align: center; }
@@ -401,8 +408,11 @@ async function sendAnnouncementEmail({ toEmail, subject, title, bodyHtml, button
     <body>
       <div class="container">
         <div class="header">
-          ${safeLogoUrl ? `<img src="${safeLogoUrl}" class="logo" alt="${safeBrandName}">` : `<div style="font-size:24px; font-weight:800; color:${mainColor}">${safeBrandName}</div>`}
-          <div class="title">${escapeHtml(title)}</div>
+          <!-- Logo Pure CSS: Anti-Spam y Alta Carga -->
+          <div style="font-size:32px; font-weight:800; letter-spacing:-0.5px; margin-bottom: 24px; font-style:italic;">
+            <span style="color:#FFFFFF;">Winton</span><span style="color:${mainColor};">Coin</span>
+          </div>
+          <div class="title-dark-bg">${escapeHtml(title)}</div>
         </div>
         <div class="content">
           <div class="body-text">${bodyHtml.replace(/\n/g, '<br>')}</div>
@@ -612,15 +622,18 @@ async function sendGovernanceEmail({ toEmail, subject, title, body, actionUrl, a
               <td style="padding:0; height:4px; background:${accent};"></td>
             </tr>
 
-            <!-- Header: Logo + Etiqueta (mismo layout que OTP) -->
+            <!-- Header: Cabecera Oscura y Logo CSS -->
             <tr>
-              <td style="padding:22px 24px; border-bottom:1px solid #EEF2F6;">
+              <td style="padding:24px 32px; background-color:#0A0F1C; border-bottom:none;">
                 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                   <tr>
                     <td align="left" style="font-family: Arial, sans-serif;">
-                      ${safeLogoUrl ? `<img src="${safeLogoUrl}" alt="${safeBrandName}" height="96" style="display:block; height:96px; width:96px; max-height:96px; max-width:96px;">` : `<div style="font-size:16px; font-weight:700; color:#0B1220;">${safeBrandName}</div>`}
+                      <!-- Logo Pure CSS: Anti-Spam y Alta Carga -->
+                      <div style="font-size:26px; font-weight:800; letter-spacing:-0.5px; margin:0; font-style:italic;">
+                        <span style="color:#FFFFFF;">Winton</span><span style="color:${safeBrandPrimary};">Coin</span>
+                      </div>
                     </td>
-                    <td align="right" style="font-family: Arial, sans-serif; font-size:12px; color:#667085;">
+                    <td align="right" style="font-family: Arial, sans-serif; font-size:13px; color:#94A3B8; font-weight:500;">
                       Sistema de Gobernanza
                     </td>
                   </tr>
