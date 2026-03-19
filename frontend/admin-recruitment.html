@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Winton Talent - Panel de Reclutamiento</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* ============================================================ */
+        /* ESTILOS DEL PANEL DE RECLUTAMIENTO - WINTON TALENT           */
+        /* Diseño Sapphire Premium con paleta corporativa               */
+        /* ============================================================ */
+        :root {
+            --talent-primary: #3B82F6;
+            --talent-glow: rgba(59, 130, 246, 0.2);
+            --talent-success: #22C55E;
+            --talent-warning: #F59E0B;
+            --talent-danger: #EF4444;
+            --talent-info: #6366F1;
+        }
+
+        body {
+            background: #05050A;
+            color: #E2E8F0;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Barra superior con navegación */
+        .talent-topbar {
+            background: rgba(15, 15, 30, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .talent-topbar h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            margin: 0;
+            background: linear-gradient(135deg, #60A5FA, #2563EB);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .talent-topbar .back-btn {
+            color: #94A3B8;
+            text-decoration: none;
+            font-size: 0.9rem;
+            padding: 8px 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .talent-topbar .back-btn:hover {
+            color: white;
+            border-color: var(--talent-primary);
+        }
+
+        /* Contenedor principal */
+        .talent-main {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+
+        /* Tarjetas de estadísticas */
+        .talent-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(15, 15, 30, 0.7);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .stat-card .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .stat-card .stat-label {
+            color: #94A3B8;
+            font-size: 0.85rem;
+            margin-top: 0.3rem;
+        }
+
+        .stat-pending .stat-number { color: var(--talent-warning); }
+        .stat-reviewing .stat-number { color: var(--talent-info); }
+        .stat-accepted .stat-number { color: var(--talent-success); }
+        .stat-total .stat-number { color: var(--talent-primary); }
+
+        /* Filtros */
+        .talent-filters {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .talent-filters input,
+        .talent-filters select {
+            padding: 0.7rem 1rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            color: white;
+            font-size: 0.9rem;
+            flex: 1;
+            min-width: 180px;
+        }
+
+        .talent-filters input::placeholder { color: #64748B; }
+
+        /* Tabla de postulaciones */
+        .talent-table-wrapper {
+            background: rgba(15, 15, 30, 0.7);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .talent-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .talent-table th {
+            background: rgba(59, 130, 246, 0.08);
+            padding: 1rem;
+            text-align: left;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #94A3B8;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .talent-table td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-size: 0.9rem;
+            vertical-align: middle;
+        }
+
+        .talent-table tr:hover {
+            background: rgba(59, 130, 246, 0.04);
+        }
+
+        /* Badges de estado */
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-pending {
+            background: rgba(245, 158, 11, 0.15);
+            color: #FBBF24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .status-reviewing {
+            background: rgba(99, 102, 241, 0.15);
+            color: #818CF8;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .status-accepted {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ADE80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .status-rejected {
+            background: rgba(239, 68, 68, 0.15);
+            color: #F87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        /* Botones de acción */
+        .action-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 2px;
+        }
+
+        .btn-download {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60A5FA;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-download:hover {
+            background: rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-accept {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ADE80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .btn-accept:hover { background: rgba(34, 197, 94, 0.3); }
+
+        .btn-reject {
+            background: rgba(239, 68, 68, 0.15);
+            color: #F87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-reject:hover { background: rgba(239, 68, 68, 0.3); }
+
+        .btn-review {
+            background: rgba(99, 102, 241, 0.15);
+            color: #818CF8;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-review:hover { background: rgba(99, 102, 241, 0.3); }
+
+        /* Estado vacío */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #64748B;
+        }
+
+        .empty-state .emoji { font-size: 3rem; margin-bottom: 1rem; }
+
+        /* Loading */
+        .talent-loading {
+            text-align: center;
+            padding: 3rem;
+            color: #64748B;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .talent-table-wrapper { overflow-x: auto; }
+            .talent-table { min-width: 800px; }
+            .talent-filters { flex-direction: column; }
+            .talent-stats { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Barra superior -->
+    <div class="talent-topbar">
+        <h1>🎯 Winton Talent</h1>
+        <a href="admin-panel.html" class="back-btn">← Volver al Admin Panel</a>
+    </div>
+
+    <div class="talent-main">
+        <!-- Estadísticas rápidas -->
+        <div class="talent-stats" id="talentStats">
+            <div class="stat-card stat-total">
+                <div class="stat-number" id="statTotal">-</div>
+                <div class="stat-label">Total Postulaciones</div>
+            </div>
+            <div class="stat-card stat-pending">
+                <div class="stat-number" id="statPending">-</div>
+                <div class="stat-label">Pendientes</div>
+            </div>
+            <div class="stat-card stat-reviewing">
+                <div class="stat-number" id="statReviewing">-</div>
+                <div class="stat-label">En Revisión</div>
+            </div>
+            <div class="stat-card stat-accepted">
+                <div class="stat-number" id="statAccepted">-</div>
+                <div class="stat-label">Aceptados</div>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="talent-filters">
+            <input type="text" id="searchInput" placeholder="🔍 Buscar por nombre o email...">
+            <select id="statusFilter">
+                <option value="all">Todos los estados</option>
+                <option value="pending" selected>Pendientes</option>
+                <option value="reviewing">En revisión</option>
+                <option value="accepted">Aceptados</option>
+                <option value="rejected">Rechazados</option>
+            </select>
+            <select id="roleFilter">
+                <option value="all">Todas las especialidades</option>
+                <option value="Frontend Developer">Frontend</option>
+                <option value="Backend Developer">Backend</option>
+                <option value="UI/UX Designer">UI/UX</option>
+                <option value="Marketing / Growth">Marketing</option>
+                <option value="Moderador de Comunidad">Moderador</option>
+                <option value="Legal / Compliance">Legal</option>
+                <option value="Otro">Otro</option>
+            </select>
+        </div>
+
+        <!-- Tabla de postulaciones -->
+        <div class="talent-table-wrapper">
+            <table class="talent-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Nombre</th>
+                        <th>Email</th>
+                        <th>Especialidad</th>
+                        <th>Fecha</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="talentTableBody">
+                    <tr><td colspan="7" class="talent-loading">Cargando postulaciones...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // LÓGICA DEL PANEL DE RECLUTAMIENTO ADMIN
+        // ============================================================
+
+        // Resolución de URL del Backend API (misma lógica que config.js)
+        function getApiUrl() {
+            const hostname = window.location.hostname;
+            const isFileProtocol = window.location.protocol === 'file:';
+            const isPrivateIp = /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
+            const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || isPrivateIp || isFileProtocol;
+            if (isFileProtocol) return 'http://localhost:3000';
+            if (isLocal) return `http://${hostname}:3000`;
+            if (hostname.startsWith('demo.') || hostname.includes('demo.')) {
+                return 'https://wintoncoin-backend-demo.onrender.com';
+            }
+            return 'https://wintoncoin-backend.onrender.com';
+        }
+
+        const API_URL = getApiUrl();
+        const adminToken = localStorage.getItem('adminToken');
+
+        // Verificar autenticación admin
+        if (!adminToken) {
+            alert('Acceso denegado. Inicia sesión como administrador.');
+            window.location.href = 'admin-login.html';
+        }
+
+        // Headers para peticiones autenticadas
+        const authHeaders = {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+        };
+
+        // Elementos del DOM
+        const tableBody = document.getElementById('talentTableBody');
+        const searchInput = document.getElementById('searchInput');
+        const statusFilter = document.getElementById('statusFilter');
+        const roleFilter = document.getElementById('roleFilter');
+
+        // Cargar postulaciones
+        async function loadProposals() {
+            try {
+                const params = new URLSearchParams();
+                const status = statusFilter.value;
+                const role = roleFilter.value;
+                const search = searchInput.value.trim();
+
+                if (status !== 'all') params.set('status', status);
+                if (role !== 'all') params.set('role', role);
+                if (search) params.set('search', search);
+
+                const response = await fetch(`${API_URL}/api/recruitment/admin/list?${params.toString()}`, {
+                    headers: authHeaders
+                });
+
+                const data = await response.json();
+
+                if (!data.success) throw new Error(data.message);
+
+                renderTable(data.proposals);
+                updateStats(data.proposals);
+            } catch (error) {
+                tableBody.innerHTML = `<tr><td colspan="7" class="empty-state">
+                    <div class="emoji">⚠️</div>
+                    <p>Error al cargar: ${error.message}</p>
+                </td></tr>`;
+            }
+        }
+
+        // Renderizar tabla
+        function renderTable(proposals) {
+            if (proposals.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="7" class="empty-state">
+                    <div class="emoji">📭</div>
+                    <p>No hay postulaciones con estos filtros.</p>
+                </td></tr>`;
+                return;
+            }
+
+            tableBody.innerHTML = proposals.map(p => {
+                const date = new Date(p.created_at).toLocaleDateString('es-ES', {
+                    day: '2-digit', month: 'short', year: 'numeric'
+                });
+
+                const statusClass = `status-${p.status}`;
+                const statusLabel = {
+                    pending: 'Pendiente',
+                    reviewing: 'En Revisión',
+                    accepted: 'Aceptado',
+                    rejected: 'Rechazado'
+                }[p.status] || p.status;
+
+                return `
+                    <tr>
+                        <td>${p.id}</td>
+                        <td>
+                            <strong>${escapeHtml(p.full_name)}</strong>
+                            ${p.linkedin_url ? `<br><a href="${escapeHtml(p.linkedin_url)}" target="_blank" style="color:#60A5FA;font-size:0.8rem;">LinkedIn ↗</a>` : ''}
+                        </td>
+                        <td>${escapeHtml(p.email)}</td>
+                        <td>${escapeHtml(p.role)}</td>
+                        <td>${date}</td>
+                        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
+                        <td>
+                            <button class="action-btn btn-download" onclick="downloadCV('${escapeHtml(p.cv_filename)}')">📄 CV</button>
+                            ${p.status === 'pending' ? `
+                                <button class="action-btn btn-review" onclick="updateStatus(${p.id}, 'reviewing')">👁️</button>
+                                <button class="action-btn btn-accept" onclick="updateStatus(${p.id}, 'accepted')">✅</button>
+                                <button class="action-btn btn-reject" onclick="updateStatus(${p.id}, 'rejected')">❌</button>
+                            ` : ''}
+                            ${p.status === 'reviewing' ? `
+                                <button class="action-btn btn-accept" onclick="updateStatus(${p.id}, 'accepted')">✅</button>
+                                <button class="action-btn btn-reject" onclick="updateStatus(${p.id}, 'rejected')">❌</button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Actualizar estadísticas
+        function updateStats(proposals) {
+            // Necesitamos todos los datos para las estadísticas, no solo los filtrados
+            fetch(`${API_URL}/api/recruitment/admin/list?`, { headers: authHeaders })
+                .then(r => r.json())
+                .then(data => {
+                    const all = data.proposals || [];
+                    document.getElementById('statTotal').textContent = all.length;
+                    document.getElementById('statPending').textContent = all.filter(p => p.status === 'pending').length;
+                    document.getElementById('statReviewing').textContent = all.filter(p => p.status === 'reviewing').length;
+                    document.getElementById('statAccepted').textContent = all.filter(p => p.status === 'accepted').length;
+                });
+        }
+
+        // Actualizar estado de una postulación
+        async function updateStatus(id, newStatus) {
+            const notes = newStatus === 'rejected'
+                ? prompt('¿Motivo del rechazo? (opcional):')
+                : null;
+
+            try {
+                const response = await fetch(`${API_URL}/api/recruitment/admin/${id}/status`, {
+                    method: 'PATCH',
+                    headers: authHeaders,
+                    body: JSON.stringify({ status: newStatus, notes })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    loadProposals(); // Recargar tabla
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Error de conexión: ' + error.message);
+            }
+        }
+
+        // Descargar CV
+        function downloadCV(filename) {
+            window.open(`${API_URL}/api/recruitment/admin/download/${filename}`, '_blank');
+        }
+
+        // Sanitización XSS
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Eventos de filtros
+        searchInput.addEventListener('input', debounce(loadProposals, 400));
+        statusFilter.addEventListener('change', loadProposals);
+        roleFilter.addEventListener('change', loadProposals);
+
+        // Debounce para evitar peticiones excesivas
+        function debounce(fn, ms) {
+            let timer;
+            return function(...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), ms);
+            };
+        }
+
+        // Carga inicial
+        loadProposals();
+    </script>
+</body>
+</html>

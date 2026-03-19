@@ -130,6 +130,7 @@ export default defineConfig(({ mode }) => ({
 
         // Talent & Recruitment
         recruitment: resolve(__dirname, 'trabaja-con-nosotros.html'),
+        adminRecruitment: resolve(__dirname, 'admin-recruitment.html'),
 
         // Governance (Winton-Consensus)
         governancePanel: resolve(__dirname, 'governance-panel.html'),
