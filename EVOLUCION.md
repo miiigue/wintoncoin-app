@@ -372,3 +372,14 @@ Refactorización de la cabecera de los correos automáticos (OTP, Transacciones,
 - **Identidad Visual 100% CSS**: Reemplazo del logo anterior por una cabecera oscura (Azul Nocturno `#0A0F1C`) con la palabra `Winton` en blanco puro y `Coin` en azul corporativo. 
 - **Optimización Anti-Spam**: Al eliminar las peticiones a imágenes externas (`<img>`), se blinda el sistema OTP aumentando dramáticamente la confianza (Trust Score) ante filtros de Google y Outlook.
 - **Micro-Performance**: Velocidad de carga instantánea del correo al depender exclusivamente de código nativo, brindando una experiencia "bancaria" ininterrumpida. ✅ PROFESIONAL
+
+### [2026-03-19] - Despliegue del Sistema de Reclutamiento Profesional (Winton Talent)
+#### Descripción
+Creación e integración completa del portal de captación de talento externo para el crecimiento del ecosistema WintonCoin, bajo el programa de compensación temprana.
+
+#### Cambios realizados
+- **Backend de Reclutamiento**: Implementación del controlador `recruitmentController.js` y middleware `recruitmentUpload.js` (Multer) con validación estricta de archivos PDF de hasta 5MB y trazabilidad de IP.
+- **Base de Datos (Migración 043)**: Creación de la tabla `recruitment_proposals` para el almacenamiento seguro y auditable de las postulaciones, incluyendo el multiplicador aplicado en el momento (15x).
+- **Frontend Premium**: Nueva página `trabaja-con-nosotros.html` con estética Sapphire y Glassmorphism, destacando el beneficio de 1500 BLUE IOU por cada $100 USD de valor aportado.
+- **Integración en Footer**: Actualización de la landing page principal (`index.html`) para incluir el enlace oficial en la sección de Plataforma.
+- **Legal & Compliance**: Inclusión de la cláusula de tratamiento de datos de WTN Solutions LLC conforme a estándares internacionales de privacidad. ✅ PROFESIONAL
