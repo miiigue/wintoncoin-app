@@ -43,6 +43,7 @@ function _buildAllowedOriginsSet() {
         'http://127.0.0.1:3000',
         'http://localhost:5173',
         'https://demo.wintoncoin.com',
+        'https://www.demo.wintoncoin.com',
         'https://sc.wintoncoin.com',
         'https://www.sc.wintoncoin.com',
         'https://wintoncoin.com',
