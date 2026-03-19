@@ -12,15 +12,27 @@
 
 ### Auto-detección de Entorno (Recomendado)
 
-El sistema **detecta automáticamente** el entorno correcto para los links de email:
+El sistema **detecta automáticamente** el entorno correcto para los links de email con la siguiente **prioridad**:
 
-- **Local**: Si no hay `NODE_ENV=production` → `http://localhost:3000`
-- **Demo**: Si `IS_DEMO_ENV=true` o `DATABASE_URL` contiene `wintoncoin_demo` → `https://demo.wintoncoin.com`
-- **Producción**: Si `NODE_ENV=production` → `https://sc.wintoncoin.com`
+1. **DEMO** (Prioridad Alta) → Si `IS_DEMO_ENV=true` O `DATABASE_URL` contiene `wintoncoin_demo` → `https://demo.wintoncoin.com`
+2. **Producción** → Si `NODE_ENV=production` (y no es demo) → `https://sc.wintoncoin.com`
+3. **Local** → Por defecto → `http://localhost:3000`
+
+### ⚠️ IMPORTANTE para Render (Demo)
+
+En tu servicio de backend demo en Render, **debes configurar**:
+
+```bash
+IS_DEMO_ENV=true
+```
+
+O asegurarte de que tu `DATABASE_URL` contenga la palabra `wintoncoin_demo`.
+
+**Sin esto, el backend asumirá que es producción** y los links apuntarán a `sc.wintoncoin.com` en lugar de `demo.wintoncoin.com`.
 
 ### Sobreescribir (Opcional)
 
-Si necesitas forzar una URL específica, agrega a tu `.env`:
+Si necesitas forzar una URL específica (por ejemplo, para pruebas locales contra demo), agrega a tu `.env`:
 
 ```bash
 FRONTEND_URL=https://demo.wintoncoin.com
@@ -28,8 +40,6 @@ FRONTEND_URL=https://demo.wintoncoin.com
 
 **¿Por qué es necesaria?**
 Los emails de gobernanza incluyen botones que deben apuntar a URLs absolutas para que funcionen correctamente cuando el guardián hace clic desde su cliente de correo (Gmail, Outlook, etc.).
-
-**Para tu entorno demo**: Si tu `.env` tiene `IS_DEMO_ENV=true` o tu `DATABASE_URL` contiene `wintoncoin_demo`, el sistema usará automáticamente `https://demo.wintoncoin.com`.
 
 ---
 

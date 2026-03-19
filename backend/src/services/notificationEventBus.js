@@ -11,15 +11,16 @@ function _getGovernancePanelUrl(requestId) {
     let baseUrl = process.env.FRONTEND_URL;
     
     if (!baseUrl) {
-        // Auto-detección basada en NODE_ENV y otras variables
-        if (process.env.NODE_ENV === 'production') {
-            // Producción: sc.wintoncoin.com
-            baseUrl = 'https://sc.wintoncoin.com';
-        } else if (process.env.IS_DEMO_ENV === 'true' || process.env.DATABASE_URL?.includes('wintoncoin_demo')) {
-            // Demo: demo.wintoncoin.com
+        // PRIORIDAD 1: Verificar si es DEMO (antes de producción)
+        if (process.env.IS_DEMO_ENV === 'true' || process.env.DATABASE_URL?.includes('wintoncoin_demo')) {
             baseUrl = 'https://demo.wintoncoin.com';
-        } else {
-            // Local por defecto
+        }
+        // PRIORIDAD 2: Verificar si es producción
+        else if (process.env.NODE_ENV === 'production') {
+            baseUrl = 'https://sc.wintoncoin.com';
+        }
+        // PRIORIDAD 3: Local por defecto
+        else {
             baseUrl = 'http://localhost:3000';
         }
     }

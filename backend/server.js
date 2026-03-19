@@ -37,6 +37,7 @@ const {
 const publicationRoutes = require('./src/routes/publicationRoutes');
 const validationRoutes = require('./src/routes/validationRoutes');
 const solidarioRoutes = require('./src/routes/solidarioRoutes');
+const recruitmentRoutes = require('./src/routes/recruitmentRoutes');
 
 // --- NUEVO: Gestión profesional de la clave secreta de JWT ---
 // Buscamos la clave secreta en las variables de entorno.
@@ -176,6 +177,9 @@ async function startServer() {
         // El módulo es 100% autocontenido. Solo necesita pool, middlewares de auth y auditoría.
         const createMomentumRouter = require('./src/routes/momentumRoutes');
         app.use('/api/momentum', createMomentumRouter(pool, verifyUserToken, verifyAdminToken, logAuditEvent));
+
+        // --- NUEVO: Rutas del sistema de Reclutamiento Profesional ---
+        app.use('/api/recruitment', recruitmentRoutes);
 
         // --- NUEVO: Rutas de Winton Academy CMS ---
         const academyRoutes = require('./src/routes/academyRoutes');
