@@ -7,21 +7,30 @@ const path = require('path');
 const { Pool } = require('pg');
 
 // CARGA DE CONFIGURACIÓN PROFESIONAL
-// Buscamos el archivo .env según el entorno (desarrollo, producción, etc.)
+// Buscamos el archivo .env según el entorno si existe, pero no bloqueamos si no está
 const env = process.env.NODE_ENV || 'development';
-const envPath = path.resolve(__dirname, `../../.env.${env}`);
-require('dotenv').config({ path: envPath });
+const pathEnvFile = `../../.env.${env}`;
+const envPath = path.resolve(__dirname, pathEnvFile);
+
+if (fs.existsSync(envPath)) {
+    require('dotenv').config({ path: envPath });
+    console.log(`[MIGRATIONS] ⚙️ Archivo de entorno cargado: ${pathEnvFile}`);
+} else {
+    // Intentamos cargar el .env genérico por si acaso
+    require('dotenv').config();
+    console.log(`[MIGRATIONS] ⚙️ Usando variables de entorno del sistema.`);
+}
 
 if (!process.env.DATABASE_URL) {
-    console.error(`[MIGRATIONS] ❌ FATAL: No se encontró DATABASE_URL en ${envPath}`);
-    process.exit(1);
+    console.error(`[MIGRATIONS] ❌ FATAL: La variable DATABASE_URL no está definida en el entorno.`);
+    // No detenemos el proceso aquí para permitir que server.js maneje su propio flujo,
+    // pero marcamos el error claramente.
 }
-console.log(`[MIGRATIONS] 🛠 Cargando entorno: ${env}`);
 
-// Configuración de conexión (usará las mismas vars de entorno que el server)
+// Configuración de conexión con soporte SSL flexible para Render
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    ssl: { rejectUnauthorized: false } // SSL habilitado por defecto para compatibilidad con nubes seguras
 });
 
 /**
@@ -57,6 +66,7 @@ async function runPendingMigrations() {
 
         // 2. Leer archivos de migración disponibles
         const migrationsDir = path.join(__dirname, '../migrations');
+        console.log(`[MIGRATIONS] 📂 Escaneando carpeta: ${migrationsDir}`);
         if (!fs.existsSync(migrationsDir)) {
             console.warn('[MIGRATIONS] ⚠️ Carpeta de migraciones no encontrada.');
             return;
