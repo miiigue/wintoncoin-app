@@ -34,6 +34,30 @@ const ORIGIN = process.env.WEBAUTHN_ORIGIN || (RP_ID === 'localhost' ? 'http://l
 const CHALLENGE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 
 /**
+ * @simplewebauthn/server exige credential IDs como string base64url.
+ * Datos antiguos o cliente con btoa (base64 estándar con + /) deben normalizarse.
+ * @param {string} stored
+ * @returns {string}
+ */
+function normalizeCredentialIdToBase64Url(stored) {
+    const s = String(stored).trim();
+    if (!s) {
+        throw new Error('Credential ID vacío en base de datos.');
+    }
+    // btoa del front antiguo usa base64 con '+' y '/' — decodificar primero como base64 si aplica
+    const encodings = /[+/]/.test(s) ? ['base64', 'base64url'] : ['base64url', 'base64'];
+    for (const enc of encodings) {
+        const buf = Buffer.from(s, enc);
+        if (buf.length > 0) {
+            return buf.toString('base64url');
+        }
+    }
+    throw new Error(
+        'Credential ID almacenado no es válido. Elimina el registro biométrico y vuelve a registrar el dispositivo.',
+    );
+}
+
+/**
  * Orígenes permitidos para WebAuthn (debe coincidir con la página donde corre el panel).
  * El navegador envía Origin en peticiones cross-origin al API.
  */
@@ -134,8 +158,8 @@ async function generateRegistrationChallenge(pool, userId, username, existingCre
             residentKey: 'preferred',
             userVerification: 'required',
         },
-        excludeCredentials: (existingCredentialIds || []).map(id => ({
-            id,
+        excludeCredentials: (existingCredentialIds || []).map((id) => ({
+            id: normalizeCredentialIdToBase64Url(id),
             type: 'public-key',
         })),
     });
@@ -217,11 +241,12 @@ async function generateAuthenticationChallenge(pool, userId, requestId, req = nu
 
     const guardian = guardianRes.rows[0];
     const transports = guardian.webauthn_transports || ['internal'];
+    const credentialIdB64Url = normalizeCredentialIdToBase64Url(guardian.webauthn_credential_id);
 
     const options = await generateAuthenticationOptions({
-        rpID: RP_ID,
+        rpID: rpId,
         allowCredentials: [{
-            id: guardian.webauthn_credential_id,
+            id: credentialIdB64Url,
             type: 'public-key',
             transports,
         }],
@@ -270,6 +295,7 @@ async function verifyAuthenticationCredential(pool, userId, authResponse, reques
     }
 
     const g = guardianRes.rows[0];
+    const credentialIDBuf = Buffer.from(normalizeCredentialIdToBase64Url(g.webauthn_credential_id), 'base64url');
 
     const verification = await verifyAuthenticationResponse({
         response: authResponse,
@@ -277,7 +303,7 @@ async function verifyAuthenticationCredential(pool, userId, authResponse, reques
         expectedOrigin: origin,
         expectedRPID: rpId,
         authenticator: {
-            credentialID: Buffer.from(g.webauthn_credential_id, 'base64url'),
+            credentialID: credentialIDBuf,
             credentialPublicKey: Buffer.from(g.webauthn_public_key, 'base64'),
             counter: parseInt(g.webauthn_counter, 10) || 0,
         },
@@ -326,6 +352,8 @@ module.exports = {
     generateAuthenticationChallenge,
     verifyAuthenticationCredential,
     purgeExpiredChallenges,
+    resolveWebAuthnRpContext,
+    normalizeCredentialIdToBase64Url,
     RP_ID,
     RP_NAME,
     ORIGIN,

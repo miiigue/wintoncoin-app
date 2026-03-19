@@ -37,6 +37,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    /**
+     * WebAuthn JSON para el servidor debe usar base64url (RFC 4648), no btoa estándar (+ /).
+     * @param {ArrayBuffer} buffer
+     */
+    function arrayBufferToBase64Url(buffer) {
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        const chunk = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunk) {
+            const sub = bytes.subarray(i, i + chunk);
+            binary += String.fromCharCode.apply(null, sub);
+        }
+        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
     async function govFetch(endpoint, options = {}) {
         const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...(options.headers || {}) };
         delete options.headers;
@@ -323,11 +338,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const credentialJSON = {
             id: credential.id,
-            rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
+            rawId: arrayBufferToBase64Url(credential.rawId),
             type: credential.type,
             response: {
-                attestationObject: btoa(String.fromCharCode(...new Uint8Array(credential.response.attestationObject))),
-                clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON))),
+                attestationObject: arrayBufferToBase64Url(credential.response.attestationObject),
+                clientDataJSON: arrayBufferToBase64Url(credential.response.clientDataJSON),
             },
         };
 
@@ -613,20 +628,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                     id: Uint8Array.from(atob(c.id.replace(/-/g, '+').replace(/_/g, '/')), ch => ch.charCodeAt(0)),
                 })),
                 timeout: options.timeout,
-                userVerification: options.userVerification || 'preferred',
+                // Mismo nivel que el servidor (required = biometría / PIN del dispositivo)
+                userVerification: options.userVerification || 'required',
             }});
 
             if (!assertion) return null;
 
             return {
                 id: assertion.id,
-                rawId: btoa(String.fromCharCode(...new Uint8Array(assertion.rawId))),
+                rawId: arrayBufferToBase64Url(assertion.rawId),
                 type: assertion.type,
                 response: {
-                    authenticatorData: btoa(String.fromCharCode(...new Uint8Array(assertion.response.authenticatorData))),
-                    clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(assertion.response.clientDataJSON))),
-                    signature: btoa(String.fromCharCode(...new Uint8Array(assertion.response.signature))),
-                    userHandle: assertion.response.userHandle ? btoa(String.fromCharCode(...new Uint8Array(assertion.response.userHandle))) : null,
+                    authenticatorData: arrayBufferToBase64Url(assertion.response.authenticatorData),
+                    clientDataJSON: arrayBufferToBase64Url(assertion.response.clientDataJSON),
+                    signature: arrayBufferToBase64Url(assertion.response.signature),
+                    userHandle: assertion.response.userHandle
+                        ? arrayBufferToBase64Url(assertion.response.userHandle)
+                        : null,
                 },
             };
         } catch (err) {

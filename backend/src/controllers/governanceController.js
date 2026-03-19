@@ -98,6 +98,9 @@ function handleError(res, error, defaultStatus = 500) {
     if (message.includes('inválid') || message.includes('invalid') || message.includes('requieren')) {
         return res.status(400).json({ error: message });
     }
+    if (message.includes('Origen no permitido') || message.includes('Credential ID') || message.includes('cabecera Origin')) {
+        return res.status(400).json({ error: message });
+    }
     if (message.includes('expirad') || message.includes('CONFLICTO')) {
         return res.status(409).json({ error: message });
     }
