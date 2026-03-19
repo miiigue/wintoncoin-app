@@ -364,3 +364,11 @@ Análisis preventivo tras recibir notificación oficial de AWS sobre el cambio d
 - **Resultado**: No se detectaron dependencias técnicas activas. El impacto en el código es NULO.
 - **Recomendación Operativa**: Actualizar filtros de correo en la cuenta administrativa de Gmail para asegurar que las facturas no sean marcadas como spam o ignoren reglas de reenvío contables. ✅ CIBERSEGURO
 
+### [2026-03-18] - Rediseño Premium de Email Service (Anti-Spam & Zero-Image)
+#### Descripción
+Refactorización de la cabecera de los correos automáticos (OTP, Transacciones, Gobernanza, Anuncios) para eliminar la deformación de imágenes y usar una estrategia de tipografía nativa con estética Cripto-Premium.
+
+#### Cambios realizados
+- **Identidad Visual 100% CSS**: Reemplazo del logo anterior por una cabecera oscura (Azul Nocturno `#0A0F1C`) con la palabra `Winton` en blanco puro y `Coin` en azul corporativo. 
+- **Optimización Anti-Spam**: Al eliminar las peticiones a imágenes externas (`<img>`), se blinda el sistema OTP aumentando dramáticamente la confianza (Trust Score) ante filtros de Google y Outlook.
+- **Micro-Performance**: Velocidad de carga instantánea del correo al depender exclusivamente de código nativo, brindando una experiencia "bancaria" ininterrumpida. ✅ PROFESIONAL

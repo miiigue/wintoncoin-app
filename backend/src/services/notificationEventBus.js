@@ -5,6 +5,28 @@ const { sendGovernanceEmail } = require('./emailService');
 const { logAuditEvent } = require('./auditService');
 const pool = require('../config/db');
 
+// Helper para construir URL absoluta del panel de gobernanza
+function _getGovernancePanelUrl(requestId) {
+    // Detectar entorno automáticamente
+    let baseUrl = process.env.FRONTEND_URL;
+    
+    if (!baseUrl) {
+        // Auto-detección basada en NODE_ENV y otras variables
+        if (process.env.NODE_ENV === 'production') {
+            // Producción: sc.wintoncoin.com
+            baseUrl = 'https://sc.wintoncoin.com';
+        } else if (process.env.IS_DEMO_ENV === 'true' || process.env.DATABASE_URL?.includes('wintoncoin_demo')) {
+            // Demo: demo.wintoncoin.com
+            baseUrl = 'https://demo.wintoncoin.com';
+        } else {
+            // Local por defecto
+            baseUrl = 'http://localhost:3000';
+        }
+    }
+    
+    return `${baseUrl}/governance-panel.html?id=${requestId}`;
+}
+
 async function _getUserEmail(userId) {
     const res = await pool.query('SELECT email FROM users WHERE id = $1', [userId]);
     return res.rows[0]?.email || null;
@@ -184,7 +206,7 @@ eventBus.on('P2P_ORDER_TAKEN', async ({ orderId, ownerId, takerUsername, type })
 // 10. GOBERNANZA: Nueva solicitud creada → Push + Email a TODOS los guardianes
 eventBus.on('GOV_REQUEST_CREATED', async ({ requestId, description, actionType, requesterId, requesterUsername, guardianUserIds }) => {
     const actionLabel = actionType === 'config_change' ? 'Cambio de Configuración' : 'Cambio de Membresía';
-    const panelUrl = `/governance-panel.html?id=${requestId}`;
+    const panelUrl = _getGovernancePanelUrl(requestId);
     const dispatchRef = typeof crypto.randomUUID === 'function'
         ? crypto.randomUUID()
         : crypto.randomBytes(16).toString('hex');
@@ -272,7 +294,7 @@ eventBus.on('GOV_REQUEST_CREATED', async ({ requestId, description, actionType, 
 // 11. GOBERNANZA: Voto registrado → Push + Email al proponente y guardianes pendientes
 eventBus.on('GOV_VOTE_SUBMITTED', async ({ requestId, voterUsername, vote, requesterId, pendingGuardianIds }) => {
     const voteLabel = vote === 'approve' ? 'APROBÓ' : 'RECHAZÓ';
-    const panelUrl = `/governance-panel.html?id=${requestId}`;
+    const panelUrl = _getGovernancePanelUrl(requestId);
 
     try {
         await notificationService.sendNotificationToUser(requesterId, {
@@ -334,7 +356,7 @@ eventBus.on('GOV_VOTE_SUBMITTED', async ({ requestId, voterUsername, vote, reque
 // 12. GOBERNANZA: Solicitud aprobada con Time-Lock → Push + Email a TODOS
 eventBus.on('GOV_REQUEST_APPROVED', async ({ requestId, executionTime, guardianUserIds }) => {
     const execDate = new Date(executionTime).toLocaleString('es-ES', { timeZone: 'America/Bogota' });
-    const panelUrl = `/governance-panel.html?id=${requestId}`;
+    const panelUrl = _getGovernancePanelUrl(requestId);
 
     const [emails, recentChanges] = await Promise.all([
         _getUsersEmails(guardianUserIds).catch(() => []),
@@ -375,7 +397,7 @@ eventBus.on('GOV_REQUEST_APPROVED', async ({ requestId, executionTime, guardianU
 // 13. GOBERNANZA: Solicitud ejecutada → Push + Email a TODOS
 eventBus.on('GOV_REQUEST_EXECUTED', async ({ requestId, actionType, targetKey, guardianUserIds }) => {
     const actionLabel = actionType === 'config_change' ? 'Configuración' : 'Membresía';
-    const panelUrl = `/governance-panel.html?id=${requestId}`;
+    const panelUrl = _getGovernancePanelUrl(requestId);
 
     const [emails, recentChanges] = await Promise.all([
         _getUsersEmails(guardianUserIds).catch(() => []),
@@ -417,7 +439,7 @@ eventBus.on('GOV_REQUEST_EXECUTED', async ({ requestId, actionType, targetKey, g
 // 14. GOBERNANZA: Recordatorio de voto pendiente (llamado por cron) → Push + Email
 eventBus.on('GOV_VOTE_REMINDER', async ({ requestId, description, expiresAt, guardianUserId }) => {
     const hoursLeft = Math.round((new Date(expiresAt) - new Date()) / (1000 * 60 * 60));
-    const panelUrl = `/governance-panel.html?id=${requestId}`;
+    const panelUrl = _getGovernancePanelUrl(requestId);
 
     try {
         await notificationService.sendNotificationToUser(guardianUserId, {
@@ -450,7 +472,7 @@ eventBus.on('GOV_VOTE_REMINDER', async ({ requestId, description, expiresAt, gua
 
 // 15. GOBERNANZA: Solicitud rechazada → Push + Email al proponente
 eventBus.on('GOV_REQUEST_REJECTED', async ({ requestId, requesterId }) => {
-    const panelUrl = `/governance-panel.html?id=${requestId}`;
+    const panelUrl = _getGovernancePanelUrl(requestId);
 
     try {
         await notificationService.sendNotificationToUser(requesterId, {
