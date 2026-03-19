@@ -282,6 +282,37 @@
     </div>
 
     <script>
+        // ============================================================
+        // Resolución de URL del Backend API (misma lógica que config.js)
+        // ============================================================
+        // Como esta página es standalone (no pasa por Vite modules),
+        // replicamos la lógica de getApiUrl() para resolver correctamente
+        // la dirección del backend según el entorno (local, demo, producción).
+        function getApiUrl() {
+            const hostname = window.location.hostname;
+            const isFileProtocol = window.location.protocol === 'file:';
+            const isPrivateIp = /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
+            const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || isPrivateIp || isFileProtocol;
+
+            // Protocolo file:// (abrir HTML directo)
+            if (isFileProtocol) return 'http://localhost:3000';
+
+            // Entornos locales o de red privada
+            if (isLocal) return `http://${hostname}:3000`;
+
+            // Entorno DEMO (demo.wintoncoin.com)
+            if (hostname.startsWith('demo.') || hostname.includes('demo.')) {
+                return 'https://wintoncoin-backend-demo.onrender.com';
+            }
+
+            // Producción por defecto
+            return 'https://wintoncoin-backend.onrender.com';
+        }
+
+        // URL resuelta del backend API
+        const API_URL = getApiUrl();
+        console.log('[RECRUITMENT] 🌐 API URL resuelta:', API_URL);
+
         const form = document.getElementById('recruitmentForm');
         const fileInput = document.getElementById('cv');
         const fileNameSpan = document.getElementById('fileName');
@@ -308,8 +339,8 @@
             const formData = new FormData(form);
 
             try {
-                // Endpoint profesional que configuramos en el backend
-                const response = await fetch('/api/recruitment/apply', {
+                // Usamos API_URL para apuntar al backend correcto (Render)
+                const response = await fetch(`${API_URL}/api/recruitment/apply`, {
                     method: 'POST',
                     body: formData
                 });
