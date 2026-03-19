@@ -4,7 +4,15 @@
 
 1. Sistema de gobernanza inicializado (bootstrap completado)
 2. Al menos 2 guardianes supervisores activos
-3. Variable `FRONTEND_URL` configurada en `.env`
+3. (Opcional) `FRONTEND_URL` o auto-detección demo/producción para enlaces en correos
+
+**Enlaces del correo:** los guardianes que deben votar reciben `?id=&focus=vote` (panel simplificado). El autor de la solicitud recibe solo `?id=` (panel completo para ver estado).
+
+### WebAuthn y dominio (error "relying party ID…")
+
+Los desafíos biométricos deben usar el **mismo dominio** que ves en el navegador (`demo.wintoncoin.com`, `sc.wintoncoin.com`, etc.). El backend toma el **Origin** de la petición al API y valida contra una lista permitida (incluye demo y producción por defecto; opcional `WEBAUTHN_ALLOWED_ORIGINS`).
+
+Si antes registraste el dispositivo con un `rpId` incorrecto, tendrás que **volver a registrar** la biometría en ese entorno (una vez por dominio/dispositivo).
 
 ---
 

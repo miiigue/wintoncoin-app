@@ -6,7 +6,8 @@ const { logAuditEvent } = require('./auditService');
 const pool = require('../config/db');
 
 // Helper para construir URL absoluta del panel de gobernanza
-function _getGovernancePanelUrl(requestId) {
+// focusVote: true → ?id=&focus=vote (UX solo votación; el proponente usa sin focus)
+function _getGovernancePanelUrl(requestId, opts = {}) {
     // Detectar entorno automáticamente
     let baseUrl = process.env.FRONTEND_URL;
     
@@ -24,8 +25,10 @@ function _getGovernancePanelUrl(requestId) {
             baseUrl = 'http://localhost:3000';
         }
     }
-    
-    return `${baseUrl}/governance-panel.html?id=${requestId}`;
+
+    const q = [`id=${encodeURIComponent(String(requestId))}`];
+    if (opts.focusVote) q.push('focus=vote');
+    return `${baseUrl}/governance-panel.html?${q.join('&')}`;
 }
 
 async function _getUserEmail(userId) {
@@ -207,7 +210,6 @@ eventBus.on('P2P_ORDER_TAKEN', async ({ orderId, ownerId, takerUsername, type })
 // 10. GOBERNANZA: Nueva solicitud creada → Push + Email a TODOS los guardianes
 eventBus.on('GOV_REQUEST_CREATED', async ({ requestId, description, actionType, requesterId, requesterUsername, guardianUserIds }) => {
     const actionLabel = actionType === 'config_change' ? 'Cambio de Configuración' : 'Cambio de Membresía';
-    const panelUrl = _getGovernancePanelUrl(requestId);
     const dispatchRef = typeof crypto.randomUUID === 'function'
         ? crypto.randomUUID()
         : crypto.randomBytes(16).toString('hex');
@@ -241,6 +243,9 @@ eventBus.on('GOV_REQUEST_CREATED', async ({ requestId, description, actionType, 
 
     for (const userId of guardianUserIds) {
         const isRequester = Number(userId) === Number(requesterId);
+        const panelUrl = isRequester
+            ? _getGovernancePanelUrl(requestId)
+            : _getGovernancePanelUrl(requestId, { focusVote: true });
         const pushTitle = isRequester
             ? `📝 Solicitud de Gobernanza #${requestId} Creada`
             : `🔐 Solicitud de Gobernanza #${requestId}`;
@@ -295,14 +300,15 @@ eventBus.on('GOV_REQUEST_CREATED', async ({ requestId, description, actionType, 
 // 11. GOBERNANZA: Voto registrado → Push + Email al proponente y guardianes pendientes
 eventBus.on('GOV_VOTE_SUBMITTED', async ({ requestId, voterUsername, vote, requesterId, pendingGuardianIds }) => {
     const voteLabel = vote === 'approve' ? 'APROBÓ' : 'RECHAZÓ';
-    const panelUrl = _getGovernancePanelUrl(requestId);
+    const panelUrlRequester = _getGovernancePanelUrl(requestId);
+    const panelUrlVoterFocus = _getGovernancePanelUrl(requestId, { focusVote: true });
 
     try {
         await notificationService.sendNotificationToUser(requesterId, {
             title: `Voto en Solicitud #${requestId}`,
             body: `${voterUsername} ${voteLabel} tu solicitud de gobernanza.`,
             icon: '/assets/icons/icon-192x192.png',
-            data: { url: panelUrl }
+            data: { url: panelUrlRequester }
         }, 'GOVERNANCE');
     } catch (err) {
         console.error('[EVENT-BUS] Error push proponente voto:', err);
@@ -315,7 +321,7 @@ eventBus.on('GOV_VOTE_SUBMITTED', async ({ requestId, voterUsername, vote, reque
             subject: `Voto registrado en Solicitud #${requestId}`,
             title: `${voterUsername} ${voteLabel} tu solicitud`,
             body: `Se ha registrado un voto en tu solicitud de gobernanza #${requestId}.`,
-            actionUrl: panelUrl,
+            actionUrl: panelUrlRequester,
             details: [
                 { label: 'Solicitud', value: `#${requestId}` },
                 { label: 'Votante', value: voterUsername },
@@ -332,7 +338,7 @@ eventBus.on('GOV_VOTE_SUBMITTED', async ({ requestId, voterUsername, vote, reque
                 title: `Actividad en Solicitud #${requestId}`,
                 body: `${voterUsername} ya votó. Tu voto aún está pendiente.`,
                 icon: '/assets/icons/icon-192x192.png',
-                data: { url: panelUrl }
+                data: { url: panelUrlVoterFocus }
             }, 'GOVERNANCE');
         } catch (err) {
             console.error(`[EVENT-BUS] Error push guardián pendiente ${userId}:`, err);
@@ -345,7 +351,7 @@ eventBus.on('GOV_VOTE_SUBMITTED', async ({ requestId, voterUsername, vote, reque
                 subject: `Solicitud #${requestId} — Tu voto está pendiente`,
                 title: 'Tu voto es necesario',
                 body: `${voterUsername} ya emitió su voto. Tu voto aún está pendiente para alcanzar quórum.`,
-                actionUrl: panelUrl,
+                actionUrl: panelUrlVoterFocus,
                 actionText: 'Votar Ahora',
                 details: [{ label: 'Solicitud', value: `#${requestId}` }],
                 severity: 'warning',
@@ -440,7 +446,7 @@ eventBus.on('GOV_REQUEST_EXECUTED', async ({ requestId, actionType, targetKey, g
 // 14. GOBERNANZA: Recordatorio de voto pendiente (llamado por cron) → Push + Email
 eventBus.on('GOV_VOTE_REMINDER', async ({ requestId, description, expiresAt, guardianUserId }) => {
     const hoursLeft = Math.round((new Date(expiresAt) - new Date()) / (1000 * 60 * 60));
-    const panelUrl = _getGovernancePanelUrl(requestId);
+    const panelUrl = _getGovernancePanelUrl(requestId, { focusVote: true });
 
     try {
         await notificationService.sendNotificationToUser(guardianUserId, {

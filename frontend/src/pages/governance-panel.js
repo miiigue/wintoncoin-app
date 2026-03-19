@@ -5,7 +5,7 @@
  * API: /api/governance/*
  */
 
-import { getApiUrl, showCustomAlert, showCustomConfirm } from '../modules/index.js';
+import { getApiUrl, showCustomAlert, showCustomConfirm, initializeAlertListeners } from '../modules/index.js';
 
 window.getApiUrl = getApiUrl;
 window.showCustomAlert = showCustomAlert;
@@ -13,8 +13,15 @@ window.showCustomConfirm = showCustomConfirm;
 
 document.addEventListener('DOMContentLoaded', async () => {
 
+    // Modales de confirmación (governance-panel.html)
+    initializeAlertListeners();
+
     const API_URL = getApiUrl();
     const token = localStorage.getItem('token');
+
+    // Enlace desde correo de votante: ?id=…&focus=vote — vista reducida (el proponente recibe ?id=… sin focus)
+    const urlParams = new URLSearchParams(window.location.search);
+    const voteFocusMode = urlParams.get('focus') === 'vote' && Boolean(urlParams.get('id'));
 
     if (!token) {
         window.location.href = 'login.html';
@@ -68,6 +75,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const navLinks = document.querySelectorAll('.nav-link[data-section]');
     const sections = document.querySelectorAll('.admin-section');
 
+    /** Cierra el drawer lateral en móvil tras navegar o tocar fuera. */
+    function closeMobileGovNav() {
+        document.body.classList.remove('gov-mobile-nav-open');
+        const btn = document.getElementById('govMobileMenuBtn');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+    }
+
+    function toggleMobileGovNav() {
+        const open = document.body.classList.toggle('gov-mobile-nav-open');
+        const btn = document.getElementById('govMobileMenuBtn');
+        if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
     function showSection(sectionId) {
         sections.forEach(s => s.classList.remove('active-section'));
         navLinks.forEach(l => l.classList.remove('active'));
@@ -81,6 +101,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         else if (sectionId === 'requests') loadRequests();
         else if (sectionId === 'create') { /* form is static */ }
         else if (sectionId === 'break-glass') { /* form is static */ }
+
+        closeMobileGovNav();
     }
 
     navLinks.forEach(link => {
@@ -88,6 +110,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const sectionId = link.getAttribute('data-section');
             if (sectionId) {
                 e.preventDefault();
+                if (voteFocusMode) {
+                    closeMobileGovNav();
+                    showCustomAlert('Estás en modo votación desde el enlace del correo. Abre "Panel completo de gobernanza" en el menú para usar las demás secciones.');
+                    return;
+                }
                 showSection(sectionId);
             }
         });
@@ -138,21 +165,67 @@ document.addEventListener('DOMContentLoaded', async () => {
     const hasAccess = await verifyGuardianAccess();
     if (!hasAccess) return;
 
-    // Handle URL params (from push notification click)
-    const urlParams = new URLSearchParams(window.location.search);
+    /**
+     * Actualiza guardianData tras registrar WebAuthn (evita stale state en el mismo flujo).
+     */
+    async function refreshGuardianData() {
+        const data = await govFetch('/api/governance/me');
+        if (data.isGuardian) guardianData = data.guardian;
+    }
+
+    /**
+     * Oculta "Nueva solicitud" y "Emergencia" cuando el usuario puede votar en el detalle actual
+     * o cuando viene del correo con focus=vote.
+     */
+    function setRestrictedNavForVoting(active) {
+        const grid = document.querySelector('.admin-grid-container');
+        if (!grid) return;
+        if (voteFocusMode) {
+            grid.classList.add('gov-vote-focus');
+            return;
+        }
+        grid.classList.toggle('gov-vote-focus', !!active);
+    }
+
+    // Modo enfoque: ocultar menú lateral extra y lista de solicitudes
+    if (voteFocusMode) {
+        document.querySelector('.admin-grid-container')?.classList.add('gov-vote-focus');
+        const reqSection = document.getElementById('requests-section');
+        const h1 = reqSection?.querySelector('h1');
+        const sub = reqSection?.querySelector(':scope > p');
+        if (h1 && !h1.dataset.defaultSaved) {
+            h1.dataset.defaultSaved = '1';
+            h1.dataset.defaultText = h1.textContent;
+            h1.textContent = 'Tu voto es requerido';
+        }
+        if (sub && !sub.dataset.defaultSaved) {
+            sub.dataset.defaultSaved = '1';
+            sub.dataset.defaultText = sub.textContent;
+            sub.textContent = 'Revisa la solicitud y confirma tu decisión con tu dispositivo (huella / Face ID / PIN). Para el panel completo, usa el enlace en el menú.';
+        }
+        document.querySelector('#requests-section .gov-tabs')?.style.setProperty('display', 'none');
+        document.getElementById('requests-list-container')?.style.setProperty('display', 'none');
+    }
+
+    // Handle URL params (from email / push)
     const paramRequestId = urlParams.get('id');
     if (paramRequestId) {
         showSection('requests');
-        setTimeout(() => loadRequestDetail(parseInt(paramRequestId, 10)), 500);
+        setTimeout(() => loadRequestDetail(parseInt(paramRequestId, 10)), 400);
     } else {
         showSection('status');
     }
 
     document.getElementById('govLogoutBtn')?.addEventListener('click', (e) => {
         e.preventDefault();
+        closeMobileGovNav();
         localStorage.removeItem('token');
         window.location.href = 'login.html';
     });
+
+    // Menú hamburguesa (móvil)
+    document.getElementById('govMobileMenuBtn')?.addEventListener('click', () => toggleMobileGovNav());
+    document.getElementById('govMobileBackdrop')?.addEventListener('click', () => closeMobileGovNav());
 
     // ═══════════════════════════════════════════════════════════════
     // SECCIÓN: MI ESTADO
@@ -220,52 +293,55 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    /**
+     * Registra WebAuthn en este navegador (una sola vez por guardián/dispositivo).
+     * Se reutiliza desde "Mi Estado" y desde el flujo de votación automático.
+     */
+    async function registerWebAuthnCredential() {
+        const { options } = await govFetch('/api/governance/webauthn/register/options', { method: 'POST' });
+
+        const credential = await navigator.credentials.create({ publicKey: {
+            challenge: Uint8Array.from(atob(options.challenge.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)),
+            rp: options.rp,
+            user: {
+                ...options.user,
+                id: Uint8Array.from(atob(options.user.id.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)),
+            },
+            pubKeyCredParams: options.pubKeyCredParams,
+            timeout: options.timeout,
+            attestation: options.attestation || 'none',
+            excludeCredentials: (options.excludeCredentials || []).map(c => ({
+                ...c,
+                id: Uint8Array.from(atob(c.id.replace(/-/g, '+').replace(/_/g, '/')), ch => ch.charCodeAt(0)),
+            })),
+            authenticatorSelection: options.authenticatorSelection,
+        }});
+
+        if (!credential) {
+            throw new Error('Registro cancelado.');
+        }
+
+        const credentialJSON = {
+            id: credential.id,
+            rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
+            type: credential.type,
+            response: {
+                attestationObject: btoa(String.fromCharCode(...new Uint8Array(credential.response.attestationObject))),
+                clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON))),
+            },
+        };
+
+        await govFetch('/api/governance/webauthn/register/verify', {
+            method: 'POST',
+            body: JSON.stringify({ credential: credentialJSON }),
+        });
+    }
+
     async function registerWebAuthn() {
         try {
-            showCustomAlert('Iniciando registro biométrico...');
-
-            const { options } = await govFetch('/api/governance/webauthn/register/options', { method: 'POST' });
-
-            const credential = await navigator.credentials.create({ publicKey: {
-                challenge: Uint8Array.from(atob(options.challenge.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)),
-                rp: options.rp,
-                user: {
-                    ...options.user,
-                    id: Uint8Array.from(atob(options.user.id.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)),
-                },
-                pubKeyCredParams: options.pubKeyCredParams,
-                timeout: options.timeout,
-                attestation: options.attestation || 'none',
-                excludeCredentials: (options.excludeCredentials || []).map(c => ({
-                    ...c,
-                    id: Uint8Array.from(atob(c.id.replace(/-/g, '+').replace(/_/g, '/')), ch => ch.charCodeAt(0)),
-                })),
-                authenticatorSelection: options.authenticatorSelection,
-            }});
-
-            if (!credential) {
-                showCustomAlert('Registro cancelado por el usuario.');
-                return;
-            }
-
-            const credentialJSON = {
-                id: credential.id,
-                rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
-                type: credential.type,
-                response: {
-                    attestationObject: btoa(String.fromCharCode(...new Uint8Array(credential.response.attestationObject))),
-                    clientDataJSON: btoa(String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON))),
-                },
-            };
-
-            await govFetch('/api/governance/webauthn/register/verify', {
-                method: 'POST',
-                body: JSON.stringify({ credential: credentialJSON }),
-            });
-
+            await registerWebAuthnCredential();
             showCustomAlert('Dispositivo biométrico registrado exitosamente.');
             loadGuardianStatus();
-
         } catch (err) {
             showCustomAlert(`Error en registro biométrico: ${err.message}`);
         }
@@ -343,7 +419,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const q = r.quorum || {};
 
             const isRequester = guardianData && r.requester_id === guardianData.userId;
-            const canVote = r.status === 'pending' && guardianData && guardianData.status === 'active' && !isRequester;
+            const myUserId = guardianData?.userId;
+            const alreadyVoted = (r.votes || []).some((v) => Number(v.guardian_user_id) === Number(myUserId));
+            const canVote = r.status === 'pending' && guardianData && guardianData.status === 'active' && !isRequester && !alreadyVoted;
             const canWithdraw = r.status === 'pending' && isRequester;
             const canTimeLockCancel = r.status === 'approved' && guardianData && guardianData.status === 'active';
             const canCancel = canWithdraw || canTimeLockCancel;
@@ -422,20 +500,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <ul class="gov-vote-list">${votesHtml}</ul>
                     </div>
 
+                    ${alreadyVoted && r.status === 'pending' && !isRequester ? `
+                    <div class="gov-vote-done-notice">
+                        <strong>Ya emitiste tu voto</strong> en esta solicitud. No puedes cambiarlo ni votar de nuevo (así evitamos dobles firmas y confusiones).
+                    </div>` : ''}
+
                     ${canVote ? `
                     <div class="gov-vote-buttons">
-                        <button class="gov-btn-approve" id="voteApproveBtn">✅ Aprobar</button>
-                        <button class="gov-btn-reject" id="voteRejectBtn">❌ Rechazar</button>
+                        <button type="button" class="gov-btn-approve" id="voteApproveBtn">✅ Aprobar</button>
+                        <button type="button" class="gov-btn-reject" id="voteRejectBtn">❌ Rechazar</button>
                     </div>` : ''}
 
                     <div style="display: flex; gap: 12px; margin-top: 20px;">
-                        <button id="backToListBtn" style="flex: 1; padding: 10px; border-radius: 8px; background: transparent; border: 1px solid var(--admin-border); color: var(--admin-text-secondary); cursor: pointer; font-family: inherit; font-size: 0.9rem;">← Volver a la Lista</button>
+                        <button type="button" id="backToListBtn" style="flex: 1; padding: 10px; border-radius: 8px; background: transparent; border: 1px solid var(--admin-border); color: var(--admin-text-secondary); cursor: pointer; font-family: inherit; font-size: 0.9rem;">${voteFocusMode ? 'Abrir panel completo' : '← Volver a la Lista'}</button>
                         ${canWithdraw ? `<button id="cancelRequestBtn" data-reason="withdraw" style="flex: 1; padding: 10px; border-radius: 8px; background: #D97706; border: none; color: white; cursor: pointer; font-family: inherit; font-size: 0.9rem; font-weight: 600;">Retirar mi Solicitud</button>` : ''}
                         ${canTimeLockCancel ? `<button id="cancelRequestBtn" data-reason="timelock" style="flex: 1; padding: 10px; border-radius: 8px; background: #6B7280; border: none; color: white; cursor: pointer; font-family: inherit; font-size: 0.9rem; font-weight: 600;">Cancelar (Time-Lock)</button>` : ''}
                     </div>
                 </div>`;
 
             document.getElementById('backToListBtn')?.addEventListener('click', () => {
+                if (voteFocusMode) {
+                    window.location.href = 'governance-panel.html';
+                    return;
+                }
+                setRestrictedNavForVoting(false);
                 container.style.display = 'none';
             });
 
@@ -446,23 +534,56 @@ document.addEventListener('DOMContentLoaded', async () => {
                 cancelRequest(r.id, reason);
             });
 
+            setRestrictedNavForVoting(canVote);
         } catch (err) {
+            setRestrictedNavForVoting(false);
             container.innerHTML = `<div class="gov-empty-state"><p style="color: #EF4444;">Error: ${escapeHtml(err.message)}</p></div>`;
         }
     }
 
     async function submitVote(requestId, vote) {
-        const label = vote === 'approve' ? 'APROBAR' : 'RECHAZAR';
-        showCustomConfirm(`¿Confirmas tu voto para ${label} la solicitud #${requestId}? Esta acción no se puede deshacer.`, async () => {
-            try {
-                let authResponse = null;
+        const verb = vote === 'approve' ? 'aprobar' : 'rechazar';
+        const confirmMsg =
+            `¿Confirmas que deseas ${verb} la solicitud #${requestId}?\n\n` +
+            'Esta acción no se puede deshacer. Después de confirmar, no podrás repetir el voto.\n\n' +
+            'Se te pedirá la verificación del dispositivo (huella, Face ID, PIN o llave de seguridad) si aplica.';
 
-                if (guardianData?.hasWebAuthn) {
-                    authResponse = await performWebAuthnAuth(requestId);
-                    if (!authResponse) {
-                        showCustomAlert('Verificación biométrica cancelada. El voto no se registró.');
+        showCustomConfirm(confirmMsg, async () => {
+            const approveBtn = document.getElementById('voteApproveBtn');
+            const rejectBtn = document.getElementById('voteRejectBtn');
+
+            const setVotingBusy = (busy) => {
+                [approveBtn, rejectBtn].forEach((btn) => {
+                    if (!btn) return;
+                    btn.disabled = busy;
+                    btn.style.opacity = busy ? '0.5' : '1';
+                });
+            };
+
+            setVotingBusy(true);
+
+            try {
+                if (!guardianData?.hasWebAuthn) {
+                    try {
+                        // Primera vez: el navegador abre el diálogo nativo (sin pasos extra en el panel)
+                        await registerWebAuthnCredential();
+                        await refreshGuardianData();
+                        if (!guardianData?.hasWebAuthn) {
+                            throw new Error('No se completó el registro del dispositivo.');
+                        }
+                    } catch (regErr) {
+                        setVotingBusy(false);
+                        showCustomAlert(regErr.message || 'No se pudo registrar el dispositivo para votar.');
                         return;
                     }
+                }
+
+                let authResponse = null;
+                authResponse = await performWebAuthnAuth(requestId);
+                if (!authResponse) {
+                    setVotingBusy(false);
+                    showCustomAlert('Verificación del dispositivo cancelada. El voto no se registró.');
+                    return;
                 }
 
                 const result = await govFetch(`/api/governance/requests/${requestId}/vote`, {
@@ -471,10 +592,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
 
                 showCustomAlert(result.message || 'Voto registrado exitosamente.');
-                loadRequestDetail(requestId);
-                loadRequests();
-
+                await loadRequestDetail(requestId);
+                if (!voteFocusMode) loadRequests();
             } catch (err) {
+                setVotingBusy(false);
                 showCustomAlert(`Error al votar: ${err.message}`);
             }
         });

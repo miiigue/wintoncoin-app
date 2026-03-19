@@ -89,7 +89,8 @@ const ALLOWED_ORIGINS = [
     'https://wintoncoin-frontend.onrender.com',
     'https://sc.wintoncoin.com', // Hostinger (producción)
     'https://www.sc.wintoncoin.com',
-    'https://demo.wintoncoin.com' // Entorno DEMO
+    'https://demo.wintoncoin.com', // Entorno DEMO
+    'https://www.demo.wintoncoin.com' // Entorno DEMO (con www)
 ];
 
 if (process.env.NODE_ENV !== 'production') {
@@ -160,6 +161,7 @@ async function startServer() {
         // --- AHORA DEFINIMOS LAS RUTAS ---
         app.use('/api', authRoutes); // Registrar rutas de autenticación
         app.use('/api', validationRoutes); // Registrar rutas de validación de disponibilidad
+        app.use('/api/recruitment', recruitmentRoutes); // <<< ALTA PRIORIDAD
         app.use('/api/solidario', solidarioRoutes); // Registrar rutas de Winton Solidario
 
         // Registrar rutas de Publicaciones
@@ -178,9 +180,7 @@ async function startServer() {
         const createMomentumRouter = require('./src/routes/momentumRoutes');
         app.use('/api/momentum', createMomentumRouter(pool, verifyUserToken, verifyAdminToken, logAuditEvent));
 
-        // --- NUEVO: Rutas del sistema de Reclutamiento Profesional ---
-        app.use('/api/recruitment', recruitmentRoutes);
-
+        // --- NUEVO: Rutas del módulo Winton Momentum (Gestión de Influencers) ---
         // --- NUEVO: Rutas de Winton Academy CMS ---
         const academyRoutes = require('./src/routes/academyRoutes');
         app.use('/api/academy', academyRoutes);

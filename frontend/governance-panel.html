@@ -289,7 +289,140 @@
             margin-top: 20px;
         }
 
+        /* Modo enfoque: enlace desde correo / notificación (solo votar) */
+        .admin-sidebar .gov-show-on-vote-focus-only {
+            display: none;
+        }
+
+        .admin-grid-container.gov-vote-focus .admin-sidebar .gov-hide-on-vote-focus {
+            display: none !important;
+        }
+
+        .admin-grid-container.gov-vote-focus .admin-sidebar .gov-show-on-vote-focus-only {
+            display: list-item !important;
+        }
+
+        .gov-vote-buttons button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .gov-vote-done-notice {
+            margin-top: 16px;
+            padding: 14px 16px;
+            border-radius: 10px;
+            background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(59, 130, 246, 0.35);
+            color: var(--admin-text);
+            font-size: 0.9rem;
+        }
+
+        /* ─── Barra superior móvil + menú lateral en overlay (☰) ─── */
+        .gov-mobile-top-bar {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            background: var(--admin-surface);
+            border-bottom: 1px solid var(--admin-border);
+            flex-shrink: 0;
+        }
+
+        .gov-mobile-menu-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            border: 1px solid var(--admin-border);
+            border-radius: 10px;
+            background: var(--admin-bg);
+            color: var(--admin-text);
+            font-size: 1.35rem;
+            line-height: 1;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .gov-mobile-menu-btn:active {
+            opacity: 0.85;
+        }
+
+        .gov-mobile-top-title {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--admin-text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .gov-mobile-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 180;
+        }
+
+        body.gov-mobile-nav-open .gov-mobile-backdrop {
+            display: block;
+        }
+
         @media (max-width: 768px) {
+            .gov-mobile-top-bar {
+                display: flex;
+            }
+
+            .admin-grid-container {
+                display: flex !important;
+                flex-direction: column;
+                height: 100vh;
+                height: 100dvh;
+                max-width: 100vw;
+                overflow: hidden;
+                grid-template-columns: unset;
+                grid-template-rows: unset;
+            }
+
+            .admin-sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: min(300px, 90vw);
+                max-width: 100%;
+                z-index: 200;
+                transform: translateX(-100%);
+                transition: transform 0.22s ease;
+                box-shadow: none;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            body.gov-mobile-nav-open .admin-sidebar {
+                transform: translateX(0);
+                box-shadow: 12px 0 32px rgba(0, 0, 0, 0.45);
+            }
+
+            .admin-main {
+                flex: 1;
+                min-height: 0;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                padding: 1rem 1rem 2rem !important;
+                width: 100%;
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+
+            .sidebar-nav .nav-link {
+                white-space: normal;
+                word-break: break-word;
+            }
+
             .gov-tabs { flex-wrap: wrap; }
             .gov-tab { flex: 1; min-width: auto; text-align: center; font-size: 0.8rem; padding: 8px 12px; }
             .gov-vote-buttons { flex-direction: column; }
@@ -300,23 +433,35 @@
 
 <body>
     <div class="admin-grid-container">
+        <!-- Móvil: barra con menú hamburguesa (el lateral no empuja el contenido) -->
+        <header class="gov-mobile-top-bar">
+            <button type="button" class="gov-mobile-menu-btn" id="govMobileMenuBtn"
+                aria-label="Abrir menú de navegación" aria-expanded="false" aria-controls="gov-sidebar">☰</button>
+            <span class="gov-mobile-top-title">Gobernanza · Winton-Consensus</span>
+        </header>
+        <div class="gov-mobile-backdrop" id="govMobileBackdrop" aria-hidden="true"></div>
+
         <!-- Sidebar -->
-        <aside class="admin-sidebar">
+        <aside class="admin-sidebar" id="gov-sidebar" role="navigation" aria-label="Menú principal">
             <div class="sidebar-header">
                 <h2>🔐 Gobernanza</h2>
                 <p style="font-size: 0.75rem; color: #6B7280; margin-top: 4px;">Winton-Consensus</p>
             </div>
             <nav class="sidebar-nav">
                 <ul>
-                    <li><a href="#status" class="nav-link active" data-section="status">Mi Estado</a></li>
-                    <li>
+                    <li class="gov-hide-on-vote-focus"><a href="#status" class="nav-link active" data-section="status">Mi Estado</a></li>
+                    <li class="gov-hide-on-vote-focus">
                         <a href="#requests" class="nav-link" data-section="requests">
                             Solicitudes
                             <span class="nav-badge" id="pendingRequestsBadge"></span>
                         </a>
                     </li>
-                    <li><a href="#create" class="nav-link" data-section="create">Nueva Solicitud</a></li>
-                    <li><a href="#break-glass" class="nav-link" data-section="break-glass" style="color: #EF4444;">Emergencia</a></li>
+                    <li class="gov-hide-on-vote-focus"><a href="#create" class="nav-link" data-section="create">Nueva Solicitud</a></li>
+                    <li class="gov-hide-on-vote-focus"><a href="#break-glass" class="nav-link" data-section="break-glass" style="color: #EF4444;">Emergencia</a></li>
+                    <!-- Visible only when opening ?id= from email (voting flow) -->
+                    <li class="gov-show-on-vote-focus-only">
+                        <a href="governance-panel.html" class="nav-link">Panel completo de gobernanza</a>
+                    </li>
                     <li style="margin-top: 24px; border-top: 1px solid var(--admin-border); padding-top: 12px;">
                         <a href="#" class="nav-link" id="govLogoutBtn" style="color: #EF4444;">Cerrar Sesión</a>
                     </li>

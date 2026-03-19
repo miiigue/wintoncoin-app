@@ -163,7 +163,7 @@ async function webauthnRegisterOptions(pool, req, res) {
             : [];
 
         const options = await webauthnService.generateRegistrationChallenge(
-            pool, userId, guardian.username, existingIds
+            pool, userId, guardian.username, existingIds, req
         );
 
         return res.json({ options });
@@ -181,7 +181,7 @@ async function webauthnRegisterVerify(pool, req, res) {
             return res.status(400).json({ error: 'Se requiere el objeto "credential" del navegador.' });
         }
 
-        const result = await webauthnService.verifyRegistrationCredential(pool, userId, credential);
+        const result = await webauthnService.verifyRegistrationCredential(pool, userId, credential, req);
 
         await pool.query(
             `UPDATE governance_guardians
@@ -216,7 +216,7 @@ async function webauthnAuthOptions(pool, req, res) {
         }
 
         const options = await webauthnService.generateAuthenticationChallenge(
-            pool, userId, parseInt(requestId, 10)
+            pool, userId, parseInt(requestId, 10), req
         );
 
         return res.json({ options });
@@ -367,7 +367,7 @@ async function submitVote(pool, req, res) {
             }
 
             webauthnProof = await webauthnService.verifyAuthenticationCredential(
-                pool, req.user.userId, authResponse, parseInt(requestId, 10)
+                pool, req.user.userId, authResponse, parseInt(requestId, 10), req
             );
         }
 

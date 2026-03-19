@@ -463,19 +463,22 @@ async function submitVote(pool, req, data) {
             throw new Error('Voto inválido. Debe ser "approve" o "reject".');
         }
 
-        // 6. Registrar o actualizar el voto (con prueba WebAuthn)
+        // 5b. Un voto por guardián (inmutable) — evita doble firma y “cambiar de opinión” vía API
+        const existingVoteRes = await client.query(
+            `SELECT id FROM governance_votes WHERE request_id = $1 AND guardian_id = $2`,
+            [requestId, guardian.id]
+        );
+        if (existingVoteRes.rowCount > 0) {
+            throw new Error(
+                'Ya registraste tu voto en esta solicitud. Por auditoría, los votos no se pueden modificar ni repetir.'
+            );
+        }
+
+        // 6. Registrar el voto (con prueba WebAuthn)
         await client.query(
             `INSERT INTO governance_votes
              (request_id, guardian_id, vote, signature, authenticator_data, client_data_json, challenge)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
-             ON CONFLICT (request_id, guardian_id)
-             DO UPDATE SET
-                vote = EXCLUDED.vote,
-                signature = EXCLUDED.signature,
-                authenticator_data = EXCLUDED.authenticator_data,
-                client_data_json = EXCLUDED.client_data_json,
-                challenge = EXCLUDED.challenge,
-                created_at = CURRENT_TIMESTAMP`,
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [
                 requestId, guardian.id, vote,
                 webauthnProof?.signature || null,

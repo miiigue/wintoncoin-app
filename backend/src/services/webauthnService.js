@@ -24,11 +24,93 @@ const {
 } = require('@simplewebauthn/server');
 
 // ─── Configuración (desde variables de entorno) ────────────────────────────
-const RP_NAME  = process.env.WEBAUTHN_RP_NAME  || 'WintonCoin';
-const RP_ID    = process.env.WEBAUTHN_RP_ID    || 'localhost';
-const ORIGIN   = process.env.WEBAUTHN_ORIGIN   || (RP_ID === 'localhost' ? 'http://localhost:3000' : `https://${RP_ID}`);
+const RP_NAME = process.env.WEBAUTHN_RP_NAME || 'WintonCoin';
+
+/** @deprecated usar resolveWebAuthnRpContext(req); solo compatibilidad */
+const RP_ID = process.env.WEBAUTHN_RP_ID || 'localhost';
+/** @deprecated usar resolveWebAuthnRpContext(req) */
+const ORIGIN = process.env.WEBAUTHN_ORIGIN || (RP_ID === 'localhost' ? 'http://localhost:3000' : `https://${RP_ID}`);
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+
+/**
+ * Orígenes permitidos para WebAuthn (debe coincidir con la página donde corre el panel).
+ * El navegador envía Origin en peticiones cross-origin al API.
+ */
+function _buildAllowedOriginsSet() {
+    const set = new Set([
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:5173',
+        'https://demo.wintoncoin.com',
+        'https://sc.wintoncoin.com',
+        'https://www.sc.wintoncoin.com',
+        'https://wintoncoin.com',
+        'https://www.wintoncoin.com',
+    ]);
+    const extra = process.env.WEBAUTHN_ALLOWED_ORIGINS;
+    if (extra) {
+        extra.split(',').map((s) => s.trim()).filter(Boolean).forEach((o) => set.add(o));
+    }
+    const fe = process.env.FRONTEND_URL;
+    if (fe) {
+        try {
+            set.add(new URL(fe).origin);
+        } catch {
+            // ignore invalid FRONTEND_URL
+        }
+    }
+    const singleOrigin = process.env.WEBAUTHN_ORIGIN;
+    if (singleOrigin) {
+        try {
+            set.add(new URL(singleOrigin).origin);
+        } catch {
+            // ignorar valor inválido
+        }
+    }
+    return set;
+}
+
+/**
+ * Resuelve rpId + origin desde la petición HTTP (recomendado) o variables de entorno.
+ * Evita el error "relying party ID is not a registrable domain..." cuando el API
+ * está como demo.wintoncoin.com no coincide con WEBAUTHN_RP_ID antiguo.
+ *
+ * @param {import('express').Request|null} req
+ * @returns {{ rpId: string, origin: string }}
+ */
+function resolveWebAuthnRpContext(req) {
+    const allowed = _buildAllowedOriginsSet();
+    const fallbackRpId = process.env.WEBAUTHN_RP_ID || 'localhost';
+    const fallbackOrigin = process.env.WEBAUTHN_ORIGIN
+        || (fallbackRpId === 'localhost' ? 'http://localhost:3000' : `https://${fallbackRpId}`);
+
+    const header = req && (req.get('Origin') || req.get('Referer'));
+    if (!header) {
+        return { rpId: fallbackRpId, origin: fallbackOrigin };
+    }
+
+    let parsed;
+    try {
+        parsed = new URL(header);
+    } catch {
+        throw new Error('Cabecera Origin/Referer no válida para WebAuthn.');
+    }
+
+    const origin = parsed.origin;
+    if (!allowed.has(origin)) {
+        throw new Error(
+            `Origen no permitido para WebAuthn: ${origin}. ` +
+            'Añádelo a WEBAUTHN_ALLOWED_ORIGINS o revisa FRONTEND_URL en el servidor.',
+        );
+    }
+
+    const hostname = parsed.hostname;
+    // WebAuthn: para 127.0.0.1 el rpId estándar sigue siendo "localhost"
+    const rpId = hostname === '127.0.0.1' ? 'localhost' : hostname;
+
+    return { rpId, origin };
+}
 
 // ════════════════════════════════════════════════════════════════════════════
 // REGISTRO: El guardián asocia su dispositivo biométrico
@@ -38,10 +120,11 @@ const CHALLENGE_TTL_MS = 5 * 60 * 1000; // 5 minutos
  * Genera las opciones de registro WebAuthn y almacena el challenge.
  * @returns {PublicKeyCredentialCreationOptionsJSON} Opciones para navigator.credentials.create()
  */
-async function generateRegistrationChallenge(pool, userId, username, existingCredentialIds) {
+async function generateRegistrationChallenge(pool, userId, username, existingCredentialIds, req = null) {
+    const { rpId } = resolveWebAuthnRpContext(req);
     const options = await generateRegistrationOptions({
         rpName: RP_NAME,
-        rpID: RP_ID,
+        rpID: rpId,
         userID: String(userId),
         userName: username,
         attestationType: 'none',
@@ -70,7 +153,8 @@ async function generateRegistrationChallenge(pool, userId, username, existingCre
  * Verifica la respuesta del navegador y extrae las credenciales.
  * @returns {{ credentialId, publicKey, counter }} Credenciales para almacenar
  */
-async function verifyRegistrationCredential(pool, userId, credential) {
+async function verifyRegistrationCredential(pool, userId, credential, req = null) {
+    const { rpId, origin } = resolveWebAuthnRpContext(req);
     const challengeRes = await pool.query(
         `SELECT id, challenge FROM governance_webauthn_challenges
          WHERE user_id = $1 AND type = 'registration' AND used = FALSE AND expires_at > NOW()
@@ -87,8 +171,8 @@ async function verifyRegistrationCredential(pool, userId, credential) {
     const verification = await verifyRegistrationResponse({
         response: credential,
         expectedChallenge: challenge,
-        expectedOrigin: ORIGIN,
-        expectedRPID: RP_ID,
+        expectedOrigin: origin,
+        expectedRPID: rpId,
     });
 
     if (!verification.verified || !verification.registrationInfo) {
@@ -117,7 +201,8 @@ async function verifyRegistrationCredential(pool, userId, credential) {
  * Genera opciones de autenticación vinculadas a un request_id específico.
  * @returns {PublicKeyCredentialRequestOptionsJSON} Opciones para navigator.credentials.get()
  */
-async function generateAuthenticationChallenge(pool, userId, requestId) {
+async function generateAuthenticationChallenge(pool, userId, requestId, req = null) {
+    const { rpId } = resolveWebAuthnRpContext(req);
     const guardianRes = await pool.query(
         `SELECT webauthn_credential_id, webauthn_transports
          FROM governance_guardians
@@ -156,7 +241,8 @@ async function generateAuthenticationChallenge(pool, userId, requestId) {
  * Verifica la firma biométrica del guardián para un voto.
  * @returns {{ verified, signature, authenticatorData, clientDataJSON, challenge }}
  */
-async function verifyAuthenticationCredential(pool, userId, authResponse, requestId) {
+async function verifyAuthenticationCredential(pool, userId, authResponse, requestId, req = null) {
+    const { rpId, origin } = resolveWebAuthnRpContext(req);
     const challengeRes = await pool.query(
         `SELECT id, challenge FROM governance_webauthn_challenges
          WHERE user_id = $1 AND type = 'authentication' AND request_id = $2
@@ -187,8 +273,8 @@ async function verifyAuthenticationCredential(pool, userId, authResponse, reques
     const verification = await verifyAuthenticationResponse({
         response: authResponse,
         expectedChallenge: challenge,
-        expectedOrigin: ORIGIN,
-        expectedRPID: RP_ID,
+        expectedOrigin: origin,
+        expectedRPID: rpId,
         authenticator: {
             credentialID: Buffer.from(g.webauthn_credential_id, 'base64url'),
             credentialPublicKey: Buffer.from(g.webauthn_public_key, 'base64'),
