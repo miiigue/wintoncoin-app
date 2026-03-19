@@ -32,6 +32,7 @@ exports.submitApplication = async (req, res) => {
     const cv_filename = req.file.filename;
 
     try {
+        console.log(`[RECRUITMENT] 💾 Guardando postulación para: ${email}`);
         // 2. Inserción Segura en DB (Preventing SQL Injection)
         const result = await pool.query(`
             INSERT INTO recruitment_proposals (
@@ -42,15 +43,18 @@ exports.submitApplication = async (req, res) => {
         `, [userId, full_name, email, linkedin_url, role, cv_filename, 15.00, ip_address, user_agent]);
 
         const proposalId = result.rows[0].id;
+        console.log(`[RECRUITMENT] ✅ Postulación guardada con ID: ${proposalId}`);
 
-        // 3. Registro en Audit Log (Auditabilidad Bancaria)
-        await logAuditEvent({
-            actor_id: userId || 0, // 0 para postulantes externos
-            action: 'RECRUITMENT_APPLICATION_SUBMITTED',
-            entity_type: 'recruitment_proposals',
-            entity_id: proposalId,
-            description: `Nueva postulación de ${full_name} para el rol de ${role}.`,
-            ip_address: ip_address
+        // 3. Registro en Audit Log (Auditabilidad Bancaria - Corregido)
+        await logAuditEvent(pool, req, {
+            eventType: 'RECRUITMENT_APPLICATION_SUBMITTED',
+            actorId: userId || 0,
+            actorUsername: email,
+            metadata: { 
+                proposalId,
+                role,
+                fullName: full_name
+            }
         });
 
         return res.status(201).json({
