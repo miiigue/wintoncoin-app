@@ -951,3 +951,18 @@ Esto no rompe el producto, pero **sí rompe la mantenibilidad** (repo pesado, di
   - Donantes seguros: la barrera de aporte tiene UX premium y alertas claras (KYC impactando el "Hold" de los fondos).
   - Efecto de red facilitado gracias al botón de compartir.
 - **Evidencia (commits)**: pendiente de push.
+
+### 2026-03-20 — Panel de Reclutamiento (Winton Talent) y Gestión de Candidatos
+
+- **Contexto**: Para la fase de crecimiento de la startup, se necesitaba un portal profesional para recibir y gestionar candidaturas de forma centralizada y segura.
+- **Decisión**:
+  - **Admin Portal de Talento (`admin-recruitment.html`)**: Interfaz premium "Sapphire" con estadísticas rápidas (Postulaciones Totales, Pendientes, En Revisión), filtros por especialidad/rol y búsqueda por nombre/email.
+  - **Seguridad Bancaria (Auth & Cookies)**: Migración de autenticación `localStorage` a **cookies httpOnly** con `credentials: 'include'`, alineando el portal de talento con la seguridad del panel admin principal.
+  - **Protección OWASP Path Traversal**: Implementación de validación de rutas (`path.resolve`) y whitelist de caracteres en la descarga de CVs para evitar el acceso a archivos del sistema fuera del directorio de uploads.
+  - **Migración 044 (`044_update_recruitment_admin.js`)**: Evolución de la tabla `recruitment_proposals` para añadir columnas de auditoría administrativa (`reviewed_at`, `reviewer_notes`) y nuevos estados de flujo (`reviewing`, `accepted`).
+  - **Middleware `authenticateAdmin`**: Protección estricta de todos los endpoints administrativos en `recruitmentRoutes.js`.
+- **Impacto**:
+  - Gestión centralizada: El equipo de RRHH puede revisar postulaciones, descargar CVs y actualizar estados desde el panel admin.
+  - Seguridad reforzada: Los datos sensibles de candidatos y archivos CV están protegidos bajo estándares de ciberseguridad industrial.
+  - Trazabilidad: Cada cambio de estado genera un registro en el log de auditoría bancaria.
+- **Evidencia (commits)**: `a85e34c`.
