@@ -259,21 +259,13 @@
                     <option value="Legal / Compliance">Legal / Compliance</option>
                     <option value="Otro">Otro</option>
                 </select>
-            </div>
-
             <div class="form-group">
-                <label>Currículum Vitae (Solo PDF)</label>
-                <div class="file-input-wrapper">
-                    <input type="file" id="cv" name="cv" accept=".pdf" required>
-                    <div class="file-info" id="fileInfo">
-                        <span id="fileName">Haz clic o arrastra tu PDF aquí</span><br>
-                        <small>Máximo 5MB</small>
-                    </div>
-                </div>
+                <label for="expected_salary">Ingreso mensual pretendido (USD)</label>
+                <input type="text" id="expected_salary" name="expected_salary" placeholder="Ej: $1,500" required>
             </div>
 
             <p class="legal-clause">
-                Al enviar tu CV aceptas que <strong>WTN Solutions LLC</strong> almacene y procese tus datos con fines de reclutamiento y contacto profesional.
+                Al enviar tu postulación aceptas que <strong>WTN Solutions LLC</strong> almacene y procese tus datos con fines de reclutamiento y contacto profesional.
             </p>
 
             <button type="submit" class="btn-submit" id="submitBtn">Enviar Postulación</button>
@@ -314,19 +306,8 @@
         console.log('[RECRUITMENT] 🌐 API URL resuelta:', API_URL);
 
         const form = document.getElementById('recruitmentForm');
-        const fileInput = document.getElementById('cv');
-        const fileNameSpan = document.getElementById('fileName');
         const statusMsg = document.getElementById('statusMsg');
         const submitBtn = document.getElementById('submitBtn');
-
-        // Actualizar nombre del archivo seleccionado
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                fileNameSpan.innerText = '📄 ' + e.target.files[0].name;
-            } else {
-                fileNameSpan.innerText = 'Haz clic o arrastra tu PDF aquí';
-            }
-        });
 
         // Envío del formulario
         form.addEventListener('submit', async (e) => {
@@ -352,7 +333,6 @@
                     statusMsg.innerText = '✅ ¡Postulación enviada! Revisaremos tu perfil pronto.';
                     statusMsg.style.display = 'block';
                     form.reset();
-                    fileNameSpan.innerText = 'Haz clic o arrastra tu PDF aquí';
                 } else {
                     throw new Error(data.message || 'Error al enviar la postulación.');
                 }

@@ -9,340 +9,218 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
-        /* ============================================================ */
-        /* ESTILOS DEL PANEL DE RECLUTAMIENTO - WINTON TALENT           */
-        /* Diseño Sapphire Premium con paleta corporativa               */
-        /* ============================================================ */
-        :root {
-            --talent-primary: #3B82F6;
-            --talent-glow: rgba(59, 130, 246, 0.2);
-            --talent-success: #22C55E;
-            --talent-warning: #F59E0B;
-            --talent-danger: #EF4444;
-            --talent-info: #6366F1;
+        /* Layout General Uniforme con el Admin */
+        .admin-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
         }
 
-        body {
-            background: #05050A;
-            color: #E2E8F0;
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            padding: 0;
-        }
-
-        /* Barra superior con navegación */
-        .talent-topbar {
-            background: rgba(15, 15, 30, 0.95);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-            padding: 1rem 2rem;
+        /* Toolbar Compacta: Buscador + Stats + Filtros */
+        .controls-toolbar {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        .talent-topbar h1 {
-            font-family: 'Outfit', sans-serif;
-            font-size: 1.5rem;
-            margin: 0;
-            background: linear-gradient(135deg, #60A5FA, #2563EB);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .talent-topbar .back-btn {
-            color: #94A3B8;
-            text-decoration: none;
-            font-size: 0.9rem;
-            padding: 8px 16px;
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px;
-            transition: all 0.3s;
-        }
-
-        .talent-topbar .back-btn:hover {
-            color: white;
-            border-color: var(--talent-primary);
-        }
-
-        /* Contenedor principal */
-        .talent-main {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 1.5rem;
-        }
-
-        /* Tarjetas de estadísticas */
-        .talent-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat-card {
-            background: rgba(15, 15, 30, 0.7);
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 16px;
-            padding: 1.5rem;
-            text-align: center;
-        }
-
-        .stat-card .stat-number {
-            font-size: 2.5rem;
-            font-weight: 800;
-            font-family: 'Outfit', sans-serif;
-        }
-
-        .stat-card .stat-label {
-            color: #94A3B8;
-            font-size: 0.85rem;
-            margin-top: 0.3rem;
-        }
-
-        .stat-pending .stat-number { color: var(--talent-warning); }
-        .stat-reviewing .stat-number { color: var(--talent-info); }
-        .stat-accepted .stat-number { color: var(--talent-success); }
-        .stat-total .stat-number { color: var(--talent-primary); }
-
-        /* Filtros */
-        .talent-filters {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 15px 25px;
+            margin-bottom: 25px;
             flex-wrap: wrap;
         }
 
-        .talent-filters input,
-        .talent-filters select {
-            padding: 0.7rem 1rem;
+        .search-group {
+            flex: 1;
+            position: relative;
+            min-width: 250px;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748B;
+        }
+
+        #searchInput {
+            width: 100%;
+            padding: 10px 15px 10px 40px;
             background: rgba(255,255,255,0.05);
             border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 10px;
+            border-radius: 8px;
             color: white;
             font-size: 0.9rem;
-            flex: 1;
-            min-width: 180px;
         }
 
-        .talent-filters input::placeholder { color: #64748B; }
-
-        /* Tabla de postulaciones */
-        .talent-table-wrapper {
-            background: rgba(15, 15, 30, 0.7);
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 16px;
-            overflow: hidden;
+        /* Estadísticas en línea */
+        .stats-compact {
+            display: flex;
+            gap: 20px;
+            border-left: 1px solid rgba(255,255,255,0.1);
+            border-right: 1px solid rgba(255,255,255,0.1);
+            padding: 0 25px;
         }
 
-        .talent-table {
-            width: 100%;
-            border-collapse: collapse;
+        .sc-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
-        .talent-table th {
-            background: rgba(59, 130, 246, 0.08);
-            padding: 1rem;
-            text-align: left;
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #94A3B8;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-        }
-
-        .talent-table td {
-            padding: 1rem;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-            font-size: 0.9rem;
-            vertical-align: middle;
-        }
-
-        .talent-table tr:hover {
-            background: rgba(59, 130, 246, 0.04);
-        }
-
-        /* Badges de estado */
-        .status-badge {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.75rem;
+        .sc-label {
+            font-size: 0.65rem;
+            color: #64748B;
             font-weight: 700;
-            text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
-        .status-pending {
-            background: rgba(245, 158, 11, 0.15);
-            color: #FBBF24;
-            border: 1px solid rgba(245, 158, 11, 0.3);
+        .sc-value {
+            font-size: 1.2rem;
+            font-weight: 800;
+            font-family: 'Outfit', sans-serif;
+            color: var(--talent-primary);
         }
 
-        .status-reviewing {
-            background: rgba(99, 102, 241, 0.15);
-            color: #818CF8;
-            border: 1px solid rgba(99, 102, 241, 0.3);
+        .sc-item.warning .sc-value { color: var(--talent-warning); }
+        .sc-item.info .sc-value { color: var(--talent-info); }
+
+        .filters-inline {
+            display: flex;
+            gap: 10px;
         }
 
-        .status-accepted {
-            background: rgba(34, 197, 94, 0.15);
-            color: #4ADE80;
-            border: 1px solid rgba(34, 197, 94, 0.3);
-        }
-
-        .status-rejected {
-            background: rgba(239, 68, 68, 0.15);
-            color: #F87171;
-            border: 1px solid rgba(239, 68, 68, 0.3);
-        }
-
-        /* Botones de acción */
-        .action-btn {
-            padding: 6px 12px;
-            border: none;
-            border-radius: 8px;
+        .filter-mini {
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            color: #94A3B8;
             font-size: 0.8rem;
             cursor: pointer;
-            transition: all 0.3s;
-            margin: 2px;
         }
 
-        .btn-download {
-            background: rgba(59, 130, 246, 0.15);
-            color: #60A5FA;
-            border: 1px solid rgba(59, 130, 246, 0.3);
+        /* Tabla y Perfiles */
+        .talent-table { width: 100%; border-collapse: collapse; }
+        .talent-table th { 
+            text-align: left; padding: 15px; font-size: 0.75rem; 
+            color: #64748B; border-bottom: 2px solid rgba(255,255,255,0.05);
         }
+        .talent-table td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.03); }
 
-        .btn-download:hover {
-            background: rgba(59, 130, 246, 0.3);
+        .talent-profile { display: flex; align-items: center; gap: 12px; }
+        .avatar { 
+            width: 36px; height: 36px; background: var(--talent-primary); 
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.9rem; color: white;
         }
+        .info { display: flex; flex-direction: column; }
+        .name { font-weight: 600; color: #F1F5F9; font-size: 0.9rem; }
+        .id { font-size: 0.7rem; color: #64748B; }
 
-        .btn-accept {
-            background: rgba(34, 197, 94, 0.15);
-            color: #4ADE80;
-            border: 1px solid rgba(34, 197, 94, 0.3);
+        .contact-info { display: flex; flex-direction: column; gap: 4px; }
+        .email { font-size: 0.85rem; color: #94A3B8; }
+        .linkedin-link { font-size: 0.75rem; color: var(--talent-primary); text-decoration: none; }
+
+        .salary-text.highlight { color: #10B981; font-weight: 700; font-size: 0.95rem; }
+
+        /* Botones de Acción Estilo Admin */
+        .actions { 
+            display: flex; justify-content: flex-end; gap: 8px; 
         }
-
-        .btn-accept:hover { background: rgba(34, 197, 94, 0.3); }
-
-        .btn-reject {
-            background: rgba(239, 68, 68, 0.15);
-            color: #F87171;
-            border: 1px solid rgba(239, 68, 68, 0.3);
+        .btn-action {
+            width: 32px; height: 32px; border: none; border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.2s; font-size: 0.9rem;
         }
+        .btn-action.review { background: rgba(99, 102, 241, 0.1); color: #818CF8; }
+        .btn-action.accept { background: rgba(34, 197, 94, 0.1); color: #4ADE80; }
+        .btn-action.reject { background: rgba(239, 68, 68, 0.1); color: #F87171; }
+        .btn-action:hover { transform: translateY(-2px); filter: brightness(1.2); }
 
-        .btn-reject:hover { background: rgba(239, 68, 68, 0.3); }
-
-        .btn-review {
-            background: rgba(99, 102, 241, 0.15);
-            color: #818CF8;
-            border: 1px solid rgba(99, 102, 241, 0.3);
+        .status-btn {
+            padding: 4px 10px; border-radius: 4px; font-size: 0.7rem;
+            font-weight: 700; text-transform: uppercase;
         }
+        .status-btn.pending { background: rgba(245, 158, 11, 0.1); color: #FBBF24; }
+        .status-btn.reviewing { background: rgba(99, 102, 241, 0.1); color: #818CF8; }
+        .status-btn.accepted { background: rgba(34, 197, 94, 0.1); color: #4ADE80; }
 
-        .btn-review:hover { background: rgba(99, 102, 241, 0.3); }
-
-        /* Estado vacío */
-        .empty-state {
-            text-align: center;
-            padding: 4rem 2rem;
-            color: #64748B;
-        }
-
-        .empty-state .emoji { font-size: 3rem; margin-bottom: 1rem; }
-
-        /* Loading */
-        .talent-loading {
-            text-align: center;
-            padding: 3rem;
-            color: #64748B;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .talent-table-wrapper { overflow-x: auto; }
-            .talent-table { min-width: 800px; }
-            .talent-filters { flex-direction: column; }
-            .talent-stats { grid-template-columns: repeat(2, 1fr); }
+        @media (max-width: 900px) {
+            .controls-toolbar { flex-direction: column; align-items: stretch; }
+            .stats-compact { border: none; padding: 15px 0; justify-content: space-around; }
         }
     </style>
 </head>
 <body>
     <div class="admin-container">
-        <!-- HEADER SUPERIOR PROFESIONAL -->
+        <!-- HEADER COMPACTO -->
         <header class="admin-header">
             <div class="header-left">
                 <a href="admin.html" class="btn-back">
                     <i class="fas fa-arrow-left"></i>
-                    <span>Volver al Panel</span>
+                    <span>Volver</span>
                 </a>
                 <div class="title-group">
                     <h1>Winton <span class="accent">Talent</span></h1>
-                    <p class="subtitle">Panel de Gestión de Candidatos</p>
-                </div>
-            </div>
-            
-            <div class="stats-overview">
-                <div class="stat-card mini">
-                    <span class="stat-label">Total</span>
-                    <span class="stat-value" id="statTotal">0</span>
-                </div>
-                <div class="stat-card mini warning">
-                    <span class="stat-label">Pendientes</span>
-                    <span class="stat-value" id="statPending">0</span>
-                </div>
-                <div class="stat-card mini info">
-                    <span class="stat-label">En Revisión</span>
-                    <span class="stat-value" id="statReviewing">0</span>
                 </div>
             </div>
         </header>
 
-        <!-- FILTROS Y BÚSQUEDA -->
-        <section class="controls-section card">
-            <div class="search-box">
-                <i class="fas fa-search"></i>
-                <input type="text" id="searchInput" placeholder="Buscar por nombre, email o especialidad...">
+        <!-- BUSCADOR + ESTADÍSTICAS EN UNA LÍNEA -->
+        <section class="controls-toolbar card">
+            <div class="search-group">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="searchInput" placeholder="Buscar candidato...">
             </div>
-            <div class="filters-group">
-                <select id="statusFilter" class="filter-select">
-                    <option value="all">Todos los estados</option>
+            
+            <div class="stats-compact">
+                <div class="sc-item">
+                    <span class="sc-label">TOTAL</span>
+                    <span class="sc-value" id="statTotal">0</span>
+                </div>
+                <div class="sc-item warning">
+                    <span class="sc-label">PENDIENTES</span>
+                    <span class="sc-value" id="statPending">0</span>
+                </div>
+                <div class="sc-item info">
+                    <span class="sc-label">REVISION</span>
+                    <span class="sc-value" id="statReviewing">0</span>
+                </div>
+            </div>
+
+            <div class="filters-inline">
+                <select id="statusFilter" class="filter-mini">
+                    <option value="all">Estados</option>
                     <option value="pending">Pendientes</option>
-                    <option value="reviewing">En Revisión</option>
+                    <option value="reviewing">Revisión</option>
                     <option value="accepted">Aceptados</option>
-                    <option value="rejected">Rechazados</option>
                 </select>
-                <select id="roleFilter" class="filter-select">
-                    <option value="all">Todas las especialidades</option>
-                    <option value="UI/UX Designer">UI/UX Designer</option>
-                    <option value="Frontend Developer">Frontend Developer</option>
-                    <option value="Backend Developer">Backend Developer</option>
-                    <option value="Fullstack Developer">Fullstack Developer</option>
-                    <option value="Marketing / Growth">Marketing / Growth</option>
+                <select id="roleFilter" class="filter-mini">
+                    <option value="all">Especialidad</option>
+                    <option value="UI/UX Designer">UI/UX</option>
+                    <option value="Frontend Developer">Frontend</option>
+                    <option value="Backend Developer">Backend</option>
+                    <option value="Marketing / Growth">Marketing</option>
                 </select>
             </div>
         </section>
 
-        <!-- TABLA DE POSTULACIONES -->
+        <!-- TABLA ULTRA COMPACTA -->
         <main class="table-section card">
             <div class="table-responsive">
                 <table class="talent-table">
                     <thead>
                         <tr>
-                            <th>PERFIL</th>
+                            <th>CANDIDATO</th>
                             <th>CONTACTO / RRSS</th>
                             <th>ESPECIALIDAD</th>
-                            <th>SALARIO PRETENDE</th>
+                            <th>SALARIO</th>
                             <th>FECHA</th>
                             <th>ESTADO</th>
                             <th class="text-right">ACCIONES</th>
                         </tr>
                     </thead>
                     <tbody id="talentTableBody">
-                        <!-- Se llena dinámicamente -->
+                        <!-- LLenado dinámico -->
                     </tbody>
                 </table>
             </div>
@@ -481,9 +359,6 @@
                         <td><span class="status-btn ${p.status}">${p.status.toUpperCase()}</span></td>
                         <td class="text-right">
                             <div class="actions">
-                                <button onclick="downloadCV('${p.cv_filename}')" class="btn-action cv" title="Descargar CV">
-                                    <i class="fas fa-file-pdf"></i> CV
-                                </button>
                                 ${p.status === 'pending' ? `
                                     <button onclick="updateStatus(${p.id}, 'reviewing')" class="btn-action review" title="Revisar">
                                         <i class="fas fa-eye"></i>

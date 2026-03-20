@@ -21,15 +21,8 @@ exports.submitApplication = async (req, res) => {
     const user_agent = req.headers['user-agent'];
     const userId = req.user ? req.user.id : null; // Si está logueado, lo vinculamos
 
-    // 1. Verificación de archivo (Safety check)
-    if (!req.file) {
-        return res.status(400).json({ 
-            success: false, 
-            message: 'El currículum (PDF) es obligatorio.' 
-        });
-    }
-
-    const cv_filename = req.file.filename;
+    // 1. Verificación de archivo (Ocupamos filename si existe, sino null)
+    const cv_filename = req.file ? req.file.filename : null;
 
     try {
         console.log(`[RECRUITMENT] 💾 Guardando postulación para: ${email}`);
