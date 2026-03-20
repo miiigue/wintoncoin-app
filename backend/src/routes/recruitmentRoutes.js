@@ -36,7 +36,7 @@ router.get('/admin/list', authenticateAdmin, async (req, res) => {
         const { status, role, search } = req.query;
 
         let sql = `
-            SELECT id, full_name, email, linkedin_url, role, cv_filename, 
+            SELECT id, full_name, email, linkedin_url, role, expected_salary, cv_filename, 
                    status, multiplier_applied, ip_address, 
                    created_at, reviewed_at, reviewer_notes
             FROM recruitment_proposals
@@ -136,16 +136,14 @@ router.get('/admin/download/:filename', authenticateAdmin, (req, res) => {
 
     // [SEGURIDAD CAPA 2] Protección contre path traversal (OWASP)
     // Resolvemos la ruta absoluta y verificamos que esté DENTRO del directorio permitido
-    const uploadsDir = path.resolve(__dirname, '../../uploads/recruitment');
-    const filePath = path.resolve(uploadsDir, filename);
-    
-    // Si el path resuelto sale del directorio de uploads, es un ataque
-    if (!filePath.startsWith(uploadsDir)) {
-        console.error(`[SECURITY] Path traversal detectado: ${filename} → ${filePath}`);
-        return res.status(403).json({ success: false, message: 'Acceso denegado.' });
-    }
+    // Path absoluto robusto
+    const uploadsDir = path.resolve(process.cwd(), 'uploads/recruitment');
+    const filePath = path.join(uploadsDir, filename);
+
+    console.log(`[CV_DOWNLOAD] Buscando: ${filePath}`);
 
     if (!fs.existsSync(filePath)) {
+        console.error(`[CV_DOWNLOAD] ❌ Archivo no existe: ${filePath}`);
         return res.status(404).json({ success: false, message: 'Archivo no encontrado.' });
     }
 

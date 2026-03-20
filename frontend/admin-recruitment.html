@@ -271,74 +271,82 @@
     </style>
 </head>
 <body>
-    <!-- Barra superior -->
-    <div class="talent-topbar">
-        <h1>🎯 Winton Talent</h1>
-        <a href="admin-panel.html" class="back-btn">← Volver al Admin Panel</a>
-    </div>
+    <div class="admin-container">
+        <!-- HEADER SUPERIOR PROFESIONAL -->
+        <header class="admin-header">
+            <div class="header-left">
+                <a href="admin.html" class="btn-back">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Volver al Panel</span>
+                </a>
+                <div class="title-group">
+                    <h1>Winton <span class="accent">Talent</span></h1>
+                    <p class="subtitle">Panel de Gestión de Candidatos</p>
+                </div>
+            </div>
+            
+            <div class="stats-overview">
+                <div class="stat-card mini">
+                    <span class="stat-label">Total</span>
+                    <span class="stat-value" id="statTotal">0</span>
+                </div>
+                <div class="stat-card mini warning">
+                    <span class="stat-label">Pendientes</span>
+                    <span class="stat-value" id="statPending">0</span>
+                </div>
+                <div class="stat-card mini info">
+                    <span class="stat-label">En Revisión</span>
+                    <span class="stat-value" id="statReviewing">0</span>
+                </div>
+            </div>
+        </header>
 
-    <div class="talent-main">
-        <!-- Estadísticas rápidas -->
-        <div class="talent-stats" id="talentStats">
-            <div class="stat-card stat-total">
-                <div class="stat-number" id="statTotal">-</div>
-                <div class="stat-label">Total Postulaciones</div>
+        <!-- FILTROS Y BÚSQUEDA -->
+        <section class="controls-section card">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Buscar por nombre, email o especialidad...">
             </div>
-            <div class="stat-card stat-pending">
-                <div class="stat-number" id="statPending">-</div>
-                <div class="stat-label">Pendientes</div>
+            <div class="filters-group">
+                <select id="statusFilter" class="filter-select">
+                    <option value="all">Todos los estados</option>
+                    <option value="pending">Pendientes</option>
+                    <option value="reviewing">En Revisión</option>
+                    <option value="accepted">Aceptados</option>
+                    <option value="rejected">Rechazados</option>
+                </select>
+                <select id="roleFilter" class="filter-select">
+                    <option value="all">Todas las especialidades</option>
+                    <option value="UI/UX Designer">UI/UX Designer</option>
+                    <option value="Frontend Developer">Frontend Developer</option>
+                    <option value="Backend Developer">Backend Developer</option>
+                    <option value="Fullstack Developer">Fullstack Developer</option>
+                    <option value="Marketing / Growth">Marketing / Growth</option>
+                </select>
             </div>
-            <div class="stat-card stat-reviewing">
-                <div class="stat-number" id="statReviewing">-</div>
-                <div class="stat-label">En Revisión</div>
-            </div>
-            <div class="stat-card stat-accepted">
-                <div class="stat-number" id="statAccepted">-</div>
-                <div class="stat-label">Aceptados</div>
-            </div>
-        </div>
+        </section>
 
-        <!-- Filtros -->
-        <div class="talent-filters">
-            <input type="text" id="searchInput" placeholder="🔍 Buscar por nombre o email...">
-            <select id="statusFilter">
-                <option value="all">Todos los estados</option>
-                <option value="pending" selected>Pendientes</option>
-                <option value="reviewing">En revisión</option>
-                <option value="accepted">Aceptados</option>
-                <option value="rejected">Rechazados</option>
-            </select>
-            <select id="roleFilter">
-                <option value="all">Todas las especialidades</option>
-                <option value="Frontend Developer">Frontend</option>
-                <option value="Backend Developer">Backend</option>
-                <option value="UI/UX Designer">UI/UX</option>
-                <option value="Marketing / Growth">Marketing</option>
-                <option value="Moderador de Comunidad">Moderador</option>
-                <option value="Legal / Compliance">Legal</option>
-                <option value="Otro">Otro</option>
-            </select>
-        </div>
-
-        <!-- Tabla de postulaciones -->
-        <div class="talent-table-wrapper">
-            <table class="talent-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Nombre</th>
-                        <th>Email</th>
-                        <th>Especialidad</th>
-                        <th>Fecha</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody id="talentTableBody">
-                    <tr><td colspan="7" class="talent-loading">Cargando postulaciones...</td></tr>
-                </tbody>
-            </table>
-        </div>
+        <!-- TABLA DE POSTULACIONES -->
+        <main class="table-section card">
+            <div class="table-responsive">
+                <table class="talent-table">
+                    <thead>
+                        <tr>
+                            <th>PERFIL</th>
+                            <th>CONTACTO / RRSS</th>
+                            <th>ESPECIALIDAD</th>
+                            <th>SALARIO PRETENDE</th>
+                            <th>FECHA</th>
+                            <th>ESTADO</th>
+                            <th class="text-right">ACCIONES</th>
+                        </tr>
+                    </thead>
+                    <tbody id="talentTableBody">
+                        <!-- Se llena dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
     </div>
 
     <script>
@@ -435,7 +443,7 @@
             }
         }
 
-        // Renderizar tabla
+        // Renderizar tabla con toda la información
         function renderTable(proposals) {
             if (proposals.length === 0) {
                 tableBody.innerHTML = `<tr><td colspan="7" class="empty-state">
@@ -450,53 +458,62 @@
                     day: '2-digit', month: 'short', year: 'numeric'
                 });
 
-                const statusClass = `status-${p.status}`;
-                const statusLabel = {
-                    pending: 'Pendiente',
-                    reviewing: 'En Revisión',
-                    accepted: 'Aceptado',
-                    rejected: 'Rechazado'
-                }[p.status] || p.status;
-
                 return `
-                    <tr>
-                        <td>${p.id}</td>
+                    <tr class="talent-row">
                         <td>
-                            <strong>${escapeHtml(p.full_name)}</strong>
-                            ${p.linkedin_url ? `<br><a href="${escapeHtml(p.linkedin_url)}" target="_blank" style="color:#60A5FA;font-size:0.8rem;">LinkedIn ↗</a>` : ''}
+                            <div class="talent-profile">
+                                <div class="avatar">${p.full_name.charAt(0)}</div>
+                                <div class="info">
+                                    <span class="name">${escapeHtml(p.full_name)}</span>
+                                    <span class="id">ID: #${p.id}</span>
+                                </div>
+                            </div>
                         </td>
-                        <td>${escapeHtml(p.email)}</td>
-                        <td>${escapeHtml(p.role)}</td>
-                        <td>${date}</td>
-                        <td><span class="status-badge ${statusClass}">${statusLabel}</span></td>
                         <td>
-                            <button class="action-btn btn-download" onclick="downloadCV('${escapeHtml(p.cv_filename)}')">📄 CV</button>
-                            ${p.status === 'pending' ? `
-                                <button class="action-btn btn-review" onclick="updateStatus(${p.id}, 'reviewing')">👁️</button>
-                                <button class="action-btn btn-accept" onclick="updateStatus(${p.id}, 'accepted')">✅</button>
-                                <button class="action-btn btn-reject" onclick="updateStatus(${p.id}, 'rejected')">❌</button>
-                            ` : ''}
-                            ${p.status === 'reviewing' ? `
-                                <button class="action-btn btn-accept" onclick="updateStatus(${p.id}, 'accepted')">✅</button>
-                                <button class="action-btn btn-reject" onclick="updateStatus(${p.id}, 'rejected')">❌</button>
-                            ` : ''}
+                            <div class="contact-info">
+                                <span class="email"><i class="far fa-envelope"></i> ${escapeHtml(p.email)}</span>
+                                ${p.linkedin_url ? `<a href="${escapeHtml(p.linkedin_url)}" target="_blank" class="linkedin-link"><i class="fab fa-linkedin"></i> LinkedIn ↗</a>` : '<span class="no-link">Sin LinkedIn</span>'}
+                            </div>
+                        </td>
+                        <td><span class="badge role">${escapeHtml(p.role)}</span></td>
+                        <td><span class="salary-text highlight">${p.expected_salary ? `$ ${escapeHtml(p.expected_salary)}` : 'N/A'}</span></td>
+                        <td><span class="date">${date}</span></td>
+                        <td><span class="status-btn ${p.status}">${p.status.toUpperCase()}</span></td>
+                        <td class="text-right">
+                            <div class="actions">
+                                <button onclick="downloadCV('${p.cv_filename}')" class="btn-action cv" title="Descargar CV">
+                                    <i class="fas fa-file-pdf"></i> CV
+                                </button>
+                                ${p.status === 'pending' ? `
+                                    <button onclick="updateStatus(${p.id}, 'reviewing')" class="btn-action review" title="Revisar">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                ` : ''}
+                                ${['pending', 'reviewing'].includes(p.status) ? `
+                                    <button onclick="updateStatus(${p.id}, 'accepted')" class="btn-action accept" title="Aceptar">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button onclick="updateStatus(${p.id}, 'rejected')" class="btn-action reject" title="Rechazar">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                ` : ''}
+                            </div>
                         </td>
                     </tr>
                 `;
             }).join('');
         }
 
-        // Actualizar estadísticas
+        // Actualizar estadísticas de forma eficiente
         function updateStats(proposals) {
-            // Necesitamos todos los datos para las estadísticas, no solo los filtrados
-            apiFetch(`/api/recruitment/admin/list?`)
-                .then(data => {
-                    const all = data.proposals || [];
-                    document.getElementById('statTotal').textContent = all.length;
-                    document.getElementById('statPending').textContent = all.filter(p => p.status === 'pending').length;
-                    document.getElementById('statReviewing').textContent = all.filter(p => p.status === 'reviewing').length;
-                    document.getElementById('statAccepted').textContent = all.filter(p => p.status === 'accepted').length;
-                });
+            // Usamos los datos actuales para evitar doble petición si es posible
+            const total = proposals.length;
+            const pending = proposals.filter(p => p.status === 'pending').length;
+            const reviewing = proposals.filter(p => p.status === 'reviewing').length;
+            
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statPending').textContent = pending;
+            document.getElementById('statReviewing').textContent = reviewing;
         }
 
         // Actualizar estado de una postulación

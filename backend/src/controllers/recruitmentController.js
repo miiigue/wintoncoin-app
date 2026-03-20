@@ -16,7 +16,7 @@ const fs = require('fs');
  * Registra una nueva postulación de empleo
  */
 exports.submitApplication = async (req, res) => {
-    const { full_name, email, linkedin_url, role } = req.body;
+    const { full_name, email, linkedin_url, role, expected_salary } = req.body;
     const ip_address = req.ip || req.connection.remoteAddress;
     const user_agent = req.headers['user-agent'];
     const userId = req.user ? req.user.id : null; // Si está logueado, lo vinculamos
@@ -37,10 +37,11 @@ exports.submitApplication = async (req, res) => {
         const result = await pool.query(`
             INSERT INTO recruitment_proposals (
                 user_id, full_name, email, linkedin_url, role, 
-                cv_filename, multiplier_applied, ip_address, user_agent
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                expected_salary, cv_filename, multiplier_applied, 
+                ip_address, user_agent
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING id
-        `, [userId, full_name, email, linkedin_url, role, cv_filename, 15.00, ip_address, user_agent]);
+        `, [userId, full_name, email, linkedin_url, role, expected_salary || null, cv_filename, 15.00, ip_address, user_agent]);
 
         const proposalId = result.rows[0].id;
         console.log(`[RECRUITMENT] ✅ Postulación guardada con ID: ${proposalId}`);
