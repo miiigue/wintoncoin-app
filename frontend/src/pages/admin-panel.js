@@ -119,9 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
         humanitarianDetailModal: document.getElementById('humanitarianDetailModal'),
         humanitarianModalTitle: document.getElementById('humanitarianModalTitle'),
         humanitarianModalBody: document.getElementById('humanitarianModalBody'),
-        humanitarianModalActions: document.getElementById('humanitarianModalActions'),
-        momentumBadge: document.getElementById('momentumBadge'),
-        recruitmentBadge: document.getElementById('recruitmentBadge')
+        humanitarianModalActions: document.getElementById('humanitarianModalActions')
     };
 
     // --- Inicialización ---
@@ -135,12 +133,8 @@ document.addEventListener('DOMContentLoaded', () => {
     showSection('dashboard');
     refreshPlatformPendingBadge();
     refreshHumanitarianBadge();
-    refreshRecruitmentBadge();
-    refreshMomentumBadge();
     setInterval(refreshPlatformPendingBadge, 30000);
     setInterval(refreshHumanitarianBadge, 30000);
-    setInterval(refreshRecruitmentBadge, 30000);
-    setInterval(refreshMomentumBadge, 30000);
 
     // --- Lógica de la Interfaz ---
     function setupEventListeners() {
@@ -3290,33 +3284,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.warn('[SOLIDARIO] No se pudo actualizar badge de pendientes:', error.message);
-        }
-    }
-
-    async function refreshRecruitmentBadge() {
-        try {
-            // Reutiliza la lista de candidatos pendientes
-            const applicants = await apiFetch('/api/recruitment/admin/list?status=pending');
-            const count = Array.isArray(applicants) ? applicants.length : 0;
-            if (elements.recruitmentBadge) {
-                elements.recruitmentBadge.textContent = count > 0 ? count : '';
-                elements.recruitmentBadge.style.display = count > 0 ? 'inline-flex' : 'none';
-            }
-        } catch (error) {
-            console.warn('[TALENTO] No se pudo actualizar badge de pendientes:', error.message);
-        }
-    }
-
-    async function refreshMomentumBadge() {
-        try {
-            // Llama al nuevo endpoint de conteo centralizado de Momentum
-            const data = await apiFetch('/api/momentum/admin/pending-count');
-            if (elements.momentumBadge && data.success) {
-                elements.momentumBadge.textContent = data.count > 0 ? data.count : '';
-                elements.momentumBadge.style.display = data.count > 0 ? 'inline-flex' : 'none';
-            }
-        } catch (error) {
-            console.warn('[MOMENTUM] No se pudo actualizar badge de pendientes:', error.message);
         }
     }
 
