@@ -956,11 +956,11 @@ Esto no rompe el producto, pero **sí rompe la mantenibilidad** (repo pesado, di
 
 - **Contexto**: Para la fase de crecimiento de la startup, se necesitaba un portal profesional para recibir y gestionar candidaturas de forma centralizada y segura.
 - **Decisión**:
-  - **Admin Portal de Talento (`admin-recruitment.html`)**: Interfaz premium "Sapphire" con estadísticas rápidas (Postulaciones Totales, Pendientes, En Revisión), filtros por especialidad/rol y búsqueda por nombre/email.
+  - **Admin Portal de Talento (`admin-recruitment.html`)**: Rediseño "Sapphire Premium" con cabecera superior compacta para mayor eficiencia de espacio. Añadida visualización directa de salarios pretendidos, LinkedIn y perfiles de candidatos.
   - **Seguridad Bancaria (Auth & Cookies)**: Migración de autenticación `localStorage` a **cookies httpOnly** con `credentials: 'include'`, alineando el portal de talento con la seguridad del panel admin principal.
-  - **Protección OWASP Path Traversal**: Implementación de validación de rutas (`path.resolve`) y whitelist de caracteres en la descarga de CVs para evitar el acceso a archivos del sistema fuera del directorio de uploads.
-  - **Migración 044 (`044_update_recruitment_admin.js`)**: Evolución de la tabla `recruitment_proposals` para añadir columnas de auditoría administrativa (`reviewed_at`, `reviewer_notes`) y nuevos estados de flujo (`reviewing`, `accepted`).
-  - **Middleware `authenticateAdmin`**: Protección estricta de todos los endpoints administrativos en `recruitmentRoutes.js`.
+  - **Protección OWASP Path Traversal (CRITICAL FIX)**: Implementación de validación de rutas mediante `process.cwd()` y `path.join` para garantizar la correcta descarga de CVs en entornos de producción distribuidos (Render/Hostinger).
+  - **Migraciones 044 y 045**: Evolución de la tabla para auditoría (`reviewed_at`, `reviewer_notes`) y filtrado económico (`expected_salary`).
+  - **Middleware `authenticateAdmin`**: Protección estricta de todos los endpoints administrativos.
 - **Impacto**:
   - Gestión centralizada: El equipo de RRHH puede revisar postulaciones, descargar CVs y actualizar estados desde el panel admin.
   - Seguridad reforzada: Los datos sensibles de candidatos y archivos CV están protegidos bajo estándares de ciberseguridad industrial.
