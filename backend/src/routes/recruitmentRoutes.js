@@ -11,6 +11,8 @@ const express = require('express');
 const router = express.Router();
 const recruitmentController = require('../controllers/recruitmentController');
 const upload = require('../middleware/recruitmentUpload');
+// [SEGURIDAD] Middleware de autenticación admin con cookies httpOnly
+const { authenticateAdmin } = require('../middleware/authMiddleware');
 
 /**
  * @route   POST /api/recruitment/apply
@@ -25,9 +27,9 @@ router.post('/apply',
 /**
  * @route   GET /api/recruitment/admin/list
  * @desc    Lista todas las postulaciones con filtros (solo admin)
- * @access  Admin (requiere verifyAdminToken inyectado por server.js)
+ * @access  Admin (protegido con authenticateAdmin middleware)
  */
-router.get('/admin/list', async (req, res) => {
+router.get('/admin/list', authenticateAdmin, async (req, res) => {
     try {
         const pool = require('../config/db');
         // Filtros opcionales desde query params
@@ -75,7 +77,7 @@ router.get('/admin/list', async (req, res) => {
  * @desc    Actualiza el estado de una postulación (solo admin)
  * @access  Admin
  */
-router.patch('/admin/:id/status', async (req, res) => {
+router.patch('/admin/:id/status', authenticateAdmin, async (req, res) => {
     try {
         const pool = require('../config/db');
         const { logAuditEvent } = require('../services/auditService');
@@ -122,17 +124,26 @@ router.patch('/admin/:id/status', async (req, res) => {
  * @desc    Descarga un CV subido (solo admin)
  * @access  Admin
  */
-router.get('/admin/download/:filename', (req, res) => {
+router.get('/admin/download/:filename', authenticateAdmin, (req, res) => {
     const path = require('path');
     const fs = require('fs');
     const { filename } = req.params;
 
-    // Sanitización: solo permitir caracteres alfanuméricos, guiones y puntos
+    // [SEGURIDAD CAPA 1] Sanitización: solo caracteres seguros (OWASP whitelist)
     if (!/^[a-zA-Z0-9_\-\.]+$/.test(filename)) {
         return res.status(400).json({ success: false, message: 'Nombre de archivo inválido.' });
     }
 
-    const filePath = path.join(__dirname, '../../uploads/recruitment', filename);
+    // [SEGURIDAD CAPA 2] Protección contre path traversal (OWASP)
+    // Resolvemos la ruta absoluta y verificamos que esté DENTRO del directorio permitido
+    const uploadsDir = path.resolve(__dirname, '../../uploads/recruitment');
+    const filePath = path.resolve(uploadsDir, filename);
+    
+    // Si el path resuelto sale del directorio de uploads, es un ataque
+    if (!filePath.startsWith(uploadsDir)) {
+        console.error(`[SECURITY] Path traversal detectado: ${filename} → ${filePath}`);
+        return res.status(403).json({ success: false, message: 'Acceso denegado.' });
+    }
 
     if (!fs.existsSync(filePath)) {
         return res.status(404).json({ success: false, message: 'Archivo no encontrado.' });
