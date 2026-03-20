@@ -361,19 +361,47 @@
         }
 
         const API_URL = getApiUrl();
-        const adminToken = localStorage.getItem('adminToken');
 
-        // Verificar autenticación admin
-        if (!adminToken) {
-            alert('Acceso denegado. Inicia sesión como administrador.');
-            window.location.href = 'admin-login.html';
+        // ============================================================
+        // AUTENTICACIÓN POR COOKIES (igual que admin-panel.js)
+        // ============================================================
+        // El admin panel usa cookies httpOnly gestionadas por el backend.
+        // No usamos localStorage ni Bearer tokens.
+        // Si la cookie no existe o expiró, el backend responde 401
+        // y redirigimos a admin.html (login).
+
+        // Función segura para peticiones autenticadas (igual que apiFetch en admin-panel.js)
+        async function apiFetch(endpoint) {
+            const response = await fetch(`${API_URL}${endpoint}`, {
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include' // Envía las cookies httpOnly automáticamente
+            });
+
+            // Si no está autenticado, redirigir al login
+            if (response.status === 401 || response.status === 403) {
+                window.location.href = 'admin.html';
+                throw new Error('Sesión expirada.');
+            }
+
+            return response.json();
         }
 
-        // Headers para peticiones autenticadas
-        const authHeaders = {
-            'Authorization': `Bearer ${adminToken}`,
-            'Content-Type': 'application/json'
-        };
+        // Función para peticiones con body (PATCH, POST)
+        async function apiFetchWithBody(endpoint, method, body) {
+            const response = await fetch(`${API_URL}${endpoint}`, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include', // Cookies httpOnly
+                body: JSON.stringify(body)
+            });
+
+            if (response.status === 401 || response.status === 403) {
+                window.location.href = 'admin.html';
+                throw new Error('Sesión expirada.');
+            }
+
+            return response.json();
+        }
 
         // Elementos del DOM
         const tableBody = document.getElementById('talentTableBody');
@@ -393,11 +421,7 @@
                 if (role !== 'all') params.set('role', role);
                 if (search) params.set('search', search);
 
-                const response = await fetch(`${API_URL}/api/recruitment/admin/list?${params.toString()}`, {
-                    headers: authHeaders
-                });
-
-                const data = await response.json();
+                const data = await apiFetch(`/api/recruitment/admin/list?${params.toString()}`);
 
                 if (!data.success) throw new Error(data.message);
 
@@ -465,8 +489,7 @@
         // Actualizar estadísticas
         function updateStats(proposals) {
             // Necesitamos todos los datos para las estadísticas, no solo los filtrados
-            fetch(`${API_URL}/api/recruitment/admin/list?`, { headers: authHeaders })
-                .then(r => r.json())
+            apiFetch(`/api/recruitment/admin/list?`)
                 .then(data => {
                     const all = data.proposals || [];
                     document.getElementById('statTotal').textContent = all.length;
@@ -483,13 +506,7 @@
                 : null;
 
             try {
-                const response = await fetch(`${API_URL}/api/recruitment/admin/${id}/status`, {
-                    method: 'PATCH',
-                    headers: authHeaders,
-                    body: JSON.stringify({ status: newStatus, notes })
-                });
-
-                const data = await response.json();
+                const data = await apiFetchWithBody(`/api/recruitment/admin/${id}/status`, 'PATCH', { status: newStatus, notes });
                 if (data.success) {
                     loadProposals(); // Recargar tabla
                 } else {
