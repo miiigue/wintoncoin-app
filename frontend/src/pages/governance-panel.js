@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 e.preventDefault();
                 if (voteFocusMode) {
                     closeMobileGovNav();
-                    showCustomAlert('Estás en modo votación desde el enlace del correo. Abre "Panel completo de gobernanza" en el menú para usar las demás secciones.');
+                    showCustomAlert('Estás en modo votación. Solo puedes ver y votar la solicitud asignada.');
                     return;
                 }
                 showSection(sectionId);
@@ -201,14 +201,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!hasAccess) return;
 
     /**
-     * Actualiza guardianData tras registrar WebAuthn (evita stale state en el mismo flujo).
-     */
-    async function refreshGuardianData() {
-        const data = await govFetch('/api/governance/me');
-        if (data.isGuardian) guardianData = data.guardian;
-    }
-
-    /**
      * Oculta "Nueva solicitud" y "Emergencia" cuando el usuario puede votar en el detalle actual
      * o cuando viene del correo con focus=vote.
      */
@@ -236,7 +228,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (sub && !sub.dataset.defaultSaved) {
             sub.dataset.defaultSaved = '1';
             sub.dataset.defaultText = sub.textContent;
-            sub.textContent = 'Revisa la solicitud y confirma tu decisión con tu dispositivo (huella / Face ID / PIN). Para el panel completo, usa el enlace en el menú.';
+            sub.textContent = 'Revisa los detalles de la solicitud y confirma tu decisión.';
         }
         document.querySelector('#requests-section .gov-tabs')?.style.setProperty('display', 'none');
         document.getElementById('requests-list-container')?.style.setProperty('display', 'none');
@@ -284,7 +276,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             guardianData = data.guardian;
-            const hasWebAuthn = guardianData.hasWebAuthn;
 
             container.innerHTML = `
                 <div class="gov-card">
@@ -487,17 +478,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>` : ''}
 
                     <div style="display: flex; gap: 12px; margin-top: 20px;">
-                        <button type="button" id="backToListBtn" style="flex: 1; padding: 10px; border-radius: 8px; background: transparent; border: 1px solid var(--admin-border); color: var(--admin-text-secondary); cursor: pointer; font-family: inherit; font-size: 0.9rem;">${voteFocusMode ? 'Abrir panel completo' : '← Volver a la Lista'}</button>
+                        ${!voteFocusMode ? '<button type="button" id="backToListBtn" style="flex: 1; padding: 10px; border-radius: 8px; background: transparent; border: 1px solid var(--admin-border); color: var(--admin-text-secondary); cursor: pointer; font-family: inherit; font-size: 0.9rem;">← Volver a la Lista</button>' : ''}
                         ${canWithdraw ? `<button id="cancelRequestBtn" data-reason="withdraw" style="flex: 1; padding: 10px; border-radius: 8px; background: #D97706; border: none; color: white; cursor: pointer; font-family: inherit; font-size: 0.9rem; font-weight: 600;">Retirar mi Solicitud</button>` : ''}
                         ${canTimeLockCancel ? `<button id="cancelRequestBtn" data-reason="timelock" style="flex: 1; padding: 10px; border-radius: 8px; background: #6B7280; border: none; color: white; cursor: pointer; font-family: inherit; font-size: 0.9rem; font-weight: 600;">Cancelar (Time-Lock)</button>` : ''}
                     </div>
                 </div>`;
 
             document.getElementById('backToListBtn')?.addEventListener('click', () => {
-                if (voteFocusMode) {
-                    window.location.href = 'governance-panel.html';
-                    return;
-                }
                 setRestrictedNavForVoting(false);
                 container.style.display = 'none';
             });
