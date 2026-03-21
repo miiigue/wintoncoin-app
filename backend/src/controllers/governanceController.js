@@ -361,7 +361,7 @@ async function getRequest(pool, req, res) {
 async function submitVote(pool, req, res) {
     try {
         const { requestId } = req.params;
-        const { vote, authResponse } = req.body;
+        const { vote } = req.body;
 
         if (!vote || !['approve', 'reject'].includes(vote)) {
             return res.status(400).json({
@@ -369,30 +369,14 @@ async function submitVote(pool, req, res) {
             });
         }
 
-        // Verificar biometría si el guardián tiene WebAuthn registrado
-        let webauthnProof = null;
         const guardian = await governanceService.getGuardianByUserId(pool, req.user.userId);
-
-        if (guardian?.webauthn_credential_id) {
-            if (!authResponse) {
-                return res.status(400).json({
-                    error: 'Se requiere verificación biométrica para votar. Incluye "authResponse" con la firma WebAuthn.',
-                    requiresWebAuthn: true,
-                });
-            }
-
-            webauthnProof = await webauthnService.verifyAuthenticationCredential(
-                pool, req.user.userId, authResponse, parseInt(requestId, 10), req
-            );
-        }
-
         const parsedRequestId = parseInt(requestId, 10);
 
         const result = await governanceService.submitVote(pool, req, {
             requestId: parsedRequestId,
             guardianUserId: req.user.userId,
             vote,
-            webauthnProof,
+            webauthnProof: null,
         });
 
         _emitVoteEvents(pool, {

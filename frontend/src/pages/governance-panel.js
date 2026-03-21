@@ -6,7 +6,6 @@
  */
 
 import { getApiUrl, showCustomAlert, showCustomConfirm, initializeAlertListeners } from '../modules/index.js';
-import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
 
 window.getApiUrl = getApiUrl;
 window.showCustomAlert = showCustomAlert;
@@ -37,8 +36,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (text === null || text === undefined) return '';
         return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
-
-    // Encoding WebAuthn: delegado a @simplewebauthn/browser (startRegistration / startAuthentication).
 
     async function govFetch(endpoint, options = {}) {
         const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...(options.headers || {}) };
@@ -307,74 +304,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
 
                 <div class="gov-card">
-                    <h3>Autenticación Biométrica (WebAuthn)</h3>
-                    <div class="gov-webauthn-status ${hasWebAuthn ? 'registered' : 'not-registered'}">
-                        <span style="font-size: 1.5rem;">${hasWebAuthn ? '✅' : '⚠️'}</span>
+                    <h3>Seguridad</h3>
+                    <div class="gov-webauthn-status registered">
+                        <span style="font-size: 1.5rem;">🔒</span>
                         <div>
-                            <strong>${hasWebAuthn ? 'Dispositivo Registrado' : 'Sin Dispositivo'}</strong>
+                            <strong>Votación protegida por JWT</strong>
                             <p style="margin: 4px 0 0; font-size: 0.85rem; color: #9CA3AF;">
-                                ${hasWebAuthn
-                    ? 'Tus votos se firman con verificación biométrica (huella, Face ID o llave de seguridad).'
-                    : 'Registra un dispositivo biométrico para firmar tus votos con mayor seguridad.'}
+                                Tus votos se validan con tu sesión autenticada. La verificación biométrica estará disponible próximamente.
                             </p>
                         </div>
                     </div>
-                    ${!hasWebAuthn
-                    ? '<button class="action-button" id="registerWebAuthnBtn">Registrar Dispositivo Biométrico</button>'
-                    : '<button class="action-button" id="reRegisterWebAuthnBtn" style="background: var(--admin-card-bg); border: 1px solid var(--admin-primary); color: var(--admin-primary); margin-top: 8px;">Registrar en Otro Dispositivo</button>'}
                 </div>`;
 
-            if (!hasWebAuthn) {
-                document.getElementById('registerWebAuthnBtn')?.addEventListener('click', registerWebAuthn);
-            } else {
-                document.getElementById('reRegisterWebAuthnBtn')?.addEventListener('click', reRegisterWebAuthn);
-            }
 
         } catch (err) {
             container.innerHTML = `<div class="gov-empty-state"><p style="color: #EF4444;">Error: ${escapeHtml(err.message)}</p></div>`;
         }
-    }
-
-    /**
-     * Registra WebAuthn en este navegador (una sola vez por guardián/dispositivo).
-     * Usa @simplewebauthn/browser que maneja todo el encoding base64url automáticamente.
-     */
-    async function registerWebAuthnCredential() {
-        const { options } = await govFetch('/api/governance/webauthn/register/options', { method: 'POST' });
-
-        const credential = await startRegistration(options);
-
-        await govFetch('/api/governance/webauthn/register/verify', {
-            method: 'POST',
-            body: JSON.stringify({ credential }),
-        });
-    }
-
-    async function registerWebAuthn() {
-        try {
-            await registerWebAuthnCredential();
-            showCustomAlert('Dispositivo biométrico registrado exitosamente.');
-            loadGuardianStatus();
-        } catch (err) {
-            showCustomAlert(`Error en registro biométrico: ${err.message}`);
-        }
-    }
-
-    async function reRegisterWebAuthn() {
-        showCustomConfirm(
-            'Se reemplazará la credencial anterior con la de ESTE dispositivo.\n\n' +
-            'Usa esta opción si registraste desde otro equipo y ahora quieres votar desde aquí (celular, tablet, etc.).\n\n' +
-            '¿Deseas continuar?',
-            async () => {
-                try {
-                    await registerWebAuthnCredential();
-                    showCustomAlert('Dispositivo registrado. Ahora puedes votar desde este equipo.');
-                    loadGuardianStatus();
-                } catch (err) {
-                    showCustomAlert(`Error al re-registrar: ${err.message}`);
-                }
-            }
-        );
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -572,11 +517,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function submitVote(requestId, vote) {
-        const verb = vote === 'approve' ? 'aprobar' : 'rechazar';
+        const verb = vote === 'approve' ? 'APROBAR' : 'RECHAZAR';
         const confirmMsg =
-            `¿Confirmas que deseas ${verb} la solicitud #${requestId}?\n\n` +
-            'Esta acción no se puede deshacer. Después de confirmar, no podrás repetir el voto.\n\n' +
-            'Se te pedirá la verificación del dispositivo (huella, Face ID, PIN o llave de seguridad) si aplica.';
+            `Usted está votando para ${verb} la solicitud #${requestId}.\n\n` +
+            'Esta acción no se puede deshacer. Una vez confirmada, no podrá cambiar su voto.\n\n' +
+            '¿Está de acuerdo?';
 
         showCustomConfirm(confirmMsg, async () => {
             const approveBtn = document.getElementById('voteApproveBtn');
@@ -593,67 +538,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             setVotingBusy(true);
 
             try {
-                if (!guardianData?.hasWebAuthn) {
-                    try {
-                        await registerWebAuthnCredential();
-                        await refreshGuardianData();
-                        if (!guardianData?.hasWebAuthn) {
-                            throw new Error('No se completó el registro del dispositivo.');
-                        }
-                    } catch (regErr) {
-                        setVotingBusy(false);
-                        showCustomAlert(regErr.message || 'No se pudo registrar el dispositivo para votar.');
-                        return;
-                    }
-                }
-
-                let authResponse = await performWebAuthnAuth(requestId);
-
-                if (authResponse === 'CREDENTIAL_NOT_FOUND') {
-                    setVotingBusy(false);
-                    showCustomConfirm(
-                        'No se pudo completar la verificación biométrica.\n\n' +
-                        'Posibles causas:\n' +
-                        '• Cancelaste la verificación.\n' +
-                        '• Este dispositivo no tiene la credencial registrada (ej. registraste desde otro equipo).\n\n' +
-                        'Si necesitas votar desde ESTE dispositivo, puedes registrarlo ahora.\n' +
-                        '¿Deseas registrar este dispositivo e intentar de nuevo?',
-                        async () => {
-                            setVotingBusy(true);
-                            try {
-                                await registerWebAuthnCredential();
-                                await refreshGuardianData();
-                                const retryAuth = await performWebAuthnAuth(requestId);
-                                if (!retryAuth || retryAuth === 'CREDENTIAL_NOT_FOUND') {
-                                    setVotingBusy(false);
-                                    showCustomAlert('No se pudo completar la verificación biométrica tras re-registrar.');
-                                    return;
-                                }
-                                const result = await govFetch(`/api/governance/requests/${requestId}/vote`, {
-                                    method: 'POST',
-                                    body: JSON.stringify({ vote, authResponse: retryAuth }),
-                                });
-                                showCustomAlert(result.message || 'Voto registrado exitosamente.');
-                                await loadRequestDetail(requestId);
-                                if (!voteFocusMode) loadRequests();
-                            } catch (retryErr) {
-                                setVotingBusy(false);
-                                showCustomAlert(`Error: ${retryErr.message}`);
-                            }
-                        }
-                    );
-                    return;
-                }
-
-                if (!authResponse) {
-                    setVotingBusy(false);
-                    showCustomAlert('Verificación del dispositivo cancelada. El voto no se registró.');
-                    return;
-                }
-
                 const result = await govFetch(`/api/governance/requests/${requestId}/vote`, {
                     method: 'POST',
-                    body: JSON.stringify({ vote, authResponse }),
+                    body: JSON.stringify({ vote }),
                 });
 
                 showCustomAlert(result.message || 'Voto registrado exitosamente.');
@@ -664,27 +551,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showCustomAlert(`Error al votar: ${err.message}`);
             }
         });
-    }
-
-    async function performWebAuthnAuth(requestId) {
-        try {
-            const { options } = await govFetch(`/api/governance/webauthn/auth/${requestId}/options`, { method: 'POST' });
-
-            const assertion = await startAuthentication(options);
-            return assertion;
-        } catch (err) {
-            console.error('[WebAuthn Auth]', err.name, err.message, err);
-
-            if (err.name === 'NotAllowedError') {
-                return 'CREDENTIAL_NOT_FOUND';
-            }
-
-            if (err.name === 'AbortError') {
-                return null;
-            }
-
-            throw err;
-        }
     }
 
     async function cancelRequest(requestId, reason) {
