@@ -187,14 +187,19 @@ async function webauthnRegisterVerify(pool, req, res) {
 
         const result = await webauthnService.verifyRegistrationCredential(pool, userId, credential, req);
 
+        const transportsArr = Array.isArray(result.transports) && result.transports.length > 0
+            ? result.transports
+            : null;
+
         await pool.query(
             `UPDATE governance_guardians
              SET webauthn_credential_id = $1,
                  webauthn_public_key = $2,
                  webauthn_counter = $3,
+                 webauthn_transports = COALESCE($5::text[], webauthn_transports),
                  updated_at = NOW()
              WHERE user_id = $4`,
-            [result.credentialId, result.publicKey, result.counter, userId]
+            [result.credentialId, result.publicKey, result.counter, userId, transportsArr]
         );
 
         return res.json({

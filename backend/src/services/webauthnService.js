@@ -211,10 +211,13 @@ async function verifyRegistrationCredential(pool, userId, credential, req = null
 
     const { credentialID, credentialPublicKey, counter } = verification.registrationInfo;
 
+    const transports = credential.response?.transports || credential.transports || [];
+
     return {
         credentialId: Buffer.from(credentialID).toString('base64url'),
         publicKey: Buffer.from(credentialPublicKey).toString('base64'),
         counter: counter || 0,
+        transports,
     };
 }
 
@@ -240,7 +243,10 @@ async function generateAuthenticationChallenge(pool, userId, requestId, req = nu
     }
 
     const guardian = guardianRes.rows[0];
-    const transports = guardian.webauthn_transports || ['internal'];
+    let transports = guardian.webauthn_transports;
+    if (!Array.isArray(transports) || transports.length === 0) {
+        transports = ['internal', 'hybrid'];
+    }
     const credentialIdB64Url = normalizeCredentialIdToBase64Url(guardian.webauthn_credential_id);
 
     const options = await generateAuthenticationOptions({

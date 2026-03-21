@@ -6,6 +6,7 @@
  */
 
 import { getApiUrl, showCustomAlert, showCustomConfirm, initializeAlertListeners } from '../modules/index.js';
+import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
 
 window.getApiUrl = getApiUrl;
 window.showCustomAlert = showCustomAlert;
@@ -37,34 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    /**
-     * Decodifica una cadena base64url a Uint8Array de forma robusta.
-     * Maneja: sin padding, con padding parcial, caracteres URL-safe, y whitespace.
-     */
-    function base64UrlToUint8Array(base64url) {
-        let input = String(base64url).replace(/\s/g, '').replace(/=+$/, '');
-        input = input.replace(/-/g, '+').replace(/_/g, '/');
-        input = input.padEnd(Math.ceil(input.length / 4) * 4, '=');
-        const binary = atob(input);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        return bytes;
-    }
-
-    /**
-     * WebAuthn JSON para el servidor debe usar base64url (RFC 4648), no btoa estándar (+ /).
-     * @param {ArrayBuffer} buffer
-     */
-    function arrayBufferToBase64Url(buffer) {
-        const bytes = new Uint8Array(buffer);
-        let binary = '';
-        const chunk = 0x8000;
-        for (let i = 0; i < bytes.length; i += chunk) {
-            const sub = bytes.subarray(i, i + chunk);
-            binary += String.fromCharCode.apply(null, sub);
-        }
-        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    }
+    // Encoding WebAuthn: delegado a @simplewebauthn/browser (startRegistration / startAuthentication).
 
     async function govFetch(endpoint, options = {}) {
         const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...(options.headers || {}) };
@@ -359,45 +333,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     /**
      * Registra WebAuthn en este navegador (una sola vez por guardián/dispositivo).
-     * Se reutiliza desde "Mi Estado" y desde el flujo de votación automático.
+     * Usa @simplewebauthn/browser que maneja todo el encoding base64url automáticamente.
      */
     async function registerWebAuthnCredential() {
         const { options } = await govFetch('/api/governance/webauthn/register/options', { method: 'POST' });
 
-        const credential = await navigator.credentials.create({ publicKey: {
-            challenge: base64UrlToUint8Array(options.challenge),
-            rp: options.rp,
-            user: {
-                ...options.user,
-                id: base64UrlToUint8Array(options.user.id),
-            },
-            pubKeyCredParams: options.pubKeyCredParams,
-            timeout: options.timeout,
-            attestation: options.attestation || 'none',
-            excludeCredentials: (options.excludeCredentials || []).map(c => ({
-                ...c,
-                id: base64UrlToUint8Array(c.id),
-            })),
-            authenticatorSelection: options.authenticatorSelection,
-        }});
-
-        if (!credential) {
-            throw new Error('Registro cancelado.');
-        }
-
-        const credentialJSON = {
-            id: credential.id,
-            rawId: arrayBufferToBase64Url(credential.rawId),
-            type: credential.type,
-            response: {
-                attestationObject: arrayBufferToBase64Url(credential.response.attestationObject),
-                clientDataJSON: arrayBufferToBase64Url(credential.response.clientDataJSON),
-            },
-        };
+        const credential = await startRegistration(options);
 
         await govFetch('/api/governance/webauthn/register/verify', {
             method: 'POST',
-            body: JSON.stringify({ credential: credentialJSON }),
+            body: JSON.stringify({ credential }),
         });
     }
 
@@ -669,33 +614,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const { options } = await govFetch(`/api/governance/webauthn/auth/${requestId}/options`, { method: 'POST' });
 
-            const assertion = await navigator.credentials.get({ publicKey: {
-                challenge: base64UrlToUint8Array(options.challenge),
-                rpId: options.rpId,
-                allowCredentials: (options.allowCredentials || []).map(c => ({
-                    ...c,
-                    id: base64UrlToUint8Array(c.id),
-                })),
-                timeout: options.timeout,
-                // Mismo nivel que el servidor (required = biometría / PIN del dispositivo)
-                userVerification: options.userVerification || 'required',
-            }});
-
-            if (!assertion) return null;
-
-            return {
-                id: assertion.id,
-                rawId: arrayBufferToBase64Url(assertion.rawId),
-                type: assertion.type,
-                response: {
-                    authenticatorData: arrayBufferToBase64Url(assertion.response.authenticatorData),
-                    clientDataJSON: arrayBufferToBase64Url(assertion.response.clientDataJSON),
-                    signature: arrayBufferToBase64Url(assertion.response.signature),
-                    userHandle: assertion.response.userHandle
-                        ? arrayBufferToBase64Url(assertion.response.userHandle)
-                        : null,
-                },
-            };
+            const assertion = await startAuthentication(options);
+            return assertion;
         } catch (err) {
             console.error('[WebAuthn Auth]', err);
             if (err.name === 'NotAllowedError' || err.name === 'AbortError') {
