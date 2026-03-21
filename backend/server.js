@@ -3859,6 +3859,46 @@ cron.schedule('*/1 * * * *', async () => {
                     targetKey: r.targetKey || null,
                     guardianUserIds: guardianRes.rows.map(g => g.user_id),
                 });
+
+                if (r.actionType === 'membership_change') {
+                    try {
+                        const reqData = await pool.query(
+                            'SELECT new_value, requester_id FROM governance_requests WHERE id = $1',
+                            [r.requestId]
+                        );
+                        const raw = reqData.rows[0]?.new_value;
+                        if (reqData.rowCount > 0 && raw) {
+                            const newVal = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                            const reqUser = await pool.query(
+                                'SELECT username FROM users WHERE id = $1',
+                                [reqData.rows[0].requester_id]
+                            );
+                            const reqUsername = reqUser.rows[0]?.username || 'Sistema';
+
+                            if (newVal.action === 'add' || newVal.action === 'update') {
+                                eventBus.emit('GOV_GUARDIAN_ONBOARDED', {
+                                    userId: newVal.userId,
+                                    role: newVal.role,
+                                    appointedByUsername: reqUsername,
+                                    requestId: r.requestId,
+                                });
+                            } else if (newVal.action === 'remove') {
+                                const prevRole = await pool.query(
+                                    'SELECT role FROM governance_guardians WHERE user_id = $1',
+                                    [newVal.userId]
+                                );
+                                eventBus.emit('GOV_GUARDIAN_REMOVED', {
+                                    userId: newVal.userId,
+                                    previousRole: prevRole.rows[0]?.role || 'supervisor',
+                                    removedByUsername: reqUsername,
+                                    requestId: r.requestId,
+                                });
+                            }
+                        }
+                    } catch (memberErr) {
+                        console.error('[GOV-CRON] Error emitting membership events:', memberErr);
+                    }
+                }
             }
         }
 

@@ -78,6 +78,53 @@ async function _emitVoteEvents(pool, { requestId, vote, voterUsername, resultSta
             targetKey: govReq.target_key,
             guardianUserIds,
         });
+
+        if (govReq.action_type === 'membership_change') {
+            _emitGuardianMembershipEvents(pool, requestId, govReq.requester_id).catch(err =>
+                console.error('[GOV-CTRL] Error emitting membership events:', err)
+            );
+        }
+    }
+}
+
+async function _emitGuardianMembershipEvents(pool, requestId, requesterId) {
+    const reqRes = await pool.query(
+        'SELECT new_value FROM governance_requests WHERE id = $1',
+        [requestId]
+    );
+    if (reqRes.rowCount === 0) return;
+
+    const raw = reqRes.rows[0].new_value;
+    if (!raw) return;
+    const newVal = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!newVal || !newVal.action) return;
+
+    const requesterRes = await pool.query(
+        'SELECT username FROM users WHERE id = $1',
+        [requesterId]
+    );
+    const requesterUsername = requesterRes.rows[0]?.username || 'Sistema';
+
+    if (newVal.action === 'add' || newVal.action === 'update') {
+        eventBus.emit('GOV_GUARDIAN_ONBOARDED', {
+            userId: newVal.userId,
+            role: newVal.role,
+            appointedByUsername: requesterUsername,
+            requestId,
+        });
+    } else if (newVal.action === 'remove') {
+        const guardianRes = await pool.query(
+            'SELECT role FROM governance_guardians WHERE user_id = $1',
+            [newVal.userId]
+        );
+        const previousRole = guardianRes.rows[0]?.role || 'supervisor';
+
+        eventBus.emit('GOV_GUARDIAN_REMOVED', {
+            userId: newVal.userId,
+            previousRole,
+            removedByUsername: requesterUsername,
+            requestId,
+        });
     }
 }
 

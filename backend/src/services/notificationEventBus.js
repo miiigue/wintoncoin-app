@@ -619,4 +619,97 @@ eventBus.on('GOV_REQUEST_REJECTED', async ({ requestId, requesterId }) => {
     }
 });
 
+// 16. GOBERNANZA: Guardián incorporado → Email + Push de bienvenida al nuevo guardián
+eventBus.on('GOV_GUARDIAN_ONBOARDED', async ({ userId, role, appointedByUsername, requestId }) => {
+    const roleLabel = role === 'supervisor' ? 'Supervisor' : 'Auxiliar';
+
+    try {
+        await notificationService.sendNotificationToUser(userId, {
+            title: '🛡️ Bienvenido al Consejo de Guardianes',
+            body: `Has sido designado como ${roleLabel} en el sistema Winton-Consensus.`,
+            icon: '/assets/icons/icon-192x192.png',
+            data: {}
+        }, 'GOVERNANCE');
+    } catch (err) {
+        console.error(`[EVENT-BUS] Error push onboarding guardián ${userId}:`, err);
+    }
+
+    const userEmail = await _getUserEmail(userId).catch(() => null);
+    if (userEmail) {
+        sendGovernanceEmail({
+            toEmail: userEmail,
+            subject: 'Bienvenido al Consejo de Guardianes — WintonCoin',
+            title: `Has sido designado como ${roleLabel}`,
+            body:
+                `El Consejo de Guardianes de WintonCoin ha aprobado tu incorporación como ${roleLabel} ` +
+                `en el sistema de gobernanza Winton-Consensus (solicitud #${requestId}).\n\n` +
+                `Esta designación fue propuesta por ${appointedByUsername} y ratificada mediante votación del consejo.`,
+            details: [
+                { label: 'Rol asignado', value: roleLabel },
+                { label: 'Solicitud de referencia', value: `#${requestId}` },
+                { label: 'Designado por', value: appointedByUsername },
+                { label: '¿Qué es un Guardián?', value: 'Los guardianes son responsables de aprobar o rechazar cambios críticos en la plataforma mediante votación.' },
+                { label: 'Tus responsabilidades', value: role === 'supervisor'
+                    ? 'Revisar y votar solicitudes de configuración y membresía. Tu voto cuenta para el quórum de aprobación.'
+                    : 'Revisar y votar solicitudes de membresía. Complementas el quórum junto a los supervisores.' },
+                { label: 'Principio Maker ≠ Checker', value: 'Quien propone un cambio no puede votar sobre su propia solicitud. Esto garantiza control cruzado.' },
+                { label: '¿Dudas?', value: 'Comunícate con el equipo de WintonCoin para cualquier consulta sobre tu rol o el proceso de gobernanza.' },
+            ],
+            severity: 'success',
+        }).catch(err => console.error(`[EVENT-BUS] Error email onboarding guardián ${userId}:`, err));
+    }
+
+    await logAuditEvent(pool, null, {
+        eventType: 'GOV_GUARDIAN_ONBOARDED',
+        actorUsername: 'system',
+        category: 'GOVERNANCE',
+        metadata: { userId, role, appointedByUsername, requestId },
+    }).catch(() => {});
+});
+
+// 17. GOBERNANZA: Guardián desvinculado → Email + Push de notificación
+eventBus.on('GOV_GUARDIAN_REMOVED', async ({ userId, previousRole, removedByUsername, requestId }) => {
+    const roleLabel = previousRole === 'supervisor' ? 'Supervisor' : 'Auxiliar';
+
+    try {
+        await notificationService.sendNotificationToUser(userId, {
+            title: '🔓 Desvinculación del Consejo de Guardianes',
+            body: `Tu rol como ${roleLabel} en Winton-Consensus ha finalizado.`,
+            icon: '/assets/icons/icon-192x192.png',
+            data: {}
+        }, 'GOVERNANCE');
+    } catch (err) {
+        console.error(`[EVENT-BUS] Error push offboarding guardián ${userId}:`, err);
+    }
+
+    const userEmail = await _getUserEmail(userId).catch(() => null);
+    if (userEmail) {
+        sendGovernanceEmail({
+            toEmail: userEmail,
+            subject: 'Desvinculación del Consejo de Guardianes — WintonCoin',
+            title: 'Tu rol de guardián ha finalizado',
+            body:
+                `Te informamos que tu participación como ${roleLabel} en el sistema de gobernanza ` +
+                `Winton-Consensus ha sido finalizada mediante la solicitud #${requestId}.\n\n` +
+                `Esta decisión fue aprobada por el Consejo de Guardianes tras votación.`,
+            details: [
+                { label: 'Rol anterior', value: roleLabel },
+                { label: 'Solicitud de referencia', value: `#${requestId}` },
+                { label: 'Solicitado por', value: removedByUsername },
+                { label: '¿Qué significa?', value: 'Ya no recibirás solicitudes de votación ni tendrás acceso al panel de gobernanza.' },
+                { label: 'Tu cuenta', value: 'Tu cuenta de usuario en WintonCoin sigue activa con normalidad. Solo se desvinculó el rol de guardián.' },
+                { label: '¿Dudas?', value: 'Comunícate con el equipo de WintonCoin si tienes preguntas sobre esta decisión.' },
+            ],
+            severity: 'warning',
+        }).catch(err => console.error(`[EVENT-BUS] Error email offboarding guardián ${userId}:`, err));
+    }
+
+    await logAuditEvent(pool, null, {
+        eventType: 'GOV_GUARDIAN_REMOVED',
+        actorUsername: 'system',
+        category: 'GOVERNANCE',
+        metadata: { userId, previousRole, removedByUsername, requestId },
+    }).catch(() => {});
+});
+
 module.exports = eventBus;
