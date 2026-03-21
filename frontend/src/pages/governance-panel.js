@@ -38,15 +38,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     /**
-     * base64url (sin padding) → base64 estándar con padding para atob().
-     * @simplewebauthn/server emite challenges en base64url; atob() necesita base64 con padding.
+     * Decodifica una cadena base64url a Uint8Array de forma robusta.
+     * Maneja: sin padding, con padding parcial, caracteres URL-safe, y whitespace.
      */
-    function base64UrlToBase64(str) {
-        let b64 = str.replace(/-/g, '+').replace(/_/g, '/');
-        const pad = b64.length % 4;
-        if (pad === 2) b64 += '==';
-        else if (pad === 3) b64 += '=';
-        return b64;
+    function base64UrlToUint8Array(base64url) {
+        let input = String(base64url).replace(/\s/g, '').replace(/=+$/, '');
+        input = input.replace(/-/g, '+').replace(/_/g, '/');
+        input = input.padEnd(Math.ceil(input.length / 4) * 4, '=');
+        const binary = atob(input);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes;
     }
 
     /**
@@ -363,18 +365,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { options } = await govFetch('/api/governance/webauthn/register/options', { method: 'POST' });
 
         const credential = await navigator.credentials.create({ publicKey: {
-            challenge: Uint8Array.from(atob(base64UrlToBase64(options.challenge)), c => c.charCodeAt(0)),
+            challenge: base64UrlToUint8Array(options.challenge),
             rp: options.rp,
             user: {
                 ...options.user,
-                id: Uint8Array.from(atob(base64UrlToBase64(options.user.id)), c => c.charCodeAt(0)),
+                id: base64UrlToUint8Array(options.user.id),
             },
             pubKeyCredParams: options.pubKeyCredParams,
             timeout: options.timeout,
             attestation: options.attestation || 'none',
             excludeCredentials: (options.excludeCredentials || []).map(c => ({
                 ...c,
-                id: Uint8Array.from(atob(base64UrlToBase64(c.id)), ch => ch.charCodeAt(0)),
+                id: base64UrlToUint8Array(c.id),
             })),
             authenticatorSelection: options.authenticatorSelection,
         }});
@@ -668,11 +670,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const { options } = await govFetch(`/api/governance/webauthn/auth/${requestId}/options`, { method: 'POST' });
 
             const assertion = await navigator.credentials.get({ publicKey: {
-                challenge: Uint8Array.from(atob(base64UrlToBase64(options.challenge)), c => c.charCodeAt(0)),
+                challenge: base64UrlToUint8Array(options.challenge),
                 rpId: options.rpId,
                 allowCredentials: (options.allowCredentials || []).map(c => ({
                     ...c,
-                    id: Uint8Array.from(atob(base64UrlToBase64(c.id)), ch => ch.charCodeAt(0)),
+                    id: base64UrlToUint8Array(c.id),
                 })),
                 timeout: options.timeout,
                 // Mismo nivel que el servidor (required = biometría / PIN del dispositivo)
@@ -696,7 +698,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             };
         } catch (err) {
             console.error('[WebAuthn Auth]', err);
-            return null;
+            if (err.name === 'NotAllowedError' || err.name === 'AbortError') {
+                return null;
+            }
+            throw err;
         }
     }
 
