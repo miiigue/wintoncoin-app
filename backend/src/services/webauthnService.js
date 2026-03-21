@@ -154,7 +154,6 @@ async function generateRegistrationChallenge(pool, userId, username, existingCre
         userName: username,
         attestationType: 'none',
         authenticatorSelection: {
-            authenticatorAttachment: 'platform',
             residentKey: 'preferred',
             userVerification: 'required',
         },

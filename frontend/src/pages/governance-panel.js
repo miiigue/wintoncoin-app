@@ -319,11 +319,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                             </p>
                         </div>
                     </div>
-                    ${!hasWebAuthn ? '<button class="action-button" id="registerWebAuthnBtn">Registrar Dispositivo Biométrico</button>' : ''}
+                    ${!hasWebAuthn
+                    ? '<button class="action-button" id="registerWebAuthnBtn">Registrar Dispositivo Biométrico</button>'
+                    : '<button class="action-button" id="reRegisterWebAuthnBtn" style="background: var(--admin-card-bg); border: 1px solid var(--admin-primary); color: var(--admin-primary); margin-top: 8px;">Registrar en Otro Dispositivo</button>'}
                 </div>`;
 
             if (!hasWebAuthn) {
                 document.getElementById('registerWebAuthnBtn')?.addEventListener('click', registerWebAuthn);
+            } else {
+                document.getElementById('reRegisterWebAuthnBtn')?.addEventListener('click', reRegisterWebAuthn);
             }
 
         } catch (err) {
@@ -354,6 +358,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (err) {
             showCustomAlert(`Error en registro biométrico: ${err.message}`);
         }
+    }
+
+    async function reRegisterWebAuthn() {
+        showCustomConfirm(
+            'Se reemplazará la credencial anterior con la de ESTE dispositivo.\n\n' +
+            'Usa esta opción si registraste desde otro equipo y ahora quieres votar desde aquí (celular, tablet, etc.).\n\n' +
+            '¿Deseas continuar?',
+            async () => {
+                try {
+                    await registerWebAuthnCredential();
+                    showCustomAlert('Dispositivo registrado. Ahora puedes votar desde este equipo.');
+                    loadGuardianStatus();
+                } catch (err) {
+                    showCustomAlert(`Error al re-registrar: ${err.message}`);
+                }
+            }
+        );
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -574,7 +595,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 if (!guardianData?.hasWebAuthn) {
                     try {
-                        // Primera vez: el navegador abre el diálogo nativo (sin pasos extra en el panel)
                         await registerWebAuthnCredential();
                         await refreshGuardianData();
                         if (!guardianData?.hasWebAuthn) {
@@ -587,8 +607,44 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
 
-                let authResponse = null;
-                authResponse = await performWebAuthnAuth(requestId);
+                let authResponse = await performWebAuthnAuth(requestId);
+
+                if (authResponse === 'CREDENTIAL_NOT_FOUND') {
+                    setVotingBusy(false);
+                    showCustomConfirm(
+                        'No se pudo completar la verificación biométrica.\n\n' +
+                        'Posibles causas:\n' +
+                        '• Cancelaste la verificación.\n' +
+                        '• Este dispositivo no tiene la credencial registrada (ej. registraste desde otro equipo).\n\n' +
+                        'Si necesitas votar desde ESTE dispositivo, puedes registrarlo ahora.\n' +
+                        '¿Deseas registrar este dispositivo e intentar de nuevo?',
+                        async () => {
+                            setVotingBusy(true);
+                            try {
+                                await registerWebAuthnCredential();
+                                await refreshGuardianData();
+                                const retryAuth = await performWebAuthnAuth(requestId);
+                                if (!retryAuth || retryAuth === 'CREDENTIAL_NOT_FOUND') {
+                                    setVotingBusy(false);
+                                    showCustomAlert('No se pudo completar la verificación biométrica tras re-registrar.');
+                                    return;
+                                }
+                                const result = await govFetch(`/api/governance/requests/${requestId}/vote`, {
+                                    method: 'POST',
+                                    body: JSON.stringify({ vote, authResponse: retryAuth }),
+                                });
+                                showCustomAlert(result.message || 'Voto registrado exitosamente.');
+                                await loadRequestDetail(requestId);
+                                if (!voteFocusMode) loadRequests();
+                            } catch (retryErr) {
+                                setVotingBusy(false);
+                                showCustomAlert(`Error: ${retryErr.message}`);
+                            }
+                        }
+                    );
+                    return;
+                }
+
                 if (!authResponse) {
                     setVotingBusy(false);
                     showCustomAlert('Verificación del dispositivo cancelada. El voto no se registró.');
@@ -617,10 +673,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             const assertion = await startAuthentication(options);
             return assertion;
         } catch (err) {
-            console.error('[WebAuthn Auth]', err);
-            if (err.name === 'NotAllowedError' || err.name === 'AbortError') {
+            console.error('[WebAuthn Auth]', err.name, err.message, err);
+
+            if (err.name === 'NotAllowedError') {
+                return 'CREDENTIAL_NOT_FOUND';
+            }
+
+            if (err.name === 'AbortError') {
                 return null;
             }
+
             throw err;
         }
     }
