@@ -673,7 +673,7 @@ async function sendGovernanceEmail({ toEmail, subject, title, body, actionUrl, a
                   </p>
                   <table width="100%" cellspacing="0" cellpadding="0" border="0" style="font-size:12px; color:#344054;">
                     <tr style="border-bottom:1px solid #D0D9F0;">
-                      <td style="padding:6px 4px; font-weight:600; color:#667085;">Clave</td>
+                      <td style="padding:6px 4px; font-weight:600; color:#667085;">Configuración</td>
                       <td style="padding:6px 4px; font-weight:600; color:#667085;">Valor</td>
                       <td style="padding:6px 4px; font-weight:600; color:#667085;">Actor</td>
                       <td style="padding:6px 4px; font-weight:600; color:#667085;">Fecha</td>

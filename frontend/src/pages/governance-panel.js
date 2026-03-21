@@ -38,6 +38,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     /**
+     * base64url (sin padding) → base64 estándar con padding para atob().
+     * @simplewebauthn/server emite challenges en base64url; atob() necesita base64 con padding.
+     */
+    function base64UrlToBase64(str) {
+        let b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+        const pad = b64.length % 4;
+        if (pad === 2) b64 += '==';
+        else if (pad === 3) b64 += '=';
+        return b64;
+    }
+
+    /**
      * WebAuthn JSON para el servidor debe usar base64url (RFC 4648), no btoa estándar (+ /).
      * @param {ArrayBuffer} buffer
      */
@@ -73,6 +85,41 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!dateStr) return '—';
         return new Date(dateStr).toLocaleString('es-ES', { timeZone: 'America/Bogota', dateStyle: 'medium', timeStyle: 'short' });
     }
+
+    const SETTINGS_DISPLAY_MAP = {
+        'allow_new_registrations': 'Permitir Nuevos Registros',
+        'allow_new_publications': 'Permitir Nuevas Publicaciones',
+        'public_profiles_enabled': 'Perfiles Públicos',
+        'debt_system_enabled': 'Sistema de Deuda (Tokens RED)',
+        'debt_cycle_days': 'Ciclo de Deuda RED — Días',
+        'debt_cycle_hours': 'Ciclo de Deuda RED — Horas',
+        'debt_cycle_minutes': 'Ciclo de Deuda RED — Minutos',
+        'blue_escrow_days': 'Depósito BLUE (Escrow) — Días',
+        'blue_escrow_hours': 'Depósito BLUE (Escrow) — Horas',
+        'blue_escrow_minutes': 'Depósito BLUE (Escrow) — Minutos',
+        'platform_commission_percentage': 'Comisión de Plataforma (%)',
+        'booster_system_enabled': 'Sistema de Impulsores',
+        'referral_system_enabled': 'Sistema de Referidos',
+        'referral_reward_amount': 'Recompensa por Referido (BLUE)',
+        'referral_reward_after_expiry': 'Recompensa después de la Promo (BLUE)',
+        'referral_codes_expiry_date': 'Vigencia de Códigos de Referido',
+        'welcome_bonus_enabled': 'Bono de Bienvenida',
+        'welcome_bonus_amount': 'Monto del Bono de Bienvenida (BLUE)',
+        'pre_launch_mode_enabled': 'Modo Pre-Lanzamiento',
+        'allow_request_publications': 'Permitir Publicaciones de "Solicitud"',
+        'allow_sell_publications': 'Permitir Publicaciones de "Venta"',
+        'allow_donation_publications': 'Permitir Publicaciones de "Donación"',
+        'allow_quick_sale_publications': 'Permitir Publicaciones de "Venta Rápida"',
+        'p2p_enabled': 'P2P — Habilitado',
+        'p2p_price_min': 'P2P — Precio Mínimo (USD)',
+        'p2p_price_max': 'P2P — Precio Máximo (USD)',
+        'p2p_fee_percentage': 'P2P — Comisión (%)',
+        'p2p_payment_window_minutes': 'P2P — Ventana de Pago (min)',
+        'p2p_extension_minutes': 'P2P — Extensión (min)',
+        'p2p_extension_limit': 'P2P — Límite de Extensiones',
+        'p2p_cash_min_rating': 'P2P — Reputación Mínima para Efectivo',
+    };
+    function settingLabel(key) { return SETTINGS_DISPLAY_MAP[key] || key; }
 
     function statusLabel(status) {
         const map = { pending: 'Pendiente', approved: 'Aprobada', rejected: 'Rechazada', executed: 'Ejecutada', expired: 'Expirada', cancelled: 'Cancelada' };
@@ -316,18 +363,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { options } = await govFetch('/api/governance/webauthn/register/options', { method: 'POST' });
 
         const credential = await navigator.credentials.create({ publicKey: {
-            challenge: Uint8Array.from(atob(options.challenge.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)),
+            challenge: Uint8Array.from(atob(base64UrlToBase64(options.challenge)), c => c.charCodeAt(0)),
             rp: options.rp,
             user: {
                 ...options.user,
-                id: Uint8Array.from(atob(options.user.id.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)),
+                id: Uint8Array.from(atob(base64UrlToBase64(options.user.id)), c => c.charCodeAt(0)),
             },
             pubKeyCredParams: options.pubKeyCredParams,
             timeout: options.timeout,
             attestation: options.attestation || 'none',
             excludeCredentials: (options.excludeCredentials || []).map(c => ({
                 ...c,
-                id: Uint8Array.from(atob(c.id.replace(/-/g, '+').replace(/_/g, '/')), ch => ch.charCodeAt(0)),
+                id: Uint8Array.from(atob(base64UrlToBase64(c.id)), ch => ch.charCodeAt(0)),
             })),
             authenticatorSelection: options.authenticatorSelection,
         }});
@@ -473,8 +520,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                     ${r.target_key ? `
                     <div class="gov-info-row">
-                        <span class="gov-info-label">Clave</span>
-                        <span class="gov-info-value" style="font-family: monospace;">${escapeHtml(r.target_key)}</span>
+                        <span class="gov-info-label">Configuración</span>
+                        <span class="gov-info-value">${escapeHtml(settingLabel(r.target_key))}</span>
                     </div>` : ''}
                     ${r.old_value ? `
                     <div class="gov-info-row">
@@ -621,11 +668,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const { options } = await govFetch(`/api/governance/webauthn/auth/${requestId}/options`, { method: 'POST' });
 
             const assertion = await navigator.credentials.get({ publicKey: {
-                challenge: Uint8Array.from(atob(options.challenge.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)),
+                challenge: Uint8Array.from(atob(base64UrlToBase64(options.challenge)), c => c.charCodeAt(0)),
                 rpId: options.rpId,
                 allowCredentials: (options.allowCredentials || []).map(c => ({
                     ...c,
-                    id: Uint8Array.from(atob(c.id.replace(/-/g, '+').replace(/_/g, '/')), ch => ch.charCodeAt(0)),
+                    id: Uint8Array.from(atob(base64UrlToBase64(c.id)), ch => ch.charCodeAt(0)),
                 })),
                 timeout: options.timeout,
                 // Mismo nivel que el servidor (required = biometría / PIN del dispositivo)

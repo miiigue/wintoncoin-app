@@ -4,6 +4,7 @@ const notificationService = require('./notificationService');
 const { sendGovernanceEmail } = require('./emailService');
 const { logAuditEvent } = require('./auditService');
 const governanceService = require('./governanceService');
+const { settingLabel } = require('../config/settingsDisplayMap');
 const pool = require('../config/db');
 
 /** Texto legible para valores JSONB / primitivos en correos de gobernanza */
@@ -92,8 +93,9 @@ async function _getRecentConfigChanges(limit = 5) {
         return res.rows.reduce((acc, row) => {
             try {
                 const meta = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : (row.metadata || {});
+                const rawKey = meta.setting_key || meta.targetKey || 'N/A';
                 acc.push({
-                    key: meta.setting_key || meta.targetKey || 'N/A',
+                    key: settingLabel(rawKey),
                     value: meta.new_value || 'N/A',
                     actor: row.actor_username || 'sistema',
                     date: new Date(row.created_at).toLocaleString('es-ES', { timeZone: 'America/Bogota', dateStyle: 'short', timeStyle: 'short' }),
@@ -300,8 +302,9 @@ eventBus.on('GOV_REQUEST_CREATED', async ({
         { label: 'Proponente', value: effRequesterUsername },
         { label: 'Descripción', value: effDescription },
     ];
-    if (effActionType === 'config_change' && effTargetKey) {
-        sharedEmailDetails.push({ label: 'Clave de configuración', value: String(effTargetKey) });
+    const readableTargetKey = effTargetKey ? settingLabel(effTargetKey) : null;
+    if (effActionType === 'config_change' && readableTargetKey) {
+        sharedEmailDetails.push({ label: 'Configuración', value: readableTargetKey });
     }
     const oldStr = _formatGovEmailValue(effOldValue);
     const newStr = _formatGovEmailValue(effNewValue);
@@ -359,7 +362,7 @@ eventBus.on('GOV_REQUEST_CREATED', async ({
         const pushTitle = isRequester
             ? `📝 Solicitud de Gobernanza #${requestId} Creada`
             : `🔐 Solicitud de Gobernanza #${requestId}`;
-        const pushSnippet = effTargetKey ? ` · ${effTargetKey}` : '';
+        const pushSnippet = readableTargetKey ? ` · ${readableTargetKey}` : '';
         const pushBody = isRequester
             ? `Tu solicitud de ${actionLabel} fue creada y distribuida a los guardianes activos para revisión.`
             : `${effRequesterUsername} propone: ${actionLabel}${pushSnippet}. Revisa el correo para el detalle y vota en el panel.`;
@@ -387,7 +390,7 @@ eventBus.on('GOV_REQUEST_CREATED', async ({
                     : `Nueva Solicitud: ${actionLabel}`,
                 body: isRequester
                     ? `Tu solicitud fue registrada correctamente y distribuida a los guardianes activos. Recuerda que, por el principio Maker ≠ Checker, tú no participas en la votación de esta solicitud.`
-                    : `${effRequesterUsername} ha creado una solicitud que requiere tu voto. Abajo tienes el mismo resumen que verías en el panel (clave, valores, fechas y quórum). Tienes hasta la fecha de expiración indicada para votar.`,
+                    : `${effRequesterUsername} ha creado una solicitud que requiere tu voto. Revisa los detalles a continuación y emite tu decisión antes de la fecha de expiración indicada.`,
                 actionUrl: panelUrl,
                 actionText: isRequester ? 'Ver Estado de la Solicitud' : 'Votar Ahora',
                 details: [
@@ -512,7 +515,8 @@ eventBus.on('GOV_REQUEST_APPROVED', async ({ requestId, executionTime, guardianU
 
 // 13. GOBERNANZA: Solicitud ejecutada → Push + Email a TODOS
 eventBus.on('GOV_REQUEST_EXECUTED', async ({ requestId, actionType, targetKey, guardianUserIds }) => {
-    const actionLabel = actionType === 'config_change' ? 'Configuración' : 'Membresía';
+    const actionLabelExec = actionType === 'config_change' ? 'Configuración' : 'Membresía';
+    const readableKey = targetKey ? settingLabel(targetKey) : 'ver detalle';
     const panelUrl = _getGovernancePanelUrl(requestId);
 
     const [emails, recentChanges] = await Promise.all([
@@ -524,7 +528,7 @@ eventBus.on('GOV_REQUEST_EXECUTED', async ({ requestId, actionType, targetKey, g
         try {
             await notificationService.sendNotificationToUser(userId, {
                 title: `⚡ Cambio Ejecutado — Solicitud #${requestId}`,
-                body: `${actionLabel} actualizada: ${targetKey || 'ver detalle'}.`,
+                body: `${actionLabelExec} actualizada: ${readableKey}.`,
                 icon: '/assets/icons/icon-192x192.png',
                 data: { url: panelUrl }
             }, 'GOVERNANCE');
@@ -542,8 +546,8 @@ eventBus.on('GOV_REQUEST_EXECUTED', async ({ requestId, actionType, targetKey, g
                 actionUrl: panelUrl,
                 details: [
                     { label: 'Solicitud', value: `#${requestId}` },
-                    { label: 'Tipo', value: actionLabel },
-                    { label: 'Clave', value: targetKey || 'N/A' },
+                    { label: 'Tipo', value: actionLabelExec },
+                    { label: 'Configuración', value: readableKey },
                 ],
                 severity: 'success',
                 recentChanges,
