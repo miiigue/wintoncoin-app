@@ -293,7 +293,7 @@ async function createRequest(pool, req, res) {
             description,
         });
 
-        _getActiveGuardianUserIds(pool).then(guardianUserIds => {
+        _getActiveGuardianUserIds(pool).then((guardianUserIds) => {
             eventBus.emit('GOV_REQUEST_CREATED', {
                 requestId: result.id,
                 description,
@@ -301,6 +301,12 @@ async function createRequest(pool, req, res) {
                 requesterId: req.user.userId,
                 requesterUsername: req.user.username,
                 guardianUserIds,
+                targetKey: result.target_key || null,
+                oldValue: result.old_value,
+                newValue: result.new_value,
+                expiresAt: result.expires_at,
+                createdAt: result.created_at,
+                executionTime: result.execution_time,
             });
         }).catch(err => console.error('[GOV-CTRL] Error emitting GOV_REQUEST_CREATED:', err));
 

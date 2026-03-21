@@ -3,7 +3,41 @@ const EventEmitter = require('events');
 const notificationService = require('./notificationService');
 const { sendGovernanceEmail } = require('./emailService');
 const { logAuditEvent } = require('./auditService');
+const governanceService = require('./governanceService');
 const pool = require('../config/db');
+
+/** Texto legible para valores JSONB / primitivos en correos de gobernanza */
+function _formatGovEmailValue(raw) {
+    if (raw === null || raw === undefined) return '—';
+    if (typeof raw === 'boolean' || typeof raw === 'number') return String(raw);
+    if (typeof raw === 'object') {
+        try {
+            return JSON.stringify(raw);
+        } catch {
+            return String(raw);
+        }
+    }
+    const s = String(raw);
+    if (s === '') return '—';
+    try {
+        const p = JSON.parse(s);
+        if (p !== null && typeof p === 'object') return JSON.stringify(p);
+        return String(p);
+    } catch {
+        return s;
+    }
+}
+
+function _formatGovEmailDate(d) {
+    if (!d) return '—';
+    try {
+        const dt = d instanceof Date ? d : new Date(d);
+        if (Number.isNaN(dt.getTime())) return '—';
+        return dt.toLocaleString('es-CO', { timeZone: 'America/Bogota', dateStyle: 'medium', timeStyle: 'short' });
+    } catch {
+        return '—';
+    }
+}
 
 // Helper para construir URL absoluta del panel de gobernanza
 // focusVote: true → ?id=&focus=vote (UX solo votación; el proponente usa sin focus)
@@ -208,16 +242,92 @@ eventBus.on('P2P_ORDER_TAKEN', async ({ orderId, ownerId, takerUsername, type })
 // ════════════════════════════════════════════════════════════════════════════
 
 // 10. GOBERNANZA: Nueva solicitud creada → Push + Email a TODOS los guardianes
-eventBus.on('GOV_REQUEST_CREATED', async ({ requestId, description, actionType, requesterId, requesterUsername, guardianUserIds }) => {
-    const actionLabel = actionType === 'config_change' ? 'Cambio de Configuración' : 'Cambio de Membresía';
+eventBus.on('GOV_REQUEST_CREATED', async ({
+    requestId,
+    description,
+    actionType,
+    requesterId,
+    requesterUsername,
+    guardianUserIds,
+    targetKey = null,
+    oldValue = null,
+    newValue = null,
+    expiresAt = null,
+    createdAt = null,
+    executionTime = null,
+}) => {
     const dispatchRef = typeof crypto.randomUUID === 'function'
         ? crypto.randomUUID()
         : crypto.randomBytes(16).toString('hex');
 
-    const [emails, recentChanges] = await Promise.all([
+    // Lectura única desde BD + correos en paralelo (fuente de verdad = lo persistido; patrón fintech)
+    const [fullReq, emails, recentChanges] = await Promise.all([
+        governanceService.getRequestById(pool, requestId).catch((err) => {
+            console.error('[EVENT-BUS] GOV_REQUEST_CREATED getRequestById:', err.message);
+            return null;
+        }),
         _getUsersEmails(guardianUserIds).catch(() => []),
         _getRecentConfigChanges(5),
     ]);
+
+    const effActionType = fullReq?.action_type || actionType;
+    const actionLabel = effActionType === 'config_change' ? 'Cambio de Configuración' : 'Cambio de Membresía';
+    const effDescription = (fullReq?.description != null && String(fullReq.description).trim() !== '')
+        ? String(fullReq.description)
+        : (description || '—');
+    const effRequesterUsername = fullReq?.requester_username || requesterUsername || '—';
+    const effTargetKey = fullReq?.target_key != null && fullReq.target_key !== ''
+        ? fullReq.target_key
+        : targetKey;
+    const effOldValue = fullReq != null ? fullReq.old_value : oldValue;
+    const effNewValue = fullReq != null ? fullReq.new_value : newValue;
+    const effCreatedAt = fullReq?.created_at ?? createdAt;
+    const effExpiresAt = fullReq?.expires_at ?? expiresAt;
+    const effExecutionTime = fullReq?.execution_time ?? executionTime;
+
+    let quorumLine = 'Consulta el panel de gobernanza para el detalle del quórum.';
+    const q = fullReq?.quorum;
+    if (q) {
+        const supA = q.approved?.supervisor ?? 0;
+        const supT = q.totals?.supervisor ?? 0;
+        const th = q.thresholds?.supervisor ?? '?';
+        quorumLine = `${supA} de ${supT} supervisores aprobaron (umbral: ${th})`;
+    }
+
+    const sharedEmailDetails = [
+        { label: 'Solicitud', value: `#${requestId}` },
+        { label: 'Tipo', value: actionLabel },
+        { label: 'Proponente', value: effRequesterUsername },
+        { label: 'Descripción', value: effDescription },
+    ];
+    if (effActionType === 'config_change' && effTargetKey) {
+        sharedEmailDetails.push({ label: 'Clave de configuración', value: String(effTargetKey) });
+    }
+    const oldStr = _formatGovEmailValue(effOldValue);
+    const newStr = _formatGovEmailValue(effNewValue);
+    if (effActionType === 'membership_change') {
+        if (newStr !== '—') {
+            sharedEmailDetails.push({ label: 'Cambio propuesto (membresía)', value: newStr });
+        }
+    } else {
+        if (oldStr !== '—') {
+            sharedEmailDetails.push({ label: 'Valor anterior', value: oldStr });
+        }
+        if (newStr !== '—') {
+            sharedEmailDetails.push({ label: 'Valor propuesto', value: newStr });
+        }
+    }
+    sharedEmailDetails.push(
+        { label: 'Creada', value: _formatGovEmailDate(effCreatedAt) },
+        { label: 'Expira', value: _formatGovEmailDate(effExpiresAt) },
+        { label: 'Quórum de supervisores', value: quorumLine },
+    );
+    if (effExecutionTime) {
+        sharedEmailDetails.push({
+            label: 'Ejecución programada (si se aprueba)',
+            value: _formatGovEmailDate(effExecutionTime),
+        });
+    }
     const votingGuardianCount = guardianUserIds.filter(id => Number(id) !== Number(requesterId)).length;
     const recipientsPreview = emails
         .map(row => _maskEmail(row.email))
@@ -249,9 +359,10 @@ eventBus.on('GOV_REQUEST_CREATED', async ({ requestId, description, actionType, 
         const pushTitle = isRequester
             ? `📝 Solicitud de Gobernanza #${requestId} Creada`
             : `🔐 Solicitud de Gobernanza #${requestId}`;
+        const pushSnippet = effTargetKey ? ` · ${effTargetKey}` : '';
         const pushBody = isRequester
             ? `Tu solicitud de ${actionLabel} fue creada y distribuida a los guardianes activos para revisión.`
-            : `${requesterUsername} propone: ${actionLabel}. "${description}". Tienes 24h para votar.`;
+            : `${effRequesterUsername} propone: ${actionLabel}${pushSnippet}. Revisa el correo para el detalle y vota en el panel.`;
 
         try {
             await notificationService.sendNotificationToUser(userId, {
@@ -276,13 +387,11 @@ eventBus.on('GOV_REQUEST_CREATED', async ({ requestId, description, actionType, 
                     : `Nueva Solicitud: ${actionLabel}`,
                 body: isRequester
                     ? `Tu solicitud fue registrada correctamente y distribuida a los guardianes activos. Recuerda que, por el principio Maker ≠ Checker, tú no participas en la votación de esta solicitud.`
-                    : `${requesterUsername} ha creado una solicitud que requiere tu voto. Tienes 24 horas para votar.`,
+                    : `${effRequesterUsername} ha creado una solicitud que requiere tu voto. Abajo tienes el mismo resumen que verías en el panel (clave, valores, fechas y quórum). Tienes hasta la fecha de expiración indicada para votar.`,
                 actionUrl: panelUrl,
                 actionText: isRequester ? 'Ver Estado de la Solicitud' : 'Votar Ahora',
                 details: [
-                    { label: 'Solicitud', value: `#${requestId}` },
-                    { label: 'Tipo', value: actionLabel },
-                    { label: 'Descripción', value: description },
+                    ...sharedEmailDetails,
                     ...(isRequester ? [
                         { label: 'Guardianes con voto notificados', value: String(votingGuardianCount) },
                         { label: 'Correos emitidos', value: String(emails.length) },

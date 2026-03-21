@@ -589,8 +589,8 @@ async function sendGovernanceEmail({ toEmail, subject, title, body, actionUrl, a
 
   const detailsRows = details.map(d => `
                   <tr>
-                    <td style="padding:10px 0; border-bottom:1px solid #EEF2F6; color:#667085; font-size:14px;">${escapeHtml(d.label)}</td>
-                    <td style="padding:10px 0; border-bottom:1px solid #EEF2F6; color:#101828; font-size:14px; font-weight:500; text-align:right;">${escapeHtml(d.value)}</td>
+                    <td style="padding:10px 0; border-bottom:1px solid #EEF2F6; color:#667085; font-size:14px; vertical-align:top; width:38%;">${escapeHtml(d.label)}</td>
+                    <td style="padding:10px 0; border-bottom:1px solid #EEF2F6; color:#101828; font-size:14px; font-weight:500; text-align:right; word-break:break-word; overflow-wrap:anywhere;">${escapeHtml(d.value)}</td>
                   </tr>
   `).join('');
 
