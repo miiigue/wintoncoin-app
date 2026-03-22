@@ -116,7 +116,8 @@ app.use(cors({
         }
 
         if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-        return callback(null, true); // TEMPORAL: Permitir todo en desarrollo local para evitar bloqueos
+        if (process.env.NODE_ENV !== 'production') return callback(null, true);
+        return callback(new Error('Origen no permitido por CORS'), false);
     },
     credentials: true // CRÍTICO: Permite cookies entre dominios
 }));

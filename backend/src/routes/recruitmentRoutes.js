@@ -10,19 +10,38 @@
 const express = require('express');
 const router = express.Router();
 const recruitmentController = require('../controllers/recruitmentController');
-const upload = require('../middleware/recruitmentUpload');
+const rateLimit = require('express-rate-limit');
 // [SEGURIDAD] Middleware de autenticación admin con cookies httpOnly
 const { authenticateAdmin } = require('../middleware/authMiddleware');
 
+// [SEGURIDAD] Limitador anti-spam para postulaciones públicas.
+const recruitmentApplyLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: 10, // Máximo 10 postulaciones por IP en la ventana
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        message: 'Demasiadas solicitudes. Intenta nuevamente en unos minutos.'
+    }
+});
+
 /**
  * @route   POST /api/recruitment/apply
- * @desc    Registra una postulación con archivo CV (PDF)
+ * @desc    Registra una postulación (sin archivos, solo datos estructurados)
  * @access  Public (se registra IP para auditoría)
  */
 router.post('/apply', 
-    upload.single('cv'), // Procesa un solo archivo con la llave 'cv'
+    recruitmentApplyLimiter,
     recruitmentController.submitApplication
 );
+
+/**
+ * @route   GET /api/recruitment/config
+ * @desc    Obtiene configuración pública de reclutamiento (multiplicador vigente)
+ * @access  Public
+ */
+router.get('/config', recruitmentController.getPublicRecruitmentConfig);
 
 /**
  * @route   GET /api/recruitment/admin/list

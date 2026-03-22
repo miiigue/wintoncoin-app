@@ -232,7 +232,7 @@
             </div>
         </div>
 
-        <form id="recruitmentForm" enctype="multipart/form-data">
+        <form id="recruitmentForm">
             <div class="form-group">
                 <label for="full_name">Nombre Completo</label>
                 <input type="text" id="full_name" name="full_name" placeholder="Ej: Juan Pérez" required>
@@ -308,9 +308,45 @@
         const API_URL = getApiUrl();
         console.log('[RECRUITMENT] 🌐 API URL resuelta:', API_URL);
 
+        // Multiplicador visual por defecto (fallback seguro si falla la API)
+        let currentRecruitmentMultiplier = 1;
+
         const form = document.getElementById('recruitmentForm');
         const statusMsg = document.getElementById('statusMsg');
         const submitBtn = document.getElementById('submitBtn');
+
+        // Actualiza el bloque visual de compensación con el multiplicador vigente.
+        function updateCompensationUI(multiplier) {
+            const safeMultiplier = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;
+            currentRecruitmentMultiplier = safeMultiplier;
+
+            const dynMultiplierEl = document.getElementById('dynMultiplier');
+            const smallMultiplierEl = document.getElementById('smallMultiplier');
+            const exampleCalcEl = document.getElementById('exampleCalc');
+
+            if (dynMultiplierEl) dynMultiplierEl.textContent = `${safeMultiplier}X ACTIVO`;
+            if (smallMultiplierEl) smallMultiplierEl.textContent = String(safeMultiplier);
+            if (exampleCalcEl) {
+                const exampleValue = (100 * safeMultiplier).toLocaleString('es-ES');
+                exampleCalcEl.textContent = `${exampleValue} BLUE IOU`;
+            }
+        }
+
+        // Carga configuración pública de reclutamiento desde backend (DB).
+        async function loadRecruitmentConfig() {
+            try {
+                const response = await fetch(`${API_URL}/api/recruitment/config`);
+                const data = await response.json();
+                if (data.success) {
+                    updateCompensationUI(Number(data.recruitmentMultiplier));
+                } else {
+                    updateCompensationUI(1);
+                }
+            } catch (error) {
+                console.warn('[RECRUITMENT] No se pudo cargar el multiplicador dinámico:', error);
+                updateCompensationUI(1);
+            }
+        }
 
         // Envío del formulario
         form.addEventListener('submit', async (e) => {
@@ -320,20 +356,27 @@
             submitBtn.innerText = 'Enviando...';
             statusMsg.style.display = 'none';
 
-            const formData = new FormData(form);
+            const payload = {
+                full_name: document.getElementById('full_name')?.value?.trim() || '',
+                email: document.getElementById('email')?.value?.trim() || '',
+                linkedin_url: document.getElementById('linkedin_url')?.value?.trim() || '',
+                role: document.getElementById('role')?.value || '',
+                expected_salary: document.getElementById('expected_salary')?.value?.trim() || ''
+            };
 
             try {
                 // Usamos API_URL para apuntar al backend correcto (Render)
                 const response = await fetch(`${API_URL}/api/recruitment/apply`, {
                     method: 'POST',
-                    body: formData
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
                 });
 
                 const data = await response.json();
 
                 if (data.success) {
                     statusMsg.className = 'status-msg status-success';
-                    statusMsg.innerText = '✅ ¡Postulación enviada! Revisaremos tu perfil pronto.';
+                    statusMsg.innerText = `✅ ¡Postulación enviada! Multiplicador aplicado: ${data.multiplierApplied || currentRecruitmentMultiplier}x.`;
                     statusMsg.style.display = 'block';
                     form.reset();
                 } else {
@@ -348,6 +391,9 @@
                 submitBtn.innerText = 'Enviar Postulación';
             }
         });
+
+        // Carga inicial del multiplicador dinámico.
+        loadRecruitmentConfig();
     </script>
 </body>
 

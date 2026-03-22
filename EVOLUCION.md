@@ -383,3 +383,16 @@ Creación e integración completa del portal de captación de talento externo pa
 - **Frontend Premium**: Nueva página `trabaja-con-nosotros.html` con estética Sapphire y Glassmorphism, destacando el beneficio de 1500 BLUE IOU por cada $100 USD de valor aportado.
 - **Integración en Footer**: Actualización de la landing page principal (`index.html`) para incluir el enlace oficial en la sección de Plataforma.
 - **Legal & Compliance**: Inclusión de la cláusula de tratamiento de datos de WTN Solutions LLC conforme a estándares internacionales de privacidad. ✅ PROFESIONAL
+
+### [2026-03-22] - Reclutamiento Endurecido: Sin Archivos + Multiplicador Dinámico desde DB
+#### Descripción
+Ajuste integral de seguridad y consistencia del módulo de Talento para eliminar completamente la subida de CV por archivo, mover el cálculo del multiplicador a fuente dinámica de base de datos y endurecer el backend contra abuso y datos inválidos.
+
+#### Cambios realizados
+- **Política sin Archivos (LinkedIn-first)**: La ruta `POST /api/recruitment/apply` dejó de usar middleware de upload y ahora acepta exclusivamente `application/json`. Se bloquea explícitamente `multipart/form-data` con respuesta `415`.
+- **Validación Backend Estricta**: Se añadieron validaciones server-side para `full_name`, `email`, `role`, `linkedin_url` y `expected_salary`, con normalización de entradas para mejorar calidad de datos y reducir superficie de ataque.
+- **Rate Limit Anti-Spam**: Se incorporó limitador por IP en postulaciones públicas (`10 requests / 15 min`) para mitigar abuso automatizado.
+- **Multiplicador Dinámico**: El valor aplicado en `recruitment_proposals.multiplier_applied` ya no está hardcodeado; ahora se obtiene desde `momentum_global_config.multiplier` (configurado desde `momentum-admin`), con fallback seguro a `1x`.
+- **Config Pública de Reclutamiento**: Nuevo endpoint `GET /api/recruitment/config` para exponer el multiplicador vigente de forma controlada al frontend.
+- **Frontend Reclutamiento Sin Multipart**: `trabaja-con-nosotros.html` ahora envía JSON (sin `FormData`) y consulta dinámicamente el multiplicador para renderizar badge y ejemplo de compensación en tiempo real.
+- **Hardening CORS en Producción**: En `server.js`, se eliminó el allow-all efectivo para producción y se restringe a orígenes permitidos, manteniendo flexibilidad solo en desarrollo.
