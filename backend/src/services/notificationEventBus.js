@@ -501,7 +501,6 @@ eventBus.on('GOV_REQUEST_APPROVED', async ({ requestId, executionTime, guardianU
                 subject: `Solicitud #${requestId} Aprobada — Time-Lock activo`,
                 title: 'Solicitud Aprobada',
                 body: 'El quórum de aprobación ha sido alcanzado. La acción se ejecutará después del período de Time-Lock. Cualquier guardián puede cancelar durante esta ventana.',
-                actionUrl: panelUrl,
                 details: [
                     { label: 'Solicitud', value: `#${requestId}` },
                     { label: 'Ejecución programada', value: execDate },
@@ -543,7 +542,6 @@ eventBus.on('GOV_REQUEST_EXECUTED', async ({ requestId, actionType, targetKey, g
                 subject: `Cambio Ejecutado — Solicitud #${requestId}`,
                 title: 'Cambio de Gobernanza Aplicado',
                 body: `La solicitud #${requestId} ha sido ejecutada exitosamente. El cambio ya está activo en el sistema.`,
-                actionUrl: panelUrl,
                 details: [
                     { label: 'Solicitud', value: `#${requestId}` },
                     { label: 'Tipo', value: actionLabelExec },
@@ -612,7 +610,6 @@ eventBus.on('GOV_REQUEST_REJECTED', async ({ requestId, requesterId }) => {
             subject: `Solicitud #${requestId} Rechazada`,
             title: 'Solicitud Rechazada',
             body: `El quórum de rechazo fue alcanzado para la solicitud #${requestId}. La acción propuesta no se ejecutará.`,
-            actionUrl: panelUrl,
             details: [{ label: 'Solicitud', value: `#${requestId}` }],
             severity: 'danger',
         }).catch(err => console.error('[EVENT-BUS] Error email rechazo:', err));
