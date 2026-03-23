@@ -9,7 +9,7 @@
  *   │  1. Maker ≠ Checker    — Proponente no puede votar       │
  *   │  2. Quórum Simétrico   — Rechazo requiere misma mayoría  │
  *   │  3. Optimistic Lock    — Verifica old_value al ejecutar  │
- *   │  4. Time-Lock 48h      — Ventana de cancelación          │
+ *   │  4. Time-Lock (config)  — Ventana de cancelación          │
  *   │  5. Break Glass        — Recuperación con M-de-N códigos │
  *   │  6. Biometría (WebAuthn) — Firma en cada voto            │
  *   │  7. Auditoría Total    — Todo queda en audit_log         │
@@ -38,13 +38,70 @@ const REQUEST_STATUS = {
     CANCELLED: 'cancelled',
 };
 
-const QUORUM_FRACTION       = 2 / 3;
-const TIMELOCK_HOURS        = 48;
-const REQUEST_EXPIRY_HOURS  = 24;
-const REMINDER_THRESHOLD_H  = 12;
+// Defaults — se usan como fallback si app_settings no tiene el valor.
+const GOV_DEFAULTS = Object.freeze({
+    QUORUM_PERCENTAGE:        67,
+    TIMELOCK_HOURS:           48,
+    REQUEST_EXPIRY_HOURS:     24,
+    REMINDER_THRESHOLD_H:     12,
+    REMINDER_COOLDOWN_H:      6,
+});
+
 const RECOVERY_CODE_COUNT   = 5;
 const RECOVERY_THRESHOLD    = 3;
 const BCRYPT_ROUNDS         = 12;
+
+/**
+ * Lee los parámetros de gobernanza desde app_settings con fallback a GOV_DEFAULTS.
+ * Usa una consulta única para minimizar round-trips a la DB.
+ * Valida rangos para evitar configuraciones peligrosas.
+ *
+ * @param {import('pg').Pool|import('pg').PoolClient} db - Pool o client de PostgreSQL
+ * @returns {Promise<{quorumFraction: number, timelockHours: number, requestExpiryHours: number, reminderThresholdH: number, reminderCooldownH: number}>}
+ */
+async function _getGovConfig(db) {
+    const keys = [
+        'gov_quorum_percentage',
+        'gov_timelock_hours',
+        'gov_request_expiry_hours',
+        'gov_reminder_threshold_hours',
+        'gov_reminder_cooldown_hours',
+    ];
+
+    const res = await db.query(
+        `SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1)`,
+        [keys]
+    );
+
+    const map = {};
+    for (const row of res.rows) {
+        map[row.setting_key] = row.setting_value;
+    }
+
+    const pct = _clampInt(map['gov_quorum_percentage'], 51, 100, GOV_DEFAULTS.QUORUM_PERCENTAGE);
+    const quorumFraction = pct / 100;
+
+    return {
+        quorumFraction,
+        timelockHours:      _clampInt(map['gov_timelock_hours'],           1,  720, GOV_DEFAULTS.TIMELOCK_HOURS),
+        requestExpiryHours: _clampInt(map['gov_request_expiry_hours'],     1,  168, GOV_DEFAULTS.REQUEST_EXPIRY_HOURS),
+        reminderThresholdH: _clampInt(map['gov_reminder_threshold_hours'], 1,  72,  GOV_DEFAULTS.REMINDER_THRESHOLD_H),
+        reminderCooldownH:  _clampInt(map['gov_reminder_cooldown_hours'],  1,  48,  GOV_DEFAULTS.REMINDER_COOLDOWN_H),
+    };
+}
+
+/**
+ * Parsea un string a entero y lo restringe a un rango seguro.
+ * Si el valor es inválido o fuera de rango, retorna el default.
+ * @private
+ */
+function _clampInt(raw, min, max, fallback) {
+    const n = parseInt(raw, 10);
+    if (isNaN(n)) return fallback;
+    if (n < min) return min;
+    if (n > max) return max;
+    return n;
+}
 
 // ════════════════════════════════════════════════════════════════════════════
 // SECCIÓN 2: Bootstrap — Arranque inicial del sistema
@@ -274,14 +331,16 @@ async function createRequest(pool, req, data) {
         }
     }
 
+    const govConfig = await _getGovConfig(pool);
+
     const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + REQUEST_EXPIRY_HOURS);
+    expiresAt.setHours(expiresAt.getHours() + govConfig.requestExpiryHours);
 
     // Time-Lock para cambios de membresía
     let executionTime = null;
     if (actionType === ACTION_TYPES.MEMBERSHIP_CHANGE) {
         executionTime = new Date();
-        executionTime.setHours(executionTime.getHours() + TIMELOCK_HOURS);
+        executionTime.setHours(executionTime.getHours() + govConfig.timelockHours);
     }
 
     const sql = `
@@ -380,12 +439,14 @@ async function getRequestById(pool, requestId) {
          WHERE g.status = 'active'`
     );
 
-    // Calcular estado del quórum
+    // Calcular estado del quórum con porcentaje dinámico
+    const govConfig = await _getGovConfig(pool);
     const quorumStatus = _calculateQuorumStatus(
         guardiansRes.rows,
         votesRes.rows,
         request.action_type,
-        request.requester_id
+        request.requester_id,
+        govConfig.quorumFraction
     );
 
     return {
@@ -523,6 +584,8 @@ async function submitVote(pool, req, data) {
  * @private
  */
 async function _evaluateAndAct(client, req, govRequest) {
+    const govConfig = await _getGovConfig(client);
+
     const guardiansRes = await client.query(
         `SELECT id, user_id, role FROM governance_guardians WHERE status = 'active'`
     );
@@ -551,9 +614,9 @@ async function _evaluateAndAct(client, req, govRequest) {
         if (v.vote === 'reject')  rejected[v.role] = (rejected[v.role] || 0) + 1;
     });
 
-    // Calcular umbrales
-    const supThreshold = Math.ceil(totals.supervisor * QUORUM_FRACTION);
-    const auxThreshold = Math.ceil(totals.auxiliary * QUORUM_FRACTION);
+    // Calcular umbrales con quórum dinámico
+    const supThreshold = Math.ceil(totals.supervisor * govConfig.quorumFraction);
+    const auxThreshold = Math.ceil(totals.auxiliary * govConfig.quorumFraction);
 
     let isApproved = false;
     let isRejected = false;
@@ -624,7 +687,7 @@ async function _evaluateAndAct(client, req, govRequest) {
         return {
             status: REQUEST_STATUS.APPROVED,
             message: `Quórum alcanzado. Ejecución programada para ${new Date(govRequest.execution_time).toISOString()}. ` +
-                     `Cualquier guardián puede cancelar durante las próximas ${TIMELOCK_HOURS} horas.`,
+                     `Cualquier guardián puede cancelar durante las próximas ${govConfig.timelockHours} horas.`,
             quorum: { approved, rejected, totals, supThreshold, auxThreshold },
         };
     }
@@ -639,9 +702,11 @@ async function _evaluateAndAct(client, req, govRequest) {
 
 /**
  * Calcula el estado del quórum para una solicitud (lectura, sin side-effects).
+ * Acepta quorumFraction para mantener consistencia con _evaluateAndAct.
  * @private
  */
-function _calculateQuorumStatus(allGuardians, votes, actionType, requesterId) {
+function _calculateQuorumStatus(allGuardians, votes, actionType, requesterId, quorumFraction) {
+    const fraction = quorumFraction || (GOV_DEFAULTS.QUORUM_PERCENTAGE / 100);
     const reqId = parseInt(requesterId, 10);
     const eligible = allGuardians.filter(g => parseInt(g.user_id, 10) !== reqId);
 
@@ -655,8 +720,8 @@ function _calculateQuorumStatus(allGuardians, votes, actionType, requesterId) {
         if (v.vote === 'reject')  rejected[v.guardian_role] = (rejected[v.guardian_role] || 0) + 1;
     });
 
-    const supThreshold = Math.ceil(totals.supervisor * QUORUM_FRACTION);
-    const auxThreshold = Math.ceil(totals.auxiliary * QUORUM_FRACTION);
+    const supThreshold = Math.ceil(totals.supervisor * fraction);
+    const auxThreshold = Math.ceil(totals.auxiliary * fraction);
 
     const pendingVoters = eligible.filter(g =>
         !votes.some(v => v.guardian_user_id === g.user_id)
@@ -895,10 +960,10 @@ async function expireStaleRequests(pool) {
  * Retorna lista de guardianes que aún no han votado.
  */
 async function getPendingReminders(pool) {
-    const reminderThreshold = new Date();
-    reminderThreshold.setHours(reminderThreshold.getHours() + REMINDER_THRESHOLD_H);
+    const govConfig = await _getGovConfig(pool);
 
-    const REMINDER_COOLDOWN_HOURS = 6;
+    const reminderThreshold = new Date();
+    reminderThreshold.setHours(reminderThreshold.getHours() + govConfig.reminderThresholdH);
 
     const res = await pool.query(
         `SELECT r.id, r.description, r.action_type, r.expires_at, r.requester_id,
@@ -916,7 +981,7 @@ async function getPendingReminders(pool) {
         const lastReminder = meta.last_reminder_sent_at ? new Date(meta.last_reminder_sent_at) : null;
         if (lastReminder) {
             const hoursSince = (Date.now() - lastReminder.getTime()) / (1000 * 60 * 60);
-            if (hoursSince < REMINDER_COOLDOWN_HOURS) continue;
+            if (hoursSince < govConfig.reminderCooldownH) continue;
         }
 
         const votedRes = await pool.query(
@@ -1265,8 +1330,9 @@ async function getSystemHealth(pool) {
          FROM governance_recovery_codes`
     );
 
+    const govConfig = await _getGovConfig(pool);
     const g = guardians.rows[0];
-    const supThreshold = Math.ceil(parseInt(g.active_supervisors, 10) * QUORUM_FRACTION);
+    const supThreshold = Math.ceil(parseInt(g.active_supervisors, 10) * govConfig.quorumFraction);
 
     return {
         isBootstrapped: parseInt(g.active, 10) > 0,
@@ -1279,6 +1345,7 @@ async function getSystemHealth(pool) {
         quorum: {
             supervisorThreshold: supThreshold,
             canReachQuorum: parseInt(g.active_supervisors, 10) >= supThreshold && supThreshold > 0,
+            quorumPercentage: Math.round(govConfig.quorumFraction * 100),
         },
         pendingRequests: parseInt(pending.rows[0].count, 10),
         timeLockedRequests: parseInt(timeLocked.rows[0].count, 10),
@@ -1318,12 +1385,13 @@ module.exports = {
     // Break Glass
     executeBreakGlass,
 
-    // Constantes
+    // Configuración dinámica
+    _getGovConfig,
+    GOV_DEFAULTS,
+
+    // Constantes estáticas
     ACTION_TYPES,
     REQUEST_STATUS,
-    QUORUM_FRACTION,
-    TIMELOCK_HOURS,
-    REQUEST_EXPIRY_HOURS,
     RECOVERY_CODE_COUNT,
     RECOVERY_THRESHOLD,
 };

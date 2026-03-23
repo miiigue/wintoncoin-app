@@ -475,7 +475,6 @@ eventBus.on('GOV_VOTE_SUBMITTED', async ({ requestId, voterUsername, vote, reque
 // 12. GOBERNANZA: Solicitud aprobada con Time-Lock → Push + Email a TODOS
 eventBus.on('GOV_REQUEST_APPROVED', async ({ requestId, executionTime, guardianUserIds }) => {
     const execDate = new Date(executionTime).toLocaleString('es-ES', { timeZone: 'America/Bogota' });
-    const panelUrl = _getGovernancePanelUrl(requestId);
 
     const [emails, recentChanges] = await Promise.all([
         _getUsersEmails(guardianUserIds).catch(() => []),
@@ -488,7 +487,6 @@ eventBus.on('GOV_REQUEST_APPROVED', async ({ requestId, executionTime, guardianU
                 title: `✅ Solicitud #${requestId} Aprobada`,
                 body: `Quórum alcanzado. Ejecución programada: ${execDate}. Puedes cancelar durante la ventana de Time-Lock.`,
                 icon: '/assets/icons/icon-192x192.png',
-                data: { url: panelUrl }
             }, 'GOVERNANCE');
         } catch (err) {
             console.error(`[EVENT-BUS] Error push aprobación ${userId}:`, err);
@@ -516,7 +514,6 @@ eventBus.on('GOV_REQUEST_APPROVED', async ({ requestId, executionTime, guardianU
 eventBus.on('GOV_REQUEST_EXECUTED', async ({ requestId, actionType, targetKey, guardianUserIds }) => {
     const actionLabelExec = actionType === 'config_change' ? 'Configuración' : 'Membresía';
     const readableKey = targetKey ? settingLabel(targetKey) : 'ver detalle';
-    const panelUrl = _getGovernancePanelUrl(requestId);
 
     const [emails, recentChanges] = await Promise.all([
         _getUsersEmails(guardianUserIds).catch(() => []),
@@ -529,7 +526,6 @@ eventBus.on('GOV_REQUEST_EXECUTED', async ({ requestId, actionType, targetKey, g
                 title: `⚡ Cambio Ejecutado — Solicitud #${requestId}`,
                 body: `${actionLabelExec} actualizada: ${readableKey}.`,
                 icon: '/assets/icons/icon-192x192.png',
-                data: { url: panelUrl }
             }, 'GOVERNANCE');
         } catch (err) {
             console.error(`[EVENT-BUS] Error push ejecución ${userId}:`, err);
@@ -590,14 +586,11 @@ eventBus.on('GOV_VOTE_REMINDER', async ({ requestId, description, expiresAt, gua
 
 // 15. GOBERNANZA: Solicitud rechazada → Push + Email al proponente
 eventBus.on('GOV_REQUEST_REJECTED', async ({ requestId, requesterId }) => {
-    const panelUrl = _getGovernancePanelUrl(requestId);
-
     try {
         await notificationService.sendNotificationToUser(requesterId, {
             title: `❌ Solicitud #${requestId} Rechazada`,
             body: 'El quórum de rechazo fue alcanzado. La solicitud no se ejecutará.',
             icon: '/assets/icons/icon-192x192.png',
-            data: { url: panelUrl }
         }, 'GOVERNANCE');
     } catch (err) {
         console.error('[EVENT-BUS] Error push rechazo:', err);

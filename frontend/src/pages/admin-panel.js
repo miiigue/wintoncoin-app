@@ -816,7 +816,13 @@ document.addEventListener('DOMContentLoaded', () => {
             'allow_request_publications': { title: 'Permitir Publicaciones de "Solicitud"', description: 'Los usuarios pueden publicar tareas para que otros las realicen.' },
             'allow_sell_publications': { title: 'Permitir Publicaciones de "Venta"', description: 'Los usuarios pueden publicar productos o servicios para vender.' },
             'allow_donation_publications': { title: 'Permitir Publicaciones de "Donación"', description: 'Los usuarios pueden solicitar donaciones.' },
-            'allow_quick_sale_publications': { title: 'Permitir Publicaciones de "Venta Rápida"', description: 'Habilita el botón de Venta Rápida para transacciones exprés.' }
+            'allow_quick_sale_publications': { title: 'Permitir Publicaciones de "Venta Rápida"', description: 'Habilita el botón de Venta Rápida para transacciones exprés.' },
+            // Gobernanza (Winton-Consensus)
+            'gov_quorum_percentage': { title: 'Gobernanza — Quórum Requerido (%)', description: 'Porcentaje de votos necesarios para aprobar o rechazar (mín. 51, máx. 100).' },
+            'gov_timelock_hours': { title: 'Gobernanza — Time-Lock (horas)', description: 'Horas de espera antes de ejecutar un cambio de membresía aprobado.' },
+            'gov_request_expiry_hours': { title: 'Gobernanza — Expiración de Solicitud (horas)', description: 'Horas que tiene una solicitud para alcanzar quórum.' },
+            'gov_reminder_threshold_hours': { title: 'Gobernanza — Umbral de Recordatorio (horas)', description: 'Cuando quedan estas horas para expirar, se envía recordatorio.' },
+            'gov_reminder_cooldown_hours': { title: 'Gobernanza — Enfriamiento entre Recordatorios (horas)', description: 'Horas mínimas entre recordatorios al mismo guardián.' },
         };
         return map[key] || { title: key, description: 'Sin descripción.' };
     }
@@ -848,6 +854,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elements.settingsContainer) {
             elements.settingsContainer.innerHTML = generalSettings.map(s => {
                 if (s.setting_key.endsWith('_enabled') || s.setting_key.endsWith('registrations')) return getSettingHTML(s, 'switch');
+                if (s.setting_key.startsWith('gov_')) return getSettingHTML(s, 'integer');
                 if (s.setting_key.endsWith('_amount') || s.setting_key.includes('percentage')) return getSettingHTML(s, 'number');
                 return '';
             }).join('');
@@ -908,6 +915,10 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (type === 'number') {
             controlHTML = `
                 <input type="number" class="admin-numeric-input" data-key="${safeKey}" value="${parseFloat(setting.setting_value).toFixed(2)}" step="0.01" min="0">
+            `;
+        } else if (type === 'integer') {
+            controlHTML = `
+                <input type="number" class="admin-numeric-input" data-key="${safeKey}" value="${parseInt(setting.setting_value, 10) || 0}" step="1" min="1">
             `;
         } else if (type === 'date') {
             controlHTML = `

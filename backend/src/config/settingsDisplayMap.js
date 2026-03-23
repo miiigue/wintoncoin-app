@@ -34,6 +34,12 @@ const SETTINGS_DISPLAY_MAP = {
     'p2p_extension_minutes': 'P2P — Extensión (min)',
     'p2p_extension_limit': 'P2P — Límite de Extensiones',
     'p2p_cash_min_rating': 'P2P — Reputación Mínima para Efectivo',
+    // Gobernanza (Winton-Consensus)
+    'gov_quorum_percentage': 'Gobernanza — Quórum Requerido (%)',
+    'gov_timelock_hours': 'Gobernanza — Time-Lock (horas)',
+    'gov_request_expiry_hours': 'Gobernanza — Expiración de Solicitud (horas)',
+    'gov_reminder_threshold_hours': 'Gobernanza — Umbral de Recordatorio (horas)',
+    'gov_reminder_cooldown_hours': 'Gobernanza — Enfriamiento entre Recordatorios (horas)',
 };
 
 function settingLabel(key) {
