@@ -72,6 +72,36 @@ function initializePolicyModal() {
 }
 
 /**
+ * Valida que una URL de retorno sea segura (misma origen, ruta relativa interna).
+ * Previene ataques de Open Redirect aceptando solo rutas .html del propio sitio.
+ * @param {string} raw - Valor crudo del parámetro returnTo
+ * @returns {string|null} Ruta segura o null si es inválida
+ */
+function _getSafeReturnTo(raw) {
+    if (!raw || typeof raw !== 'string') return null;
+
+    try {
+        const decoded = decodeURIComponent(raw);
+
+        if (decoded.includes('://') || decoded.startsWith('//')) return null;
+        if (decoded.includes('javascript:') || decoded.includes('data:')) return null;
+
+        const ALLOWED_PAGES = [
+            'governance-panel.html',
+            'contract_interaction.html',
+            'admin-panel.html',
+        ];
+
+        const pagePart = decoded.split('?')[0].replace(/^\//, '');
+        if (!ALLOWED_PAGES.includes(pagePart)) return null;
+
+        return decoded;
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Inicializa el formulario de login
  */
 function initializeLoginForm() {
@@ -82,6 +112,9 @@ function initializeLoginForm() {
         console.error('El formulario con id "loginForm" no fue encontrado.');
         return;
     }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const returnTo = _getSafeReturnTo(urlParams.get('returnTo'));
 
     loginForm.addEventListener('submit', async function (event) {
         event.preventDefault();
@@ -121,7 +154,7 @@ function initializeLoginForm() {
                         );
                     }
 
-                    window.location.href = 'contract_interaction.html';
+                    window.location.href = returnTo || 'contract_interaction.html';
                 } else {
                     showCustomAlert('Error: La respuesta del servidor no incluyó un token de sesión.');
                 }

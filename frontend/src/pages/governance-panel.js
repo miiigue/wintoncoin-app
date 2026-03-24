@@ -23,8 +23,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
     const voteFocusMode = urlParams.get('focus') === 'vote' && Boolean(urlParams.get('id'));
 
+    function _redirectToLogin() {
+        const currentPath = window.location.pathname.split('/').pop() + window.location.search;
+        window.location.href = `login.html?returnTo=${encodeURIComponent(currentPath)}`;
+    }
+
     if (!token) {
-        window.location.href = 'login.html';
+        _redirectToLogin();
         return;
     }
 
@@ -45,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (response.status === 401) {
             showCustomAlert('Sesión expirada. Inicia sesión nuevamente.');
-            window.location.href = 'login.html';
+            _redirectToLogin();
             throw new Error('Sesión expirada');
         }
 
@@ -190,9 +195,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <p style="font-size: 2rem; margin-bottom: 16px;">⚠️</p>
                         <h2 style="color: var(--admin-text); margin-bottom: 12px;">Error de Acceso</h2>
                         <p style="color: #EF4444; margin-bottom: 24px;">${escapeHtml(err.message)}</p>
-                        <button onclick="window.location.href='login.html'" style="padding: 10px 24px; border-radius: 8px; background: var(--admin-primary); color: white; border: none; cursor: pointer; font-size: 0.95rem;">Iniciar Sesión</button>
+                        <button id="govErrorLoginBtn" style="padding: 10px 24px; border-radius: 8px; background: var(--admin-primary); color: white; border: none; cursor: pointer; font-size: 0.95rem;">Iniciar Sesión</button>
                     </div>
                 </div>`;
+            document.getElementById('govErrorLoginBtn')?.addEventListener('click', _redirectToLogin);
             return false;
         }
     }
