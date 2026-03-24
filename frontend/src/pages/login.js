@@ -80,25 +80,22 @@ function initializePolicyModal() {
 function _getSafeReturnTo(raw) {
     if (!raw || typeof raw !== 'string') return null;
 
-    try {
-        const decoded = decodeURIComponent(raw);
+    // URLSearchParams.get() ya decodifica, así que raw llega como texto plano.
+    const value = raw;
 
-        if (decoded.includes('://') || decoded.startsWith('//')) return null;
-        if (decoded.includes('javascript:') || decoded.includes('data:')) return null;
+    if (value.includes('://') || value.startsWith('//')) return null;
+    if (value.includes('javascript:') || value.includes('data:')) return null;
 
-        const ALLOWED_PAGES = [
-            'governance-panel.html',
-            'contract_interaction.html',
-            'admin-panel.html',
-        ];
+    const ALLOWED_PAGES = [
+        'governance-panel.html',
+        'contract_interaction.html',
+        'admin-panel.html',
+    ];
 
-        const pagePart = decoded.split('?')[0].replace(/^\//, '');
-        if (!ALLOWED_PAGES.includes(pagePart)) return null;
+    const pagePart = value.split('?')[0].replace(/^\//, '');
+    if (!ALLOWED_PAGES.includes(pagePart)) return null;
 
-        return decoded;
-    } catch {
-        return null;
-    }
+    return value;
 }
 
 /**
