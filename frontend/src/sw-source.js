@@ -52,8 +52,10 @@ registerRoute(
 );
 
 // CSS/JS con hash: Cache First
+// Vite puede generar hashes alfanuméricos (incluye mayúsculas, "_" y "-"),
+// por eso no usamos un patrón solo hexadecimal.
 registerRoute(
-    /\/assets\/.*\.[a-f0-9]{8}\.(css|js)$/,
+    /\/assets\/.*\.[A-Za-z0-9_-]{8,}\.(css|js)$/,
     new CacheFirst({
         cacheName: 'wintoncoin-assets-v1',
         plugins: [

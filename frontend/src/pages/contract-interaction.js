@@ -638,9 +638,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function confirmPaymentAndRate(pubId, authorUsername, acceptorUsername) {
         try {
+            const token = localStorage.getItem('token');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const response = await fetch(`${API_URL}/publications/${pubId}/confirm-payment`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({ confirmerUsername: storedUsername, workerUsername: acceptorUsername })
             });
             const result = await response.json();
@@ -719,9 +723,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function deleteFromServer(endpoint, body) {
         try {
+            const token = localStorage.getItem('token');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const response = await fetch(`${API_URL}${endpoint}`, {
                 method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify(body)
             });
             const result = await response.json();
@@ -1782,9 +1790,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (burnConfirmModal) burnConfirmModal.style.display = 'none';
 
                 try {
+                    const token = localStorage.getItem('token');
+                    const headers = { 'Content-Type': 'application/json' };
+                    if (token) headers['Authorization'] = `Bearer ${token}`;
+
                     const response = await fetch(`${API_URL}/users/burn`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers,
                         body: JSON.stringify({ username: storedUsername, amount: pendingBurnAmount })
                     });
                     const result = await response.json();

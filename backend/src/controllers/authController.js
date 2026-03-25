@@ -487,10 +487,13 @@ exports.login = async (req, res) => {
         }
 
         // VERIFICACIÓN DE ESTADO DEL USUARIO
-        if (user.status === 'suspended') {
+        // Fuente de verdad: account_status (columna vigente para moderación).
+        // Fallback a status por compatibilidad con datos legacy.
+        const moderationStatus = user.account_status || user.status || 'active';
+        if (moderationStatus === 'suspended') {
             return res.status(403).json({ message: "Tu cuenta ha sido suspendida. Por favor, contacta a soporte." });
         }
-        if (user.status === 'banned') {
+        if (moderationStatus === 'banned') {
             return res.status(403).json({ message: "Tu cuenta ha sido baneada permanentemente." });
         }
 

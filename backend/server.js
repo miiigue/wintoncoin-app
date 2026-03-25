@@ -559,9 +559,12 @@ async function startServer() {
 
 
 
-        // Ruta para obtener las notificaciones de un usuario
-        app.get('/notifications/:username', async (req, res) => {
+        // Ruta legacy endurecida: notificaciones por username solo para el usuario dueño.
+        app.get('/notifications/:username', verifyUserToken, async (req, res) => {
             const { username } = req.params;
+            if (!req.user?.username || req.user.username !== username) {
+                return res.status(403).json({ message: 'No autorizado para consultar notificaciones de otro usuario.' });
+            }
             const sql = `SELECT * FROM notifications WHERE recipient_username = $1 AND is_read = FALSE ORDER BY created_at DESC`;
             try {
                 const result = await pool.query(sql, [username]);
@@ -604,8 +607,11 @@ async function startServer() {
         });
 
         // Ruta para marcar notificaciones como leídas
-        app.post('/notifications/mark-read', async (req, res) => {
+        app.post('/notifications/mark-read', verifyUserToken, async (req, res) => {
             const { username } = req.body;
+            if (!req.user?.username || req.user.username !== username) {
+                return res.status(403).json({ message: 'No autorizado para modificar notificaciones de otro usuario.' });
+            }
             const sql = `UPDATE notifications SET is_read = TRUE WHERE recipient_username = $1 AND is_read = FALSE`;
             try {
                 const result = await pool.query(sql, [username]);
@@ -631,12 +637,15 @@ async function startServer() {
         });
 
         // Ruta para descartar una notificación INDIVIDUAL
-        app.post('/notifications/:id/dismiss', async (req, res) => {
+        app.post('/notifications/:id/dismiss', verifyUserToken, async (req, res) => {
             const { id } = req.params;
             const { username } = req.body;
 
             if (!username) {
                 return res.status(400).json({ message: "Se requiere nombre de usuario." });
+            }
+            if (!req.user?.username || req.user.username !== username) {
+                return res.status(403).json({ message: 'No autorizado para descartar notificaciones de otro usuario.' });
             }
 
             try {
@@ -710,8 +719,11 @@ async function startServer() {
         });
 
         // Ruta: Obtener el historial de un usuario
-        app.get('/users/:username/history', async (req, res) => {
+        app.get('/users/:username/history', verifyUserToken, async (req, res) => {
             const { username } = req.params;
+            if (!req.user?.username || req.user.username !== username) {
+                return res.status(403).json({ message: 'No autorizado para consultar historial de otro usuario.' });
+            }
             try {
                 // Historial "completo" (fintech/banca): no ocultamos publicaciones eliminadas.
                 // Las marcamos con flags para que el frontend muestre badges (ELIMINADA/EXPIRADA/COMPLETADA).
@@ -782,8 +794,11 @@ async function startServer() {
         });
 
         // Ruta: Obtener las transacciones de un usuario
-        app.get('/users/:username/transactions', async (req, res) => {
+        app.get('/users/:username/transactions', verifyUserToken, async (req, res) => {
             const { username } = req.params;
+            if (!req.user?.username || req.user.username !== username) {
+                return res.status(403).json({ message: 'No autorizado para consultar transacciones de otro usuario.' });
+            }
             const sql = `
                 SELECT t.*, u.username 
                 FROM transactions t 
@@ -801,8 +816,11 @@ async function startServer() {
         });
 
         // RUTA: Obtener los saldos de un usuario
-        app.get('/users/:username/balance', async (req, res) => {
+        app.get('/users/:username/balance', verifyUserToken, async (req, res) => {
             const { username } = req.params;
+            if (!req.user?.username || req.user.username !== username) {
+                return res.status(403).json({ message: 'No autorizado para consultar balance de otro usuario.' });
+            }
 
             const client = await pool.connect();
             try {
@@ -1490,8 +1508,7 @@ async function startServer() {
             }
 
             try {
-                // Evitar que el admin se modifique a sí mismo o a la plataforma
-                const adminUser = await pool.query('SELECT username FROM users WHERE id = $1', [res.locals.admin.id]);
+                // Evitar modificación de cuentas protegidas por política de seguridad.
                 const targetUser = await pool.query('SELECT username FROM users WHERE id = $1', [userId]);
 
                 if (!targetUser.rows.length) {
@@ -1499,13 +1516,14 @@ async function startServer() {
                 }
 
                 const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
+                const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+                const protectedUsernames = new Set([
+                    platformUsername.toLowerCase(),
+                    adminUsername.toLowerCase()
+                ]);
 
-                if (targetUser.rows[0].username === adminUser.rows[0].username) {
-                    return res.status(403).json({ message: 'Un administrador no puede cambiar su propio estado.' });
-                }
-
-                if (targetUser.rows[0].username === platformUsername) {
-                    return res.status(403).json({ message: 'No se puede cambiar el estado de la cuenta de la plataforma.' });
+                if (protectedUsernames.has(String(targetUser.rows[0].username || '').toLowerCase())) {
+                    return res.status(403).json({ message: 'No se puede cambiar el estado de una cuenta protegida del sistema.' });
                 }
 
                 const result = await pool.query(

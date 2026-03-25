@@ -12,6 +12,9 @@ if (typeof window.__pwaInstallInitialized === 'undefined') {
     window.__deferredPrompt = null;
 }
 
+const PWA_INSTALLED_KEY = 'pwa_installed';
+const PWA_INSTALL_DISMISSED_KEY = 'pwa_install_dismissed';
+
 /**
  * Guarda el código de referido de la URL en localStorage
  * para que persista después de instalar la PWA
@@ -69,7 +72,8 @@ export function initPWAInstall() {
     console.log('[PWA] initPWAInstall llamado');
     console.log('[PWA] pathname:', window.location.pathname);
     console.log('[PWA] isPWAInstalled:', isPWAInstalled());
-    console.log('[PWA] pwa_installed localStorage:', localStorage.getItem('pwa_installed'));
+    console.log('[PWA] pwa_installed localStorage:', localStorage.getItem(PWA_INSTALLED_KEY));
+    console.log('[PWA] pwa_install_dismissed localStorage:', localStorage.getItem(PWA_INSTALL_DISMISSED_KEY));
 
     // Service Worker is registered by VitePWA via registerSW.js (sw-source.js)
     // NO registrar sw.js manualmente aquí - interfiere con el SW que tiene push handlers
@@ -103,7 +107,8 @@ export function initPWAInstall() {
             const installBtn = document.getElementById('pwa-install-btn');
             if (installBtn) installBtn.remove();
             // Guardar en localStorage que ya está instalada
-            localStorage.setItem('pwa_installed', 'true');
+            localStorage.setItem(PWA_INSTALLED_KEY, 'true');
+            localStorage.removeItem(PWA_INSTALL_DISMISSED_KEY);
         });
     }
 
@@ -117,9 +122,15 @@ export function initPWAInstall() {
 
     // VERIFICACIÓN 3: Si la app YA FUE instalada anteriormente y NO hay registro pendiente
     // (detectado por localStorage, aplica cuando navegas en el browser normal)
-    const alreadyInstalled = localStorage.getItem('pwa_installed') === 'true';
+    const alreadyInstalled = localStorage.getItem(PWA_INSTALLED_KEY) === 'true';
     if (alreadyInstalled) {
         console.log('[PWA] App ya fue instalada previamente - no mostrar botón');
+        return;
+    }
+
+    const installDismissed = localStorage.getItem(PWA_INSTALL_DISMISSED_KEY) === 'true';
+    if (installDismissed) {
+        console.log('[PWA] Usuario descartó instalación previamente - no mostrar botón');
         return;
     }
 
@@ -469,7 +480,7 @@ function showInstallModal(instructions) {
     modal.querySelector('.pwa-modal-backdrop').addEventListener('click', () => modal.remove());
     modal.querySelector('.pwa-btn-later').addEventListener('click', () => modal.remove());
     modal.querySelector('.pwa-btn-dismiss').addEventListener('click', () => {
-        localStorage.setItem('pwa_installed', 'true'); // Marcar como "no mostrar más"
+        localStorage.setItem(PWA_INSTALL_DISMISSED_KEY, 'true'); // Marcar como "no mostrar más"
         modal.remove();
         const installBtn = document.getElementById('pwa-install-btn');
         if (installBtn) installBtn.remove();

@@ -396,3 +396,72 @@ Ajuste integral de seguridad y consistencia del módulo de Talento para eliminar
 - **Config Pública de Reclutamiento**: Nuevo endpoint `GET /api/recruitment/config` para exponer el multiplicador vigente de forma controlada al frontend.
 - **Frontend Reclutamiento Sin Multipart**: `trabaja-con-nosotros.html` ahora envía JSON (sin `FormData`) y consulta dinámicamente el multiplicador para renderizar badge y ejemplo de compensación en tiempo real.
 - **Hardening CORS en Producción**: En `server.js`, se eliminó el allow-all efectivo para producción y se restringe a orígenes permitidos, manteniendo flexibilidad solo en desarrollo.
+
+### [2026-03-25] - Hardening Crítico de Seguridad + Robustez PWA Android
+#### Descripción
+Se aplicó un paquete de correcciones críticas orientadas a estándares fintech/bancarios: cierre de exposición por `username`, validación de identidad contra JWT (anti-suplantación), y ajustes de PWA para mejorar la consistencia de instalación/actualización en Android.
+
+#### Cambios realizados
+- **Autorización Anti-Suplantación (IDOR Mitigation)**:
+  - Refuerzo de `requireAcceptedLegalByUsernameField` en `backend/src/middleware/legalAcceptanceMiddleware.js`.
+  - Nueva política: actor autenticado obligatorio + coincidencia estricta `JWT.username === body.username` en flujos de usuario final.
+  - Exenciones controladas únicamente para actores administrativos/sistema autenticados.
+- **Cierre de Endpoints Legacy Expuestos**:
+  - Endurecidos con `verifyUserToken` y validación de propiedad (`req.user.username === :username` o body):
+    - `GET /notifications/:username`
+    - `POST /notifications/mark-read`
+    - `POST /notifications/:id/dismiss`
+    - `GET /users/:username/history`
+    - `GET /users/:username/transactions`
+    - `GET /users/:username/balance`
+  - Resultado: no se permite consultar/alterar datos de terceros aunque se conozca su username.
+- **Consistencia de Moderación de Cuentas**:
+  - Login ahora evalúa estado desde `account_status` con fallback legacy a `status`.
+  - Se corrige endpoint admin de cambio de estado para evitar dependencia inconsistente de `res.locals.admin.id` y proteger cuentas de sistema (`platform/admin`).
+- **Frontend Seguro (Token Propagation)**:
+  - Se agregó `Authorization: Bearer <token>` a llamadas críticas que faltaban en `frontend/src/pages/contract-interaction.js`:
+    - Confirmación de pago.
+    - Eliminación de publicaciones.
+    - Quema de tokens.
+  - Resultado: backend endurecido y frontend alineados sin regresión funcional.
+- **PWA Android (Instalación/Actualización más robusta)**:
+  - `frontend/public/manifest.json`:
+    - Se añadió `id` estable.
+    - Se versionó `start_url` con `?source=pwa` para identidad consistente de instalación.
+  - `frontend/src/sw-source.js`:
+    - Se corrigió regex de cache runtime para assets con hashes reales de Vite (`A-Za-z0-9_-`), evitando fallos silenciosos de caché.
+  - `frontend/src/modules/pwa-install.js`:
+    - Se separó estado `pwa_installed` de `pwa_install_dismissed` para no bloquear instalación futura por descarte de UI.
+
+#### Nota operativa (Android / Google Play Protect)
+- La alerta de Play Protect observada por usuarios suele corresponder a una instalación previa tipo APK/WebAPK antigua o envoltorio legacy en el dispositivo.
+- Recomendación: desinstalar app previa del dispositivo y reinstalar desde Chrome (PWA), validando que tome el nuevo `manifest id/start_url`.
+
+### [2026-03-25] - Android Hardening (Cleartext por entorno)
+#### Descripción
+Se aplicó un ajuste de seguridad en la app Android nativa para cumplir práctica estándar: tráfico HTTP permitido solo en desarrollo (`debug`) y bloqueado en producción (`release`).
+
+#### Cambios realizados
+- **Manifest seguro por placeholder**:
+  - `android-app/app/src/main/AndroidManifest.xml` ahora usa `android:usesCleartextTraffic="${usesCleartextTraffic}"`.
+- **Gradle por entorno**:
+  - `android-app/app/build.gradle.kts`:
+    - `release` -> `manifestPlaceholders["usesCleartextTraffic"] = "false"`
+    - `debug` -> `manifestPlaceholders["usesCleartextTraffic"] = "true"`
+
+#### Impacto
+- **Producción**: endurecida (sin HTTP plano).
+- **Desarrollo local**: sin ruptura, se mantiene acceso a backend local HTTP.
+
+### [2026-03-25] - PWA: Manifest explícito en Landing principal
+#### Descripción
+Ajuste puntual para robustecer la instalabilidad PWA en Android desde la URL principal (`www.wintoncoin.com`), asegurando que la landing incluya manifiesto y color de tema.
+
+#### Cambios realizados
+- `frontend/index.html`:
+  - Se añadió `<meta name="theme-color" content="#4a90d9">`.
+  - Se añadió `<link rel="manifest" href="manifest.json">`.
+
+#### Impacto
+- Mejora la detección de instalación PWA desde la primera página de entrada.
+- Reduce comportamientos inconsistentes de “instalar app” en navegadores Android cuando el manifiesto no estaba presente en la landing.
