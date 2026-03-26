@@ -574,3 +574,19 @@ El frontend de producción migró de `sc.wintoncoin.com` a `wintoncoin.com`, per
 #### Impacto
 - Resuelve error CORS que impedía el funcionamiento de la página de reclutamiento (`trabaja-con-nosotros.html`) y cualquier otra petición al backend desde el dominio principal.
 - Sin impacto en seguridad: solo se agregan dominios legítimos del proyecto.
+
+---
+
+## [2026-03-26] - Fix auth: agregar token Bearer a publication-detail.js
+
+### Descripción
+La función `fetchFromServer` en `publication-detail.js` no incluía el header `Authorization: Bearer` en las peticiones al backend. Tras el endurecimiento de seguridad que requiere JWT en todas las rutas autenticadas, las acciones como "Aceptar Tarea", "Aprobar", "Completar" y "Confirmar Pago" fallaban con error "No autenticado".
+
+#### Cambios realizados
+- `frontend/src/pages/publication-detail.js`:
+  - Agregada lectura de `localStorage.getItem('token')` al inicio del módulo.
+  - `fetchFromServer()` ahora incluye `Authorization: Bearer <token>` en todas las peticiones.
+
+#### Impacto
+- Resuelve error "No autenticado" al intentar aceptar, aprobar, completar o confirmar pago en publicaciones.
+- Todas las acciones de publicación ahora envían identidad JWT verificable al backend.

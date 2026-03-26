@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_URL = getApiUrl();
 
     const storedUsername = localStorage.getItem('username');
+    const storedToken = localStorage.getItem('token');
     const urlParams = new URLSearchParams(window.location.search);
     const publicationId = urlParams.get('id');
 
@@ -781,9 +782,13 @@ ${publicationUrl}`;
     // --- Generic Server Request ---
     async function fetchFromServer(endpoint, method = 'POST', body = null) {
         try {
+            const headers = { 'Content-Type': 'application/json' };
+            if (storedToken) {
+                headers['Authorization'] = 'Bearer ' + storedToken;
+            }
             const options = {
                 method,
-                headers: { 'Content-Type': 'application/json' },
+                headers,
             };
             if (body) {
                 options.body = JSON.stringify(body);
