@@ -166,7 +166,9 @@ async function startServer() {
         app.use('/api/solidario', solidarioRoutes); // Registrar rutas de Winton Solidario
 
         // Registrar rutas de Publicaciones
-        app.use('/', publicationRoutes(pool, requireAcceptedLegalByUsernameField, verifyAdminToken, logAuditEvent)); // Registrar rutas de autenticación
+        // Para publicaciones: permitir actor autenticado (autor) o administrador.
+        // Esto evita bloquear flujos legítimos del autor sin abrir rutas admin-only globales.
+        app.use('/', publicationRoutes(pool, requireAcceptedLegalByUsernameField, verifyAdminOrUserToken, logAuditEvent)); // Registrar rutas de autenticación
 
         // --- NUEVO: Ruta para Mensajes Intersticiales Globales ---
         const interstitialController = require('./src/controllers/interstitialController');
@@ -776,6 +778,66 @@ async function startServer() {
             }
         });
 
+        // --- ENDPOINT PROFESIONAL: historial del usuario autenticado ---
+        // Fuente de verdad: JWT (userId + username), sin depender de username en URL.
+        app.get('/api/me/history', verifyUserToken, async (req, res) => {
+            const userId = req.user?.userId;
+            const username = req.user?.username;
+            if (!userId || !username) {
+                return res.status(401).json({ message: 'No autenticado.' });
+            }
+
+            try {
+                const authoredSql = `
+                    SELECT
+                        p.*,
+                        u.username as author_username,
+                        (p.deleted_at IS NOT NULL) AS is_deleted,
+                        (p.expires_at IS NOT NULL AND p.expires_at < NOW()) AS is_expired,
+                        (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id) AS participants_count,
+                        (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status = 'confirmed_paid') AS completed_count,
+                        (
+                            CASE
+                                WHEN COALESCE(p.is_quick_sale, FALSE) = TRUE THEN (p.status <> 'open')
+                                ELSE (
+                                    p.available_slots <= 0
+                                )
+                            END
+                        ) AS is_completed_publication
+                    FROM publications p
+                    JOIN users u ON p.author_id = u.id
+                    WHERE p.author_id = $1
+                    ORDER BY p.created_at DESC
+                `;
+
+                // Nota: publication_acceptances actualmente sigue modelado por username.
+                const completedSql = `
+                    SELECT
+                        p.*,
+                        u.username as author_username,
+                        pa.status as user_acceptance_status,
+                        pa.form_responses,
+                        (p.deleted_at IS NOT NULL) AS is_deleted,
+                        (p.expires_at IS NOT NULL AND p.expires_at < NOW()) AS is_expired
+                    FROM publications p
+                    JOIN users u ON p.author_id = u.id
+                    JOIN publication_acceptances pa ON p.id = pa.publication_id
+                    WHERE pa.acceptor_username = $1 AND pa.status = 'confirmed_paid'
+                    ORDER BY p.created_at DESC
+                `;
+
+                const [authoredResult, completedResult] = await Promise.all([
+                    pool.query(authoredSql, [userId]),
+                    pool.query(completedSql, [username])
+                ]);
+
+                res.status(200).json({ authored: authoredResult.rows, completed: completedResult.rows });
+            } catch (err) {
+                console.error("Error al obtener historial (/api/me/history):", err.message);
+                res.status(500).json({ message: "Error interno del servidor." });
+            }
+        });
+
         // Ruta para obtener todos los participantes de una publicación
         app.get('/publications/:id/participants', async (req, res) => {
             const { id } = req.params;
@@ -811,6 +873,29 @@ async function startServer() {
                 res.status(200).json(result.rows);
             } catch (err) {
                 console.error("Error al obtener las transacciones:", err.message);
+                return res.status(500).json({ message: "Error interno del servidor." });
+            }
+        });
+
+        // --- ENDPOINT PROFESIONAL: transacciones del usuario autenticado ---
+        // Fuente de verdad: userId del JWT.
+        app.get('/api/me/transactions', verifyUserToken, async (req, res) => {
+            const userId = req.user?.userId;
+            if (!userId) {
+                return res.status(401).json({ message: 'No autenticado.' });
+            }
+            const sql = `
+                SELECT t.*, u.username
+                FROM transactions t
+                JOIN users u ON t.user_id = u.id
+                WHERE t.user_id = $1
+                ORDER BY t.created_at DESC
+            `;
+            try {
+                const result = await pool.query(sql, [userId]);
+                res.status(200).json(result.rows);
+            } catch (err) {
+                console.error("Error al obtener las transacciones (/api/me/transactions):", err.message);
                 return res.status(500).json({ message: "Error interno del servidor." });
             }
         });
@@ -2919,15 +3004,54 @@ async function startServer() {
 // Middleware de verificación de token de administrador (MODIFICADO PARA COOKIES)
 function verifyAdminToken(req, res, next) {
     // Buscamos el token en la cookie firmada 'admin_token'
-    const token = req.cookies.admin_token;
+    const token = req.cookies?.admin_token;
 
     if (!token) return res.status(401).json({ message: "No autorizado. Token no encontrado." });
 
     jwt.verify(token, process.env.ADMIN_SECRET_KEY, (err, user) => {
         if (err) return res.status(403).json({ message: "Token inválido o expirado." });
-        req.user = user;
+
+        // Normalización de identidad admin para consistencia transversal:
+        // algunos controladores validan req.user.role === 'admin'.
+        req.user = {
+            ...user,
+            role: 'admin'
+        };
+
+        // Compatibilidad adicional para módulos legacy que usen res.locals.admin.
+        res.locals.admin = req.user;
         next();
     });
+}
+
+/**
+ * Middleware combinado para flujos de publicación:
+ * - Si hay cookie admin válida, autentica como admin.
+ * - En caso contrario, exige JWT de usuario (Bearer) con validaciones completas.
+ *
+ * Nota: no usar este middleware para rutas estrictamente administrativas del sistema.
+ */
+function verifyAdminOrUserToken(req, res, next) {
+    const adminToken = req.cookies?.admin_token;
+
+    if (adminToken) {
+        jwt.verify(adminToken, process.env.ADMIN_SECRET_KEY, (adminErr, adminUser) => {
+            if (!adminErr && adminUser) {
+                req.user = {
+                    ...adminUser,
+                    role: 'admin'
+                };
+                res.locals.admin = req.user;
+                return next();
+            }
+
+            // Si la cookie admin está vencida/inválida, intentamos flujo usuario.
+            return verifyUserToken(req, res, next);
+        });
+        return;
+    }
+
+    return verifyUserToken(req, res, next);
 }
 
 /**
@@ -2944,12 +3068,47 @@ function verifyUserToken(req, res, next) {
         return res.status(401).json({ message: 'No autenticado. Token no proporcionado.' });
     }
 
-    jwt.verify(token, jwtSecret, (err, decoded) => {
+    jwt.verify(token, jwtSecret, async (err, decoded) => {
         if (err || !decoded) {
             return res.status(401).json({ message: 'No autenticado. Token inválido o expirado.' });
         }
-        req.user = decoded; // { userId, username }
-        next();
+
+        try {
+            const userId = decoded.userId;
+            if (!userId) {
+                return res.status(401).json({ message: 'No autenticado. Token inválido.' });
+            }
+
+            // Endurecimiento de sesión: invalidar JWT emitidos antes de password reset.
+            // Estándar fintech: toda ruta autenticada debe respetar revocación por cambio de credenciales.
+            const userResult = await pool.query(
+                'SELECT password_invalidate_before FROM users WHERE id = $1',
+                [userId]
+            );
+
+            if (userResult.rowCount === 0) {
+                return res.status(401).json({ message: 'No autenticado. Usuario no encontrado.' });
+            }
+
+            const invalidateBefore = userResult.rows[0].password_invalidate_before;
+            if (invalidateBefore) {
+                const tokenIssuedAt = new Date((decoded.iat || 0) * 1000);
+                if (tokenIssuedAt < new Date(invalidateBefore)) {
+                    return res.status(401).json({
+                        message: 'No autenticado. Tu sesión fue invalidada por un cambio de contraseña.',
+                        code: 'SESSION_INVALIDATED'
+                    });
+                }
+            }
+
+            req.user = decoded; // { userId, username, iat, exp }
+            next();
+        } catch (dbErr) {
+            console.error('[AUTH] Error al validar estado de sesión:', dbErr);
+            return res.status(503).json({
+                message: 'Servicio temporalmente no disponible para validar autenticación.'
+            });
+        }
     });
 }
 

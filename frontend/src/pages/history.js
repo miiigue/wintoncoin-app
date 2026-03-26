@@ -27,7 +27,9 @@ function initializeHistoryPage() {
 
     async function fetchHistory() {
         try {
-            const response = await fetch(`${API_URL}/users/${storedUsername}/history`);
+            const token = localStorage.getItem('token');
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            const response = await fetch(`${API_URL}/api/me/history`, { headers });
             if (!response.ok) {
                 throw new Error('No se pudo cargar el historial.');
             }
@@ -277,9 +279,13 @@ function initializeHistoryPage() {
 
     async function postToServer(endpoint, body) {
         try {
+            const token = localStorage.getItem('token');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
             const response = await fetch(`${API_URL}${endpoint}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify(body)
             });
             const result = await response.json();

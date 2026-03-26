@@ -465,3 +465,76 @@ Ajuste puntual para robustecer la instalabilidad PWA en Android desde la URL pri
 #### Impacto
 - Mejora la detección de instalación PWA desde la primera página de entrada.
 - Reduce comportamientos inconsistentes de “instalar app” en navegadores Android cuando el manifiesto no estaba presente en la landing.
+
+### [2026-03-25] - Migración segura a identidad JWT (`/api/me`) en Historial/Transacciones
+#### Descripción
+Paso incremental de estandarización: se introducen endpoints autenticados por JWT para historial y transacciones, reduciendo dependencia de rutas con `username` en URL.
+
+#### Cambios realizados
+- **Backend (`backend/server.js`)**
+  - Nuevo `GET /api/me/history`:
+    - Usa `req.user.userId` como fuente de verdad para publicaciones creadas.
+    - Usa `req.user.username` para historial completado donde el modelo legacy aún depende de username.
+  - Nuevo `GET /api/me/transactions`:
+    - Consulta por `t.user_id = req.user.userId`.
+- **Frontend**
+  - `frontend/src/pages/history.js`:
+    - Cambia consumo a `GET /api/me/history`.
+    - Envía `Authorization: Bearer <token>`.
+    - Endurece `postToServer` para incluir token en acciones.
+  - `frontend/src/pages/transactions.js`:
+    - Cambia consumo a `GET /api/me/transactions`.
+    - Envía `Authorization: Bearer <token>`.
+
+#### Impacto
+- Disminuye superficie de ataque por URL basada en username.
+- Alinea el flujo con práctica profesional fintech: identidad canónica por JWT/userId.
+- Mantiene compatibilidad, sin retirar de inmediato endpoints legacy.
+
+### [2026-03-25] - Hardening de sesión JWT en `verifyUserToken`
+#### Descripción
+Se endureció el middleware principal de autenticación del monolito (`server.js`) para aplicar invalidación de sesión por cambio de contraseña en todas las rutas que usan `verifyUserToken`.
+
+#### Cambios realizados
+- `backend/server.js`:
+  - `verifyUserToken` ahora:
+    - valida existencia de `userId` en el token,
+    - consulta `users.password_invalidate_before`,
+    - rechaza JWT emitidos antes del timestamp de invalidación (`code: SESSION_INVALIDATED`),
+    - rechaza tokens de usuarios inexistentes.
+  - En caso de fallo de DB durante validación de sesión, responde `503` (fail-safe) para no autorizar sin comprobación.
+
+#### Impacto
+- Cierra brecha de inconsistencia: antes, algunas rutas del monolito aceptaban tokens viejos tras reset de contraseña.
+- Uniforma el estándar de seguridad con el middleware `authenticateToken` ya existente.
+
+### [2026-03-25] - Normalización de identidad admin en `verifyAdminToken`
+#### Descripción
+Se aplicó un ajuste corto de consistencia para evitar divergencias de autorización entre controladores que esperan `req.user.role === 'admin'`.
+
+#### Cambios realizados
+- `backend/server.js`:
+  - `verifyAdminToken` ahora usa lectura segura de cookie (`req.cookies?.admin_token`).
+  - Tras verificar JWT admin, normaliza:
+    - `req.user.role = 'admin'`.
+    - `res.locals.admin = req.user` (compatibilidad con módulos legacy).
+
+#### Impacto
+- Elimina inconsistencias de permisos admin en rutas que validan `req.user.role`.
+- Mejora compatibilidad sin cambiar contratos de API ni flujo funcional del frontend.
+
+### [2026-03-25] - Middleware combinado para flujos de publicaciones (`verifyAdminOrUserToken`)
+#### Descripción
+Paso incremental de autorización: se habilita autenticación dual (admin o usuario autenticado) en rutas de publicación que operativamente usan autores y, en algunos casos, override administrativo.
+
+#### Cambios realizados
+- `backend/server.js`:
+  - Nuevo middleware `verifyAdminOrUserToken`:
+    - Si existe cookie admin válida -> autentica como admin (`role: 'admin'`).
+    - Si no existe o es inválida -> valida JWT de usuario (`verifyUserToken`).
+  - El router de publicaciones (`publicationRoutes`) pasa a usar este middleware combinado en lugar de `verifyAdminToken`.
+
+#### Impacto
+- Evita bloqueo de flujos legítimos del autor en endpoints de publicaciones.
+- Mantiene soporte de override admin cuando aplique.
+- No amplía permisos en endpoints admin-only globales, ya que el cambio se limita al router de publicaciones.

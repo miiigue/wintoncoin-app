@@ -27,7 +27,9 @@ function initializeTransactionsPage() {
 
     async function fetchTransactions() {
         try {
-            const response = await fetch(`${API_URL}/users/${storedUsername}/transactions`);
+            const token = localStorage.getItem('token');
+            const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+            const response = await fetch(`${API_URL}/api/me/transactions`, { headers });
             if (!response.ok) {
                 throw new Error('No se pudo cargar el historial de transacciones.');
             }
