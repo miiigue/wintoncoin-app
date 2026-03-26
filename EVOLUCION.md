@@ -557,3 +557,20 @@ Se redujo dependencia de campos `...Username` enviados por cliente, usando ident
 - Menor riesgo de spoofing funcional por manipulación de `username` en body.
 - Mejor trazabilidad de auditoría (actor/target consistentes con datos canónicos).
 - Compatibilidad preservada para flujos admin legacy.
+
+---
+
+## [2026-03-26] - Fix CORS: agregar dominio principal de producción
+
+### Descripción
+El frontend de producción migró de `sc.wintoncoin.com` a `wintoncoin.com`, pero la lista de orígenes permitidos (CORS) del backend no incluía los nuevos dominios. Esto provocaba que todas las peticiones desde producción fueran bloqueadas por el navegador (error CORS 403).
+
+#### Cambios realizados
+- `backend/server.js`:
+  - Agregado `https://wintoncoin.com` a `ALLOWED_ORIGINS` (dominio principal de producción).
+  - Agregado `https://www.wintoncoin.com` a `ALLOWED_ORIGINS` (variante con www).
+  - Se mantienen los dominios legacy (`sc.wintoncoin.com`) para compatibilidad.
+
+#### Impacto
+- Resuelve error CORS que impedía el funcionamiento de la página de reclutamiento (`trabaja-con-nosotros.html`) y cualquier otra petición al backend desde el dominio principal.
+- Sin impacto en seguridad: solo se agregan dominios legítimos del proyecto.

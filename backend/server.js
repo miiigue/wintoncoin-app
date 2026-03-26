@@ -87,8 +87,10 @@ const {
 // - En desarrollo: además localhost para permitir trabajar sin abrir CORS globalmente
 const ALLOWED_ORIGINS = [
     'https://wintoncoin-frontend.onrender.com',
-    'https://sc.wintoncoin.com', // Hostinger (producción)
+    'https://sc.wintoncoin.com', // Hostinger (producción legacy)
     'https://www.sc.wintoncoin.com',
+    'https://wintoncoin.com', // Producción (dominio principal)
+    'https://www.wintoncoin.com', // Producción (con www)
     'https://demo.wintoncoin.com', // Entorno DEMO
     'https://www.demo.wintoncoin.com' // Entorno DEMO (con www)
 ];
