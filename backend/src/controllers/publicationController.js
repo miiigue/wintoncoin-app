@@ -13,6 +13,18 @@ const {
 const notificationService = require('../services/notificationService');
 
 module.exports = function (router, pool, requireAcceptedLegalByUsernameField, verifyAdminToken, logAuditEvent) {
+    /**
+     * Resuelve el actor canónico para auditoría/autorización.
+     * - Usuario final: req.user.username (JWT) es la fuente de verdad.
+     * - Admin: usamos fallback explícito para compatibilidad con flujos legacy.
+     */
+    function resolveActorUsername(req, fallbackUsername) {
+        const isAdmin = req.user && req.user.role === 'admin';
+        if (!isAdmin) {
+            return (req.user?.username || fallbackUsername || '').trim();
+        }
+        return (fallbackUsername || process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin').trim();
+    }
 
     // Ruta para crear una nueva Publicación
     router.post('/publish', requireAcceptedLegalByUsernameField(['authorUsername']), async (req, res) => {
@@ -869,6 +881,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
     router.post('/publications/:id/discard', verifyAdminToken, requireAcceptedLegalByUsernameField(['discarderUsername']), async (req, res) => {
         const { id } = req.params;
         const { discarderUsername, userToDiscard } = req.body;
+        const actorUsername = resolveActorUsername(req, discarderUsername);
 
         const client = await pool.connect();
         try {
@@ -893,7 +906,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             // En este contexto, verifyAdminToken asegura que es un admin o el autor autenticado.
             // Pero para ser doblemente seguros en el monolito:
             const isAdmin = req.user && req.user.role === 'admin';
-            if (pub.author_username !== discarderUsername && !isAdmin) {
+            if (pub.author_username !== actorUsername && !isAdmin) {
                 throw { status: 403, message: "No tienes permisos de administración sobre esta tarea." };
             }
 
@@ -941,7 +954,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             // 7. Auditoría Bancaria
             await logAuditEvent(client, req, {
                 eventType: 'publication.rejected',
-                actorUsername: discarderUsername,
+                actorUsername,
                 targetUsername: userToDiscard,
                 publicationId: parseInt(id, 10),
                 category: pub.category,
@@ -968,6 +981,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
     router.post('/publications/:id/approve', verifyAdminToken, requireAcceptedLegalByUsernameField(['approverUsername']), async (req, res) => {
         const { id } = req.params;
         const { approverUsername, userToApprove } = req.body;
+        const actorUsername = resolveActorUsername(req, approverUsername);
 
         const client = await pool.connect();
         try {
@@ -978,7 +992,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                      FROM publications p
                      JOIN users u ON p.author_id = u.id
                      WHERE p.id = $1 AND u.username = $2 AND p.deleted_at IS NULL`,
-                [id, approverUsername]
+                [id, actorUsername]
             );
             const pub = pubResult.rows[0];
             if (!pub) throw { status: 403, message: "No tienes permiso para aprobar solicitudes." };
@@ -1008,7 +1022,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             await logAuditEvent(client, req, {
                 eventType: 'publication.approved',
-                actorUsername: approverUsername,
+                actorUsername,
                 targetUsername: userToApprove,
                 publicationId: parseInt(id, 10),
                 category: pub.category,
@@ -1149,6 +1163,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
     router.post('/publications/:id/confirm-payment', verifyAdminToken, requireAcceptedLegalByUsernameField(['confirmerUsername']), async (req, res) => {
         const pubId = req.params.id;
         const { confirmerUsername, workerUsername } = req.body;
+        const actorUsername = resolveActorUsername(req, confirmerUsername);
 
         const client = await pool.connect();
         try {
@@ -1178,7 +1193,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             }
 
             // 2. Fallar rápido si el usuario no es el autor.
-            if (acceptance.author_username !== confirmerUsername) {
+            if (acceptance.author_username !== actorUsername) {
                 throw { status: 403, message: "No tienes permiso para confirmar el pago de esta tarea." };
             }
 
@@ -1187,7 +1202,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             if (workerUsername && acceptance.acceptor_username !== workerUsername) {
                 await logAuditEvent(client, req, {
                     eventType: 'publication.confirm_payment.mismatch',
-                    actorUsername: confirmerUsername,
+                    actorUsername,
                     targetUsername: workerUsername,
                     publicationId: parseInt(pubId, 10),
                     category: 'request',
@@ -1229,8 +1244,8 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             await logAuditEvent(client, req, {
                 eventType: 'publication.confirmed_paid',
-                actorUsername: confirmerUsername,
-                targetUsername: workerUsername,
+                actorUsername,
+                targetUsername: acceptance.acceptor_username,
                 publicationId: parseInt(pubId, 10),
                 category: 'request',
                 metadata: {

@@ -33,6 +33,10 @@ const demoModePlugin = (mode) => {
         // Interceptamos la etiqueta title para anteponerle la palabra [DEMO]
         modifiedHtml = modifiedHtml.replace(/<title>(.*?)<\/title>/, '<title>[DEMO] $1</title>');
 
+        // CRÍTICO: Interceptamos la referencia al manifest.json para que apunte al de la demo
+        modifiedHtml = modifiedHtml.replace(/href="manifest\.json"/g, 'href="manifest.demo.json"');
+        modifiedHtml = modifiedHtml.replace(/href="\.\/manifest\.json"/g, 'href="./manifest.demo.json"');
+
         return modifiedHtml;
       }
       return html;

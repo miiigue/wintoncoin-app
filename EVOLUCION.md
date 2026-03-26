@@ -538,3 +538,22 @@ Paso incremental de autorización: se habilita autenticación dual (admin o usua
 - Evita bloqueo de flujos legítimos del autor en endpoints de publicaciones.
 - Mantiene soporte de override admin cuando aplique.
 - No amplía permisos en endpoints admin-only globales, ya que el cambio se limita al router de publicaciones.
+
+### [2026-03-25] - Canonicalización de actor en `publicationController` (discard/approve/confirm-payment)
+#### Descripción
+Se redujo dependencia de campos `...Username` enviados por cliente, usando identidad canónica de `req.user` siempre que exista (JWT), manteniendo fallback controlado para compatibilidad.
+
+#### Cambios realizados
+- `backend/src/controllers/publicationController.js`:
+  - Nuevo helper `resolveActorUsername(req, fallbackUsername)`.
+  - Aplicado en:
+    - `POST /publications/:id/discard`
+    - `POST /publications/:id/approve`
+    - `POST /publications/:id/confirm-payment`
+  - Las validaciones de permisos y logs de auditoría usan `actorUsername` canónico.
+  - En `confirm-payment`, `targetUsername` del log final se normaliza al `acceptor_username` de DB (fuente de verdad).
+
+#### Impacto
+- Menor riesgo de spoofing funcional por manipulación de `username` en body.
+- Mejor trazabilidad de auditoría (actor/target consistentes con datos canónicos).
+- Compatibilidad preservada para flujos admin legacy.
