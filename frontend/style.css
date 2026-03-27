@@ -704,8 +704,7 @@ hr {
 .publication-controls {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 0.4rem;
+    gap: 0.6rem;
     margin: 0.5rem 0 1rem;
 }
 
@@ -727,18 +726,134 @@ hr {
     color: var(--text-secondary-color);
 }
 
-.publication-controls-select {
+/* --- Filter Chips: Fila horizontal de botones tipo pill para filtrado por tipo --- */
+.publication-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    padding: 2px 0;
+}
+
+.filter-chip {
+    /* Reset explícito del estilo global de button */
+    width: auto;
+    padding: 5px 12px;
+    border: 1px solid #2a3b5c;
+    border-radius: 20px;
+    background: transparent;
+    color: var(--text-secondary-color);
+    font-size: 0.78rem;
+    font-weight: 400;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.filter-chip:hover {
+    border-color: var(--primary-color);
+    color: var(--text-color);
+    background: transparent;
+    transform: none;
+}
+
+.filter-chip:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.filter-chip.active {
+    background: rgba(74, 144, 217, 0.15);
+    border-color: #4a90d9;
+    color: #4a90d9;
+    font-weight: 600;
+}
+
+/* --- Sort Container: Búsqueda + Dropdown en una sola línea, mismo tamaño --- */
+.publication-sort-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Estilo base compartido entre search input y sort select */
+/* Especificidad elevada para sobreescribir los estilos globales de input[type="text"] */
+.publication-sort-container .publication-search-input,
+.publication-sort-container .publication-sort-select {
+    height: 32px;
     background-color: var(--background-color);
     border: 1px solid #2a3b5c;
     border-radius: 8px;
     color: var(--text-color);
-    padding: 0.5rem 0.7rem 0.5rem 2rem;
-    font-size: 0.85rem;
+    padding: 0 0.6rem;
+    font-size: 0.8rem;
+    font-family: inherit;
+    box-sizing: border-box;
+    margin: 0;
+    margin-bottom: 0;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* --- Search Input con botón X integrado --- */
+.publication-search-wrapper {
+    position: relative;
+    flex: 1;
+}
+
+.publication-sort-container .publication-search-input {
     width: 100%;
-    max-width: 360px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23BDBDBD' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='4' y1='6' x2='20' y2='6'/%3Cline x1='7' y1='12' x2='17' y2='12'/%3Cline x1='10' y1='18' x2='14' y2='18'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: 0.7rem center;
+    padding-right: 1.6rem;
+}
+
+.publication-search-input::placeholder {
+    color: #8899b4;
+    opacity: 1;
+}
+
+.publication-search-input:focus,
+.publication-sort-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 8px rgba(106, 90, 205, 0.4);
+}
+
+.publication-search-clear {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary-color);
+    font-size: 0.85rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease;
+}
+
+.publication-search-clear:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--text-color);
+    transform: translateY(-50%);
+}
+
+/* --- Sort Select --- */
+.publication-sort-label {
+    display: none;
+}
+
+.publication-sort-select {
+    flex-shrink: 0;
+    cursor: pointer;
 }
 
 .booster-banner {
@@ -1677,19 +1792,16 @@ hr {
     }
 }
 
-.publication-controls-select:focus {
-    outline: none;
-    border-color: var(--primary-color);
-    box-shadow: 0 0 8px rgba(106, 90, 205, 0.4);
+@media (max-width: 600px) {
+    .publication-sort-select {
+        width: 100%;
+    }
 }
 
-@media (max-width: 600px) {
-    .publication-controls {
-        align-items: stretch;
-    }
-
-    .publication-controls-select {
-        width: 100%;
+@media (max-width: 360px) {
+    .filter-chip {
+        padding: 4px 10px;
+        font-size: 0.74rem;
     }
 }
 

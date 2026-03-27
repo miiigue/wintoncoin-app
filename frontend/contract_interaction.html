@@ -395,18 +395,32 @@
                         class="publications-count">0</span></span>
             </div>
 
+            <!-- Controles de filtrado y ordenamiento (separados por responsabilidad) -->
             <div class="publication-controls">
-                <select id="publicationSortFilter" class="publication-controls-select">
-                    <option value="" selected disabled>Ordenar por</option>
-                    <option value="pending">En proceso</option>
-                    <option value="recent">Más reciente</option>
-                    <option value="oldest">Más antigua</option>
-                    <option value="reward_desc">Mayor a menor (recompensa)</option>
-                    <option value="reward_asc">Menor a mayor (recompensa)</option>
-                    <option value="type_request">Solicitudes de tarea</option>
-                    <option value="type_sell">Ventas</option>
-                    <option value="type_donation">Donaciones</option>
-                </select>
+                <!-- Chips de filtro por tipo de publicación -->
+                <div class="publication-filter-chips" id="publicationFilterChips" role="group" aria-label="Filtrar publicaciones por tipo">
+                    <button type="button" class="filter-chip active" data-filter="all" aria-pressed="true">Todos</button>
+                    <button type="button" class="filter-chip" data-filter="pending" aria-pressed="false">En proceso</button>
+                    <button type="button" class="filter-chip" data-filter="request" aria-pressed="false">Solicitud</button>
+                    <button type="button" class="filter-chip" data-filter="sell" aria-pressed="false">Venta</button>
+                    <button type="button" class="filter-chip" data-filter="donation" aria-pressed="false">Donación</button>
+                </div>
+                <!-- Búsqueda + Ordenamiento (en línea horizontal) -->
+                <div class="publication-sort-container">
+                    <div class="publication-search-wrapper">
+                        <input type="text" id="publicationSearchInput" class="publication-search-input"
+                            placeholder="Buscar..." autocomplete="off" aria-label="Buscar publicaciones por título, descripción o autor">
+                        <button type="button" class="publication-search-clear" id="publicationSearchClear"
+                            aria-label="Limpiar búsqueda" style="display: none;">&times;</button>
+                    </div>
+                    <label for="publicationSortSelect" class="publication-sort-label">Ordenar:</label>
+                    <select id="publicationSortSelect" class="publication-sort-select" aria-label="Ordenar publicaciones">
+                        <option value="recent" selected>Más reciente</option>
+                        <option value="oldest">Más antigua</option>
+                        <option value="reward_desc">Mayor recompensa</option>
+                        <option value="reward_asc">Menor recompensa</option>
+                    </select>
+                </div>
             </div>
 
             <div id="publications-list">

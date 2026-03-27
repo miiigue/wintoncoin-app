@@ -966,3 +966,27 @@ Esto no rompe el producto, pero **sí rompe la mantenibilidad** (repo pesado, di
   - Seguridad reforzada: Los datos sensibles de candidatos y archivos CV están protegidos bajo estándares de ciberseguridad industrial.
   - Trazabilidad: Cada cambio de estado genera un registro en el log de auditoría bancaria.
 - **Evidencia (commits)**: `a85e34c`.
+
+### 2026-03-27 — Auditoría técnica: renderizado PWA y selector de publicaciones
+
+- **Contexto**: Se realizó una auditoría de ingeniería nivel Senior sobre las funciones de renderizado de la PWA (`contract-interaction.js`) y el selector de filtros/orden de publicaciones. El objetivo fue identificar errores activos, riesgos de seguridad y deuda técnica.
+- **Decisión**: Documentar todos los hallazgos en `docs/AUDIT_PENDING_ISSUES.md` como backlog técnico auditable, con instrucciones para verificación y resolución progresiva.
+- **Hallazgos principales**:
+  - 3 hallazgos CRÍTICOS: función `startCountdown` inexistente (runtime error), polling agresivo de 5s sin `visibilitychange`, caché de ratings que se destruye en cada render.
+  - 7 hallazgos IMPORTANTES: XSS potencial en `pub.title`/`pub.author_username`, CDN RawGit descontinuado, `document.execCommand` deprecado, select que mezcla filtros con ordenamientos, memory leak por listeners acumulativos, código muerto, `Promise.all` sin tolerancia a fallos parciales.
+  - 5 hallazgos MENORES: meta tag duplicada, polución de `window.*`, onclick inline, sin loading state, CSS duplicado.
+- **Impacto**: Se genera un documento de referencia que permite a cualquier agente futuro resolver estos issues de forma ordenada y verificable.
+- **Documento de referencia**: `docs/AUDIT_PENDING_ISSUES.md`.
+
+### 2026-03-27 — Refactor: Separar filtros y ordenamiento de publicaciones (I-04, I-05)
+
+- **Contexto**: El selector de publicaciones mezclaba filtros por tipo (solicitud, venta, donación, en proceso) con ordenamientos (fecha, recompensa) en un solo `<select>`. Esto impedía combinar filtro + orden y generaba confusión en la UX. Además, contenía código muerto (`if (!selected)`) que nunca se ejecutaba.
+- **Decisión**: Reemplazar el `<select>` único por dos controles con responsabilidades separadas siguiendo el principio SRP (Single Responsibility Principle):
+  - **Filter chips** (`<button>` con `data-filter`): fila horizontal de pills para filtrar por tipo — "Todos", "En proceso", "Solicitud", "Venta", "Donación". Usan event delegation, ARIA `role="group"` y `aria-pressed`, y son scrollable en móvil.
+  - **Sort dropdown** (`<select>`): selector de ordenamiento — "Más reciente", "Más antigua", "Mayor recompensa", "Menor recompensa". Con `<label>` asociado para accesibilidad.
+- **Cambios técnicos**:
+  - `contract_interaction.html`: Reemplazado el `<select id="publicationSortFilter">` por chips + sort.
+  - `contract-interaction.js`: Nueva variable de estado `currentFilter`, nueva función `handleFilterChipClick` con event delegation, `applySortAndFilter` reescrita con pipeline claro (filtrar → ordenar → priorizar pendientes). Se eliminó rama de código muerto.
+  - `style.css`: Nuevas clases `.publication-filter-chips`, `.filter-chip`, `.publication-sort-container`, `.publication-sort-select`, `.publication-sort-label`. Se eliminaron clases obsoletas `.publication-controls-select`. Responsive para móvil.
+- **Impacto**: El usuario ahora puede filtrar por tipo de publicación Y ordenar simultáneamente (ej: "solo Solicitudes" ordenadas por "Mayor recompensa"). Mejor UX en PWA móvil con chips tappables. Código más limpio y mantenible.
+- **Issues resueltos**: `AUDIT_PENDING_ISSUES.md` → I-04, I-05.

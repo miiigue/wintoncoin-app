@@ -65,7 +65,10 @@ document.addEventListener('DOMContentLoaded', () => {
         notificationBadge: document.getElementById('notificationBadge'),
         logoutLink: document.getElementById('logoutLink'),
         publicationsList: document.getElementById('publications-list'),
-        publicationSortFilter: document.getElementById('publicationSortFilter'),
+        publicationFilterChips: document.getElementById('publicationFilterChips'),
+        publicationSortSelect: document.getElementById('publicationSortSelect'),
+        publicationSearchInput: document.getElementById('publicationSearchInput'),
+        publicationSearchClear: document.getElementById('publicationSearchClear'),
         saldoBlue: document.getElementById('saldoBlue'),
         saldoRed: document.getElementById('saldoRed'),
         saldoEscrowBlue: document.getElementById('saldoEscrowBlue'),
@@ -107,6 +110,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastSolidarioFetch = 0;
     let platformSettingsCache = null;
     let publicationsCache = [];
+    // Filtro activo para publicaciones ('all' | 'pending' | 'request' | 'sell' | 'donation')
+    let currentFilter = 'all';
+    // Texto de búsqueda activo (normalizado a minúsculas)
+    let currentSearchText = '';
+    let searchDebounceTimer = null;
     let legalStatus = {
         requires_terms_acceptance: false,
         pending_documents: []
@@ -487,8 +495,24 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.publicationsList.addEventListener('click', handlePublicationAction);
         }
 
-        if (elements.publicationSortFilter) {
-            elements.publicationSortFilter.addEventListener('change', renderPublicationsWithFilters);
+        // Listener para chips de filtro (event delegation en el contenedor)
+        if (elements.publicationFilterChips) {
+            elements.publicationFilterChips.addEventListener('click', handleFilterChipClick);
+        }
+
+        // Listener para el selector de ordenamiento
+        if (elements.publicationSortSelect) {
+            elements.publicationSortSelect.addEventListener('change', renderPublicationsWithFilters);
+        }
+
+        // Listener para búsqueda en vivo (debounced)
+        if (elements.publicationSearchInput) {
+            elements.publicationSearchInput.addEventListener('input', handleSearchInput);
+        }
+
+        // Listener para el botón X de limpiar búsqueda
+        if (elements.publicationSearchClear) {
+            elements.publicationSearchClear.addEventListener('click', clearSearch);
         }
 
         if (elements.burnTriggerBtn) {
@@ -572,6 +596,62 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
+    }
+
+    /**
+     * Maneja el click en los chips de filtro de publicaciones.
+     * Usa event delegation: el listener está en el contenedor, no en cada chip.
+     * Actualiza el estado visual (aria-pressed, clase active) y re-renderiza.
+     */
+    function handleFilterChipClick(event) {
+        const chip = event.target.closest('.filter-chip');
+        if (!chip || chip.classList.contains('active')) return;
+
+        // Desactivar todos los chips
+        elements.publicationFilterChips.querySelectorAll('.filter-chip').forEach(c => {
+            c.classList.remove('active');
+            c.setAttribute('aria-pressed', 'false');
+        });
+
+        // Activar el chip seleccionado
+        chip.classList.add('active');
+        chip.setAttribute('aria-pressed', 'true');
+
+        // Actualizar estado y re-renderizar
+        currentFilter = chip.dataset.filter;
+        renderPublicationsWithFilters();
+    }
+
+    /**
+     * Búsqueda en vivo con debounce de 250ms.
+     * Filtra publicaciones por título, descripción o autor mientras el usuario escribe.
+     * El debounce evita re-renderizar en cada keystroke (rendimiento óptimo).
+     */
+    function handleSearchInput() {
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(() => {
+            const input = elements.publicationSearchInput;
+            currentSearchText = (input?.value || '').trim().toLowerCase();
+
+            // Mostrar/ocultar botón X
+            if (elements.publicationSearchClear) {
+                elements.publicationSearchClear.style.display = currentSearchText ? 'flex' : 'none';
+            }
+
+            renderPublicationsWithFilters();
+        }, 250);
+    }
+
+    /** Limpia el campo de búsqueda y re-renderiza la lista completa. */
+    function clearSearch() {
+        if (elements.publicationSearchInput) {
+            elements.publicationSearchInput.value = '';
+        }
+        if (elements.publicationSearchClear) {
+            elements.publicationSearchClear.style.display = 'none';
+        }
+        currentSearchText = '';
+        renderPublicationsWithFilters();
     }
 
     function handleLogout(event) {
@@ -843,47 +923,55 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    /**
+     * Aplica filtro por tipo y ordenamiento como responsabilidades separadas.
+     * Paso 1: Filtra según el chip activo (currentFilter).
+     * Paso 2: Ordena según el select de ordenamiento (publicationSortSelect).
+     * Paso 3: Siempre prioriza tareas pendientes del usuario al tope.
+     *
+     * @param {Array} publications - Array completo de publicaciones del caché.
+     * @returns {Array} Publicaciones filtradas, ordenadas y priorizadas.
+     */
     function applySortAndFilter(publications) {
-        // Aplica el criterio seleccionado (orden o filtro por tipo).
-        const selected = elements.publicationSortFilter?.value || 'recent';
+        const activeFilter = currentFilter;
+        const activeSort = elements.publicationSortSelect?.value || 'recent';
         let result = [...publications];
 
-        // Si no hay filtro seleccionado, ordenar por prioridad de tareas en proceso
-        if (!selected) {
-            return sortByPendingPriority(result);
+        // --- Paso 0: Aplicar búsqueda por texto (título, descripción, autor) ---
+        if (currentSearchText) {
+            result = result.filter(pub => {
+                const title = (pub.title || '').toLowerCase();
+                const description = (pub.description || '').toLowerCase();
+                const author = (pub.author_username || '').toLowerCase();
+                return title.includes(currentSearchText) ||
+                    description.includes(currentSearchText) ||
+                    author.includes(currentSearchText);
+            });
         }
 
-        // Filtrar por tipo de publicación
-        if (selected === 'type_request' || selected === 'type_sell' || selected === 'type_donation') {
-            const desiredType = selected.replace('type_', '');
-            result = result.filter(pub => getPublicationType(pub) === desiredType);
-        }
-
-        // Filtro especial: solo tareas en proceso del usuario
-        if (selected === 'pending') {
+        // --- Paso 1: Aplicar filtro por tipo/estado ---
+        if (activeFilter === 'pending') {
             result = result.filter(pub => isPendingForUser(pub));
-            return sortByPendingPriority(result);
+        } else if (activeFilter === 'request' || activeFilter === 'sell' || activeFilter === 'donation') {
+            result = result.filter(pub => getPublicationType(pub) === activeFilter);
         }
+        // 'all' no filtra nada
 
-        // Ordenar por fecha
-        if (selected === 'recent' || selected === 'oldest') {
+        // --- Paso 2: Aplicar ordenamiento ---
+        if (activeSort === 'recent' || activeSort === 'oldest') {
             result.sort((a, b) => {
                 const diff = getPublicationTimestamp(b) - getPublicationTimestamp(a);
-                return selected === 'recent' ? diff : -diff;
+                return activeSort === 'recent' ? diff : -diff;
             });
-            // Siempre aplicar prioridad de tareas en proceso dentro del orden por fecha
-            return sortByPendingPriority(result);
-        }
-
-        // Ordenar por recompensa
-        if (selected === 'reward_desc' || selected === 'reward_asc') {
+        } else if (activeSort === 'reward_desc' || activeSort === 'reward_asc') {
             result.sort((a, b) => {
                 const diff = (Number(b.blue_cost) || 0) - (Number(a.blue_cost) || 0);
-                return selected === 'reward_desc' ? diff : -diff;
+                return activeSort === 'reward_desc' ? diff : -diff;
             });
         }
 
-        return result;
+        // --- Paso 3: Tareas en proceso del usuario siempre flotan al tope ---
+        return sortByPendingPriority(result);
     }
 
     // Determina si una publicación requiere atención del usuario
@@ -927,13 +1015,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return 5; // Sin estado o no participando
     }
 
-    // Ordena las publicaciones poniendo primero las que están en proceso
+    /**
+     * Promueve las publicaciones con acciones pendientes del usuario al tope,
+     * preservando el orden que el usuario eligió (fecha, recompensa, etc.)
+     * para publicaciones de la misma prioridad.
+     * Usa sort estable (ES2019+): items con igual prioridad mantienen su posición relativa.
+     */
     function sortByPendingPriority(publications) {
         return [...publications].sort((a, b) => {
-            const priorityDiff = getPendingPriority(a) - getPendingPriority(b);
-            if (priorityDiff !== 0) return priorityDiff;
-            // Si tienen la misma prioridad, ordenar por fecha (más recientes primero)
-            return getPublicationTimestamp(b) - getPublicationTimestamp(a);
+            return getPendingPriority(a) - getPendingPriority(b);
         });
     }
 

@@ -27,10 +27,10 @@ if (!process.env.DATABASE_URL) {
     // pero marcamos el error claramente.
 }
 
-// Configuración de conexión con soporte SSL flexible para Render
+// Configuración de conexión: SSL condicional según entorno (patrón estándar del proyecto)
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false } // SSL habilitado por defecto para compatibilidad con nubes seguras
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 /**
