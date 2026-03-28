@@ -180,6 +180,7 @@
 |----|-------|------------|
 | I-04 | 2026-03-27 | Resuelto: Select único reemplazado por filter chips (tipo) + sort dropdown (orden) separados. Se eliminó código muerto de `applySortAndFilter`. |
 | I-05 | 2026-03-27 | Resuelto: Rama `if (!selected)` eliminada al reescribir `applySortAndFilter` con nueva arquitectura de filtro + orden. |
+| C-03 | 2026-03-27 | Resuelto: `userRatingsCache` promovido a variable de módulo (persistente). Se invalida solo al traer publicaciones frescas del servidor. Los re-renderizados por filtro/orden/búsqueda ya no generan peticiones HTTP de ratings. |
 
 ---
 

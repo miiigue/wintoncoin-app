@@ -110,6 +110,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastSolidarioFetch = 0;
     let platformSettingsCache = null;
     let publicationsCache = [];
+    // Caché persistente de ratings por usuario — sobrevive entre renderizados
+    // para evitar peticiones HTTP redundantes al cambiar filtro/orden/búsqueda.
+    // Se invalida solo cuando se recargan las publicaciones desde el servidor.
+    const userRatingsCache = new Map();
     // Filtro activo para publicaciones ('all' | 'pending' | 'request' | 'sell' | 'donation')
     let currentFilter = 'all';
     // Texto de búsqueda activo (normalizado a minúsculas)
@@ -849,6 +853,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             publicationsCache = publications;
+            // Invalidar caché de ratings al traer datos frescos del servidor
+            userRatingsCache.clear();
             await renderPublicationsWithFilters();
         } catch (error) {
             console.error('Error al obtener publicaciones:', error);
@@ -869,22 +875,27 @@ document.addEventListener('DOMContentLoaded', () => {
         updatePublicationsCount(filteredPublications);
         const platformSettings = await getPlatformSettings();
 
-        // Un mapa para cachear las calificaciones de los usuarios
-        const userRatingsCache = new Map();
+        // Obtener ratings faltantes en paralelo (usa caché persistente a nivel de módulo)
+        const missingAuthors = filteredPublications
+            .map(pub => pub.author_username)
+            .filter(username => !userRatingsCache.has(username));
+        const uniqueMissing = [...new Set(missingAuthors)];
 
-        // Usamos Promise.all para obtener todas las calificaciones en paralelo
-        const publicationsHTML = await Promise.all(filteredPublications.map(async (pub) => {
-            // Obtener calificación del AUTOR
-            if (!userRatingsCache.has(pub.author_username)) {
-                const ratingData = await fetchUserRating(pub.author_username);
-                userRatingsCache.set(pub.author_username, ratingData);
-            }
-            const authorRating = userRatingsCache.get(pub.author_username);
+        if (uniqueMissing.length > 0) {
+            const fetched = await Promise.all(
+                uniqueMissing.map(username => fetchUserRating(username).then(data => ({ username, data })))
+            );
+            fetched.forEach(({ username, data }) => userRatingsCache.set(username, data));
+        }
+
+        // Generar HTML — todos los ratings ya están en caché, sin llamadas HTTP
+        const publicationsHTML = filteredPublications.map(pub => {
+            const authorRating = userRatingsCache.get(pub.author_username) || { average: 0, count: 0 };
             const authorRatingHTML = generateStarRating(authorRating.average, authorRating.count);
 
             const blueLabel = getBlueUnitLabel(pub, platformSettings);
             return getPublicationCardHTML(pub, blueLabel, authorRatingHTML);
-        }));
+        });
 
         elements.publicationsList.innerHTML = publicationsHTML.join('');
     }

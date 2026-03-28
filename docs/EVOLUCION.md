@@ -990,3 +990,22 @@ Esto no rompe el producto, pero **sí rompe la mantenibilidad** (repo pesado, di
   - `style.css`: Nuevas clases `.publication-filter-chips`, `.filter-chip`, `.publication-sort-container`, `.publication-sort-select`, `.publication-sort-label`. Se eliminaron clases obsoletas `.publication-controls-select`. Responsive para móvil.
 - **Impacto**: El usuario ahora puede filtrar por tipo de publicación Y ordenar simultáneamente (ej: "solo Solicitudes" ordenadas por "Mayor recompensa"). Mejor UX en PWA móvil con chips tappables. Código más limpio y mantenible.
 - **Issues resueltos**: `AUDIT_PENDING_ISSUES.md` → I-04, I-05.
+
+### 2026-03-27 — Fix: Mobile-first responsive para controles de publicaciones
+
+- **Contexto**: Los filter chips, el input de búsqueda y el dropdown de ordenamiento se veían rotos en dispositivos móviles. Los estilos globales de `button` (`width:100%`, `padding:15px`, `background:primary`) e `input[type="text"]` (`padding:12px 15px`, `background:#fff`, `color:#111`, `font-size:1rem`) sobreescribían los estilos de componente, causando chips gigantes, search input con fondo blanco y tamaño incorrecto.
+- **Decisión**: Reescribir toda la sección CSS de publication controls con enfoque **mobile-first**:
+  - Base (320px+): chips compactos (30px alto, 0.72rem), search y sort apilados verticalmente al 100% de ancho.
+  - `@media (min-width: 420px)`: search + sort en fila horizontal, search flexible y sort con ancho mínimo.
+  - `@media (min-width: 480px)`: chips ligeramente más grandes.
+  - Especificidad elevada (`.publication-controls .filter-chip`) para vencer los globales sin usar `!important`.
+- **Impacto**: Los controles se ven correctamente en cualquier teléfono desde 320px de ancho, con transición suave a layout horizontal en pantallas medianas.
+
+### 2026-03-27 — Fix: Caché de ratings persistente (C-03) y layout inline obligatorio
+
+- **Contexto**: Al cambiar filtro, orden o búsqueda, la función `renderPublicationsWithFilters` recreaba un `Map` vacío de ratings de usuario en cada invocación. Esto generaba N peticiones HTTP al servidor por cada re-renderizado (una por cada autor único), causando demoras visibles de varios segundos.
+- **Decisión**: Promover `userRatingsCache` a variable de módulo (persistente entre renderizados). Se invalida únicamente cuando `fetchAndDisplayPublications` trae datos frescos del servidor (`userRatingsCache.clear()`). Dentro de `renderPublicationsWithFilters`, ahora solo se buscan los autores que no estén ya en caché, se les hace fetch en paralelo, y luego se genera el HTML de forma síncrona.
+- **Cambios técnicos**:
+  - `contract-interaction.js`: `userRatingsCache` movido a scope de módulo (línea ~113). `fetchAndDisplayPublications` llama `.clear()` antes de renderizar. `renderPublicationsWithFilters` filtra autores no cacheados, los fetchea una sola vez, y genera HTML con `.map()` síncrono en lugar de `Promise.all` con callbacks async.
+  - `style.css`: Filter chips con `flex-wrap: nowrap` + `overflow-x: auto` (siempre 1 línea). Sort container con `flex-direction: row` obligatorio (buscar + ordenar siempre lado a lado).
+- **Impacto**: Cambiar filtro/orden/búsqueda es ahora instantáneo (0 peticiones HTTP). Solo la carga inicial o el polling generan requests de ratings. Resuelve issue C-03 de la auditoría.

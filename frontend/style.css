@@ -726,100 +726,132 @@ hr {
     color: var(--text-secondary-color);
 }
 
-/* --- Filter Chips: Fila horizontal de botones tipo pill para filtrado por tipo --- */
+/* =====================================================================
+   PUBLICATION CONTROLS — Mobile-First
+   Reglas: 1) Chips SIEMPRE en una sola línea horizontal (scroll si no caben).
+           2) Buscar + Ordenar SIEMPRE lado a lado en una fila horizontal.
+   Especificidad elevada (.publication-controls ...) para vencer globales
+   de button (width:100%, padding:15px) e input[type="text"] (padding:12px).
+   ===================================================================== */
+
+/* --- Filter Chips: línea horizontal única, scroll horizontal si no caben --- */
 .publication-filter-chips {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: center;
     gap: 6px;
-    padding: 2px 0;
+    padding: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
 }
 
-.filter-chip {
-    /* Reset explícito del estilo global de button */
+.publication-filter-chips::-webkit-scrollbar {
+    display: none;
+}
+
+/* Reset total del estilo global button + estilos propios del chip */
+.publication-controls .filter-chip {
     width: auto;
-    padding: 5px 12px;
+    min-width: 0;
+    height: 28px;
+    padding: 0 8px;
+    margin: 0;
     border: 1px solid #2a3b5c;
     border-radius: 20px;
     background: transparent;
+    background-color: transparent;
     color: var(--text-secondary-color);
-    font-size: 0.78rem;
+    font-size: 0.7rem;
     font-weight: 400;
     font-family: inherit;
-    cursor: pointer;
-    transition: all 0.2s ease;
+    line-height: 26px;
+    text-align: center;
     white-space: nowrap;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
     -webkit-tap-highlight-color: transparent;
+    transform: none;
+    box-shadow: none;
 }
 
-.filter-chip:hover {
+.publication-controls .filter-chip:hover,
+.publication-controls .filter-chip:active {
     border-color: var(--primary-color);
     color: var(--text-color);
     background: transparent;
+    background-color: transparent;
     transform: none;
 }
 
-.filter-chip:focus-visible {
+.publication-controls .filter-chip:focus-visible {
     outline: 2px solid var(--primary-color);
     outline-offset: 2px;
 }
 
-.filter-chip.active {
+.publication-controls .filter-chip.active {
     background: rgba(74, 144, 217, 0.15);
+    background-color: rgba(74, 144, 217, 0.15);
     border-color: #4a90d9;
     color: #4a90d9;
     font-weight: 600;
 }
 
-/* --- Sort Container: Búsqueda + Dropdown en una sola línea, mismo tamaño --- */
+/* --- Sort Container: SIEMPRE fila horizontal, buscar + ordenar lado a lado --- */
 .publication-sort-container {
     display: flex;
+    flex-direction: row;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
-/* Estilo base compartido entre search input y sort select */
-/* Especificidad elevada para sobreescribir los estilos globales de input[type="text"] */
-.publication-sort-container .publication-search-input,
-.publication-sort-container .publication-sort-select {
+/* Search wrapper ocupa el espacio disponible */
+.publication-search-wrapper {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+/* Estilo base compartido — sobreescribe globales de input[type="text"] y select */
+.publication-controls .publication-search-input,
+.publication-controls .publication-sort-select {
     height: 32px;
+    width: 100%;
     background-color: var(--background-color);
     border: 1px solid #2a3b5c;
     border-radius: 8px;
     color: var(--text-color);
-    padding: 0 0.6rem;
-    font-size: 0.8rem;
+    padding: 0 0.5rem;
+    font-size: 0.75rem;
     font-family: inherit;
     box-sizing: border-box;
     margin: 0;
     margin-bottom: 0;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    -webkit-appearance: none;
+    appearance: none;
 }
 
-/* --- Search Input con botón X integrado --- */
-.publication-search-wrapper {
-    position: relative;
-    flex: 1;
-}
-
-.publication-sort-container .publication-search-input {
-    width: 100%;
+/* Search input necesita espacio para el botón X */
+.publication-controls .publication-search-input {
     padding-right: 1.6rem;
 }
 
-.publication-search-input::placeholder {
+.publication-controls .publication-search-input::placeholder {
     color: #8899b4;
     opacity: 1;
 }
 
-.publication-search-input:focus,
-.publication-sort-select:focus {
+.publication-controls .publication-search-input:focus,
+.publication-controls .publication-sort-select:focus {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 8px rgba(106, 90, 205, 0.4);
 }
 
-.publication-search-clear {
+/* Botón X para limpiar búsqueda */
+.publication-controls .publication-search-clear {
     position: absolute;
     right: 4px;
     top: 50%;
@@ -830,8 +862,9 @@ hr {
     border: none;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.1);
     color: var(--text-secondary-color);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     line-height: 1;
     cursor: pointer;
     display: flex;
@@ -840,20 +873,48 @@ hr {
     transition: background 0.2s ease;
 }
 
-.publication-search-clear:hover {
+.publication-controls .publication-search-clear:hover {
     background: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.2);
     color: var(--text-color);
     transform: translateY(-50%);
 }
 
-/* --- Sort Select --- */
+/* --- Sort Select: ancho automático, no se encoge --- */
 .publication-sort-label {
     display: none;
 }
 
-.publication-sort-select {
+.publication-controls .publication-sort-select {
+    width: auto;
+    min-width: 120px;
     flex-shrink: 0;
     cursor: pointer;
+}
+
+/* ===== >= 480px — Chips y controles un poco más grandes ===== */
+@media (min-width: 480px) {
+    .publication-controls .filter-chip {
+        font-size: 0.78rem;
+        padding: 0 12px;
+        height: 32px;
+        line-height: 30px;
+    }
+
+    .publication-controls .publication-search-input,
+    .publication-controls .publication-sort-select {
+        height: 34px;
+        font-size: 0.8rem;
+        padding: 0 0.7rem;
+    }
+
+    .publication-controls .publication-search-input {
+        padding-right: 1.8rem;
+    }
+
+    .publication-controls .publication-sort-select {
+        min-width: 150px;
+    }
 }
 
 .booster-banner {
