@@ -527,7 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         messageHTML = `<p class="action-message status-pending">Has marcado la tarea como ${action}. Esperando confirmación final del autor.</p>`;
                         break;
                     case 'confirmed_paid':
-                        messageHTML = `<p class="action-message status-info">¡Transacción completada!</p>`;
+                        // No se muestra mensaje — el usuario ya completó el flujo y no necesita feedback redundante
                         if (pub.available_slots > 0) {
                             acceptButtonHTML = `<button class="action-button accept" data-action="accept">${verb} de nuevo</button>`;
                         }

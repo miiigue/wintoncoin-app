@@ -1009,3 +1009,11 @@ Esto no rompe el producto, pero **sí rompe la mantenibilidad** (repo pesado, di
   - `contract-interaction.js`: `userRatingsCache` movido a scope de módulo (línea ~113). `fetchAndDisplayPublications` llama `.clear()` antes de renderizar. `renderPublicationsWithFilters` filtra autores no cacheados, los fetchea una sola vez, y genera HTML con `.map()` síncrono en lugar de `Promise.all` con callbacks async.
   - `style.css`: Filter chips con `flex-wrap: nowrap` + `overflow-x: auto` (siempre 1 línea). Sort container con `flex-direction: row` obligatorio (buscar + ordenar siempre lado a lado).
 - **Impacto**: Cambiar filtro/orden/búsqueda es ahora instantáneo (0 peticiones HTTP). Solo la carga inicial o el polling generan requests de ratings. Resuelve issue C-03 de la auditoría.
+
+### 2026-03-28 — UX: Eliminación del mensaje "¡Transacción completada!" en detalle de tarea
+
+- **Contexto**: En la vista de detalle de publicación (`publication-detail.js`), cuando el estado del participante era `confirmed_paid`, se mostraba un mensaje estático `"¡Transacción completada!"` al final de los pasos de la tarea. Este mensaje generaba confusión porque aparecía siempre visible (no como resultado de una acción inmediata), dando la impresión de que la tarea ya fue completada cuando el usuario podría estar revisándola.
+- **Decisión**: Eliminar el mensaje siguiendo principios de diseño minimalista y UX profesional — no mostrar feedback de éxito permanente cuando el contexto ya lo hace evidente. El usuario sabe que completó la tarea porque pasó por todos los pasos del flujo.
+- **Cambios técnicos**:
+  - `frontend/src/pages/publication-detail.js`: En el `switch(userStatus)`, caso `confirmed_paid`, se eliminó la asignación `messageHTML = '¡Transacción completada!'`. El `messageHTML` queda como string vacío (su valor por defecto). La lógica del botón "de nuevo" (si hay cupos disponibles) se mantiene intacta.
+- **Impacto**: Interfaz más limpia y menos confusa. No se afecta ninguna lógica de negocio, validación ni flujo funcional. Cambio puramente visual/UX.
