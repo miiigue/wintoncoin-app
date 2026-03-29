@@ -1017,3 +1017,11 @@ Esto no rompe el producto, pero **sí rompe la mantenibilidad** (repo pesado, di
 - **Cambios técnicos**:
   - `frontend/src/pages/publication-detail.js`: En el `switch(userStatus)`, caso `confirmed_paid`, se eliminó la asignación `messageHTML = '¡Transacción completada!'`. El `messageHTML` queda como string vacío (su valor por defecto). La lógica del botón "de nuevo" (si hay cupos disponibles) se mantiene intacta.
 - **Impacto**: Interfaz más limpia y menos confusa. No se afecta ninguna lógica de negocio, validación ni flujo funcional. Cambio puramente visual/UX.
+
+### 2026-03-29 — CI/CD: Deploy dual — mismo build a sc.wintoncoin.com y wintoncoin.com
+
+- **Contexto**: El workflow de GitHub Actions (`deploy-frontend.yml`) solo desplegaba el build del frontend al subdominio `sc.wintoncoin.com`. Se necesita que el dominio principal `wintoncoin.com` también reciba el mismo build automáticamente al hacer push.
+- **Decisión**: Agregar un segundo paso de sincronización FTP en el mismo workflow. Se reutiliza el mismo build (no se compila dos veces), y se usa un set de secrets FTP independiente para el dominio principal (`FTP_SERVER_MAIN`, `FTP_USERNAME_MAIN`, `FTP_PASSWORD_MAIN`). También se separó la instalación de `lftp` en su propio paso para evitar instalarlo dos veces.
+- **Cambios técnicos**:
+  - `.github/workflows/deploy-frontend.yml`: Se agregó paso "Instalar lftp" separado. Se renombró el paso de deploy existente a "Deploy a sc.wintoncoin.com". Se agregó nuevo paso "Deploy a wintoncoin.com" con secrets dedicados.
+- **Impacto**: Un solo push despliega a ambos dominios. Requiere crear 3 nuevos secrets en GitHub (`FTP_SERVER_MAIN`, `FTP_USERNAME_MAIN`, `FTP_PASSWORD_MAIN`) con las credenciales FTP del dominio principal en Hostinger.

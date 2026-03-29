@@ -26,12 +26,26 @@ jobs:
           npm install
           npm run build
       
-      - name: Sincronizar archivos por lftp (Script Nativo)
+      # -- Instalar lftp una sola vez para ambos deploys --
+      - name: Instalar lftp
+        run: sudo apt-get update && sudo apt-get install -y lftp
+
+      # -- Deploy 1: Subir el build a sc.wintoncoin.com (subdominio actual) --
+      - name: Deploy a sc.wintoncoin.com
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
         run: |
-          sudo apt-get update && sudo apt-get install -y lftp
+          cd frontend/dist
+          lftp -c "set ssl:verify-certificate no; open -u $FTP_USERNAME,$FTP_PASSWORD $FTP_SERVER; mirror -Rnev ./ ./ --parallel=10"
+
+      # -- Deploy 2: Subir el mismo build a wintoncoin.com (dominio principal) --
+      - name: Deploy a wintoncoin.com
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER_MAIN }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME_MAIN }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD_MAIN }}
+        run: |
           cd frontend/dist
           lftp -c "set ssl:verify-certificate no; open -u $FTP_USERNAME,$FTP_PASSWORD $FTP_SERVER; mirror -Rnev ./ ./ --parallel=10"
