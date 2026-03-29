@@ -7,26 +7,59 @@ const governanceService = require('./governanceService');
 const { settingLabel } = require('../config/settingsDisplayMap');
 const pool = require('../config/db');
 
-/** Texto legible para valores JSONB / primitivos en correos de gobernanza */
+const MEMBERSHIP_ACTIONS = { add: 'Agregar', remove: 'Remover', update: 'Actualizar' };
+const ROLE_LABELS = { supervisor: 'Supervisor', auxiliary: 'Auxiliar' };
+
+/**
+ * Convierte valores JSONB / primitivos de gobernanza en texto legible.
+ * Para membresía: "Agregar usuario #68 como Supervisor"
+ * Para config_change: retorna el valor plano.
+ */
 function _formatGovEmailValue(raw) {
     if (raw === null || raw === undefined) return '—';
     if (typeof raw === 'boolean' || typeof raw === 'number') return String(raw);
-    if (typeof raw === 'object') {
-        try {
-            return JSON.stringify(raw);
-        } catch {
-            return String(raw);
-        }
+
+    let obj = raw;
+    if (typeof raw === 'string') {
+        const s = raw.trim();
+        if (s === '') return '—';
+        try { obj = JSON.parse(s); } catch { return s; }
     }
-    const s = String(raw);
-    if (s === '') return '—';
-    try {
-        const p = JSON.parse(s);
-        if (p !== null && typeof p === 'object') return JSON.stringify(p);
-        return String(p);
-    } catch {
-        return s;
+
+    if (typeof obj !== 'object' || obj === null) return String(obj);
+
+    if (obj.action && MEMBERSHIP_ACTIONS[obj.action]) {
+        const actionLabel = MEMBERSHIP_ACTIONS[obj.action];
+        const roleLabel = ROLE_LABELS[obj.role] || '';
+        const userRef = obj.userId ? `usuario #${obj.userId}` : '';
+        if (obj.action === 'remove') return `${actionLabel} ${userRef}`.trim();
+        return `${actionLabel} ${userRef} como ${roleLabel}`.trim();
     }
+
+    try { return JSON.stringify(obj); } catch { return String(raw); }
+}
+
+/**
+ * Convierte target_key del audit log en texto legible para correos.
+ * "guardian:68" → "Membresía: usuario #68"
+ * "allow_new_registrations" → settingLabel(key)
+ */
+function _formatAuditKey(rawKey, meta) {
+    if (typeof rawKey === 'string' && rawKey.startsWith('guardian:')) {
+        const userId = rawKey.split(':')[1];
+        return `Membresía: usuario #${userId}`;
+    }
+    return settingLabel(rawKey);
+}
+
+/**
+ * Convierte new_value del audit log en texto legible.
+ * Reutiliza _formatGovEmailValue para membresía y trunca a 50 chars para config.
+ */
+function _formatAuditValue(rawValue, actionType) {
+    if (!rawValue && rawValue !== 0 && rawValue !== false) return 'N/A';
+    const formatted = _formatGovEmailValue(rawValue);
+    return formatted.length > 50 ? formatted.substring(0, 47) + '…' : formatted;
 }
 
 function _formatGovEmailDate(d) {
@@ -93,13 +126,19 @@ async function _getRecentConfigChanges(limit = 5) {
         return res.rows.reduce((acc, row) => {
             try {
                 const meta = typeof row.metadata === 'string' ? JSON.parse(row.metadata) : (row.metadata || {});
+                const isGov = row.event_type === 'GOV_EXECUTION_SUCCESS';
                 const rawKey = meta.setting_key || meta.targetKey || 'N/A';
+
+                const actor = isGov && meta.requesterUsername
+                    ? meta.requesterUsername
+                    : (row.actor_username || 'sistema');
+
                 acc.push({
-                    key: settingLabel(rawKey),
-                    value: meta.new_value || 'N/A',
-                    actor: row.actor_username || 'sistema',
+                    key: _formatAuditKey(rawKey, meta),
+                    value: _formatAuditValue(meta.new_value, meta.actionType),
+                    actor,
                     date: new Date(row.created_at).toLocaleString('es-ES', { timeZone: 'America/Bogota', dateStyle: 'short', timeStyle: 'short' }),
-                    viaGovernance: row.event_type === 'GOV_EXECUTION_SUCCESS',
+                    viaGovernance: isGov,
                 });
             } catch (_) { /* skip row with corrupt metadata */ }
             return acc;

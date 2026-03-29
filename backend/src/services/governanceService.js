@@ -810,6 +810,11 @@ async function _executeAction(client, req, govRequest) {
             [govRequest.id]
         );
 
+        const requesterRes = await client.query(
+            'SELECT username FROM users WHERE id = $1', [govRequest.requester_id]
+        );
+        const requesterUsername = requesterRes.rows[0]?.username || 'desconocido';
+
         await logAuditEvent(client, req, {
             eventType: 'GOV_EXECUTION_SUCCESS',
             actorUsername: 'system',
@@ -818,6 +823,7 @@ async function _executeAction(client, req, govRequest) {
                 requestId: govRequest.id,
                 actionType: govRequest.action_type,
                 targetKey: govRequest.target_key,
+                requesterUsername,
                 new_value: typeof govRequest.new_value === 'string'
                     ? govRequest.new_value.substring(0, 200)
                     : JSON.stringify(govRequest.new_value).substring(0, 200),

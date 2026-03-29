@@ -681,7 +681,7 @@ async function sendGovernanceEmail({ toEmail, subject, title, body, actionUrl, a
                     ${recentChanges.map(c => `
                     <tr style="border-bottom:1px solid #EEF2F6;">
                       <td style="padding:6px 4px; font-size:11px;">${escapeHtml(c.key)}</td>
-                      <td style="padding:6px 4px; font-size:11px;">${escapeHtml(String(c.value).substring(0, 30))}</td>
+                      <td style="padding:6px 4px; font-size:11px;">${escapeHtml(String(c.value).substring(0, 50))}</td>
                       <td style="padding:6px 4px; font-size:11px;">${escapeHtml(c.actor)}${c.viaGovernance ? ' <span style="color:#059669;">(gov)</span>' : ''}</td>
                       <td style="padding:6px 4px; font-size:11px; white-space:nowrap;">${escapeHtml(c.date)}</td>
                     </tr>
@@ -731,7 +731,7 @@ async function sendGovernanceEmail({ toEmail, subject, title, body, actionUrl, a
     ? [
         '',
         `Últimos ${recentChanges.length} cambios de configuración:`,
-        ...recentChanges.map(c => `  • ${c.key} = ${String(c.value).substring(0, 30)} | ${c.actor}${c.viaGovernance ? ' (gov)' : ''} | ${c.date}`),
+        ...recentChanges.map(c => `  • ${c.key} = ${String(c.value).substring(0, 50)} | ${c.actor}${c.viaGovernance ? ' (gov)' : ''} | ${c.date}`),
         'Revisa si detectas patrones inusuales.',
       ]
     : [];

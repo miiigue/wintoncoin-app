@@ -230,6 +230,97 @@
             margin: 8px 0;
         }
 
+        /* Consejo de Guardianes — tabla */
+        .gov-council-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .gov-summary-item {
+            background: var(--admin-surface);
+            border: 1px solid var(--admin-border);
+            border-radius: 10px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .gov-summary-item .gov-summary-number {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--admin-text);
+            line-height: 1;
+        }
+
+        .gov-summary-item .gov-summary-label {
+            font-size: 0.8rem;
+            color: #9CA3AF;
+            margin-top: 6px;
+        }
+
+        .gov-council-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: var(--admin-surface);
+        }
+
+        .gov-council-table th,
+        .gov-council-table td {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.88rem;
+        }
+
+        .gov-council-table th {
+            background: rgba(255, 255, 255, 0.03);
+            color: #9CA3AF;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--admin-border);
+        }
+
+        .gov-council-table td {
+            color: var(--admin-text);
+            border-bottom: 1px solid var(--admin-border);
+        }
+
+        .gov-council-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .gov-council-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .gov-role-tag {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .gov-role-tag.supervisor {
+            background: rgba(139, 92, 246, 0.15);
+            color: #A78BFA;
+        }
+
+        .gov-role-tag.auxiliary {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60A5FA;
+        }
+
+        @media (max-width: 768px) {
+            .gov-council-table th:nth-child(4),
+            .gov-council-table td:nth-child(4) {
+                display: none;
+            }
+        }
+
         .gov-request-card {
             background: var(--admin-surface);
             border: 1px solid var(--admin-border);
@@ -620,6 +711,8 @@
                 <ul>
                     <li class="gov-hide-on-vote-focus"><a href="#status" class="nav-link active"
                             data-section="status">Mi Estado</a></li>
+                    <li class="gov-hide-on-vote-focus"><a href="#council" class="nav-link"
+                            data-section="council">Consejo</a></li>
                     <li class="gov-hide-on-vote-focus">
                         <a href="#requests" class="nav-link" data-section="requests">
                             Solicitudes
@@ -649,6 +742,18 @@
                 <p>Tu rol en el sistema Winton-Consensus y estado de autenticación biométrica.</p>
 
                 <div id="guardian-status-container">
+                    <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- SECCIÓN: CONSEJO DE GUARDIANES -->
+            <!-- ═══════════════════════════════════════════ -->
+            <section id="council-section" class="admin-section">
+                <h1>Consejo de Guardianes</h1>
+                <p>Miembros activos del sistema Winton-Consensus y estado del quórum.</p>
+
+                <div id="council-container">
                     <div class="loading-spinner"></div>
                 </div>
             </section>

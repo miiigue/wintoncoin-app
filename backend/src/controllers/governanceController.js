@@ -291,7 +291,16 @@ async function listGuardians(pool, req, res) {
         if (req.query.status) filters.status = req.query.status;
         if (req.query.role) filters.role = req.query.role;
 
-        const guardians = await governanceService.getGuardians(pool, filters);
+        const raw = await governanceService.getGuardians(pool, filters);
+
+        const guardians = raw.map(g => ({
+            id:         g.id,
+            username:   g.username,
+            role:       g.role,
+            status:     g.status,
+            created_at: g.created_at,
+        }));
+
         return res.json({ guardians });
     } catch (error) {
         return handleError(res, error);

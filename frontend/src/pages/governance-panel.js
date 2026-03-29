@@ -162,6 +162,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (navEl) navEl.classList.add('active');
 
         if (sectionId === 'status') loadGuardianStatus();
+        else if (sectionId === 'council') loadCouncil();
         else if (sectionId === 'requests') loadRequests();
         else if (sectionId === 'create') { /* form is static */ }
         else if (sectionId === 'break-glass') { /* form is static */ }
@@ -337,6 +338,81 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>`;
 
+
+        } catch (err) {
+            container.innerHTML = `<div class="gov-empty-state"><p style="color: #EF4444;">Error: ${escapeHtml(err.message)}</p></div>`;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SECCIÓN: CONSEJO DE GUARDIANES
+    // ═══════════════════════════════════════════════════════════════
+
+    async function loadCouncil() {
+        const container = document.getElementById('council-container');
+        container.innerHTML = '<div class="loading-spinner"></div>';
+
+        try {
+            const data = await govFetch('/api/governance/guardians');
+            const guardians = data.guardians || [];
+
+            if (guardians.length === 0) {
+                container.innerHTML = `
+                    <div class="gov-empty-state">
+                        <p style="font-size: 1.5rem;">👥</p>
+                        <p><strong>Sin guardianes registrados</strong></p>
+                    </div>`;
+                return;
+            }
+
+            const active = guardians.filter(g => g.status === 'active');
+            const supervisors = active.filter(g => g.role === 'supervisor');
+            const auxiliaries = active.filter(g => g.role === 'auxiliary');
+
+            const ROLE_LABELS = { supervisor: 'Supervisor', auxiliary: 'Auxiliar' };
+            const STATUS_LABELS = { active: 'Activo', inactive: 'Inactivo' };
+
+            const rows = guardians.map(g => `
+                <tr>
+                    <td>${escapeHtml(g.username)}</td>
+                    <td><span class="gov-role-tag ${escapeHtml(g.role)}">${ROLE_LABELS[g.role] || escapeHtml(g.role)}</span></td>
+                    <td><span class="gov-status-badge ${escapeHtml(g.status)}">${STATUS_LABELS[g.status] || escapeHtml(g.status)}</span></td>
+                    <td>${formatDate(g.created_at)}</td>
+                </tr>`).join('');
+
+            container.innerHTML = `
+                <div class="gov-council-summary">
+                    <div class="gov-summary-item">
+                        <div class="gov-summary-number">${active.length}</div>
+                        <div class="gov-summary-label">Activos</div>
+                    </div>
+                    <div class="gov-summary-item">
+                        <div class="gov-summary-number">${supervisors.length}</div>
+                        <div class="gov-summary-label">Supervisores</div>
+                    </div>
+                    <div class="gov-summary-item">
+                        <div class="gov-summary-number">${auxiliaries.length}</div>
+                        <div class="gov-summary-label">Auxiliares</div>
+                    </div>
+                    <div class="gov-summary-item">
+                        <div class="gov-summary-number">${guardians.length}</div>
+                        <div class="gov-summary-label">Total Registrados</div>
+                    </div>
+                </div>
+
+                <div class="gov-card" style="padding: 0; overflow: hidden;">
+                    <table class="gov-council-table">
+                        <thead>
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Rol</th>
+                                <th>Estado</th>
+                                <th>Miembro desde</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>`;
 
         } catch (err) {
             container.innerHTML = `<div class="gov-empty-state"><p style="color: #EF4444;">Error: ${escapeHtml(err.message)}</p></div>`;
