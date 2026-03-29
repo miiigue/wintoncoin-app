@@ -64,6 +64,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         return new Date(dateStr).toLocaleString('es-ES', { timeZone: 'America/Bogota', dateStyle: 'medium', timeStyle: 'short' });
     }
 
+    function formatGovValue(raw, actionType) {
+        if (!raw) return '—';
+        try {
+            const obj = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            if (typeof obj !== 'object' || obj === null) return escapeHtml(String(raw));
+
+            if (actionType === 'membership_change' && obj.action) {
+                const ACTIONS = { add: 'Agregar', remove: 'Remover', update: 'Actualizar' };
+                const ROLES = { supervisor: 'Supervisor', auxiliary: 'Auxiliar' };
+                const actionLabel = ACTIONS[obj.action] || obj.action;
+                const roleLabel = ROLES[obj.role] || '';
+                const userRef = obj.userId ? `usuario #${obj.userId}` : '';
+                if (obj.action === 'remove') return escapeHtml(`${actionLabel} ${userRef}`);
+                return escapeHtml(`${actionLabel} ${userRef} como ${roleLabel}`).trim();
+            }
+
+            if (actionType === 'config_change') return escapeHtml(String(raw));
+
+            return escapeHtml(JSON.stringify(obj));
+        } catch {
+            return escapeHtml(String(raw));
+        }
+    }
+
     const SETTINGS_DISPLAY_MAP = {
         'allow_new_registrations': 'Permitir Nuevos Registros',
         'allow_new_publications': 'Permitir Nuevas Publicaciones',
@@ -436,12 +460,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     ${r.old_value ? `
                     <div class="gov-info-row">
                         <span class="gov-info-label">Valor Anterior</span>
-                        <span class="gov-info-value" style="font-family: monospace;">${escapeHtml(typeof r.old_value === 'string' ? r.old_value : JSON.stringify(r.old_value))}</span>
+                        <span class="gov-info-value">${formatGovValue(r.old_value, r.action_type)}</span>
                     </div>` : ''}
                     ${r.new_value ? `
                     <div class="gov-info-row">
                         <span class="gov-info-label">Valor Propuesto</span>
-                        <span class="gov-info-value" style="font-family: monospace;">${escapeHtml(typeof r.new_value === 'string' ? r.new_value : JSON.stringify(r.new_value))}</span>
+                        <span class="gov-info-value">${formatGovValue(r.new_value, r.action_type)}</span>
                     </div>` : ''}
                     <div class="gov-info-row">
                         <span class="gov-info-label">Creada</span>
