@@ -431,6 +431,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             tab.classList.add('active');
             currentFilter = tab.getAttribute('data-filter');
             document.getElementById('request-detail-container').style.display = 'none';
+            document.getElementById('requests-list-container').style.display = '';
             loadRequests();
         });
     });
@@ -482,8 +483,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadRequestDetail(requestId) {
         const container = document.getElementById('request-detail-container');
+        const listContainer = document.getElementById('requests-list-container');
+        const tabs = document.querySelector('#requests-section .gov-tabs');
+
+        if (listContainer) listContainer.style.display = 'none';
+        if (tabs) tabs.style.display = 'none';
         container.style.display = 'block';
         container.innerHTML = '<div class="loading-spinner"></div>';
+
+        document.getElementById('requests-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
         try {
             const data = await govFetch(`/api/governance/requests/${requestId}`);
@@ -593,6 +601,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('backToListBtn')?.addEventListener('click', () => {
                 setRestrictedNavForVoting(false);
                 container.style.display = 'none';
+                if (listContainer) listContainer.style.display = '';
+                if (tabs) tabs.style.display = '';
             });
 
             document.getElementById('voteApproveBtn')?.addEventListener('click', () => submitVote(r.id, 'approve'));
