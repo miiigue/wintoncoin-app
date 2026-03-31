@@ -374,6 +374,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             const rows = guardians.map(g => `
                 <tr>
+                    <td style="font-family: monospace; color: #9CA3AF;">${Number(g.user_id) || '—'}</td>
                     <td>${escapeHtml(g.username)}</td>
                     <td><span class="gov-role-tag ${escapeHtml(g.role)}">${ROLE_LABELS[g.role] || escapeHtml(g.role)}</span></td>
                     <td><span class="gov-status-badge ${escapeHtml(g.status)}">${STATUS_LABELS[g.status] || escapeHtml(g.status)}</span></td>
@@ -404,6 +405,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <table class="gov-council-table">
                         <thead>
                             <tr>
+                                <th>ID</th>
                                 <th>Usuario</th>
                                 <th>Rol</th>
                                 <th>Estado</th>

@@ -295,6 +295,7 @@ async function listGuardians(pool, req, res) {
 
         const guardians = raw.map(g => ({
             id:         g.id,
+            user_id:    g.user_id,
             username:   g.username,
             role:       g.role,
             status:     g.status,
