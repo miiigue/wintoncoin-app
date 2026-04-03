@@ -233,6 +233,8 @@
 | C-01 | 2026-04-02 | Resuelto: Creada función `startAvailableCountdown()` — corrige ReferenceError en runtime para countdown de fondos pendientes. |
 | I-01 | 2026-04-02 | Resuelto: Módulo `sanitize.js` (escapeHtml/escapeAttr OWASP) aplicado en pub.title y pub.author_username. |
 | C-02 | 2026-04-02 | Resuelto: Polling inteligente con Page Visibility API — pausa en tab oculto, refresh inmediato al volver, intervalo 10s. |
+| AUTH-01 | 2026-04-02 | Resuelto: Bearer token faltante en POST /publish, POST /api/minor/add-tutor, POST /publications/:id/accept (donación), POST /api/quick-sale. Token se lee al momento del fetch (no al cargar página). |
+| XSS-02 | 2026-04-02 | Resuelto: publication-detail.js — 7 puntos de inyección XSS sanitizados (pub.title, pub.author_username, p.username, form fields, form responses). |
 
 ---
 

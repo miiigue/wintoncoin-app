@@ -1053,6 +1053,18 @@ Esto no rompe el producto, pero **sí rompe la mantenibilidad** (repo pesado, di
 - **Archivos modificados**: `frontend/src/pages/contract-interaction.js`, `frontend/src/modules/sanitize.js` (nuevo), `frontend/src/modules/index.js`.
 - **Impacto**: Eliminado error de runtime que afectaba a usuarios con fondos pendientes. Eliminada vulnerabilidad XSS en el feed de publicaciones. Reducción significativa de carga al servidor (~50% menos requests cuando visible, ~100% menos cuando oculto) y ahorro de batería en dispositivos móviles.
 
+### 2026-04-02 — Fix auth faltante en publish/donación/quick-sale + XSS en publication-detail
+
+- **Contexto**: Durante las pruebas de los fixes anteriores en demo, se detectaron 2 problemas adicionales.
+- **AUTH-01 — Bearer token faltante en 4 endpoints protegidos**:
+  - El commit de seguridad `cc01f22` añadió `requireAcceptedLegalByUsernameField` a `POST /publish`, `POST /api/minor/add-tutor`, `POST /publications/:id/accept` y `POST /api/quick-sale`, pero el frontend nunca fue actualizado para enviar el header `Authorization: Bearer <token>`.
+  - **Solución**: Añadido `Authorization: Bearer ${token}` a los 4 fetch. Token se lee al momento del fetch (no al cargar la página) siguiendo el patrón de `postToServer`. Añadido `handleSessionExpired` para redirigir al login si el token expiró.
+- **XSS-02 — 7 puntos de inyección XSS en publication-detail.js**:
+  - La protección XSS de I-01 solo cubría `contract-interaction.js` (tarjetas del dashboard). La página de detalle (`publication-detail.js`) tenía 7 inserciones de datos del servidor sin escapar: título, autor, participantes, labels de formulario, respuestas de formulario.
+  - **Solución**: Aplicado `escapeHtml()`/`escapeAttr()`/`encodeURIComponent()` en los 7 puntos. Verificado en demo: el payload `<img src=x onerror=alert('XSS')>` ya no ejecuta código.
+- **Archivos modificados**: `frontend/src/pages/publish.js`, `frontend/src/pages/contract-interaction.js`, `frontend/src/pages/publication-detail.js`.
+- **Impacto**: Publicar, donar y venta rápida vuelven a funcionar. XSS eliminado en todas las vistas de publicaciones.
+
 ### 2026-03-29 — CI/CD: Deploy dual — mismo build a sc.wintoncoin.com y wintoncoin.com
 
 - **Contexto**: El workflow de GitHub Actions (`deploy-frontend.yml`) solo desplegaba el build del frontend al subdominio `sc.wintoncoin.com`. Se necesita que el dominio principal `wintoncoin.com` también reciba el mismo build automáticamente al hacer push.
