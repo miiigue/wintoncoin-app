@@ -81,7 +81,14 @@ async function loadNotificationSettings() {
 }
 
 /**
- * Saves notification settings to server
+ * Saves notification settings to server.
+ *
+ * El backend acepta { settings: { social, marketing, governance } }
+ * o el formato directo { social, marketing, governance }.
+ * Enviamos el formato envuelto para claridad y compatibilidad.
+ *
+ * NOTA: security y transactional se fuerzan a true en el servidor
+ * (estándar fintech: alertas de seguridad y transacciones no son desactivables).
  */
 async function saveNotificationSettings() {
     const API_URL = getApiUrl();
@@ -102,7 +109,9 @@ async function saveNotificationSettings() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ social, marketing })
+            body: JSON.stringify({
+                settings: { social, marketing }
+            })
         });
 
         if (!response.ok) {

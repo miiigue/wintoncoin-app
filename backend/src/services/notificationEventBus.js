@@ -214,14 +214,15 @@ eventBus.on('TASK_DELIVERED', async ({ publicationId, publicationTitle, ownerId,
 });
 
 // 5. TAREA PAGADA (Al participante)
+// TIPO: TRANSACTIONAL — involucra movimiento de fondos, no puede ser bloqueado por preferencias
 eventBus.on('TASK_PAID', async ({ publicationId, publicationTitle, participantId, amount }) => {
     try {
         await notificationService.sendNotificationToUser(participantId, {
             title: '¡Pago Recibido!',
             body: `Has recibido ${amount} BLUE por la tarea "${publicationTitle}".`,
             icon: '/assets/icons/icon-192x192.png',
-            data: { url: '/contract_interaction.html' } // Lleva a la billetera/historial
-        });
+            data: { url: '/contract_interaction.html' }
+        }, 'TRANSACTIONAL');
     } catch (err) {
         console.error('[EVENT-BUS] Error en TASK_PAID:', err);
     }
@@ -243,16 +244,16 @@ eventBus.on('P2P_MESSAGE_RECEIVED', async ({ orderId, receiverId, senderUsername
 });
 
 // 7. SEGURIDAD: NUEVO LOGIN (Al usuario)
+// TIPO: SECURITY — Nunca puede ser bloqueado por preferencias del usuario
+// Estándar fintech/bancario: alertas de acceso siempre llegan al dispositivo
 eventBus.on('SECURITY_LOGIN_ALERT', async ({ userId, ip, device }) => {
-    // Implementar lógica para no spammear (ej: solo si es IP nueva)
-    // Por ahora, simple alerta
     try {
         await notificationService.sendNotificationToUser(userId, {
             title: 'Nuevo Inicio de Sesión',
             body: `Detectamos un acceso desde ${device} (${ip}). Si no fuiste tú, revisa tu seguridad.`,
             icon: '/assets/icons/icon-192x192.png',
             data: { url: '/profile.html' }
-        });
+        }, 'SECURITY');
     } catch (err) {
         console.error('[EVENT-BUS] Error en SECURITY_LOGIN_ALERT:', err);
     }
@@ -520,12 +521,15 @@ eventBus.on('GOV_REQUEST_APPROVED', async ({ requestId, executionTime, guardianU
         _getRecentConfigChanges(5),
     ]);
 
+    const panelUrl = _getGovernancePanelUrl(requestId);
+
     for (const userId of guardianUserIds) {
         try {
             await notificationService.sendNotificationToUser(userId, {
                 title: `✅ Solicitud #${requestId} Aprobada`,
                 body: `Quórum alcanzado. Ejecución programada: ${execDate}. Puedes cancelar durante la ventana de Time-Lock.`,
                 icon: '/assets/icons/icon-192x192.png',
+                data: { url: panelUrl }
             }, 'GOVERNANCE');
         } catch (err) {
             console.error(`[EVENT-BUS] Error push aprobación ${userId}:`, err);
@@ -553,6 +557,7 @@ eventBus.on('GOV_REQUEST_APPROVED', async ({ requestId, executionTime, guardianU
 eventBus.on('GOV_REQUEST_EXECUTED', async ({ requestId, actionType, targetKey, guardianUserIds }) => {
     const actionLabelExec = actionType === 'config_change' ? 'Configuración' : 'Membresía';
     const readableKey = targetKey ? settingLabel(targetKey) : 'ver detalle';
+    const panelUrl = _getGovernancePanelUrl(requestId);
 
     const [emails, recentChanges] = await Promise.all([
         _getUsersEmails(guardianUserIds).catch(() => []),
@@ -565,6 +570,7 @@ eventBus.on('GOV_REQUEST_EXECUTED', async ({ requestId, actionType, targetKey, g
                 title: `⚡ Cambio Ejecutado — Solicitud #${requestId}`,
                 body: `${actionLabelExec} actualizada: ${readableKey}.`,
                 icon: '/assets/icons/icon-192x192.png',
+                data: { url: panelUrl }
             }, 'GOVERNANCE');
         } catch (err) {
             console.error(`[EVENT-BUS] Error push ejecución ${userId}:`, err);
@@ -625,11 +631,14 @@ eventBus.on('GOV_VOTE_REMINDER', async ({ requestId, description, expiresAt, gua
 
 // 15. GOBERNANZA: Solicitud rechazada → Push + Email al proponente
 eventBus.on('GOV_REQUEST_REJECTED', async ({ requestId, requesterId }) => {
+    const panelUrl = _getGovernancePanelUrl(requestId);
+
     try {
         await notificationService.sendNotificationToUser(requesterId, {
             title: `❌ Solicitud #${requestId} Rechazada`,
             body: 'El quórum de rechazo fue alcanzado. La solicitud no se ejecutará.',
             icon: '/assets/icons/icon-192x192.png',
+            data: { url: panelUrl }
         }, 'GOVERNANCE');
     } catch (err) {
         console.error('[EVENT-BUS] Error push rechazo:', err);
@@ -652,12 +661,14 @@ eventBus.on('GOV_REQUEST_REJECTED', async ({ requestId, requesterId }) => {
 eventBus.on('GOV_GUARDIAN_ONBOARDED', async ({ userId, role, appointedByUsername, requestId }) => {
     const roleLabel = role === 'supervisor' ? 'Supervisor' : 'Auxiliar';
 
+    const panelUrl = _getGovernancePanelUrl(requestId);
+
     try {
         await notificationService.sendNotificationToUser(userId, {
             title: '🛡️ Bienvenido al Consejo de Guardianes',
             body: `Has sido designado como ${roleLabel} en el sistema Winton-Consensus.`,
             icon: '/assets/icons/icon-192x192.png',
-            data: {}
+            data: { url: panelUrl }
         }, 'GOVERNANCE');
     } catch (err) {
         console.error(`[EVENT-BUS] Error push onboarding guardián ${userId}:`, err);
@@ -705,7 +716,7 @@ eventBus.on('GOV_GUARDIAN_REMOVED', async ({ userId, previousRole, removedByUser
             title: '🔓 Desvinculación del Consejo de Guardianes',
             body: `Tu rol como ${roleLabel} en Winton-Consensus ha finalizado.`,
             icon: '/assets/icons/icon-192x192.png',
-            data: {}
+            data: { url: '/contract_interaction.html' }
         }, 'GOVERNANCE');
     } catch (err) {
         console.error(`[EVENT-BUS] Error push offboarding guardián ${userId}:`, err);

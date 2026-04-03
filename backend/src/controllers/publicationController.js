@@ -722,8 +722,9 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 await notificationService.sendNotificationToUser(pub.author_id, {
                     title: '¡Donación Recibida! 🎁',
                     body: `${acceptorUsername} ha aportado ${amount.toFixed(2)} BLUE IOU a tu campaña: ${pub.title}`,
-                    url: '/history.html'
-                }, 'SOCIAL');
+                    icon: '/assets/icons/icon-192x192.png',
+                    data: { url: '/history.html' }
+                }, 'TRANSACTIONAL');
 
                 await logAuditEvent(client, req, {
                     eventType: 'publication.donation_received',
@@ -833,7 +834,8 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 await notificationService.sendNotificationToUser(acceptor.id, {
                     title: '¡Tarea Aprobada! ✅',
                     body: `Has sido aprobado automáticamente para: ${pub.title}. ¡Empieza ahora!`,
-                    url: '/momentum-dashboard.html'
+                    icon: '/assets/icons/icon-192x192.png',
+                    data: { url: '/momentum-dashboard.html' }
                 }, 'SOCIAL');
 
                 await logAuditEvent(client, req, {
@@ -854,7 +856,8 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 await notificationService.sendNotificationToUser(pub.author_id, {
                     title: 'Nueva Solicitud 📩',
                     body: `${acceptorUsername} quiere participar en: ${pub.title}`,
-                    url: '/momentum-dashboard.html'
+                    icon: '/assets/icons/icon-192x192.png',
+                    data: { url: '/momentum-dashboard.html' }
                 }, 'SOCIAL');
 
                 await logAuditEvent(client, req, {
@@ -1016,7 +1019,8 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 await notificationService.sendNotificationToUser(userToApproveRes.rows[0].id, {
                     title: 'Solicitud Aprobada ✅',
                     body: `El autor ha aprobado tu participación en: ${pub.title}`,
-                    url: '/momentum-dashboard.html'
+                    icon: '/assets/icons/icon-192x192.png',
+                    data: { url: '/momentum-dashboard.html' }
                 }, 'SOCIAL');
             }
 
@@ -1133,7 +1137,8 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 await notificationService.sendNotificationToUser(authorData.rows[0].id, {
                     title: '¡Tarea Terminada! 🚨',
                     body: `${completerUsername} ha culminado: ${acceptance.title}. Revísala ahora.`,
-                    url: '/momentum-dashboard.html'
+                    icon: '/assets/icons/icon-192x192.png',
+                    data: { url: '/momentum-dashboard.html' }
                 }, 'SOCIAL');
             }
 
@@ -1235,12 +1240,13 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             // 5. ACTUALIZAR ESTADO FINAL
             await client.query(`UPDATE publication_acceptances SET status = 'confirmed_paid' WHERE id = $1`, [acceptance.acceptance_id]);
 
-            // PUSH NOTIFICATION (Pago Confirmado)
+            // PUSH NOTIFICATION (Pago Confirmado — tipo TRANSACTIONAL: no puede ser bloqueado)
             await notificationService.sendNotificationToUser(acceptance.worker_id, {
                 title: '¡Pago Recibido! 🏆',
                 body: `Tu trabajo en "${acceptance.title}" ha sido pagado. +${parseFloat(acceptance.blue_cost).toFixed(2)} BLUE IOU acreditados.`,
-                url: '/history.html'
-            }, 'SOCIAL');
+                icon: '/assets/icons/icon-192x192.png',
+                data: { url: '/history.html' }
+            }, 'TRANSACTIONAL');
 
             await logAuditEvent(client, req, {
                 eventType: 'publication.confirmed_paid',

@@ -387,12 +387,13 @@ exports.registerVerify = async (req, res) => {
                 await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [referrer.id, `Recompensa (perfil impulsor) por referir a ${newUser.username}`, rewardAmount]);
                 await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [referrer.username, `¡Felicidades! Has ganado ${rewardAmount.toFixed(4)} BLUE en tu perfil de impulsor porque ${newUser.username} se registró con tu código.`]);
 
-                // PUSH NOTIFICATION (Referente)
+                // PUSH NOTIFICATION (Referente — TRANSACTIONAL porque involucra acreditación de fondos)
                 await notificationService.sendNotificationToUser(referrer.id, {
                     title: '¡Nuevo Referido! ⚡',
                     body: `${newUser.username} se unió con tu código. +${rewardAmount.toFixed(2)} BLUE IOU acreditados.`,
-                    url: '/history.html'
-                }, 'SOCIAL');
+                    icon: '/assets/icons/icon-192x192.png',
+                    data: { url: '/history.html' }
+                }, 'TRANSACTIONAL');
 
                 // Recompensa para el nuevo usuario: Registra en booster_blue_ledger (cumple reglas económicas)
                 await client.query('SELECT record_booster_event($1, \'referral_reward\', $2, NULL)', [newUser.id, rewardAmount]);
@@ -401,12 +402,13 @@ exports.registerVerify = async (req, res) => {
                 await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [newUser.id, `Recompensa (perfil impulsor) por usar el código de ${referrer.username}`, rewardAmount]);
                 await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Por usar un código de referido, has ganado ${rewardAmount.toFixed(4)} BLUE en tu perfil de impulsor.`]);
 
-                // PUSH NOTIFICATION (Nuevo Usuario)
+                // PUSH NOTIFICATION (Nuevo Usuario — TRANSACTIONAL porque involucra acreditación de fondos)
                 await notificationService.sendNotificationToUser(newUser.id, {
                     title: '¡Bienvenido a la Familia! 🎁',
                     body: `Has recibido ${rewardAmount.toFixed(2)} BLUE IOU de regalo por usar referido.`,
-                    url: '/history.html'
-                }, 'SOCIAL');
+                    icon: '/assets/icons/icon-192x192.png',
+                    data: { url: '/history.html' }
+                }, 'TRANSACTIONAL');
             }
         }
         // Lógica de Bono de Bienvenida (si no hay referente, solo en modo pre-lanzamiento)
@@ -420,12 +422,13 @@ exports.registerVerify = async (req, res) => {
                 await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, 'Bono de bienvenida (perfil impulsor)', welcomeBonusAmount]);
                 await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Has recibido ${welcomeBonusAmount.toFixed(4)} BLUE en tu perfil de impulsor como bono de bienvenida.`]);
 
-                // PUSH NOTIFICATION (Bienvenida General)
+                // PUSH NOTIFICATION (Bienvenida General — TRANSACTIONAL porque involucra acreditación de fondos)
                 await notificationService.sendNotificationToUser(newUser.id, {
                     title: '¡Bienvenido! 🚀',
                     body: `Recibiste ${welcomeBonusAmount.toFixed(2)} BLUE IOU de regalo por tu registro.`,
-                    url: '/history.html'
-                }, 'SOCIAL');
+                    icon: '/assets/icons/icon-192x192.png',
+                    data: { url: '/history.html' }
+                }, 'TRANSACTIONAL');
             }
         }
 

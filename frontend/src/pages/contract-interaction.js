@@ -8,6 +8,8 @@ import {
     showCustomAlert,
     showCustomConfirm,
     linkify,
+    escapeHtml,
+    escapeAttr,
     fetchAndStoreAppSettings,
     appSettings,
     handleSessionExpired
@@ -287,8 +289,58 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(initOnboarding, 500);
         });
 
-    // Auto-refresh every 5 seconds
-    setInterval(loadAllData, 5000);
+    // =========================================================================
+    // POLLING INTELIGENTE CON CONTROL DE VISIBILIDAD
+    // =========================================================================
+    // Usa la Page Visibility API (W3C estándar) para:
+    // - Pausar el polling cuando el tab está oculto (ahorro batería/datos/servidor)
+    // - Reanudar automáticamente al volver al tab con refresh inmediato
+    // - Intervalo configurable: 10s activo, 0 cuando oculto
+    //
+    // Referencia: https://developer.mozilla.org/en-US/docs/Web/API/Page_Visibility_API
+    // =========================================================================
+    const POLLING_INTERVAL_MS = 10000; // 10 segundos cuando el tab está visible
+    let pollingIntervalId = null;
+
+    /**
+     * Inicia el ciclo de polling periódico.
+     * Solo se ejecuta si no hay ya un ciclo activo (idempotente).
+     */
+    function startPolling() {
+        if (pollingIntervalId) return; // Ya está corriendo, evitar duplicados
+        pollingIntervalId = setInterval(loadAllData, POLLING_INTERVAL_MS);
+    }
+
+    /**
+     * Detiene el ciclo de polling periódico.
+     * Limpia el interval y resetea el ID para permitir reinicio.
+     */
+    function stopPolling() {
+        if (pollingIntervalId) {
+            clearInterval(pollingIntervalId);
+            pollingIntervalId = null;
+        }
+    }
+
+    /**
+     * Handler del evento visibilitychange.
+     * Cuando el usuario vuelve al tab, hace un refresh inmediato
+     * y reinicia el polling. Cuando se va, lo detiene.
+     */
+    function handleVisibilityChange() {
+        if (document.hidden) {
+            // Tab oculto: pausar polling para ahorrar recursos
+            stopPolling();
+        } else {
+            // Tab visible de nuevo: refresh inmediato + reiniciar ciclo
+            loadAllData();
+            startPolling();
+        }
+    }
+
+    // Registrar listener de visibilidad y arrancar polling inicial
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    startPolling();
 
     // --- Functions ---
     async function getPlatformSettings() {
@@ -1191,9 +1243,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const expirationInfo = getExpirationStatusHTML(pub);
 
+        // XSS Prevention: escapar username antes de insertar en HTML y atributos
+        const safeAuthor = escapeHtml(pub.author_username);
+        const safeAuthorAttr = escapeAttr(pub.author_username);
         const authorNameHTML = window.appSettings?.public_profiles_enabled
-            ? `<a href="profile.html?user=${pub.author_username}" class="profile-link" onclick="event.stopPropagation()">${pub.author_username}</a>`
-            : pub.author_username;
+            ? `<a href="profile.html?user=${encodeURIComponent(pub.author_username)}" class="profile-link" onclick="event.stopPropagation()">${safeAuthor}</a>`
+            : safeAuthor;
 
         // Lógica de Barra de Progreso para Donaciones
         let progressHTML = '';
@@ -1215,12 +1270,12 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
 
-        // Título de la tarjeta (simple para todos los tipos)
-        const cardTitle = `<h3>${pub.title}</h3>`;
+        // Título de la tarjeta — XSS Prevention: escapar título del servidor
+        const cardTitle = `<h3>${escapeHtml(pub.title)}</h3>`;
 
         return `
             <a href="publication-detail.html?id=${pub.id}" class="publication-item-link">
-                <div class="publication-item ${expirationInfo.isExpired ? 'expired' : ''} ${isDonation ? 'donation-card' : ''}" data-id="${pub.id}" data-author="${pub.author_username}">
+                <div class="publication-item ${expirationInfo.isExpired ? 'expired' : ''} ${isDonation ? 'donation-card' : ''}" data-id="${pub.id}" data-author="${safeAuthorAttr}">
                     
                     <div class="card-top-row">
                         <div class="cost-ribbon-left ${ribbonClass}">${rewardText}</div>
@@ -1676,10 +1731,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleCountdownTimers(data) {
-        // Available countdown
+        // Available countdown: muestra cuándo se liberarán fondos pendientes
         if (data.next_available_at && parseFloat(data.next_available_amount) > 0 && elements.availableCountdownContainer) {
             elements.availableCountdownContainer.style.display = 'block';
-            startCountdown(data.next_available_at, data.next_available_amount, elements.availableCountdownText, availableCountdownInterval, 'available');
+            startAvailableCountdown(data.next_available_at, data.next_available_amount);
         } else if (elements.availableCountdownContainer) {
             elements.availableCountdownContainer.style.display = 'none';
         }
@@ -1699,6 +1754,52 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (elements.escrowCountdownContainer) {
             elements.escrowCountdownContainer.style.display = 'none';
         }
+    }
+
+    /**
+     * startAvailableCountdown
+     * Muestra una cuenta regresiva hasta que los fondos pendientes sean liberados.
+     * Cuando el timer llega a cero, oculta el contenedor y refresca los saldos
+     * para reflejar la nueva disponibilidad.
+     *
+     * @param {string} availableDateString - ISO 8601 fecha/hora de liberación
+     * @param {number|string} availableAmount - Monto que será liberado
+     */
+    function startAvailableCountdown(availableDateString, availableAmount) {
+        // Limpiar interval previo para evitar timers duplicados
+        if (availableCountdownInterval) clearInterval(availableCountdownInterval);
+
+        // Formatear el monto una sola vez (no cambia durante el countdown)
+        const formattedAmount = formatBalance(availableAmount);
+
+        const updateTimer = () => {
+            const now = new Date();
+            const availableDate = new Date(availableDateString);
+            const diff = availableDate - now;
+
+            // Si ya pasó la fecha de liberación, ocultar y refrescar saldos
+            if (diff <= 0) {
+                if (elements.availableCountdownContainer) {
+                    elements.availableCountdownContainer.style.display = 'none';
+                }
+                clearInterval(availableCountdownInterval);
+                availableCountdownInterval = null;
+                // Refrescar saldos para que el usuario vea los fondos ya disponibles
+                fetchAndDisplayBalances();
+                return;
+            }
+
+            // Mostrar tiempo restante formateado
+            const timeString = formatTimeRemaining(diff);
+            if (elements.availableCountdownText) {
+                elements.availableCountdownText.innerHTML =
+                    `Próxima liberación <strong class="saldo-blue-text">${formattedAmount}</strong> en <strong>${timeString}</strong>`;
+            }
+        };
+
+        // Ejecutar inmediatamente y luego cada segundo
+        updateTimer();
+        availableCountdownInterval = setInterval(updateTimer, 1000);
     }
 
     function startDebtCountdown(dueDateString, dueAmount) {

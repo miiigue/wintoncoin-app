@@ -1018,6 +1018,41 @@ Esto no rompe el producto, pero **sí rompe la mantenibilidad** (repo pesado, di
   - `frontend/src/pages/publication-detail.js`: En el `switch(userStatus)`, caso `confirmed_paid`, se eliminó la asignación `messageHTML = '¡Transacción completada!'`. El `messageHTML` queda como string vacío (su valor por defecto). La lógica del botón "de nuevo" (si hay cupos disponibles) se mantiene intacta.
 - **Impacto**: Interfaz más limpia y menos confusa. No se afecta ninguna lógica de negocio, validación ni flujo funcional. Cambio puramente visual/UX.
 
+### 2026-04-02 — Auditoría y Corrección Integral del Sistema Push Notifications
+
+- **Contexto**: Auditoría completa del sistema de notificaciones push (VAPID/Web Push) reveló **10 errores** en 7 archivos, incluyendo 3 críticos que afectaban la funcionalidad en producción. El sistema involucraba: `notificationService.js`, `notificationController.js`, `notificationEventBus.js`, `publicationController.js`, `authController.js`, `notificationSettings.js` (frontend), y `sw-source.js` (Service Worker).
+- **Errores críticos corregidos**:
+  - **E-01 Panel Admin Push ROTO**: Frontend enviaba `message` pero backend esperaba `body` → siempre 400. No había lógica de envío individual (solo broadcast). Respuesta sin `success` que el frontend buscaba. CORREGIDO: Controller acepta ambos campos, implementa envío individual por username, y retorna `{ success, sent, failed }`.
+  - **E-02 Preferencias se BORRABAN al guardar**: Frontend enviaba `{ social, marketing }` directo, backend hacía `const { settings } = req.body` → `undefined` → preferencias reseteadas a solo `{ security: true }`. CORREGIDO: Controller acepta ambos formatos (`{ settings: {...} }` y directo). Service hace merge con preferencias actuales en vez de reemplazar.
+  - **E-03 9/18 llamadas con `url` en raíz**: SW lee `data.url` para navegación, pero 9 llamadas ponían `url` en la raíz del payload → click en notificación siempre iba a `/contract_interaction.html`. CORREGIDO: Todas las llamadas ahora usan `data: { url }`. Además, `normalizePayload()` en el servicio maneja el formato legacy como fallback.
+- **Errores de seguridad corregidos**:
+  - **E-04 SQL Injection en broadcast**: `typeKey` se concatenaba directo en SQL. CORREGIDO: Query parametrizada con `$1`.
+  - **E-05 Login alert como SOCIAL**: `SECURITY_LOGIN_ALERT` usaba tipo default `SOCIAL`, permitiendo que usuarios lo desactivaran. CORREGIDO: Tipo explícito `'SECURITY'`.
+- **Mejoras de robustez**:
+  - **E-06**: Contadores de entrega ahora cuentan solo éxitos reales (no intentos).
+  - **E-07**: 5 eventos de gobernanza sin `data.url` corregidos con URL al panel de gobernanza.
+  - **E-08**: Whitelist de tipos (`VALID_NOTIFICATION_TYPES`) con fallback seguro.
+  - **E-09**: Verificación de VAPID (`assertVapidReady()`) antes de cada envío.
+  - Tipos `TRANSACTIONAL` y `SECURITY` marcados como `MANDATORY_TYPES` (no bloqueables por usuario).
+  - Notificaciones de pago, donación y acreditación reclasificadas de `SOCIAL` a `TRANSACTIONAL`.
+- **Archivos modificados**: `backend/src/services/notificationService.js` (reescrito), `backend/src/controllers/notificationController.js` (reescrito), `backend/src/controllers/publicationController.js` (6 payloads), `backend/src/controllers/authController.js` (3 payloads), `backend/src/services/notificationEventBus.js` (6 correcciones), `frontend/src/modules/notificationSettings.js` (body format).
+- **Impacto**: Sistema push completamente funcional, seguro, auditable y alineado con estándares fintech/bancarios. Panel admin puede enviar push individual y masivo. Preferencias de usuario funcionan correctamente. Navegación al hacer click en notificación lleva a la página correcta en todos los casos.
+
+### 2026-04-02 — Corrección de C-01, I-01 y C-02 (Runtime Error, XSS, Polling)
+
+- **Contexto**: Tres hallazgos de la auditoría técnica pendientes de resolución: un error de runtime que rompía funcionalidad activa (C-01), una vulnerabilidad XSS en la renderización de publicaciones (I-01), y un polling agresivo que desperdiciaba recursos del servidor y batería del usuario (C-02).
+- **C-01 — ReferenceError `startCountdown` (CRÍTICO)**:
+  - `handleCountdownTimers()` llamaba a `startCountdown()` que no existía → `ReferenceError` silencioso que impedía mostrar el countdown de fondos pendientes de liberación.
+  - **Solución**: Creada función `startAvailableCountdown(availableDateString, availableAmount)` siguiendo el mismo patrón profesional de `startDebtCountdown` y `startEscrowCountdown`. Limpia interval previo, formatea monto, muestra cuenta regresiva, y al llegar a cero oculta el contenedor y refresca saldos vía `fetchAndDisplayBalances()`.
+- **I-01 — XSS en `pub.title` y `pub.author_username` (IMPORTANTE/SEGURIDAD)**:
+  - Datos del servidor (`pub.title`, `pub.author_username`) se insertaban directamente en HTML sin escapar → riesgo de ejecución de código malicioso en el navegador de todos los usuarios.
+  - **Solución**: Creado módulo `frontend/src/modules/sanitize.js` con funciones `escapeHtml()` y `escapeAttr()` (cumple OWASP XSS Prevention Cheat Sheet, escapa `& < > " '`). Registrado en `index.js` y expuesto en `window.*`. Aplicado en `getPublicationCardHTML`: título usa `escapeHtml(pub.title)`, autor usa `escapeHtml`/`escapeAttr` para contenido y atributos, URL del perfil usa `encodeURIComponent` para query params.
+- **C-02 — Polling agresivo sin control de visibilidad (CRÍTICO)**:
+  - `setInterval(loadAllData, 5000)` ejecutaba 5 peticiones HTTP cada 5 segundos sin importar si el usuario estaba mirando la pestaña o si el teléfono estaba en el bolsillo.
+  - **Solución**: Implementado sistema de polling inteligente usando Page Visibility API (W3C estándar). Funciones `startPolling()`/`stopPolling()` idempotentes controladas por listener `visibilitychange`. Cuando el tab está oculto: 0 requests. Al volver: refresh inmediato + reinicio del ciclo. Intervalo aumentado de 5s a 10s.
+- **Archivos modificados**: `frontend/src/pages/contract-interaction.js`, `frontend/src/modules/sanitize.js` (nuevo), `frontend/src/modules/index.js`.
+- **Impacto**: Eliminado error de runtime que afectaba a usuarios con fondos pendientes. Eliminada vulnerabilidad XSS en el feed de publicaciones. Reducción significativa de carga al servidor (~50% menos requests cuando visible, ~100% menos cuando oculto) y ahorro de batería en dispositivos móviles.
+
 ### 2026-03-29 — CI/CD: Deploy dual — mismo build a sc.wintoncoin.com y wintoncoin.com
 
 - **Contexto**: El workflow de GitHub Actions (`deploy-frontend.yml`) solo desplegaba el build del frontend al subdominio `sc.wintoncoin.com`. Se necesita que el dominio principal `wintoncoin.com` también reciba el mismo build automáticamente al hacer push.

@@ -590,3 +590,9 @@ La función `fetchFromServer` en `publication-detail.js` no incluía el header `
 #### Impacto
 - Resuelve error "No autenticado" al intentar aceptar, aprobar, completar o confirmar pago en publicaciones.
 - Todas las acciones de publicación ahora envían identidad JWT verificable al backend.
+
+---
+
+### 2026-04-02 — Auditoría Integral del Sistema Push Notifications (10 errores corregidos)
+
+Auditoría completa del sistema VAPID/Web Push. Se encontraron y corrigieron 10 errores (3 críticos, 4 importantes, 3 moderados) en 7 archivos. Ver `docs/EVOLUCION.md` y `docs/AUDIT_PENDING_ISSUES.md` para el detalle completo de cada corrección.

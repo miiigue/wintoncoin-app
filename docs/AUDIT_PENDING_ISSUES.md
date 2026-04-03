@@ -21,24 +21,22 @@
 
 ## Severidad: CRÍTICA (Errores activos en producción)
 
-### C-01 — Función `startCountdown` no existe (Runtime Error)
+### C-01 — [RESUELTO] Función `startCountdown` no existe (Runtime Error)
 
 - **Archivo:** `frontend/src/pages/contract-interaction.js`
 - **Ubicación aprox.:** Función `handleCountdownTimers`, dentro de la rama "Available countdown"
-- **Patrón a buscar:** `startCountdown(data.next_available_at`
-- **Descripción:** La función `handleCountdownTimers` invoca `startCountdown(...)` para el countdown de tokens "disponibles" próximos a liberarse. Sin embargo, esta función **no está definida** en ninguna parte del archivo ni en los módulos importados. Sí existen `startDebtCountdown` y `startEscrowCountdown` para los otros dos countdowns, pero falta la de "available".
-- **Impacto:** `ReferenceError` en runtime. Cualquier usuario que tenga fondos pendientes de liberación no verá el countdown de "próxima liberación" y el error rompe silenciosamente la ejecución del bloque.
-- **Solución sugerida:** Crear la función `startAvailableCountdown` (o `startCountdown`) con la misma estructura de `startEscrowCountdown`, adaptada para mostrar el mensaje de liberación de tokens disponibles. Actualizar la variable de intervalo `availableCountdownInterval` correctamente.
+- **Patrón a buscar:** `startAvailableCountdown(data.next_available_at`
+- **Descripción:** La función `handleCountdownTimers` invocaba `startCountdown(...)` que no existía → `ReferenceError` en runtime.
+- > ✅ Resuelto: 2026-04-02 — Creada función `startAvailableCountdown()` siguiendo el patrón de `startDebtCountdown`/`startEscrowCountdown`. Limpia interval previo, formatea monto, muestra countdown, refresca saldos al llegar a 0. Llamada actualizada en `handleCountdownTimers`.
 
 ---
 
-### C-02 — Polling agresivo de 5 segundos sin control de visibilidad
+### C-02 — [RESUELTO] Polling agresivo de 5 segundos sin control de visibilidad
 
 - **Archivo:** `frontend/src/pages/contract-interaction.js`
-- **Patrón a buscar:** `setInterval(loadAllData, 5000)`
-- **Descripción:** `loadAllData` dispara 5 llamadas HTTP al servidor cada 5 segundos (`fetchAndDisplayPublications`, `fetchNotifications`, `fetchAndDisplayBalances`, `fetchBoosterSummary`, `fetchSolidarioSummary`). No hay ninguna verificación con la API `document.visibilitychange` / `document.hidden`, así que **el polling continúa cuando el tab está en segundo plano**, desperdiciando batería (crítico en móviles/PWA) y sobrecargando el servidor.
-- **Impacto:** Desperdicio de recursos del servidor y del dispositivo del usuario. En una PWA móvil, esto drena batería significativamente.
-- **Solución sugerida:** Implementar `document.addEventListener('visibilitychange', ...)` para pausar el intervalo cuando el tab no es visible. Considerar también `AbortController` para cancelar requests en vuelo cuando se inicia un nuevo ciclo, y aumentar el intervalo a 15-30 segundos con actualización inmediata al volver al tab.
+- **Patrón a buscar:** `POLLING_INTERVAL_MS`, `handleVisibilityChange`, `startPolling`, `stopPolling`
+- **Descripción:** `loadAllData` disparaba 5 llamadas HTTP cada 5 segundos sin pausarse cuando el tab estaba oculto.
+- > ✅ Resuelto: 2026-04-02 — Implementado sistema de polling inteligente con Page Visibility API (W3C): `startPolling()`/`stopPolling()` controlados por `visibilitychange`. Intervalo aumentado a 10s. Tab oculto = 0 requests. Al volver al tab = refresh inmediato + reinicio del ciclo.
 
 ---
 
@@ -55,16 +53,12 @@
 
 ## Severidad: IMPORTANTE (Riesgos potenciales)
 
-### I-01 — XSS potencial: datos del servidor insertados sin sanitizar en HTML
+### I-01 — [RESUELTO] XSS potencial: datos del servidor insertados sin sanitizar en HTML
 
 - **Archivo:** `frontend/src/pages/contract-interaction.js`
 - **Ubicación aprox.:** Función `getPublicationCardHTML`
-- **Patrones a buscar:**
-  - `` `<a href="profile.html?user=${pub.author_username}"` ``
-  - `` `<h3>${pub.title}</h3>` ``
-- **Descripción:** Los campos `pub.author_username` y `pub.title` se insertan directamente en template literals que generan HTML, sin ninguna sanitización ni escape. Si un usuario registra un username o título con payloads como `<img onerror=alert(1)>`, se ejecutaría JavaScript en el navegador de todos los usuarios que vean esa publicación.
-- **Nota:** La función `linkify` sí sanitiza la descripción (escapa `<`, `>`, `&`), pero esta protección no se aplica al título ni al autor.
-- **Solución sugerida:** Crear una función `escapeHTML(str)` reutilizable y aplicarla a todos los datos del servidor antes de insertarlos en HTML. Alternativamente, usar `textContent` donde sea posible en lugar de `innerHTML`.
+- **Descripción:** `pub.author_username` y `pub.title` se insertaban en HTML sin escape → riesgo XSS.
+- > ✅ Resuelto: 2026-04-02 — Creado módulo `frontend/src/modules/sanitize.js` con `escapeHtml()` y `escapeAttr()` (OWASP compliant, escapa & < > " '). Aplicado en `getPublicationCardHTML`: título usa `escapeHtml(pub.title)`, autor usa `escapeHtml`/`escapeAttr` + `encodeURIComponent` para query params. Módulo registrado en `index.js` y expuesto en `window.*` para compatibilidad global.
 
 ---
 
@@ -174,6 +168,54 @@
 
 ---
 
+## Severidad: PUSH NOTIFICATIONS — Auditoría 2026-04-02
+
+> Los siguientes hallazgos fueron identificados y **resueltos** en la auditoría integral del sistema push del 2026-04-02.
+
+### PUSH-01 — [RESUELTO] Panel Admin push completamente roto (frontend ↔ backend desalineados)
+
+- **Archivos:** `backend/src/controllers/notificationController.js`, `frontend/src/pages/admin-panel.js`
+- **Descripción:** Frontend enviaba `message`, backend esperaba `body`. No existía lógica de envío individual. Respuesta sin campo `success`.
+- > ✅ Resuelto: 2026-04-02 — Controller reescrito: acepta `body` y `message`, implementa envío individual por username, respuesta con `{ success, sent, failed, total_active }`.
+
+### PUSH-02 — [RESUELTO] Preferencias de notificación se borraban al guardar
+
+- **Archivos:** `frontend/src/modules/notificationSettings.js`, `backend/src/controllers/notificationController.js`, `backend/src/services/notificationService.js`
+- **Descripción:** Frontend enviaba `{ social, marketing }` directo, controller esperaba `{ settings: {...} }`. Resultado: `settings = undefined` → preferencias reseteadas.
+- > ✅ Resuelto: 2026-04-02 — Frontend envía `{ settings: { social, marketing } }`. Controller acepta ambos formatos. Service hace merge con preferencias actuales.
+
+### PUSH-03 — [RESUELTO] 9/18 llamadas push con `url` en raíz (navegación rota al click)
+
+- **Archivos:** `backend/src/controllers/publicationController.js`, `backend/src/controllers/authController.js`
+- **Descripción:** SW lee `event.notification.data.url` pero 9 llamadas ponían `url` en la raíz del payload → click siempre iba a página por defecto.
+- > ✅ Resuelto: 2026-04-02 — Todas las llamadas corregidas a `data: { url }`. Función `normalizePayload()` como safety net.
+
+### PUSH-04 — [RESUELTO] SQL Injection en broadcast masivo
+
+- **Archivo:** `backend/src/services/notificationService.js`
+- **Descripción:** `typeKey` se concatenaba directamente en la query SQL de `sendNotificationToAll`.
+- > ✅ Resuelto: 2026-04-02 — Query parametrizada con `$1`. Tipo validado contra whitelist.
+
+### PUSH-05 — [RESUELTO] Alerta de seguridad de login usaba tipo SOCIAL
+
+- **Archivo:** `backend/src/services/notificationEventBus.js`
+- **Descripción:** `SECURITY_LOGIN_ALERT` no pasaba tipo → default SOCIAL → bloqueble por usuario.
+- > ✅ Resuelto: 2026-04-02 — Tipo explícito `'SECURITY'` (nunca bloqueable por preferencias).
+
+### PUSH-06 — [RESUELTO] Contadores de envío inexactos
+
+- **Archivo:** `backend/src/services/notificationService.js`
+- **Descripción:** `sendNotificationToUser` contaba intentos, no éxitos reales.
+- > ✅ Resuelto: 2026-04-02 — Contadores `successCount`/`failCount` precisos.
+
+### PUSH-07 — [RESUELTO] 5 eventos de gobernanza sin URL de navegación
+
+- **Archivo:** `backend/src/services/notificationEventBus.js`
+- **Descripción:** GOV_REQUEST_APPROVED, GOV_REQUEST_EXECUTED, GOV_REQUEST_REJECTED, GOV_GUARDIAN_ONBOARDED, GOV_GUARDIAN_REMOVED sin `data.url`.
+- > ✅ Resuelto: 2026-04-02 — Cada evento ahora incluye `data: { url: panelUrl }` apuntando al panel de gobernanza.
+
+---
+
 ## Registro de resoluciones
 
 | ID | Fecha | Resolución |
@@ -181,6 +223,16 @@
 | I-04 | 2026-03-27 | Resuelto: Select único reemplazado por filter chips (tipo) + sort dropdown (orden) separados. Se eliminó código muerto de `applySortAndFilter`. |
 | I-05 | 2026-03-27 | Resuelto: Rama `if (!selected)` eliminada al reescribir `applySortAndFilter` con nueva arquitectura de filtro + orden. |
 | C-03 | 2026-03-27 | Resuelto: `userRatingsCache` promovido a variable de módulo (persistente). Se invalida solo al traer publicaciones frescas del servidor. Los re-renderizados por filtro/orden/búsqueda ya no generan peticiones HTTP de ratings. |
+| PUSH-01 | 2026-04-02 | Resuelto: Panel admin push reescrito — acepta body/message, envío individual + broadcast, respuesta con success. |
+| PUSH-02 | 2026-04-02 | Resuelto: Preferencias: frontend envía { settings: {...} }, controller acepta ambos formatos, service hace merge. |
+| PUSH-03 | 2026-04-02 | Resuelto: 9 payloads corregidos de `url` raíz a `data: { url }` + normalizePayload() como safety net. |
+| PUSH-04 | 2026-04-02 | Resuelto: SQL injection eliminado con query parametrizada + whitelist de tipos. |
+| PUSH-05 | 2026-04-02 | Resuelto: SECURITY_LOGIN_ALERT reclasificado de SOCIAL a SECURITY (no bloqueable). |
+| PUSH-06 | 2026-04-02 | Resuelto: Contadores de entrega precisos (éxitos reales, no intentos). |
+| PUSH-07 | 2026-04-02 | Resuelto: 5 eventos de gobernanza ahora incluyen data.url para navegación correcta. |
+| C-01 | 2026-04-02 | Resuelto: Creada función `startAvailableCountdown()` — corrige ReferenceError en runtime para countdown de fondos pendientes. |
+| I-01 | 2026-04-02 | Resuelto: Módulo `sanitize.js` (escapeHtml/escapeAttr OWASP) aplicado en pub.title y pub.author_username. |
+| C-02 | 2026-04-02 | Resuelto: Polling inteligente con Page Visibility API — pausa en tab oculto, refresh inmediato al volver, intervalo 10s. |
 
 ---
 
