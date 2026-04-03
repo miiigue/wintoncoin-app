@@ -1328,14 +1328,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         showCustomConfirm(confirmMsg, async () => {
             try {
+                const token = localStorage.getItem('token');
                 const response = await fetch(`${API_URL}/publications/${pubId}/accept`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token && { 'Authorization': `Bearer ${token}` })
+                    },
                     body: JSON.stringify({
                         acceptorUsername: storedUsername,
                         donationAmount: amount
                     })
                 });
+                if (handleSessionExpired(response)) return;
 
                 const result = await response.json();
                 if (response.ok) {
@@ -2524,11 +2529,16 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             try {
+                const token = localStorage.getItem('token');
                 const response = await fetch(`${API_URL}/api/quick-sale`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token && { 'Authorization': `Bearer ${token}` })
+                    },
                     body: JSON.stringify(data)
                 });
+                if (handleSessionExpired(response)) return;
 
                 const result = await response.json();
 

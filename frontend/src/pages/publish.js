@@ -9,7 +9,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- API and State ---
     const API_URL = getApiUrl();
     const storedUsername = localStorage.getItem('username');
-    const authToken = localStorage.getItem('token');
 
     // --- DOM Elements ---
     const publishForm = document.getElementById('publishForm');
@@ -97,11 +96,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
+                const token = localStorage.getItem('token');
                 const response = await fetch(`${API_URL}/api/minor/add-tutor`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
+                        ...(token && { 'Authorization': `Bearer ${token}` })
                     },
                     body: JSON.stringify({
                         minorUsername: username,
@@ -482,11 +482,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
+            const token = localStorage.getItem('token');
             const response = await fetch(`${API_URL}/publish`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authToken}`
+                    ...(token && { 'Authorization': `Bearer ${token}` })
                 },
                 body: JSON.stringify(data)
             });
