@@ -3,7 +3,7 @@
  * Handles viewing and interacting with a single publication
  */
 
-import { getApiUrl, showCustomAlert, showCustomConfirm, linkify, fetchAndStoreAppSettings, appSettings } from '../modules/index.js';
+import { getApiUrl, showCustomAlert, showCustomConfirm, linkify, escapeHtml, escapeAttr, fetchAndStoreAppSettings, appSettings } from '../modules/index.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- Configuration and State ---
@@ -120,9 +120,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const isDonation = pub.category === 'donation';
         const authorRatingHTML = generateStarRating(pub.author_average_rating, pub.author_ratings_count);
 
+        // XSS Prevention: escapar username antes de insertar en HTML
+        const safeAuthor = escapeHtml(pub.author_username);
         const authorNameHTML = appSettings.public_profiles_enabled
-            ? `<a href="profile.html?user=${pub.author_username}" class="profile-link">${pub.author_username}</a>`
-            : pub.author_username;
+            ? `<a href="profile.html?user=${encodeURIComponent(pub.author_username)}" class="profile-link">${safeAuthor}</a>`
+            : safeAuthor;
 
         const expirationInfo = getExpirationStatusHTML(pub);
         const shareButtonHTML = `
@@ -175,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const publicationHTML = `
             <div class="detail-header">
                 ${metaBadgeHTML}
-                <h1 class="detail-title">${pub.title}</h1>
+                <h1 class="detail-title">${escapeHtml(pub.title)}</h1>
                 <div class="detail-meta">
                     Publicado por <strong>${authorNameHTML}</strong> ${authorRatingHTML}
                     <span class="detail-date">el ${new Date(pub.created_at).toLocaleDateString()}</span>
@@ -246,12 +248,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (hasFormFields) {
                 const fieldsHTML = formFields[stepNumStr].map((field, fieldIndex) => `
                     <div class="step-form-field-user">
-                        <label for="form-step-${stepNum}-field-${fieldIndex}">${field}</label>
+                        <label for="form-step-${stepNum}-field-${fieldIndex}">${escapeHtml(field)}</label>
                         <input type="text" 
                                id="form-step-${stepNum}-field-${fieldIndex}" 
                                class="step-form-input" 
                                data-step="${stepNum}" 
-                               data-field="${field}"
+                               data-field="${escapeAttr(field)}"
                                placeholder="Escribe tu respuesta..." 
                                required>
                     </div>
@@ -304,9 +306,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const statusText = getStatusText(p.status);
             let actionButtons = '';
 
+            const safeParticipant = escapeHtml(p.username);
             const participantNameHTML = appSettings.public_profiles_enabled
-                ? `<a href="profile.html?user=${p.username}" class="profile-link">${p.username}</a>`
-                : p.username;
+                ? `<a href="profile.html?user=${encodeURIComponent(p.username)}" class="profile-link">${safeParticipant}</a>`
+                : safeParticipant;
 
             // Formatear fecha y hora de solicitud
             const acceptedAtHTML = p.accepted_at
@@ -315,8 +318,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (p.status === 'pending_approval') {
                 actionButtons = `
-                    <button class="action-button approve" data-action="approve" data-user="${p.username}">Aprobar</button>
-                    <button class="action-button discard" data-action="discard" data-user="${p.username}">Descartar</button>
+                    <button class="action-button approve" data-action="approve" data-user="${escapeAttr(p.username)}">Aprobar</button>
+                    <button class="action-button discard" data-action="discard" data-user="${escapeAttr(p.username)}">Descartar</button>
                 `;
             } else if (p.status === 'approved') {
                 if (p.phone_number) {
@@ -330,7 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else if (p.status === 'completed') {
                 actionButtons = `
-                    <button class="action-button confirm" data-action="confirm-payment" data-user="${p.username}">Confirmar Pago</button>
+                    <button class="action-button confirm" data-action="confirm-payment" data-user="${escapeAttr(p.username)}">Confirmar Pago</button>
                 `;
             }
 
@@ -340,8 +343,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const responsesContent = Object.entries(p.form_responses).map(([stepNum, fields]) => {
                     const fieldsHTML = Object.entries(fields).map(([fieldName, value]) => `
                         <div class="form-response-field">
-                            <span class="form-response-label">${fieldName}:</span>
-                            <span class="form-response-value">${value}</span>
+                            <span class="form-response-label">${escapeHtml(fieldName)}:</span>
+                            <span class="form-response-value">${escapeHtml(value)}</span>
                         </div>
                     `).join('');
                     return `
@@ -454,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, 100);
 
             } else if (isTargetedBuyer || (isPublicSale && !isAuthor)) {
-                messageHTML = `<div class="action-message">Estás a punto de pagar <strong>${formatBalance(pub.blue_cost)} ${blueLabel}</strong> a <strong>${pub.author_username}</strong>.</div>`;
+                messageHTML = `<div class="action-message">Estás a punto de pagar <strong>${formatBalance(pub.blue_cost)} ${blueLabel}</strong> a <strong>${escapeHtml(pub.author_username)}</strong>.</div>`;
                 actionHTML = `<button class="action-button confirm" data-action="pay-quick-sale">Pagar Ahora</button>`;
             } else {
                 messageHTML = `<div class="status-info">No tienes permiso para ver o actuar en esta venta.</div>`;
