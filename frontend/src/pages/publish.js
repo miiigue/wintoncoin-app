@@ -3,12 +3,13 @@
  * Handles creating new publications (request, sell, donation)
  */
 
-import { getApiUrl, showCustomAlert } from '../modules/index.js';
+import { getApiUrl, showCustomAlert, handleSessionExpired } from '../modules/index.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- API and State ---
     const API_URL = getApiUrl();
     const storedUsername = localStorage.getItem('username');
+    const authToken = localStorage.getItem('token');
 
     // --- DOM Elements ---
     const publishForm = document.getElementById('publishForm');
@@ -98,7 +99,10 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const response = await fetch(`${API_URL}/api/minor/add-tutor`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
                     body: JSON.stringify({
                         minorUsername: username,
                         tutorUsernameOrEmail: tutorUsernameOrEmail.trim()
@@ -480,9 +484,14 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(`${API_URL}/publish`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
                 body: JSON.stringify(data)
             });
+            // Si el token expiró, redirigir al login
+            if (handleSessionExpired(response)) return;
 
             const result = await response.json();
 
