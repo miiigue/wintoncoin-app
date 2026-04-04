@@ -294,12 +294,14 @@ async function listGuardians(pool, req, res) {
         const raw = await governanceService.getGuardians(pool, filters);
 
         const guardians = raw.map(g => ({
-            id:         g.id,
-            user_id:    g.user_id,
-            username:   g.username,
-            role:       g.role,
-            status:     g.status,
-            created_at: g.created_at,
+            id:             g.id,
+            user_id:        g.user_id,
+            username:       g.username,
+            role:           g.role,
+            status:         g.status,
+            created_at:     g.created_at,
+            vote_count:     parseInt(g.vote_count, 10) || 0,
+            proposal_count: parseInt(g.proposal_count, 10) || 0,
         }));
 
         return res.json({ guardians });

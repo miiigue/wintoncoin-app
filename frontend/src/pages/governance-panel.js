@@ -372,14 +372,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             const ROLE_LABELS = { supervisor: 'Supervisor', auxiliary: 'Auxiliar' };
             const STATUS_LABELS = { active: 'Activo', inactive: 'Inactivo' };
 
-            const rows = guardians.map(g => `
+            const rows = guardians.map(g => {
+                const votes = Number(g.vote_count) || 0;
+                const proposals = Number(g.proposal_count) || 0;
+                return `
                 <tr>
                     <td style="font-family: monospace; color: #9CA3AF;">${Number(g.user_id) || '—'}</td>
                     <td>${escapeHtml(g.username)}</td>
                     <td><span class="gov-role-tag ${escapeHtml(g.role)}">${ROLE_LABELS[g.role] || escapeHtml(g.role)}</span></td>
                     <td><span class="gov-status-badge ${escapeHtml(g.status)}">${STATUS_LABELS[g.status] || escapeHtml(g.status)}</span></td>
+                    <td style="text-align: center; font-weight: 600;">${votes}</td>
+                    <td style="text-align: center; color: #9CA3AF;">${proposals}</td>
                     <td>${formatDate(g.created_at)}</td>
-                </tr>`).join('');
+                </tr>`;
+            }).join('');
 
             container.innerHTML = `
                 <div class="gov-council-summary">
@@ -409,6 +415,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <th>Usuario</th>
                                 <th>Rol</th>
                                 <th>Estado</th>
+                                <th style="text-align: center;">Votos</th>
+                                <th style="text-align: center;">Propuestas</th>
                                 <th>Miembro desde</th>
                             </tr>
                         </thead>

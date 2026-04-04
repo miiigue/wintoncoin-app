@@ -238,7 +238,9 @@ async function getGuardians(pool, filters = {}) {
         SELECT g.id, g.user_id, g.role, g.status,
                g.webauthn_credential_id IS NOT NULL AS has_webauthn,
                g.created_at, g.updated_at,
-               u.username, u.email
+               u.username, u.email,
+               (SELECT COUNT(*) FROM governance_votes v WHERE v.guardian_id = g.id) AS vote_count,
+               (SELECT COUNT(*) FROM governance_requests r WHERE r.requester_id = g.user_id) AS proposal_count
         FROM governance_guardians g
         JOIN users u ON g.user_id = u.id
     `;
