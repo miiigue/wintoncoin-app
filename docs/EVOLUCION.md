@@ -1053,6 +1053,13 @@ Esto no rompe el producto, pero **sí rompe la mantenibilidad** (repo pesado, di
 - **Archivos modificados**: `frontend/src/pages/contract-interaction.js`, `frontend/src/modules/sanitize.js` (nuevo), `frontend/src/modules/index.js`.
 - **Impacto**: Eliminado error de runtime que afectaba a usuarios con fondos pendientes. Eliminada vulnerabilidad XSS en el feed de publicaciones. Reducción significativa de carga al servidor (~50% menos requests cuando visible, ~100% menos cuando oculto) y ahorro de batería en dispositivos móviles.
 
+### 2026-04-04 — Eliminación de cabecera (nav) rota en faq.html
+
+- **Contexto**: La página `frontend/faq.html` contenía un elemento `<nav>` con enlaces a `landing.html` (logo "WintonCoin" e "Inicio") y `register.html` ("Registrarse"). La página `landing.html` no existe en el servidor, generando error 404 al hacer clic en cualquiera de esos enlaces.
+- **Solución**: Se eliminó completamente el bloque `<nav class="glass-nav">` con todos sus enlaces rotos. Se ajustó el `padding-top` de `.faq-section` de `120px` a `60px` ya que el padding original compensaba la altura del nav fijo que fue removido. También se eliminó el enlace "Inicio" (`landing.html`) del footer que igualmente apuntaba a la página inexistente. Se eliminó la columna de redes sociales del footer (iconos 𝕏, in, IG) ya que eran `<span>` sin enlaces funcionales.
+- **Archivos modificados**: `frontend/faq.html`.
+- **Impacto**: Los usuarios de la página FAQ ya no ven enlaces que llevan a páginas inexistentes (404). Se eliminaron iconos de redes sociales no funcionales. La página queda limpia con solo elementos que realmente funcionan: las 17 preguntas FAQ, el CTA de WhatsApp, y enlaces válidos en el footer (register, login, boosters).
+
 ### 2026-04-02 — Fix auth faltante en publish/donación/quick-sale + XSS en publication-detail
 
 - **Contexto**: Durante las pruebas de los fixes anteriores en demo, se detectaron 2 problemas adicionales.
