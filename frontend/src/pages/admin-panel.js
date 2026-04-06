@@ -825,6 +825,15 @@ document.addEventListener('DOMContentLoaded', () => {
             'allow_sell_publications': { title: 'Permitir Publicaciones de "Venta"', description: 'Los usuarios pueden publicar productos o servicios para vender.' },
             'allow_donation_publications': { title: 'Permitir Publicaciones de "Donación"', description: 'Los usuarios pueden solicitar donaciones.' },
             'allow_quick_sale_publications': { title: 'Permitir Publicaciones de "Venta Rápida"', description: 'Habilita el botón de Venta Rápida para transacciones exprés.' },
+            // P2P
+            'p2p_enabled': { title: 'P2P — Habilitado', description: 'Habilita el módulo P2P para compra/venta de BLUE entre usuarios.' },
+            'p2p_price_min': { title: 'P2P — Precio Mínimo (USD)', description: 'Precio mínimo permitido por 1 BLUE en USD.' },
+            'p2p_price_max': { title: 'P2P — Precio Máximo (USD)', description: 'Precio máximo permitido por 1 BLUE en USD.' },
+            'p2p_fee_percentage': { title: 'P2P — Comisión (%)', description: 'Comisión P2P total en porcentaje.' },
+            'p2p_payment_window_minutes': { title: 'P2P — Ventana de Pago (min)', description: 'Minutos máximos para confirmar el pago.' },
+            'p2p_extension_minutes': { title: 'P2P — Extensión (min)', description: 'Minutos de extensión al aceptar una prórroga.' },
+            'p2p_extension_limit': { title: 'P2P — Límite de Extensiones', description: 'Cantidad máxima de extensiones por orden.' },
+            'p2p_cash_min_rating': { title: 'P2P — Reputación Mínima para Efectivo', description: 'Calificación mínima requerida para usar efectivo en persona.' },
             // Gobernanza (Winton-Consensus)
             'gov_quorum_percentage': { title: 'Gobernanza — Quórum Requerido (%)', description: 'Porcentaje de votos necesarios para aprobar o rechazar (mín. 51, máx. 100).' },
             'gov_timelock_hours': { title: 'Gobernanza — Time-Lock (horas)', description: 'Horas de espera antes de ejecutar un cambio de membresía aprobado.' },
@@ -865,6 +874,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (s.setting_key.endsWith('_enabled') || s.setting_key.endsWith('registrations')) return getSettingHTML(s, 'switch');
                 if (s.setting_key === 'gov_vote_reward_blue') return getSettingHTML(s, 'number');
                 if (s.setting_key.startsWith('gov_')) return getSettingHTML(s, 'integer');
+                if (s.setting_key.startsWith('p2p_')) return getSettingHTML(s, 'number');
                 if (s.setting_key.endsWith('_amount') || s.setting_key.includes('percentage')) return getSettingHTML(s, 'number');
                 return '';
             }).join('');
