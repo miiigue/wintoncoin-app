@@ -4,6 +4,7 @@ const notificationService = require('./notificationService');
 const { sendGovernanceEmail } = require('./emailService');
 const { logAuditEvent } = require('./auditService');
 const governanceService = require('./governanceService');
+const governanceRewardService = require('./governanceRewardService');
 const { settingLabel } = require('../config/settingsDisplayMap');
 const pool = require('../config/db');
 
@@ -159,6 +160,49 @@ function _maskEmail(email) {
     const maskedLocal = `${local.slice(0, 2)}***`;
     const maskedDomain = domain.length > 3 ? `${domain.slice(0, 3)}***` : '***';
     return `${maskedLocal}@${maskedDomain}`;
+}
+
+/**
+ * Envía el correo de confirmación de recompensa BLUE IOU al guardián votante.
+ *
+ * Diseño del correo (industria fintech):
+ *   - Severidad "success" — acento verde (acreditación positiva de fondos)
+ *   - Sin botón de acción — el correo es informativo/transaccional, no navegacional
+ *   - Incluye: monto acreditado, nuevo saldo total, acumulado del mes, histórico
+ *   - Decisión de voto enmascarada en etiqueta neutra para privacidad del consejo
+ *
+ * @param {object} params
+ * @param {string} params.toEmail
+ * @param {number} params.requestId
+ * @param {string} params.voterUsername
+ * @param {string} params.vote           - 'approve' | 'reject'
+ * @param {object} params.reward         - resultado de creditVoteReward()
+ */
+async function _sendVoteRewardEmail({ toEmail, requestId, voterUsername, vote, reward }) {
+    const voteLabel = vote === 'approve' ? 'Aprobación' : 'Rechazo';
+    const nowLabel = _formatGovEmailDate(new Date());
+
+    return sendGovernanceEmail({
+        toEmail,
+        subject:   `+${reward.rewardAmount.toFixed(2)} BLUE IOU — Recompensa por Voto en Gobernanza`,
+        title:     `Recompensa acreditada: +${reward.rewardAmount.toFixed(2)} BLUE IOU`,
+        body:
+            `Hola ${voterUsername},\n\n` +
+            `Se han acreditado ${reward.rewardAmount.toFixed(2)} BLUE IOU a tu cuenta como ` +
+            `reconocimiento por tu participación en el sistema de gobernanza Winton-Consensus.\n\n` +
+            `Tu participación activa es fundamental para la seguridad y la integridad ` +
+            `de la plataforma. Gracias por ejercer tu responsabilidad como guardián.`,
+        severity: 'success',
+        details: [
+            { label: 'Solicitud votada',         value: `#${requestId}` },
+            { label: 'Tu decisión',               value: voteLabel },
+            { label: 'Recompensa acreditada',     value: `+${reward.rewardAmount.toFixed(2)} BLUE IOU` },
+            { label: 'Nuevo saldo BLUE IOU total', value: `${reward.newTotalBalance.toFixed(2)} BLUE IOU` },
+            { label: 'Acumulado este mes',         value: `${reward.monthlyVoteTotal.toFixed(2)} BLUE IOU` },
+            { label: 'Total histórico (votos)',    value: `${reward.historicalVoteTotal.toFixed(2)} BLUE IOU` },
+            { label: 'Fecha de acreditación',      value: nowLabel },
+        ],
+    });
 }
 
 class NotificationEventBus extends EventEmitter { }
@@ -449,12 +493,13 @@ eventBus.on('GOV_REQUEST_CREATED', async ({
     }
 });
 
-// 11. GOBERNANZA: Voto registrado → Push + Email al proponente y guardianes pendientes
-eventBus.on('GOV_VOTE_SUBMITTED', async ({ requestId, voterUsername, vote, requesterId, pendingGuardianIds }) => {
+// 11. GOBERNANZA: Voto registrado → Push + Email al proponente, guardianes pendientes y recompensa al votante
+eventBus.on('GOV_VOTE_SUBMITTED', async ({ requestId, voterUsername, voterUserId, vote, requesterId, pendingGuardianIds, rewardSnapshot }) => {
     const voteLabel = vote === 'approve' ? 'APROBÓ' : 'RECHAZÓ';
     const panelUrlRequester = _getGovernancePanelUrl(requestId);
     const panelUrlVoterFocus = _getGovernancePanelUrl(requestId, { focusVote: true });
 
+    // ── A. Push + Email al proponente ─────────────────────────────────────
     try {
         await notificationService.sendNotificationToUser(requesterId, {
             title: `Voto en Solicitud #${requestId}`,
@@ -483,6 +528,7 @@ eventBus.on('GOV_VOTE_SUBMITTED', async ({ requestId, voterUsername, vote, reque
         }).catch(err => console.error('[EVENT-BUS] Error email proponente voto:', err));
     }
 
+    // ── B. Push + Email a guardianes con voto pendiente ───────────────────
     const pendingEmails = await _getUsersEmails(pendingGuardianIds || []).catch(() => []);
     for (const userId of (pendingGuardianIds || [])) {
         try {
@@ -508,6 +554,44 @@ eventBus.on('GOV_VOTE_SUBMITTED', async ({ requestId, voterUsername, vote, reque
                 details: [{ label: 'Solicitud', value: `#${requestId}` }],
                 severity: 'warning',
             }).catch(err => console.error(`[EVENT-BUS] Error email guardián pendiente ${userId}:`, err));
+        }
+    }
+
+    // ── C. Recompensa BLUE IOU al votante ─────────────────────────────────
+    // Aislado en bloque try/catch propio: si falla, no afecta las notificaciones
+    // anteriores ni el voto ya registrado en BD.
+    if (voterUserId) {
+        try {
+            const reward = await governanceRewardService.creditVoteReward(pool, {
+                requestId,
+                guardianUserId: voterUserId,
+                voterUsername,
+                rewardSnapshot,
+            });
+
+            if (reward) {
+                // Push TRANSACCIONAL al votante (involucra acreditación de fondos)
+                notificationService.sendNotificationToUser(voterUserId, {
+                    title: `+${reward.rewardAmount.toFixed(2)} BLUE IOU acreditados`,
+                    body: `Gracias por tu participación en gobernanza. Se han acreditado ${reward.rewardAmount.toFixed(2)} BLUE IOU a tu cuenta.`,
+                    icon: '/assets/icons/icon-192x192.png',
+                    data: { url: '/history.html' },
+                }, 'TRANSACTIONAL').catch(err => console.error('[EVENT-BUS] Error push recompensa voto:', err));
+
+                // Email de confirmación de recompensa
+                const voterEmail = await _getUserEmail(voterUserId).catch(() => null);
+                if (voterEmail) {
+                    _sendVoteRewardEmail({
+                        toEmail:    voterEmail,
+                        requestId,
+                        voterUsername,
+                        vote,
+                        reward,
+                    }).catch(err => console.error('[EVENT-BUS] Error email recompensa voto:', err));
+                }
+            }
+        } catch (err) {
+            console.error(`[EVENT-BUS] Error acreditando recompensa de voto (request #${requestId}, user ${voterUserId}):`, err);
         }
     }
 });

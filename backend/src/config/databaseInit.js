@@ -1042,6 +1042,7 @@ async function initializeDatabase() {
         ['gov_request_expiry_hours', '24', 'Horas que tiene una solicitud para alcanzar quórum antes de expirar.'],
         ['gov_reminder_threshold_hours', '12', 'Horas restantes antes de expiración para enviar recordatorio de voto.'],
         ['gov_reminder_cooldown_hours', '6', 'Horas mínimas entre recordatorios sucesivos al mismo guardián.'],
+        ['gov_vote_reward_blue', '0', 'BLUE IOU acreditados a un guardián al emitir su voto (0 = desactivado).'],
     ];
 
     const client = await pool.connect();

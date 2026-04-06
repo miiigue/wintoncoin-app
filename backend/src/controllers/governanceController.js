@@ -26,7 +26,7 @@ async function _getActiveGuardianUserIds(pool) {
  * Emits the appropriate governance events after a vote is processed.
  * Fetches fresh data from DB to ensure accuracy.
  */
-async function _emitVoteEvents(pool, { requestId, vote, voterUsername, resultStatus }) {
+async function _emitVoteEvents(pool, { requestId, vote, voterUsername, voterUserId, resultStatus, rewardSnapshot }) {
     const reqRes = await pool.query(
         `SELECT r.requester_id, r.action_type, r.target_key, r.execution_time
          FROM governance_requests r WHERE r.id = $1`,
@@ -51,9 +51,11 @@ async function _emitVoteEvents(pool, { requestId, vote, voterUsername, resultSta
     eventBus.emit('GOV_VOTE_SUBMITTED', {
         requestId,
         voterUsername,
+        voterUserId,
         vote,
         requesterId: govReq.requester_id,
         pendingGuardianIds,
+        rewardSnapshot,
     });
 
     if (resultStatus === 'rejected') {
@@ -439,15 +441,18 @@ async function submitVote(pool, req, res) {
         });
 
         _emitVoteEvents(pool, {
-            requestId: parsedRequestId,
+            requestId:      parsedRequestId,
             vote,
-            voterUsername: guardian?.username || req.user.username,
-            resultStatus: result.status,
+            voterUsername:  guardian?.username || req.user.username,
+            voterUserId:    req.user.userId,
+            resultStatus:   result.status,
+            rewardSnapshot: result.rewardSnapshot,
         }).catch(err => console.error('[GOV-CTRL] Error emitting vote events:', err));
 
+        const { rewardSnapshot: _unused, ...clientResult } = result;
         return res.json({
-            message: result.message,
-            ...result,
+            message: clientResult.message,
+            ...clientResult,
         });
     } catch (error) {
         return handleError(res, error);

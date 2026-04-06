@@ -2248,6 +2248,93 @@ async function startServer() {
             }
         });
 
+        // ─── ADMIN: Recompensas de Gobernanza (Batch Processing) ─────────
+        const governanceRewardService = require('./src/services/governanceRewardService');
+
+        app.get('/api/admin/governance/reward-stats', verifyAdminToken, async (req, res) => {
+            try {
+                const stats = await governanceRewardService.getPendingRewardStats(pool);
+                return res.json(stats);
+            } catch (error) {
+                console.error('[ADMIN] Error obteniendo stats de recompensas:', error);
+                return res.status(500).json({ message: 'Error al obtener estadísticas de recompensas.' });
+            }
+        });
+
+        app.post('/api/admin/governance/process-rewards', verifyAdminToken, async (req, res) => {
+            try {
+                const stats = await governanceRewardService.getPendingRewardStats(pool);
+                if (stats.pendingCount === 0) {
+                    return res.json({ message: 'No hay votos pendientes de recompensa.', totalProcessed: 0 });
+                }
+                if (stats.currentRate === 0) {
+                    return res.status(400).json({
+                        message: 'La tasa de recompensa está en 0. Configure gov_vote_reward_blue antes de procesar.',
+                    });
+                }
+
+                const result = await governanceRewardService.processPendingRewards(pool, req.user.userId);
+
+                // Enviar notificaciones consolidadas a cada guardián
+                const notificationService = require('./src/services/notificationService');
+                const { sendGovernanceEmail } = require('./src/services/emailService');
+
+                for (const [userId, summary] of Object.entries(result.byGuardian)) {
+                    const safeUserId = parseInt(userId, 10);
+
+                    // Push TRANSACCIONAL (involucra acreditación de fondos)
+                    notificationService.sendNotificationToUser(safeUserId, {
+                        title: `+${summary.totalAmount.toFixed(2)} BLUE IOU acreditados`,
+                        body: `Recompensa retroactiva por ${summary.votesPaid} voto(s) de gobernanza.`,
+                        icon: '/assets/icons/icon-192x192.png',
+                        data: { url: '/history.html' },
+                    }, 'TRANSACTIONAL').catch(err =>
+                        console.error(`[ADMIN] Error push batch reward user ${safeUserId}:`, err)
+                    );
+
+                    // Email consolidado
+                    if (summary.email) {
+                        const votesList = summary.requestIds
+                            .map(id => `• Solicitud #${id}`)
+                            .join('\n');
+
+                        sendGovernanceEmail({
+                            toEmail:  summary.email,
+                            subject:  `+${summary.totalAmount.toFixed(2)} BLUE IOU — Recompensa retroactiva por votos de gobernanza`,
+                            title:    `Recompensa acreditada: +${summary.totalAmount.toFixed(2)} BLUE IOU`,
+                            body:
+                                `Hola ${summary.username},\n\n` +
+                                `Se han acreditado recompensas por tu participación en el sistema de ` +
+                                `gobernanza Winton-Consensus. Este pago corresponde a votos emitidos ` +
+                                `anteriormente que aún no habían sido compensados.\n\n` +
+                                `Detalle de votos compensados:\n${votesList}`,
+                            severity: 'success',
+                            details: [
+                                { label: 'Votos compensados',       value: String(summary.votesPaid) },
+                                { label: 'Tasa por voto',           value: `${result.rateUsed.toFixed(2)} BLUE IOU` },
+                                { label: 'Total acreditado',        value: `+${summary.totalAmount.toFixed(2)} BLUE IOU` },
+                                { label: 'Nuevo saldo BLUE IOU',    value: `${summary.newBalance.toFixed(2)} BLUE IOU` },
+                                { label: 'Procesado por',           value: 'Administrador' },
+                            ],
+                        }).catch(err =>
+                            console.error(`[ADMIN] Error email batch reward user ${safeUserId}:`, err)
+                        );
+                    }
+                }
+
+                return res.json({
+                    message: `${result.totalProcessed} voto(s) procesados exitosamente.`,
+                    totalProcessed:    result.totalProcessed,
+                    totalSkipped:      result.totalSkipped,
+                    rateUsed:          result.rateUsed,
+                    guardiansAffected: Object.keys(result.byGuardian).length,
+                });
+            } catch (error) {
+                console.error('[ADMIN] Error procesando recompensas batch:', error);
+                return res.status(500).json({ message: 'Error al procesar recompensas pendientes.' });
+            }
+        });
+
         app.get('/api/admin/boosters/list', verifyAdminToken, async (req, res) => {
             try {
                 const query = `

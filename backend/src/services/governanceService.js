@@ -551,10 +551,22 @@ async function submitVote(pool, req, data) {
             ]
         );
 
-        // 7. Evaluar quórum (aprobación Y rechazo)
+        // 7. Snapshot del monto de recompensa ANTES de evaluar quórum.
+        //    Point-in-time pricing: si este voto activa la ejecución de un
+        //    config_change sobre gov_vote_reward_blue, el valor capturado aquí
+        //    es el vigente al momento del acto, no el nuevo.
+        const rewardSnapshotRes = await client.query(
+            `SELECT setting_value FROM app_settings WHERE setting_key = $1`,
+            ['gov_vote_reward_blue']
+        );
+        const rewardSnapshot = rewardSnapshotRes.rows[0]?.setting_value ?? null;
+
+        // 8. Evaluar quórum (aprobación Y rechazo)
         const result = await _evaluateAndAct(client, req, govRequest);
 
         await client.query('COMMIT');
+
+        result.rewardSnapshot = rewardSnapshot;
 
         await logAuditEvent(pool, req, {
             eventType: 'GOV_VOTE_SUBMITTED',

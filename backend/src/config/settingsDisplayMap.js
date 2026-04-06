@@ -40,6 +40,7 @@ const SETTINGS_DISPLAY_MAP = {
     'gov_request_expiry_hours': 'Gobernanza — Expiración de Solicitud (horas)',
     'gov_reminder_threshold_hours': 'Gobernanza — Umbral de Recordatorio (horas)',
     'gov_reminder_cooldown_hours': 'Gobernanza — Enfriamiento entre Recordatorios (horas)',
+    'gov_vote_reward_blue': 'Gobernanza — Recompensa por Voto (BLUE IOU)',
 };
 
 function settingLabel(key) {

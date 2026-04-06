@@ -119,7 +119,14 @@ document.addEventListener('DOMContentLoaded', () => {
         humanitarianDetailModal: document.getElementById('humanitarianDetailModal'),
         humanitarianModalTitle: document.getElementById('humanitarianModalTitle'),
         humanitarianModalBody: document.getElementById('humanitarianModalBody'),
-        humanitarianModalActions: document.getElementById('humanitarianModalActions')
+        humanitarianModalActions: document.getElementById('humanitarianModalActions'),
+        // --- RECOMPENSAS DE GOBERNANZA ---
+        govRewardsStats: document.getElementById('gov-rewards-stats'),
+        govRewardsAction: document.getElementById('gov-rewards-action'),
+        govRewardsSummary: document.getElementById('gov-rewards-summary'),
+        govRewardsDescription: document.getElementById('gov-rewards-description'),
+        govRewardsProcessBtn: document.getElementById('gov-rewards-process-btn'),
+        govRewardsResult: document.getElementById('gov-rewards-result'),
     };
 
     // --- Inicialización ---
@@ -457,6 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (sectionId === 'audit-log') loadAuditLog();
         else if (sectionId === 'academy') loadAcademyVideos();
         else if (sectionId === 'humanitarian') loadHumanitarianCauses();
+        else if (sectionId === 'gov-rewards') loadGovRewardsSection();
     }
 
     function showBoosterTab(tabId) {
@@ -823,6 +831,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'gov_request_expiry_hours': { title: 'Gobernanza — Expiración de Solicitud (horas)', description: 'Horas que tiene una solicitud para alcanzar quórum.' },
             'gov_reminder_threshold_hours': { title: 'Gobernanza — Umbral de Recordatorio (horas)', description: 'Cuando quedan estas horas para expirar, se envía recordatorio.' },
             'gov_reminder_cooldown_hours': { title: 'Gobernanza — Enfriamiento entre Recordatorios (horas)', description: 'Horas mínimas entre recordatorios al mismo guardián.' },
+            'gov_vote_reward_blue': { title: 'Gobernanza — Recompensa por Voto (BLUE IOU)', description: 'BLUE IOU acreditados al guardián al emitir su voto. Valor 0 desactiva la recompensa.' },
         };
         return map[key] || { title: key, description: 'Sin descripción.' };
     }
@@ -854,6 +863,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elements.settingsContainer) {
             elements.settingsContainer.innerHTML = generalSettings.map(s => {
                 if (s.setting_key.endsWith('_enabled') || s.setting_key.endsWith('registrations')) return getSettingHTML(s, 'switch');
+                if (s.setting_key === 'gov_vote_reward_blue') return getSettingHTML(s, 'number');
                 if (s.setting_key.startsWith('gov_')) return getSettingHTML(s, 'integer');
                 if (s.setting_key.endsWith('_amount') || s.setting_key.includes('percentage')) return getSettingHTML(s, 'number');
                 return '';
@@ -3296,6 +3306,115 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.warn('[SOLIDARIO] No se pudo actualizar badge de pendientes:', error.message);
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // RECOMPENSAS DE GOBERNANZA
+    // ═══════════════════════════════════════════════════════════════════════
+
+    async function loadGovRewardsSection() {
+        if (!elements.govRewardsStats) return;
+        elements.govRewardsStats.innerHTML = '<div class="loading-spinner"></div>';
+        if (elements.govRewardsAction) elements.govRewardsAction.style.display = 'none';
+        if (elements.govRewardsResult) elements.govRewardsResult.style.display = 'none';
+
+        try {
+            const stats = await apiFetch('/api/admin/governance/reward-stats');
+            renderGovRewardsStats(stats);
+        } catch (error) {
+            elements.govRewardsStats.innerHTML = `<p class="error-message">Error al cargar estadísticas: ${escapeHtml(error.message)}</p>`;
+        }
+    }
+
+    function renderGovRewardsStats(stats) {
+        if (!elements.govRewardsStats) return;
+
+        elements.govRewardsStats.innerHTML = `
+            <div class="stat-card">
+                <h4>Votos sin Recompensar</h4>
+                <p class="stat-value">${Number(stats.pendingCount)}</p>
+            </div>
+            <div class="stat-card">
+                <h4>Guardianes Afectados</h4>
+                <p class="stat-value">${Number(stats.guardiansAffected)}</p>
+            </div>
+            <div class="stat-card">
+                <h4>Tasa Actual</h4>
+                <p class="stat-value">${Number(stats.currentRate).toFixed(2)} BLUE</p>
+            </div>
+            <div class="stat-card">
+                <h4>Total Estimado</h4>
+                <p class="stat-value">${Number(stats.estimatedTotal).toFixed(2)} BLUE</p>
+            </div>
+        `;
+
+        if (stats.pendingCount > 0 && stats.currentRate > 0) {
+            elements.govRewardsSummary.textContent =
+                `${stats.pendingCount} voto(s) pendientes — ${stats.guardiansAffected} guardián(es)`;
+            elements.govRewardsDescription.textContent =
+                `Se acreditarán ${Number(stats.estimatedTotal).toFixed(2)} BLUE IOU en total (${Number(stats.currentRate).toFixed(2)} por voto).`;
+            elements.govRewardsAction.style.display = 'block';
+            elements.govRewardsProcessBtn.disabled = false;
+            elements.govRewardsProcessBtn.textContent = 'Procesar Pagos Pendientes';
+            elements.govRewardsProcessBtn.style.background = '#059669';
+            elements.govRewardsProcessBtn.style.cursor = 'pointer';
+        } else if (stats.pendingCount > 0 && stats.currentRate === 0) {
+            elements.govRewardsSummary.textContent =
+                `${stats.pendingCount} voto(s) pendientes — Tasa en 0 (desactivada)`;
+            elements.govRewardsDescription.textContent =
+                'Configure "Gobernanza — Recompensa por Voto (BLUE IOU)" en Configuración antes de procesar.';
+            elements.govRewardsAction.style.display = 'block';
+            elements.govRewardsProcessBtn.disabled = true;
+            elements.govRewardsProcessBtn.textContent = 'Tasa en 0 — Configure primero';
+            elements.govRewardsProcessBtn.style.background = '#9CA3AF';
+            elements.govRewardsProcessBtn.style.cursor = 'not-allowed';
+        } else {
+            elements.govRewardsAction.style.display = 'none';
+        }
+    }
+
+    if (elements.govRewardsProcessBtn) {
+        elements.govRewardsProcessBtn.addEventListener('click', async () => {
+            if (elements.govRewardsProcessBtn.disabled) return;
+
+            const confirmed = confirm(
+                '¿Estás seguro de procesar los pagos pendientes?\n\n' +
+                'Esta acción acreditará BLUE IOU a cada guardián según la tasa configurada. ' +
+                'Se enviará un correo consolidado a cada guardián afectado.'
+            );
+            if (!confirmed) return;
+
+            elements.govRewardsProcessBtn.disabled = true;
+            elements.govRewardsProcessBtn.textContent = 'Procesando...';
+            elements.govRewardsResult.style.display = 'none';
+
+            try {
+                const result = await apiFetch('/api/admin/governance/process-rewards', {
+                    method: 'POST',
+                });
+                elements.govRewardsResult.style.display = 'block';
+                elements.govRewardsResult.innerHTML = `
+                    <div class="admin-card" style="border-left: 4px solid #059669; background: #F0FDF4;">
+                        <h4 style="color: #059669; margin: 0 0 0.5rem;">Procesamiento completado</h4>
+                        <p><strong>Votos procesados:</strong> ${Number(result.totalProcessed)}</p>
+                        <p><strong>Omitidos:</strong> ${Number(result.totalSkipped)}</p>
+                        <p><strong>Tasa aplicada:</strong> ${Number(result.rateUsed).toFixed(2)} BLUE IOU</p>
+                        <p><strong>Guardianes notificados:</strong> ${Number(result.guardiansAffected)}</p>
+                    </div>
+                `;
+                loadGovRewardsSection();
+            } catch (error) {
+                elements.govRewardsResult.style.display = 'block';
+                elements.govRewardsResult.innerHTML = `
+                    <div class="admin-card" style="border-left: 4px solid #DC2626; background: #FEF2F2;">
+                        <h4 style="color: #DC2626; margin: 0 0 0.5rem;">Error en el procesamiento</h4>
+                        <p>${escapeHtml(error.message)}</p>
+                    </div>
+                `;
+                elements.govRewardsProcessBtn.disabled = false;
+                elements.govRewardsProcessBtn.textContent = 'Procesar Pagos Pendientes';
+            }
+        });
     }
 
 });
