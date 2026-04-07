@@ -729,6 +729,40 @@
                 </div>
 
                 <div id="gov-rewards-result" style="margin-top: 1rem; display: none;"></div>
+
+                <!-- Transferencia Demo → Producción -->
+                <hr style="margin: 2.5rem 0; border-color: #E5E7EB;">
+                <h2 style="margin-bottom: 0.5rem;">Transferencia Demo → Producción</h2>
+                <p style="color: #667085; margin-bottom: 1.5rem;">Exporta la actividad de gobernanza desde demo e impórtala en producción para acreditar recompensas reales.</p>
+
+                <!-- Exportar -->
+                <div class="admin-card" style="border-left: 4px solid #3B82F6; margin-bottom: 1.5rem;">
+                    <h3>Exportar Actividad de Gobernanza</h3>
+                    <p style="color: #667085; margin: 0.5rem 0 1rem;">Genera un reporte firmado (HMAC-SHA256) de los votos no exportados en este entorno.</p>
+                    <div id="gov-export-stats" style="margin-bottom: 1rem;"></div>
+                    <button id="gov-export-btn" class="admin-btn" style="background: #3B82F6; color: #fff; padding: 10px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                        Exportar Reporte
+                    </button>
+                    <div id="gov-export-result" style="margin-top: 1rem; display: none;"></div>
+                </div>
+
+                <!-- Importar -->
+                <div class="admin-card" style="border-left: 4px solid #8B5CF6;">
+                    <h3>Importar Recompensas desde Demo</h3>
+                    <p style="color: #667085; margin: 0.5rem 0 1rem;">Sube un reporte exportado desde el entorno de pruebas para acreditar BLUE IOU en cuentas reales.</p>
+                    <div style="margin-bottom: 1rem;">
+                        <label for="gov-import-file" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Archivo JSON exportado:</label>
+                        <input type="file" id="gov-import-file" accept=".json" style="padding: 8px; border: 1px solid #D1D5DB; border-radius: 8px; width: 100%; max-width: 400px;">
+                    </div>
+                    <button id="gov-import-validate-btn" class="admin-btn" style="background: #8B5CF6; color: #fff; padding: 10px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                        Validar Archivo
+                    </button>
+                    <div id="gov-import-preview" style="margin-top: 1rem; display: none;"></div>
+                    <button id="gov-import-process-btn" class="admin-btn" style="background: #059669; color: #fff; padding: 10px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; margin-top: 1rem; display: none;">
+                        Confirmar y Procesar Pagos
+                    </button>
+                    <div id="gov-import-result" style="margin-top: 1rem; display: none;"></div>
+                </div>
             </section>
 
             <!-- Winton Academy Section -->

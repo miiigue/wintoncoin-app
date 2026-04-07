@@ -2335,6 +2335,114 @@ async function startServer() {
             }
         });
 
+        // ─── ADMIN: Transferencia de Recompensas Demo → Producción ────────
+        const govDemoRewardService = require('./src/services/governanceDemoRewardService');
+
+        app.get('/api/admin/governance/demo-export-stats', verifyAdminToken, async (req, res) => {
+            try {
+                const stats = await govDemoRewardService.getExportStats(pool);
+                return res.json(stats);
+            } catch (error) {
+                console.error('[ADMIN] Error obteniendo stats de exportación demo:', error);
+                return res.status(500).json({ message: 'Error al obtener estadísticas de exportación.' });
+            }
+        });
+
+        app.post('/api/admin/governance/demo-export', verifyAdminToken, async (req, res) => {
+            try {
+                const result = await govDemoRewardService.generateExport(pool);
+                if (!result) {
+                    return res.json({ message: 'No hay votos pendientes de exportar.', data: null });
+                }
+                return res.json({ message: `${result.summary.total_votes} voto(s) exportados.`, data: result });
+            } catch (error) {
+                console.error('[ADMIN] Error generando exportación demo:', error);
+                return res.status(500).json({ message: error.message });
+            }
+        });
+
+        app.post('/api/admin/governance/demo-import-preview', verifyAdminToken, async (req, res) => {
+            try {
+                const { fileData } = req.body;
+                if (!fileData) {
+                    return res.status(400).json({ message: 'No se proporcionó el contenido del archivo.' });
+                }
+                const validated = govDemoRewardService.validateImport(fileData);
+                const preview   = await govDemoRewardService.previewImport(pool, validated);
+                return res.json(preview);
+            } catch (error) {
+                console.error('[ADMIN] Error en preview de importación demo:', error);
+                return res.status(400).json({ message: error.message });
+            }
+        });
+
+        app.post('/api/admin/governance/demo-import-process', verifyAdminToken, async (req, res) => {
+            try {
+                const { fileData } = req.body;
+                if (!fileData) {
+                    return res.status(400).json({ message: 'No se proporcionó el contenido del archivo.' });
+                }
+                const validated = govDemoRewardService.validateImport(fileData);
+                const result    = await govDemoRewardService.processImport(pool, validated, req.user.userId);
+
+                const notificationService = require('./src/services/notificationService');
+                const { sendGovernanceEmail } = require('./src/services/emailService');
+
+                for (const [userId, summary] of Object.entries(result.byGuardian)) {
+                    const safeUserId = parseInt(userId, 10);
+
+                    notificationService.sendNotificationToUser(safeUserId, {
+                        title: `+${summary.totalAmount.toFixed(2)} BLUE IOU acreditados`,
+                        body:  `Recompensa por ${summary.votesPaid} voto(s) de gobernanza en entorno de pruebas.`,
+                        icon:  '/assets/icons/icon-192x192.png',
+                        data:  { url: '/history.html' },
+                    }, 'TRANSACTIONAL').catch(err =>
+                        console.error(`[ADMIN] Error push demo reward user ${safeUserId}:`, err)
+                    );
+
+                    if (summary.email) {
+                        const votesList = summary.demoVoteIds
+                            .map(id => `\u2022 Voto demo #${id}`)
+                            .join('\n');
+
+                        sendGovernanceEmail({
+                            toEmail:  summary.email,
+                            subject:  `+${summary.totalAmount.toFixed(2)} BLUE IOU — Recompensa por pruebas de gobernanza`,
+                            title:    `Recompensa acreditada: +${summary.totalAmount.toFixed(2)} BLUE IOU`,
+                            body:
+                                `Hola ${summary.username},\n\n` +
+                                `Se han acreditado recompensas BLUE IOU a tu cuenta por tu participación ` +
+                                `en las pruebas del sistema de gobernanza Winton-Consensus.\n\n` +
+                                `Tu trabajo probando la plataforma es fundamental para garantizar ` +
+                                `la calidad y seguridad del sistema. Gracias por tu dedicación.\n\n` +
+                                `Detalle:\n${votesList}`,
+                            severity: 'success',
+                            details: [
+                                { label: 'Votos compensados',    value: String(summary.votesPaid) },
+                                { label: 'Tasa por voto',        value: `${result.rateUsed.toFixed(2)} BLUE IOU` },
+                                { label: 'Total acreditado',     value: `+${summary.totalAmount.toFixed(2)} BLUE IOU` },
+                                { label: 'Nuevo saldo BLUE IOU', value: `${summary.newBalance.toFixed(2)} BLUE IOU` },
+                                { label: 'Origen',               value: 'Entorno de pruebas (Demo)' },
+                            ],
+                        }).catch(err =>
+                            console.error(`[ADMIN] Error email demo reward user ${safeUserId}:`, err)
+                        );
+                    }
+                }
+
+                return res.json({
+                    message:           `${result.totalProcessed} voto(s) procesados exitosamente.`,
+                    totalProcessed:    result.totalProcessed,
+                    totalSkipped:      result.totalSkipped,
+                    rateUsed:          result.rateUsed,
+                    guardiansAffected: Object.keys(result.byGuardian).length,
+                });
+            } catch (error) {
+                console.error('[ADMIN] Error procesando importación demo:', error);
+                return res.status(500).json({ message: error.message });
+            }
+        });
+
         app.get('/api/admin/boosters/list', verifyAdminToken, async (req, res) => {
             try {
                 const query = `

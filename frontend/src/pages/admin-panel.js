@@ -127,6 +127,15 @@ document.addEventListener('DOMContentLoaded', () => {
         govRewardsDescription: document.getElementById('gov-rewards-description'),
         govRewardsProcessBtn: document.getElementById('gov-rewards-process-btn'),
         govRewardsResult: document.getElementById('gov-rewards-result'),
+        // --- TRANSFERENCIA DEMO → PRODUCCIÓN ---
+        govExportStats: document.getElementById('gov-export-stats'),
+        govExportBtn: document.getElementById('gov-export-btn'),
+        govExportResult: document.getElementById('gov-export-result'),
+        govImportFile: document.getElementById('gov-import-file'),
+        govImportValidateBtn: document.getElementById('gov-import-validate-btn'),
+        govImportPreview: document.getElementById('gov-import-preview'),
+        govImportProcessBtn: document.getElementById('gov-import-process-btn'),
+        govImportResult: document.getElementById('gov-import-result'),
     };
 
     // --- Inicialización ---
@@ -3334,6 +3343,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             elements.govRewardsStats.innerHTML = `<p class="error-message">Error al cargar estadísticas: ${escapeHtml(error.message)}</p>`;
         }
+
+        loadDemoExportStats();
     }
 
     function renderGovRewardsStats(stats) {
@@ -3423,6 +3434,257 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 elements.govRewardsProcessBtn.disabled = false;
                 elements.govRewardsProcessBtn.textContent = 'Procesar Pagos Pendientes';
+            }
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // TRANSFERENCIA DEMO → PRODUCCIÓN
+    // ═══════════════════════════════════════════════════════════════════════
+
+    let pendingImportFileData = null;
+
+    async function loadDemoExportStats() {
+        if (!elements.govExportStats) return;
+        try {
+            const stats = await apiFetch('/api/admin/governance/demo-export-stats');
+            if (stats.unexportedVotes > 0) {
+                elements.govExportStats.innerHTML =
+                    `<p><strong>${Number(stats.unexportedVotes)}</strong> voto(s) de <strong>${Number(stats.guardiansCount)}</strong> guardián(es) sin exportar.</p>`;
+                if (elements.govExportBtn) elements.govExportBtn.disabled = false;
+            } else {
+                elements.govExportStats.innerHTML =
+                    '<p style="color: #059669;">Todos los votos han sido exportados.</p>';
+                if (elements.govExportBtn) {
+                    elements.govExportBtn.disabled = true;
+                    elements.govExportBtn.textContent = 'Sin votos pendientes';
+                    elements.govExportBtn.style.background = '#9CA3AF';
+                    elements.govExportBtn.style.cursor = 'not-allowed';
+                }
+            }
+        } catch (error) {
+            elements.govExportStats.innerHTML =
+                `<p style="color: #DC2626;">${escapeHtml(error.message)}</p>`;
+        }
+    }
+
+    if (elements.govExportBtn) {
+        elements.govExportBtn.addEventListener('click', async () => {
+            if (elements.govExportBtn.disabled) return;
+
+            const confirmed = confirm(
+                '¿Exportar los votos de gobernanza no exportados?\n\n' +
+                'Se generará un archivo JSON firmado y los votos se marcarán como exportados.'
+            );
+            if (!confirmed) return;
+
+            elements.govExportBtn.disabled = true;
+            elements.govExportBtn.textContent = 'Exportando...';
+            if (elements.govExportResult) elements.govExportResult.style.display = 'none';
+
+            try {
+                const response = await apiFetch('/api/admin/governance/demo-export', { method: 'POST' });
+
+                if (!response.data) {
+                    elements.govExportResult.style.display = 'block';
+                    elements.govExportResult.innerHTML =
+                        '<p style="color: #667085;">No hay votos pendientes de exportar.</p>';
+                    return;
+                }
+
+                const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
+                const url  = URL.createObjectURL(blob);
+                const a    = document.createElement('a');
+                const date = new Date().toISOString().split('T')[0];
+                a.href     = url;
+                a.download = `gov-rewards-export-${date}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                elements.govExportResult.style.display = 'block';
+                elements.govExportResult.innerHTML = `
+                    <div class="admin-card" style="border-left: 4px solid #059669; background: #F0FDF4;">
+                        <h4 style="color: #059669; margin: 0 0 0.5rem;">Exportación completada</h4>
+                        <p><strong>Votos exportados:</strong> ${Number(response.data.summary.total_votes)}</p>
+                        <p><strong>Guardianes:</strong> ${Number(response.data.summary.total_guardians)}</p>
+                        <p style="color: #667085; font-size: 0.875rem; margin-top: 0.5rem;">
+                            El archivo se descargó automáticamente. Súbelo en el panel de admin de producción.
+                        </p>
+                    </div>`;
+                loadDemoExportStats();
+            } catch (error) {
+                elements.govExportResult.style.display = 'block';
+                elements.govExportResult.innerHTML = `
+                    <div class="admin-card" style="border-left: 4px solid #DC2626; background: #FEF2F2;">
+                        <h4 style="color: #DC2626; margin: 0 0 0.5rem;">Error en la exportación</h4>
+                        <p>${escapeHtml(error.message)}</p>
+                    </div>`;
+                elements.govExportBtn.disabled = false;
+                elements.govExportBtn.textContent = 'Exportar Reporte';
+                elements.govExportBtn.style.background = '#3B82F6';
+                elements.govExportBtn.style.cursor = 'pointer';
+            }
+        });
+    }
+
+    if (elements.govImportValidateBtn) {
+        elements.govImportValidateBtn.addEventListener('click', async () => {
+            if (!elements.govImportFile || !elements.govImportFile.files[0]) {
+                showCustomAlert('Selecciona un archivo JSON primero.');
+                return;
+            }
+
+            const file = elements.govImportFile.files[0];
+            if (!file.name.endsWith('.json')) {
+                showCustomAlert('El archivo debe ser de tipo .json');
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                showCustomAlert('El archivo es demasiado grande (máx. 5 MB).');
+                return;
+            }
+
+            elements.govImportValidateBtn.disabled = true;
+            elements.govImportValidateBtn.textContent = 'Validando...';
+            if (elements.govImportPreview) elements.govImportPreview.style.display = 'none';
+            if (elements.govImportProcessBtn) elements.govImportProcessBtn.style.display = 'none';
+            if (elements.govImportResult) elements.govImportResult.style.display = 'none';
+
+            try {
+                const text = await file.text();
+                let fileData;
+                try {
+                    fileData = JSON.parse(text);
+                } catch (e) {
+                    throw new Error('El archivo no contiene JSON válido.');
+                }
+
+                const preview = await apiFetch('/api/admin/governance/demo-import-preview', {
+                    method: 'POST',
+                    body: JSON.stringify({ fileData }),
+                });
+
+                if (preview.status === 'duplicate') {
+                    elements.govImportPreview.style.display = 'block';
+                    elements.govImportPreview.innerHTML = `
+                        <div class="admin-card" style="border-left: 4px solid #F59E0B; background: #FFFBEB;">
+                            <h4 style="color: #D97706; margin: 0 0 0.5rem;">Archivo ya importado</h4>
+                            <p>${escapeHtml(preview.message)}</p>
+                        </div>`;
+                    return;
+                }
+
+                pendingImportFileData = fileData;
+
+                let guardiansHTML = '';
+                for (const g of preview.guardians) {
+                    const statusIcon = g.found_in_production ? '✅' : '⚠️';
+                    const statusText = g.found_in_production ? '' : ' (NO encontrado en producción)';
+                    guardiansHTML += `
+                        <tr>
+                            <td>${statusIcon} ${escapeHtml(g.username)}${statusText}</td>
+                            <td>${Number(g.new_votes)}</td>
+                            <td>${Number(g.already_imported)}</td>
+                            <td>${g.found_in_production ? Number(g.total_reward).toFixed(2) : '—'}</td>
+                        </tr>`;
+                }
+
+                elements.govImportPreview.style.display = 'block';
+                elements.govImportPreview.innerHTML = `
+                    <div class="admin-card" style="border-left: 4px solid #8B5CF6; background: #F5F3FF;">
+                        <h4 style="color: #7C3AED; margin: 0 0 1rem;">Vista Previa de Importación</h4>
+                        <p><strong>Archivo exportado:</strong> ${escapeHtml(preview.exported_at.split('T')[0])}</p>
+                        <p><strong>Entorno origen:</strong> ${escapeHtml(preview.source_env)}</p>
+                        <p><strong>Tasa actual (producción):</strong> ${Number(preview.currentRate).toFixed(2)} BLUE IOU</p>
+                        <div style="overflow-x: auto; margin-top: 1rem;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                                <thead>
+                                    <tr style="border-bottom: 2px solid #E5E7EB; text-align: left;">
+                                        <th style="padding: 8px;">Guardián</th>
+                                        <th style="padding: 8px;">Votos nuevos</th>
+                                        <th style="padding: 8px;">Ya importados</th>
+                                        <th style="padding: 8px;">Recompensa</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${guardiansHTML}</tbody>
+                            </table>
+                        </div>
+                        <hr style="margin: 1rem 0; border-color: #E5E7EB;">
+                        <p><strong>Encontrados:</strong> ${Number(preview.summary.matched)} · <strong>No encontrados:</strong> ${Number(preview.summary.unmatched)}</p>
+                        <p><strong>Votos a procesar:</strong> ${Number(preview.summary.total_new_votes)} · <strong>Omitidos (ya importados):</strong> ${Number(preview.summary.total_skipped)}</p>
+                        <p style="font-size: 1.1rem; font-weight: 700; color: #059669; margin-top: 0.5rem;">
+                            Total a acreditar: ${Number(preview.summary.total_amount).toFixed(2)} BLUE IOU
+                        </p>
+                    </div>`;
+
+                if (preview.summary.total_new_votes > 0 && preview.summary.matched > 0 && preview.currentRate > 0) {
+                    elements.govImportProcessBtn.style.display = 'inline-block';
+                }
+
+            } catch (error) {
+                elements.govImportPreview.style.display = 'block';
+                elements.govImportPreview.innerHTML = `
+                    <div class="admin-card" style="border-left: 4px solid #DC2626; background: #FEF2F2;">
+                        <h4 style="color: #DC2626; margin: 0 0 0.5rem;">Error de validación</h4>
+                        <p>${escapeHtml(error.message)}</p>
+                    </div>`;
+            } finally {
+                elements.govImportValidateBtn.disabled = false;
+                elements.govImportValidateBtn.textContent = 'Validar Archivo';
+            }
+        });
+    }
+
+    if (elements.govImportProcessBtn) {
+        elements.govImportProcessBtn.addEventListener('click', async () => {
+            if (!pendingImportFileData) {
+                showCustomAlert('No hay archivo validado. Valida primero.');
+                return;
+            }
+
+            const confirmed = confirm(
+                '¿Estás seguro de procesar esta importación?\n\n' +
+                'Se acreditarán BLUE IOU REALES en las cuentas de producción de los guardianes. ' +
+                'Se enviará un correo de confirmación a cada guardián afectado.\n\n' +
+                'Esta acción no se puede deshacer.'
+            );
+            if (!confirmed) return;
+
+            elements.govImportProcessBtn.disabled = true;
+            elements.govImportProcessBtn.textContent = 'Procesando...';
+            if (elements.govImportResult) elements.govImportResult.style.display = 'none';
+
+            try {
+                const result = await apiFetch('/api/admin/governance/demo-import-process', {
+                    method: 'POST',
+                    body: JSON.stringify({ fileData: pendingImportFileData }),
+                });
+
+                pendingImportFileData = null;
+                elements.govImportProcessBtn.style.display = 'none';
+
+                elements.govImportResult.style.display = 'block';
+                elements.govImportResult.innerHTML = `
+                    <div class="admin-card" style="border-left: 4px solid #059669; background: #F0FDF4;">
+                        <h4 style="color: #059669; margin: 0 0 0.5rem;">Importación completada</h4>
+                        <p><strong>Votos procesados:</strong> ${Number(result.totalProcessed)}</p>
+                        <p><strong>Omitidos:</strong> ${Number(result.totalSkipped)}</p>
+                        <p><strong>Tasa aplicada:</strong> ${Number(result.rateUsed).toFixed(2)} BLUE IOU</p>
+                        <p><strong>Guardianes notificados:</strong> ${Number(result.guardiansAffected)}</p>
+                    </div>`;
+
+                loadGovRewardsSection();
+            } catch (error) {
+                elements.govImportResult.style.display = 'block';
+                elements.govImportResult.innerHTML = `
+                    <div class="admin-card" style="border-left: 4px solid #DC2626; background: #FEF2F2;">
+                        <h4 style="color: #DC2626; margin: 0 0 0.5rem;">Error en la importación</h4>
+                        <p>${escapeHtml(error.message)}</p>
+                    </div>`;
+                elements.govImportProcessBtn.disabled = false;
+                elements.govImportProcessBtn.textContent = 'Confirmar y Procesar Pagos';
             }
         });
     }
