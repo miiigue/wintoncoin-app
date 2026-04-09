@@ -131,6 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         govExportStats: document.getElementById('gov-export-stats'),
         govExportBtn: document.getElementById('gov-export-btn'),
         govExportResult: document.getElementById('gov-export-result'),
+        govExportHistory: document.getElementById('gov-export-history'),
         govImportFile: document.getElementById('gov-import-file'),
         govImportValidateBtn: document.getElementById('gov-import-validate-btn'),
         govImportPreview: document.getElementById('gov-import-preview'),
@@ -3465,6 +3466,89 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             elements.govExportStats.innerHTML =
                 `<p style="color: #DC2626;">${escapeHtml(error.message)}</p>`;
+        }
+
+        loadExportHistory();
+    }
+
+    async function loadExportHistory() {
+        if (!elements.govExportHistory) return;
+        try {
+            const history = await apiFetch('/api/admin/governance/demo-export-history');
+            if (!Array.isArray(history) || history.length === 0) {
+                elements.govExportHistory.innerHTML =
+                    '<p style="color: #9CA3AF; font-size: 0.875rem;">No hay exportaciones registradas.</p>';
+                return;
+            }
+
+            let rowsHTML = '';
+            for (const exp of history) {
+                const date = new Date(exp.exported_at).toLocaleDateString('es-ES', {
+                    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+                rowsHTML += `
+                    <tr>
+                        <td style="padding: 8px;">${Number(exp.id)}</td>
+                        <td style="padding: 8px;">${escapeHtml(date)}</td>
+                        <td style="padding: 8px;">${Number(exp.total_guardians)}</td>
+                        <td style="padding: 8px;">${Number(exp.total_votes)}</td>
+                        <td style="padding: 8px;">${Number(exp.downloaded_count)}</td>
+                        <td style="padding: 8px;">
+                            <button class="gov-export-download-btn" data-export-id="${Number(exp.id)}"
+                                style="background: #6B7280; color: #fff; border: none; padding: 4px 12px;
+                                       border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 500;">
+                                Re-descargar
+                            </button>
+                        </td>
+                    </tr>`;
+            }
+
+            elements.govExportHistory.innerHTML = `
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #E5E7EB; text-align: left;">
+                                <th style="padding: 8px;">#</th>
+                                <th style="padding: 8px;">Fecha</th>
+                                <th style="padding: 8px;">Guardianes</th>
+                                <th style="padding: 8px;">Votos</th>
+                                <th style="padding: 8px;">Descargas</th>
+                                <th style="padding: 8px;">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rowsHTML}</tbody>
+                    </table>
+                </div>`;
+
+            elements.govExportHistory.querySelectorAll('.gov-export-download-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const exportId = btn.dataset.exportId;
+                    btn.disabled = true;
+                    btn.textContent = 'Descargando...';
+                    try {
+                        const record = await apiFetch(`/api/admin/governance/demo-export/${exportId}/download`);
+                        const blob = new Blob([JSON.stringify(record.export_data, null, 2)], { type: 'application/json' });
+                        const url  = URL.createObjectURL(blob);
+                        const a    = document.createElement('a');
+                        const date = new Date(record.exported_at).toISOString().split('T')[0];
+                        a.href     = url;
+                        a.download = `gov-rewards-export-${date}-redownload.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        loadExportHistory();
+                    } catch (error) {
+                        showCustomAlert('Error al descargar: ' + error.message);
+                    } finally {
+                        btn.disabled = false;
+                        btn.textContent = 'Re-descargar';
+                    }
+                });
+            });
+        } catch (error) {
+            elements.govExportHistory.innerHTML =
+                `<p style="color: #DC2626; font-size: 0.875rem;">${escapeHtml(error.message)}</p>`;
         }
     }
 

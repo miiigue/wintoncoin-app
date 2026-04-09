@@ -2350,7 +2350,7 @@ async function startServer() {
 
         app.post('/api/admin/governance/demo-export', verifyAdminToken, async (req, res) => {
             try {
-                const result = await govDemoRewardService.generateExport(pool);
+                const result = await govDemoRewardService.generateExport(pool, req.user.userId);
                 if (!result) {
                     return res.json({ message: 'No hay votos pendientes de exportar.', data: null });
                 }
@@ -2358,6 +2358,29 @@ async function startServer() {
             } catch (error) {
                 console.error('[ADMIN] Error generando exportación demo:', error);
                 return res.status(500).json({ message: error.message });
+            }
+        });
+
+        app.get('/api/admin/governance/demo-export-history', verifyAdminToken, async (req, res) => {
+            try {
+                const history = await govDemoRewardService.getExportHistory(pool);
+                return res.json(history);
+            } catch (error) {
+                console.error('[ADMIN] Error obteniendo historial de exportaciones:', error);
+                return res.status(500).json({ message: 'Error al obtener historial de exportaciones.' });
+            }
+        });
+
+        app.get('/api/admin/governance/demo-export/:id/download', verifyAdminToken, async (req, res) => {
+            try {
+                const exportRecord = await govDemoRewardService.getExportById(
+                    pool, req.params.id, req.user.userId
+                );
+                return res.json(exportRecord);
+            } catch (error) {
+                console.error('[ADMIN] Error descargando exportación:', error);
+                return res.status(error.message.includes('no encontrada') ? 404 : 500)
+                    .json({ message: error.message });
             }
         });
 

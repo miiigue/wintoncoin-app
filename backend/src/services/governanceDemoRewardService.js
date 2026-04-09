@@ -14,10 +14,12 @@
  * ║  6. Match por username— inmune a divergencia de IDs entre entornos      ║
  * ║  7. Audit trail       — cada operación queda registrada                 ║
  * ║  8. Timing-safe       — comparación HMAC resistente a timing attacks    ║
+ * ║  9. Message Archive  — cada exportación se guarda en BD para re-descarga║
  * ╚══════════════════════════════════════════════════════════════════════════╝
  *
  * Flujo:
- *   Demo: getExportStats() → generateExport()  → archivo JSON firmado
+ *   Demo: getExportStats() → generateExport()  → archivo JSON firmado (+ copia en BD)
+ *         getExportHistory() / getExportById()  → re-descarga si se pierde el archivo
  *   Prod: validateImport() → previewImport()    → processImport()
  */
 
@@ -92,10 +94,14 @@ async function getExportStats(pool) {
 }
 
 /**
- * Genera el reporte de exportación firmado y marca los votos como exportados.
+ * Genera el reporte de exportación firmado, marca los votos como exportados
+ * y almacena una copia en la tabla demo_reward_exports (Message Archive).
+ *
+ * @param {import('pg').Pool} pool
+ * @param {number|null}       adminUserId - ID del admin que ejecuta la exportación
  * @returns {object|null} Reporte JSON firmado, o null si no hay votos.
  */
-async function generateExport(pool) {
+async function generateExport(pool, adminUserId = null) {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -156,6 +162,23 @@ async function generateExport(pool) {
             [voteIds]
         );
 
+        // Message Archive: guardar copia firmada para re-descarga
+        const exportFileHash = _computeFileHash(exportData);
+        await client.query(
+            `INSERT INTO demo_reward_exports
+                 (file_hash, exported_at, exported_by, total_guardians, total_votes, export_data)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             ON CONFLICT (file_hash) DO NOTHING`,
+            [
+                exportFileHash,
+                exportData.exported_at,
+                adminUserId,
+                guardians.length,
+                voteIds.length,
+                JSON.stringify(exportData),
+            ]
+        );
+
         await client.query('COMMIT');
 
         logAuditEvent(pool, null, {
@@ -176,6 +199,55 @@ async function generateExport(pool) {
     } finally {
         client.release();
     }
+}
+
+/**
+ * Lista el historial de exportaciones (solo metadatos, sin el JSON completo).
+ * Ordenadas de más reciente a más antigua.
+ */
+async function getExportHistory(pool) {
+    const res = await pool.query(`
+        SELECT id, file_hash, exported_at, exported_by,
+               total_guardians, total_votes, downloaded_count, created_at
+        FROM demo_reward_exports
+        ORDER BY exported_at DESC
+        LIMIT 50
+    `);
+    return res.rows;
+}
+
+/**
+ * Obtiene una exportación específica para re-descarga e incrementa el contador.
+ * @param {number} exportId - ID de la exportación
+ * @param {number|null} adminUserId - ID del admin que re-descarga (para auditoría)
+ */
+async function getExportById(pool, exportId, adminUserId = null) {
+    const safeId = parseInt(exportId, 10);
+    if (!Number.isFinite(safeId) || safeId <= 0) {
+        throw new Error('ID de exportación inválido.');
+    }
+
+    const res = await pool.query(
+        `UPDATE demo_reward_exports
+         SET downloaded_count = downloaded_count + 1
+         WHERE id = $1
+         RETURNING export_data, exported_at, total_votes, total_guardians`,
+        [safeId]
+    );
+
+    if (res.rowCount === 0) {
+        throw new Error('Exportación no encontrada.');
+    }
+
+    logAuditEvent(pool, null, {
+        eventType:     'GOV_DEMO_EXPORT_REDOWNLOADED',
+        actorId:       adminUserId,
+        actorUsername: 'admin',
+        category:      'GOVERNANCE',
+        metadata:      { exportId: safeId },
+    }).catch(err => console.error('[DEMO-EXPORT] Re-download audit error:', err));
+
+    return res.rows[0];
 }
 
 // ─── IMPORTAR (usado en Producción) ──────────────────────────────────────────
@@ -530,6 +602,8 @@ async function processImport(pool, parsedData, adminUserId) {
 module.exports = {
     getExportStats,
     generateExport,
+    getExportHistory,
+    getExportById,
     validateImport,
     previewImport,
     processImport,
