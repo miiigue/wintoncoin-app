@@ -105,10 +105,29 @@ async function _getUserEmail(userId) {
     return res.rows[0]?.email || null;
 }
 
+async function _getUserUsername(userId) {
+    const res = await pool.query('SELECT username FROM users WHERE id = $1', [userId]);
+    return res.rows[0]?.username || null;
+}
+
 async function _getUsersEmails(userIds) {
     if (!userIds || userIds.length === 0) return [];
     const res = await pool.query('SELECT id, email FROM users WHERE id = ANY($1::int[])', [userIds]);
     return res.rows;
+}
+
+function _storeNotification(recipientUsername, message) {
+    if (!recipientUsername || !message) return;
+    pool.query(
+        `INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`,
+        [recipientUsername, message]
+    ).catch(err => console.error('[EVENT-BUS] Error guardando notificación in-app:', err));
+}
+
+function _storeNotificationByUserId(userId, message) {
+    _getUserUsername(userId)
+        .then(username => { if (username) _storeNotification(username, message); })
+        .catch(err => console.error('[EVENT-BUS] Error resolviendo username para notificación in-app:', err));
 }
 
 async function _getRecentConfigChanges(limit = 5) {
@@ -222,11 +241,12 @@ eventBus.on('PARTICIPATION_REQUESTED', async ({ publicationId, publicationTitle,
             title: 'Nueva Solicitud',
             body: `${applicantUsername} quiere realizar tu tarea: "${publicationTitle}"`,
             icon: '/assets/icons/icon-192x192.png',
-            data: { url: `/publication.html?id=${publicationId}` } // Lleva directo a la publicación
+            data: { url: `/publication.html?id=${publicationId}` }
         });
     } catch (err) {
         console.error('[EVENT-BUS] Error en PARTICIPATION_REQUESTED:', err);
     }
+    _storeNotificationByUserId(ownerId, `📋 ${applicantUsername} quiere realizar tu tarea: "${publicationTitle}".`);
 });
 
 // 3. SOLICITUD ACEPTADA (Al participante)
@@ -241,6 +261,7 @@ eventBus.on('PARTICIPATION_ACCEPTED', async ({ publicationId, publicationTitle, 
     } catch (err) {
         console.error('[EVENT-BUS] Error en PARTICIPATION_ACCEPTED:', err);
     }
+    _storeNotificationByUserId(participantId, `✅ ¡Solicitud aceptada! Puedes comenzar la tarea: "${publicationTitle}".`);
 });
 
 // 4. TAREA COMPLETADA/ENTREGADA (Al dueño, para que revise)
@@ -255,6 +276,7 @@ eventBus.on('TASK_DELIVERED', async ({ publicationId, publicationTitle, ownerId,
     } catch (err) {
         console.error('[EVENT-BUS] Error en TASK_DELIVERED:', err);
     }
+    _storeNotificationByUserId(ownerId, `📦 ${participantUsername} ha completado la tarea: "${publicationTitle}". ¡Revisa y paga!`);
 });
 
 // 5. TAREA PAGADA (Al participante)
@@ -270,6 +292,7 @@ eventBus.on('TASK_PAID', async ({ publicationId, publicationTitle, participantId
     } catch (err) {
         console.error('[EVENT-BUS] Error en TASK_PAID:', err);
     }
+    _storeNotificationByUserId(participantId, `💰 Has recibido ${amount} BLUE por la tarea: "${publicationTitle}".`);
 });
 
 // 6. MENSAJE P2P / CHAT (Al receptor)
@@ -279,12 +302,12 @@ eventBus.on('P2P_MESSAGE_RECEIVED', async ({ orderId, receiverId, senderUsername
             title: `Mensaje de ${senderUsername}`,
             body: messagePreview || 'Tienes un nuevo mensaje en la orden P2P.',
             icon: '/assets/icons/icon-192x192.png',
-            data: { url: `/p2p/orders/${orderId}` } // ¡Importante! URL dinámica a la orden específica (si soportas rutas así en frontend)
-            // Si tu frontend usa HashRouter o Query params: data: { url: `/p2p-order.html?id=${orderId}` }
+            data: { url: `/p2p/orders/${orderId}` }
         });
     } catch (err) {
         console.error('[EVENT-BUS] Error en P2P_MESSAGE_RECEIVED:', err);
     }
+    _storeNotificationByUserId(receiverId, `💬 Mensaje de ${senderUsername}: ${messagePreview || 'Nuevo mensaje en la orden P2P.'}`);
 });
 
 // 7. SEGURIDAD: NUEVO LOGIN (Al usuario)
@@ -301,6 +324,7 @@ eventBus.on('SECURITY_LOGIN_ALERT', async ({ userId, ip, device }) => {
     } catch (err) {
         console.error('[EVENT-BUS] Error en SECURITY_LOGIN_ALERT:', err);
     }
+    _storeNotificationByUserId(userId, `🔒 Nuevo inicio de sesión detectado desde ${device} (${ip}).`);
 });
 
 // 8. P2P: ORDEN CREADA (A los usuarios relevantes o "Makers" que coincidan - Lógica avanzada para futuro)
@@ -314,11 +338,12 @@ eventBus.on('P2P_ORDER_TAKEN', async ({ orderId, ownerId, takerUsername, type })
             title: 'Orden P2P Actualizada',
             body: `${takerUsername} quiere ${action} BLUE. Revisa la orden #${orderId}.`,
             icon: '/assets/icons/icon-192x192.png',
-            data: { url: `/p2p-order.html?id=${orderId}` } // Ajustar a tu ruta real
+            data: { url: `/p2p-order.html?id=${orderId}` }
         });
     } catch (err) {
         console.error('[EVENT-BUS] Error en P2P_ORDER_TAKEN:', err);
     }
+    _storeNotificationByUserId(ownerId, `📊 ${takerUsername} quiere ${action} BLUE. Orden P2P #${orderId}.`);
 });
 
 
@@ -461,6 +486,7 @@ eventBus.on('GOV_REQUEST_CREATED', async ({
         } catch (err) {
             console.error(`[EVENT-BUS] Error push guardián ${userId} GOV_REQUEST:`, err);
         }
+        _storeNotificationByUserId(userId, `🔐 ${pushBody}`);
 
         const userEmail = emails.find(e => e.id === userId)?.email;
         if (userEmail) {
@@ -510,6 +536,7 @@ eventBus.on('GOV_VOTE_SUBMITTED', async ({ requestId, voterUsername, voterUserId
     } catch (err) {
         console.error('[EVENT-BUS] Error push proponente voto:', err);
     }
+    _storeNotificationByUserId(requesterId, `🗳️ ${voterUsername} ${voteLabel} tu solicitud de gobernanza #${requestId}.`);
 
     const requesterEmail = await _getUserEmail(requesterId).catch(() => null);
     if (requesterEmail) {
@@ -541,6 +568,7 @@ eventBus.on('GOV_VOTE_SUBMITTED', async ({ requestId, voterUsername, voterUserId
         } catch (err) {
             console.error(`[EVENT-BUS] Error push guardián pendiente ${userId}:`, err);
         }
+        _storeNotificationByUserId(userId, `🗳️ Solicitud #${requestId}: ${voterUsername} ya votó. Tu voto aún está pendiente.`);
 
         const userEmail = pendingEmails.find(e => e.id === userId)?.email;
         if (userEmail) {
@@ -577,6 +605,8 @@ eventBus.on('GOV_VOTE_SUBMITTED', async ({ requestId, voterUsername, voterUserId
                     icon: '/assets/icons/icon-192x192.png',
                     data: { url: '/history.html' },
                 }, 'TRANSACTIONAL').catch(err => console.error('[EVENT-BUS] Error push recompensa voto:', err));
+
+                _storeNotification(voterUsername, `💰 +${reward.rewardAmount.toFixed(2)} BLUE IOU acreditados por tu voto en la solicitud de gobernanza #${requestId}.`);
 
                 // Email de confirmación de recompensa
                 const voterEmail = await _getUserEmail(voterUserId).catch(() => null);
@@ -618,6 +648,7 @@ eventBus.on('GOV_REQUEST_APPROVED', async ({ requestId, executionTime, guardianU
         } catch (err) {
             console.error(`[EVENT-BUS] Error push aprobación ${userId}:`, err);
         }
+        _storeNotificationByUserId(userId, `✅ Solicitud #${requestId} aprobada. Ejecución programada: ${execDate}.`);
 
         const userEmail = emails.find(e => e.id === userId)?.email;
         if (userEmail) {
@@ -659,6 +690,7 @@ eventBus.on('GOV_REQUEST_EXECUTED', async ({ requestId, actionType, targetKey, g
         } catch (err) {
             console.error(`[EVENT-BUS] Error push ejecución ${userId}:`, err);
         }
+        _storeNotificationByUserId(userId, `⚡ Solicitud #${requestId} ejecutada. ${actionLabelExec} actualizada: ${readableKey}.`);
 
         const userEmail = emails.find(e => e.id === userId)?.email;
         if (userEmail) {
@@ -694,6 +726,7 @@ eventBus.on('GOV_VOTE_REMINDER', async ({ requestId, description, expiresAt, gua
     } catch (err) {
         console.error(`[EVENT-BUS] Error push recordatorio ${guardianUserId}:`, err);
     }
+    _storeNotificationByUserId(guardianUserId, `⏰ Solicitud #${requestId}: tu voto expira en ~${hoursLeft}h. Tu voto es necesario.`);
 
     const userEmail = await _getUserEmail(guardianUserId).catch(() => null);
     if (userEmail) {
@@ -727,6 +760,7 @@ eventBus.on('GOV_REQUEST_REJECTED', async ({ requestId, requesterId }) => {
     } catch (err) {
         console.error('[EVENT-BUS] Error push rechazo:', err);
     }
+    _storeNotificationByUserId(requesterId, `❌ Solicitud #${requestId} rechazada. El quórum de rechazo fue alcanzado.`);
 
     const userEmail = await _getUserEmail(requesterId).catch(() => null);
     if (userEmail) {
@@ -757,6 +791,7 @@ eventBus.on('GOV_GUARDIAN_ONBOARDED', async ({ userId, role, appointedByUsername
     } catch (err) {
         console.error(`[EVENT-BUS] Error push onboarding guardián ${userId}:`, err);
     }
+    _storeNotificationByUserId(userId, `🛡️ Has sido designado como ${roleLabel} en el Consejo de Guardianes.`);
 
     const userEmail = await _getUserEmail(userId).catch(() => null);
     if (userEmail) {
@@ -805,6 +840,7 @@ eventBus.on('GOV_GUARDIAN_REMOVED', async ({ userId, previousRole, removedByUser
     } catch (err) {
         console.error(`[EVENT-BUS] Error push offboarding guardián ${userId}:`, err);
     }
+    _storeNotificationByUserId(userId, `🔓 Tu rol como ${roleLabel} en el Consejo de Guardianes ha finalizado.`);
 
     const userEmail = await _getUserEmail(userId).catch(() => null);
     if (userEmail) {

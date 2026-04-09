@@ -1079,3 +1079,37 @@ Esto no rompe el producto, pero **sí rompe la mantenibilidad** (repo pesado, di
 - **Cambios técnicos**:
   - `.github/workflows/deploy-frontend.yml`: Se agregó paso "Instalar lftp" separado. Se renombró el paso de deploy existente a "Deploy a sc.wintoncoin.com". Se agregó nuevo paso "Deploy a wintoncoin.com" con secrets dedicados.
 - **Impacto**: Un solo push despliega a ambos dominios. Requiere crear 3 nuevos secrets en GitHub (`FTP_SERVER_MAIN`, `FTP_USERNAME_MAIN`, `FTP_PASSWORD_MAIN`) con las credenciales FTP del dominio principal en Hostinger.
+
+### 2026-04-09 — Gobernanza: Recompensa por voto (BLUE IOU) + Transferencia Demo→Producción + Archivo de Exportaciones
+
+- **Contexto**: Los guardianes del sistema Winton-Consensus participan en la toma de decisiones críticas (votación de solicitudes de configuración y membresía). Se requería un mecanismo de incentivo económico por su participación, junto con un sistema seguro para compensar actividad de votación realizada en el entorno demo.
+- **Decisión**:
+  - **Recompensa por voto (Event-Driven)**: Al emitir un voto (`GOV_VOTE_SUBMITTED`), se acreditan BLUE IOU al guardián usando un snapshot del valor configurado (`gov_vote_reward_blue`) para garantizar "point-in-time pricing". Default seguro: `0` (Secure by Default).
+  - **Migración 047**: Columna `reward_credited` en `governance_votes` con índice parcial para consultas eficientes de votos sin pagar.
+  - **Procesamiento batch**: Botón admin para procesar votos históricos sin recompensar (notificación consolidada).
+  - **Transferencia Demo→Producción**: Export/Import seguro con HMAC-SHA256, matching por `username`, triple deduplicación (demo_exported_at, file_hash UNIQUE, vote_ids_json), crash-safety con status incremental.
+  - **Message Archive (Migración 049)**: Tabla `demo_reward_exports` para almacenar copias firmadas de exports con re-download capability, UI de historial, y audit log de re-descargas.
+  - **UI Admin**: Sección "Recompensas Gov." con estadísticas, botón de procesamiento batch, export/import demo, e historial de exportaciones.
+- **Impacto**:
+  - Incentivo económico alineado con mejores prácticas de gobernanza descentralizada.
+  - Seguridad bancaria: idempotencia, atomicidad, snapshot de precios, firma criptográfica.
+  - Operación demo→producción segura con protección contra doble pago y crash recovery.
+  - Message Archive pattern (estándar SWIFT) para recoverability de datos exportados.
+- **Evidencia**: Migraciones 047, 048, 049. Archivos: `governanceRewardService.js`, `governanceDemoRewardService.js`, `governanceService.js`, `governanceController.js`, `notificationEventBus.js`, `server.js`, `admin-panel.html`, `admin-panel.js`.
+
+### 2026-04-09 — Fix: Notificaciones in-app y match de transacciones en Historial de Ganancias
+
+- **Contexto**: Dos problemas detectados en producción:
+  1. Las notificaciones push de gobernanza (y de otros módulos) se enviaban correctamente pero **no se guardaban** en la tabla `notifications`, por lo que el "Historial de Notificaciones" in-app aparecía vacío para estos eventos.
+  2. El "Historial de Ganancias" (perfil impulsor) mostraba el mismo número de solicitud (#45) para dos votos distintos (#44 y #45), cuando el "Historial de Transacciones" mostraba correctamente cada uno.
+- **Decisión**:
+  - **Problema 1 — Persistencia de notificaciones**: Creados helpers `_storeNotification(recipientUsername, message)` y `_storeNotificationByUserId(userId, message)` en `notificationEventBus.js`. Patrón fire-and-forget con `.catch()` para no bloquear el flujo principal. Se agregó INSERT en los **15 eventos activos** (8 de gobernanza + 7 generales: participación, tareas, P2P, seguridad).
+  - **Problema 2 — Query LATERAL ambigua**: La query `LEFT JOIN LATERAL` en booster-profile usaba `ORDER BY bt.created_at DESC LIMIT 1`, tomando siempre la transacción más reciente. Dos votos con mismo monto dentro de 2 minutos hacían match con la misma fila. Corregido a `ORDER BY ABS(EXTRACT(EPOCH FROM (bt.created_at - bbl.created_at))) ASC LIMIT 1` para match por proximidad temporal. Aplicado en ambos endpoints (público y autenticado).
+  - **Seguridad XSS**: Durante la revisión se detectaron 3 puntos de Stored XSS: `notification.message` se insertaba sin escapar en el dropdown y modal de notificaciones, y `description` en el historial de ganancias. Corregidos con `escapeHtml()` (OWASP).
+  - **Estabilidad**: `_storeNotificationByUserId` cambiada de `async` a función síncrona con `.then()/.catch()` encadenado para prevenir `UnhandledPromiseRejection` que podría crashear el proceso Node.js.
+- **Archivos modificados**: `backend/src/services/notificationEventBus.js`, `backend/server.js` (2 queries), `frontend/src/pages/contract-interaction.js` (2 puntos XSS), `frontend/src/pages/booster-profile.js` (1 punto XSS + import).
+- **Impacto**:
+  - Historial de notificaciones in-app completamente funcional para todos los eventos de la plataforma.
+  - Historial de ganancias muestra correctamente cada solicitud de gobernanza por separado.
+  - 3 vulnerabilidades Stored XSS eliminadas.
+  - Estabilidad del proceso Node.js mejorada (sin rejected promises sin manejar).

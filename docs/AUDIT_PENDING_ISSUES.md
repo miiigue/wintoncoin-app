@@ -235,6 +235,11 @@
 | C-02 | 2026-04-02 | Resuelto: Polling inteligente con Page Visibility API — pausa en tab oculto, refresh inmediato al volver, intervalo 10s. |
 | AUTH-01 | 2026-04-02 | Resuelto: Bearer token faltante en POST /publish, POST /api/minor/add-tutor, POST /publications/:id/accept (donación), POST /api/quick-sale. Token se lee al momento del fetch (no al cargar página). |
 | XSS-02 | 2026-04-02 | Resuelto: publication-detail.js — 7 puntos de inyección XSS sanitizados (pub.title, pub.author_username, p.username, form fields, form responses). |
+| XSS-03 | 2026-04-09 | Resuelto: Stored XSS en notificaciones — `notification.message` se insertaba sin `escapeHtml()` en dropdown (línea ~1562) y modal historial (línea ~1683) de contract-interaction.js. Corregido con `escapeHtml()`. |
+| XSS-04 | 2026-04-09 | Resuelto: Stored XSS en historial de ganancias — `entry.description` en booster-profile.js se insertaba sin escapar. Corregido con `escapeHtml()` (import añadido). |
+| NOTI-01 | 2026-04-09 | Resuelto: 15 eventos de notificationEventBus.js no guardaban en tabla `notifications` (solo push+email). Creados helpers `_storeNotification`/`_storeNotificationByUserId` con INSERT parametrizado y fire-and-forget `.catch()`. |
+| NOTI-02 | 2026-04-09 | Resuelto: Query LATERAL en booster-profile (2 endpoints) usaba `ORDER BY bt.created_at DESC` causando que votos cercanos en tiempo matchearan la misma transacción. Corregido a `ORDER BY ABS(EXTRACT(EPOCH FROM (bt.created_at - bbl.created_at))) ASC`. |
+| STAB-01 | 2026-04-09 | Resuelto: `_storeNotificationByUserId` era `async` sin `await` en callers — rejected promise sin manejar podía crashear Node.js. Cambiada a función síncrona con `.then()/.catch()`. |
 
 ---
 

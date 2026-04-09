@@ -234,3 +234,26 @@ Este archivo resume la evolución del proyecto **por hitos** a partir del histor
 ### Security
 - Validación de contenido y confirmación obligatoria para envíos masivos.
 
+## [2026-04-09]
+
+### Added
+- Sistema de recompensas BLUE IOU por voto de gobernanza (Event-Driven, point-in-time pricing con snapshot).
+- Migración 047: columna `reward_credited` en `governance_votes` con índice parcial.
+- Procesamiento batch admin para votos históricos sin recompensar (notificación consolidada).
+- Sistema de transferencia de recompensas Demo→Producción con HMAC-SHA256 y triple deduplicación.
+- Migración 048: tabla `demo_reward_imports` para deduplicación de importaciones con crash-safety.
+- Migración 049: tabla `demo_reward_exports` (Message Archive pattern) con re-download capability.
+- UI admin "Recompensas Gov." con estadísticas, procesamiento batch, export/import demo, historial de exportaciones.
+- Persistencia de notificaciones in-app: 15 eventos del EventBus ahora guardan en tabla `notifications` (helpers `_storeNotification`/`_storeNotificationByUserId`).
+
+### Fixed
+- Query LATERAL en booster-profile usaba `ORDER BY DESC` causando match duplicado de transacciones cercanas en tiempo. Corregido a match por proximidad temporal (`ABS(EXTRACT(EPOCH FROM ...))`).
+- 3 vulnerabilidades Stored XSS: `notification.message` en dropdown y modal de notificaciones, `entry.description` en historial de ganancias — corregidas con `escapeHtml()`.
+- `_storeNotificationByUserId` era `async` sin `await` en callers — podía causar crash por `UnhandledPromiseRejection`. Cambiada a función síncrona con `.then()/.catch()`.
+
+### Security
+- Parámetros de gobernanza (timelock, quórum, expiración, recompensa) configurables desde admin via `app_settings`.
+- Secure by Default: `gov_vote_reward_blue` default a `0` (requiere activación explícita).
+- Firma HMAC-SHA256 y timing-safe comparison en export/import de recompensas demo.
+- XSS: `escapeHtml()` aplicado en renderizado de notificaciones y historial de ganancias.
+

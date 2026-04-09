@@ -1559,7 +1559,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     item.className = 'notification-item';
                     item.dataset.id = notification.id;
                     item.innerHTML = `
-                        <p>${notification.message}</p>
+                        <p>${escapeHtml(notification.message)}</p>
                         <span class="notification-dismiss" data-id="${notification.id}" title="Descartar">&times;</span>
                     `;
                     dropdown.appendChild(item);
@@ -1680,7 +1680,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="history-noti-item ${noti.is_read ? 'is-read' : 'is-unread'} ${statusClass}">
                         <div class="history-noti-icon">${icon}</div>
                         <div class="history-noti-content">
-                            <p>${noti.message}</p>
+                            <p>${escapeHtml(noti.message)}</p>
                             <span class="history-noti-date">${date}</span>
                         </div>
                     </div>

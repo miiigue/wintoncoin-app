@@ -2,7 +2,7 @@
 // WintonCoin - Página de Perfil de Impulsor (Booster)
 // ============================================================================
 
-import { getApiUrl, showCustomAlert, handleSessionExpired, initializeInfoTooltip } from '../modules/index.js';
+import { getApiUrl, showCustomAlert, handleSessionExpired, initializeInfoTooltip, escapeHtml } from '../modules/index.js';
 
 function initializeBoosterProfilePage() {
     const API_URL = getApiUrl();
@@ -300,7 +300,7 @@ function initializeBoosterProfilePage() {
             return `
                 <tr>
                     <td>${new Date(entry.created_at).toLocaleDateString('es-ES')}</td>
-                    <td>${description}</td>
+                    <td>${escapeHtml(description)}</td>
                     <td class="saldo-blue-text">${sign}${formatBalance(absAmount)}</td>
                 </tr>
             `;

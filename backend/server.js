@@ -4694,7 +4694,7 @@ app.get('/api/users/:username/booster-profile', async (req, res) => {
                       AND bt.amount = bbl.amount
                       AND bt.related_publication_id IS NOT DISTINCT FROM bbl.source_publication_id
                       AND bt.created_at BETWEEN (bbl.created_at - INTERVAL '2 minutes') AND (bbl.created_at + INTERVAL '2 minutes')
-                    ORDER BY bt.created_at DESC
+                    ORDER BY ABS(EXTRACT(EPOCH FROM (bt.created_at - bbl.created_at))) ASC
                     LIMIT 1
                 ) bt_pick ON TRUE
                 WHERE bbl.user_id = $1
@@ -4816,7 +4816,7 @@ app.get('/api/me/booster-profile', verifyUserToken, async (req, res) => {
                       AND bt.amount = bbl.amount
                       AND bt.related_publication_id IS NOT DISTINCT FROM bbl.source_publication_id
                       AND bt.created_at BETWEEN (bbl.created_at - INTERVAL '2 minutes') AND (bbl.created_at + INTERVAL '2 minutes')
-                    ORDER BY bt.created_at DESC
+                    ORDER BY ABS(EXTRACT(EPOCH FROM (bt.created_at - bbl.created_at))) ASC
                     LIMIT 1
                 ) bt_pick ON TRUE
                 WHERE bbl.user_id = $1

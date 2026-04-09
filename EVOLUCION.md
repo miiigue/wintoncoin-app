@@ -596,3 +596,20 @@ La función `fetchFromServer` en `publication-detail.js` no incluía el header `
 ### 2026-04-02 — Auditoría Integral del Sistema Push Notifications (10 errores corregidos)
 
 Auditoría completa del sistema VAPID/Web Push. Se encontraron y corrigieron 10 errores (3 críticos, 4 importantes, 3 moderados) en 7 archivos. Ver `docs/EVOLUCION.md` y `docs/AUDIT_PENDING_ISSUES.md` para el detalle completo de cada corrección.
+
+---
+
+### 2026-04-09 — Gobernanza: Recompensa por voto + Demo→Producción + Message Archive
+
+- **Recompensa por voto (BLUE IOU)**: Acreditación automática al votar con snapshot de precio (point-in-time pricing). Default seguro: 0. Procesamiento batch admin para votos históricos.
+- **Transferencia Demo→Producción**: Export/Import seguro con HMAC-SHA256, matching por username, triple deduplicación, crash-safety.
+- **Message Archive**: Almacenamiento de exports en BD para re-download (patrón SWIFT). UI de historial con audit log.
+- **Migraciones**: 047 (reward_credited), 048 (demo_reward_imports), 049 (demo_reward_exports).
+- Ver `docs/EVOLUCION.md` para detalle técnico completo.
+
+### 2026-04-09 — Fix: Notificaciones in-app + Historial de Ganancias + XSS
+
+- **Notificaciones in-app**: 15 eventos del EventBus ahora guardan en tabla `notifications` (antes solo push+email).
+- **Historial de Ganancias**: Query LATERAL corregida — match por proximidad temporal en vez de `ORDER BY DESC`.
+- **Seguridad**: 3 puntos de Stored XSS corregidos con `escapeHtml()` en notificaciones y historial de ganancias.
+- **Estabilidad**: `_storeNotificationByUserId` cambiada para prevenir crash por UnhandledPromiseRejection.
