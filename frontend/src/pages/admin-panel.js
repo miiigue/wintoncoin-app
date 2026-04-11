@@ -846,7 +846,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'p2p_cash_min_rating': { title: 'P2P — Reputación Mínima para Efectivo', description: 'Calificación mínima requerida para usar efectivo en persona.' },
             // Gobernanza (Winton-Consensus)
             'gov_quorum_percentage': { title: 'Gobernanza — Quórum Requerido (%)', description: 'Porcentaje de votos necesarios para aprobar o rechazar (mín. 51, máx. 100).' },
-            'gov_timelock_hours': { title: 'Gobernanza — Time-Lock (horas)', description: 'Horas de espera antes de ejecutar un cambio de membresía aprobado.' },
+            'gov_timelock_hours': { title: 'Gobernanza — Time-Lock (horas)', description: 'Horas de espera tras alcanzar el quórum de aprobación, antes de ejecutar un cambio de membresía (reloj del servidor).' },
             'gov_request_expiry_hours': { title: 'Gobernanza — Expiración de Solicitud (horas)', description: 'Horas que tiene una solicitud para alcanzar quórum.' },
             'gov_reminder_threshold_hours': { title: 'Gobernanza — Umbral de Recordatorio (horas)', description: 'Cuando quedan estas horas para expirar, se envía recordatorio.' },
             'gov_reminder_cooldown_hours': { title: 'Gobernanza — Enfriamiento entre Recordatorios (horas)', description: 'Horas mínimas entre recordatorios al mismo guardián.' },

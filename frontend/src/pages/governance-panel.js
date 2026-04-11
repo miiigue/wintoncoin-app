@@ -573,7 +573,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="gov-info-row">
                         <span class="gov-info-label">Ejecución Programada</span>
                         <span class="gov-info-value">${formatDate(r.execution_time)}</span>
-                    </div>` : ''}
+                    </div>` : (r.action_type === 'membership_change' && r.status === 'pending' ? `
+                    <div class="gov-info-row">
+                        <span class="gov-info-label">Time-Lock</span>
+                        <span class="gov-info-value">Al aprobar el quórum, el sistema esperará las horas configuradas en el panel admin antes de ejecutar el cambio.</span>
+                    </div>` : '')}
 
                     <div class="gov-detail-section">
                         <h4>Quórum de Supervisores</h4>

@@ -1113,3 +1113,18 @@ Esto no rompe el producto, pero **sí rompe la mantenibilidad** (repo pesado, di
   - Historial de ganancias muestra correctamente cada solicitud de gobernanza por separado.
   - 3 vulnerabilidades Stored XSS eliminadas.
   - Estabilidad del proceso Node.js mejorada (sin rejected promises sin manejar).
+
+## 2026-04-11 — Time-Lock de membresía alineado al quórum (seguridad operativa)
+
+- **Problema**: Para `membership_change`, `execution_time` se calculaba al **crear** la solicitud (`created_at + gov_timelock_hours`). Si el quórum se alcanzaba **después** de esa marca, el worker de ejecución podía correr casi de inmediato (~1 min), incoherente con la política “tras aprobar” y con el texto del admin.
+- **Decisión**:
+  - **Creación**: `execution_time` queda **`NULL`** hasta aprobación (solo membresía; `config_change` sin cambio de semántica inmediata donde aplique).
+  - **Aprobación (quórum alcanzado)**: Un único `UPDATE` en transacción pone `status = approved` y `execution_time = NOW() + (interval '1 hour' * timelockHours)` en **PostgreSQL** (reloj del servidor, una sola fuente de verdad). Si el `UPDATE` no devuelve fila o `execution_time`, se lanza error explícito (no se deja estado ambiguo).
+  - **Auditoría**: Evento `GOV_REQUEST_APPROVED_TIMELOCK` con `timelockHours` y `executionTime` devuelto por la BD.
+  - **Notificaciones**: En correo de solicitud creada, si es membresía y no hay `execution_time`, se explica que el time-lock cuenta **después del quórum**.
+  - **UX**: Panel de gobernanza muestra fila “Time-Lock” para solicitudes de membresía en `pending` sin fecha aún; admin/help y seed de `databaseInit` alineados al nuevo texto (“horas tras el quórum”).
+- **Archivos tocados**: `backend/src/services/governanceService.js`, `backend/src/services/notificationEventBus.js`, `backend/src/config/databaseInit.js`, `frontend/src/pages/admin-panel.js`, `frontend/src/pages/governance-panel.js`.
+- **Impacto**: Ventana de cancelación predecible respecto al momento real de aprobación; menos riesgo de ejecución “instantánea” por desfase temporal; trazabilidad clara en auditoría y en comunicaciones al usuario.
+- **Revisión adicional (defensa en profundidad)**:
+  - `UPDATE ... WHERE id = $1 AND status = 'pending'` al aprobar membresía: evita transiciones ambiguas si el estado no fuera el esperado.
+  - `GOV_REQUEST_APPROVED` en EventBus: si `executionTime` llega vacío, relectura vía `getRequestById`; si la fecha sigue siendo inválida, texto seguro y log de error (evita `Invalid Date` en push/email).

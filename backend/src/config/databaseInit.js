@@ -1038,7 +1038,7 @@ async function initializeDatabase() {
         ['p2p_cash_min_rating', '4.5', 'Reputación mínima para usar efectivo en persona.'],
         // --- CONFIGURACIONES DE GOBERNANZA (Winton-Consensus) ---
         ['gov_quorum_percentage', '67', 'Porcentaje de votos necesarios para aprobar o rechazar una solicitud (ej: 67 para ⅔).'],
-        ['gov_timelock_hours', '48', 'Horas de espera (Time-Lock) antes de ejecutar un cambio aprobado de membresía.'],
+        ['gov_timelock_hours', '48', 'Horas de espera (Time-Lock) tras el quórum de aprobación, antes de ejecutar un cambio de membresía (NOW + horas en BD).'],
         ['gov_request_expiry_hours', '24', 'Horas que tiene una solicitud para alcanzar quórum antes de expirar.'],
         ['gov_reminder_threshold_hours', '12', 'Horas restantes antes de expiración para enviar recordatorio de voto.'],
         ['gov_reminder_cooldown_hours', '6', 'Horas mínimas entre recordatorios sucesivos al mismo guardián.'],

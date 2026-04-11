@@ -338,12 +338,10 @@ async function createRequest(pool, req, data) {
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + govConfig.requestExpiryHours);
 
-    // Time-Lock para cambios de membresía
-    let executionTime = null;
-    if (actionType === ACTION_TYPES.MEMBERSHIP_CHANGE) {
-        executionTime = new Date();
-        executionTime.setHours(executionTime.getHours() + govConfig.timelockHours);
-    }
+    // execution_time en INSERT:
+    // - membership_change: NULL hasta el quórum (se fija en BD con NOW() + interval al aprobar).
+    // - config_change: NULL (no hay ventana time-lock en fila; al aprobar se ejecuta en la misma transacción).
+    const executionTime = null;
 
     const sql = `
         INSERT INTO governance_requests
@@ -369,7 +367,8 @@ async function createRequest(pool, req, data) {
             actionType,
             targetKey,
             expiresAt: expiresAt.toISOString(),
-            hasTimeLock: !!executionTime,
+            // Membresía: time-lock al aprobar; configuración: sin time-lock en fila (ejecución inmediata al aprobar).
+            membershipTimelockOnApproval: actionType === ACTION_TYPES.MEMBERSHIP_CHANGE,
         },
     });
 
@@ -671,13 +670,12 @@ async function _evaluateAndAct(client, req, govRequest) {
 
     // Quórum de APROBACIÓN alcanzado
     if (isApproved) {
-        await client.query(
-            `UPDATE governance_requests SET status = 'approved' WHERE id = $1`,
-            [govRequest.id]
-        );
-
-        // Sin Time-Lock → ejecución inmediata
-        if (!govRequest.execution_time) {
+        // Cambio de configuración: sin time-lock en la fila → aprobar y ejecutar en la misma transacción.
+        if (govRequest.action_type === ACTION_TYPES.CONFIG_CHANGE) {
+            await client.query(
+                `UPDATE governance_requests SET status = 'approved' WHERE id = $1`,
+                [govRequest.id]
+            );
             const execResult = await _executeAction(client, req, govRequest);
             return {
                 status: execResult.status,
@@ -686,22 +684,52 @@ async function _evaluateAndAct(client, req, govRequest) {
             };
         }
 
-        // Con Time-Lock → esperar
-        await logAuditEvent(client, req, {
-            eventType: 'GOV_REQUEST_APPROVED_TIMELOCK',
-            actorUsername: 'system',
-            category: 'GOVERNANCE',
-            metadata: {
-                requestId: govRequest.id,
-                executionTime: govRequest.execution_time,
-                approved, totals,
-            },
-        });
+        // Cambio de membresía: time-lock desde el momento del quórum (reloj = NOW() del servidor de BD).
+        if (govRequest.action_type === ACTION_TYPES.MEMBERSHIP_CHANGE) {
+            const hours = govConfig.timelockHours;
+            // AND status = 'pending': idempotencia defensiva (misma transacción con FOR UPDATE ya lo garantiza).
+            const updRes = await client.query(
+                `UPDATE governance_requests
+                 SET status = 'approved',
+                     execution_time = NOW() + (interval '1 hour' * $2::integer)
+                 WHERE id = $1 AND status = 'pending'
+                 RETURNING execution_time`,
+                [govRequest.id, hours]
+            );
+            if (updRes.rowCount !== 1 || !updRes.rows[0]?.execution_time) {
+                throw new Error('No se pudo fijar execution_time tras aprobar la solicitud de membresía.');
+            }
+            const scheduledAt = updRes.rows[0].execution_time;
 
+            await logAuditEvent(client, req, {
+                eventType: 'GOV_REQUEST_APPROVED_TIMELOCK',
+                actorUsername: 'system',
+                category: 'GOVERNANCE',
+                metadata: {
+                    requestId: govRequest.id,
+                    executionTime: scheduledAt,
+                    timelockHours: hours,
+                    approved,
+                    totals,
+                },
+            });
+
+            return {
+                status: REQUEST_STATUS.APPROVED,
+                message: `Quórum alcanzado. Ejecución programada para ${new Date(scheduledAt).toISOString()}. ` +
+                         `Cualquier guardián puede cancelar durante las próximas ${hours} horas.`,
+                quorum: { approved, rejected, totals, supThreshold, auxThreshold },
+            };
+        }
+
+        // Tipos desconocidos o datos inconsistentes: aprobar sin ejecutar (no debería ocurrir).
+        await client.query(
+            `UPDATE governance_requests SET status = 'approved' WHERE id = $1`,
+            [govRequest.id]
+        );
         return {
             status: REQUEST_STATUS.APPROVED,
-            message: `Quórum alcanzado. Ejecución programada para ${new Date(govRequest.execution_time).toISOString()}. ` +
-                     `Cualquier guardián puede cancelar durante las próximas ${govConfig.timelockHours} horas.`,
+            message: 'Quórum alcanzado. Solicitud aprobada.',
             quorum: { approved, rejected, totals, supThreshold, auxThreshold },
         };
     }

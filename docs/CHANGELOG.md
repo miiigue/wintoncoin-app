@@ -10,6 +10,15 @@ Este archivo resume la evolución del proyecto **por hitos** a partir del histor
 
 - Pendiente: definir primer versión/tag y automatizar generación del changelog desde commits.
 
+## [2026-04-11]
+
+### Changed
+- Gobernanza — cambios de **membresía**: el time-lock (`gov_timelock_hours`) se programa en la base de datos **al alcanzar el quórum de aprobación** (`NOW() + interval` en PostgreSQL), no al crear la solicitud. Evita ejecución casi inmediata cuando el quórum llega tarde respecto a la fecha calculada al crear.
+- Textos de admin, seed de configuración y correo `GOV_REQUEST_CREATED` alineados: sin fecha de ejecución en membresía hasta aprobar; mensaje explícito en panel de gobernanza para solicitudes `pending` sin `execution_time`.
+
+### Fixed
+- Coherencia entre política operativa (“horas tras aprobar”) y datos persistidos para solicitudes de membresía.
+
 ## [2025-07-15]
 
 ### Added

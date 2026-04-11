@@ -439,6 +439,12 @@ eventBus.on('GOV_REQUEST_CREATED', async ({
             label: 'Ejecución programada (si se aprueba)',
             value: _formatGovEmailDate(effExecutionTime),
         });
+    } else if (effActionType === 'membership_change') {
+        // Membresía: la fecha de ejecución se fija al alcanzar quórum (NOW + gov_timelock_hours en servidor).
+        sharedEmailDetails.push({
+            label: 'Time-Lock (membresía)',
+            value: 'Tras el quórum de aprobación, el sistema esperará las horas configuradas en Gobernanza — Time-Lock antes de ejecutar el cambio.',
+        });
     }
     const votingGuardianCount = guardianUserIds.filter(id => Number(id) !== Number(requesterId)).length;
     const recipientsPreview = emails
@@ -628,7 +634,23 @@ eventBus.on('GOV_VOTE_SUBMITTED', async ({ requestId, voterUsername, voterUserId
 
 // 12. GOBERNANZA: Solicitud aprobada con Time-Lock → Push + Email a TODOS
 eventBus.on('GOV_REQUEST_APPROVED', async ({ requestId, executionTime, guardianUserIds }) => {
-    const execDate = new Date(executionTime).toLocaleString('es-ES', { timeZone: 'America/Bogota' });
+    // Fuente de verdad preferida: parámetro del emisor; si falta, relectura desde BD (defensa en profundidad).
+    let resolvedExec = executionTime;
+    if (resolvedExec == null || resolvedExec === '') {
+        try {
+            const full = await governanceService.getRequestById(pool, requestId);
+            resolvedExec = full?.execution_time ?? null;
+        } catch (e) {
+            console.error('[EVENT-BUS] GOV_REQUEST_APPROVED: no se pudo releer execution_time:', e.message);
+        }
+    }
+    const execMs = resolvedExec != null ? new Date(resolvedExec).getTime() : NaN;
+    const execDate = Number.isFinite(execMs)
+        ? new Date(resolvedExec).toLocaleString('es-ES', { timeZone: 'America/Bogota' })
+        : '(consultar fecha en el panel de gobernanza)';
+    if (!Number.isFinite(execMs)) {
+        console.error('[EVENT-BUS] GOV_REQUEST_APPROVED: execution_time ausente o inválido', { requestId });
+    }
 
     const [emails, recentChanges] = await Promise.all([
         _getUsersEmails(guardianUserIds).catch(() => []),
