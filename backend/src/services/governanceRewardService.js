@@ -23,6 +23,7 @@
 'use strict';
 
 const { logAuditEvent } = require('./auditService');
+const boosterService = require('./boosterService');
 
 // ─── Constantes ─────────────────────────────────────────────────────────────
 const REWARD_SETTING_KEY = 'gov_vote_reward_blue';
@@ -121,15 +122,21 @@ async function creditVoteReward(pool, { requestId, guardianUserId, voterUsername
             );
             rawAmount = parseFloat(settingRes.rows[0]?.setting_value);
         }
-        const rewardAmount = (Number.isFinite(rawAmount) && rawAmount >= REWARD_MIN && rawAmount <= REWARD_MAX)
+        const baseReward = (Number.isFinite(rawAmount) && rawAmount >= REWARD_MIN && rawAmount <= REWARD_MAX)
             ? rawAmount
             : REWARD_DEFAULT;
 
         // Recompensas desactivadas (monto = 0)
-        if (rewardAmount === 0) {
+        if (baseReward === 0) {
             await client.query('ROLLBACK');
             return null;
         }
+
+        // --- APLICAR MULTIPLICADOR DE ETAPA (NUEVO) ---
+        const multiplicationResult = await boosterService.calculateMultipliedAmount(baseReward);
+        const rewardAmount = multiplicationResult.multipliedAmount;
+        const multiplierUsed = multiplicationResult.multiplier;
+        const stageName = multiplicationResult.stageName;
 
         // ── 5. Acreditar BLUE IOU en booster_blue_ledger (fuente de verdad) ──
         // record_booster_event() hace INSERT en booster_blue_ledger.
@@ -147,7 +154,7 @@ async function creditVoteReward(pool, { requestId, guardianUserId, voterUsername
                 safeGuardianUserId,
                 REWARD_TYPE,
                 rewardAmount,
-                `Recompensa por voto en solicitud de gobernanza #${safeRequestId}`,
+                `Recompensa por voto en solicitud #${safeRequestId} (${baseReward} x ${multiplierUsed || 1} [${stageName || 'S/E'}])`,
             ]
         );
 
@@ -201,7 +208,10 @@ async function creditVoteReward(pool, { requestId, guardianUserId, voterUsername
         await client.query('COMMIT');
 
         const result = {
-            rewardAmount,
+            rewardAmount,                                         // Monto FINAL acreditado (base * multiplicador)
+            baseReward,                                           // Monto base configurado en app_settings
+            multiplierUsed,                                       // Factor aplicado (ej: 15.00)
+            stageName,                                            // Nombre de la etapa (ej: "Etapa 2")
             newTotalBalance:     parseFloat(totalRes.rows[0].total),
             monthlyVoteTotal:    parseFloat(monthRes.rows[0].total),
             historicalVoteTotal: parseFloat(historyRes.rows[0].total),
@@ -214,9 +224,13 @@ async function creditVoteReward(pool, { requestId, guardianUserId, voterUsername
             actorUsername: voterUsername || null,
             category:      'GOVERNANCE',
             metadata: {
-                requestId:          safeRequestId,
-                rewardAmount,
-                newTotalBalance:    result.newTotalBalance,
+                requestId:           safeRequestId,
+                baseReward,                          // Monto base (sin multiplicar)
+                multiplierUsed,                      // Factor de multiplicación aplicado
+                stageName,                           // Etapa del protocolo de compensación
+                rewardAmount,                        // Monto final (base * multiplicador)
+                formula:             `${baseReward} x ${multiplierUsed} = ${rewardAmount}`, // Fórmula legible para auditoría
+                newTotalBalance:     result.newTotalBalance,
                 historicalVoteTotal: result.historicalVoteTotal,
             },
         }).catch(err => console.error('[GOV-REWARD] Error en audit log:', err));
@@ -347,23 +361,29 @@ async function processPendingRewards(pool, adminUserId) {
                 continue;
             }
 
+            // --- APLICAR MULTIPLICADOR DE ETAPA (NUEVO) ---
+            const multiplicationResult = await boosterService.calculateMultipliedAmount(rateUsed);
+            const finalAmount = multiplicationResult.multipliedAmount;
+            const multiplierUsed = multiplicationResult.multiplier;
+            const stageName = multiplicationResult.stageName;
+
             // Acreditar en ledger + transactions + booster_transactions
             await client.query(
                 `SELECT record_booster_event($1, $2, $3, NULL)`,
-                [row.user_id, REWARD_TYPE, rateUsed]
+                [row.user_id, REWARD_TYPE, finalAmount]
             );
             await client.query(
                 `INSERT INTO booster_transactions (user_id, type, amount, description)
                  VALUES ($1, $2, $3, $4)`,
-                [row.user_id, REWARD_TYPE, rateUsed,
-                 `Recompensa retroactiva por voto en solicitud #${row.request_id}`]
+                [row.user_id, REWARD_TYPE, finalAmount,
+                 `Recompensa retroactiva por voto en solicitud #${row.request_id} (${rateUsed} x ${multiplierUsed} [${stageName}])`]
             );
             await client.query(
                 `INSERT INTO transactions (user_id, type, description, blue_change)
                  VALUES ($1, $2, $3, $4)`,
                 [row.user_id, REWARD_TYPE,
-                 `Recompensa BLUE IOU retroactiva — voto en solicitud #${row.request_id}`,
-                 rateUsed]
+                 `Recompensa BLUE IOU retroactiva — voto en solicitud #${row.request_id} (Mult: ${multiplierUsed}x)`,
+                 finalAmount]
             );
 
             // Marcar como pagado
@@ -386,7 +406,7 @@ async function processPendingRewards(pool, adminUserId) {
                 };
             }
             byGuardian[row.user_id].votesPaid++;
-            byGuardian[row.user_id].totalAmount += rateUsed;
+            byGuardian[row.user_id].totalAmount += finalAmount;
             byGuardian[row.user_id].requestIds.push(row.request_id);
 
         } catch (err) {

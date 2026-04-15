@@ -672,6 +672,7 @@
                 <div class="admin-tabs">
                     <button class="tab-link active" data-tab="boosters-dashboard">Dashboard</button>
                     <button class="tab-link" data-tab="boosters-settings">Configuración</button>
+                    <button class="tab-link" data-tab="boosters-stages">Etapas y Multiplicadores</button>
                     <button class="tab-link" data-tab="boosters-list">Lista de Impulsores</button>
                     <button class="tab-link" data-tab="boosters-payments">Historial de Pagos</button>
                 </div>
@@ -688,6 +689,15 @@
                     <h2>Configuración del Programa</h2>
                     <p>Ajusta los parámetros del sistema de Impulsores.</p>
                     <div id="boosters-settings-container" class="settings-container">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+
+                <div id="boosters-stages-tab" class="tab-content">
+                    <h2>Etapas de Multiplicación</h2>
+                    <p>Define las fechas y multiplicadores para las recompensas de impulsores.</p>
+                    <div id="boosters-stages-container" class="table-container-admin">
+                        <!-- Las etapas se cargarán aquí dinámicamente -->
                         <div class="loading-spinner"></div>
                     </div>
                 </div>

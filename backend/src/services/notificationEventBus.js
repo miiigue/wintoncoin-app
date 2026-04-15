@@ -201,6 +201,11 @@ async function _sendVoteRewardEmail({ toEmail, requestId, voterUsername, vote, r
     const voteLabel = vote === 'approve' ? 'Aprobación' : 'Rechazo';
     const nowLabel = _formatGovEmailDate(new Date());
 
+    // --- Construir el desglose del multiplicador (si disponible) ---
+    // El objeto reward ahora incluye baseReward, multiplierUsed y stageName
+    // gracias a la integración con boosterService.
+    const hasMultiplierInfo = reward.baseReward !== undefined && reward.multiplierUsed !== undefined;
+
     return sendGovernanceEmail({
         toEmail,
         subject:   `+${reward.rewardAmount.toFixed(2)} BLUE IOU — Recompensa por Voto en Gobernanza`,
@@ -209,13 +214,22 @@ async function _sendVoteRewardEmail({ toEmail, requestId, voterUsername, vote, r
             `Hola ${voterUsername},\n\n` +
             `Se han acreditado ${reward.rewardAmount.toFixed(2)} BLUE IOU a tu cuenta como ` +
             `reconocimiento por tu participación en el sistema de gobernanza Winton-Consensus.\n\n` +
+            (hasMultiplierInfo && reward.multiplierUsed > 1
+                ? `Tu recompensa incluye un multiplicador de ${reward.multiplierUsed}x ` +
+                  `correspondiente a la ${reward.stageName || 'etapa actual'} del programa de pre-lanzamiento.\n\n`
+                : '') +
             `Tu participación activa es fundamental para la seguridad y la integridad ` +
             `de la plataforma. Gracias por ejercer tu responsabilidad como guardián.`,
         severity: 'success',
         details: [
             { label: 'Solicitud votada',         value: `#${requestId}` },
             { label: 'Tu decisión',               value: voteLabel },
-            { label: 'Recompensa acreditada',     value: `+${reward.rewardAmount.toFixed(2)} BLUE IOU` },
+            // --- Desglose del multiplicador (transparencia para el guardián) ---
+            ...(hasMultiplierInfo ? [
+                { label: 'Recompensa base',       value: `${reward.baseReward.toFixed(2)} BLUE IOU` },
+                { label: 'Multiplicador aplicado', value: `${reward.multiplierUsed}x (${reward.stageName || 'Sin etapa'})` },
+            ] : []),
+            { label: 'Recompensa total acreditada', value: `+${reward.rewardAmount.toFixed(2)} BLUE IOU` },
             { label: 'Nuevo saldo BLUE IOU total', value: `${reward.newTotalBalance.toFixed(2)} BLUE IOU` },
             { label: 'Acumulado este mes',         value: `${reward.monthlyVoteTotal.toFixed(2)} BLUE IOU` },
             { label: 'Total histórico (votos)',    value: `${reward.historicalVoteTotal.toFixed(2)} BLUE IOU` },

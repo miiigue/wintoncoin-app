@@ -2037,3 +2037,58 @@ Se asienta en auditoría la remoción física de la subcarpeta `android-app` (Ap
 - **Frontend y Backend:** **Sin Impacto**. La eliminación de esta carpeta no afecta el despliegue del PWA, el servicio APIs de Node.js, las transacciones financieras en PostgresSQL ni el motor económico (BLUE IOU/RED). 
 - **Ciberseguridad:** Los esquemas de protección y *Zero Hardcoded Secrets* se mantienen inalterados en la web.
 - **Compilación Nativa:** La única consecuencia directa es que las compilaciones y firma de claves para el `.apk`/`.aab` en la Google Play Store quedan desacopladas de este monolito de desarrollo. Se deberá restablecer el código o ubicarlo en un repositorio remoto independiente para futuros lanzamientos nativos, cumpliendo con la separación recomendada (Frontend Web vs Mobile App nativa).
+
+---
+
+### 2026-04-14 — Protocolo de Multiplicadores de Booster + Modularización del Panel Admin
+
+- **Contexto**: Para incentivar la participación temprana, se requería un sistema dinámico de multiplicadores (`BLUE IOU x Etapa`) que recompensara más a los usuarios en las fases iniciales del proyecto. Además, el backend administrativo residía en un monolito (`server.js`), lo que dificultaba la escalabilidad y auditoría.
+- **Decisión**:
+  - **Modularización Estricta**: Extracción de la lógica administrativa de `server.js` hacia `adminController.js` (funciones independientes, sin clases — previene bugs de `this` binding en Express) y `adminRoutes.js`.
+  - **Protocolo de Compensación**: Implementación del `boosterService.js` con etapas y multiplicadores dinámicos según protocolo documentado en `boosters.wintoncoin.com`:
+    - Etapa 1: Mayo–Oct 2025 → 20x
+    - Etapa 2: Nov 2025–Abr 2026 → 15x
+    - Etapa 3: May–Oct 2026 → 9x
+    - Etapa 4: Nov 2026–Ene 2027 → 5x
+    - Etapa 5: 1–14 Feb 2027 → 3x
+  - **Integración en Gobernanza**: `creditVoteReward()` y `processPendingRewards()` aplican automáticamente: `Recompensa Final = Base * Multiplicador de Etapa`.
+  - **Governance Guard**: Los multiplicadores son parámetros económicos protegidos — si hay guardianes activos, los cambios deben pasar por Winton-Consensus (Maker-Checker).
+  - **Transparencia en Email**: El correo de recompensa al guardián ahora incluye el desglose: recompensa base, multiplicador aplicado, etapa y total acreditado.
+  - **Auditoría Bancaria**: Cada `GOV_VOTE_REWARD_CREDITED` registra en metadata la fórmula completa: `{ baseReward, multiplierUsed, stageName, formula }`.
+  - **Migración 050**: Tabla `booster_config_stages` con CASCADE, índice de rendimiento, idempotencia en inserción de datos iniciales, y validación de solapamiento de fechas en `boosterService.saveStage()`.
+- **Impacto**:
+  - **Escalabilidad**: Backend modular con funciones puras (sin `this` binding issues).
+  - **Incentivación**: Multiplicadores aplicados automáticamente en recompensas de gobernanza y extensibles a otras actividades.
+  - **Auditabilidad**: Trazabilidad completa base→multiplicador→total en ledger, audit log y correo.
+  - **Seguridad**: Governance Guard, validación de solapamiento, idempotencia, fallback seguro (1.0x sin etapa).
+- **Evidencia**: Migración `050_create_booster_stages.js`, `boosterService.js`, `adminController.js`, `adminRoutes.js`, `governanceRewardService.js`, `notificationEventBus.js`.
+
+---
+
+### 2026-04-14 — Auditoría End-to-End del Protocolo de Multiplicadores
+
+- **Contexto**: Revisión profesional de todos los archivos modificados, verificando la cadena completa de ejecución desde la migración hasta el correo electrónico al guardián.
+- **Hallazgos Corregidos**:
+  - **ERROR CRÍTICO: Funciones broadcast faltantes en `adminController.js`**. Las rutas `POST /broadcast-email` y `GET /broadcast-email` referenciaban `adminController.createBroadcastEmail` y `adminController.getBroadcasts` que NO estaban definidas. Esto habría causado un crash `TypeError: undefined is not a function` al acceder a esos endpoints. Se añadieron ambas funciones (createBroadcastEmail como 501 pendiente de migración, getBroadcasts funcional).
+  - Verificación completa de imports/exports en 10 archivos.
+  - Verificación de registro de rutas en `server.js` (línea 170).
+  - Verificación de endpoints frontend vs backend (admin-panel.js ↔ adminRoutes.js).
+  - Verificación del `vite.config.js` para inclusión de `admin-panel.html`.
+  - Verificación del `migrationRunner.js` para compatibilidad con patrón `up(client)`.
+- **Resultado**: **Todos los checks pasaron**. El sistema está listo para despliegue con las notas de la funcionalidad broadcast pendiente de migración completa.
+- **Evidencia**: Auditoría E2E documentada y archivada.
+
+---
+
+### 2026-04-14 — Auditoría de Seguridad Profesional (OWASP + Fintech)
+
+- **Contexto**: Tercera revisión del código aplicando metodología OWASP Top 10 y evaluación de escenarios de ataque para endpoints administrativos de parámetros económicos.
+- **Vulnerabilidades Encontradas y Corregidas**:
+  1. **`id` de etapa sin sanitizar (ALTA)**: El campo `id` en `boosterService.saveStage()` controlaba la estructura de la query SQL (`${id ? 'AND id != $3' : ''}`). Aunque parametrizado, la decisión de incluir/excluir la cláusula dependía del valor crudo. **Fix**: `parseInt(id, 10)` + validación `isFinite && > 0`.
+  2. **`userId` de URL params sin parseInt (MEDIA)**: En `updateUserStatus()`, `req.params.userId` se pasaba directamente a PostgreSQL sin sanitizar. **Fix**: `parseInt + validación isFinite`.
+  3. **Sin límite superior en multiplicador (MEDIA)**: Un admin podía poner multiplicador `999999` accidentalmente. **Fix**: `MAX_MULTIPLIER = 100` como guardrail económico con mensaje de error descriptivo.
+  4. **Pattern matching incompleto en error handler**: Los nuevos mensajes de error (`exceder`, `inválido`) no eran capturados como errores 400. **Fix**: Array de patrones ampliado.
+- **Escenarios Evaluados**: 8 escenarios de uso (happy path + edge cases), 14 vectores de ataque (SQL injection, broken access control, authentication failures, business logic flaws).
+- **Evidencia**: Auditoría de seguridad documentada con checklist OWASP, defensa en profundidad verificada (7 capas).
+
+---

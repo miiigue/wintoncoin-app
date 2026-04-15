@@ -95,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
         boostersSettingsContainer: document.getElementById('boosters-settings-container'),
         boostersDashboardStats: document.getElementById('boosters-dashboard-stats'),
         boostersListContainer: document.getElementById('boosters-list-container'),
+        boostersStagesContainer: document.getElementById('boosters-stages-container'),
         // --- NOTIFICACIONES ---
         notificationsSection: document.getElementById('notifications-section'),
         pushNotificationForm: document.getElementById('pushNotificationForm'),
@@ -495,6 +496,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case 'boosters-settings':
                 loadBoosterSettings();
+                break;
+            case 'boosters-stages':
+                loadBoosterStages();
                 break;
             case 'boosters-list':
                 loadBoosterList();
@@ -1511,6 +1515,60 @@ document.addEventListener('DOMContentLoaded', () => {
         if (count === 0) return '<span class="no-rating">Sin calif.</span>';
         const stars = '★'.repeat(Math.round(rating)) + '☆'.repeat(5 - Math.round(rating));
         return `<span class="stars" title="${parseFloat(rating).toFixed(1)} de 5">${stars}</span> <span class="rating-count">(${count})</span>`;
+    }
+
+    async function loadBoosterStages() {
+        if (!elements.boostersStagesContainer) return;
+        elements.boostersStagesContainer.innerHTML = '<div class="loading-spinner"></div>';
+
+        try {
+            const response = await fetch(`${API_URL}/api/admin/boosters/config-stages`, { credentials: 'include' });
+            if (!response.ok) throw new Error('Error al cargar etapas');
+            const stages = await response.json();
+
+            let html = `
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Etapa</th>
+                            <th>Monto Multiplicador</th>
+                            <th>Inicio</th>
+                            <th>Fin</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            stages.forEach(stage => {
+                const startDate = new Date(stage.start_date).toLocaleDateString();
+                const endDate = new Date(stage.end_date).toLocaleDateString();
+                const statusBadge = stage.is_active ? 
+                    '<span class="badge badge-success">Activo</span>' : 
+                    '<span class="badge badge-danger">Inactivo</span>';
+
+                html += `
+                    <tr>
+                        <td><strong>${escapeHtml(stage.name)}</strong></td>
+                        <td class="multiplier-cell" style="font-weight: 800; color: #7f00ff;">${parseFloat(stage.multiplier).toFixed(2)}x</td>
+                        <td>${startDate}</td>
+                        <td>${endDate}</td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <button class="admin-btn-small edit-stage-btn" data-id="${stage.id}">Editar</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `</tbody></table>`;
+            elements.boostersStagesContainer.innerHTML = html;
+
+        } catch (error) {
+            console.error('Error al cargar etapas:', error);
+            elements.boostersStagesContainer.innerHTML = `<div class="error-msg">Error: ${error.message}</div>`;
+        }
     }
 
     // --- Render Functions ---

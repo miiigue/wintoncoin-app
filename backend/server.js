@@ -38,6 +38,7 @@ const publicationRoutes = require('./src/routes/publicationRoutes');
 const validationRoutes = require('./src/routes/validationRoutes');
 const solidarioRoutes = require('./src/routes/solidarioRoutes');
 const recruitmentRoutes = require('./src/routes/recruitmentRoutes');
+const adminRoutes = require('./src/routes/adminRoutes');
 
 // --- NUEVO: Gestión profesional de la clave secreta de JWT ---
 // Buscamos la clave secreta en las variables de entorno.
@@ -166,6 +167,7 @@ async function startServer() {
         app.use('/api', validationRoutes); // Registrar rutas de validación de disponibilidad
         app.use('/api/recruitment', recruitmentRoutes); // <<< ALTA PRIORIDAD
         app.use('/api/solidario', solidarioRoutes); // Registrar rutas de Winton Solidario
+        app.use('/api/admin', adminRoutes); // <<< NUEVAS RUTAS MODULARES ADMIN
 
         // Registrar rutas de Publicaciones
         // Para publicaciones: permitir actor autenticado (autor) o administrador.
