@@ -491,23 +491,124 @@ async function getAuditLog(req, res) {
 
 /**
  * Crea un correo de difusión masiva.
- * NOTA: La lógica completa de envío por lotes (con SES) está pendiente de
- * migración desde server.js. Este endpoint devuelve 501 hasta que se complete.
+ * Crea una nueva difusión de correo masivo.
+ * No envía los correos inmediatamente, sino que los encola para que processPendingBroadcasts los maneje.
  */
 async function createBroadcastEmail(req, res) {
-    // TODO: Migrar la lógica completa de envío masivo desde server.js
-    // Por ahora se retorna 501 (Not Implemented) para no romper el flujo
-    // y dejar claro que la funcionalidad está en transición.
-    res.status(501).json({ message: "Lógica de broadcast en migración desde server.js." });
+    const { subject, title, bodyHtml, targetGroup, targetUsername, buttonText, buttonUrl } = req.body;
+    let adminId = req.user?.userId;
+    let adminUsername = req.user?.username;
+
+    // Si es un token de admin antiguo/simple ({ name: 'admin' }), buscamos el ID del usuario plataforma
+    if (!adminId) {
+        try {
+            const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
+            const platformUser = await pool.query('SELECT id, username FROM users WHERE username = $1', [platformUsername]);
+            if (platformUser.rowCount > 0) {
+                adminId = platformUser.rows[0].id;
+                adminUsername = platformUser.rows[0].username;
+            }
+        } catch (err) {
+            console.error("Error al buscar usuario admin de plataforma:", err);
+        }
+    }
+
+    if (!adminId) {
+        return res.status(401).json({ message: "No se pudo identificar al administrador para esta operación." });
+    }
+
+    if (!subject || !title || !bodyHtml || !targetGroup) {
+        return res.status(400).json({ message: "Asunto, título, cuerpo y grupo objetivo son requeridos." });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Crear el registro maestro del broadcast
+        const broadcastResult = await client.query(
+            `INSERT INTO email_broadcasts (admin_id, subject, title, body, target_group, target_username, button_text, button_url, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending') RETURNING id`,
+            [adminId, subject, title, bodyHtml, targetGroup, targetUsername || null, buttonText || null, buttonUrl || null]
+        );
+        const broadcastId = broadcastResult.rows[0].id;
+
+        // 2. Identificar destinatarios según el filtro
+        let userQuery = 'SELECT id, email FROM users WHERE email IS NOT NULL';
+        let queryParams = [];
+
+        if (targetGroup === 'verified') {
+            userQuery += ' AND is_verified = true';
+        } else if (targetGroup === 'booster') {
+            userQuery += ' AND is_booster = true';
+        } else if (targetGroup === 'specific') {
+            userQuery += ' AND username = $1';
+            queryParams.push(targetUsername);
+        }
+
+        const usersResult = await client.query(userQuery, queryParams);
+
+        if (usersResult.rowCount === 0) {
+            throw { status: 400, message: "No se encontraron usuarios que cumplan con los criterios del filtro." };
+        }
+
+        // 3. Poblar la tabla de destinatarios pendientes (Bulk Insert optimizado por lotes)
+        const USERS_BATCH_SIZE = 1000;
+        for (let i = 0; i < usersResult.rows.length; i += USERS_BATCH_SIZE) {
+            const batchRows = usersResult.rows.slice(i, i + USERS_BATCH_SIZE);
+            const values = [];
+            const placeholders = [];
+            batchRows.forEach((user, index) => {
+                const offset = index * 2;
+                values.push(broadcastId, user.id);
+                placeholders.push(`($${offset + 1}, $${offset + 2}, 'pending')`);
+            });
+
+            const bulkInsertQuery = `
+                INSERT INTO email_broadcast_recipients (broadcast_id, user_id, status)
+                VALUES ${placeholders.join(',')}
+            `;
+            await client.query(bulkInsertQuery, values);
+        }
+
+        // 4. Actualizar total de destinatarios en el maestro
+        await client.query('UPDATE email_broadcasts SET total_recipients = $1 WHERE id = $2', [usersResult.rowCount, broadcastId]);
+
+        // 5. Registrar en el log de auditoría
+        await logAuditEvent(client, req, {
+            eventType: 'admin.email_broadcast.created',
+            actorUsername: adminUsername,
+            metadata: {
+                broadcast_id: broadcastId,
+                target_group: targetGroup,
+                recipients_count: usersResult.rowCount,
+                subject: subject
+            }
+        });
+
+        await client.query('COMMIT');
+        res.json({
+            success: true,
+            message: `Difusión programada correctamente para ${usersResult.rowCount} usuarios.`,
+            broadcast_id: broadcastId
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error al crear difusión de correo:', error);
+        res.status(error.status || 500).json({ message: error.message || 'Error interno al programar la difusión.' });
+    } finally {
+        client.release();
+    }
 }
 
 /**
- * Obtiene el historial de difusiones masivas.
+ * Obtiene la lista de difusiones para auditoría y monitoreo.
  */
-async function getBroadcasts(req, res) {
+async function getBroadcastEmails(req, res) {
     try {
         const result = await pool.query(`
-            SELECT b.*, u.username as admin_username
+            SELECT b.*, u.username as admin_username 
             FROM email_broadcasts b
             JOIN users u ON b.admin_id = u.id
             ORDER BY b.created_at DESC
@@ -516,6 +617,33 @@ async function getBroadcasts(req, res) {
     } catch (error) {
         console.error("[AdminController] Error al obtener difusiones:", error);
         res.status(500).json({ message: "Error al obtener difusiones." });
+    }
+}
+
+/**
+ * Obtiene los detalles de destinatarios de una difusión específica.
+ */
+async function getBroadcastRecipients(req, res) {
+    const { id } = req.params;
+    
+    // Sanitización de seguridad: asegurar que ID es un entero positivo
+    const safeId = parseInt(id, 10);
+    if (!Number.isFinite(safeId) || safeId <= 0) {
+        return res.status(400).json({ message: 'ID de difusión inválido.' });
+    }
+
+    try {
+        const result = await pool.query(`
+            SELECT r.*, u.email, u.username
+            FROM email_broadcast_recipients r
+            JOIN users u ON r.user_id = u.id
+            WHERE r.broadcast_id = $1
+            ORDER BY r.sent_at DESC NULLS LAST
+        `, [safeId]);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error al obtener destinatarios de difusión:', error);
+        res.status(500).json({ message: 'Error interno al consultar destinatarios.' });
     }
 }
 
@@ -538,5 +666,6 @@ module.exports = {
     saveBoosterStage,
     getAuditLog,
     createBroadcastEmail,
-    getBroadcasts,
+    getBroadcastEmails,
+    getBroadcastRecipients,
 };

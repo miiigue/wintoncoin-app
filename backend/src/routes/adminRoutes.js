@@ -37,7 +37,8 @@ router.get('/platform-wallet/log', verifyAdminToken, adminController.getPlatform
 
 // Broadcast Email
 router.post('/broadcast-email', verifyAdminToken, adminController.createBroadcastEmail);
-router.get('/broadcast-email', verifyAdminToken, adminController.getBroadcasts);
+router.get('/broadcast-email', verifyAdminToken, adminController.getBroadcastEmails);
+router.get('/broadcast-email/:id/recipients', verifyAdminToken, adminController.getBroadcastRecipients);
 
 // Auditoría
 router.get('/audit-log', verifyAdminToken, adminController.getAuditLog);
