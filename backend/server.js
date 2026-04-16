@@ -2403,22 +2403,69 @@ async function startServer() {
 
         app.post('/api/admin/governance/demo-import-process', verifyAdminToken, async (req, res) => {
             try {
-                const { fileData } = req.body;
+                // Campos aceptados:
+                //   - fileData:           contenido del JSON firmado (obligatorio).
+                //   - expectedMultiplier: valor que el admin vio en la preview (opcional).
+                //                         Si se provee, se usa como "candado optimista":
+                //                         si la etapa booster cambia entre preview y procesar,
+                //                         se aborta con 409 para que el admin revise de nuevo
+                //                         y confirme explícitamente (maker-checker real).
+                const { fileData, expectedMultiplier } = req.body;
                 if (!fileData) {
                     return res.status(400).json({ message: 'No se proporcionó el contenido del archivo.' });
                 }
                 const validated = govDemoRewardService.validateImport(fileData);
-                const result    = await govDemoRewardService.processImport(pool, validated, req.user.userId);
+
+                // Candado optimista multiplicador preview↔process: re-calcula y compara.
+                // Se usa una consulta ligera (2 queries) en lugar de re-ejecutar todo el
+                // previewImport: se asegura que, si la etapa booster cambió entre la
+                // preview y este click, el pago se aborta antes de tocar el ledger.
+                // Comparación con tolerancia epsilon (1e-9): los multiplicadores vienen
+                // de NUMERIC en Postgres → parseFloat y pueden tener ruido binario.
+                if (expectedMultiplier !== undefined && expectedMultiplier !== null) {
+                    const current     = await govDemoRewardService.getCurrentRateAndMultiplier(pool);
+                    const currentMult = Number(current.multiplier);
+                    const expected    = Number(expectedMultiplier);
+                    const EPSILON     = 1e-9;
+                    const drifted     =
+                        Number.isFinite(currentMult) &&
+                        Number.isFinite(expected) &&
+                        Math.abs(currentMult - expected) > EPSILON;
+
+                    if (drifted) {
+                        return res.status(409).json({
+                            code:    'MULTIPLIER_CHANGED',
+                            message:
+                                `La etapa booster cambió entre la previsualización y el procesamiento. ` +
+                                `Visto en preview: ${expected}x. Vigente ahora: ${currentMult}x ` +
+                                `(${current.stageName}). Revise la preview nuevamente y vuelva a confirmar.`,
+                            expectedMultiplier: expected,
+                            currentMultiplier:  currentMult,
+                            currentStageName:   current.stageName,
+                        });
+                    }
+                }
+
+                const result = await govDemoRewardService.processImport(pool, validated, req.user.userId);
 
                 const notificationService = require('./src/services/notificationService');
                 const { sendGovernanceEmail } = require('./src/services/emailService');
+
+                // Encabezado reutilizable: refleja el multiplicador vigente al procesar el pago.
+                const multiplierLabel =
+                    Number.isFinite(result.multiplier) && result.multiplier !== 1
+                        ? `x${result.multiplier} (${result.stageName})`
+                        : `x1 (${result.stageName || 'Sin etapa activa'})`;
 
                 for (const [userId, summary] of Object.entries(result.byGuardian)) {
                     const safeUserId = parseInt(userId, 10);
 
                     notificationService.sendNotificationToUser(safeUserId, {
                         title: `+${summary.totalAmount.toFixed(2)} BLUE IOU acreditados`,
-                        body:  `Recompensa por ${summary.votesPaid} voto(s) de gobernanza en entorno de pruebas.`,
+                        body:
+                            `Recompensa por ${summary.votesPaid} voto(s) de gobernanza ` +
+                            `(${summary.basePerVote.toFixed(2)} x ${summary.multiplier} = ` +
+                            `${summary.ratePerVote.toFixed(2)} BLUE/voto).`,
                         icon:  '/assets/icons/icon-192x192.png',
                         data:  { url: '/history.html' },
                     }, 'TRANSACTIONAL').catch(err =>
@@ -2430,6 +2477,9 @@ async function startServer() {
                             .map(id => `\u2022 Voto demo #${id}`)
                             .join('\n');
 
+                        // Detalle del email: desglose base × multiplicador = final,
+                        // replica exactamente el formato del flujo "voto real" para
+                        // trazabilidad/auditoría y transparencia ante el guardián.
                         sendGovernanceEmail({
                             toEmail:  summary.email,
                             subject:  `+${summary.totalAmount.toFixed(2)} BLUE IOU — Recompensa por pruebas de gobernanza`,
@@ -2443,11 +2493,14 @@ async function startServer() {
                                 `Detalle:\n${votesList}`,
                             severity: 'success',
                             details: [
-                                { label: 'Votos compensados',    value: String(summary.votesPaid) },
-                                { label: 'Tasa por voto',        value: `${result.rateUsed.toFixed(2)} BLUE IOU` },
-                                { label: 'Total acreditado',     value: `+${summary.totalAmount.toFixed(2)} BLUE IOU` },
-                                { label: 'Nuevo saldo BLUE IOU', value: `${summary.newBalance.toFixed(2)} BLUE IOU` },
-                                { label: 'Origen',               value: 'Entorno de pruebas (Demo)' },
+                                { label: 'Votos compensados',     value: String(summary.votesPaid) },
+                                { label: 'Tasa base por voto',    value: `${summary.basePerVote.toFixed(2)} BLUE IOU` },
+                                { label: 'Multiplicador (etapa)', value: `x${summary.multiplier} — ${summary.stageName}` },
+                                { label: 'Tasa final por voto',   value: `${summary.ratePerVote.toFixed(2)} BLUE IOU` },
+                                { label: 'Subtotal base',         value: `${summary.totalBase.toFixed(2)} BLUE IOU` },
+                                { label: 'Total acreditado',      value: `+${summary.totalAmount.toFixed(2)} BLUE IOU` },
+                                { label: 'Nuevo saldo BLUE IOU',  value: `${summary.newBalance.toFixed(2)} BLUE IOU` },
+                                { label: 'Origen',                value: 'Entorno de pruebas (Demo)' },
                             ],
                         }).catch(err =>
                             console.error(`[ADMIN] Error email demo reward user ${safeUserId}:`, err)
@@ -2456,11 +2509,14 @@ async function startServer() {
                 }
 
                 return res.json({
-                    message:           `${result.totalProcessed} voto(s) procesados exitosamente.`,
-                    totalProcessed:    result.totalProcessed,
-                    totalSkipped:      result.totalSkipped,
-                    rateUsed:          result.rateUsed,
-                    guardiansAffected: Object.keys(result.byGuardian).length,
+                    message:             `${result.totalProcessed} voto(s) procesados exitosamente ${multiplierLabel}.`,
+                    totalProcessed:      result.totalProcessed,
+                    totalSkipped:        result.totalSkipped,
+                    rateUsed:            result.rateUsed,
+                    multiplier:          result.multiplier,
+                    stageName:           result.stageName,
+                    finalRatePerVote:    result.finalRatePerVote,
+                    guardiansAffected:   Object.keys(result.byGuardian).length,
                 });
             } catch (error) {
                 console.error('[ADMIN] Error procesando importación demo:', error);

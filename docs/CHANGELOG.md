@@ -15,10 +15,17 @@ Este archivo resume la evolución del proyecto **por hitos** a partir del histor
 ### Changed
 - Gobernanza — cambios de **membresía**: el time-lock (`gov_timelock_hours`) se programa en la base de datos **al alcanzar el quórum de aprobación** (`NOW() + interval` en PostgreSQL), no al crear la solicitud. Evita ejecución casi inmediata cuando el quórum llega tarde respecto a la fecha calculada al crear.
 - Textos de admin, seed de configuración y correo `GOV_REQUEST_CREATED` alineados: sin fecha de ejecución en membresía hasta aprobar; mensaje explícito en panel de gobernanza para solicitudes `pending` sin `execution_time`.
+- **Recompensas demo → producción**: la importación de actividad de gobernanza desde demo ahora aplica el **multiplicador de la etapa booster vigente** al momento del pago (`boosterService.calculateMultipliedAmount`), igual que el flujo real de voto. Tasa final por voto = `tasa base × multiplicador`.
+- Preview de importación en el panel de admin: muestra Base/voto, Multiplicador (con nombre de etapa), Subtotal base y Total final por guardián. Correo del guardián incluye el desglose completo (base × multiplicador = final).
+- Persistencia en `demo_reward_imports.metadata`: se guardan `base_rate`, `multiplier`, `stage_name`, `rate_per_vote` y `formula` para trazabilidad contable posterior.
+
+### Added
+- Candado optimista preview↔process: la UI envía `expectedMultiplier` (visto en la preview) al endpoint `demo-import-process`. Si la etapa booster cambió en ese intervalo, el backend responde `409 MULTIPLIER_CHANGED` y la UI fuerza re-validar el archivo antes de pagar (maker-checker real).
 
 ### Fixed
 - Coherencia entre política operativa (“horas tras aprobar”) y datos persistidos para solicitudes de membresía.
 - Vista previa de importación de recompensas demo: contraste legible (ya no hay texto invisible) y desglose por guardián con `request_id`, voto, fecha y `demo_vote_id` leídos del JSON firmado. Solo frontend; el flujo de pago no cambia.
+- Importaciones demo previas **no aplicaban** el multiplicador (pagaban solo la base): corregido hacia adelante. Pagos anteriores quedan como realizados; una eventual compensación retroactiva se tratará como hito separado (no automático).
 
 ## [2025-07-15]
 

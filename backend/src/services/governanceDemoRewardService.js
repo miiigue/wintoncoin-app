@@ -27,6 +27,10 @@
 
 const crypto = require('crypto');
 const { logAuditEvent } = require('./auditService');
+// Servicio compartido con el flujo real de voto: aplica el multiplicador vigente
+// (etapa booster activa) al monto base. Mantiene consistencia entre pagos
+// "en tiempo real" y pagos provenientes del entorno demo.
+const boosterService = require('./boosterService');
 
 const REWARD_SETTING_KEY = 'gov_vote_reward_blue';
 const REWARD_TYPE        = 'demo_governance_reward';
@@ -340,7 +344,8 @@ async function previewImport(pool, parsedData) {
         }
     }
 
-    // 3. Tasa actual
+    // 3. Tasa base actual (app_settings) y multiplicador de etapa vigente.
+    //    Multiplicador: si no hay etapa activa, boosterService devuelve 1.0 (fallback seguro).
     const rateRes = await pool.query(
         `SELECT setting_value FROM app_settings WHERE setting_key = $1`,
         [REWARD_SETTING_KEY]
@@ -349,6 +354,19 @@ async function previewImport(pool, parsedData) {
     const currentRate = (Number.isFinite(rawRate) && rawRate > 0 && rawRate <= REWARD_MAX)
         ? rawRate
         : 0;
+
+    // Se consulta el multiplicador solo si la tasa base es válida;
+    // si la tasa es 0 no tiene sentido mostrar multiplicación.
+    let multiplier = 1;
+    let stageName  = 'Sin etapa activa';
+    if (currentRate > 0) {
+        const multInfo = await boosterService.calculateMultipliedAmount(currentRate);
+        multiplier = Number.isFinite(multInfo.multiplier) && multInfo.multiplier > 0
+            ? multInfo.multiplier
+            : 1;
+        stageName = multInfo.stageName || 'Sin etapa activa';
+    }
+    const ratePerVoteFinal = currentRate * multiplier;
 
     // 4. Emparejar cada guardián con su cuenta en producción
     const guardians = [];
@@ -369,14 +387,21 @@ async function previewImport(pool, parsedData) {
         totalNewVotes     += newVotes.length;
         totalSkippedVotes += skippedVotes;
 
+        const totalBase       = newVotes.length * currentRate;
+        const totalMultiplied = newVotes.length * ratePerVoteFinal;
+
         guardians.push({
             username:            g.username,
             demo_email:          g.email,
             total_votes_in_file: g.votes.length,
             new_votes:           newVotes.length,
             already_imported:    skippedVotes,
-            reward_per_vote:     currentRate,
-            total_reward:        newVotes.length * currentRate,
+            base_per_vote:       currentRate,
+            multiplier:          multiplier,
+            stage_name:          stageName,
+            reward_per_vote:     ratePerVoteFinal,
+            total_base:          totalBase,
+            total_reward:        totalMultiplied,
             found_in_production: found,
             production_user_id:  prodUser?.id || null,
             production_email:    prodUser?.email || null,
@@ -389,6 +414,9 @@ async function previewImport(pool, parsedData) {
         exported_at: parsedData.exported_at,
         source_env:  parsedData.environment,
         currentRate,
+        multiplier,
+        stageName,
+        ratePerVoteFinal,
         guardians,
         summary: {
             total_guardians:    guardians.length,
@@ -396,11 +424,54 @@ async function previewImport(pool, parsedData) {
             unmatched:          guardians.filter(g => !g.found_in_production).length,
             total_new_votes:    totalNewVotes,
             total_skipped:      totalSkippedVotes,
+            total_base:         guardians.reduce(
+                (sum, g) => sum + (g.found_in_production ? g.total_base : 0), 0
+            ),
             total_amount:       guardians.reduce(
                 (sum, g) => sum + (g.found_in_production ? g.total_reward : 0), 0
             ),
         },
     };
+}
+
+/**
+ * Devuelve la tasa base y el multiplicador vigente (point-in-time), sin
+ * procesar guardianes ni hacer queries por archivo. Se usa para el "candado
+ * optimista" preview↔process: es una operación barata (2 queries) que
+ * compara contra el multiplicador que el admin vio en la previsualización.
+ *
+ * @param {import('pg').Pool} pool
+ * @returns {Promise<{rateUsed:number, multiplier:number, stageName:string, finalRatePerVote:number}>}
+ */
+async function getCurrentRateAndMultiplier(pool) {
+    const rateRes = await pool.query(
+        `SELECT setting_value FROM app_settings WHERE setting_key = $1`,
+        [REWARD_SETTING_KEY]
+    );
+    const rawRate  = parseFloat(rateRes.rows[0]?.setting_value);
+    const rateUsed = (Number.isFinite(rawRate) && rawRate > 0 && rawRate <= REWARD_MAX)
+        ? rawRate
+        : 0;
+
+    // Si la tasa base es 0 no tiene sentido consultar multiplicador
+    // (no se puede procesar y el endpoint abortará antes).
+    if (rateUsed === 0) {
+        return {
+            rateUsed:         0,
+            multiplier:       1,
+            stageName:        'Sin etapa activa',
+            finalRatePerVote: 0,
+        };
+    }
+
+    const multInfo = await boosterService.calculateMultipliedAmount(rateUsed);
+    const multiplier = Number.isFinite(multInfo.multiplier) && multInfo.multiplier > 0
+        ? multInfo.multiplier
+        : 1;
+    const stageName        = multInfo.stageName || 'Sin etapa activa';
+    const finalRatePerVote = rateUsed * multiplier;
+
+    return { rateUsed, multiplier, stageName, finalRatePerVote };
 }
 
 /**
@@ -429,7 +500,9 @@ async function processImport(pool, parsedData, adminUserId) {
         throw new Error('Este archivo ya fue procesado anteriormente.');
     }
 
-    // 2. Obtener tasa
+    // 2. Obtener tasa base y multiplicador vigente (point-in-time: se lee al procesar).
+    //    Consistencia con el flujo real de voto: ambos aplican el multiplicador
+    //    de la etapa booster activa al momento del pago.
     const rateRes = await pool.query(
         `SELECT setting_value FROM app_settings WHERE setting_key = $1`,
         [REWARD_SETTING_KEY]
@@ -444,6 +517,14 @@ async function processImport(pool, parsedData, adminUserId) {
             'La tasa de recompensa está en 0. Configure gov_vote_reward_blue antes de procesar.'
         );
     }
+
+    // Multiplicador vigente: fallback a 1.0 si no hay etapa activa (pago = solo base).
+    const multInfo = await boosterService.calculateMultipliedAmount(rateUsed);
+    const multiplier = Number.isFinite(multInfo.multiplier) && multInfo.multiplier > 0
+        ? multInfo.multiplier
+        : 1;
+    const stageName      = multInfo.stageName || 'Sin etapa activa';
+    const finalRatePerVote = rateUsed * multiplier;
 
     // 3. Cargar vote IDs ya importados
     const prevRes = await pool.query(`SELECT vote_ids_json FROM demo_reward_imports`);
@@ -499,24 +580,30 @@ async function processImport(pool, parsedData, adminUserId) {
             continue;
         }
 
-        const totalAmount = newVotes.length * rateUsed;
+        // Desglose por guardián. totalBase = votos × tasa base;
+        // totalAmount = votos × tasa base × multiplicador vigente (pago final).
+        const totalBase   = newVotes.length * rateUsed;
+        const totalAmount = newVotes.length * finalRatePerVote;
         const voteIds     = newVotes.map(v => v.demo_vote_id);
 
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
 
+            // Acreditación en el ledger (fuente de verdad) con el monto ya multiplicado.
             await client.query(
                 `SELECT record_booster_event($1, $2, $3, NULL)`,
                 [prodUser.id, REWARD_TYPE, totalAmount]
             );
 
+            // Descripción auditable: incluye base, multiplicador y etapa (formato idéntico al flujo real de voto).
             await client.query(
                 `INSERT INTO booster_transactions (user_id, type, amount, description)
                  VALUES ($1, $2, $3, $4)`,
                 [
                     prodUser.id, REWARD_TYPE, totalAmount,
-                    `Recompensa por ${newVotes.length} voto(s) de gobernanza en entorno demo`,
+                    `Recompensa por ${newVotes.length} voto(s) de gobernanza en entorno demo ` +
+                    `(${rateUsed} x ${multiplier} [${stageName}])`,
                 ]
             );
 
@@ -525,7 +612,8 @@ async function processImport(pool, parsedData, adminUserId) {
                  VALUES ($1, $2, $3, $4)`,
                 [
                     prodUser.id, REWARD_TYPE,
-                    `Recompensa BLUE IOU — ${newVotes.length} voto(s) de gobernanza (demo)`,
+                    `Recompensa BLUE IOU — ${newVotes.length} voto(s) de gobernanza (demo) · ` +
+                    `${rateUsed} x ${multiplier} [${stageName}]`,
                     totalAmount,
                 ]
             );
@@ -538,11 +626,12 @@ async function processImport(pool, parsedData, adminUserId) {
             // Actualizar vote_ids_json progresivamente después de cada pago.
             // Si el servidor cae aquí, los IDs ya pagados están registrados
             // y no se volverán a pagar en una re-importación.
+            // total_amount refleja el monto YA multiplicado (pago real realizado).
             await pool.query(
                 `UPDATE demo_reward_imports
                  SET vote_ids_json = $1, total_votes = $2, total_amount = $3
                  WHERE id = $4`,
-                [JSON.stringify(allNewVoteIds), totalProcessed, totalProcessed * rateUsed, importId]
+                [JSON.stringify(allNewVoteIds), totalProcessed, totalProcessed * finalRatePerVote, importId]
             );
 
             const balRes = await pool.query(
@@ -552,12 +641,17 @@ async function processImport(pool, parsedData, adminUserId) {
             );
 
             byGuardian[prodUser.id] = {
-                username:    prodUser.username,
-                email:       prodUser.email,
-                votesPaid:   newVotes.length,
+                username:        prodUser.username,
+                email:           prodUser.email,
+                votesPaid:       newVotes.length,
+                basePerVote:     rateUsed,
+                multiplier,
+                stageName,
+                ratePerVote:     finalRatePerVote,
+                totalBase,
                 totalAmount,
-                newBalance:  parseFloat(balRes.rows[0].total),
-                demoVoteIds: voteIds,
+                newBalance:      parseFloat(balRes.rows[0].total),
+                demoVoteIds:     voteIds,
             };
 
         } catch (err) {
@@ -569,19 +663,30 @@ async function processImport(pool, parsedData, adminUserId) {
         }
     }
 
-    // 6. Marcar la importación como completada con los totales finales
+    // 6. Marcar la importación como completada con los totales finales.
+    //    Se persiste el multiplicador/etapa aplicados para trazabilidad
+    //    futura (auditoría contable del pago realizado).
     await pool.query(
         `UPDATE demo_reward_imports
          SET total_guardians = $1, metadata = $2
          WHERE id = $3`,
         [
             Object.keys(byGuardian).length,
-            JSON.stringify({ totalSkipped, status: 'completed' }),
+            JSON.stringify({
+                totalSkipped,
+                status:          'completed',
+                base_rate:       rateUsed,
+                multiplier,
+                stage_name:      stageName,
+                rate_per_vote:   finalRatePerVote,
+                formula:         `${rateUsed} × ${multiplier} = ${finalRatePerVote} BLUE por voto (${stageName})`,
+            }),
             importId,
         ]
     );
 
-    // 7. Auditoría
+    // 7. Auditoría: incluye multiplicador y etapa vigente al momento del pago
+    //    para cumplir el estándar "todo pago debe ser reproducible y auditable".
     logAuditEvent(pool, null, {
         eventType:     'GOV_DEMO_REWARD_IMPORTED',
         actorId:       adminUserId,
@@ -592,11 +697,22 @@ async function processImport(pool, parsedData, adminUserId) {
             totalProcessed,
             totalSkipped,
             rateUsed,
+            multiplier,
+            stageName,
+            finalRatePerVote,
             guardiansAffected: Object.keys(byGuardian).length,
         },
     }).catch(err => console.error('[DEMO-IMPORT] Audit error:', err));
 
-    return { totalProcessed, totalSkipped, rateUsed, byGuardian };
+    return {
+        totalProcessed,
+        totalSkipped,
+        rateUsed,
+        multiplier,
+        stageName,
+        finalRatePerVote,
+        byGuardian,
+    };
 }
 
 module.exports = {
@@ -607,4 +723,5 @@ module.exports = {
     validateImport,
     previewImport,
     processImport,
+    getCurrentRateAndMultiplier,
 };

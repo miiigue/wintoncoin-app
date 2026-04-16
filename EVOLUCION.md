@@ -2040,6 +2040,25 @@ Auditoría completa del sistema VAPID/Web Push. Se encontraron y corrigieron 10 
 
 ---
 
+### 2026-04-11 — Recompensas demo → producción: multiplicador de etapa booster aplicado + candado maker-checker
+
+- **Problema detectado**: al procesar la importación de actividad de gobernanza exportada desde demo, el monto acreditado se calculaba únicamente como `votos × tasa_base`, **sin** aplicar el multiplicador de la etapa booster vigente. El flujo "voto real" sí lo aplicaba (`governanceRewardService` vía `boosterService.calculateMultipliedAmount`). Resultado: pagos demo subvaluados y falta de coherencia contable entre ambos caminos. Además, la preview del admin y el correo al guardián no mostraban el multiplicador, por lo que el admin no podía auditar visualmente el monto final antes de autorizar.
+- **Decisión**:
+  - En `governanceDemoRewardService.previewImport`: consultar `boosterService.calculateMultipliedAmount(baseRate)` y devolver por guardián `base_per_vote`, `multiplier`, `stage_name`, `total_base` y `total_reward` (ya multiplicado). También `summary.total_base` separado de `summary.total_amount` para mostrar el ahorro/incremento por multiplicador.
+  - En `governanceDemoRewardService.processImport`: re-leer el multiplicador en el momento del pago (point-in-time) y acreditar `votos × base × multiplicador`. La descripción de `booster_transactions` y `transactions` incluye la fórmula `base × multiplier [stage]` — mismo formato que los pagos de voto real para facilitar auditoría en `history.html`. El registro `demo_reward_imports.metadata` persiste `base_rate`, `multiplier`, `stage_name`, `rate_per_vote` y `formula` completa.
+  - **Candado optimista preview↔process** (Maker-Checker fuerte): la UI envía `expectedMultiplier` (valor visto en la preview) al endpoint `demo-import-process`. El backend recalcula antes de pagar; si cambió la etapa booster en ese intervalo, responde `409 MULTIPLIER_CHANGED` con el nuevo multiplicador/etapa. La UI invalida el estado pendiente y obliga a re-validar el archivo. Así, el admin nunca autoriza con una tasa y paga con otra.
+  - **Auditoría**: evento `GOV_DEMO_REWARD_IMPORTED` registra `multiplier`, `stageName`, `finalRatePerVote` junto al `fileHash`, totales y guardianes afectados.
+  - **Email al guardián**: detalles con `Tasa base por voto`, `Multiplicador (etapa)`, `Tasa final por voto`, `Subtotal base`, `Total acreditado` y `Nuevo saldo BLUE IOU` — mismo nivel de desglose que el email de voto real.
+- **Alcance**:
+  - JSON firmados previamente siguen siendo **válidos** para importar: contienen la identidad del guardián y la evidencia de sus votos; la tasa y el multiplicador se calculan al importar en producción, no se conservan en el archivo.
+  - Pagos demo ya procesados (antes de este cambio) quedan **como están** (forward-only fix). Una compensación retroactiva, si se decide, se tramitará como un hito separado con su propia auditoría.
+- **Impacto**:
+  - Coherencia económica total entre flujo "voto real" y flujo "import demo": ambos aplican el multiplicador vigente en el pago.
+  - Transparencia para el admin (preview con desglose completo) y para el guardián (correo con fórmula).
+  - Trazabilidad contable futura: el registro `demo_reward_imports.metadata` guarda la fórmula exacta aplicada.
+  - Seguridad: el candado de multiplicador elimina el riesgo de divergencia preview↔process cuando rotan etapas.
+- **Archivos tocados**: `backend/src/services/governanceDemoRewardService.js` (import de `boosterService`, enriquecimiento de preview/process/metadata/audit), `backend/server.js` (endpoint `demo-import-process` con candado 409 + email enriquecido), `frontend/src/pages/admin-panel.js` (nuevo header económico, columnas `Base/voto`, `Multiplicador`, `Subtotal base`, `Total final` por guardián, envío de `expectedMultiplier`, manejo de 409 con re-validación).
+
 ---
 
 ### 2026-04-13 — Modularización de Infraestructura: Extracción de Entorno Android Nativo

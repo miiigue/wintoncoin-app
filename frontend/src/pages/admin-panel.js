@@ -3506,6 +3506,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // ═══════════════════════════════════════════════════════════════════════
 
     let pendingImportFileData = null;
+    // Valor del multiplicador visto por el admin en la preview. Se envía al
+    // endpoint de procesamiento como "candado optimista" para que, si entre
+    // la preview y el clic de "Procesar" la etapa booster cambia, el backend
+    // devuelva 409 y obligue a validar el archivo nuevamente.
+    let pendingExpectedMultiplier = null;
 
     async function loadDemoExportStats() {
         if (!elements.govExportStats) return;
@@ -3777,6 +3782,17 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <tbody>${detailRows}</tbody>
                             </table>`;
 
+                    // Celdas económicas por guardián (solo aplican si fue encontrado en producción):
+                    //  - Base/voto: tasa configurada en app_settings (gov_vote_reward_blue).
+                    //  - Multiplicador: etapa booster vigente hoy (boosterService).
+                    //  - Subtotal base: votos × base (sin multiplicar).
+                    //  - Total: votos × base × multiplicador (lo que realmente se va a acreditar).
+                    const basePerVote = Number(g.base_per_vote ?? preview.currentRate ?? 0);
+                    const gMult       = Number(g.multiplier ?? preview.multiplier ?? 1);
+                    const gStage      = g.stage_name || preview.stageName || 'Sin etapa activa';
+                    const subtotalBase = Number(g.total_base ?? (g.new_votes * basePerVote));
+                    const totalFinal   = Number(g.total_reward ?? 0);
+
                     guardiansHTML += `
                         <tr style="border-bottom: 1px solid #E5E7EB; color: #111827;">
                             <td style="padding: 8px; color: #111827;">
@@ -3789,16 +3805,33 @@ document.addEventListener('DOMContentLoaded', () => {
                             </td>
                             <td style="padding: 8px; color: #111827;">${Number(g.new_votes)}</td>
                             <td style="padding: 8px; color: #111827;">${Number(g.already_imported)}</td>
-                            <td style="padding: 8px; color: #111827; font-weight: 600;">
-                                ${g.found_in_production ? Number(g.total_reward).toFixed(2) : '—'}
+                            <td style="padding: 8px; color: #111827;">
+                                ${g.found_in_production ? basePerVote.toFixed(2) : '—'}
+                            </td>
+                            <td style="padding: 8px; color: #111827;" title="${escapeHtml(gStage)}">
+                                ${g.found_in_production ? `x${gMult}` : '—'}
+                            </td>
+                            <td style="padding: 8px; color: #111827;">
+                                ${g.found_in_production ? subtotalBase.toFixed(2) : '—'}
+                            </td>
+                            <td style="padding: 8px; color: #047857; font-weight: 700;">
+                                ${g.found_in_production ? totalFinal.toFixed(2) : '—'}
                             </td>
                         </tr>
                         <tr id="${detailsId}" style="display: none; background: #FAFAFA;">
-                            <td colspan="4" style="padding: 8px 12px;">
+                            <td colspan="7" style="padding: 8px 12px;">
                                 <div style="color: #111827;">${detailBlock}</div>
                             </td>
                         </tr>`;
                 });
+
+                // Encabezado económico global: base, multiplicador y etapa + fórmula efectiva por voto.
+                // Todo viene de la preview; si no existe (archivo antiguo), usa fallbacks seguros.
+                const headerMultiplier = Number(preview.multiplier ?? 1);
+                const headerStageName  = preview.stageName || 'Sin etapa activa';
+                const headerBase       = Number(preview.currentRate ?? 0);
+                const headerFinalRate  = Number(preview.ratePerVoteFinal ?? (headerBase * headerMultiplier));
+                const headerTotalBase  = Number(preview.summary.total_base ?? 0);
 
                 elements.govImportPreview.style.display = 'block';
                 elements.govImportPreview.innerHTML = `
@@ -3806,7 +3839,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         <h4 style="color: #7C3AED; margin: 0 0 1rem;">Vista Previa de Importación</h4>
                         <p style="color: #111827;"><strong>Archivo exportado:</strong> ${escapeHtml(preview.exported_at.split('T')[0])}</p>
                         <p style="color: #111827;"><strong>Entorno origen:</strong> ${escapeHtml(preview.source_env)}</p>
-                        <p style="color: #111827;"><strong>Tasa actual (producción):</strong> ${Number(preview.currentRate).toFixed(2)} BLUE IOU</p>
+                        <p style="color: #111827;"><strong>Tasa base (producción):</strong> ${headerBase.toFixed(2)} BLUE IOU</p>
+                        <p style="color: #111827;">
+                            <strong>Multiplicador vigente:</strong> x${headerMultiplier}
+                            <span style="color: #6B7280;">(${escapeHtml(headerStageName)})</span>
+                        </p>
+                        <p style="color: #111827;">
+                            <strong>Tasa final por voto:</strong>
+                            ${headerBase.toFixed(2)} × ${headerMultiplier} = <strong>${headerFinalRate.toFixed(2)} BLUE IOU</strong>
+                        </p>
                         <div style="overflow-x: auto; margin-top: 1rem;">
                             <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem; color: #111827;">
                                 <thead>
@@ -3814,7 +3855,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                         <th style="padding: 8px;">Guardián</th>
                                         <th style="padding: 8px;">Votos nuevos</th>
                                         <th style="padding: 8px;">Ya importados</th>
-                                        <th style="padding: 8px;">Recompensa</th>
+                                        <th style="padding: 8px;">Base/voto</th>
+                                        <th style="padding: 8px;">Multiplicador</th>
+                                        <th style="padding: 8px;">Subtotal base</th>
+                                        <th style="padding: 8px;">Total (final)</th>
                                     </tr>
                                 </thead>
                                 <tbody>${guardiansHTML}</tbody>
@@ -3823,10 +3867,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         <hr style="margin: 1rem 0; border-color: #E5E7EB;">
                         <p style="color: #111827;"><strong>Encontrados:</strong> ${Number(preview.summary.matched)} · <strong>No encontrados:</strong> ${Number(preview.summary.unmatched)}</p>
                         <p style="color: #111827;"><strong>Votos a procesar:</strong> ${Number(preview.summary.total_new_votes)} · <strong>Omitidos (ya importados):</strong> ${Number(preview.summary.total_skipped)}</p>
+                        <p style="color: #111827;">
+                            <strong>Subtotal base (sin multiplicar):</strong> ${headerTotalBase.toFixed(2)} BLUE IOU
+                        </p>
                         <p style="font-size: 1.1rem; font-weight: 700; color: #047857; margin-top: 0.5rem;">
-                            Total a acreditar: ${Number(preview.summary.total_amount).toFixed(2)} BLUE IOU
+                            Total a acreditar (con multiplicador x${headerMultiplier}):
+                            ${Number(preview.summary.total_amount).toFixed(2)} BLUE IOU
+                        </p>
+                        <p style="color: #6B7280; font-size: 0.8rem; margin-top: 0.5rem;">
+                            El multiplicador se aplica al momento de procesar el pago. Si la etapa booster cambia
+                            entre ahora y el procesamiento, el sistema abortará la operación y te pedirá revisar
+                            la preview nuevamente (control maker-checker).
                         </p>
                     </div>`;
+
+                // Persistir el multiplicador visto para el candado optimista preview↔process.
+                pendingExpectedMultiplier = headerMultiplier;
 
                 // Bind de los toggles "Ver votos" tras inyectar el HTML (sin inline onclick → evita XSS).
                 elements.govImportPreview.querySelectorAll('.gov-imp-toggle').forEach((btn) => {
@@ -3878,13 +3934,31 @@ document.addEventListener('DOMContentLoaded', () => {
             if (elements.govImportResult) elements.govImportResult.style.display = 'none';
 
             try {
+                // Se envía el multiplicador visto en la preview: si cambió la etapa
+                // booster antes del procesamiento, el backend responde 409 y la UI
+                // fuerza a re-validar el archivo (evita pagar con una tasa distinta
+                // de la que el admin autorizó visualmente).
                 const result = await apiFetch('/api/admin/governance/demo-import-process', {
                     method: 'POST',
-                    body: JSON.stringify({ fileData: pendingImportFileData }),
+                    body: JSON.stringify({
+                        fileData:           pendingImportFileData,
+                        expectedMultiplier: pendingExpectedMultiplier,
+                    }),
                 });
 
-                pendingImportFileData = null;
+                pendingImportFileData        = null;
+                pendingExpectedMultiplier    = null;
+                // Restaurar estado del botón ANTES de ocultarlo: si en el
+                // futuro se vuelve a mostrar (por re-validación de otro archivo),
+                // debe aparecer habilitado y con su texto original.
+                elements.govImportProcessBtn.disabled    = false;
+                elements.govImportProcessBtn.textContent = 'Confirmar y Procesar Pagos';
                 elements.govImportProcessBtn.style.display = 'none';
+
+                // Resumen visible: incluye multiplicador/etapa y tasa final por voto.
+                const appliedMultiplier = Number(result.multiplier ?? 1);
+                const appliedStage      = result.stageName || 'Sin etapa activa';
+                const appliedFinalRate  = Number(result.finalRatePerVote ?? (Number(result.rateUsed || 0) * appliedMultiplier));
 
                 elements.govImportResult.style.display = 'block';
                 elements.govImportResult.innerHTML = `
@@ -3892,18 +3966,42 @@ document.addEventListener('DOMContentLoaded', () => {
                         <h4 style="color: #059669; margin: 0 0 0.5rem;">Importación completada</h4>
                         <p><strong>Votos procesados:</strong> ${Number(result.totalProcessed)}</p>
                         <p><strong>Omitidos:</strong> ${Number(result.totalSkipped)}</p>
-                        <p><strong>Tasa aplicada:</strong> ${Number(result.rateUsed).toFixed(2)} BLUE IOU</p>
+                        <p><strong>Tasa base aplicada:</strong> ${Number(result.rateUsed).toFixed(2)} BLUE IOU</p>
+                        <p><strong>Multiplicador aplicado:</strong> x${appliedMultiplier}
+                            <span style="color: #6B7280;">(${escapeHtml(appliedStage)})</span>
+                        </p>
+                        <p><strong>Tasa final por voto:</strong> ${appliedFinalRate.toFixed(2)} BLUE IOU</p>
                         <p><strong>Guardianes notificados:</strong> ${Number(result.guardiansAffected)}</p>
                     </div>`;
 
                 loadGovRewardsSection();
             } catch (error) {
+                // Detecta el candado de multiplicador (código negociado con el backend)
+                // para dar un mensaje útil y forzar re-validación del archivo.
+                const isMultChanged =
+                    error && (error.code === 'MULTIPLIER_CHANGED' ||
+                              (typeof error.message === 'string' && error.message.includes('etapa booster cambió')));
+
                 elements.govImportResult.style.display = 'block';
                 elements.govImportResult.innerHTML = `
-                    <div class="admin-card" style="border-left: 4px solid #DC2626; background: #FEF2F2;">
-                        <h4 style="color: #DC2626; margin: 0 0 0.5rem;">Error en la importación</h4>
-                        <p>${escapeHtml(error.message)}</p>
+                    <div class="admin-card" style="border-left: 4px solid ${isMultChanged ? '#D97706' : '#DC2626'};
+                         background: ${isMultChanged ? '#FFFBEB' : '#FEF2F2'};">
+                        <h4 style="color: ${isMultChanged ? '#B45309' : '#DC2626'}; margin: 0 0 0.5rem;">
+                            ${isMultChanged ? 'Etapa booster cambió — revalidar' : 'Error en la importación'}
+                        </h4>
+                        <p>${escapeHtml(error.message || 'Error desconocido')}</p>
+                        ${isMultChanged
+                            ? '<p style="color: #78350F;">Vuelve a pulsar <strong>Validar Archivo</strong> para ver la nueva tasa y autorizar el pago con el multiplicador vigente.</p>'
+                            : ''}
                     </div>`;
+
+                if (isMultChanged) {
+                    // Se invalida el estado: obligamos al admin a re-validar.
+                    pendingImportFileData      = null;
+                    pendingExpectedMultiplier  = null;
+                    elements.govImportProcessBtn.style.display = 'none';
+                }
+
                 elements.govImportProcessBtn.disabled = false;
                 elements.govImportProcessBtn.textContent = 'Confirmar y Procesar Pagos';
             }
