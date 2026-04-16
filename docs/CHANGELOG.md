@@ -18,6 +18,7 @@ Este archivo resume la evolución del proyecto **por hitos** a partir del histor
 
 ### Fixed
 - Coherencia entre política operativa (“horas tras aprobar”) y datos persistidos para solicitudes de membresía.
+- Vista previa de importación de recompensas demo: contraste legible (ya no hay texto invisible) y desglose por guardián con `request_id`, voto, fecha y `demo_vote_id` leídos del JSON firmado. Solo frontend; el flujo de pago no cambia.
 
 ## [2025-07-15]
 

@@ -3724,30 +3724,93 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 pendingImportFileData = fileData;
 
+                // Índice username → votos del archivo firmado (usado para mostrar detalle auditable por fila).
+                const votesByUsername = {};
+                if (fileData && Array.isArray(fileData.guardians)) {
+                    for (const gf of fileData.guardians) {
+                        if (gf && typeof gf.username === 'string') {
+                            votesByUsername[gf.username] = Array.isArray(gf.votes) ? gf.votes : [];
+                        }
+                    }
+                }
+
+                const formatVoteLabel = (v) => {
+                    if (v === 'approve') return 'Aprobar';
+                    if (v === 'reject')  return 'Rechazar';
+                    return escapeHtml(String(v || '—'));
+                };
+                const formatVoteDate = (iso) => {
+                    if (!iso) return '—';
+                    const d = new Date(iso);
+                    if (isNaN(d.getTime())) return escapeHtml(String(iso));
+                    return d.toLocaleString('es-ES', { timeZone: 'America/Bogota' });
+                };
+
                 let guardiansHTML = '';
-                for (const g of preview.guardians) {
+                preview.guardians.forEach((g, idx) => {
                     const statusIcon = g.found_in_production ? '✅' : '⚠️';
                     const statusText = g.found_in_production ? '' : ' (NO encontrado en producción)';
+                    const detailsId = `gov-imp-det-${idx}`;
+                    const votesForUser = votesByUsername[g.username] || [];
+                    let detailRows = '';
+                    for (const v of votesForUser) {
+                        detailRows += `
+                            <tr>
+                                <td style="padding: 4px 8px; color: #374151;">#${Number(v.request_id)}</td>
+                                <td style="padding: 4px 8px; color: #374151;">${formatVoteLabel(v.vote)}</td>
+                                <td style="padding: 4px 8px; color: #374151;">${formatVoteDate(v.voted_at)}</td>
+                                <td style="padding: 4px 8px; color: #6B7280;">#${Number(v.demo_vote_id)}</td>
+                            </tr>`;
+                    }
+                    const detailBlock = votesForUser.length === 0
+                        ? '<p style="color: #6B7280; margin: 0;">Sin detalle de votos en el archivo.</p>'
+                        : `
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; background: #FFFFFF; border: 1px solid #E5E7EB;">
+                                <thead>
+                                    <tr style="background: #F3F4F6; color: #111827; text-align: left;">
+                                        <th style="padding: 6px 8px;">Solicitud</th>
+                                        <th style="padding: 6px 8px;">Voto</th>
+                                        <th style="padding: 6px 8px;">Fecha</th>
+                                        <th style="padding: 6px 8px;">Demo vote ID</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${detailRows}</tbody>
+                            </table>`;
+
                     guardiansHTML += `
-                        <tr>
-                            <td>${statusIcon} ${escapeHtml(g.username)}${statusText}</td>
-                            <td>${Number(g.new_votes)}</td>
-                            <td>${Number(g.already_imported)}</td>
-                            <td>${g.found_in_production ? Number(g.total_reward).toFixed(2) : '—'}</td>
+                        <tr style="border-bottom: 1px solid #E5E7EB; color: #111827;">
+                            <td style="padding: 8px; color: #111827;">
+                                <button type="button" class="gov-imp-toggle" data-target="${detailsId}"
+                                    style="background: transparent; border: 1px solid #8B5CF6; color: #6D28D9;
+                                           border-radius: 4px; padding: 2px 8px; margin-right: 6px; cursor: pointer;">
+                                    Ver votos
+                                </button>
+                                ${statusIcon} <strong>${escapeHtml(g.username)}</strong>${statusText}
+                            </td>
+                            <td style="padding: 8px; color: #111827;">${Number(g.new_votes)}</td>
+                            <td style="padding: 8px; color: #111827;">${Number(g.already_imported)}</td>
+                            <td style="padding: 8px; color: #111827; font-weight: 600;">
+                                ${g.found_in_production ? Number(g.total_reward).toFixed(2) : '—'}
+                            </td>
+                        </tr>
+                        <tr id="${detailsId}" style="display: none; background: #FAFAFA;">
+                            <td colspan="4" style="padding: 8px 12px;">
+                                <div style="color: #111827;">${detailBlock}</div>
+                            </td>
                         </tr>`;
-                }
+                });
 
                 elements.govImportPreview.style.display = 'block';
                 elements.govImportPreview.innerHTML = `
-                    <div class="admin-card" style="border-left: 4px solid #8B5CF6; background: #F5F3FF;">
+                    <div class="admin-card" style="border-left: 4px solid #8B5CF6; background: #FFFFFF; color: #111827;">
                         <h4 style="color: #7C3AED; margin: 0 0 1rem;">Vista Previa de Importación</h4>
-                        <p><strong>Archivo exportado:</strong> ${escapeHtml(preview.exported_at.split('T')[0])}</p>
-                        <p><strong>Entorno origen:</strong> ${escapeHtml(preview.source_env)}</p>
-                        <p><strong>Tasa actual (producción):</strong> ${Number(preview.currentRate).toFixed(2)} BLUE IOU</p>
+                        <p style="color: #111827;"><strong>Archivo exportado:</strong> ${escapeHtml(preview.exported_at.split('T')[0])}</p>
+                        <p style="color: #111827;"><strong>Entorno origen:</strong> ${escapeHtml(preview.source_env)}</p>
+                        <p style="color: #111827;"><strong>Tasa actual (producción):</strong> ${Number(preview.currentRate).toFixed(2)} BLUE IOU</p>
                         <div style="overflow-x: auto; margin-top: 1rem;">
-                            <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem; color: #111827;">
                                 <thead>
-                                    <tr style="border-bottom: 2px solid #E5E7EB; text-align: left;">
+                                    <tr style="border-bottom: 2px solid #E5E7EB; text-align: left; color: #111827; background: #F9FAFB;">
                                         <th style="padding: 8px;">Guardián</th>
                                         <th style="padding: 8px;">Votos nuevos</th>
                                         <th style="padding: 8px;">Ya importados</th>
@@ -3758,12 +3821,24 @@ document.addEventListener('DOMContentLoaded', () => {
                             </table>
                         </div>
                         <hr style="margin: 1rem 0; border-color: #E5E7EB;">
-                        <p><strong>Encontrados:</strong> ${Number(preview.summary.matched)} · <strong>No encontrados:</strong> ${Number(preview.summary.unmatched)}</p>
-                        <p><strong>Votos a procesar:</strong> ${Number(preview.summary.total_new_votes)} · <strong>Omitidos (ya importados):</strong> ${Number(preview.summary.total_skipped)}</p>
-                        <p style="font-size: 1.1rem; font-weight: 700; color: #059669; margin-top: 0.5rem;">
+                        <p style="color: #111827;"><strong>Encontrados:</strong> ${Number(preview.summary.matched)} · <strong>No encontrados:</strong> ${Number(preview.summary.unmatched)}</p>
+                        <p style="color: #111827;"><strong>Votos a procesar:</strong> ${Number(preview.summary.total_new_votes)} · <strong>Omitidos (ya importados):</strong> ${Number(preview.summary.total_skipped)}</p>
+                        <p style="font-size: 1.1rem; font-weight: 700; color: #047857; margin-top: 0.5rem;">
                             Total a acreditar: ${Number(preview.summary.total_amount).toFixed(2)} BLUE IOU
                         </p>
                     </div>`;
+
+                // Bind de los toggles "Ver votos" tras inyectar el HTML (sin inline onclick → evita XSS).
+                elements.govImportPreview.querySelectorAll('.gov-imp-toggle').forEach((btn) => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-target');
+                        const row = id ? document.getElementById(id) : null;
+                        if (!row) return;
+                        const isHidden = row.style.display === 'none' || row.style.display === '';
+                        row.style.display = isHidden ? 'table-row' : 'none';
+                        btn.textContent = isHidden ? 'Ocultar votos' : 'Ver votos';
+                    });
+                });
 
                 if (preview.summary.total_new_votes > 0 && preview.summary.matched > 0 && preview.currentRate > 0) {
                     elements.govImportProcessBtn.style.display = 'inline-block';

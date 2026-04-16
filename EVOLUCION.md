@@ -2026,6 +2026,20 @@ Auditoría completa del sistema VAPID/Web Push. Se encontraron y corrigieron 10 
 
 ---
 
+### 2026-04-11 — Vista previa de import demo: auditoría por guardián + contraste legible
+
+- **Problema**:
+  - Contraste: el bloque "Vista Previa de Importación" pintaba sobre `admin-card` con tema oscuro y dejaba texto ilegible (solo se veían los emojis ✅/⚠️). No se podían auditar visualmente los datos antes de pagar.
+  - Detalle: la previa solo mostraba agregados (votos nuevos, ya importados, recompensa), sin desglose por voto, a pesar de que el JSON firmado HMAC ya trae `request_id`, `vote`, `voted_at` y `demo_vote_id` por cada voto.
+- **Decisión (solo frontend — `frontend/src/pages/admin-panel.js`)**:
+  - Forzar colores explícitos en `p`, `th`, `td` y fondos (`#FFFFFF`, `#F9FAFB`, etc.) para que el texto sea legible en cualquier tema del admin panel.
+  - Por cada guardián, añadir botón "Ver votos / Ocultar votos" que expande una fila con el detalle firmado del archivo (`Solicitud`, `Voto`, `Fecha`, `Demo vote ID`). Sin `onclick` inline (binding con `addEventListener`) para mantener la política anti-XSS.
+  - Fechas formateadas con `toLocaleString('es-ES', { timeZone: 'America/Bogota' })` y valores de voto traducidos a "Aprobar"/"Rechazar".
+- **Alcance**: no altera `governanceDemoRewardService.js` ni el flujo de pago. La lógica de HMAC, `file_hash`, dedup y `record_booster_event` queda intacta. Si no se pulsa "Confirmar y Procesar Pagos", nada se acredita.
+- **Impacto**: admin puede verificar "qué hizo cada guardián" antes de confirmar la importación; refuerza el control (Four-Eyes) y la auditabilidad operativa en cumplimiento del estándar bancario del proyecto.
+
+---
+
 ---
 
 ### 2026-04-13 — Modularización de Infraestructura: Extracción de Entorno Android Nativo
