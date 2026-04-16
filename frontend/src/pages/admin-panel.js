@@ -1542,8 +1542,12 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
 
             stages.forEach(stage => {
-                const startDate = new Date(stage.start_date).toLocaleDateString();
-                const endDate = new Date(stage.end_date).toLocaleDateString();
+                const startDateStr = new Date(stage.start_date).toLocaleDateString('es-ES', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric' });
+                const endDateStr = new Date(stage.end_date).toLocaleDateString('es-ES', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric' });
+                
+                // Mostrar un pequeño (UTC) para estándar financiero
+                const startDate = `${startDateStr} <span style="font-size: 0.7em; color: #666;">UTC</span>`;
+                const endDate = `${endDateStr} <span style="font-size: 0.7em; color: #666;">UTC</span>`;
                 const statusBadge = stage.is_active ? 
                     '<span class="badge badge-success">Activo</span>' : 
                     '<span class="badge badge-danger">Inactivo</span>';
