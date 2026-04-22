@@ -301,6 +301,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return '';
         }
 
+        // Determinar si la publicación es de tipo donación para mostrar montos donados
+        // Esta variable debe declararse localmente ya que esta función tiene su propio scope
+        const isDonation = pub.category === 'donation';
+
         const participantsList = pub.participants.map(p => {
             const ratingHTML = generateStarRating(p.average_rating, p.ratings_count);
             const statusText = getStatusText(p.status);
