@@ -6,7 +6,7 @@
     "start_url": "./contract_interaction.html?source=pwa",
     "display": "standalone",
     "background_color": "#ffffff",
-    "theme_color": "#8B5CF6",
+    "theme_color": "#DC1E1E",
     "orientation": "portrait-primary",
     "scope": "./",
     "lang": "es",

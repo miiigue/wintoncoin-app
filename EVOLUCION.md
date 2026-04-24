@@ -2037,3 +2037,14 @@ Se asienta en auditoría la remoción física de la subcarpeta `android-app` (Ap
 - **Frontend y Backend:** **Sin Impacto**. La eliminación de esta carpeta no afecta el despliegue del PWA, el servicio APIs de Node.js, las transacciones financieras en PostgresSQL ni el motor económico (BLUE IOU/RED). 
 - **Ciberseguridad:** Los esquemas de protección y *Zero Hardcoded Secrets* se mantienen inalterados en la web.
 - **Compilación Nativa:** La única consecuencia directa es que las compilaciones y firma de claves para el `.apk`/`.aab` en la Google Play Store quedan desacopladas de este monolito de desarrollo. Se deberá restablecer el código o ubicarlo en un repositorio remoto independiente para futuros lanzamientos nativos, cumpliendo con la separación recomendada (Frontend Web vs Mobile App nativa).
+
+---
+
+### 2026-04-22 — Fix crítico: `isDonation is not defined` en detalle de publicación
+
+- **Contexto**: Al intentar ver o aprobar una publicación, la página mostraba el error "No se pudo cargar la publicación. isDonation is not defined" y no se renderizaba el contenido.
+- **Causa raíz**: La variable `isDonation` se usaba en la función `getParticipantsSectionHTML()` (línea 371) sin haber sido declarada en su scope. La variable estaba definida en `renderPublication()` y `getActionAndMessageHTML()`, pero JavaScript no permite acceder a variables locales de funciones hermanas — cada función tiene su propio scope léxico.
+- **Decisión**: Declarar `const isDonation = pub.category === 'donation'` al inicio de `getParticipantsSectionHTML()`, siguiendo el mismo patrón usado en las otras dos funciones. La publicación `pub` ya se recibía como parámetro, por lo que la corrección es directa y no altera la lógica de negocio.
+- **Impacto**: Los usuarios pueden volver a ver el detalle de publicaciones y aprobar/gestionar participantes correctamente. Bug bloqueante resuelto.
+- **Archivos tocados**: `frontend/src/pages/publication-detail.js`
+- **Evidencia**: commit pendiente de push.

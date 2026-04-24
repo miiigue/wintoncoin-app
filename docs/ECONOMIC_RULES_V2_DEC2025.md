@@ -47,25 +47,20 @@ Para realizar cualquier publicación o transferencia, el usuario debe tener su p
     -   **Distribución de RED**: El total `X` se asigna como deuda al **pagador**.
     -   **Distribución de BLUE**: El total `X` se divide: la parte correspondiente al pago va al **beneficiario** y la parte de la comisión va a la **plataforma**.
 
-### 2. Quema de Tokens: La Destrucción del Valor
+### 2. Quema de Tokens: La Ley de Anulación (Auto-Amortización)
 
-La quema de tokens es la eliminación simultánea de `BLUE` y `RED` del sistema. Ocurre de dos maneras:
+La quema de tokens es la eliminación simultánea y equitativa de `BLUE` y `RED` del ecosistema. En la Fase de Lanzamiento, esta quema opera bajo un principio matemático estricto de anulación instantánea:
 
--   **A) Quema Voluntaria**: Un usuario puede decidir voluntariamente quemar una cantidad de sus `BLUE` para reducir una cantidad equivalente de su deuda `RED`.
-
--   **B) Quema Automática por Vencimiento (Cobro de Deuda)**: Este es un proceso automático e inevitable.
-    -   **Activación**: Se activa cuando una deuda `RED` de un usuario alcanza su fecha de vencimiento.
-    -   **Sistema FIFO de Deudas**: Las deudas se procesan en orden de antigüedad (primero en entrar, primero en salir).
-    -   **Prioridad de Fondos para la Quema**: Para saldar la deuda vencida, el sistema quema automáticamente los `BLUE` del deudor en el siguiente orden:
-        1.  Primero, se utiliza el saldo `BLUE` disponible (líquido).
-        2.  Si no es suficiente, se utiliza el saldo `BLUE` pendiente (en `escrow`), **consumiendo los depósitos más antiguos primero (FIFO)**.
-    -   **Consecuencia**: La cantidad de `BLUE` quemada se deduce del saldo del usuario, y una cantidad idéntica de `RED` se elimina de su deuda.
+-   **Anulación Materia-Antimateria**: Es algorítmicamente imposible que un usuario posea saldo de `BLUE` líquido y deuda `RED` al mismo tiempo en su billetera. Ambos saldos se destruyen al entrar en contacto.
+-   **Auto-Amortización de Ingresos**: Si un usuario con deuda `RED` activa recibe un pago en `BLUE`, el Smart Contract intercepta esos fondos y los quema instantáneamente, reduciendo su deuda exacta.
+-   **Renovación de Cupo**: Al ocurrir la auto-amortización, el límite de crédito del usuario se restablece proporcionalmente en tiempo real (Crédito Rotativo), recuperando su poder adquisitivo en la plataforma.
+-   **Inviolabilidad del Escrow**: Los fondos `BLUE` retenidos en garantía (Escrow) de una tarea en progreso jamás serán confiscados ni quemados para saldar deudas, garantizando la inviolabilidad del pago a terceros.
 
 ### 3. El Perfil de Impulsor (Booster)
 
 -   **Doble Propósito**: El perfil de impulsor es tanto un sistema de reputación como una billetera de ganancias separada.
 -   **Sistema Aislado**: La billetera del impulsor está **completamente separada** de la billetera principal. Los fondos no son transferibles directamente por el usuario.
--   **Pago Futuro (Post-Lanzamiento)**: Los fondos acumulados como **BLUE IOU** en el perfil de impulsor **son pagaderos al usuario mensualmente tras el lanzamiento oficial de la plataforma**. El mecanismo de pago se basa en las comisiones que la plataforma recauda cada mes. Por ejemplo: si al final del mes se recaudan 2,000 `BLUE` en comisiones y la deuda total (**BLUE IOU**) con los impulsores es de 20,000, se calcula un porcentaje de pago (2,000 / 20,000 * 100 = 10%). Este porcentaje se aplica a la deuda de cada impulsor, pagando con prioridad a los niveles más bajos primero como un beneficio para incentivar la participación temprana. Este proceso se repite mensualmente hasta saldar toda la deuda acumulada, asegurando que ningún `BLUE` se pague sin respaldo de comisiones reales.
+-   **Pago Futuro (Post-Lanzamiento)**: Los fondos acumulados como **BLUE IOU** en el perfil de impulsor **son pagaderos al usuario mensualmente tras el lanzamiento oficial de la plataforma**. El mecanismo de pago se basa en las comisiones que la plataforma recauda cada mes. Este proceso se repite mensualmente hasta saldar toda la deuda acumulada, asegurando que ningún `BLUE` se pague sin respaldo de comisiones reales. el mecanismo de pago se hara segun el mecanismo descrito en BOOSTER_COMPENSATION_PROTOCOL.md 
 
 ### 4. Sistema de Comisiones de la Plataforma
 
@@ -82,9 +77,17 @@ La quema de tokens es la eliminación simultánea de `BLUE` y `RED` del sistema.
 -   **Bono de Bienvenida**: Los nuevos usuarios que se registran **sin** un código de referido reciben un bono de bienvenida. Este bono se acredita directamente en su perfil de impulsor como **BLUE IOU**, no en su billetera principal.
 -   **Recompensa por Referido**: Cuando un usuario se registra con el código de otro, tanto el referente como el referido reciben una recompensa. Estas recompensas también se acreditan exclusivamente en sus respectivos perfiles de impulsor como **BLUE IOU**. 
 
-### 6. Control de Endeudamiento y Plazos (Reglas de Bloqueo)
+### 6. Control de Endeudamiento, Plazos y Penalidades (El Muro LOVE)
 
--   **Límite de Deuda Dinámico**: El límite de endeudamiento en tokens `RED` no es fijo. Se inicia con un valor base y **aumenta progresivamente** conforme el usuario demuestra actividad positiva y mantiene una buena reputación. A mayor confianza generada, mayor capacidad de crédito otorga el sistema.
--   **Plazos de Pago Estrictos**: Todas las deudas contraídas tienen un límite de tiempo definido para ser saldadas.
--   **Bloqueo de Solicitudes**: Si un usuario incumple un plazo de pago (deuda vencida), el sistema **bloqueará automáticamente** la creación de nuevas solicitudes. El usuario no podrá generar nueva deuda hasta que regularice su situación.
+-   **Límite de Deuda Dinámico y Rotativo**: El límite de endeudamiento no es fijo; aumenta conforme el usuario demuestra buena reputación. Opera como un crédito rotativo que se libera instantáneamente cada vez que el sistema le auto-amortiza pagos entrantes.
+-   **Vencimiento de Deuda y Muro LOVE**: Dado que la regla de anulación impide que un moroso tenga saldo líquido confiscable, la sanción por vencimiento de deuda no es una quema de fondos, sino una penalidad punitiva sistémica:
+    1.  **Exposición Pública**: El perfil del usuario se expone automáticamente en la página **LOVE** (Lista de Obligaciones Vencidas).
+    2.  **Suspensión de Crédito**: Su límite de crédito `RED` se reduce a cero, inhabilitándolo totalmente para crear nuevas solicitudes (contratar).
+-   **Vía de Recuperación Activa**: El usuario en el Muro LOVE **NO** es bloqueado de la plataforma. Mantiene intacta su capacidad de *recibir* transferencias y *postularse* a tareas de terceros. Esta es su única vía de escape: deberá trabajar para ganar `BLUE`, provocando que el sistema ejecute la Auto-Amortización hasta limpiar su deuda, momento en el cual su nombre se borra del Muro LOVE y recupera sus privilegios.
 
+### 7. Protocolo de Seguridad Web3 (Identidad y Cero Fricción)
+
+Los Smart Contracts On-Chain operarán bajo dos candados inquebrantables de seguridad institucional:
+
+-   **Muro KYC On-Chain**: Toda billetera que desee ejecutar acciones financieras en el contrato (endeudarse, mintear, transferir) debe estar en la Lista Blanca de identidades verificadas (KYC) del backend. Cuentas no verificadas son consideradas de "Solo Recepción".
+-   **Transacciones Cero Fricción (Cero Gas)**: La plataforma funcionará bajo abstracción de cuentas (Meta-Transacciones / Pectra EIP-7702). El usuario firmará intenciones desde su teléfono y WintonCoin actuará como *Relayer*, pagando las comisiones de red subyacentes. El usuario jamás necesitará recargar activos externos (ej. ETH) para usar el ecosistema.
