@@ -40,16 +40,16 @@ async function generateDemoBadges() {
                     width: metadata.width,
                     height: metadata.height,
                     channels: 4,
-                    background: { r: 220, g: 30, b: 30, alpha: 1 } // Rojo Intenso
+                    background: { r: 206, g: 70, b: 169, alpha: 1 } // Rosa Magenta (#CE46A9)
                 }
             }).png().toBuffer();
 
-            // Multiplicamos las capas: el blanco se vuelve rojo, el negro sigue oscuro
+            // Multiplicamos las capas: el blanco se vuelve del color, el negro sigue oscuro
             await sharp(inputPath)
                 .composite([{ input: redOverlay, blend: 'multiply' }])
                 .toFile(outputPath);
                 
-            console.log(`✅ Renderizado completo (Rojo Fuerte): ${path.basename(outputPath)}`);
+            console.log(`✅ Renderizado completo (Magenta): ${path.basename(outputPath)}`);
             count++;
         } catch (error) {
             console.error(`❌ Fallo crítico en capa superior para el archivo ${file}:`, error.message);
