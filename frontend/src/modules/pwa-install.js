@@ -21,10 +21,14 @@ if (typeof window.__pwaInstallInitialized === 'undefined') {
     window.__deferredPrompt = null;         // Almacena el evento nativo de instalación
 }
 
-// --- Constantes de localStorage ---
-// MOTIVO: Claves centralizadas para evitar typos y facilitar auditoría.
-const PWA_INSTALLED_KEY = 'pwa_installed';           // Marca si la app fue instalada alguna vez
-const PWA_INSTALL_DISMISSED_KEY = 'pwa_install_dismissed'; // Marca si el usuario descartó el botón
+// --- Constantes de localStorage (POR DOMINIO) ---
+// MOTIVO: Producción (wintoncoin.com) y Demo (demo.wintoncoin.com) son
+// PWAs independientes. Las claves de localStorage deben incluir el hostname
+// para que instalar una no marque la otra como instalada.
+// Ejemplo: 'pwa_installed_demo.wintoncoin.com' vs 'pwa_installed_wintoncoin.com'
+const HOSTNAME = window.location.hostname;
+const PWA_INSTALLED_KEY = `pwa_installed_${HOSTNAME}`;           // Marca si la app fue instalada en ESTE dominio
+const PWA_INSTALL_DISMISSED_KEY = `pwa_install_dismissed_${HOSTNAME}`; // Marca si el usuario descartó el botón en ESTE dominio
 
 // ============================================================================
 // FUNCIONES DE REFERIDO — Persistencia del código entre browser y PWA
@@ -133,6 +137,25 @@ export function initPWAInstall() {
 
     // Service Worker is registered by VitePWA via registerSW.js (sw-source.js)
     // NO registrar sw.js manualmente aquí - interfiere con el SW que tiene push handlers
+
+    // --- MIGRACIÓN DE CLAVES LEGACY ---
+    // Las versiones anteriores usaban 'pwa_installed' sin hostname.
+    // Migramos al nuevo formato y limpiamos la clave vieja para evitar
+    // que producción y demo compartan el mismo flag.
+    const legacyInstalled = localStorage.getItem('pwa_installed');
+    if (legacyInstalled === 'true') {
+        // Migrar al formato nuevo (con hostname)
+        localStorage.setItem(PWA_INSTALLED_KEY, 'true');
+        // Limpiar clave legacy
+        localStorage.removeItem('pwa_installed');
+        console.log('[PWA] Migrada clave legacy pwa_installed → ', PWA_INSTALLED_KEY);
+    }
+    const legacyDismissed = localStorage.getItem('pwa_install_dismissed');
+    if (legacyDismissed === 'true') {
+        localStorage.setItem(PWA_INSTALL_DISMISSED_KEY, 'true');
+        localStorage.removeItem('pwa_install_dismissed');
+        console.log('[PWA] Migrada clave legacy pwa_install_dismissed → ', PWA_INSTALL_DISMISSED_KEY);
+    }
 
     // Siempre guardar el código de referido si viene en la URL
     saveReferralCodeFromUrl();
@@ -531,21 +554,51 @@ export function updateSettingsInstallButton() {
 // ============================================================================
 
 /**
- * Verifica si la app ya está instalada como PWA (modo standalone).
- * Usa dos métodos de detección para máxima compatibilidad:
+ * Verifica si la app ya está instalada como PWA (modo standalone)
+ * Y que el standalone corresponde a ESTE dominio, no a otro.
+ *
+ * PROBLEMA RESUELTO: Si el usuario tiene instalada la PWA de producción
+ * (wintoncoin.com) y abre demo.wintoncoin.com desde esa app, el
+ * display-mode sigue siendo 'standalone' aunque demo NO esté instalada.
+ *
+ * SOLUCIÓN: Verificar standalone + que el Service Worker activo
+ * pertenezca a este origen. Si no hay SW para este origen,
+ * el standalone viene de otra PWA → devolver false.
+ *
+ * Usa tres métodos de detección para máxima compatibilidad:
  * 1. CSS media query display-mode: standalone (W3C estándar)
  * 2. navigator.standalone (propiedad propietaria de Apple/iOS)
+ * 3. Verificación de Service Worker del mismo origen
  * @returns {boolean}
  */
 export function isPWAInstalled() {
     // Método 1: Media query estándar W3C (Chrome, Edge, Firefox, Samsung)
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-        return true;
-    }
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     // Método 2: Propiedad propietaria de iOS Safari
-    if (window.navigator.standalone === true) {
+    const isIOSStandalone = window.navigator.standalone === true;
+
+    if (!isStandalone && !isIOSStandalone) {
+        // No está en modo standalone en absoluto → no está instalada
+        return false;
+    }
+
+    // Está en standalone, pero ¿es la PWA de ESTE dominio?
+    // Verificar si hay un Service Worker registrado para este origen.
+    // Si no hay SW propio, el standalone viene de otra PWA (ej: producción
+    // abriendo demo en su ventana standalone).
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        // Hay un SW controlando esta página → ES la PWA de este dominio
         return true;
     }
+
+    // Standalone pero sin SW propio → probablemente abierto desde otra PWA
+    // Verificar también el localStorage como fallback (por si el SW
+    // aún no tomó control en la primera carga)
+    if (localStorage.getItem(PWA_INSTALLED_KEY) === 'true') {
+        return true;
+    }
+
+    // Standalone sin SW ni flag → NO es la PWA de este dominio
     return false;
 }
 
