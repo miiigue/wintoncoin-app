@@ -370,6 +370,9 @@ function showInstallInstructions() {
     const isIOS = isIOSDevice();
     const isAndroid = /Android/.test(navigator.userAgent);
     const isChrome = /Chrome/.test(navigator.userAgent) && !/Edg/.test(navigator.userAgent);
+    // Detectar Samsung Internet — genera WebAPKs con SDK antiguo que
+    // Google Play Protect bloquea como "app no segura"
+    const isSamsungBrowser = /SamsungBrowser/.test(navigator.userAgent);
     // NOTA: isSafari se detecta implícitamente: si es iOS y no es Chrome = Safari.
     // No se declara como variable para evitar dead code (hallazgo de auditoría).
 
@@ -378,16 +381,21 @@ function showInstallInstructions() {
     // Instrucciones adaptadas a cada plataforma
     if (isIOS) {
         // iOS Safari (iPhone, iPad clásico, iPad moderno)
-        instructions = '📱 Para instalar en tu dispositivo Apple:\n\n1. Toca el botón "Compartir" (📤) en Safari\n2. Desplázate y toca "Añadir a pantalla de inicio"\n3. Toca "Añadir"';
+        instructions = '📱 Para instalar en tu dispositivo Apple:\n\n1. Abre esta página en Safari\n2. Toca el botón "Compartir" (📤)\n3. Desplázate y toca "Añadir a pantalla de inicio"\n4. Toca "Añadir"';
+    } else if (isAndroid && isSamsungBrowser) {
+        // Samsung Internet — caso especial: recomendar Chrome
+        // MOTIVO: Samsung Internet genera WebAPKs con targetSdkVersion antigua
+        // que Google Play Protect bloquea con "Se bloqueó la app no segura"
+        instructions = '⚠️ Samsung Internet puede bloquear la instalación.\n\n✅ Para instalar sin problemas:\n\n1. Abre Google Chrome\n2. Ve a esta misma página\n3. Toca el menú (⋮) → "Instalar aplicación"\n4. Confirma la instalación\n\n💡 Chrome es el navegador recomendado para instalar la app de forma segura.';
     } else if (isAndroid && isChrome) {
-        // Android Chrome
+        // Android Chrome — instalación directa
         instructions = '📱 Para instalar en Android:\n\n1. Toca el menú (⋮) en Chrome\n2. Toca "Instalar aplicación" o "Añadir a pantalla de inicio"\n3. Confirma la instalación';
     } else if (isChrome) {
         // Chrome Desktop
         instructions = '💻 Para instalar en Chrome:\n\n1. Haz clic en el icono de instalación (⊕) en la barra de direcciones\n2. O ve al menú (⋮) → "Instalar WintonCoin"';
     } else {
-        // Navegador genérico
-        instructions = '📱 Para instalar:\n\n1. Abre el menú de tu navegador\n2. Busca "Instalar" o "Añadir a pantalla de inicio"\n3. Confirma la instalación';
+        // Navegador genérico — incluir recomendación de Chrome
+        instructions = '📱 Para instalar:\n\n1. Abre el menú de tu navegador\n2. Busca "Instalar" o "Añadir a pantalla de inicio"\n3. Confirma la instalación\n\n💡 Para mejor experiencia, usa Google Chrome.';
     }
 
     // Mostrar modal con las instrucciones
