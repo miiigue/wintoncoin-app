@@ -756,6 +756,24 @@
                     Guardar Preferencias
                 </button>
             </div>
+
+            <!-- ============================================================ -->
+            <!-- Sección de Descarga de la Aplicación (PWA Install)           -->
+            <!-- ============================================================ -->
+            <!-- MOTIVO: Botón redundante de instalación para usuarios que    -->
+            <!-- descartaron el botón flotante. Estándar de la industria.     -->
+            <!-- Se oculta automáticamente si la app ya está instalada.       -->
+            <!-- ============================================================ -->
+            <div class="settings-section settings-pwa-section" id="pwa-settings-section">
+                <h3 style="margin-bottom: 15px; color: #00d4aa;">📲 Descargar App</h3>
+                <p style="font-size: 0.9em; color: #888; margin-bottom: 20px;">
+                    Instala WintonCoin en tu dispositivo para acceso rápido desde la pantalla de inicio.
+                </p>
+                <button id="pwa-settings-install-btn" type="button">
+                    📲 Descargar App
+                </button>
+                <p id="pwa-settings-status" class="pwa-settings-status"></p>
+            </div>
         </div>
     </div>
 
