@@ -2125,3 +2125,34 @@ Se asienta en auditoría la remoción física de la subcarpeta `android-app` (Ap
 - **Evidencia**: Auditoría de seguridad documentada con checklist OWASP, defensa en profundidad verificada (7 capas).
 
 ---
+
+### 2026-04-30 — PWA Install: Refactorización modular + botón en Configuración
+
+- **Contexto**: El módulo de instalación de la PWA (`pwa-install.js`) presentaba varios problemas:
+  1. Estilos CSS mezclados con lógica JS (violación de Separation of Concerns).
+  2. Detección defectuosa de iPads modernos (iPadOS 13+ se identifica como "Macintosh").
+  3. Inyección de texto con `innerHTML` en el modal de instrucciones (riesgo XSS).
+  4. Sin opción de "segunda oportunidad" para instalar la app si el usuario descartaba el botón flotante.
+  5. Detección de página basada solo en extensión `.html` (frágil ante rutas limpias futuras).
+- **Decisión**:
+  - **Separar estilos a CSS** (`src/styles/pwa-install.css`): todos los estilos del botón flotante, botón grande de registro, modal de instrucciones y sección de configuración extraídos del JS.
+  - **Corregir detección de iPad**: Usar `navigator.maxTouchPoints > 1` además del User Agent para detectar iPads modernos que se disfrazan de Mac.
+  - **Prevención XSS**: Reemplazar `innerHTML` por `textContent` y DOM API (`createElement`) para inyección segura de contenido.
+  - **Botón "Descargar App" en Configuración**: Nueva sección dentro del modal de ⚙️ Configuración del dashboard con botón dinámico que se desactiva automáticamente si la PWA ya está instalada. Reacciona en tiempo real al evento `appinstalled`.
+  - **Detección de URL mejorada**: Soporta rutas con y sin extensión `.html` para compatibilidad futura.
+- **Rama**: `feature/pwa-install-improvements` (aislada de `feature/web3-wallet`).
+- **Archivos creados**:
+  - `frontend/src/styles/pwa-install.css` — Estilos extraídos y documentados línea por línea.
+- **Archivos modificados**:
+  - `frontend/src/modules/pwa-install.js` — Refactorización completa, nuevas exportaciones `initSettingsInstallButton()` y `updateSettingsInstallButton()`.
+  - `frontend/contract_interaction.html` — Sección "📲 Descargar App" en modal de Configuración.
+  - `frontend/src/pages/contract-interaction.js` — Import y llamada a `initSettingsInstallButton()`.
+- **Impacto**:
+  - Código 100% modular y auditable (CSS separado del JS).
+  - iPads modernos reciben instrucciones correctas de instalación para iOS.
+  - Seguridad reforzada contra XSS en inyección de texto dinámico.
+  - UX mejorada: usuarios que descartaron el botón flotante pueden instalar desde Configuración.
+  - Estándar de industria (Twitter/X, Starbucks, Spotify usan el mismo patrón de doble opción).
+- **Evidencia (commits)**: pendiente de push.
+
+---

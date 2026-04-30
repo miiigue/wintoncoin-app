@@ -15,7 +15,7 @@ import {
     handleSessionExpired
 } from '../modules/index.js';
 import { initMigrationCheck } from '../modules/migrationManager.js';
-import { initPWAInstall } from '../modules/pwa-install.js';
+import { initPWAInstall, initSettingsInstallButton } from '../modules/pwa-install.js';
 import { initOnboarding, restartTour } from '../modules/onboarding.js';
 import { initNotificationGate } from '../modules/notificationGate.js';
 import { initializeNotificationSettings } from '../modules/notificationSettings.js';
@@ -278,6 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initPWAInstall(); // Inicializar botón de instalación PWA
 
     initializeNotificationSettings();
+    initSettingsInstallButton(); // Inicializar botón "Descargar App" en modal de Configuración
     setupWalletTabs(); // Configurar listeners
 
     // SECUENCIA DE INICIO ORQUESTADA

@@ -1,0 +1,312 @@
+/* ============================================================================
+ * WintonCoin PWA Install — Estilos Separados
+ * ============================================================================
+ * Extraídos de pwa-install.js para cumplir con el principio de
+ * Separación de Intereses (Separation of Concerns).
+ *
+ * MOTIVO: Mantener los estilos en CSS y la lógica en JS facilita la
+ * auditoría, el mantenimiento y permite que los navegadores cacheen
+ * los estilos de forma independiente al JavaScript.
+ * ============================================================================ */
+
+/* ---------------------------------------------------------------------------
+ * BOTÓN FLOTANTE DE INSTALACIÓN (versión normal — todas las páginas)
+ * ---------------------------------------------------------------------------
+ * Se posiciona fijo en la parte inferior centrada de la pantalla.
+ * Usa un gradiente verde (marca WintonCoin) con sombra y animación
+ * de pulso para llamar la atención sin ser invasivo.
+ * --------------------------------------------------------------------------- */
+#pwa-install-btn {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #00d4aa 0%, #00b894 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 50px;
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 20px rgba(0, 212, 170, 0.5);
+    z-index: 9999;
+    animation: pulseGreen 2s infinite;
+    transition: transform 0.2s ease;
+}
+
+/* ---------------------------------------------------------------------------
+ * BOTÓN GRANDE DE INSTALACIÓN (versión registro — register.html)
+ * ---------------------------------------------------------------------------
+ * Ocupa todo el ancho inferior de la pantalla con bordes redondeados
+ * superiores. Es 3x más prominente que el botón normal para capturar
+ * la atención del usuario que llega por un enlace de referido.
+ * --------------------------------------------------------------------------- */
+#pwa-install-btn.pwa-large-btn {
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    transform: none;
+    padding: 24px 20px;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -4px 30px rgba(0, 212, 170, 0.6);
+    animation: pulseGreenLarge 2s infinite;
+}
+
+/* ---------------------------------------------------------------------------
+ * ANIMACIONES DE PULSO
+ * ---------------------------------------------------------------------------
+ * Dos variantes: una suave para el botón normal y una más intensa
+ * para el botón grande de registro. Ambas usan box-shadow para
+ * crear el efecto de "respiración" luminosa.
+ * --------------------------------------------------------------------------- */
+
+/* Pulso suave para botón normal (sombra abajo) */
+@keyframes pulseGreen {
+    0%, 100% { box-shadow: 0 4px 20px rgba(0, 212, 170, 0.5); }
+    50% { box-shadow: 0 4px 30px rgba(0, 212, 170, 0.7); }
+}
+
+/* Pulso intenso para botón grande (sombra arriba) */
+@keyframes pulseGreenLarge {
+    0%, 100% { box-shadow: 0 -4px 30px rgba(0, 212, 170, 0.6); }
+    50% { box-shadow: 0 -4px 50px rgba(0, 212, 170, 0.9); }
+}
+
+/* ---------------------------------------------------------------------------
+ * HOVER Y ACTIVE — Botón normal
+ * ---------------------------------------------------------------------------
+ * El hover escala ligeramente el botón hacia arriba.
+ * El active lo reduce para dar feedback táctil.
+ * Ambos mantienen el translateX(-50%) para no descentrar el botón.
+ * --------------------------------------------------------------------------- */
+#pwa-install-btn:hover {
+    transform: translateX(-50%) scale(1.05);
+}
+
+#pwa-install-btn:active {
+    transform: translateX(-50%) scale(0.98);
+}
+
+/* ---------------------------------------------------------------------------
+ * HOVER Y ACTIVE — Botón grande (registro)
+ * ---------------------------------------------------------------------------
+ * Sin translateX porque el botón grande ocupa el 100% del ancho.
+ * Usa filter: brightness para dar feedback visual.
+ * --------------------------------------------------------------------------- */
+#pwa-install-btn.pwa-large-btn:hover {
+    transform: none;
+    filter: brightness(1.1);
+}
+
+#pwa-install-btn.pwa-large-btn:active {
+    transform: none;
+    filter: brightness(0.95);
+}
+
+/* ---------------------------------------------------------------------------
+ * CONTENIDO INTERNO DEL BOTÓN GRANDE
+ * ---------------------------------------------------------------------------
+ * Layout flex horizontal con icono SVG a la izquierda y texto
+ * (título + subtítulo) a la derecha.
+ * --------------------------------------------------------------------------- */
+#pwa-install-btn .pwa-install-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+
+/* Columna de texto del botón grande */
+#pwa-install-btn .pwa-install-text {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+
+/* Título principal del botón grande */
+#pwa-install-btn .pwa-install-text strong {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+/* Subtítulo del botón grande (opacidad reducida para jerarquía) */
+#pwa-install-btn .pwa-install-text span {
+    font-size: 14px;
+    opacity: 0.9;
+}
+
+/* ---------------------------------------------------------------------------
+ * MODAL DE INSTRUCCIONES MANUALES
+ * ---------------------------------------------------------------------------
+ * Se muestra cuando el navegador no soporta el prompt nativo de
+ * instalación (iOS Safari, navegadores antiguos). Proporciona
+ * instrucciones paso a paso según el dispositivo detectado.
+ * --------------------------------------------------------------------------- */
+
+/* Fondo oscuro semi-transparente detrás del modal */
+#pwa-install-modal .pwa-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 10000;
+}
+
+/* Contenedor principal del modal (centrado absoluto) */
+#pwa-install-modal .pwa-modal-content {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #1a1a2e;
+    color: white;
+    padding: 24px;
+    border-radius: 16px;
+    max-width: 90%;
+    width: 340px;
+    z-index: 10001;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+/* Título del modal */
+#pwa-install-modal h3 {
+    margin: 0 0 16px 0;
+    font-size: 18px;
+    text-align: center;
+}
+
+/* Bloque de instrucciones (pre-formateado para mantener saltos de línea) */
+#pwa-install-modal .pwa-instructions {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 16px;
+    border-radius: 8px;
+    white-space: pre-wrap;
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 0 0 16px 0;
+    font-family: inherit;
+}
+
+/* Botón de cerrar (X) en esquina superior derecha */
+#pwa-install-modal .pwa-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    opacity: 0.7;
+}
+
+#pwa-install-modal .pwa-modal-close:hover {
+    opacity: 1;
+}
+
+/* Contenedor de botones de acción del modal (Más tarde / No mostrar) */
+#pwa-install-modal .pwa-modal-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* Estilos base compartidos por ambos botones del modal */
+#pwa-install-modal .pwa-btn-later,
+#pwa-install-modal .pwa-btn-dismiss {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* Botón "Más tarde" (azul, acción principal) */
+#pwa-install-modal .pwa-btn-later {
+    background: #4a90d9;
+    color: white;
+}
+
+/* Botón "No mostrar más" (sutil, acción secundaria) */
+#pwa-install-modal .pwa-btn-dismiss {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+/* ---------------------------------------------------------------------------
+ * SECCIÓN "DESCARGAR APP" EN MODAL DE CONFIGURACIÓN
+ * ---------------------------------------------------------------------------
+ * Se integra dentro del modal de ⚙️ Configuración del dashboard.
+ * Solo es visible cuando la PWA NO está instalada.
+ * --------------------------------------------------------------------------- */
+
+/* Contenedor de la sección de descarga */
+.settings-pwa-section {
+    /* Separador visual respecto a la sección de Notificaciones */
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 20px;
+    margin-top: 20px;
+}
+
+/* Botón "Descargar App" dentro de Configuración */
+#pwa-settings-install-btn {
+    width: 100%;
+    padding: 14px 20px;
+    background: linear-gradient(135deg, #00d4aa 0%, #00b894 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: filter 0.2s ease, transform 0.15s ease;
+    box-shadow: 0 4px 15px rgba(0, 212, 170, 0.3);
+}
+
+/* Efecto hover del botón en configuración */
+#pwa-settings-install-btn:hover {
+    filter: brightness(1.1);
+    transform: scale(1.02);
+}
+
+/* Efecto click del botón en configuración */
+#pwa-settings-install-btn:active {
+    transform: scale(0.98);
+}
+
+/* Estado deshabilitado (cuando la app ya está instalada) */
+#pwa-settings-install-btn:disabled {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.4);
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* Mensaje informativo debajo del botón (ej: "Tu app ya está instalada") */
+.pwa-settings-status {
+    text-align: center;
+    font-size: 0.85em;
+    margin-top: 10px;
+    color: #999;
+}
+
+/* Mensaje de éxito (app instalada — verde) */
+.pwa-settings-status.installed {
+    color: #00d4aa;
+}
