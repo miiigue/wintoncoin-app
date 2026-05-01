@@ -17,6 +17,21 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
+### 2026-05-01 — Rediseño del Banner de Referidos (Booster Edition)
+
+- **Contexto**: El botón de compartir código de referido tenía una estética desalineada con el resto del ecosistema "Booster" (Impulsor). Tras iterar con Montserrat, se detectó que el "molde" de la letra no encajaba con la seriedad fintech buscada.
+- **Decisión**:
+  - Implementar un diseño **Azure Glass** con la tipografía **Inter** (UI Premium).
+  - Adoptar Inter por su molde más estilizado, vertical y compacto, ideal para interfaces Web3.
+  - Aplicar `backdrop-filter: blur(16px)` para lograr un efecto de cristal esmerilado.
+  - Mantener el dorado para los valores numéricos con peso `800` (Extra Bold) para máxima legibilidad sobre el vidrio.
+- **Impacto**:
+  - Estética profesional de alto nivel, alineada con estándares de industria.
+  - Mayor densidad de información sin sacrificar la elegancia.
+- **Evidencia**: Rediseño aplicado en `style.css` con tipografía Inter y nuevo icono de nodos estilo WhatsApp en `contract_interaction.html`.
+
+---
+
 ### 2025-07-15 — Donaciones: categoría dedicada (UI + lógica)
 
 - **Contexto**: “donación” es un tipo de publicación distinto (no es venta ni solicitud). Si se trata como genérico, la UX y las reglas se vuelven confusas.

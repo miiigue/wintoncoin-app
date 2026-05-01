@@ -2143,16 +2143,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 const data = await response.json();
                 
-                // Actualizar montos en la tarjeta
+                // Actualizar monto en la tarjeta
                 const amountElement = document.getElementById('referralAmount');
-                const amountNextElement = document.getElementById('referralAmountNext');
                 
                 if (amountElement && data.referral_reward_amount) {
                     amountElement.textContent = parseInt(data.referral_reward_amount);
-                }
-                
-                if (amountNextElement && data.referral_reward_after_expiry) {
-                    amountNextElement.textContent = parseInt(data.referral_reward_after_expiry);
                 }
 
                 // Iniciar el cronómetro si hay fecha

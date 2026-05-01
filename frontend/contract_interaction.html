@@ -304,11 +304,12 @@
         <!-- ==           UBICACIÓN DEFINITIVA DEL BANNER DE VALOR        == -->
         <!-- =============================================================== -->
 
-
         <div class="referral-motivation-section">
             <div class="referral-promo-card" id="shareReferralCard">
+
+                <!-- Sección: Contador regresivo de expiración -->
                 <div class="promo-timer-container">
-                    <span class="promo-timer-label">LA PROMOCIÓN TERMINA EN:</span>
+                    <span class="promo-timer-label">Expira en:</span>
                     <div id="referralPromoTimer" class="promo-timer-display">
                         <div class="timer-unit"><span id="timer-days">00</span><small>d</small></div>
                         <div class="timer-unit"><span id="timer-hours">00</span><small>h</small></div>
@@ -317,35 +318,36 @@
                     </div>
                 </div>
 
+                <!-- Sección: Recompensa actual centrada -->
                 <div class="promo-reward-info">
-                    <div class="reward-main">
+                    <div class="reward-main-centered">
                         <div class="reward-group">
                             <span class="reward-label">Bono por referir hoy</span>
-                            <div class="reward-value gold-premium"><span id="referralAmount">1000</span> <small>BLUE IOU</small></div>
-                        </div>
-                        
-                        <div class="reward-trend">
-                            <svg class="trend-down-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline>
-                                <polyline points="17 18 23 18 23 12"></polyline>
-                            </svg>
-                        </div>
-
-                        <div class="reward-group">
-                            <span class="reward-label">Después baja a</span>
-                            <div class="reward-value-base"><span id="referralAmountNext">750</span> <small>BLUE IOU</small></div>
-                        </div>
-
-                        <button class="referral-share-button">
-                            <div class="button-content">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path></svg>
-                                <span>Compartir código</span>
+                            <div class="reward-value gold-premium">
+                                <span id="referralAmount">1000</span> <small>BLUE IOU</small>
                             </div>
-                        </button>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
+
+                <!-- Sección: Botón de compartir (CTA principal) -->
+                <button class="referral-share-button">
+                    <div class="button-content">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2.5"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="18" cy="5" r="3"></circle>
+                            <circle cx="6" cy="12" r="3"></circle>
+                            <circle cx="18" cy="19" r="3"></circle>
+                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                        </svg>
+                        <span>Compartir mi código</span>
+                    </div>
+                </button>
+
+            </div><!-- /.referral-promo-card -->
+        </div><!-- /.referral-motivation-section -->
 
         <!-- =============================================================== -->
         <!-- == TARJETA WINTON SOLIDARIO (Visible solo si tiene causa)     == -->
