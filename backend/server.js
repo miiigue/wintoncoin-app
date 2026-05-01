@@ -971,7 +971,7 @@ async function startServer() {
             try {
                 // 1) Obtener balances desde users por ID (estándar profesional)
                 const userResult = await client.query(
-                    `SELECT username, liquid_blue_balance, escrow_blue_balance, red_balance
+                    `SELECT username, liquid_blue_balance, escrow_blue_balance, red_balance, web3_wallet_address
                      FROM users
                      WHERE id = $1`,
                     [userId]
@@ -1007,6 +1007,7 @@ async function startServer() {
                     blue_balance: userResult.rows[0].liquid_blue_balance,
                     escrow_blue_balance: userResult.rows[0].escrow_blue_balance,
                     red_balance: userResult.rows[0].red_balance,
+                    web3_wallet_address: userResult.rows[0].web3_wallet_address,
                     next_due_at: debtResult.rows[0]?.due_at || null,
                     next_due_amount: debtResult.rows[0]?.amount || null,
                     next_unlock_at: escrowResult.rows[0]?.unlock_at || null,
@@ -1250,7 +1251,7 @@ async function startServer() {
 
                 await client.query('BEGIN');
 
-                const userSql = `SELECT username, average_rating, ratings_count FROM users WHERE username = $1`;
+                const userSql = `SELECT username, average_rating, ratings_count, web3_wallet_address FROM users WHERE username = $1`;
                 const userResult = await client.query(userSql, [username]);
                 if (userResult.rowCount === 0) {
                     throw { status: 404, message: "Usuario no encontrado." };
@@ -1552,6 +1553,7 @@ async function startServer() {
                     u.ratings_count, 
                     u.created_at,
                     u.referral_code,
+                    u.web3_wallet_address,
                     COALESCE(SUM(bbl.amount), 0) as booster_blue_balance
                 FROM 
                     users u
@@ -1570,7 +1572,7 @@ async function startServer() {
                 }
 
                 // Se agrupa por todas las columnas seleccionadas de users (PostgreSQL es estricto)
-                sql += ` GROUP BY u.id, u.username, u.liquid_blue_balance, u.escrow_blue_balance, u.red_balance, u.account_status, u.average_rating, u.ratings_count, u.created_at, u.referral_code ORDER BY u.created_at DESC`;
+                sql += ` GROUP BY u.id, u.username, u.liquid_blue_balance, u.escrow_blue_balance, u.red_balance, u.account_status, u.average_rating, u.ratings_count, u.created_at, u.referral_code, u.web3_wallet_address ORDER BY u.created_at DESC`;
 
                 const result = await pool.query(sql, params);
 
@@ -2681,10 +2683,63 @@ async function startServer() {
                 }
                 const authorId = userResult.rows[0].id;
 
-                // Validar y sanitizar formFields (JSON con campos por paso)
+                // ──────────────────────────────────────────────────────────
+                // VALIDACIÓN Y SANITIZACIÓN DE form_fields (NIVEL FINTECH)
+                // ──────────────────────────────────────────────────────────
+                // Cada paso puede tener un array de campos. Cada campo puede ser:
+                //   - string  (formato legacy retrocompatible → se convierte a {label, type:'text'})
+                //   - object  {label: string, type: 'text'|'textarea'}
+                // Reglas de seguridad:
+                //   1. Solo se aceptan tipos explícitamente permitidos (whitelist)
+                //   2. Máximo 20 pasos, 10 campos por paso (DoS prevention)
+                //   3. Labels truncados a 200 caracteres (previene payload oversize)
+                //   4. Se elimina cualquier propiedad no reconocida (defense in depth)
+                // ──────────────────────────────────────────────────────────
+                const ALLOWED_FIELD_TYPES = ['text', 'textarea']; // Whitelist estricta de tipos
+                const MAX_STEPS = 20;          // Máximo de pasos permitidos
+                const MAX_FIELDS_PER_STEP = 10; // Máximo de campos por paso
+                const MAX_LABEL_LENGTH = 200;  // Longitud máxima del label de un campo
+
                 let sanitizedFormFields = null;
                 if (formFields && typeof formFields === 'object' && Object.keys(formFields).length > 0) {
-                    sanitizedFormFields = formFields;
+                    const sanitized = {};
+                    const stepKeys = Object.keys(formFields).slice(0, MAX_STEPS);
+
+                    for (const stepKey of stepKeys) {
+                        // Validar que la clave del paso sea numérica (previene inyección de claves)
+                        const stepNum = parseInt(stepKey, 10);
+                        if (!Number.isFinite(stepNum) || stepNum < 1 || stepNum > MAX_STEPS) continue;
+
+                        const fields = formFields[stepKey];
+                        if (!Array.isArray(fields)) continue;
+
+                        const sanitizedFields = [];
+                        for (const field of fields.slice(0, MAX_FIELDS_PER_STEP)) {
+                            // Formato legacy: string simple → convertir a objeto tipado
+                            if (typeof field === 'string') {
+                                const trimmed = field.trim().substring(0, MAX_LABEL_LENGTH);
+                                if (trimmed) {
+                                    sanitizedFields.push({ label: trimmed, type: 'text' });
+                                }
+                            // Formato nuevo: objeto con label y type
+                            } else if (field && typeof field === 'object' && typeof field.label === 'string') {
+                                const label = field.label.trim().substring(0, MAX_LABEL_LENGTH);
+                                // Solo aceptar tipos de la whitelist (defense in depth)
+                                const type = ALLOWED_FIELD_TYPES.includes(field.type) ? field.type : 'text';
+                                if (label) {
+                                    // Solo almacenar propiedades conocidas (strip unknown props)
+                                    sanitizedFields.push({ label, type });
+                                }
+                            }
+                            // Cualquier otro tipo de dato se ignora silenciosamente (seguridad)
+                        }
+
+                        if (sanitizedFields.length > 0) {
+                            sanitized[String(stepNum)] = sanitizedFields;
+                        }
+                    }
+
+                    sanitizedFormFields = Object.keys(sanitized).length > 0 ? sanitized : null;
                 }
 
                 const sql = `
@@ -2797,10 +2852,47 @@ async function startServer() {
                     }
                 }
 
-                // Validar y sanitizar formFields (JSON con campos por paso)
+                // ──────────────────────────────────────────────────────────
+                // VALIDACIÓN Y SANITIZACIÓN DE form_fields (NIVEL FINTECH)
+                // ──────────────────────────────────────────────────────────
+                // Reutiliza la misma lógica de validación que el endpoint de creación.
+                // Reglas: whitelist de tipos, límite de pasos/campos, truncado de labels.
+                // ──────────────────────────────────────────────────────────
+                const ALLOWED_FIELD_TYPES_EDIT = ['text', 'textarea'];
+                const MAX_STEPS_EDIT = 20;
+                const MAX_FIELDS_PER_STEP_EDIT = 10;
+                const MAX_LABEL_LENGTH_EDIT = 200;
+
                 let sanitizedFormFields = null;
                 if (formFields && typeof formFields === 'object' && Object.keys(formFields).length > 0) {
-                    sanitizedFormFields = formFields;
+                    const sanitized = {};
+                    const stepKeys = Object.keys(formFields).slice(0, MAX_STEPS_EDIT);
+
+                    for (const stepKey of stepKeys) {
+                        const stepNum = parseInt(stepKey, 10);
+                        if (!Number.isFinite(stepNum) || stepNum < 1 || stepNum > MAX_STEPS_EDIT) continue;
+
+                        const fields = formFields[stepKey];
+                        if (!Array.isArray(fields)) continue;
+
+                        const sanitizedFields = [];
+                        for (const field of fields.slice(0, MAX_FIELDS_PER_STEP_EDIT)) {
+                            if (typeof field === 'string') {
+                                const trimmed = field.trim().substring(0, MAX_LABEL_LENGTH_EDIT);
+                                if (trimmed) sanitizedFields.push({ label: trimmed, type: 'text' });
+                            } else if (field && typeof field === 'object' && typeof field.label === 'string') {
+                                const label = field.label.trim().substring(0, MAX_LABEL_LENGTH_EDIT);
+                                const type = ALLOWED_FIELD_TYPES_EDIT.includes(field.type) ? field.type : 'text';
+                                if (label) sanitizedFields.push({ label, type });
+                            }
+                        }
+
+                        if (sanitizedFields.length > 0) {
+                            sanitized[String(stepNum)] = sanitizedFields;
+                        }
+                    }
+
+                    sanitizedFormFields = Object.keys(sanitized).length > 0 ? sanitized : null;
                 }
 
                 const updateSql = `

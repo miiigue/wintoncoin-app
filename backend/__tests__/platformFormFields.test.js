@@ -65,7 +65,7 @@ describe('Admin Form Fields Processor Tests', () => {
         jest.clearAllMocks();
     });
 
-    it('1. POST /api/admin/platform/create-publication - Debe aceptar e insertar formFields correctamente', async () => {
+    it('1. POST /api/admin/platform/create-publication - Debe aceptar e insertar formFields (legacy strings → objetos tipados)', async () => {
         // Configuramos la respuesta simulada de la BD
         // 1. Verificación del usuario plataforma
         mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 100 }] });
@@ -85,7 +85,7 @@ describe('Admin Form Fields Processor Tests', () => {
             maxRepeatPerUser: 3,
             repeatCooldownMinutes: 15,
             formFields: {
-                "2": ["Link del Post", "Usuario Creador"]
+                "2": ["Link del Post", "Usuario Creador"]  // Formato legacy: strings simples
             }
         };
 
@@ -101,18 +101,101 @@ describe('Admin Form Fields Processor Tests', () => {
         // EXTRAER LA CONSULTA REALIZADA A LA BASE DE DATOS
         const insertQueryCall = mockPool.query.mock.calls[1]; // La segunda llamada debe ser el INSERT
 
-        // Verificar que formFields (nuestro interceptado [12] arreglo para inserts de platforma)
-        // se está pasando correctamente al pool como el argumento JSON esperado
+        // Verificar que formFields se convirtió de strings a objetos {label, type}
         expect(insertQueryCall).toBeDefined();
-
-        // El argumento 1 es el query string, el 2 es el array de valores.
-        // FormFields se inserta en el parámetro número 13 según el código del backend
         const passedFormFields = insertQueryCall[1][12];
 
-        // Verificamos matemáticamente que el JSON no esté mutilado
+        // Verificamos que el formato legacy se convirtió correctamente a objetos tipados
         expect(passedFormFields).toBeDefined();
         expect(passedFormFields).toHaveProperty("2");
-        expect(passedFormFields["2"]).toContain("Link del Post");
-        expect(passedFormFields["2"]).toContain("Usuario Creador");
+        // Formato nuevo: array de objetos con label y type
+        expect(passedFormFields["2"]).toEqual([
+            { label: "Link del Post", type: "text" },
+            { label: "Usuario Creador", type: "text" }
+        ]);
+    });
+
+    it('2. POST /api/admin/platform/create-publication - Debe aceptar formFields con tipos mixtos (text/textarea)', async () => {
+        // 1. Verificación del usuario plataforma
+        mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 100 }] });
+        // 2. Inserción de la publicación (RETURNING id)
+        mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 1001 }] });
+
+        const payload = {
+            title: "Test QA con tipos mixtos",
+            description: "Tarea de QA testing",
+            cost: "5.0",
+            availableSlots: "5",
+            isSellPost: false,
+            autoApprove: true,
+            isBoosterTask: false,
+            allowRepeatParticipation: false,
+            formFields: {
+                "2": [
+                    { label: "URL del bug", type: "text" },
+                    { label: "Pasos de reproducción", type: "textarea" },
+                    { label: "Resultado esperado", type: "textarea" }
+                ]
+            }
+        };
+
+        const res = await request(app)
+            .post('/api/admin/platform/create-publication')
+            .set('Cookie', [`admin_token=${adminToken}`])
+            .send(payload);
+
+        expect(res.statusCode).toEqual(201);
+
+        const insertQueryCall = mockPool.query.mock.calls[1];
+        const passedFormFields = insertQueryCall[1][12];
+
+        expect(passedFormFields).toBeDefined();
+        expect(passedFormFields["2"]).toEqual([
+            { label: "URL del bug", type: "text" },
+            { label: "Pasos de reproducción", type: "textarea" },
+            { label: "Resultado esperado", type: "textarea" }
+        ]);
+    });
+
+    it('3. POST /api/admin/platform/create-publication - Debe rechazar tipos no autorizados (seguridad)', async () => {
+        // 1. Verificación del usuario plataforma
+        mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 100 }] });
+        // 2. Inserción de la publicación (RETURNING id)
+        mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 1002 }] });
+
+        const payload = {
+            title: "Test de seguridad de tipos",
+            description: "Tipos no autorizados",
+            cost: "1.0",
+            availableSlots: "1",
+            isSellPost: false,
+            autoApprove: false,
+            isBoosterTask: false,
+            allowRepeatParticipation: false,
+            formFields: {
+                "2": [
+                    { label: "Campo válido", type: "text" },
+                    { label: "Campo malicioso", type: "script" },       // Tipo inválido → debe caer a 'text'
+                    { label: "Otro malicioso", type: "<img src=x>" }     // Tipo inválido → debe caer a 'text'
+                ]
+            }
+        };
+
+        const res = await request(app)
+            .post('/api/admin/platform/create-publication')
+            .set('Cookie', [`admin_token=${adminToken}`])
+            .send(payload);
+
+        expect(res.statusCode).toEqual(201);
+
+        const insertQueryCall = mockPool.query.mock.calls[1];
+        const passedFormFields = insertQueryCall[1][12];
+
+        // Todos los tipos inválidos deben caer a 'text' (whitelist)
+        expect(passedFormFields["2"]).toEqual([
+            { label: "Campo válido", type: "text" },
+            { label: "Campo malicioso", type: "text" },
+            { label: "Otro malicioso", type: "text" }
+        ]);
     });
 });

@@ -317,9 +317,27 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="step-form-fields" style="display: none;">
                             <p class="form-hint">Define los campos que el usuario debe completar:</p>
                             <div class="step-form-inputs">
-                                <input type="text" class="step-form-field" placeholder="Campo 1">
-                                <input type="text" class="step-form-field" placeholder="Campo 2">
-                                <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
+                                <div class="step-form-field-wrapper">
+                                    <input type="text" class="step-form-field" placeholder="Campo 1">
+                                    <select class="step-form-type-select" title="Tipo de campo">
+                                        <option value="text">Texto corto</option>
+                                        <option value="textarea">Texto largo</option>
+                                    </select>
+                                </div>
+                                <div class="step-form-field-wrapper">
+                                    <input type="text" class="step-form-field" placeholder="Campo 2">
+                                    <select class="step-form-type-select" title="Tipo de campo">
+                                        <option value="text">Texto corto</option>
+                                        <option value="textarea">Texto largo</option>
+                                    </select>
+                                </div>
+                                <div class="step-form-field-wrapper">
+                                    <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
+                                    <select class="step-form-type-select" title="Tipo de campo">
+                                        <option value="text">Texto corto</option>
+                                        <option value="textarea">Texto largo</option>
+                                    </select>
+                                </div>
                             </div>
                             <button type="button" class="step-add-field-btn">+ Agregar más campos</button>
                         </div>
@@ -355,13 +373,19 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.platformStepInputs.addEventListener('click', (e) => {
                 if (e.target.classList.contains('step-add-field-btn')) {
                     const formInputs = e.target.previousElementSibling;
-                    const fieldCount = formInputs.querySelectorAll('.step-form-field').length;
+                    const fieldCount = formInputs.querySelectorAll('.step-form-field-wrapper').length;
                     if (fieldCount < 10) {
-                        const newField = document.createElement('input');
-                        newField.type = 'text';
-                        newField.className = 'step-form-field';
-                        newField.placeholder = `Campo ${fieldCount + 1}`;
-                        formInputs.appendChild(newField);
+                        // Crear wrapper con input + selector de tipo
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'step-form-field-wrapper';
+                        wrapper.innerHTML = `
+                            <input type="text" class="step-form-field" placeholder="Campo ${fieldCount + 1}">
+                            <select class="step-form-type-select" title="Tipo de campo">
+                                <option value="text">Texto corto</option>
+                                <option value="textarea">Texto largo</option>
+                            </select>
+                        `;
+                        formInputs.appendChild(wrapper);
                     }
                     if (fieldCount >= 9) {
                         e.target.style.display = 'none';
@@ -851,6 +875,12 @@ document.addEventListener('DOMContentLoaded', () => {
             'gov_reminder_threshold_hours': { title: 'Gobernanza — Umbral de Recordatorio (horas)', description: 'Cuando quedan estas horas para expirar, se envía recordatorio.' },
             'gov_reminder_cooldown_hours': { title: 'Gobernanza — Enfriamiento entre Recordatorios (horas)', description: 'Horas mínimas entre recordatorios al mismo guardián.' },
             'gov_vote_reward_blue': { title: 'Gobernanza — Recompensa por Voto (BLUE IOU)', description: 'BLUE IOU acreditados al guardián al emitir su voto. Valor 0 desactiva la recompensa.' },
+            // Credit Scoring (Winton Trust Score)
+            'red_credit_base_limit': { title: 'Scoring — Límite Base RED (Nuevos Usuarios)', description: 'El límite de crédito inicial que se asigna a los nuevos usuarios al registrarse.' },
+            'red_credit_culture_quiz': { title: 'Scoring — Bono por Cuestionario de Cultura (RED)', description: 'Aumento del límite por aprobar cuestionarios de la Winton Academy.' },
+            'red_credit_referral': { title: 'Scoring — Bono por Referido Activo (RED)', description: 'Aumento del límite por cada referido exitoso que utilice la plataforma.' },
+            'red_credit_monthly_activity': { title: 'Scoring — Bono por Alta Actividad (RED)', description: 'Aumento del límite al superar 20 tareas en un mes calendario.' },
+            'red_credit_early_payment': { title: 'Scoring — Bono por Pago Anticipado (RED)', description: 'Aumento del límite por pagar deudas en los primeros 5 días del ciclo.' },
         };
         return map[key] || { title: key, description: 'Sin descripción.' };
     }
@@ -885,6 +915,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (s.setting_key === 'gov_vote_reward_blue') return getSettingHTML(s, 'number');
                 if (s.setting_key.startsWith('gov_')) return getSettingHTML(s, 'integer');
                 if (s.setting_key.startsWith('p2p_')) return getSettingHTML(s, 'number');
+                if (s.setting_key.startsWith('red_credit_')) return getSettingHTML(s, 'number');
                 if (s.setting_key.endsWith('_amount') || s.setting_key.includes('percentage')) return getSettingHTML(s, 'number');
                 return '';
             }).join('');
@@ -1359,9 +1390,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Función para recopilar los campos de formulario dinámico de cada paso
+    // ──────────────────────────────────────────────────────────
+    // collectFormFields: Recopila la definición de campos de formulario
+    // ──────────────────────────────────────────────────────────
+    // Emite el nuevo formato con tipo: {"1": [{label:"Campo", type:"text"}]}
+    // Solo acepta tipos de la whitelist: 'text', 'textarea' (defense in depth)
+    // ──────────────────────────────────────────────────────────
     function collectFormFields() {
         const formFields = {};
+        const ALLOWED_TYPES = ['text', 'textarea']; // Whitelist de tipos
         const stepContainers = document.querySelectorAll('#platformStepInputs .admin-step-input');
 
         stepContainers.forEach((container) => {
@@ -1370,13 +1407,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (checkbox && checkbox.checked) {
                 const fields = [];
-                const fieldInputs = container.querySelectorAll('.step-form-field');
-                fieldInputs.forEach((input) => {
-                    const value = input.value.trim();
-                    if (value) {
-                        fields.push(value);
+                const fieldWrappers = container.querySelectorAll('.step-form-field-wrapper');
+
+                fieldWrappers.forEach((wrapper) => {
+                    const input = wrapper.querySelector('.step-form-field');
+                    const typeSelect = wrapper.querySelector('.step-form-type-select');
+                    const label = input ? input.value.trim() : '';
+                    // Solo aceptar tipos de la whitelist (seguridad)
+                    const type = (typeSelect && ALLOWED_TYPES.includes(typeSelect.value))
+                        ? typeSelect.value
+                        : 'text';
+
+                    if (label) {
+                        fields.push({ label, type });
                     }
                 });
+
+                // Fallback: si no hay wrappers (formato viejo), intentar con inputs directos
+                if (fieldWrappers.length === 0) {
+                    const fieldInputs = container.querySelectorAll('.step-form-field');
+                    fieldInputs.forEach((input) => {
+                        const value = input.value.trim();
+                        if (value) {
+                            fields.push({ label: value, type: 'text' });
+                        }
+                    });
+                }
 
                 if (fields.length > 0) {
                     formFields[stepNum] = fields;
@@ -2120,25 +2176,48 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Limpiar campos por defecto
                         inputsContainer.innerHTML = '';
 
-                        // Renderizar campos guardados
-                        formFields[position].forEach((fieldText, i) => {
-                            const newField = document.createElement('input');
-                            newField.type = 'text';
-                            newField.className = 'step-form-field';
-                            newField.value = fieldText;
-                            newField.placeholder = `Campo ${i + 1}`;
-                            inputsContainer.appendChild(newField);
+                        // Renderizar campos guardados (soporta formato legacy y nuevo)
+                        formFields[position].forEach((fieldData, i) => {
+                            // Retrocompatibilidad: string simple → {label, type:'text'}
+                            const label = typeof fieldData === 'string' ? fieldData : (fieldData?.label || '');
+                            const type = (typeof fieldData === 'object' && fieldData?.type === 'textarea') ? 'textarea' : 'text';
+
+                            const wrapper = document.createElement('div');
+                            wrapper.className = 'step-form-field-wrapper';
+
+                            const input = document.createElement('input');
+                            input.type = 'text';
+                            input.className = 'step-form-field';
+                            input.value = label;
+                            input.placeholder = `Campo ${i + 1}`;
+
+                            const select = document.createElement('select');
+                            select.className = 'step-form-type-select';
+                            select.title = 'Tipo de campo';
+                            select.innerHTML = `
+                                <option value="text"${type === 'text' ? ' selected' : ''}>Texto corto</option>
+                                <option value="textarea"${type === 'textarea' ? ' selected' : ''}>Texto largo</option>
+                            `;
+
+                            wrapper.appendChild(input);
+                            wrapper.appendChild(select);
+                            inputsContainer.appendChild(wrapper);
                         });
 
                         // Asegurar mínimo de 3 campos visuales para facilitar edición
                         const currentFields = formFields[position].length;
                         if (currentFields < 3) {
                             for (let i = currentFields; i < 3; i++) {
-                                const newField = document.createElement('input');
-                                newField.type = 'text';
-                                newField.className = 'step-form-field';
-                                newField.placeholder = `Campo ${i + 1}`;
-                                inputsContainer.appendChild(newField);
+                                const wrapper = document.createElement('div');
+                                wrapper.className = 'step-form-field-wrapper';
+                                wrapper.innerHTML = `
+                                    <input type="text" class="step-form-field" placeholder="Campo ${i + 1}">
+                                    <select class="step-form-type-select" title="Tipo de campo">
+                                        <option value="text">Texto corto</option>
+                                        <option value="textarea">Texto largo</option>
+                                    </select>
+                                `;
+                                inputsContainer.appendChild(wrapper);
                             }
                         }
                     }
@@ -2192,9 +2271,27 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="step-form-fields" style="display: none;">
                 <p class="form-hint">Define los campos que el usuario debe completar:</p>
                 <div class="step-form-inputs">
-                    <input type="text" class="step-form-field" placeholder="Campo 1">
-                    <input type="text" class="step-form-field" placeholder="Campo 2">
-                    <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
+                    <div class="step-form-field-wrapper">
+                        <input type="text" class="step-form-field" placeholder="Campo 1">
+                        <select class="step-form-type-select" title="Tipo de campo">
+                            <option value="text">Texto corto</option>
+                            <option value="textarea">Texto largo</option>
+                        </select>
+                    </div>
+                    <div class="step-form-field-wrapper">
+                        <input type="text" class="step-form-field" placeholder="Campo 2">
+                        <select class="step-form-type-select" title="Tipo de campo">
+                            <option value="text">Texto corto</option>
+                            <option value="textarea">Texto largo</option>
+                        </select>
+                    </div>
+                    <div class="step-form-field-wrapper">
+                        <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
+                        <select class="step-form-type-select" title="Tipo de campo">
+                            <option value="text">Texto corto</option>
+                            <option value="textarea">Texto largo</option>
+                        </select>
+                    </div>
                 </div>
                 <button type="button" class="step-add-field-btn">+ Agregar más campos</button>
             </div>
@@ -2317,6 +2414,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <thead>
                     <tr>
                         <th>Usuario</th>
+                        <th>Billetera Web3</th>
                         <th>Saldo BLUE (Disponible)</th>
                         <th>Saldo BLUE (Pendientes)</th>
                         <th>BLUE de Impulsor (IOU)</th>
@@ -2333,6 +2431,22 @@ document.addEventListener('DOMContentLoaded', () => {
             </table>
         `;
         elements.usersTableContainer.innerHTML = tableHTML;
+
+        // Funcionalidad de copiar al portapapeles para la billetera Web3
+        elements.usersTableContainer.querySelectorAll('.copy-wallet-btn-admin').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const fullAddress = this.dataset.address;
+                navigator.clipboard.writeText(fullAddress).then(() => {
+                    const originalHTML = this.innerHTML;
+                    this.innerHTML = '<span style="font-size:10px; font-weight:bold; color:#059669;">✓</span>';
+                    setTimeout(() => {
+                        this.innerHTML = originalHTML;
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Error al copiar: ', err);
+                });
+            });
+        });
     }
 
     function getUserRowHTML(user) {
@@ -2341,11 +2455,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const ratingHTML = generateStarRating(user.average_rating, user.ratings_count);
 
+        let walletHTML = '<span style="color: #888;">Sin billetera</span>';
+        if (user.web3_wallet_address) {
+            const addr = user.web3_wallet_address;
+            const truncated = addr.substring(0, 6) + '...' + addr.substring(addr.length - 4);
+            walletHTML = `
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span style="font-family: monospace; font-size: 12px; color: #fff;">${truncated}</span>
+                    <button class="copy-wallet-btn-admin" data-address="${addr}" style="background: none; border: none; cursor: pointer; color: #4da6ff; padding: 0; display: flex; align-items: center;" title="Copiar dirección">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                </div>
+            `;
+        }
+
         return `
             <tr data-user-id="${escapeHtml(user.id)}" data-username="${escapeHtml(user.username)}" data-status="${escapeHtml(user.status)}" data-referral-code="${escapeHtml(user.referral_code || '')}">
                 <td class="username-cell">
                     <a href="profile.html?user=${escapeHtml(user.username)}" target="_blank">${escapeHtml(user.username)}</a>
                 </td>
+                <td>${walletHTML}</td>
                 <td class="saldo-blue-text">${formatBalance(user.liquid_blue_balance)}</td>
                 <td class="saldo-escrow-text">${formatBalance(user.escrow_blue_balance)}</td>
                 <td class="saldo-booster-text">${formatBalance(user.booster_blue_balance)}</td>

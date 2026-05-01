@@ -5112,6 +5112,26 @@ body.love-page {
     color: #6b7280;
 }
 
+/* --- Estilos para textarea en formularios dinámicos de pasos --- */
+/* textarea hereda los estilos base de .step-form-input y añade propiedades específicas */
+textarea.step-form-textarea {
+    min-height: 100px;        /* Altura mínima para que sea usable */
+    max-height: 300px;        /* Evita que crezca demasiado en mobile */
+    resize: vertical;         /* Solo permite resize vertical (previene layout breaks) */
+    line-height: 1.5;         /* Mejor legibilidad para texto largo */
+    font-family: inherit;     /* Hereda fuente del sistema (previene font override de browser) */
+}
+
+/* Contador de caracteres debajo del textarea */
+.step-form-char-count {
+    display: block;
+    text-align: right;
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-top: 0.25rem;
+    transition: color 0.2s ease; /* Transición suave para cambio de color */
+}
+
 @media (max-width: 640px) {
     .step-actions {
         flex-direction: column;
@@ -5128,6 +5148,12 @@ body.love-page {
     .step-form-input {
         padding: 0.6rem 0.75rem;
         font-size: 0.9rem;
+    }
+
+    /* En mobile, textarea un poco más pequeño */
+    textarea.step-form-textarea {
+        min-height: 80px;
+        max-height: 200px;
     }
 }
 

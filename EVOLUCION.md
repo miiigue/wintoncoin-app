@@ -2048,3 +2048,88 @@ Se asienta en auditoría la remoción física de la subcarpeta `android-app` (Ap
 - **Impacto**: Los usuarios pueden volver a ver el detalle de publicaciones y aprobar/gestionar participantes correctamente. Bug bloqueante resuelto.
 - **Archivos tocados**: `frontend/src/pages/publication-detail.js`
 - **Evidencia**: commit pendiente de push.
+
+---
+
+### 2026-04-26 — QA Testing: Formularios tipados (text/textarea) + sanitización nivel fintech
+
+- **Contexto**: Se necesitaba adaptar el sistema de tareas existente para funcionar como herramienta de QA Testing interna. Los testers debían poder enviar reportes detallados (bugs, evidencia visual, pasos de reproducción) directamente desde el formulario de cada tarea, pero el sistema solo soportaba inputs de texto corto y no tenía validación de seguridad profunda en los datos del formulario.
+- **Decisión**:
+  - **Nuevo formato de campos tipados**: Migrar `form_fields` de `["Campo 1"]` (strings) a `[{label:"Campo 1", type:"textarea"}]` (objetos con tipo), manteniendo **retrocompatibilidad total** con el formato legacy.
+  - **Selector de tipo en admin**: Cada campo del formulario tiene un `<select>` para elegir entre "Texto corto" (`input text`) y "Texto largo" (`textarea`), facilitando la configuración de reportes QA.
+  - **Textarea en frontend del tester**: Los campos marcados como `textarea` renderizan un `<textarea>` con contador de caracteres en tiempo real (con indicador visual rojo/naranja cuando se acerca al límite).
+  - **Sanitización nivel fintech (backend)**:
+    - Whitelist estricta de tipos: solo `text` y `textarea` (defense in depth).
+    - Máximo 20 pasos, 10 campos por paso (DoS prevention).
+    - Labels truncados a 200 caracteres (payload oversize prevention).
+    - Strip de propiedades desconocidas (previene inyección de propiedades arbitrarias en JSONB).
+    - Claves numéricas validadas (previene inyección de claves JSONB).
+  - **Sanitización de respuestas del tester**:
+    - Valores truncados a 5000 caracteres (permite textareas largos pero previene payload oversize).
+    - Solo acepta valores string (previene inyección de objetos/arrays).
+    - Elimina caracteres nulos (`\0`) para seguridad PostgreSQL.
+    - Defense in depth: validación tanto en frontend como backend.
+  - **Evidencia por enlace externo**: Los testers suben URLs (Google Drive, Imgur) en vez de archivos, eliminando riesgos de almacenamiento de malware y reduciendo la superficie de ataque.
+- **Impacto**:
+  - El sistema de tareas funciona como herramienta de QA Testing sin necesidad de infraestructura adicional.
+  - Formularios seguros y auditables con validación bancaria/fintech.
+  - Retrocompatible: publicaciones existentes con formato legacy siguen funcionando.
+  - Admin tiene control visual sobre el tipo de cada campo.
+- **Archivos tocados**:
+  - `backend/server.js` — Sanitización de `formFields` en endpoints create/edit
+  - `backend/src/controllers/publicationController.js` — Sanitización de `formResponses`
+  - `frontend/src/pages/admin-panel.js` — Selector de tipo, collectFormFields, populate/restore
+  - `frontend/src/pages/publication-detail.js` — renderStepFlow con textarea, collectFormResponses, char counter
+  - `frontend/style.css` — Estilos para textarea y char counter
+  - `frontend/admin-style.css` — Estilos para wrapper campo + selector de tipo
+- **Evidencia**: commit pendiente de push.
+
+---
+
+### 2026-04-28 — Web3: Arquitectura On-Chain Completa (Optimism L2)
+
+- **Contexto**: WintonCoin necesita migrar su lógica económica (tokens BLUE/RED, comisiones, auto-amortización) de un sistema puramente off-chain (PostgreSQL) a contratos inteligentes en la blockchain de Optimism para garantizar inmutabilidad, auditabilidad criptográfica y operación Cero Gas para el usuario.
+- **Decisión**:
+  - Crear un entorno aislado `web3-contracts/` con Hardhat + OpenZeppelin para los Smart Contracts.
+  - Implementar 4 contratos inteligentes interconectados:
+    - `TokenBLUE.sol` — Activo ERC-20 restringido (solo minteable por WintonProtocol).
+    - `TokenRED.sol` — Deuda ERC-20 intransferible (funciones `transfer`/`transferFrom` bloqueadas).
+    - `WintonTreasury.sol` — Tesorería con distribución en lotes (Waterfall Payout) para Impulsores.
+    - `WintonProtocol.sol` — Motor atómico: sobregiro, comisión 5%, y Ley Antimateria (auto-amortización).
+  - Arquitectura de seguridad:
+    - `onlyProtocol` modifier: solo el contrato maestro mintea/quema tokens.
+    - `RELAYER_ROLE`: solo el servidor Node.js (Guardián KYC) puede invocar pagos.
+    - `ReentrancyGuard`: protección contra ataques de reentrada.
+    - `CircuitBreaker (isPaused)`: interruptor de emergencia ante ataques de Día Cero.
+    - Transferencia de soberanía irreversible (`setWintonProtocol`): una vez configurado, nadie puede cambiar el dueño.
+  - Integración Backend Web2 ↔ Web3:
+    - `web3RelayerService.js` — Servicio Ethers.js que firma meta-transacciones Cero Gas.
+    - `walletService.js` — Generador de billeteras con encriptación AES-256-CBC.
+    - `web3BridgeService.js` — Puente de consistencia eventual (Fire-and-Forget con auditoría).
+    - Inyección en `authController.js` — Billetera Web3 automática en registro y retrocompatible en login.
+    - Inyección en `publicationService.js` — Cada pago en modo normal dispara sincronización on-chain no bloqueante.
+  - Migraciones de BD:
+    - `050_add_web3_wallet_to_users.js` — Campos `web3_wallet_address` y `web3_private_key_encrypted`.
+    - `051_add_onchain_tx_hash.js` — Campo `onchain_tx_hash` en tabla `transactions`.
+  - Tests Hardhat: 5/5 pruebas de estrés pasadas (seguridad + economía + anti-fraude).
+- **Impacto**:
+  - Los pagos ahora tienen doble registro: PostgreSQL (disponibilidad) + Blockchain (inmutabilidad).
+  - Los usuarios obtienen billetera Web3 de forma invisible al registrarse (Cero Fricción).
+  - La deuda RED es un "tatuaje criptográfico" — imposible de transferir a otra billetera.
+  - El sistema es resistente a: reentrada, front-running (secuenciador privado Optimism), desbordamiento, y compromiso de llaves (CircuitBreaker).
+- **Archivos creados**:
+  - `web3-contracts/contracts/TokenBLUE.sol`
+  - `web3-contracts/contracts/TokenRED.sol`
+  - `web3-contracts/contracts/WintonTreasury.sol`
+  - `web3-contracts/contracts/WintonProtocol.sol`
+  - `web3-contracts/scripts/deploy.js`
+  - `web3-contracts/test/WintonProtocol.test.js`
+  - `backend/src/services/web3RelayerService.js`
+  - `backend/src/services/walletService.js`
+  - `backend/src/services/web3BridgeService.js`
+  - `backend/migrations/050_add_web3_wallet_to_users.js`
+  - `backend/migrations/051_add_onchain_tx_hash.js`
+- **Archivos modificados**:
+  - `backend/src/controllers/authController.js` — Generación automática de billeteras Web3
+  - `backend/src/services/publicationService.js` — Sincronización on-chain de pagos
+- **Evidencia**: commit pendiente de push (rama `feature/web3-wallet`).

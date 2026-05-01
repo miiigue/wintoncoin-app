@@ -236,6 +236,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return { mainText, steps: stepsRaw };
     }
 
+    // ──────────────────────────────────────────────────────────
+    // renderStepFlow: Renderiza el flujo de pasos con formularios dinámicos
+    // ──────────────────────────────────────────────────────────
+    // Soporta dos formatos de form_fields (retrocompatible):
+    //   - Legacy:  {"1": ["Campo 1", "Campo 2"]}           → todos como input text
+    //   - Nuevo:   {"1": [{label:"Campo 1", type:"textarea"}, {label:"Campo 2", type:"text"}]}
+    // Seguridad:
+    //   - Todos los labels se escapan con escapeHtml (previene XSS)
+    //   - Los data-attributes se escapan con escapeAttr (previene inyección de atributos)
+    //   - textarea tiene maxlength=5000 (coincide con límite del backend)
+    //   - input text tiene maxlength=1000 (previene payload oversize)
+    // ──────────────────────────────────────────────────────────
     function renderStepFlow(steps, formFields = null, userStatus = null) {
         if (!steps || steps.length === 0) return '';
 
@@ -246,18 +258,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let formInputsHTML = '';
             if (hasFormFields) {
-                const fieldsHTML = formFields[stepNumStr].map((field, fieldIndex) => `
-                    <div class="step-form-field-user">
-                        <label for="form-step-${stepNum}-field-${fieldIndex}">${escapeHtml(field)}</label>
-                        <input type="text" 
-                               id="form-step-${stepNum}-field-${fieldIndex}" 
-                               class="step-form-input" 
-                               data-step="${stepNum}" 
-                               data-field="${escapeAttr(field)}"
-                               placeholder="Escribe tu respuesta..." 
-                               required>
-                    </div>
-                `).join('');
+                const fieldsHTML = formFields[stepNumStr].map((field, fieldIndex) => {
+                    // ── Retrocompatibilidad: si el campo es string (formato legacy), convertir a objeto ──
+                    const fieldLabel = typeof field === 'string' ? field : (field?.label || `Campo ${fieldIndex + 1}`);
+                    const fieldType = (typeof field === 'object' && field?.type === 'textarea') ? 'textarea' : 'text';
+
+                    // ── Renderizar textarea o input según el tipo definido ──
+                    if (fieldType === 'textarea') {
+                        // textarea: para reportes detallados, descripciones largas, pasos de reproducción
+                        return `
+                            <div class="step-form-field-user">
+                                <label for="form-step-${stepNum}-field-${fieldIndex}">${escapeHtml(fieldLabel)}</label>
+                                <textarea 
+                                    id="form-step-${stepNum}-field-${fieldIndex}" 
+                                    class="step-form-input step-form-textarea" 
+                                    data-step="${stepNum}" 
+                                    data-field="${escapeAttr(fieldLabel)}"
+                                    placeholder="Escribe tu respuesta detallada..." 
+                                    maxlength="5000"
+                                    rows="4"
+                                    required></textarea>
+                                <span class="step-form-char-count" data-for="form-step-${stepNum}-field-${fieldIndex}">0 / 5000</span>
+                            </div>
+                        `;
+                    } else {
+                        // text: para URLs, respuestas cortas, nombres, Sí/No
+                        return `
+                            <div class="step-form-field-user">
+                                <label for="form-step-${stepNum}-field-${fieldIndex}">${escapeHtml(fieldLabel)}</label>
+                                <input type="text" 
+                                       id="form-step-${stepNum}-field-${fieldIndex}" 
+                                       class="step-form-input" 
+                                       data-step="${stepNum}" 
+                                       data-field="${escapeAttr(fieldLabel)}"
+                                       placeholder="Escribe tu respuesta..." 
+                                       maxlength="1000"
+                                       required>
+                            </div>
+                        `;
+                    }
+                }).join('');
 
                 formInputsHTML = `
                     <div class="step-form-container" data-step="${stepNum}">
@@ -589,22 +629,36 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // --- Función para recopilar respuestas del formulario dinámico ---
+    // ──────────────────────────────────────────────────────────
+    // collectFormResponses: Recopila respuestas de formularios dinámicos
+    // ──────────────────────────────────────────────────────────
+    // Captura valores tanto de <input> como de <textarea> (ambos usan .step-form-input).
+    // Seguridad:
+    //   - Solo recopila valores string (typeof check)
+    //   - Trunca a 5000 caracteres por valor (defense in depth, coincide con backend)
+    //   - Elimina caracteres nulos (seguridad PostgreSQL)
+    // ──────────────────────────────────────────────────────────
     function collectFormResponses() {
         const formResponses = {};
         const formContainers = document.querySelectorAll('.step-form-container');
+        const MAX_CLIENT_VALUE_LENGTH = 5000; // Coincide con MAX_RESPONSE_VALUE_LENGTH del backend
 
         formContainers.forEach((container) => {
             const stepNum = container.getAttribute('data-step');
+            // Selector captura tanto <input> como <textarea> con la misma clase
             const inputs = container.querySelectorAll('.step-form-input');
 
             if (inputs.length > 0) {
                 formResponses[stepNum] = {};
                 inputs.forEach((input) => {
                     const field = input.getAttribute('data-field');
-                    const value = input.value.trim();
-                    if (field && value) {
-                        formResponses[stepNum][field] = value;
+                    // .value funciona tanto para input como para textarea
+                    const rawValue = input.value.trim();
+                    if (field && rawValue) {
+                        // Sanitizar en el frontend también (defense in depth)
+                        formResponses[stepNum][field] = rawValue
+                            .replace(/\0/g, '')  // Eliminar caracteres nulos
+                            .substring(0, MAX_CLIENT_VALUE_LENGTH);
                     }
                 });
 
@@ -617,6 +671,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         return formResponses;
     }
+
+    // ── Event listener delegado para contador de caracteres en textareas ──
+    // Actualiza el contador en tiempo real para que el usuario sepa cuántos caracteres le quedan.
+    // Usa event delegation para capturar textareas renderizados dinámicamente.
+    document.addEventListener('input', (event) => {
+        if (event.target.classList.contains('step-form-textarea')) {
+            const textarea = event.target;
+            const maxLen = parseInt(textarea.getAttribute('maxlength'), 10) || 5000;
+            const currentLen = textarea.value.length;
+            const countSpan = textarea.parentElement.querySelector('.step-form-char-count');
+            if (countSpan) {
+                countSpan.textContent = `${currentLen} / ${maxLen}`;
+                // Visual feedback: cambiar color si se acerca al límite
+                if (currentLen > maxLen * 0.9) {
+                    countSpan.style.color = '#ff4444'; // Rojo cuando queda <10%
+                } else if (currentLen > maxLen * 0.7) {
+                    countSpan.style.color = '#ff9800'; // Naranja cuando queda <30%
+                } else {
+                    countSpan.style.color = ''; // Color por defecto
+                }
+            }
+        }
+    });
 
     // --- Event Handlers ---
     function setupEventListeners() {

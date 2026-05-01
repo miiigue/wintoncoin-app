@@ -1084,11 +1084,58 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 throw { status: 404, message: "No se encontró una tarea o compra aprobada para procesar." };
             }
 
-            // Guardar respuestas del formulario si se proporcionan y la publicación tiene form_fields
-            const shouldSaveResponses = !!formResponses
-                && acceptance.form_fields
-                && typeof formResponses === 'object'
-                && Object.keys(formResponses).length > 0;
+            // ──────────────────────────────────────────────────────────
+            // SANITIZACIÓN DE form_responses (NIVEL FINTECH)
+            // ──────────────────────────────────────────────────────────
+            // Valida las respuestas enviadas por el usuario antes de almacenarlas.
+            // Reglas de seguridad:
+            //   1. Solo se aceptan claves numéricas de paso (previene inyección de claves JSONB)
+            //   2. Máximo 20 pasos, 10 campos por paso (DoS prevention)
+            //   3. Valores truncados a 5000 caracteres (previene payload oversize pero permite textareas largos)
+            //   4. Solo se guardan valores string (previene inyección de objetos/arrays)
+            // ──────────────────────────────────────────────────────────
+            const MAX_RESPONSE_STEPS = 20;           // Máximo de pasos en las respuestas
+            const MAX_RESPONSE_FIELDS = 10;          // Máximo de campos por paso en las respuestas
+            const MAX_RESPONSE_VALUE_LENGTH = 5000;  // Longitud máxima de cada respuesta (textarea)
+
+            let sanitizedFormResponses = null;
+            if (formResponses && acceptance.form_fields && typeof formResponses === 'object') {
+                const sanitized = {};
+                const stepKeys = Object.keys(formResponses).slice(0, MAX_RESPONSE_STEPS);
+
+                for (const stepKey of stepKeys) {
+                    // Solo aceptar claves numéricas (previene inyección de claves JSONB)
+                    const stepNum = parseInt(stepKey, 10);
+                    if (!Number.isFinite(stepNum) || stepNum < 1 || stepNum > MAX_RESPONSE_STEPS) continue;
+
+                    const stepResponses = formResponses[stepKey];
+                    if (!stepResponses || typeof stepResponses !== 'object' || Array.isArray(stepResponses)) continue;
+
+                    const sanitizedStep = {};
+                    const fieldKeys = Object.keys(stepResponses).slice(0, MAX_RESPONSE_FIELDS);
+
+                    for (const fieldKey of fieldKeys) {
+                        const value = stepResponses[fieldKey];
+                        // Solo aceptar valores string (previene inyección de objetos/arrays)
+                        if (typeof value === 'string') {
+                            // Truncar a longitud máxima segura y eliminar caracteres nulos
+                            sanitizedStep[fieldKey.substring(0, 200)] = value
+                                .replace(/\0/g, '')  // Eliminar caracteres nulos (seguridad PostgreSQL)
+                                .substring(0, MAX_RESPONSE_VALUE_LENGTH);
+                        }
+                    }
+
+                    if (Object.keys(sanitizedStep).length > 0) {
+                        sanitized[String(stepNum)] = sanitizedStep;
+                    }
+                }
+
+                if (Object.keys(sanitized).length > 0) {
+                    sanitizedFormResponses = sanitized;
+                }
+            }
+
+            const shouldSaveResponses = !!sanitizedFormResponses;
 
             if (shouldSaveResponses) {
                 const updateResponsesResult = await client.query(
@@ -1097,7 +1144,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                              form_responses_submitted_at = COALESCE(form_responses_submitted_at, NOW())
                          WHERE id = $2
                          RETURNING form_responses_submitted_at`,
-                    [formResponses, acceptance.acceptance_id]
+                    [sanitizedFormResponses, acceptance.acceptance_id]
                 );
 
                 if (!acceptance.form_responses_submitted_at) {

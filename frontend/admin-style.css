@@ -1729,3 +1729,60 @@ input:checked+.slider:before {
 .step-add-field-btn:hover {
     background-color: rgba(10, 132, 255, 0.1);
 }
+
+/* --- Wrapper para campo + selector de tipo en formularios de pasos (admin) --- */
+/* Cada campo tiene un input para el nombre/label y un select para elegir el tipo */
+.step-form-field-wrapper {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+/* El input del nombre del campo ocupa el espacio disponible */
+.step-form-field-wrapper .step-form-field {
+    flex: 1;
+    padding: 0.6rem 0.75rem;
+    background-color: var(--admin-surface);
+    border: 1px solid var(--admin-border);
+    border-radius: 4px;
+    color: var(--admin-text);
+    font-size: 0.9rem;
+}
+
+/* Focus state del input del campo */
+.step-form-field-wrapper .step-form-field:focus {
+    outline: none;
+    border-color: var(--admin-primary);
+}
+
+/* Selector de tipo de campo (Texto corto / Texto largo) */
+.step-form-type-select {
+    flex-shrink: 0;
+    width: 120px;
+    padding: 0.5rem 0.4rem;
+    background-color: var(--admin-surface);
+    border: 1px solid var(--admin-border);
+    border-radius: 4px;
+    color: var(--admin-text);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+}
+
+/* Focus state del selector de tipo */
+.step-form-type-select:focus {
+    outline: none;
+    border-color: var(--admin-primary);
+}
+
+/* En pantallas pequeñas, el wrapper se convierte en columna */
+@media (max-width: 640px) {
+    .step-form-field-wrapper {
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+
+    .step-form-type-select {
+        width: 100%;
+    }
+}

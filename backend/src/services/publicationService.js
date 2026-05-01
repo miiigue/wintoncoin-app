@@ -5,6 +5,7 @@
 const pool = require('../config/db');
 const { sendTransactionEmail } = require('./emailService');
 const logAuditEvent = require('./auditService');
+const Web3BridgeService = require('./web3BridgeService');
 
 function resolveRepeatCooldownHours(body) {
             const days = parseInt(body.repeatCooldownDays, 10) || 0;
@@ -251,6 +252,27 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'payment_received', $2, $3, 0, $4)`, [workerId, `Realizaste: "${title}"`, cost, pubId]);
 
         await client.query(`INSERT INTO platform_commission_log (related_publication_id, related_user_transaction_id, commission_amount_blue) VALUES ($1, $2, $3)`, [pubId, authorTxId, commissionAmount]);
+
+        // --- SINCRONIZACIÓN ON-CHAIN (No Bloqueante) ---
+        // Consultar las direcciones Web3 de ambos usuarios para la meta-transacción.
+        // Se dispara en segundo plano: si falla, el pago en BD ya está confirmado.
+        const walletQuery = await client.query(
+            `SELECT username, web3_wallet_address FROM users WHERE username IN ($1, $2)`,
+            [author, workerUsername]
+        );
+        const payerWallet = walletQuery.rows.find(u => u.username === author)?.web3_wallet_address;
+        const payeeWallet = walletQuery.rows.find(u => u.username === workerUsername)?.web3_wallet_address;
+
+        // Disparar la escritura on-chain SIN bloquear la respuesta al usuario
+        Web3BridgeService.syncPaymentToBlockchain({
+            payerWalletAddress: payerWallet,
+            payeeWalletAddress: payeeWallet,
+            amountBlue: cost,
+            dbTransactionId: authorTxId,
+            publicationId: pubId,
+            payerUsername: author,
+            payeeUsername: workerUsername
+        }).catch(err => console.error('[WEB3 BRIDGE] Error no bloqueante (request):', err.message));
     }
 
     // --- NOTIFICACIONES POR CORREO (RECIBOS) ---
@@ -424,6 +446,26 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'payment_received', $2, $3, 0, $4)`, [recipientId, `Recibiste por: "${title}"`, cost, pubId]);
 
         await client.query(`INSERT INTO platform_commission_log (related_publication_id, related_user_transaction_id, commission_amount_blue) VALUES ($1, $2, $3)`, [pubId, payerTxId, commissionAmount]);
+
+        // --- SINCRONIZACIÓN ON-CHAIN (No Bloqueante) ---
+        // Consultar las direcciones Web3 de ambos usuarios para la meta-transacción.
+        const walletQuery = await client.query(
+            `SELECT username, web3_wallet_address FROM users WHERE username IN ($1, $2)`,
+            [payer, recipient]
+        );
+        const payerWallet = walletQuery.rows.find(u => u.username === payer)?.web3_wallet_address;
+        const payeeWallet = walletQuery.rows.find(u => u.username === recipient)?.web3_wallet_address;
+
+        // Disparar la escritura on-chain SIN bloquear la respuesta al usuario
+        Web3BridgeService.syncPaymentToBlockchain({
+            payerWalletAddress: payerWallet,
+            payeeWalletAddress: payeeWallet,
+            amountBlue: cost,
+            dbTransactionId: payerTxId,
+            publicationId: pubId,
+            payerUsername: payer,
+            payeeUsername: recipient
+        }).catch(err => console.error('[WEB3 BRIDGE] Error no bloqueante (direct):', err.message));
 
         const recipientNotification = `¡Has recibido el pago de ${cost.toFixed(4)} BLUE (en depósito) por "${title}" de parte de ${payer}!`;
         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [recipient, recipientNotification]);

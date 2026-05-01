@@ -41,6 +41,12 @@ const SETTINGS_DISPLAY_MAP = {
     'gov_reminder_threshold_hours': 'Gobernanza — Umbral de Recordatorio (horas)',
     'gov_reminder_cooldown_hours': 'Gobernanza — Enfriamiento entre Recordatorios (horas)',
     'gov_vote_reward_blue': 'Gobernanza — Recompensa por Voto (BLUE IOU)',
+    // Credit Scoring (Winton Trust Score)
+    'red_credit_base_limit': 'Scoring — Límite Base RED (Nuevos Usuarios)',
+    'red_credit_culture_quiz': 'Scoring — Bono por Cuestionario de Cultura (RED)',
+    'red_credit_referral': 'Scoring — Bono por Referido Activo (RED)',
+    'red_credit_monthly_activity': 'Scoring — Bono por Alta Actividad Mensual (>20) (RED)',
+    'red_credit_early_payment': 'Scoring — Bono por Pago Anticipado de Deuda (<5 días) (RED)',
 };
 
 function settingLabel(key) {

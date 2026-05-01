@@ -146,6 +146,20 @@
 
             <!-- Panel BILLETERA -->
             <div class="wallet-tab-panel" id="panelBilletera" data-panel="billetera">
+                <div id="myWalletAddressContainer" style="display: none; align-items: center; justify-content: center; margin-bottom: 20px; background: rgba(0,0,0,0.25); padding: 6px 14px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.05); width: fit-content; margin: 0 auto 20px auto; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+                        <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+                        <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+                        <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
+                    </svg>
+                    <span id="myWalletAddressText" style="font-family: 'Courier New', Courier, monospace; font-size: 13px; color: #e2e8f0; margin-right: 10px; font-weight: normal; letter-spacing: 0.5px;">...</span>
+                    <button id="copyMyWalletBtn" style="background: none; border: none; cursor: pointer; color: #4da6ff; padding: 2px; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;" title="Copiar dirección" data-address="">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                </div>
                 <div class="balances-container">
                     <!-- Sección BLUE -->
                     <div class="balance-section blue-section">

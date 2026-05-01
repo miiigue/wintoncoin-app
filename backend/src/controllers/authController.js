@@ -239,9 +239,13 @@ exports.registerVerify = async (req, res) => {
             isMinor = age >= 13 && age < 18;
         }
 
+        // --- 2.0 GENERAR BÓVEDA WEB3 INVISIBLE (Arquitectura Cero Fricción) ---
+        const WalletService = require('../services/walletService');
+        const web3Wallet = WalletService.generateEncryptedWallet();
+
         // La lógica de referidos se aplicará a continuación
-        const newUserSql = `INSERT INTO users (username, password_hash, email, phone_number, referral_code, date_of_birth, is_minor, account_status) 
-                          VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`;
+        const newUserSql = `INSERT INTO users (username, password_hash, email, phone_number, referral_code, date_of_birth, is_minor, account_status, web3_wallet_address, web3_private_key_encrypted) 
+                          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`;
         const accountStatus = isMinor ? 'pending_tutor' : 'active';
         const newUserResult = await client.query(newUserSql, [
             pendingUser.username,
@@ -251,7 +255,9 @@ exports.registerVerify = async (req, res) => {
             newReferralCode,
             pendingUser.date_of_birth || null,
             isMinor,
-            accountStatus
+            accountStatus,
+            web3Wallet.address,
+            web3Wallet.encryptedPrivateKey
         ]);
         const newUser = newUserResult.rows[0];
 
@@ -444,6 +450,14 @@ exports.registerVerify = async (req, res) => {
 
         await client.query('COMMIT');
 
+        // --- 6. [WINTON TRUST SCORE] Sincronizar límite de crédito inicial en Blockchain ---
+        // Lo hacemos después del COMMIT para asegurar que el usuario existe en DB.
+        const creditScoringService = require('../services/creditScoringService');
+        creditScoringService.syncCreditLimitOnChain(newUser.id).catch(err => {
+            console.error('[AUTH] Fallo al sincronizar límite inicial en cadena:', err);
+        });
+
+
         res.status(200).json({
             message: '¡Verificación completada con éxito!',
             token: token,
@@ -508,12 +522,32 @@ exports.login = async (req, res) => {
         const match = await bcrypt.compare(password, user.password_hash);
 
         if (match) {
+            // --- ACTUALIZACIÓN WEB3 (Retrocompatibilidad Silenciosa) ---
+            // Si el usuario es antiguo y no tiene billetera Web3, se la forjamos en su primer inicio de sesión.
+            if (!user.web3_wallet_address) {
+                const WalletService = require('../services/walletService');
+                const web3Wallet = WalletService.generateEncryptedWallet();
+                
+                await pool.query(
+                    'UPDATE users SET web3_wallet_address = $1, web3_private_key_encrypted = $2 WHERE id = $3',
+                    [web3Wallet.address, web3Wallet.encryptedPrivateKey, user.id]
+                );
+                console.log(`[WEB3 SECRETO] Bóveda generada silenciosamente para usuario legacy: ${user.username} -> ${web3Wallet.address}`);
+            }
+
             const legalStatus = await getUserLegalStatusByUserId(pool, user.id);
             const token = jwt.sign(
                 { userId: user.id, username: user.username },
                 jwtSecret,
                 { expiresIn: '7d' }
             );
+
+            // --- [WINTON TRUST SCORE] Sincronizar límite de crédito en Blockchain ---
+            // Así actualizamos su límite si ganó bonos de "Winton Academy" o referidos mientras no estaba.
+            const creditScoringService = require('../services/creditScoringService');
+            creditScoringService.syncCreditLimitOnChain(user.id).catch(err => {
+                console.error('[AUTH] Fallo al sincronizar límite en login:', err);
+            });
 
             res.status(200).json({
                 message: "Inicio de sesión exitoso.",
