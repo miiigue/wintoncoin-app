@@ -204,6 +204,18 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
             throw new Error('Regla económica violada: la deuda RED no puede asignarse al trabajador.');
         }
 
+        // --- INYECCIÓN DE SOLVENCIA AQUÍ ---
+        const creditScoringService = require('./creditScoringService');
+        const scoreLimit = await creditScoringService.calculateUserScore(debtResponsible.user_id);
+        const currentRedRes = await client.query('SELECT red_balance, liquid_blue_balance FROM users WHERE id = $1', [debtResponsible.user_id]);
+        const currentRed = parseFloat(currentRedRes.rows[0].red_balance) || 0;
+        const liquidBlue = parseFloat(currentRedRes.rows[0].liquid_blue_balance) || 0;
+
+        if (redForAuthor > (Math.max(0, scoreLimit - currentRed) + liquidBlue)) {
+            throw { status: 402, message: `Límite de Crédito WTS Excedido. Transacción requiere: ${redForAuthor.toFixed(4)}. Tienes disponible: ${(Math.max(0, scoreLimit - currentRed) + liquidBlue).toFixed(4)}.` };
+        }
+        // ------------------------------------
+
         // Actualizar saldo RED del responsable (tutor si es menor, autor si no)
         // Usamos 'credit' para AUMENTAR el balance de deuda (RED)
         await client.query(`SELECT record_balance_event($1, 'credit', 'red', $2, NULL)`, [debtResponsible.user_id, redForAuthor]);
@@ -401,6 +413,18 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
 
         // Determinar quién es responsable de la deuda (tutor si es menor)
         const debtResponsible = await getDebtResponsibleUser(client, payer);
+
+        // --- INYECCIÓN DE SOLVENCIA AQUÍ ---
+        const creditScoringService = require('./creditScoringService');
+        const scoreLimit = await creditScoringService.calculateUserScore(debtResponsible.user_id);
+        const currentRedRes = await client.query('SELECT red_balance, liquid_blue_balance FROM users WHERE id = $1', [debtResponsible.user_id]);
+        const currentRed = parseFloat(currentRedRes.rows[0].red_balance) || 0;
+        const liquidBlue = parseFloat(currentRedRes.rows[0].liquid_blue_balance) || 0;
+
+        if (redForPayer > (Math.max(0, scoreLimit - currentRed) + liquidBlue)) {
+            throw { status: 402, message: `Límite de Crédito WTS Excedido. Transacción requiere: ${redForPayer.toFixed(4)}. Tienes disponible: ${(Math.max(0, scoreLimit - currentRed) + liquidBlue).toFixed(4)}.` };
+        }
+        // ------------------------------------
 
         // Actualizar saldo RED del responsable (tutor si es menor, pagador si no)
         // Usamos 'credit' para AUMENTAR el balance de deuda (RED)

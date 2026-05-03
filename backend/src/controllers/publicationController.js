@@ -146,6 +146,30 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 expiresAt.setMinutes(expiresAt.getMinutes() + minutes);
             }
 
+            // --- NUEVO: Freno de Solvencia (Pre-autorización) ---
+            if (publicationType === 'request') {
+                const commissionPercentage = parseFloat(settings.platform_commission_percentage || '0');
+                const costPerTask = cost * (1 + commissionPercentage / 100);
+                const totalRisk = costPerTask * slots * maxRepeat;
+
+                const { getDebtResponsibleUserById } = require('../services/publicationService');
+                const creditScoringService = require('../services/creditScoringService');
+
+                const debtResponsible = await getDebtResponsibleUserById(client, authorId, { useTutor: true });
+                const currentRedRes = await client.query('SELECT red_balance, liquid_blue_balance FROM users WHERE id = $1', [debtResponsible.user_id]);
+                const currentRed = parseFloat(currentRedRes.rows[0].red_balance) || 0;
+                const liquidBlue = parseFloat(currentRedRes.rows[0].liquid_blue_balance) || 0;
+                
+                const scoreLimit = await creditScoringService.calculateUserScore(debtResponsible.user_id);
+                const availableCredit = Math.max(0, scoreLimit - currentRed);
+
+                // El usuario puede publicar si tiene suficiente RED disponible o si tiene suficiente BLUE líquido para cubrirlo
+                if (totalRisk > (availableCredit + liquidBlue)) {
+                    throw { status: 402, message: `Fondos Insuficientes para publicar. Esta tarea requiere garantizar ${totalRisk.toFixed(4)} BLUE/RED. Tu límite actual es ${(availableCredit + liquidBlue).toFixed(2)}.` };
+                }
+            }
+            // ----------------------------------------------------
+
             const sql = `
                         INSERT INTO publications
                             (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, category, expires_at, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, show_preflight_modal, goal_amount)
