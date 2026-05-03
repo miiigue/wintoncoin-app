@@ -1,4 +1,5 @@
 require("@nomicfoundation/hardhat-toolbox");
+require("dotenv").config();
 
 /** 
  * WintonCoin Web3 Core
@@ -23,9 +24,28 @@ module.exports = {
     // Red de simulación sellada para pruebas sin gasto real
     hardhat: {
       chainId: 1337
+    },
+    // Entorno de Staging/Demo: Optimism Sepolia (Testnet Pública)
+    optimismSepolia: {
+      url: process.env.ALCHEMY_API_URL || "",
+      accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
+      chainId: 11155420
     }
-    // NOTA: Se añadirán redes para Testnet (Optimism Sepolia) y Mainnet 
-    // luego de las auditorías correspondientes.
+  },
+  etherscan: {
+    apiKey: {
+      optimismSepolia: process.env.ETHERSCAN_API_KEY || ""
+    },
+    customChains: [
+      {
+        network: "optimismSepolia",
+        chainId: 11155420,
+        urls: {
+          apiURL: "https://api-sepolia-optimistic.etherscan.io/api",
+          browserURL: "https://sepolia-optimism.etherscan.io/"
+        }
+      }
+    ]
   },
   paths: {
     sources: "./contracts",
