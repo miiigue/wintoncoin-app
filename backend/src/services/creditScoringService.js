@@ -18,8 +18,8 @@ class CreditScoringService {
         this.provider = new ethers.JsonRpcProvider(RPC_URL);
         this.wallet = RELAYER_PK ? new ethers.Wallet(RELAYER_PK, this.provider) : null;
         this.abi = [
-            "function setDebtLimit(address user, uint256 limit) external",
-            "function userDebtLimit(address user) external view returns (uint256)"
+            "function updateUserTrustScore(address userWallet, uint256 newScoreLimit) external",
+            "function redCreditLimits(address userWallet) external view returns (uint256)"
         ];
     }
 
@@ -56,7 +56,7 @@ class CreditScoringService {
 
             // B. Actividad mensual (más de 20 tareas completadas y pagadas en los últimos 30 días)
             const activityRes = await client.query(
-                "SELECT COUNT(*) FROM publication_acceptances WHERE worker_id = $1 AND status = 'paid' AND created_at > NOW() - INTERVAL '30 days'",
+                "SELECT COUNT(*) FROM publication_acceptances pa JOIN users u ON pa.acceptor_username = u.username WHERE u.id = $1 AND pa.status = 'paid' AND pa.created_at > NOW() - INTERVAL '30 days'",
                 [userId]
             );
             const taskCount = parseInt(activityRes.rows[0].count);
@@ -112,7 +112,7 @@ class CreditScoringService {
             const limitWei = ethers.parseEther(score.toString());
 
             console.log(`[SCORING] Sincronizando on-chain para ${walletAddress}: ${score} RED...`);
-            const tx = await protocol.setDebtLimit(walletAddress, limitWei);
+            const tx = await protocol.updateUserTrustScore(walletAddress, limitWei);
             await tx.wait(1);
             
             console.log(`[SCORING] Sincronización EXITOSA. Tx: ${tx.hash}`);

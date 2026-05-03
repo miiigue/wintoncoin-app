@@ -1,6 +1,21 @@
-ok pero borra "gener# Mejoras Técnicas Propuestas para el Proyecto WintonCoin (Priorizadas)
+# Mejoras Técnicas Propuestas para el Proyecto WintonCoin (Priorizadas)
 
 Este documento describe una serie de mejoras técnicas y de arquitectura sugeridas para fortalecer el código base del proyecto, mejorar su mantenibilidad, escalabilidad y seguridad. Las tareas están **ordenadas por prioridad**, desde la más crítica a la más recomendable.
+
+---
+
+## 0.5. Refactorización de Llaves Foráneas (Deuda Técnica)
+
+**Prioridad: Urgente (Deuda Técnica)**
+
+**Problema Actual:**
+La tabla `publication_acceptances` utiliza `acceptor_username` (VARCHAR) como llave foránea. Esto va en contra de los estándares de bases de datos relacionales en Fintech, donde siempre se debe usar un `user_id` inmutable para relacionar tablas. Si se permitiera el cambio de nombres de usuario en el futuro, se rompería la integridad de los datos.
+
+**Solución Propuesta:**
+1. Crear una migración que agregue una columna `acceptor_user_id` tipo Integer a la tabla `publication_acceptances`.
+2. Poblar esa columna cruzando datos con la tabla `users`.
+3. Eliminar la columna `acceptor_username`.
+4. Refactorizar todas las consultas en `server.js`, `publicationService.js`, y `creditScoringService.js` para usar el nuevo `user_id`.
 
 ---
 
