@@ -76,7 +76,8 @@ const {
     loginLimiter,
     registerRequestLimiter,
     registerVerifyLimiter,
-    resendOtpLimiter
+    resendOtpLimiter,
+    web3RpcLimiter
 } = require('./src/middleware/rateLimiters');
 
 
@@ -1047,7 +1048,7 @@ async function startServer() {
         let lastContractsFetch = 0;
         const CACHE_TTL_MS = 60000; // 60 segundos de caché (Estándar Fintech para prevenir DDoS sobre nodos RPC)
 
-        app.get('/api/contracts/info', verifyToken, async (req, res) => {
+        app.get('/api/contracts/info', web3RpcLimiter, verifyToken, async (req, res) => {
             try {
                 // Prevenir ataques de agotamiento de RPC devolviendo desde la memoria caché si es válido
                 if (contractsInfoCache && (Date.now() - lastContractsFetch < CACHE_TTL_MS)) {

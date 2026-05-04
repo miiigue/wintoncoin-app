@@ -54,12 +54,23 @@ const breakGlassLimiter = rateLimit({
     message: 'Demasiados intentos de Break Glass desde esta IP. Endpoint bloqueado por 1 hora.'
 });
 
+// Rate limiter ultra-restrictivo para Web3/RPC endpoints (prevención de DDoS a nodos Blockchain)
+// 5 consultas por minuto máximo por IP (lo más estricto de la industria para lecturas manuales)
+const web3RpcLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minuto
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Límite de seguridad RPC alcanzado. Demasiadas solicitudes a la blockchain desde esta IP. Por favor, espera 1 minuto.' }
+});
+
 module.exports = {
     loginLimiter,
     registerRequestLimiter,
     registerVerifyLimiter,
     resendOtpLimiter,
     forgotPasswordLimiter,
-    breakGlassLimiter
+    breakGlassLimiter,
+    web3RpcLimiter
 };
 
