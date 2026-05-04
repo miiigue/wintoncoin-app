@@ -32,7 +32,17 @@ async function initializeEstadoCuenta() {
         statSent: document.getElementById('statSent'),
         statBurned: document.getElementById('statBurned'),
         explorerLinkBtn: document.getElementById('explorerLinkBtn'),
-        txHistoryContainer: document.getElementById('txHistoryContainer')
+        txHistoryContainer: document.getElementById('txHistoryContainer'),
+        
+        // Smart Contract Modals
+        scBlueBtn: document.getElementById('scBlueBtn'),
+        scRedBtn: document.getElementById('scRedBtn'),
+        scModal: document.getElementById('scModal'),
+        scModalClose: document.getElementById('scModalClose'),
+        scModalTitle: document.getElementById('scModalTitle'),
+        scModalAddress: document.getElementById('scModalAddress'),
+        scModalMinted: document.getElementById('scModalMinted'),
+        scModalExplorer: document.getElementById('scModalExplorer')
     };
 
     function formatBalance(val) {
@@ -182,6 +192,49 @@ async function initializeEstadoCuenta() {
                 showCustomAlert("Aún no tienes una billetera asignada en la red para auditar.");
             });
         }
+
+        // 6. Lógica de Modales de Smart Contract
+        async function openSCModal(type) {
+            // Mostrar modal con estado de carga
+            elements.scModalTitle.textContent = type === 'blue' ? 'WintonCoin BLUE (IOU) Contract' : 'WintonCoin RED (Deuda) Contract';
+            elements.scModalAddress.textContent = 'Cargando...';
+            elements.scModalMinted.textContent = 'Consultando Blockchain...';
+            elements.scModalExplorer.style.display = 'none';
+            elements.scModal.style.display = 'block';
+
+            try {
+                const infoResponse = await fetch(`${API_URL}/api/contracts/info`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!infoResponse.ok) throw new Error('Error fetching contract info');
+                
+                const contractData = await infoResponse.json();
+                const data = contractData[type];
+                
+                elements.scModalAddress.textContent = data.address;
+                elements.scModalMinted.textContent = data.minted;
+                elements.scModalExplorer.href = `https://sepolia-optimism.etherscan.io/address/${data.address}`;
+                elements.scModalExplorer.style.display = 'flex';
+                
+            } catch (error) {
+                console.error('Error cargando datos del contrato:', error);
+                elements.scModalAddress.textContent = 'Error de conexión RPC';
+                elements.scModalMinted.textContent = 'No disponible temporalmente';
+            }
+        }
+
+        elements.scBlueBtn.addEventListener('click', () => openSCModal('blue'));
+        elements.scRedBtn.addEventListener('click', () => openSCModal('red'));
+
+        elements.scModalClose.addEventListener('click', () => {
+            elements.scModal.style.display = 'none';
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === elements.scModal) {
+                elements.scModal.style.display = 'none';
+            }
+        });
 
         // Ocultar loading y mostrar contenido con fade in
         elements.loading.style.display = 'none';

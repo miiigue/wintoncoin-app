@@ -1040,6 +1040,60 @@ async function startServer() {
             }
         });
 
+        // ==========================================
+        // RUTA: OBTENER INFO DE SMART CONTRACTS
+        // ==========================================
+        app.get('/api/contracts/info', verifyToken, async (req, res) => {
+            try {
+                const { ethers } = require('ethers');
+                const RPC_URL = process.env.OPTIMISM_RPC_URL || 'https://sepolia.optimism.io';
+                const provider = new ethers.JsonRpcProvider(RPC_URL);
+                
+                const blueAddress = process.env.BLUE_TOKEN_ADDRESS || '0x000000000000000000000000000000000000BLUE';
+                const redAddress = process.env.RED_TOKEN_ADDRESS || '0x0000000000000000000000000000000000000RED';
+                
+                let blueMinted = '10000000.0000';
+                let redMinted = '5000000.0000';
+
+                // Intentar leer de la blockchain real si las direcciones son válidas
+                if (blueAddress.startsWith('0x') && blueAddress.length === 42 && !blueAddress.includes('BLUE')) {
+                    const abi = ["function totalSupply() view returns (uint256)"];
+                    const blueContract = new ethers.Contract(blueAddress, abi, provider);
+                    try {
+                        const supply = await blueContract.totalSupply();
+                        blueMinted = ethers.formatEther(supply);
+                    } catch (e) {
+                        console.error("[WEB3] Error reading BLUE totalSupply", e.message);
+                    }
+                }
+                
+                if (redAddress.startsWith('0x') && redAddress.length === 42 && !redAddress.includes('RED')) {
+                    const abi = ["function totalSupply() view returns (uint256)"];
+                    const redContract = new ethers.Contract(redAddress, abi, provider);
+                    try {
+                        const supply = await redContract.totalSupply();
+                        redMinted = ethers.formatEther(supply);
+                    } catch (e) {
+                        console.error("[WEB3] Error reading RED totalSupply", e.message);
+                    }
+                }
+
+                res.json({
+                    blue: {
+                        address: blueAddress,
+                        minted: parseFloat(blueMinted).toLocaleString('es-ES', {minimumFractionDigits: 4, maximumFractionDigits: 4}) + ' BLUE'
+                    },
+                    red: {
+                        address: redAddress,
+                        minted: parseFloat(redMinted).toLocaleString('es-ES', {minimumFractionDigits: 4, maximumFractionDigits: 4}) + ' RED'
+                    }
+                });
+            } catch (error) {
+                console.error("[WEB3] Error fetching contract info:", error);
+                res.status(500).json({ error: "Error fetching contract info" });
+            }
+        });
+
         // Ruta para obtener datos públicos de un usuario (calificación)
         app.get('/user/:username', async (req, res) => {
             const { username } = req.params;

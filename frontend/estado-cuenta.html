@@ -70,6 +70,8 @@
             align-items: center;
             padding: 10px 0;
             border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            flex-wrap: wrap;
+            gap: 5px;
         }
 
         .data-row:last-child {
@@ -161,9 +163,11 @@
             font-size: 0.85rem;
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin: 15px 0 10px 0;
+            margin: 20px 0 10px 0;
             font-weight: 600;
-            text-align: left;
+            text-align: left !important;
+            width: 100%;
+            display: block;
         }
 
         .explorer-btn {
@@ -185,6 +189,67 @@
         .explorer-btn:hover {
             background: rgba(255, 255, 255, 0.1);
             border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .sc-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 8px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            margin-top: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .sc-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #f8fafc;
+        }
+
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 1px solid #64748b;
+            color: #64748b;
+            font-size: 10px;
+            margin-left: 5px;
+            cursor: pointer;
+            vertical-align: middle;
+        }
+
+        /* Modal extra para Smart Contracts */
+        .sc-modal-content {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            color: #f8fafc;
+            text-align: center;
+            max-width: 400px;
+            margin: 15% auto;
+            position: relative;
+        }
+        
+        .sc-address {
+            background: #000;
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            word-break: break-all;
+            margin: 15px 0;
+            color: #10B981;
+            font-size: 0.85rem;
         }
 
         /* Responsive */
@@ -248,6 +313,11 @@
                         <span class="data-value highlight-green" id="fiatEquivalency">≈ $0.00 USD</span>
                     </div>
                     <p style="font-size: 0.75rem; color: #64748b; margin-top: 8px; text-align: center;">Valor referencial (1 BLUE = 1 USD). Sujeto al lanzamiento oficial.</p>
+                    
+                    <button class="sc-btn" id="scBlueBtn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                        Ver Smart Contract BLUE
+                    </button>
                 </div>
 
                 <!-- Crédito y Deuda RED -->
@@ -278,6 +348,11 @@
                         <span class="data-label">Vencimiento más próximo</span>
                         <span class="data-value" id="redNextDueDate" style="font-size: 0.85rem;">--</span>
                     </div>
+                    
+                    <button class="sc-btn" id="scRedBtn" style="margin-top: 20px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                        Ver Smart Contract RED
+                    </button>
                 </div>
 
                 <!-- Estadísticas de Interacción -->
@@ -289,19 +364,19 @@
                     <div class="stats-grid">
                         <div class="stat-box">
                             <span class="stat-number" id="statInteractions">0</span>
-                            <span class="stat-desc">Interacciones Web3</span>
+                            <span class="stat-desc">Interacciones Web3 <span class="info-icon" onclick="showCustomAlert('Suma total de veces que tu billetera ha interactuado con los contratos inteligentes de WintonCoin (BLUE/RED) u otras operaciones registradas en el ledger de la red.')">i</span></span>
                         </div>
                         <div class="stat-box">
                             <span class="stat-number" id="statReceived">0</span>
-                            <span class="stat-desc">Pagos Recibidos</span>
+                            <span class="stat-desc">Pagos Recibidos <span class="info-icon" onclick="showCustomAlert('Cantidad de transacciones entrantes exitosas. Representa las veces que has recibido BLUE IOU como recompensas, bonos o pagos directos.')">i</span></span>
                         </div>
                         <div class="stat-box">
                             <span class="stat-number" id="statSent">0</span>
-                            <span class="stat-desc">Pagos Enviados</span>
+                            <span class="stat-desc">Pagos Enviados <span class="info-icon" onclick="showCustomAlert('Cantidad de transacciones salientes exitosas. Incluye comisiones pagadas a la red, transferencias P2P y pagos a otros usuarios.')">i</span></span>
                         </div>
                         <div class="stat-box">
                             <span class="stat-number" id="statBurned">0</span>
-                            <span class="stat-desc">Deuda Quemada</span>
+                            <span class="stat-desc">Deuda Quemada <span class="info-icon" onclick="showCustomAlert('Cantidad de eventos en los que usaste BLUE IOU para liquidar deuda RED, equilibrando tu límite de crédito y ayudando a la deflación de la red.')">i</span></span>
                         </div>
                     </div>
                 </div>
@@ -338,6 +413,24 @@
             <span class="close-button alert-close-button">&times;</span>
             <p id="customAlertMessage"></p>
             <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- Modal de Smart Contract -->
+    <div id="scModal" class="modal">
+        <div class="sc-modal-content">
+            <span class="close-button" id="scModalClose">&times;</span>
+            <h3 id="scModalTitle" style="margin-top: 0;">Smart Contract</h3>
+            <div class="sc-address" id="scModalAddress">0x...</div>
+            
+            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; text-align: left; margin-bottom: 20px;">
+                <p style="color: #94a3b8; font-size: 0.85rem; margin: 0 0 5px 0;">Suministro Actual Minteado:</p>
+                <p id="scModalMinted" style="font-size: 1.2rem; font-weight: 700; color: #f8fafc; margin: 0;">Cargando...</p>
+            </div>
+            
+            <a href="#" id="scModalExplorer" target="_blank" class="explorer-btn" style="margin-top: 0;">
+                Auditar en Blockchain
+            </a>
         </div>
     </div>
 </body>
