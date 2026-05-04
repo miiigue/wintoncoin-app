@@ -996,18 +996,34 @@ async function startServer() {
                     SELECT SUM(amount) as total_penalized_debt FROM red_token_debts
                     WHERE username = $1 AND is_penalized = TRUE AND is_settled = FALSE
                 `;
+                const debt30DaysSql = `
+                    SELECT COALESCE(SUM(amount), 0) as total FROM red_token_debts 
+                    WHERE username = $1 AND is_settled = FALSE AND due_at <= NOW() + INTERVAL '30 days'
+                `;
+                const debtEndMonthSql = `
+                    SELECT COALESCE(SUM(amount), 0) as total FROM red_token_debts 
+                    WHERE username = $1 AND is_settled = FALSE AND due_at <= (date_trunc('month', NOW()) + INTERVAL '1 month - 1 day')
+                `;
 
-                const [debtResult, escrowResult, penalizedDebtResult] = await Promise.all([
+                const [debtResult, escrowResult, penalizedDebtResult, debt30Result, debtEndMonthResult] = await Promise.all([
                     client.query(debtSql, [username]),
                     client.query(escrowSql, [username]),
-                    client.query(penalizedDebtSql, [username])
+                    client.query(penalizedDebtSql, [username]),
+                    client.query(debt30DaysSql, [username]),
+                    client.query(debtEndMonthSql, [username])
                 ]);
+
+                const creditScoringService = require('./src/services/creditScoringService');
+                const creditLimit = await creditScoringService.calculateUserScore(userId);
 
                 const responseData = {
                     blue_balance: userResult.rows[0].liquid_blue_balance,
                     escrow_blue_balance: userResult.rows[0].escrow_blue_balance,
                     red_balance: userResult.rows[0].red_balance,
                     web3_wallet_address: userResult.rows[0].web3_wallet_address,
+                    credit_limit: creditLimit,
+                    debt_30_days: debt30Result.rows[0].total,
+                    debt_end_month: debtEndMonthResult.rows[0].total,
                     next_due_at: debtResult.rows[0]?.due_at || null,
                     next_due_amount: debtResult.rows[0]?.amount || null,
                     next_unlock_at: escrowResult.rows[0]?.unlock_at || null,

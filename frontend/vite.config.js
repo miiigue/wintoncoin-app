@@ -99,6 +99,7 @@ export default defineConfig(({ mode }) => ({
         transactions: resolve(__dirname, 'transactions.html'),
         referrals: resolve(__dirname, 'referrals.html'),
         boosterProfile: resolve(__dirname, 'booster-profile.html'),
+        estadoCuenta: resolve(__dirname, 'estado-cuenta.html'),
 
         // Páginas de Marketing
         faq: resolve(__dirname, 'faq.html'),

@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Estado de Cuenta Web3 - WintonCoin</title>
+    <link id="main-stylesheet" rel="stylesheet" href="style.css">
+    <!-- Reusamos booster-style para la estructura base de tarjetas oscuras premium -->
+    <link id="booster-stylesheet" rel="stylesheet" href="booster-style.css">
+    <style>
+        .web3-container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            padding-bottom: 80px;
+        }
+
+        .web3-title {
+            text-align: center;
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 25px;
+            background: linear-gradient(90deg, #10B981, #3b82f6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: transparent;
+            letter-spacing: 0.5px;
+        }
+
+        .web3-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .web3-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px -5px rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.2);
+        }
+
+        .web3-card h3 {
+            font-size: 1.1rem;
+            color: #e2e8f0;
+            margin-bottom: 15px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .web3-card h3 svg {
+            color: #10B981;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .data-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .data-label {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .data-value {
+            color: #f8fafc;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-align: right;
+        }
+
+        .data-value.highlight-blue { color: #3b82f6; }
+        .data-value.highlight-red { color: #ef4444; }
+        .data-value.highlight-green { color: #10B981; }
+        
+        .address-box {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .address-text {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9rem;
+            color: #94a3b8;
+            word-break: break-all;
+            margin-right: 10px;
+        }
+
+        .copy-btn {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10B981;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: rgba(16, 185, 129, 0.3);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .stat-box {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.03);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #f8fafc;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .stat-desc {
+            font-size: 0.8rem;
+            color: #94a3b8;
+        }
+
+        .sub-header {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 15px 0 10px 0;
+            font-weight: 600;
+            text-align: left;
+        }
+
+        .explorer-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #f8fafc;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s;
+            margin-top: 20px;
+        }
+
+        .explorer-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .web3-container { padding: 15px; padding-bottom: 80px; }
+            .web3-title { font-size: 1.4rem; }
+            .address-text { font-size: 0.8rem; }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container web3-container">
+        <a href="contract_interaction.html" class="back-link">&larr; Volver a Billetera</a>
+
+        <div id="web3-content">
+            <h1 class="web3-title">Estado de Cuenta Web3</h1>
+
+            <div class="loading-spinner" id="web3Loading"></div>
+            
+            <div id="web3Data" style="display: none;">
+                <!-- Identidad Web3 -->
+                <div class="web3-card">
+                    <h3>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                        Identidad Web3
+                    </h3>
+                    <div class="data-row">
+                        <span class="data-label">Estado de Red</span>
+                        <span class="data-value highlight-green">Conectado a Optimism Sepolia <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10B981; margin-left:4px;"></span></span>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <span class="data-label">Llave Pública (Public Key)</span>
+                        <div class="address-box">
+                            <span class="address-text" id="publicKeyDisplay">0x...</span>
+                            <button class="copy-btn" id="copyPublicKeyBtn">Copiar</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Liquidez BLUE -->
+                <div class="web3-card" style="border-left: 3px solid #3b82f6;">
+                    <h3>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                        Liquidez BLUE (Activos)
+                    </h3>
+                    <div class="data-row">
+                        <span class="data-label">Total Disponible</span>
+                        <span class="data-value highlight-blue" id="blueAvailable">0.0000 BLUE</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">En Escrow (Bloqueado)</span>
+                        <span class="data-value" id="blueEscrow">0.0000 BLUE</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Próxima liberación de Escrow</span>
+                        <span class="data-value" id="blueUnlockDate" style="font-size: 0.85rem;">--</span>
+                    </div>
+                    <div class="data-row" style="background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 8px; margin-top: 10px;">
+                        <span class="data-label" style="color:#e2e8f0; font-weight: 600;">Equivalencia Fiat Estimada</span>
+                        <span class="data-value highlight-green" id="fiatEquivalency">≈ $0.00 USD</span>
+                    </div>
+                    <p style="font-size: 0.75rem; color: #64748b; margin-top: 8px; text-align: center;">Valor referencial (1 BLUE = 1 USD). Sujeto al lanzamiento oficial.</p>
+                </div>
+
+                <!-- Crédito y Deuda RED -->
+                <div class="web3-card" style="border-left: 3px solid #ef4444;">
+                    <h3>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+                        Línea de Crédito RED (Pasivos)
+                    </h3>
+                    <div class="data-row">
+                        <span class="data-label">Límite de Crédito Aprobado</span>
+                        <span class="data-value" id="redCreditLimit">0.0000 RED</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Deuda Actual</span>
+                        <span class="data-value highlight-red" id="redDebtTotal">0.0000 RED</span>
+                    </div>
+                    
+                    <div class="sub-header">Cronograma de Vencimientos</div>
+                    <div class="data-row">
+                        <span class="data-label">Por vencer en próximos 30 días</span>
+                        <span class="data-value" id="redDebt30Days" style="color: #f59e0b;">0.0000 RED</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Por vencer al fin del mes actual</span>
+                        <span class="data-value" id="redDebtEndMonth" style="color: #f97316;">0.0000 RED</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Vencimiento más próximo</span>
+                        <span class="data-value" id="redNextDueDate" style="font-size: 0.85rem;">--</span>
+                    </div>
+                </div>
+
+                <!-- Estadísticas de Interacción -->
+                <div class="web3-card">
+                    <h3>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+                        Métricas de Actividad Blockchain
+                    </h3>
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <span class="stat-number" id="statInteractions">0</span>
+                            <span class="stat-desc">Interacciones Web3</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-number" id="statReceived">0</span>
+                            <span class="stat-desc">Pagos Recibidos</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-number" id="statSent">0</span>
+                            <span class="stat-desc">Pagos Enviados</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-number" id="statBurned">0</span>
+                            <span class="stat-desc">Deuda Quemada</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Historial de Transacciones -->
+                <div class="web3-card" style="margin-top: 20px;">
+                    <h3>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        Últimas Transacciones
+                    </h3>
+                    <div id="txHistoryContainer" style="max-height: 250px; overflow-y: auto; font-size: 0.85rem; margin-top: 10px; padding-right: 5px;">
+                        <div style="text-align: center; color: #94a3b8; padding: 10px;">Cargando historial...</div>
+                    </div>
+                </div>
+
+                <!-- Auditoría -->
+                <a href="#" id="explorerLinkBtn" target="_blank" class="explorer-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                    Auditar en Explorador de Bloques
+                </a>
+                <p style="font-size: 0.8rem; color: #64748b; text-align: center; margin-top: 15px; margin-bottom: 20px;">
+                    Todas las transacciones son inmutables y trazables en la red pública, cumpliendo con estándares de auditoría financiera Web3.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ES Modules -->
+    <script type="module" src="src/pages/estado-cuenta.js"></script>
+
+    <!-- Modal de Alerta -->
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+</body>
+
+</html>

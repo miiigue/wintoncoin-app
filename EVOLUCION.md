@@ -16,6 +16,22 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 ## Línea de tiempo (hitos)
 
 ---
+    
+### 2026-05-04 — Estado de Cuenta Web3 (Auditoría Financiera)
+
+- **Contexto**: La página principal de la billetera debía mantenerse simple para las transacciones diarias, pero se necesitaba un espacio profesional para mostrar métricas financieras y Web3, el límite de crédito RED, equivalencia fiat y estadísticas transaccionales, cumpliendo estándares de auditoría.
+- **Decisión**:
+  - Implementar un diseño de "Divulgación Progresiva" (Progressive Disclosure) creando la nueva página `estado-cuenta.html`.
+  - Agregar la Llave Pública con estado de conexión a la red "Optimism Sepolia" y enlace directo al Explorador de Bloques.
+  - Mostrar el detalle de la Línea de Crédito RED y estructurar vencimientos a 30 días y a fin de mes.
+  - Mostrar la Liquidez BLUE detallando fondos disponibles vs bloqueados (escrow) y su fecha de liberación.
+  - Generar un bloque de estadísticas de actividad de red (interacciones, enviadas, recibidas).
+- **Impacto**: 
+  - Mayor transparencia técnica y financiera sin ensuciar la UX principal de la billetera.
+  - Interfaz estandarizada a la de plataformas como Binance y Coinbase.
+- **Evidencia**: Archivos creados `estado-cuenta.html`, `estado-cuenta.js` e inclusión en `vite.config.js`.
+
+---
 
 ### 2026-05-01 — Rediseño del Banner de Referidos (Booster Edition)
 
@@ -32,7 +48,36 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
-### 2025-07-15 — Donaciones: categoría dedicada (UI + lógica)
+### 2026-05-02 — Despliegue de WintonProtocol en Optimism Sepolia (Testnet Pública)
+
+- **Contexto**: El entorno Demo necesitaba operar bajo estándares profesionales de la industria Web3 (Staging real), abandonando simulaciones locales (`localhost`) para conectarse a una Blockchain pública.
+- **Decisión**:
+  - Compilación y despliegue del contrato inteligente `WintonProtocol.sol` en la red de Capa 2 **Optimism Sepolia**.
+  - Configuración de un nodo RPC mediante **Alchemy** para el puente de comunicación.
+  - Implementación de una billetera segura de despliegue ("Deployer Demo") actuando como el **Relayer** autorizado del protocolo.
+- **Impacto**:
+  - La aplicación (Demo) ahora es una DApp 100% funcional y auditable on-chain.
+  - Los pagos (Off-chain) y el Scoring de Crédito WTS se sincronizan de forma segura con la Testnet sin costo de gas para el usuario final ("Cero Fricción").
+- **Evidencia**: 
+  - Contrato desplegado en la dirección: `0x0066269E090a38618A24A1fB65b52AEBBa3c00C4`
+
+---
+
+### 2026-05-02 — Infraestructura Web3 y Scoring Conductual (Migración 050)
+
+- **Contexto**: El sistema requería una base sólida para el almacenamiento de billeteras Web3 y la configuración del Scoring de Crédito RED (WTS) en el entorno de producción/demo.
+- **Decisión**:
+  - Implementar la **Migración 050** para añadir las columnas `web3_wallet_address` y `web3_private_key_encrypted` a la tabla `users`.
+  - Registrar las variables maestras de Scoring en `app_settings` (base 100, bonos por referido/actividad) para permitir ajustes sin redespliegue.
+  - Asegurar la **idempotencia** de la migración para despliegues seguros en Render.
+- **Impacto**:
+  - Habilitación del sistema de "Bóvedas Invisibles" para usuarios.
+  - Sincronización automática de límites de crédito entre DB y Smart Contracts.
+- **Evidencia**: Archivo de migración `050_add_web3_wallet_and_scoring_settings.js` desplegado y ejecutado.
+
+---
+
+### 2026-05-01 — Rediseño del Banner de Referidos (Booster Edition)
 
 - **Contexto**: “donación” es un tipo de publicación distinto (no es venta ni solicitud). Si se trata como genérico, la UX y las reglas se vuelven confusas.
 - **Decisión**: crear categoría de donaciones con estilos y lógica específica en frontend, con soporte backend donde aplica.
