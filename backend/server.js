@@ -1041,10 +1041,19 @@ async function startServer() {
         });
 
         // ==========================================
-        // RUTA: OBTENER INFO DE SMART CONTRACTS
+        // RUTA: OBTENER INFO DE SMART CONTRACTS (SEGURO Y CACHEADO)
         // ==========================================
+        let contractsInfoCache = null;
+        let lastContractsFetch = 0;
+        const CACHE_TTL_MS = 60000; // 60 segundos de caché (Estándar Fintech para prevenir DDoS sobre nodos RPC)
+
         app.get('/api/contracts/info', verifyToken, async (req, res) => {
             try {
+                // Prevenir ataques de agotamiento de RPC devolviendo desde la memoria caché si es válido
+                if (contractsInfoCache && (Date.now() - lastContractsFetch < CACHE_TTL_MS)) {
+                    return res.status(200).json(contractsInfoCache);
+                }
+
                 const { ethers } = require('ethers');
                 const RPC_URL = process.env.OPTIMISM_RPC_URL || 'https://sepolia.optimism.io';
                 const provider = new ethers.JsonRpcProvider(RPC_URL);
@@ -1063,7 +1072,7 @@ async function startServer() {
                         const supply = await blueContract.totalSupply();
                         blueMinted = ethers.formatEther(supply);
                     } catch (e) {
-                        console.error("[WEB3] Error reading BLUE totalSupply", e.message);
+                        console.error("[WEB3 SEC] Error reading BLUE totalSupply", e.message);
                     }
                 }
                 
@@ -1074,11 +1083,11 @@ async function startServer() {
                         const supply = await redContract.totalSupply();
                         redMinted = ethers.formatEther(supply);
                     } catch (e) {
-                        console.error("[WEB3] Error reading RED totalSupply", e.message);
+                        console.error("[WEB3 SEC] Error reading RED totalSupply", e.message);
                     }
                 }
 
-                res.json({
+                contractsInfoCache = {
                     blue: {
                         address: blueAddress,
                         minted: parseFloat(blueMinted).toLocaleString('es-ES', {minimumFractionDigits: 4, maximumFractionDigits: 4}) + ' BLUE'
@@ -1087,10 +1096,17 @@ async function startServer() {
                         address: redAddress,
                         minted: parseFloat(redMinted).toLocaleString('es-ES', {minimumFractionDigits: 4, maximumFractionDigits: 4}) + ' RED'
                     }
-                });
+                };
+                lastContractsFetch = Date.now();
+
+                res.status(200).json(contractsInfoCache);
             } catch (error) {
-                console.error("[WEB3] Error fetching contract info:", error);
-                res.status(500).json({ error: "Error fetching contract info" });
+                console.error("[WEB3 SEC] Error fetching contract info:", error);
+                // Fallback de seguridad para que la UI no se rompa
+                if (contractsInfoCache) {
+                    return res.status(200).json(contractsInfoCache);
+                }
+                res.status(500).json({ error: "Error de infraestructura Web3" });
             }
         });
 
