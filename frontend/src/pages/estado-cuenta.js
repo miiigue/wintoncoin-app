@@ -23,6 +23,7 @@ async function initializeEstadoCuenta() {
         blueUnlockDate: document.getElementById('blueUnlockDate'),
         fiatEquivalency: document.getElementById('fiatEquivalency'),
         redCreditLimit: document.getElementById('redCreditLimit'),
+        redCreditAvailable: document.getElementById('redCreditAvailable'),
         redDebtTotal: document.getElementById('redDebtTotal'),
         redDebt30Days: document.getElementById('redDebt30Days'),
         redDebtEndMonth: document.getElementById('redDebtEndMonth'),
@@ -105,7 +106,12 @@ async function initializeEstadoCuenta() {
         const debt = parseFloat(data.red_balance) || 0;
         // Obtenemos el límite real calculado del usuario
         const creditLimit = data.credit_limit || 0;
+        const availableCredit = Math.max(0, creditLimit - debt);
+        
         elements.redCreditLimit.textContent = `${formatBalance(creditLimit)} RED`;
+        if (elements.redCreditAvailable) {
+            elements.redCreditAvailable.textContent = `${formatBalance(availableCredit)} RED`;
+        }
         elements.redDebtTotal.textContent = `${formatBalance(debt)} RED`;
 
         if (debt > 0) {

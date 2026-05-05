@@ -271,6 +271,75 @@
             <div class="loading-spinner" id="web3Loading"></div>
             
             <div id="web3Data" style="display: none;">
+                <!-- Liquidez BLUE -->
+                <div class="web3-card" style="border-left: 3px solid #3b82f6;">
+                    <h3>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                        Tokens BLUE (Activos)
+                    </h3>
+                    <div class="data-row">
+                        <span class="data-label">Total Disponible</span>
+                        <span class="data-value highlight-blue" id="blueAvailable">0.0000 BLUE</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">En Escrow (Bloqueado)</span>
+                        <span class="data-value" id="blueEscrow">0.0000 BLUE</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Próxima liberación de Escrow</span>
+                        <span class="data-value" id="blueUnlockDate" style="font-size: 0.85rem;">--</span>
+                    </div>
+                    <div class="data-row" style="background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 8px; margin-top: 10px;">
+                        <span class="data-label" style="color:#e2e8f0; font-weight: 600;">USD Estimado</span>
+                        <span class="data-value highlight-green" id="fiatEquivalency">≈ $0.00 USD</span>
+                    </div>
+                    <p style="font-size: 0.75rem; color: #64748b; margin-top: 8px; text-align: center;">Valor referencial (1 BLUE = 1 USD). Sujeto al lanzamiento oficial.</p>
+                    
+                    <button class="sc-btn" id="scBlueBtn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                        Ver Smart Contract BLUE
+                    </button>
+                </div>
+
+                <!-- Crédito y Deuda RED -->
+                <div class="web3-card" style="border-left: 3px solid #ef4444;">
+                    <h3>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+                        Tokens RED (Pasivos)
+                    </h3>
+                    <div class="data-row">
+                        <span class="data-label">Límite RED aprobado</span>
+                        <span class="data-value" id="redCreditLimit">0.0000 RED</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Límite RED disponible</span>
+                        <span class="data-value highlight-green" id="redCreditAvailable">0.0000 RED</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Cupo RED utilizado</span>
+                        <span class="data-value highlight-red" id="redDebtTotal">0.0000 RED</span>
+                    </div>
+                    
+                    <div class="sub-header">Cronograma de Vencimientos</div>
+                    <div class="data-row">
+                        <span class="data-label">Vencimiento más próximo</span>
+                        <span class="data-value" id="redNextDueDate" style="font-size: 0.85rem;">--</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Por vencer este mes</span>
+                        <span class="data-value" id="redDebtEndMonth" style="color: #f97316;">0.0000 RED</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Por vencer en próximos 30 días</span>
+                        <span class="data-value" id="redDebt30Days" style="color: #f59e0b;">0.0000 RED</span>
+                    </div>
+                    
+                    <button class="sc-btn" id="scRedBtn" style="margin-top: 20px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                        Ver Smart Contract RED
+                    </button>
+                </div>
+
                 <!-- Identidad Web3 -->
                 <div class="web3-card">
                     <h3>
@@ -288,71 +357,6 @@
                             <button class="copy-btn" id="copyPublicKeyBtn">Copiar</button>
                         </div>
                     </div>
-                </div>
-
-                <!-- Liquidez BLUE -->
-                <div class="web3-card" style="border-left: 3px solid #3b82f6;">
-                    <h3>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                        Liquidez BLUE (Activos)
-                    </h3>
-                    <div class="data-row">
-                        <span class="data-label">Total Disponible</span>
-                        <span class="data-value highlight-blue" id="blueAvailable">0.0000 BLUE</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">En Escrow (Bloqueado)</span>
-                        <span class="data-value" id="blueEscrow">0.0000 BLUE</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">Próxima liberación de Escrow</span>
-                        <span class="data-value" id="blueUnlockDate" style="font-size: 0.85rem;">--</span>
-                    </div>
-                    <div class="data-row" style="background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 8px; margin-top: 10px;">
-                        <span class="data-label" style="color:#e2e8f0; font-weight: 600;">Equivalencia Fiat Estimada</span>
-                        <span class="data-value highlight-green" id="fiatEquivalency">≈ $0.00 USD</span>
-                    </div>
-                    <p style="font-size: 0.75rem; color: #64748b; margin-top: 8px; text-align: center;">Valor referencial (1 BLUE = 1 USD). Sujeto al lanzamiento oficial.</p>
-                    
-                    <button class="sc-btn" id="scBlueBtn">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                        Ver Smart Contract BLUE
-                    </button>
-                </div>
-
-                <!-- Crédito y Deuda RED -->
-                <div class="web3-card" style="border-left: 3px solid #ef4444;">
-                    <h3>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
-                        Línea de Crédito RED (Pasivos)
-                    </h3>
-                    <div class="data-row">
-                        <span class="data-label">Límite de Crédito Aprobado</span>
-                        <span class="data-value" id="redCreditLimit">0.0000 RED</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">Deuda Actual</span>
-                        <span class="data-value highlight-red" id="redDebtTotal">0.0000 RED</span>
-                    </div>
-                    
-                    <div class="sub-header">Cronograma de Vencimientos</div>
-                    <div class="data-row">
-                        <span class="data-label">Por vencer en próximos 30 días</span>
-                        <span class="data-value" id="redDebt30Days" style="color: #f59e0b;">0.0000 RED</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">Por vencer este mes</span>
-                        <span class="data-value" id="redDebtEndMonth" style="color: #f97316;">0.0000 RED</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">Vencimiento más próximo</span>
-                        <span class="data-value" id="redNextDueDate" style="font-size: 0.85rem;">--</span>
-                    </div>
-                    
-                    <button class="sc-btn" id="scRedBtn" style="margin-top: 20px;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                        Ver Smart Contract RED
-                    </button>
                 </div>
 
                 <!-- Estadísticas de Interacción -->
