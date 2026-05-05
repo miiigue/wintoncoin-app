@@ -164,10 +164,15 @@ async function initializeEstadoCuenta() {
                         displayAmount = '-';
                     }
 
+                    let txHashHtml = '';
+                    if (tx.tx_hash) {
+                        txHashHtml = `<br><a href="https://sepolia-optimism.etherscan.io/tx/${tx.tx_hash}" target="_blank" style="color: #3b82f6; font-size: 0.75rem; text-decoration: none;">Ver en Explorer ↗</a>`;
+                    }
+
                     html += `
                         <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
                             <td style="padding: 8px 0; color: #94a3b8;">${new Date(tx.created_at).toLocaleDateString('es-ES')}</td>
-                            <td style="padding: 8px 0;">${tx.description || tx.type}</td>
+                            <td style="padding: 8px 0;">${tx.description || tx.type}${txHashHtml}</td>
                             <td style="padding: 8px 0; text-align: right; font-weight: 600; color: ${color};">${displayAmount}</td>
                         </tr>
                     `;
