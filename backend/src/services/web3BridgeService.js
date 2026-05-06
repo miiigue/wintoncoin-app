@@ -60,6 +60,12 @@ class Web3BridgeService {
 
             if (receipt.status === 1) {
                 console.log(`[WEB3 BRIDGE] Sincronización EXITOSA. Tx: ${tx.hash}`);
+                
+                // GUARDAR EL HASH EN LA BASE DE DATOS
+                if (dbTransactionId) {
+                    await pool.query('UPDATE transactions SET tx_hash = $1 WHERE id = $2', [tx.hash, dbTransactionId]);
+                    console.log(`[WEB3 BRIDGE] Hash ${tx.hash} guardado en la DB para la transacción ${dbTransactionId}`);
+                }
             } else {
                 throw new Error('Transacción fallida en la Blockchain (Reverted)');
             }
