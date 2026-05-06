@@ -53,6 +53,10 @@ contract WintonProtocol is Ownable, ERC2771Context, ReentrancyGuard {
         return ERC2771Context._msgData();
     }
 
+    function _contextSuffixLength() internal view override(Context, ERC2771Context) returns (uint256) {
+        return ERC2771Context._contextSuffixLength();
+    }
+
     function setContracts(address _blue, address _red, address _treasury) external onlyOwner {
         require(_blue != address(0) && _red != address(0) && _treasury != address(0), "WintonProtocol: Invalid zero address");
         blueToken = IBlueToken(_blue);

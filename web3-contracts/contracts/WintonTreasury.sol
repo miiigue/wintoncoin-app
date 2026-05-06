@@ -47,6 +47,10 @@ contract WintonTreasury is Ownable, ERC2771Context, ReentrancyGuard {
         return ERC2771Context._msgData();
     }
 
+    function _contextSuffixLength() internal view override(Context, ERC2771Context) returns (uint256) {
+        return ERC2771Context._contextSuffixLength();
+    }
+
     /**
      * @dev Actualiza la billetera de los fundadores. Flexible para el futuro.
      */
