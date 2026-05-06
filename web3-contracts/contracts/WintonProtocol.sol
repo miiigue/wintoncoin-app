@@ -2,60 +2,117 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+// Interfaces para interactuar con los tokens
+interface IBlueToken {
+    function mint(address to, uint256 amount) external;
+    function burn(address from, uint256 amount) external;
+    function balanceOf(address account) external view returns (uint256);
+}
+
+interface IRedToken {
+    function mintDebt(address to, uint256 amount) external;
+    function burnDebt(address from, uint256 amount) external;
+    function balanceOf(address account) external view returns (uint256);
+}
 
 /**
- * @title WintonProtocol
- * @dev Contrato principal para WintonCoin en Capa 2 (Optimism).
- * Maneja el Libro Mayor público de transacciones y el Trust Score (WTS).
+ * @title WintonProtocol (El Motor Central)
+ * @dev Implementa la lógica de Cero Gas (EIP-2771) y las Leyes Económicas
+ * de Creación y Destrucción Simultánea (Materia-Antimateria).
  */
-contract WintonProtocol is Ownable {
+contract WintonProtocol is Ownable, ERC2771Context, ReentrancyGuard {
+    IBlueToken public blueToken;
+    IRedToken public redToken;
+    address public treasury; // WintonTreasury.sol
     
-    // Eventos para auditar en Etherscan
-    event PaymentSynced(address indexed payer, address indexed payee, uint256 amount, uint256 dbTxId);
-    event TrustScoreUpdated(address indexed user, uint256 newScoreLimit);
+    uint256 public commissionRate = 5; // 5% por defecto
 
-    // Mapeo del límite de crédito RED en blockchain
-    mapping(address => uint256) public redCreditLimits;
+    // Muro KYC On-Chain
+    mapping(address => bool) public isKYCVerified;
 
-    // Solo la plataforma (Relayer) puede actualizar este contrato
-    address public relayer;
+    event PaymentProcessed(address indexed payer, address indexed payee, uint256 amountBlue, uint256 fee);
+    event AutoAmortization(address indexed user, uint256 amountBurned);
 
-    constructor(address _relayer) Ownable(msg.sender) {
-        relayer = _relayer;
+    event ContractsUpdated(address blue, address red, address treasuryWallet);
+    event KYCStatusUpdated(address indexed wallet, bool status);
+    event CommissionRateUpdated(uint256 oldRate, uint256 newRate);
+
+    constructor(address _trustedForwarder) 
+        ERC2771Context(_trustedForwarder) 
+        Ownable(msg.sender) 
+    {}
+
+    function _msgSender() internal view override(Context, ERC2771Context) returns (address) {
+        return ERC2771Context._msgSender();
+    }
+
+    function _msgData() internal view override(Context, ERC2771Context) returns (bytes calldata) {
+        return ERC2771Context._msgData();
+    }
+
+    function setContracts(address _blue, address _red, address _treasury) external onlyOwner {
+        require(_blue != address(0) && _red != address(0) && _treasury != address(0), "WintonProtocol: Invalid zero address");
+        blueToken = IBlueToken(_blue);
+        redToken = IRedToken(_red);
+        treasury = _treasury;
+        emit ContractsUpdated(_blue, _red, _treasury);
+    }
+
+    function setKYCStatus(address _wallet, bool _status) external onlyOwner {
+        require(_wallet != address(0), "WintonProtocol: Invalid zero address");
+        isKYCVerified[_wallet] = _status;
+        emit KYCStatusUpdated(_wallet, _status);
+    }
+
+    function setCommissionRate(uint256 _newRate) external onlyOwner {
+        require(_newRate <= 50, "WintonProtocol: Commission too high"); // Max 50% safety cap
+        emit CommissionRateUpdated(commissionRate, _newRate);
+        commissionRate = _newRate;
     }
 
     /**
-     * @dev Actualiza la billetera Relayer autorizada
+     * @dev Función principal de pago. El Relayer llama a esta función con la firma del usuario.
+     * _msgSender() extrae automáticamente al usuario original gracias a ERC2771.
      */
-    function setRelayer(address _newRelayer) external onlyOwner {
-        relayer = _newRelayer;
-    }
+    function processPayment(address payee, uint256 amountBlue) external nonReentrant {
+        address payer = _msgSender();
 
-    modifier onlyRelayer() {
-        require(msg.sender == relayer || msg.sender == owner(), "WintonProtocol: Unauthorized");
-        _;
+        require(isKYCVerified[payer], "Payer KYC not verified");
+        require(isKYCVerified[payee], "Payee KYC not verified");
+        require(amountBlue > 0, "Amount must be greater than 0");
+
+        // Cálculo de Comisión
+        uint256 fee = (amountBlue * commissionRate) / 100;
+        uint256 totalDebt = amountBlue + fee;
+
+        // REGLA 1: Minteo Simultáneo (Balance Cero)
+        redToken.mintDebt(payer, totalDebt); // Se crea Deuda RED para el pagador
+        blueToken.mint(payee, amountBlue);   // Se crea BLUE líquido para el que recibe
+        blueToken.mint(treasury, fee);       // Se crea BLUE líquido para la Tesorería (Comisión)
+
+        emit PaymentProcessed(payer, payee, amountBlue, fee);
+
+        // REGLA 2: Auto-Amortización (Comprobar si el receptor tiene deuda previa)
+        _autoAmortize(payee);
     }
 
     /**
-     * @dev Sincroniza un pago off-chain al ledger on-chain
-     * @param payer Billetera que paga
-     * @param payee Billetera que recibe
-     * @param amountBlue Cantidad pagada en Wei
-     * @param dbTxId ID de la base de datos para trazabilidad cruzada
+     * @dev Destruye simultáneamente saldo BLUE y deuda RED si coexisten.
      */
-    function syncPayment(address payer, address payee, uint256 amountBlue, uint256 dbTxId) external onlyRelayer {
-        require(payer != address(0) && payee != address(0), "Invalid addresses");
-        emit PaymentSynced(payer, payee, amountBlue, dbTxId);
-    }
+    function _autoAmortize(address user) internal {
+        uint256 blueBalance = blueToken.balanceOf(user);
+        uint256 redBalance = redToken.balanceOf(user);
 
-    /**
-     * @dev Actualiza el límite de crédito RED basado en el motor de Scoring (WTS)
-     * @param userWallet Billetera del usuario
-     * @param newScoreLimit Nuevo límite calculado
-     */
-    function updateUserTrustScore(address userWallet, uint256 newScoreLimit) external onlyRelayer {
-        require(userWallet != address(0), "Invalid address");
-        redCreditLimits[userWallet] = newScoreLimit;
-        emit TrustScoreUpdated(userWallet, newScoreLimit);
+        if (blueBalance > 0 && redBalance > 0) {
+            uint256 amountToBurn = blueBalance < redBalance ? blueBalance : redBalance;
+            
+            blueToken.burn(user, amountToBurn);
+            redToken.burnDebt(user, amountToBurn);
+
+            emit AutoAmortization(user, amountToBurn);
+        }
     }
 }
