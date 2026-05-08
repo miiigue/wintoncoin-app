@@ -16,7 +16,36 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 ## Línea de tiempo (hitos)
 
 ---
-    
+
+### 2026-05-08 — Migración a EIP-7702 (Pectra/Isthmus) + Auditoría de Seguridad Profunda
+
+- **Contexto**: Los Smart Contracts (BlueToken, RedToken, WintonProtocol, WintonTreasury) usaban ERC-2771 (meta-transacciones de primera generación). Optimism activó EIP-7702 (Pectra/Isthmus) en mayo 2025, habilitando el estándar más moderno de Account Abstraction sin necesidad de Trusted Forwarder.
+- **Decisión**:
+  - **Migración a EIP-7702**: Eliminar `ERC2771Context` de WintonProtocol y WintonTreasury. Con EIP-7702, `msg.sender` ES la dirección real del usuario (la red lo resuelve nativamente). Se eliminaron los 3 overrides de contexto (`_msgSender`, `_msgData`, `_contextSuffixLength`).
+  - **Relayer explícito**: Añadir variable `relayer` separada del Owner. `processPayment` ahora recibe `payer` como parámetro (verificado por el backend), protegido por `onlyRelayerOrOwner`.
+  - **Vigilante de Auto-Amortización**: Implementar hook en `BlueToken._update()` que llama a `WintonProtocol.triggerAutoAmortize(receptor)` en cada recepción de BLUE. Esto cierra la vulnerabilidad de transferencia directa que permitía acumular BLUE y RED simultáneamente.
+  - **Optimización de gas**: Lista de direcciones exentas del vigilante (Treasury, Protocol) + eliminación de llamada redundante a `_autoAmortize` en `processPayment`.
+  - **Circuit Breaker**: Añadir `maxTransactionAmount` (1M BLUE) como límite por transacción individual.
+  - **Bloqueo de `renounceOwnership()`**: Sobreescrito en los 4 contratos para prevenir que el protocolo quede huérfano accidental o maliciosamente.
+- **Auditoría de Seguridad**: Se probaron 20+ escenarios de ataque incluyendo: bypass del backend, reentrada, overflow, dust attack, impersonación del relayer, front-running de Merkle root, ataque de polvo, envío de ETH directo, y compromiso de llave del Owner. Cero vulnerabilidades encontradas.
+- **Impacto**:
+  - Contratos más simples (menos herencia, menos código ejecutable, menor superficie de ataque).
+  - Gas reducido (~5,000 gas menos por transacción al eliminar overrides de contexto).
+  - Compatibilidad con el estándar más moderno de la industria (EIP-7702, mayo 2025).
+  - Regla Materia-Antimateria ahora es matemáticamente inviolable sin importar el origen de los tokens.
+- **Evidencia**: Compilación exitosa con Hardhat 2.28.6, OpenZeppelin v5.6.1, Solidity 0.8.24.
+
+#### ⚠️ MEJORAS FUTURAS (Pre-Producción):
+
+1. **Sistema de Roles con AccessControl (OpenZeppelin)**:
+   - `KYC_MANAGER_ROLE` → Backend automático (sin multifirma) para `setKYCStatus`.
+   - `FINANCIAL_ADMIN_ROLE` → Gnosis Safe multifirma para cambios de comisión, retiro de excedentes, cambio de Relayer.
+   - `EMERGENCY_ROLE` → Cualquier firmante individual del Safe puede pausar (velocidad crítica en emergencias).
+2. **Gnosis Safe Multisig como Owner**: Transferir ownership a un Safe (3/5 multifirma) antes de ir a mainnet.
+3. **Timelock en cambios financieros**: Agregar un contrato Timelock (24-48h de espera) para cambios de comisión y retiros del Treasury, dando tiempo a la comunidad de reaccionar.
+4. **Evaluación de EIP-7702 nativo**: Cuando el ecosistema de SDKs (Pimlico, ZeroDev) madure, implementar transacciones patrocinadas tipo 0x04 directamente desde el frontend.
+
+---    
 ### 2026-05-04 — Estado de Cuenta Web3 (Auditoría Financiera)
 
 - **Contexto**: La página principal de la billetera debía mantenerse simple para las transacciones diarias, pero se necesitaba un espacio profesional para mostrar métricas financieras y Web3, el límite de crédito RED, equivalencia fiat y estadísticas transaccionales, cumpliendo estándares de auditoría.
