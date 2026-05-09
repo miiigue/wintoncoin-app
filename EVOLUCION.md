@@ -17,6 +17,22 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
+### 2026-05-08 — Integración Gobernanza → Blockchain (Winton-Consensus + Web3 Bridge)
+
+- **Contexto**: Los Smart Contracts desplegados en Optimism Sepolia tienen funciones administrativas (`pause`, `setMaxTransactionAmount`, `setFoundersWallet`, `withdrawSurplus`) que solo se podían ejecutar por consola de Hardhat. Se necesitaba integrarlas con el sistema de gobernanza Winton-Consensus existente para que los guardianes pudieran gestionarlas con multifirma, votación y auditoría.
+- **Decisión**:
+  - **Ampliar `web3BridgeService.js`**: Reescribir con ABI completa del protocolo y treasury. Agregar funciones para `pauseProtocol`, `unpauseProtocol`, `setMaxTransactionAmount`, `setFoundersWallet`, `withdrawSurplus` y `getProtocolStatus` (lectura sin gas).
+  - **Integrar en `_executeAction` de `governanceService.js`**: Después de actualizar `app_settings`, si el `target_key` empieza con `web3_`, ejecutar la operación blockchain correspondiente vía el bridge. El tx_hash se guarda en `audit_log` y en `governance_requests.metadata`.
+  - **Catálogo de settings** (`settingsDisplayMap.js`): Agregar las 4 opciones Web3 con etiquetas en español para que aparezcan en el formulario de gobernanza.
+  - **Migración 052**: Insertar los 4 registros de `app_settings` con valores iniciales que coinciden con los Smart Contracts desplegados.
+- **Impacto**:
+  - Los guardianes pueden gestionar los Smart Contracts desde el panel de gobernanza existente, sin tocar consola.
+  - Cada cambio on-chain queda registrado con tx_hash en el audit_log (trazabilidad completa DB + Blockchain).
+  - El formulario de solicitud existente se reutiliza sin cambios de frontend.
+- **Evidencia**: Archivos modificados: `web3BridgeService.js`, `governanceService.js`, `settingsDisplayMap.js`. Migración `052_add_web3_governance_settings.js`.
+
+---
+
 ### 2026-05-08 — Migración a EIP-7702 (Pectra/Isthmus) + Auditoría de Seguridad Profunda
 
 - **Contexto**: Los Smart Contracts (BlueToken, RedToken, WintonProtocol, WintonTreasury) usaban ERC-2771 (meta-transacciones de primera generación). Optimism activó EIP-7702 (Pectra/Isthmus) en mayo 2025, habilitando el estándar más moderno de Account Abstraction sin necesidad de Trusted Forwarder.

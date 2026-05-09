@@ -1,78 +1,402 @@
 /**
  * src/services/web3BridgeService.js
- * Puente profesional para la sincronización de transacciones entre DB y Blockchain.
- * Implementa el estándar de 'Zero Hardcoded Secrets' y manejo de errores asíncronos.
+ * Puente profesional para la sincronización entre DB y Blockchain (Optimism Sepolia).
+ * 
+ * ARQUITECTURA EIP-7702 (Pectra / Isthmus):
+ * Este servicio actúa como el Relayer del ecosistema. Firma y paga las transacciones
+ * que los usuarios y la gobernanza necesitan ejecutar en la blockchain.
+ * 
+ * FUNCIONES DISPONIBLES:
+ * - syncPaymentToBlockchain: Sincroniza un pago procesado (processPayment).
+ * - pauseProtocol / unpauseProtocol: Pausa/reanuda el protocolo (emergencia).
+ * - setMaxTransactionAmount: Ajusta el Circuit Breaker on-chain.
+ * - setFoundersWallet: Configura la billetera fundadora en el Treasury.
+ * - withdrawSurplus: Retira excedentes del Treasury a la billetera fundadora.
+ * - getProtocolStatus: Lee el estado actual del protocolo desde la blockchain.
+ * 
+ * SEGURIDAD:
+ * - Zero Hardcoded Secrets: Todo viene de variables de entorno.
+ * - Verificación de recibos: Cada transacción espera confirmación antes de retornar.
+ * - Auditoría: Cada operación retorna el tx_hash para registro en audit_log.
+ * - Manejo de errores: Captura y loguea sin detener el servidor.
  */
 
 const { ethers } = require('ethers');
 const pool = require('../config/db');
 
-// Configuración cargada desde variables de entorno para máxima seguridad
+// ============================================================================
+// CONFIGURACIÓN: Variables de entorno para máxima seguridad
+// ============================================================================
+
+// URL del nodo RPC (Alchemy/Infura) para Optimism Sepolia.
 const RPC_URL = process.env.OPTIMISM_RPC_URL || 'http://127.0.0.1:8545';
+// Llave privada del Relayer (la billetera que paga el gas).
 const RELAYER_PK = process.env.RELAYER_PRIVATE_KEY;
+// Dirección del contrato WintonProtocol desplegado.
 const PROTOCOL_ADDRESS = process.env.WINTON_PROTOCOL_ADDRESS;
+// Dirección del contrato WintonTreasury desplegado.
+const TREASURY_ADDRESS = process.env.WINTON_TREASURY_ADDRESS;
 
 class Web3BridgeService {
     constructor() {
+        // Verificar que las variables de entorno estén configuradas.
         if (!RELAYER_PK || !PROTOCOL_ADDRESS) {
-            console.warn('[WEB3 BRIDGE] Advertencia: RELAYER_PRIVATE_KEY o WINTON_PROTOCOL_ADDRESS no definidos.');
+            console.warn('[WEB3 BRIDGE] ⚠️  RELAYER_PRIVATE_KEY o WINTON_PROTOCOL_ADDRESS no definidos. ' +
+                'Las operaciones on-chain estarán deshabilitadas.');
         }
+
+        // Crear el proveedor de conexión a la red Optimism Sepolia.
         this.provider = new ethers.JsonRpcProvider(RPC_URL);
+
+        // Crear la billetera del Relayer con la llave privada del .env.
         this.wallet = RELAYER_PK ? new ethers.Wallet(RELAYER_PK, this.provider) : null;
-        
-        // ABI mínima necesaria para interactuar con el protocolo
-        this.abi = [
-            "function syncPayment(address payer, address payee, uint256 amountBlue, uint256 dbTxId) external",
-            "event PaymentSynced(address indexed payer, address indexed payee, uint256 amount, uint256 dbTxId)"
+
+        // ABI mínima del WintonProtocol: solo las funciones que necesitamos llamar.
+        this.protocolAbi = [
+            // Función principal de pagos (payer como parámetro con EIP-7702).
+            "function processPayment(address payer, address payee, uint256 amountBlue) external",
+            // Funciones de configuración (onlyOwner).
+            "function pause() external",
+            "function unpause() external",
+            "function setMaxTransactionAmount(uint256 _newAmount) external",
+            "function setCommissionRate(uint256 _newRate) external",
+            "function setKYCStatus(address _wallet, bool _status) external",
+            // Funciones de lectura (públicas, sin gas).
+            "function paused() external view returns (bool)",
+            "function maxTransactionAmount() external view returns (uint256)",
+            "function commissionRate() external view returns (uint256)",
+            "function isKYCVerified(address) external view returns (bool)",
+            // Eventos para auditoría.
+            "event PaymentProcessed(address indexed payer, address indexed payee, uint256 amountBlue, uint256 fee)",
+            "event MaxTransactionAmountUpdated(uint256 oldAmount, uint256 newAmount)",
+        ];
+
+        // ABI mínima del WintonTreasury: funciones de configuración y retiro.
+        this.treasuryAbi = [
+            // Funciones de configuración (onlyOwner).
+            "function setFoundersWallet(address _newWallet) external",
+            "function withdrawSurplus(uint256 amount) external",
+            "function pause() external",
+            "function unpause() external",
+            // Funciones de lectura (públicas, sin gas).
+            "function foundersWallet() external view returns (address)",
+            "function blueToken() external view returns (address)",
+            // Eventos para auditoría.
+            "event FoundersWalletUpdated(address indexed newWallet)",
+            "event SurplusWithdrawn(address indexed to, uint256 amount)",
         ];
     }
 
+    // ========================================================================
+    // HELPERS INTERNOS
+    // ========================================================================
+
     /**
-     * Sincroniza un pago BLUE realizado en la plataforma con el Smart Contract en la Blockchain.
-     * @param {Object} params Datos de la transacción
+     * Verifica que el Relayer esté configurado antes de ejecutar una operación.
+     * @private
+     * @returns {boolean} true si está listo, false si no.
+     */
+    _isReady() {
+        if (!this.wallet) {
+            console.error('[WEB3 BRIDGE] ❌ Relayer no configurado. Operación on-chain omitida.');
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Crea una instancia del contrato WintonProtocol con el Relayer como firmante.
+     * @private
+     * @returns {ethers.Contract} Instancia del contrato conectada al Relayer.
+     */
+    _getProtocol() {
+        return new ethers.Contract(PROTOCOL_ADDRESS, this.protocolAbi, this.wallet);
+    }
+
+    /**
+     * Crea una instancia del contrato WintonTreasury con el Relayer como firmante.
+     * @private
+     * @returns {ethers.Contract|null} Instancia del contrato o null si no está configurado.
+     */
+    _getTreasury() {
+        if (!TREASURY_ADDRESS) {
+            console.error('[WEB3 BRIDGE] ❌ WINTON_TREASURY_ADDRESS no configurado.');
+            return null;
+        }
+        return new ethers.Contract(TREASURY_ADDRESS, this.treasuryAbi, this.wallet);
+    }
+
+    /**
+     * Espera la confirmación de una transacción y retorna el hash.
+     * @private
+     * @param {ethers.TransactionResponse} tx - La transacción enviada.
+     * @param {string} operationName - Nombre de la operación para el log.
+     * @returns {Promise<string|null>} El hash de la transacción confirmada o null si falló.
+     */
+    async _waitForConfirmation(tx, operationName) {
+        console.log(`[WEB3 BRIDGE] Tx enviada (${operationName}): ${tx.hash}. Esperando confirmación...`);
+        // Esperar 1 confirmación (estándar de seguridad para L2).
+        const receipt = await tx.wait(1);
+        if (receipt.status === 1) {
+            console.log(`[WEB3 BRIDGE] ✅ ${operationName} EXITOSO. Tx: ${tx.hash}`);
+            return tx.hash;
+        } else {
+            throw new Error(`Transacción revertida en la blockchain para ${operationName}`);
+        }
+    }
+
+    // ========================================================================
+    // FUNCIÓN 1: SINCRONIZAR PAGO (processPayment)
+    // ========================================================================
+
+    /**
+     * Sincroniza un pago BLUE realizado en la plataforma con el Smart Contract.
+     * Llamado automáticamente por el backend después de confirmar un pago.
+     * 
+     * @param {Object} params Datos de la transacción.
+     * @param {string} params.payerWalletAddress Dirección del pagador.
+     * @param {string} params.payeeWalletAddress Dirección del beneficiario.
+     * @param {number} params.amountBlue Monto neto del pago.
+     * @param {number} params.dbTransactionId ID de la transacción en la DB.
+     * @param {string} params.payerUsername Username del pagador (para logs).
+     * @param {string} params.payeeUsername Username del beneficiario (para logs).
+     * @returns {Promise<string|null>} Hash de la transacción o null si falló.
      */
     async syncPaymentToBlockchain({ payerWalletAddress, payeeWalletAddress, amountBlue, dbTransactionId, payerUsername, payeeUsername }) {
-        if (!this.wallet) {
-            console.error('[WEB3 BRIDGE] Relayer no configurado. Saltando sincronización on-chain.');
-            return;
+        if (!this._isReady()) return null;
+
+        try {
+            console.log(`[WEB3 BRIDGE] Sincronizando pago: ${payerUsername} → ${payeeUsername} (${amountBlue} BLUE)`);
+
+            const protocol = this._getProtocol();
+            // Convertir monto a formato Blockchain (18 decimales estándar ERC-20).
+            const amountWei = ethers.parseEther(amountBlue.toString());
+
+            // Ejecutar processPayment con el payer como parámetro (arquitectura EIP-7702).
+            const tx = await protocol.processPayment(payerWalletAddress, payeeWalletAddress, amountWei);
+            const txHash = await this._waitForConfirmation(tx, 'syncPayment');
+
+            // Guardar el hash en la base de datos para auditoría.
+            if (dbTransactionId && txHash) {
+                await pool.query(
+                    'UPDATE transactions SET tx_hash = $1 WHERE id = $2',
+                    [txHash, dbTransactionId]
+                );
+                console.log(`[WEB3 BRIDGE] Hash ${txHash} guardado para transacción #${dbTransactionId}`);
+            }
+
+            return txHash;
+
+        } catch (error) {
+            console.error(`[WEB3 BRIDGE] ❌ Error en sincronización de pago:`, error.message);
+            return null;
+        }
+    }
+
+    // ========================================================================
+    // FUNCIÓN 2: PAUSAR / REANUDAR PROTOCOLO (Emergencia)
+    // ========================================================================
+
+    /**
+     * Pausa todas las operaciones financieras del protocolo on-chain.
+     * Se llama cuando la gobernanza aprueba web3_protocol_paused = 'true'.
+     * 
+     * @returns {Promise<{success: boolean, txHash: string|null, error: string|null}>}
+     */
+    async pauseProtocol() {
+        if (!this._isReady()) return { success: false, txHash: null, error: 'Relayer no configurado' };
+
+        try {
+            const protocol = this._getProtocol();
+
+            // PREVENCIÓN DE REVERT: Verificar estado on-chain antes de gastar gas.
+            // Si ya está pausado, Solidity revertirá con "Pausable: paused".
+            // Verificamos primero para evitar el error y reportar éxito (idempotencia).
+            const alreadyPaused = await protocol.paused();
+            if (alreadyPaused) {
+                console.log('[WEB3 BRIDGE] ℹ️  Protocolo ya estaba pausado. Sin acción necesaria.');
+                return { success: true, txHash: null, error: null };
+            }
+
+            console.log('[WEB3 BRIDGE] 🛑 Pausando WintonProtocol...');
+            const tx = await protocol.pause();
+            const txHash = await this._waitForConfirmation(tx, 'pauseProtocol');
+            return { success: true, txHash, error: null };
+        } catch (error) {
+            console.error('[WEB3 BRIDGE] ❌ Error al pausar protocolo:', error.message);
+            return { success: false, txHash: null, error: error.message };
+        }
+    }
+
+    /**
+     * Reanuda las operaciones financieras del protocolo on-chain.
+     * Se llama cuando la gobernanza aprueba web3_protocol_paused = 'false'.
+     * 
+     * @returns {Promise<{success: boolean, txHash: string|null, error: string|null}>}
+     */
+    async unpauseProtocol() {
+        if (!this._isReady()) return { success: false, txHash: null, error: 'Relayer no configurado' };
+
+        try {
+            const protocol = this._getProtocol();
+
+            // PREVENCIÓN DE REVERT: Verificar estado on-chain antes de gastar gas.
+            // Si ya está activo, Solidity revertirá con "Pausable: not paused".
+            const alreadyPaused = await protocol.paused();
+            if (!alreadyPaused) {
+                console.log('[WEB3 BRIDGE] ℹ️  Protocolo ya estaba activo. Sin acción necesaria.');
+                return { success: true, txHash: null, error: null };
+            }
+
+            console.log('[WEB3 BRIDGE] ▶️  Reanudando WintonProtocol...');
+            const tx = await protocol.unpause();
+            const txHash = await this._waitForConfirmation(tx, 'unpauseProtocol');
+            return { success: true, txHash, error: null };
+        } catch (error) {
+            console.error('[WEB3 BRIDGE] ❌ Error al reanudar protocolo:', error.message);
+            return { success: false, txHash: null, error: error.message };
+        }
+    }
+
+    // ========================================================================
+    // FUNCIÓN 3: AJUSTAR CIRCUIT BREAKER (maxTransactionAmount)
+    // ========================================================================
+
+    /**
+     * Actualiza el límite máximo por transacción en el Smart Contract.
+     * Se llama cuando la gobernanza aprueba un cambio en web3_max_transaction_amount.
+     * 
+     * @param {string|number} newAmount Nuevo límite máximo en BLUE (ej: "1000000").
+     * @returns {Promise<{success: boolean, txHash: string|null, error: string|null}>}
+     */
+    async setMaxTransactionAmount(newAmount) {
+        if (!this._isReady()) return { success: false, txHash: null, error: 'Relayer no configurado' };
+
+        try {
+            // SEGURIDAD: Validar que el valor sea un número positivo.
+            const parsed = parseFloat(newAmount);
+            if (isNaN(parsed) || parsed <= 0) {
+                return { success: false, txHash: null, error: `Valor inválido para maxTransactionAmount: ${newAmount}. Debe ser un número positivo.` };
+            }
+
+            console.log(`[WEB3 BRIDGE] ⚡ Actualizando maxTransactionAmount a ${newAmount} BLUE...`);
+            const protocol = this._getProtocol();
+            // Convertir el monto a wei (18 decimales).
+            const amountWei = ethers.parseEther(newAmount.toString());
+            const tx = await protocol.setMaxTransactionAmount(amountWei);
+            const txHash = await this._waitForConfirmation(tx, 'setMaxTransactionAmount');
+            return { success: true, txHash, error: null };
+        } catch (error) {
+            console.error('[WEB3 BRIDGE] ❌ Error al actualizar maxTransactionAmount:', error.message);
+            return { success: false, txHash: null, error: error.message };
+        }
+    }
+
+    // ========================================================================
+    // FUNCIÓN 4: CONFIGURAR BILLETERA FUNDADORA (Treasury)
+    // ========================================================================
+
+    /**
+     * Configura la billetera de los fundadores en el contrato WintonTreasury.
+     * Se llama cuando la gobernanza aprueba un cambio en web3_founders_wallet.
+     * 
+     * @param {string} walletAddress Dirección de la nueva billetera fundadora.
+     * @returns {Promise<{success: boolean, txHash: string|null, error: string|null}>}
+     */
+    async setFoundersWallet(walletAddress) {
+        if (!this._isReady()) return { success: false, txHash: null, error: 'Relayer no configurado' };
+
+        try {
+            // SEGURIDAD: Validar que sea una dirección Ethereum válida.
+            if (!ethers.isAddress(walletAddress)) {
+                return { success: false, txHash: null, error: `Dirección inválida: ${walletAddress}` };
+            }
+
+            console.log(`[WEB3 BRIDGE] 🏦 Configurando billetera fundadora: ${walletAddress}...`);
+            const treasury = this._getTreasury();
+            if (!treasury) return { success: false, txHash: null, error: 'Treasury no configurado' };
+
+            const tx = await treasury.setFoundersWallet(walletAddress);
+            const txHash = await this._waitForConfirmation(tx, 'setFoundersWallet');
+            return { success: true, txHash, error: null };
+        } catch (error) {
+            console.error('[WEB3 BRIDGE] ❌ Error al configurar billetera fundadora:', error.message);
+            return { success: false, txHash: null, error: error.message };
+        }
+    }
+
+    // ========================================================================
+    // FUNCIÓN 5: RETIRO DE EXCEDENTES (Treasury)
+    // ========================================================================
+
+    /**
+     * Retira excedentes de ganancias del Treasury a la billetera fundadora.
+     * Se llama cuando la gobernanza aprueba un retiro (web3_treasury_withdrawal).
+     * 
+     * @param {string|number} amount Cantidad de BLUE a retirar.
+     * @returns {Promise<{success: boolean, txHash: string|null, error: string|null}>}
+     */
+    async withdrawSurplus(amount) {
+        if (!this._isReady()) return { success: false, txHash: null, error: 'Relayer no configurado' };
+
+        try {
+            // SEGURIDAD: Validar que el monto sea un número positivo (no tiene sentido retirar 0).
+            const parsed = parseFloat(amount);
+            if (isNaN(parsed) || parsed <= 0) {
+                return { success: false, txHash: null, error: `Monto inválido para retiro: ${amount}. Debe ser un número mayor a 0.` };
+            }
+
+            console.log(`[WEB3 BRIDGE] 💸 Retirando ${amount} BLUE del Treasury...`);
+            const treasury = this._getTreasury();
+            if (!treasury) return { success: false, txHash: null, error: 'Treasury no configurado' };
+
+            // Convertir a wei (18 decimales).
+            const amountWei = ethers.parseEther(amount.toString());
+            const tx = await treasury.withdrawSurplus(amountWei);
+            const txHash = await this._waitForConfirmation(tx, 'withdrawSurplus');
+            return { success: true, txHash, error: null };
+        } catch (error) {
+            console.error('[WEB3 BRIDGE] ❌ Error al retirar excedentes del Treasury:', error.message);
+            return { success: false, txHash: null, error: error.message };
+        }
+    }
+
+    // ========================================================================
+    // FUNCIONES DE LECTURA (Sin gas — gratuitas)
+    // ========================================================================
+
+    /**
+     * Lee el estado actual del protocolo desde la blockchain.
+     * Útil para mostrar en el panel de administración y verificar sincronización.
+     * 
+     * @returns {Promise<Object|null>} Estado del protocolo o null si falla.
+     */
+    async getProtocolStatus() {
+        // SEGURIDAD: Verificar que la dirección del protocolo esté configurada.
+        if (!PROTOCOL_ADDRESS) {
+            console.error('[WEB3 BRIDGE] ❌ WINTON_PROTOCOL_ADDRESS no configurado. No se puede leer estado.');
+            return null;
         }
 
         try {
-            console.log(`[WEB3 BRIDGE] Iniciando sincronización de pago: ${payerUsername} -> ${payeeUsername} (${amountBlue} BLUE)`);
-            
-            const protocolContract = new ethers.Contract(PROTOCOL_ADDRESS, this.abi, this.wallet);
-            
-            // Convertir monto a formato Blockchain (18 decimales estándar)
-            const amountWei = ethers.parseEther(amountBlue.toString());
+            // Para lectura no necesitamos el wallet/Relayer, solo el proveedor.
+            const protocol = new ethers.Contract(PROTOCOL_ADDRESS, this.protocolAbi, this.provider);
 
-            // Ejecutar la transacción en el Smart Contract
-            const tx = await protocolContract.syncPayment(
-                payerWalletAddress,
-                payeeWalletAddress,
-                amountWei,
-                dbTransactionId
-            );
+            // Ejecutar las 3 consultas en paralelo (optimización de latencia).
+            const [isPaused, maxAmount, commission] = await Promise.all([
+                protocol.paused(),
+                protocol.maxTransactionAmount(),
+                protocol.commissionRate(),
+            ]);
 
-            console.log(`[WEB3 BRIDGE] Tx enviada: ${tx.hash}. Esperando confirmación...`);
-            
-            // Esperar 1 confirmación (estándar de seguridad para red local/L2)
-            const receipt = await tx.wait(1);
-
-            if (receipt.status === 1) {
-                console.log(`[WEB3 BRIDGE] Sincronización EXITOSA. Tx: ${tx.hash}`);
-                
-                // GUARDAR EL HASH EN LA BASE DE DATOS
-                if (dbTransactionId) {
-                    await pool.query('UPDATE transactions SET tx_hash = $1 WHERE id = $2', [tx.hash, dbTransactionId]);
-                    console.log(`[WEB3 BRIDGE] Hash ${tx.hash} guardado en la DB para la transacción ${dbTransactionId}`);
-                }
-            } else {
-                throw new Error('Transacción fallida en la Blockchain (Reverted)');
-            }
-
+            return {
+                paused: isPaused,
+                maxTransactionAmount: ethers.formatEther(maxAmount),
+                commissionRate: commission.toString(),
+            };
         } catch (error) {
-            console.error(`[WEB3 BRIDGE] Error crítico de sincronización:`, error.message);
-            // Aquí se podría implementar una cola de reintentos en una arquitectura más compleja
+            console.error('[WEB3 BRIDGE] ❌ Error al leer estado del protocolo:', error.message);
+            return null;
         }
     }
 }
