@@ -4578,6 +4578,38 @@ cron.schedule('*/1 * * * *', async () => {
     }
 });
 
+// --- WEB3 ESCROW: Liberar escrows huérfanos de publicaciones expiradas/eliminadas/completadas ---
+// Se ejecuta cada 15 minutos (estándar de reconciliación bancaria).
+// Si una publicación expira o es eliminada pero tiene un escrow 'locked',
+// este cron lo libera automáticamente para restaurar el poder adquisitivo del usuario.
+const { releaseOrphanedEscrows } = require('./src/services/escrowCleanupService');
+cron.schedule('*/15 * * * *', async () => {
+    try {
+        const result = await releaseOrphanedEscrows(pool);
+        if (result.released > 0) {
+            console.log(`[ESCROW-CRON] Ciclo completado: ${result.released} escrows liberados.`);
+        }
+    } catch (err) {
+        console.error('[ESCROW-CRON] Error en limpieza de escrows:', err);
+    }
+});
+
+// --- WEB3 RECONCILIATION: Outbox Pattern Safety Net ---
+// Se ejecuta cada 5 minutos (Estándar Fintech para transacciones atascadas).
+// Detecta pagos que pasaron en blockchain pero fallaron en la DB (ROLLBACK)
+// y los marca para intervención manual o reintento.
+const { runReconciliationCycle } = require('./src/services/reconciliationService');
+cron.schedule('*/5 * * * *', async () => {
+    try {
+        const result = await runReconciliationCycle(pool);
+        if (result.flagged > 0) {
+            console.warn(`[RECONCILIATION-CRON] 🚨 ${result.flagged} transacciones marcadas para intervención manual.`);
+        }
+    } catch (err) {
+        console.error('[RECONCILIATION-CRON] Error crítico:', err);
+    }
+});
+
 if (process.env.NODE_ENV !== 'test') { startServer(); }
 module.exports = { app, pool };
 

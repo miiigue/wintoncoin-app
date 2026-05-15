@@ -25,9 +25,6 @@ async function initializeEstadoCuenta() {
         redCreditLimit: document.getElementById('redCreditLimit'),
         redCreditAvailable: document.getElementById('redCreditAvailable'),
         redDebtTotal: document.getElementById('redDebtTotal'),
-        redDebt30Days: document.getElementById('redDebt30Days'),
-        redDebtEndMonth: document.getElementById('redDebtEndMonth'),
-        redNextDueDate: document.getElementById('redNextDueDate'),
         statInteractions: document.getElementById('statInteractions'),
         statReceived: document.getElementById('statReceived'),
         statSent: document.getElementById('statSent'),
@@ -114,26 +111,6 @@ async function initializeEstadoCuenta() {
         }
         elements.redDebtTotal.textContent = `${formatBalance(debt)} RED`;
 
-        if (debt > 0) {
-            const due30 = parseFloat(data.debt_30_days) || 0;
-            const dueEndMonth = parseFloat(data.debt_end_month) || 0;
-            elements.redDebt30Days.textContent = `${formatBalance(due30)} RED`;
-            elements.redDebtEndMonth.textContent = `${formatBalance(dueEndMonth)} RED`;
-            
-            if (data.next_due_at) {
-                const nextDue = new Date(data.next_due_at);
-                elements.redNextDueDate.textContent = nextDue.toLocaleDateString('es-ES') + ` (${formatBalance(data.next_due_amount)} RED)`;
-                elements.redNextDueDate.style.color = '#ef4444';
-            } else {
-                elements.redNextDueDate.textContent = "Pendiente de registro";
-            }
-        } else {
-            elements.redDebt30Days.textContent = `0.0000 RED`;
-            elements.redDebtEndMonth.textContent = `0.0000 RED`;
-            elements.redNextDueDate.textContent = "Excelente: Sin deudas próximas";
-            elements.redNextDueDate.style.color = '#10B981';
-        }
-
         // 4. Estadísticas de Actividad (Reales desde historial)
         const txResponse = await fetch(`${API_URL}/api/me/transactions`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -208,7 +185,7 @@ async function initializeEstadoCuenta() {
         // 6. Lógica de Modales de Smart Contract
         async function openSCModal(type) {
             // Mostrar modal con estado de carga
-            elements.scModalTitle.textContent = type === 'blue' ? 'WintonCoin BLUE (IOU) Contract' : 'WintonCoin RED (Deuda) Contract';
+            elements.scModalTitle.textContent = type === 'blue' ? 'WintonCoin BLUE Token' : 'WintonCoin RED (Deuda) Token';
             elements.scModalAddress.textContent = 'Cargando...';
             elements.scModalMinted.textContent = 'Consultando Blockchain...';
             elements.scModalExplorer.style.display = 'none';

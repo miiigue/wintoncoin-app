@@ -320,20 +320,6 @@
                         <span class="data-value highlight-red" id="redDebtTotal">0.0000 RED</span>
                     </div>
                     
-                    <div class="sub-header">Cronograma de Vencimientos</div>
-                    <div class="data-row">
-                        <span class="data-label">Vencimiento más próximo</span>
-                        <span class="data-value" id="redNextDueDate" style="font-size: 0.85rem;">--</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">Por vencer este mes</span>
-                        <span class="data-value" id="redDebtEndMonth" style="color: #f97316;">0.0000 RED</span>
-                    </div>
-                    <div class="data-row">
-                        <span class="data-label">Por vencer en próximos 30 días</span>
-                        <span class="data-value" id="redDebt30Days" style="color: #f59e0b;">0.0000 RED</span>
-                    </div>
-                    
                     <button class="sc-btn" id="scRedBtn" style="margin-top: 20px;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
                         Ver Smart Contract RED
@@ -368,19 +354,19 @@
                     <div class="stats-grid">
                         <div class="stat-box">
                             <span class="stat-number" id="statInteractions">0</span>
-                            <span class="stat-desc">Interacciones Web3 <span class="info-icon" onclick="showCustomAlert('Suma total de veces que tu billetera ha interactuado con los contratos inteligentes de WintonCoin (BLUE/RED) u otras operaciones registradas en el ledger de la red.')">i</span></span>
+                            <span class="stat-desc">Interacciones Web3 <span class="info-icon" onclick="showCustomAlert('Suma total de veces que tu billetera ha interactuado con los contratos inteligentes de WintonCoin (BLUE/RED) u otras operaciones en Optimism Sepolia.')">i</span></span>
                         </div>
                         <div class="stat-box">
                             <span class="stat-number" id="statReceived">0</span>
-                            <span class="stat-desc">Pagos Recibidos <span class="info-icon" onclick="showCustomAlert('Cantidad de transacciones entrantes exitosas. Representa las veces que has recibido BLUE IOU como recompensas, bonos o pagos directos.')">i</span></span>
+                            <span class="stat-desc">Pagos Recibidos <span class="info-icon" onclick="showCustomAlert('Cantidad de transferencias entrantes exitosas en la blockchain. Representa las veces que has recibido BLUE.')">i</span></span>
                         </div>
                         <div class="stat-box">
                             <span class="stat-number" id="statSent">0</span>
-                            <span class="stat-desc">Pagos Enviados <span class="info-icon" onclick="showCustomAlert('Cantidad de transacciones salientes exitosas. Incluye comisiones pagadas a la red, transferencias P2P y pagos a otros usuarios.')">i</span></span>
+                            <span class="stat-desc">Pagos Enviados <span class="info-icon" onclick="showCustomAlert('Cantidad de transferencias salientes exitosas en la blockchain. Incluye pagos directos y liberación de fondos de Escrow.')">i</span></span>
                         </div>
                         <div class="stat-box">
                             <span class="stat-number" id="statBurned">0</span>
-                            <span class="stat-desc">Deuda Quemada <span class="info-icon" onclick="showCustomAlert('Cantidad de eventos en los que usaste BLUE IOU para liquidar deuda RED, equilibrando tu límite de crédito y ayudando a la deflación de la red.')">i</span></span>
+                            <span class="stat-desc">Deuda Quemada <span class="info-icon" onclick="showCustomAlert('Eventos de auto-amortización on-chain. Cantidad de veces que tus ingresos en BLUE liquidaron automáticamente deuda RED pendiente.')">i</span></span>
                         </div>
                     </div>
                 </div>

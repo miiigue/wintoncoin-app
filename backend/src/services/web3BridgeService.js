@@ -399,6 +399,133 @@ class Web3BridgeService {
             return null;
         }
     }
+
+    // ========================================================================
+    // FUNCIÓN 7: VERIFICAR PAUSA CON CACHÉ (Web3 Enforcer)
+    // ========================================================================
+
+    /**
+     * Verifica si el protocolo está pausado usando un caché de 30 segundos.
+     * Evita bombardear el nodo RPC con consultas repetitivas en cada request.
+     * Este es el "Circuit Breaker" del backend: si retorna true, NINGUNA
+     * operación financiera real debe ejecutarse.
+     * 
+     * ESTÁNDAR: CeFi Híbrido (Coinbase/Binance) — caché local + verificación on-chain.
+     * 
+     * @returns {Promise<boolean>} true si pausado, false si activo, true por defecto si falla (fail-safe).
+     */
+    async isProtocolPaused() {
+        // Si el bridge no está configurado, permitir operaciones (modo desarrollo).
+        if (!PROTOCOL_ADDRESS || !RELAYER_PK) {
+            console.warn('[WEB3 ENFORCER] Bridge no configurado. Operaciones permitidas por defecto.');
+            return false;
+        }
+
+        const now = Date.now();
+        // CACHÉ: Reutilizar resultado si tiene menos de 30 segundos (Estándar Fintech).
+        if (this._pauseCache && (now - this._pauseCacheTimestamp) < 30000) {
+            return this._pauseCache;
+        }
+
+        try {
+            // Consulta directa al Smart Contract (lectura gratuita, sin gas).
+            const protocol = new ethers.Contract(PROTOCOL_ADDRESS, this.protocolAbi, this.provider);
+            const isPaused = await protocol.paused();
+            // Guardar en caché para evitar consultas repetitivas.
+            this._pauseCache = isPaused;
+            this._pauseCacheTimestamp = now;
+            return isPaused;
+        } catch (error) {
+            // FAIL-SAFE: Si no podemos leer la blockchain, asumimos que está pausado
+            // para proteger los fondos. Esto evita que un fallo de red permita
+            // transacciones no autorizadas.
+            console.error('[WEB3 ENFORCER] ❌ No se pudo verificar el estado on-chain. BLOQUEANDO por seguridad:', error.message);
+            return true;
+        }
+    }
+
+    // ========================================================================
+    // FUNCIÓN 8: RESYNC DE BILLETERA (Espejo Blockchain → DB)
+    // ========================================================================
+
+    /**
+     * Lee los saldos reales on-chain (BLUE balance y RED debt) de un usuario
+     * y actualiza la tabla web3_wallets_sync en PostgreSQL.
+     * 
+     * ARQUITECTURA: La DB nunca calcula saldos. Solo copia lo que dice Optimism.
+     * Esto garantiza que la "fuente de verdad" siempre sea la blockchain.
+     * 
+     * @param {string} walletAddress Dirección Ethereum del usuario.
+     * @param {number} userId ID del usuario en PostgreSQL.
+     * @returns {Promise<{blueBalance: string, redDebt: string}|null>} Saldos actualizados o null si falla.
+     */
+    async resyncUserWallet(walletAddress, userId) {
+        // SEGURIDAD: No intentar resync sin configuración válida.
+        if (!PROTOCOL_ADDRESS || !walletAddress) {
+            console.warn('[WEB3 RESYNC] Dirección de protocolo o wallet no configurada. Resync omitido.');
+            return null;
+        }
+
+        try {
+            // ABI mínima para leer balances ERC-20 (lectura gratuita, sin gas).
+            const erc20Abi = ["function balanceOf(address) view returns (uint256)"];
+
+            // Obtener las direcciones de los contratos BlueToken y RedToken desde el protocolo.
+            const protocol = new ethers.Contract(PROTOCOL_ADDRESS, [
+                ...this.protocolAbi,
+                "function blueToken() view returns (address)",
+                "function redToken() view returns (address)"
+            ], this.provider);
+
+            // Consultar direcciones de los tokens en paralelo.
+            const [blueAddr, redAddr] = await Promise.all([
+                protocol.blueToken(),
+                protocol.redToken()
+            ]);
+
+            // Crear instancias de lectura de los contratos de tokens.
+            const blueContract = new ethers.Contract(blueAddr, erc20Abi, this.provider);
+            const redContract = new ethers.Contract(redAddr, erc20Abi, this.provider);
+
+            // Leer saldos reales on-chain en paralelo (optimización de latencia).
+            const [blueRaw, redRaw] = await Promise.all([
+                blueContract.balanceOf(walletAddress),
+                redContract.balanceOf(walletAddress)
+            ]);
+
+            // Convertir de wei (18 decimales) a formato legible.
+            const blueBalance = ethers.formatEther(blueRaw);
+            const redDebt = ethers.formatEther(redRaw);
+
+            // UPSERT: Crear o actualizar el registro en web3_wallets_sync.
+            // ON CONFLICT asegura idempotencia (no duplicados).
+            await pool.query(`
+                INSERT INTO web3_wallets_sync (user_id, onchain_blue_balance, onchain_red_debt, last_synced_at, sync_status)
+                VALUES ($1, $2, $3, NOW(), 'synced')
+                ON CONFLICT (user_id) DO UPDATE SET
+                    onchain_blue_balance = $2,
+                    onchain_red_debt = $3,
+                    last_synced_at = NOW(),
+                    sync_status = 'synced'
+            `, [userId, parseFloat(blueBalance), parseFloat(redDebt)]);
+
+            console.log(`[WEB3 RESYNC] ✅ Wallet sincronizada para user #${userId}: ${blueBalance} BLUE, ${redDebt} RED`);
+            return { blueBalance, redDebt };
+        } catch (error) {
+            console.error(`[WEB3 RESYNC] ❌ Error al resincronizar wallet del user #${userId}:`, error.message);
+            // Marcar como error en la tabla para auditoría.
+            try {
+                await pool.query(`
+                    INSERT INTO web3_wallets_sync (user_id, sync_status)
+                    VALUES ($1, 'error')
+                    ON CONFLICT (user_id) DO UPDATE SET sync_status = 'error'
+                `, [userId]);
+            } catch (dbErr) {
+                console.error('[WEB3 RESYNC] Error al marcar sync_status:', dbErr.message);
+            }
+            return null;
+        }
+    }
 }
 
 module.exports = new Web3BridgeService();

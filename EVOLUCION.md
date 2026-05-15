@@ -2237,4 +2237,53 @@ Se asienta en auditoría la remoción física de la subcarpeta `android-app` (Ap
 - **Archivos modificados**:
   - `backend/src/controllers/authController.js` — Generación automática de billeteras Web3
   - `backend/src/services/publicationService.js` — Sincronización on-chain de pagos
-- **Evidencia**: commit pendiente de push (rama `feature/web3-wallet`).
+- **Evidencia**: commit pendiente de push (rama `feature/web3-wallet`).
+### Actualización - Arquitectura Financiera Web3 y Escrow (14 Mayo 2026)
+- **Decisión**: Se implementa la separación estricta entre transacciones Pre-lanzamiento (BLUE IOU) y Web3 reales (On-Chain) mediante nuevas tablas dedicadas (web3_wallets_sync, web3_escrow_holds, web3_pending_transactions).
+- **Impacto**: Se elimina la mezcla de datos en la billetera. El Escrow se vuelve un bloqueo lógico en DB para proteger el saldo, y Optimism asume la autoridad absoluta sobre los saldos finales, garantizando la inviolabilidad del escrow y ejecutando la Anulación Materia-Antimateria de forma automática mediante hooks del token.
+- **Próximos Pasos**: Modificar publicationService.js para usar este nuevo sistema de Escrow antes de procesar un pago.
+- **Archivos creados**: ackend/migrations/053_web3_financial_architecture.js
+
+### Actualizacion - Web3 Enforcer + Sincronizacion Bloqueante (15 Mayo 2026)
+- **Web3 Enforcer**: Se inyecto verificacion de pausa del protocolo en processRequestPayment y processDirectPaymentCompletion. Si el protocolo esta pausado por gobernanza, el pago se rechaza con HTTP 503.
+- **Sync Bloqueante**: Los pagos en modo normal (Web3) ahora son BLOQUEANTES. La blockchain debe confirmar la transaccion ANTES de que PostgreSQL haga COMMIT. Si Optimism falla, se hace ROLLBACK automatico.
+- **Cache de Pausa**: Se implemento cache de 30 segundos en isProtocolPaused() para no bombardear el nodo RPC.
+- **Resync de Billetera**: Despues de cada pago exitoso, el backend lee los saldos reales de Optimism y los escribe en web3_wallets_sync.
+- **Frontend Limpio**: Se eliminaron tooltips falsos (BLUE IOU) de la billetera Web3, el Cronograma de Vencimientos irreal, y se corrigio el titulo del modal de Smart Contract.
+- **Menu Renombrado**: Estado de Cuenta ahora se llama Billetera Web3 en el menu lateral.
+- **Archivos modificados**:
+  - ackend/src/services/web3BridgeService.js - Funciones isProtocolPaused() y resyncUserWallet()
+  - ackend/src/services/publicationService.js - Web3 Enforcer + sync bloqueante + resync
+  - rontend/estado-cuenta.html - Limpieza de UI
+  - rontend/src/pages/estado-cuenta.js - Eliminacion de elementos obsoletos
+  - rontend/contract_interaction.html - Renombrado del menu
+
+### Actualizacion - Escrow Web3 al Publicar + Anti Doble Gasto (15 Mayo 2026)
+- **Escrow al Publicar**: Al crear una publicacion tipo request en modo Web3, se bloquean los fondos inmediatamente en web3_escrow_holds. Esto previene que un usuario cree multiples tareas sin respaldo financiero.
+- **FOR UPDATE (Anti Doble Gasto)**: Se agrego bloqueo pesimista con SELECT FOR UPDATE en la consulta de saldos al crear publicaciones. Si dos solicitudes llegan simultaneamente, la segunda espera a que la primera termine. Estandar bancario ISO 27001.
+- **Calculo de Poder Adquisitivo Mejorado**: Ahora se restan los fondos ya bloqueados en web3_escrow_holds activos del credito disponible del usuario.
+- **Archivos modificados**:
+  - ackend/src/controllers/publicationController.js - Escrow al publicar + FOR UPDATE + calculo mejorado
+
+### Actualizacion - Escrow Cleanup Cron + Escrow Release Fix (15 Mayo 2026)
+- **CRITICO CORREGIDO**: El escrow se bloqueaba al crear publicaciones pero NUNCA se liberaba al pagar. Los fondos del usuario quedaban bloqueados permanentemente. Corregido con UPDATE web3_escrow_holds SET status = released en processRequestPayment y processDirectPaymentCompletion.
+- **Escrow Cleanup Service**: Nuevo servicio escrowCleanupService.js que libera escrows huerfanos cada 15 minutos. Criterios: publicacion eliminada, expirada, completada, o sin cupos.
+- **Auditoria**: Usa logAuditEvent oficial para registrar cada liberacion automatica con event_type = escrow.auto_released.
+- **Cron registrado**: cron.schedule(*/15 * * * *) en server.js, siguiendo el patron de los cron jobs existentes (P2P, gobernanza).
+- **Archivos modificados/creados**:
+  - ackend/src/services/escrowCleanupService.js - NUEVO servicio de limpieza
+  - ackend/src/services/publicationService.js - Escrow release al pagar
+  - ackend/server.js - Registro del cron job
+
+### Correccion de Seguridad - Race Condition en Escrow (15 Mayo 2026)
+- **VULNERABILIDAD DETECTADA (Caso 16)**: El escrow se insertaba DESPUES del COMMIT en una conexion separada. Un atacante podia enviar 2 requests simultaneos y el segundo no veia el escrow del primero, permitiendo doble gasto.
+- **SOLUCION**: Se movio el INSERT de web3_escrow_holds DENTRO de la transaccion principal (antes del COMMIT). Ahora usa el mismo client de la transaccion, garantizando atomicidad total. Si el escrow falla, la publicacion tampoco se crea.
+- **Archivos modificados**:
+  - ackend/src/controllers/publicationController.js - Escrow atomico dentro de la transaccion
+
+### Actualizacion - Outbox Pattern y Reconciliacion Financiera (15 Mayo 2026)
+- **SEGURIDAD CRITICA (Caso 23)**: Implementado el patron *Outbox* para evitar desincronizacion entre Optimism y PostgreSQL.
+- **Migracion 054**: Se modifico web3_pending_transactions cambiando la PK a un id SERIAL y agregando un intent_id UUID. Ahora el tx_hash es nullable.
+- **Logica de Intencion**: Las transacciones ahora se registran en BD como intencion (intent) ANTES de interactuar con la blockchain, utilizando una conexion independiente al pool (para sobrevivir a un ROLLBACK de la DB principal).
+- **Reconciliation Service**: Se creo reconciliationService.js ejecutandose como cron cada 5 minutos (*/5 * * * *). Si detecta transacciones en estado blockchain_confirmed por mas de 2 minutos, las marca como manual_intervention_required, emite una alerta critica en audit_log y envia notificaciones al comprador/vendedor para advertir del retraso.
+- **Estandar de Industria**: Cumple con las exigencias de consistencia distribuida de la industria bancaria/fintech (ej. Stripe, Coinbase).

@@ -46,19 +46,24 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             // --- INICIO DE LA TRANSACCIÓN ---
             await client.query('BEGIN');
 
-            // 1. VERIFICAR PERMISOS DE PUBLICACIÓN
+            // 1. VERIFICAR PERMISOS DE PUBLICACIÓN Y CARGAR CONFIGURACIÓN ECONÓMICA
+            // Se cargan tanto los permisos de tipo de publicación como los parámetros
+            // económicos necesarios para el cálculo de solvencia y Escrow Web3.
             const settingsKeys = [
                 'allow_request_publications',
                 'allow_sell_publications',
-                'allow_donation_publications'
+                'allow_donation_publications',
+                'platform_commission_percentage',
+                'pre_launch_mode_enabled'
             ];
             const settingsResult = await client.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1::text[])`, [settingsKeys]);
-            const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value === 'true' }), {});
+            // Almacenar valores crudos (string) para poder convertir a boolean o número según contexto.
+            const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
 
             const typePermissionMap = {
-                'request': settings.allow_request_publications,
-                'sell': settings.allow_sell_publications,
-                'donation': settings.allow_donation_publications
+                'request': settings.allow_request_publications === 'true',
+                'sell': settings.allow_sell_publications === 'true',
+                'donation': settings.allow_donation_publications === 'true'
             };
 
             if (!typePermissionMap[publicationType]) {
@@ -146,7 +151,10 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 expiresAt.setMinutes(expiresAt.getMinutes() + minutes);
             }
 
-            // --- NUEVO: Freno de Solvencia (Pre-autorización) ---
+            // --- Freno de Solvencia (Pre-autorización) ---
+            // Solo aplica a publicaciones tipo 'request' (solicitud de trabajo).
+            // Calcula el riesgo total que asume el autor al crear la publicación
+            // y verifica que tenga suficiente crédito disponible.
             if (publicationType === 'request') {
                 const commissionPercentage = parseFloat(settings.platform_commission_percentage || '0');
                 const costPerTask = cost * (1 + commissionPercentage / 100);
@@ -156,16 +164,37 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 const creditScoringService = require('../services/creditScoringService');
 
                 const debtResponsible = await getDebtResponsibleUserById(client, authorId, { useTutor: true });
-                const currentRedRes = await client.query('SELECT red_balance, liquid_blue_balance FROM users WHERE id = $1', [debtResponsible.user_id]);
+                // FOR UPDATE: Bloqueo pesimista para prevenir doble gasto concurrente.
+                // Si dos solicitudes llegan al mismo tiempo, la segunda ESPERA a que
+                // la primera termine antes de leer el saldo. Estándar bancario (ISO 27001).
+                const currentRedRes = await client.query(
+                    'SELECT red_balance, liquid_blue_balance FROM users WHERE id = $1 FOR UPDATE',
+                    [debtResponsible.user_id]
+                );
                 const currentRed = parseFloat(currentRedRes.rows[0].red_balance) || 0;
                 const liquidBlue = parseFloat(currentRedRes.rows[0].liquid_blue_balance) || 0;
                 
-                const scoreLimit = await creditScoringService.calculateUserScore(debtResponsible.user_id);
-                const availableCredit = Math.max(0, scoreLimit - currentRed);
+                // ═══════════════════════════════════════════════════════════════
+                // CÁLCULO DE PODER ADQUISITIVO:
+                // Restar los fondos ya bloqueados en Escrow Web3 activos.
+                // Esto previene el ataque de doble gasto: si el usuario ya tiene
+                // publicaciones activas, su poder adquisitivo real es MENOR.
+                // ═══════════════════════════════════════════════════════════════
+                const escrowLockedRes = await client.query(
+                    `SELECT COALESCE(SUM(amount_locked), 0) as total_locked
+                     FROM web3_escrow_holds
+                     WHERE author_id = $1 AND status = 'locked'`,
+                    [debtResponsible.user_id]
+                );
+                const alreadyLocked = parseFloat(escrowLockedRes.rows[0].total_locked) || 0;
 
-                // El usuario puede publicar si tiene suficiente RED disponible o si tiene suficiente BLUE líquido para cubrirlo
+                const scoreLimit = await creditScoringService.calculateUserScore(debtResponsible.user_id);
+                const availableCredit = Math.max(0, scoreLimit - currentRed - alreadyLocked);
+
+                // El usuario puede publicar si tiene suficiente crédito disponible
+                // (descontando lo que ya tiene bloqueado en otras publicaciones activas).
                 if (totalRisk > (availableCredit + liquidBlue)) {
-                    throw { status: 402, message: `Fondos Insuficientes para publicar. Esta tarea requiere garantizar ${totalRisk.toFixed(4)} BLUE/RED. Tu límite actual es ${(availableCredit + liquidBlue).toFixed(2)}.` };
+                    throw { status: 402, message: `Fondos Insuficientes para publicar. Esta tarea requiere garantizar ${totalRisk.toFixed(4)} BLUE/RED. Tu límite disponible es ${(availableCredit + liquidBlue).toFixed(2)} (ya tienes ${alreadyLocked.toFixed(2)} bloqueados en otras publicaciones).` };
                 }
             }
             // ----------------------------------------------------
@@ -208,7 +237,35 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                     repeat_cooldown_hours: repeatCooldown,
                     expires_at: expiresAt ? expiresAt.toISOString() : null
                 }
-            });
+            // ═══════════════════════════════════════════════════════════════
+            // ESCROW WEB3: Bloquear fondos al momento de crear la publicación.
+            // Se ejecuta DENTRO de la transacción principal (antes del COMMIT)
+            // para eliminar la ventana de race condition donde un segundo
+            // request podría leer escrow = 0 entre el COMMIT y el INSERT.
+            // La FK a publications(id) funciona porque la publicación ya fue
+            // insertada en esta misma transacción (aún no commiteada).
+            // Solo aplica en modo Web3 real (NO en pre-lanzamiento).
+            // ═══════════════════════════════════════════════════════════════
+            const isPreLaunch = settings.pre_launch_mode_enabled === 'true';
+            if (publicationType === 'request' && !isPreLaunch && cost > 0) {
+                const commissionPct = parseFloat(settings.platform_commission_percentage || '0');
+                const costPerTask = cost * (1 + commissionPct / 100);
+                const totalToLock = costPerTask * slots * maxRepeat;
+
+                // Determinar responsable de la deuda (tutor si es menor).
+                const { getDebtResponsibleUserById } = require('../services/publicationService');
+                const debtResponsible = await getDebtResponsibleUserById(client, authorId, { useTutor: true });
+
+                // Insertar el bloqueo de fondos en la tabla web3_escrow_holds.
+                // Usa el mismo 'client' de la transacción para garantizar atomicidad.
+                await client.query(
+                    `INSERT INTO web3_escrow_holds
+                        (publication_id, author_id, responsible_user_id, amount_locked, commission_rate_locked, status)
+                     VALUES ($1, $2, $3, $4, $5, 'locked')`,
+                    [result.rows[0].id, authorId, debtResponsible.user_id, totalToLock, commissionPct]
+                );
+                console.log(`[ESCROW WEB3] ✅ Bloqueados ${totalToLock.toFixed(4)} BLUE/RED para publicación #${result.rows[0].id}`);
+            }
 
             await client.query('COMMIT');
             console.log(`[ROUTE DIAGNOSTIC] ✅ Transacción de publicación confirmada. ID: ${result.rows[0].id}`);
@@ -644,6 +701,16 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             await client.query('COMMIT');
 
+            // ═══════════════════════════════════════════════════════════════
+            // OUTBOX PATTERN: DB Confirmada Exitosamente.
+            // ═══════════════════════════════════════════════════════════════
+            if (result && result.web3IntentId) {
+                await pool.query(
+                    `UPDATE web3_pending_transactions SET status = 'fully_resolved', resolved_at = NOW() WHERE id = $1`,
+                    [result.web3IntentId]
+                );
+            }
+
             res.status(200).json({ message: result.message || "Pago realizado con éxito." });
 
         } catch (error) {
@@ -722,7 +789,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 };
 
                 // Procesar pago instantáneo
-                await processDirectPaymentCompletion(client, virtualAcceptance, id, preLaunchMode, settings);
+                const result = await processDirectPaymentCompletion(client, virtualAcceptance, id, preLaunchMode, settings);
 
                 // Registrar la donación confirmada
                 await client.query(
@@ -760,6 +827,17 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 });
 
                 await client.query('COMMIT');
+
+                // ═══════════════════════════════════════════════════════════════
+                // OUTBOX PATTERN: DB Confirmada Exitosamente.
+                // ═══════════════════════════════════════════════════════════════
+                if (result && result.web3IntentId) {
+                    await pool.query(
+                        `UPDATE web3_pending_transactions SET status = 'fully_resolved', resolved_at = NOW() WHERE id = $1`,
+                        [result.web3IntentId]
+                    );
+                }
+
                 return res.status(200).json({ message: `¡Donación de ${amount} BLUE recibida! Gracias por tu apoyo.` });
             }
 
@@ -1188,7 +1266,6 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             // Añadir completerUsername al objeto acceptance para pasarlo a los helpers
             acceptance.completerUsername = completerUsername;
-
             let result;
             switch (acceptance.category) {
                 case 'sell':
@@ -1224,6 +1301,17 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             });
 
             await client.query('COMMIT');
+
+            // ═══════════════════════════════════════════════════════════════
+            // OUTBOX PATTERN: DB Confirmada Exitosamente.
+            // ═══════════════════════════════════════════════════════════════
+            if (result && result.web3IntentId) {
+                await pool.query(
+                    `UPDATE web3_pending_transactions SET status = 'fully_resolved', resolved_at = NOW() WHERE id = $1`,
+                    [result.web3IntentId]
+                );
+            }
+
             res.status(200).json({ message: result.message });
 
         } catch (error) {
@@ -1333,6 +1421,19 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             });
 
             await client.query('COMMIT');
+
+            // ═══════════════════════════════════════════════════════════════
+            // OUTBOX PATTERN: DB Confirmada Exitosamente.
+            // Si hubo interacción con blockchain, marcamos la intención como
+            // 'fully_resolved'. El cron de reconciliación ignorará este registro.
+            // ═══════════════════════════════════════════════════════════════
+            if (result.web3IntentId) {
+                await pool.query(
+                    `UPDATE web3_pending_transactions SET status = 'fully_resolved', resolved_at = NOW() WHERE id = $1`,
+                    [result.web3IntentId]
+                );
+            }
+
             res.status(200).json({ message: result.message });
 
         } catch (error) {
