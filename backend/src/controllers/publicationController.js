@@ -237,6 +237,8 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                     repeat_cooldown_hours: repeatCooldown,
                     expires_at: expiresAt ? expiresAt.toISOString() : null
                 }
+            });
+
             // ═══════════════════════════════════════════════════════════════
             // ESCROW WEB3: Bloquear fondos al momento de crear la publicación.
             // Se ejecuta DENTRO de la transacción principal (antes del COMMIT)
