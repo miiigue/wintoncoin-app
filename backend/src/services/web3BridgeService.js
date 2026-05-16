@@ -430,7 +430,18 @@ class Web3BridgeService {
         try {
             // Consulta directa al Smart Contract (lectura gratuita, sin gas).
             const protocol = new ethers.Contract(PROTOCOL_ADDRESS, this.protocolAbi, this.provider);
-            const isPaused = await protocol.paused();
+            
+            // TIMEOUT ENFORCER: No permitir que la llamada RPC se quede colgada infinitamente.
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('RPC Timeout: El nodo blockchain no respondió en 3 segundos.')), 3000)
+            );
+            
+            // Competimos la llamada real contra el timeout
+            const isPaused = await Promise.race([
+                protocol.paused(),
+                timeoutPromise
+            ]);
+
             // Guardar en caché para evitar consultas repetitivas.
             this._pauseCache = isPaused;
             this._pauseCacheTimestamp = now;
