@@ -17,6 +17,26 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
+### 2026-05-16 — Sistema KYC Compliance (Freno Pre-Publicación + Admin Panel On-Chain)
+
+- **Contexto**: El Smart Contract `WintonProtocol` exige que las billeteras del pagador tengan KYC verificado on-chain (`isKYCVerified`). Sin una validación previa en el backend, los usuarios podían crear publicaciones tipo "request" (que implican pago) y los trabajadores invertían tiempo en tareas que luego fallaban al intentar cobrar, generando un `CALL_EXCEPTION: Payer KYC not verified`. Además, se detectó un deadlock de base de datos (self-deadlock) por uso de `pool.query` dentro de transacciones activas con `client.query` (bloqueo `FOR UPDATE`).
+- **Decisión**:
+  - **Corrección de Deadlock (Patrón Outbox)**: Reemplazar todas las llamadas a `pool.query` por `client.query` dentro de `processRequestPayment` y `processDirectPaymentCompletion` en `publicationService.js`, asegurando que las operaciones de auditoría se ejecuten en la misma conexión transaccional.
+  - **Freno KYC Pre-Publicación**: En `publicationController.js`, antes de permitir la creación de publicaciones tipo `request`, se consulta directamente la blockchain (`isKYCVerified`) para verificar el KYC del autor (o su tutor si es menor de edad). Si no tiene KYC → se bloquea la publicación con HTTP 403. Política Fail-Safe: ante duda, se bloquea.
+  - **Método `checkUserKYC()` en `web3BridgeService.js`**: Lectura gratuita (sin gas, función `view`) con timeout de 3 segundos para no congelar el servidor si Alchemy está caído.
+  - **Método `setUserKYC()` en `web3BridgeService.js`**: Escritura on-chain (`setKYCStatus`) con prevención de revert (verifica estado actual antes de gastar gas), validación de dirección Ethereum y tipo booleano explícito.
+  - **Endpoint Admin `POST /api/governance/kyc`**: Protegido por `verifyAdminToken`. Valida usuario/wallet, ejecuta la operación blockchain, y registra TODA la acción en `audit_log` con IP, user-agent, wallet, txHash, timestamp y resultado (éxito o fracaso). Categoría: `compliance`.
+  - **Panel de Administración (Frontend)**: Nueva sección "🔐 KYC" en `admin-panel.html` con formulario de búsqueda de usuario, visualización de estado KYC, y botones de "Aprobar" / "Revocar" con diálogo de confirmación. Listeners protegidos contra doble-clic y registro duplicado.
+- **Arquitectura preparada para proveedores externos**: El método `setUserKYC()` es la pieza final del rompecabezas. Hoy lo llama un admin manualmente. Mañana, un webhook de Onfido/Jumio/Sumsub llamará al mismo endpoint sin cambios en el Smart Contract ni en el freno de publicaciones.
+- **Impacto**:
+  - Eliminación de deadlocks de base de datos.
+  - Los trabajadores nunca más perderán tiempo en tareas impagables.
+  - Cumplimiento de normativa KYC/AML: sin verificación, sin transacciones financieras.
+  - Trazabilidad bancaria completa: toda operación KYC queda en `audit_log` y en la blockchain.
+- **Evidencia**: Archivos modificados: `publicationService.js`, `web3BridgeService.js`, `publicationController.js`, `governanceController.js`, `governanceRoutes.js`, `admin-panel.html`, `admin-panel.js`.
+
+---
+
 ### 2026-05-08 — Integración Gobernanza → Blockchain (Winton-Consensus + Web3 Bridge)
 
 - **Contexto**: Los Smart Contracts desplegados en Optimism Sepolia tienen funciones administrativas (`pause`, `setMaxTransactionAmount`, `setFoundersWallet`, `withdrawSurplus`) que solo se podían ejecutar por consola de Hardhat. Se necesitaba integrarlas con el sistema de gobernanza Winton-Consensus existente para que los guardianes pudieran gestionarlas con multifirma, votación y auditoría.

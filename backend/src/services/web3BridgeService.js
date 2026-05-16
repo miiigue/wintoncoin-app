@@ -259,6 +259,102 @@ class Web3BridgeService {
     }
 
     // ========================================================================
+    // VERIFICACIÓN KYC (Know Your Customer)
+    // ========================================================================
+
+    /**
+     * Consulta directamente en la blockchain si una billetera tiene KYC aprobado.
+     * Esta es la fuente de verdad absoluta (Single Source of Truth) para la plataforma.
+     * 
+     * @param {string} walletAddress La dirección de la billetera a verificar.
+     * @returns {Promise<boolean>} true si tiene KYC, false de lo contrario.
+     */
+    async checkUserKYC(walletAddress) {
+        if (!this._isReady() || !walletAddress) {
+            console.warn(`[WEB3 BRIDGE] KYC Check Omitido: Relayer no listo o wallet indefinida (${walletAddress})`);
+            return false;
+        }
+
+        try {
+            const protocol = this._getProtocol();
+            
+            // TIMEOUT ENFORCER: No bloquear el servidor si el RPC está caído.
+            let timeoutId;
+            const timeoutPromise = new Promise((_, reject) => {
+                timeoutId = setTimeout(() => reject(new Error('RPC Timeout al verificar KYC')), 3000);
+            });
+            
+            const isVerified = await Promise.race([
+                protocol.isKYCVerified(walletAddress),
+                timeoutPromise
+            ]);
+
+            clearTimeout(timeoutId);
+            return isVerified;
+            
+        } catch (error) {
+            console.error(`[WEB3 BRIDGE] ❌ Error verificando KYC on-chain para ${walletAddress}:`, error.message);
+            // Por seguridad Fintech estricta (Fail-Safe), si no podemos verificar, asumimos falso para evitar blanqueo de capitales.
+            return false;
+        }
+    }
+
+    /**
+     * Escribe el estado KYC de una billetera en el Smart Contract (on-chain).
+     * Solo el Owner del contrato (Relayer) puede ejecutar esta función.
+     * 
+     * IMPORTANTE: Esta función SÍ gasta gas (es una escritura on-chain).
+     * En testnet (Optimism Sepolia) el gas es gratis.
+     * En mainnet, el costo es mínimo (~0.001 USD por transacción en Optimism).
+     * 
+     * @param {string} walletAddress La dirección de la billetera a verificar/desverificar.
+     * @param {boolean} status true para aprobar KYC, false para revocar.
+     * @returns {Promise<{success: boolean, txHash: string|null, error: string|null}>}
+     */
+    async setUserKYC(walletAddress, status) {
+        // Validación de precondiciones: Relayer debe estar configurado.
+        if (!this._isReady()) {
+            return { success: false, txHash: null, error: 'Relayer no configurado' };
+        }
+
+        // Validación de integridad: wallet debe ser una dirección Ethereum válida.
+        if (!walletAddress || !ethers.isAddress(walletAddress)) {
+            return { success: false, txHash: null, error: `Dirección de wallet inválida: ${walletAddress}` };
+        }
+
+        // Validación de tipo: status debe ser explícitamente booleano.
+        if (typeof status !== 'boolean') {
+            return { success: false, txHash: null, error: 'El estado KYC debe ser true o false' };
+        }
+
+        try {
+            const protocol = this._getProtocol();
+
+            // PREVENCIÓN DE REVERT: Verificar estado actual on-chain antes de gastar gas.
+            // Si el estado ya es el deseado, no ejecutamos la transacción (ahorra gas).
+            const currentStatus = await protocol.isKYCVerified(walletAddress);
+            if (currentStatus === status) {
+                console.log(`[WEB3 BRIDGE] ℹ️  KYC de ${walletAddress} ya es ${status}. Sin acción necesaria.`);
+                return { success: true, txHash: null, error: null };
+            }
+
+            // Ejecutar la transacción on-chain: setKYCStatus(address, bool).
+            console.log(`[WEB3 BRIDGE] 🔐 ${status ? 'Aprobando' : 'Revocando'} KYC para ${walletAddress}...`);
+            const tx = await protocol.setKYCStatus(walletAddress, status);
+
+            // Esperar confirmación en la blockchain (1 bloque mínimo).
+            const txHash = await this._waitForConfirmation(tx, 'setKYCStatus');
+
+            console.log(`[WEB3 BRIDGE] ✅ KYC ${status ? 'aprobado' : 'revocado'} para ${walletAddress}. TX: ${txHash}`);
+            return { success: true, txHash, error: null };
+
+        } catch (error) {
+            console.error(`[WEB3 BRIDGE] ❌ Error al ${status ? 'aprobar' : 'revocar'} KYC para ${walletAddress}:`, error.message);
+            return { success: false, txHash: null, error: error.message };
+        }
+    }
+
+    // ========================================================================
     // FUNCIÓN 3: AJUSTAR CIRCUIT BREAKER (maxTransactionAmount)
     // ========================================================================
 

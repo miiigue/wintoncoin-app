@@ -35,6 +35,11 @@ function createGovernanceRouter(pool, verifyUserToken, verifyAdminToken, require
     router.post('/bootstrap', verifyAdminToken, wrap(controller.bootstrap));
     router.get('/health', verifyAdminToken, wrap(controller.systemHealth));
 
+    // ─── KYC (Compliance) — Solo administradores pueden aprobar/revocar ─
+    // POST /api/governance/kyc { username: "...", kycStatus: true/false }
+    // Registra toda la operación en audit_log para trazabilidad bancaria.
+    router.post('/kyc', verifyAdminToken, wrap(controller.setKYCStatus));
+
     // ─── BREAK GLASS (sin auth normal — usa códigos de recuperación) ────
     router.post('/break-glass', breakGlassLimiter, wrap(controller.breakGlass));
 

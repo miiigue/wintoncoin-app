@@ -38,6 +38,7 @@
                     <li><a href="#referrals" class="nav-link" data-section="referrals">Referidos</a></li>
                     <li><a href="#boosters" class="nav-link" data-section="boosters">Impulsores</a></li>
                     <li><a href="#audit-log" class="nav-link" data-section="audit-log">Auditoría</a></li>
+                    <li><a href="#kyc-compliance" class="nav-link" data-section="kyc-compliance" style="color: #F59E0B;">🔐 KYC</a></li>
                     <li><a href="#notifications" class="nav-link" data-section="notifications">Notificaciones</a></li>
                     <li><a href="https://www.crm.wintoncoin.com" target="_blank" class="nav-link">CRM</a></li>
                     <li><a href="#academy" class="nav-link" data-section="academy" style="color: #4da6ff;">🎓 Winton
@@ -189,6 +190,54 @@
 
                 <div id="audit-log-container" class="table-container-admin">
                     <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- Sección KYC Compliance -->
+            <section id="kyc-compliance-section" class="admin-section">
+                <h1>🔐 Verificación KYC (Compliance)</h1>
+                <p>Gestiona la verificación de identidad (Know Your Customer) de los usuarios en la blockchain. Todas las acciones quedan registradas en el log de auditoría.</p>
+
+                <div class="settings-group">
+                    <div class="settings-header">
+                        <h2>Verificar / Modificar Estado KYC</h2>
+                        <p class="section-description">Ingresa el nombre de usuario para consultar su estado KYC on-chain y aprobarlo o revocarlo.</p>
+                    </div>
+
+                    <div class="admin-form" style="max-width: 600px;">
+                        <!-- Campo de búsqueda -->
+                        <div class="form-group-admin">
+                            <label for="kycUsernameInput">Nombre de Usuario:</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" id="kycUsernameInput" class="admin-input-dark" placeholder="Ej: cuentademo2" style="flex: 1;">
+                                <button type="button" id="kycCheckBtn" class="action-button-admin" style="white-space: nowrap;">🔍 Consultar</button>
+                            </div>
+                        </div>
+
+                        <!-- Resultado de la consulta -->
+                        <div id="kycStatusResult" style="display: none; margin-top: 1.5rem; padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                <div>
+                                    <p style="margin: 0; font-size: 14px; color: #667085;">Usuario</p>
+                                    <p id="kycResultUsername" style="margin: 4px 0 0; font-size: 18px; font-weight: 700;"></p>
+                                </div>
+                                <div style="text-align: right;">
+                                    <p style="margin: 0; font-size: 14px; color: #667085;">Estado KYC On-Chain</p>
+                                    <p id="kycResultStatus" style="margin: 4px 0 0; font-size: 18px; font-weight: 700;"></p>
+                                </div>
+                            </div>
+                            <p id="kycResultWallet" style="font-size: 12px; color: #667085; word-break: break-all; margin: 0 0 1rem;"></p>
+
+                            <!-- Botones de acción -->
+                            <div id="kycActions" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <button type="button" id="kycApproveBtn" class="action-button-admin publish" style="flex: 1; min-width: 150px;">✅ Aprobar KYC</button>
+                                <button type="button" id="kycRevokeBtn" class="action-button-admin" style="flex: 1; min-width: 150px; background: #DC2626;">❌ Revocar KYC</button>
+                            </div>
+                        </div>
+
+                        <!-- Resultado de la operación -->
+                        <div id="kycOperationResult" style="display: none; margin-top: 1rem; padding: 1rem; border-radius: 8px;"></div>
+                    </div>
                 </div>
             </section>
 

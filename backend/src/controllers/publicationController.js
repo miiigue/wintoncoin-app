@@ -121,21 +121,43 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 repeatCooldown = 24;
             }
 
-            const userResult = await client.query(`SELECT id, is_minor, tutor_user_id, account_status FROM users WHERE username = $1`, [authorUsername]);
+            const userResult = await client.query(`SELECT id, is_minor, tutor_user_id, account_status, web3_wallet_address FROM users WHERE username = $1`, [authorUsername]);
             if (userResult.rowCount === 0) {
                 throw { status: 404, message: "El autor de la publicación no existe." };
             }
             const author = userResult.rows[0];
             const authorId = author.id;
 
+            let kycWallet = author.web3_wallet_address;
+
             // Verificar si es menor sin tutor
-            if (author.is_minor && (!author.tutor_user_id || author.account_status === 'pending_tutor')) {
-                await client.query('ROLLBACK');
-                return res.status(403).json({
-                    message: "Por ser menor de edad, necesitas la autorización de un tutor para crear publicaciones. Por favor, agrega un tutor a tu cuenta primero.",
-                    requires_tutor: true,
-                    is_minor: true
-                });
+            if (author.is_minor) {
+                if (!author.tutor_user_id || author.account_status === 'pending_tutor') {
+                    await client.query('ROLLBACK');
+                    return res.status(403).json({
+                        message: "Por ser menor de edad, necesitas la autorización de un tutor para crear publicaciones. Por favor, agrega un tutor a tu cuenta primero.",
+                        requires_tutor: true,
+                        is_minor: true
+                    });
+                }
+                const tutorResult = await client.query(`SELECT web3_wallet_address FROM users WHERE id = $1`, [author.tutor_user_id]);
+                if (tutorResult.rowCount > 0) {
+                    kycWallet = tutorResult.rows[0].web3_wallet_address;
+                }
+            }
+
+            // === FRENO KYC FINTECH (Web3 Single Source of Truth) ===
+            // Validar KYC en la Blockchain antes de permitir publicaciones de gasto.
+            if (!isSellPost) { 
+                const Web3BridgeService = require('../services/web3BridgeService');
+                const isKycVerified = await Web3BridgeService.checkUserKYC(kycWallet);
+                if (!isKycVerified) {
+                    await client.query('ROLLBACK');
+                    return res.status(403).json({
+                        message: "Seguridad Financiera: Para publicar tareas y pagos reales, debes completar tu verificación de identidad (KYC) en tu Billetera Web3.",
+                        requires_kyc: true
+                    });
+                }
             }
 
             // --- NUEVO: Lógica para calcular la fecha de expiración ---

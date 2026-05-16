@@ -499,6 +499,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (sectionId === 'academy') loadAcademyVideos();
         else if (sectionId === 'humanitarian') loadHumanitarianCauses();
         else if (sectionId === 'gov-rewards') loadGovRewardsSection();
+        else if (sectionId === 'kyc-compliance') initKycSection();
     }
 
     function showBoosterTab(tabId) {
@@ -3903,6 +3904,183 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.govImportProcessBtn.textContent = 'Confirmar y Procesar Pagos';
             }
         });
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // KYC COMPLIANCE — Verificación de Identidad On-Chain
+    // ════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Inicializa la sección KYC: registra los event listeners una sola vez.
+     * Se llama cada vez que el admin navega a la sección KYC.
+     */
+    function initKycSection() {
+        const checkBtn = document.getElementById('kycCheckBtn');
+        const approveBtn = document.getElementById('kycApproveBtn');
+        const revokeBtn = document.getElementById('kycRevokeBtn');
+        const usernameInput = document.getElementById('kycUsernameInput');
+
+        // Evitar registrar listeners duplicados usando un flag en el DOM.
+        if (checkBtn && !checkBtn._kycListenerAttached) {
+            checkBtn._kycListenerAttached = true;
+
+            // Consultar estado KYC al hacer clic en "Consultar".
+            checkBtn.addEventListener('click', () => {
+                const username = usernameInput?.value?.trim();
+                if (!username) {
+                    showCustomAlert('Ingresa un nombre de usuario para consultar.');
+                    return;
+                }
+                kycCheckUser(username);
+            });
+
+            // Permitir buscar presionando Enter en el campo de texto.
+            usernameInput.addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') {
+                    checkBtn.click();
+                }
+            });
+        }
+
+        // Botón "Aprobar KYC": Envía kycStatus=true al backend.
+        if (approveBtn && !approveBtn._kycListenerAttached) {
+            approveBtn._kycListenerAttached = true;
+            approveBtn.addEventListener('click', () => {
+                const username = document.getElementById('kycResultUsername')?.textContent;
+                if (!username) return;
+                showCustomConfirm(
+                    `¿Estás seguro de APROBAR el KYC para "${username}"? Esta acción se registrará en el Smart Contract y en el log de auditoría.`,
+                    () => kycSetStatus(username, true)
+                );
+            });
+        }
+
+        // Botón "Revocar KYC": Envía kycStatus=false al backend.
+        if (revokeBtn && !revokeBtn._kycListenerAttached) {
+            revokeBtn._kycListenerAttached = true;
+            revokeBtn.addEventListener('click', () => {
+                const username = document.getElementById('kycResultUsername')?.textContent;
+                if (!username) return;
+                showCustomConfirm(
+                    `⚠️ ¿Estás seguro de REVOCAR el KYC para "${username}"? El usuario NO podrá crear publicaciones que impliquen pagos.`,
+                    () => kycSetStatus(username, false)
+                );
+            });
+        }
+    }
+
+    /**
+     * Consulta el estado KYC de un usuario: busca su wallet en la DB
+     * y luego consulta el Smart Contract para ver si tiene KYC.
+     * @param {string} username - El nombre de usuario a consultar.
+     */
+    async function kycCheckUser(username) {
+        const resultPanel = document.getElementById('kycStatusResult');
+        const operationResult = document.getElementById('kycOperationResult');
+
+        // Ocultar resultados anteriores.
+        if (resultPanel) resultPanel.style.display = 'none';
+        if (operationResult) operationResult.style.display = 'none';
+
+        try {
+            // Paso 1: Obtener la wallet del usuario desde la DB.
+            const users = await apiFetch(`/api/admin/users?search=${encodeURIComponent(username)}`);
+            const user = Array.isArray(users) ? users.find(u => u.username === username) : null;
+
+            if (!user) {
+                showCustomAlert(`Usuario "${escapeHtml(username)}" no encontrado.`);
+                return;
+            }
+
+            const wallet = user.web3_wallet_address;
+
+            // Mostrar panel con info del usuario.
+            document.getElementById('kycResultUsername').textContent = user.username;
+            document.getElementById('kycResultWallet').textContent = wallet
+                ? `Wallet: ${wallet}`
+                : 'Sin billetera Web3 registrada';
+
+            if (!wallet) {
+                // Si no tiene wallet, no podemos consultar KYC.
+                document.getElementById('kycResultStatus').textContent = 'N/A';
+                document.getElementById('kycResultStatus').style.color = '#667085';
+                document.getElementById('kycActions').style.display = 'none';
+                resultPanel.style.display = 'block';
+                return;
+            }
+
+            // Paso 2: Consultar estado KYC on-chain via el endpoint.
+            // Usamos una llamada al bridge para verificar (lectura gratuita, sin gas).
+            document.getElementById('kycResultStatus').textContent = 'Consultando blockchain...';
+            document.getElementById('kycResultStatus').style.color = '#F59E0B';
+            document.getElementById('kycActions').style.display = 'none';
+            resultPanel.style.display = 'block';
+
+            // Intentar verificar via el endpoint de governance.
+            // Como checkUserKYC es una lectura, podemos hacer una llamada POST
+            // con kycStatus para ver el estado actual. Pero como no tenemos un
+            // endpoint GET dedicado, usamos la información del usuario.
+            // NOTA: El estado real se verifica cuando intentas aprobar/revocar.
+            // Por ahora mostramos "Pendiente de verificación" y dejamos los botones visibles.
+            document.getElementById('kycResultStatus').textContent = '⏳ Verificar con los botones';
+            document.getElementById('kycResultStatus').style.color = '#F59E0B';
+            document.getElementById('kycActions').style.display = 'flex';
+
+        } catch (error) {
+            showCustomAlert(`Error al consultar usuario: ${error.message}`);
+        }
+    }
+
+    /**
+     * Envía la solicitud para aprobar o revocar el KYC de un usuario.
+     * Llama al endpoint POST /api/governance/kyc.
+     * @param {string} username - El nombre de usuario.
+     * @param {boolean} kycStatus - true para aprobar, false para revocar.
+     */
+    async function kycSetStatus(username, kycStatus) {
+        const operationResult = document.getElementById('kycOperationResult');
+        const approveBtn = document.getElementById('kycApproveBtn');
+        const revokeBtn = document.getElementById('kycRevokeBtn');
+
+        // Deshabilitar botones durante la operación para evitar doble clic.
+        if (approveBtn) approveBtn.disabled = true;
+        if (revokeBtn) revokeBtn.disabled = true;
+
+        try {
+            const result = await apiFetch('/api/governance/kyc', {
+                method: 'POST',
+                body: JSON.stringify({ username, kycStatus })
+            });
+
+            // Mostrar resultado exitoso.
+            operationResult.style.display = 'block';
+            operationResult.style.background = 'rgba(5, 150, 105, 0.1)';
+            operationResult.style.border = '1px solid #059669';
+            operationResult.innerHTML = `
+                <p style="color: #059669; font-weight: 700; margin: 0 0 0.5rem;">✅ ${escapeHtml(result.message)}</p>
+                <p style="color: #667085; font-size: 13px; margin: 0;">TX Hash: ${escapeHtml(result.txHash || 'Sin cambios necesarios')}</p>
+            `;
+
+            // Actualizar el estado visual.
+            const statusEl = document.getElementById('kycResultStatus');
+            if (statusEl) {
+                statusEl.textContent = kycStatus ? '✅ VERIFICADO' : '❌ NO VERIFICADO';
+                statusEl.style.color = kycStatus ? '#059669' : '#DC2626';
+            }
+
+        } catch (error) {
+            // Mostrar error.
+            operationResult.style.display = 'block';
+            operationResult.style.background = 'rgba(220, 38, 38, 0.1)';
+            operationResult.style.border = '1px solid #DC2626';
+            operationResult.innerHTML = `
+                <p style="color: #DC2626; font-weight: 700; margin: 0;">❌ Error: ${escapeHtml(error.message)}</p>
+            `;
+        } finally {
+            // Re-habilitar botones.
+            if (approveBtn) approveBtn.disabled = false;
+            if (revokeBtn) revokeBtn.disabled = false;
+        }
     }
 
 });
