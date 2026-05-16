@@ -1335,9 +1335,8 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
+            console.log(`[DEBUG] Transacción BEGIN iniciada para pubId=${pubId}`);
 
-            // 1. OBTENER DATOS Y VERIFICAR PERMISOS
-            // Se obtiene la publicación y se asegura que el `confirmerUsername` es el autor.
             const acceptanceResult = await client.query(
                 `SELECT p.blue_cost, p.title, p.category, p.is_booster_task,
                     u.id as author_id,
@@ -1350,22 +1349,20 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                      JOIN publication_acceptances pa ON p.id = pa.publication_id
                      JOIN users w ON pa.acceptor_username = w.username
              WHERE p.id = $1 AND pa.acceptor_username = $2 AND pa.status = 'completed'
-             FOR UPDATE`, // FOR UPDATE bloquea la fila para evitar concurrencia
+             FOR UPDATE`,
                 [pubId, workerUsername]
             );
+            console.log(`[DEBUG] FOR UPDATE finalizado. Filas encontradas: ${acceptanceResult.rowCount}`);
 
             const acceptance = acceptanceResult.rows[0];
             if (!acceptance) {
                 throw { status: 404, message: "No se encontró una tarea completada válida para este trabajador." };
             }
 
-            // 2. Fallar rápido si el usuario no es el autor.
             if (acceptance.author_username !== actorUsername) {
                 throw { status: 403, message: "No tienes permiso para confirmar el pago de esta tarea." };
             }
 
-            // 2.1 Seguridad: no confiar en el username enviado por cliente.
-            // Usamos el acceptor_username real de la DB como "worker".
             if (workerUsername && acceptance.acceptor_username !== workerUsername) {
                 await logAuditEvent(client, req, {
                     eventType: 'publication.confirm_payment.mismatch',
@@ -1381,34 +1378,36 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 throw { status: 400, message: "El trabajador indicado no coincide con el registrado en la solicitud." };
             }
 
-            // VALIDACIÓN: Esta ruta es solo para 'requests'
             if (acceptance.category !== 'request') {
                 throw { status: 400, message: "Esta acción solo es válida para publicaciones de tipo 'solicitud'." };
             }
 
-            // 3. OBTENER CONFIGURACIONES DE LA PLATAFORMA
             const settingsResult = await client.query(`
             SELECT setting_key, setting_value FROM app_settings 
             WHERE setting_key IN ('pre_launch_mode_enabled', 'debt_cycle_days', 'debt_cycle_hours', 'debt_cycle_minutes', 'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes', 'platform_commission_percentage')
         `);
             const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
             const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
+            console.log(`[DEBUG] Settings cargados. preLaunchMode=${preLaunchMode}`);
 
-            // 4. PROCESAR EL PAGO
-            acceptance.workerUsername = acceptance.acceptor_username; // Usar el valor de DB (no el del cliente)
+            acceptance.workerUsername = acceptance.acceptor_username;
             acceptance.workerId = acceptance.worker_id;
+            
+            console.log(`[DEBUG] Llamando a processRequestPayment...`);
             const result = await processRequestPayment(client, acceptance, pubId, preLaunchMode, settings);
+            console.log(`[DEBUG] processRequestPayment finalizado exitosamente.`);
 
-            // 5. ACTUALIZAR ESTADO FINAL
             await client.query(`UPDATE publication_acceptances SET status = 'confirmed_paid' WHERE id = $1`, [acceptance.acceptance_id]);
+            console.log(`[DEBUG] UPDATE publication_acceptances finalizado.`);
 
-            // PUSH NOTIFICATION (Pago Confirmado — tipo TRANSACTIONAL: no puede ser bloqueado)
+            console.log(`[DEBUG] Enviando push notification...`);
             await notificationService.sendNotificationToUser(acceptance.worker_id, {
                 title: '¡Pago Recibido! 🏆',
                 body: `Tu trabajo en "${acceptance.title}" ha sido pagado. +${parseFloat(acceptance.blue_cost).toFixed(2)} BLUE IOU acreditados.`,
                 icon: '/assets/icons/icon-192x192.png',
                 data: { url: '/history.html' }
             }, 'TRANSACTIONAL');
+            console.log(`[DEBUG] Push notification enviada.`);
 
             await logAuditEvent(client, req, {
                 eventType: 'publication.confirmed_paid',
@@ -1422,8 +1421,10 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                     is_booster_task: !!acceptance.is_booster_task
                 }
             });
+            console.log(`[DEBUG] logAuditEvent finalizado.`);
 
             await client.query('COMMIT');
+            console.log(`[DEBUG] Transacción COMMIT finalizada.`);
 
             // ═══════════════════════════════════════════════════════════════
             // OUTBOX PATTERN: DB Confirmada Exitosamente.
