@@ -303,9 +303,9 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         const payerWallet = payerRow?.web3_wallet_address;
         const payeeWallet = payeeRow?.web3_wallet_address;
 
-        // PASO 1: Registrar intención FUERA de la transacción (sobrevive ROLLBACK).
+        // PASO 1: Registrar intención en la misma transacción (Evita Self-Deadlock PG).
         const intentPayload = { payerWallet, payeeWallet, amountBlue: cost, pubId, author, workerUsername, authorTxId };
-        const intentRes = await pool.query(
+        const intentRes = await client.query(
             `INSERT INTO web3_pending_transactions (user_id, tx_type, payload, status)
              VALUES ($1, 'request_payment', $2, 'intent') RETURNING id`,
             [payerRow?.id, JSON.stringify(intentPayload)]
@@ -325,14 +325,14 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
 
         if (!txHash) {
             // Blockchain falló: marcar intención como fallida y abortar.
-            await pool.query(`UPDATE web3_pending_transactions SET status = 'failed', error_reason = 'blockchain_rejected', resolved_at = NOW() WHERE id = $1`, [web3IntentId]);
+            await client.query(`UPDATE web3_pending_transactions SET status = 'failed', error_reason = 'blockchain_rejected', resolved_at = NOW() WHERE id = $1`, [web3IntentId]);
             throw { status: 502, message: 'La transacción no pudo confirmarse en la blockchain. El pago ha sido cancelado para proteger tus fondos. Intenta nuevamente.' };
         }
 
         // PASO 3: Blockchain confirmó. Actualizar intención con tx_hash.
         // Si el COMMIT posterior falla, este registro sobrevive con status 'blockchain_confirmed'
         // y el cron de reconciliación lo detecta para re-aplicar los cambios en la DB.
-        await pool.query(
+        await client.query(
             `UPDATE web3_pending_transactions SET tx_hash = $1, status = 'blockchain_confirmed' WHERE id = $2`,
             [txHash, web3IntentId]
         );
@@ -563,9 +563,9 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         const payerWallet = payerRow?.web3_wallet_address;
         const payeeWallet = payeeRow?.web3_wallet_address;
 
-        // PASO 1: Registrar intención FUERA de la transacción.
+        // PASO 1: Registrar intención en la misma transacción (Evita Self-Deadlock PG).
         const intentPayload = { payerWallet, payeeWallet, amountBlue: cost, pubId, payer, recipient, payerTxId };
-        const intentRes = await pool.query(
+        const intentRes = await client.query(
             `INSERT INTO web3_pending_transactions (user_id, tx_type, payload, status)
              VALUES ($1, 'direct_payment', $2, 'intent') RETURNING id`,
             [payerRow?.id, JSON.stringify(intentPayload)]
@@ -584,12 +584,12 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         });
 
         if (!txHash) {
-            await pool.query(`UPDATE web3_pending_transactions SET status = 'failed', error_reason = 'blockchain_rejected', resolved_at = NOW() WHERE id = $1`, [web3IntentId]);
+            await client.query(`UPDATE web3_pending_transactions SET status = 'failed', error_reason = 'blockchain_rejected', resolved_at = NOW() WHERE id = $1`, [web3IntentId]);
             throw { status: 502, message: 'La transacción no pudo confirmarse en la blockchain. El pago ha sido cancelado para proteger tus fondos. Intenta nuevamente.' };
         }
 
         // PASO 3: Blockchain confirmó. Actualizar intención con tx_hash.
-        await pool.query(
+        await client.query(
             `UPDATE web3_pending_transactions SET tx_hash = $1, status = 'blockchain_confirmed' WHERE id = $2`,
             [txHash, web3IntentId]
         );
