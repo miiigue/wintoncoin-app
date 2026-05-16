@@ -220,6 +220,7 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         // --- INYECCIÓN DE SOLVENCIA AQUÍ ---
         const creditScoringService = require('./creditScoringService');
         const scoreLimit = await creditScoringService.calculateUserScore(debtResponsible.user_id);
+        console.log('[DEBUG] processRequestPayment: scoreLimit calculado');
         const currentRedRes = await client.query('SELECT red_balance, liquid_blue_balance FROM users WHERE id = $1', [debtResponsible.user_id]);
         const currentRed = parseFloat(currentRedRes.rows[0].red_balance) || 0;
         const liquidBlue = parseFloat(currentRedRes.rows[0].liquid_blue_balance) || 0;
@@ -227,12 +228,14 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         if (redForAuthor > (Math.max(0, scoreLimit - currentRed) + liquidBlue)) {
             throw { status: 402, message: `Límite de Crédito WTS Excedido. Transacción requiere: ${redForAuthor.toFixed(4)}. Tienes disponible: ${(Math.max(0, scoreLimit - currentRed) + liquidBlue).toFixed(4)}.` };
         }
+        console.log('[DEBUG] processRequestPayment: Validación WTS superada');
         // ------------------------------------
 
         // Actualizar saldo RED del responsable (tutor si es menor, autor si no)
         // Usamos 'credit' para AUMENTAR el balance de deuda (RED)
         await client.query(`SELECT record_balance_event($1, 'credit', 'red', $2, NULL)`, [debtResponsible.user_id, redForAuthor]);
         await client.query(`INSERT INTO red_token_debts (user_id, username, amount, due_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${debtInterval}')`, [debtResponsible.user_id, debtResponsible.username, redForAuthor]);
+        console.log('[DEBUG] processRequestPayment: Deuda RED registrada');
 
         // Si la deuda es del tutor (menor con tutor), notificar al tutor
         if (debtResponsible.is_tutor) {
@@ -253,9 +256,12 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
                 return workerResult.rows[0].id;
             })();
 
+        console.log('[DEBUG] processRequestPayment: Worker ID resuelto', workerId);
+
         // Usamos 'payment_received' para AUMENTAR el balance en escrow (BLUE)
         await client.query(`SELECT record_balance_event($1, 'payment_received', 'escrow_blue', $2, NULL)`, [workerId, cost]);
         await client.query(`INSERT INTO blue_token_escrows (user_id, username, amount, unlock_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${escrowInterval}')`, [workerId, workerUsername, cost]);
+        console.log('[DEBUG] processRequestPayment: Escrow BLUE registrado');
 
         // Asignar comisión a la plataforma como tokens BLUE reales (cumple reglas económicas)
         const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
@@ -269,6 +275,7 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
                 await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'commission_received', $2, $3, 0, $4)`, [platformId, `Comisión por: "${title}"`, commissionAmount, pubId]);
             }
         }
+        console.log('[DEBUG] processRequestPayment: Comisión registrada');
 
         await client.query(`INSERT INTO platform_wallet (id, total_blue_commission_balance) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET total_blue_commission_balance = platform_wallet.total_blue_commission_balance + $1`, [commissionAmount]);
 
@@ -277,6 +284,7 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'payment_received', $2, $3, 0, $4)`, [workerId, `Realizaste: "${title}"`, cost, pubId]);
 
         await client.query(`INSERT INTO platform_commission_log (related_publication_id, related_user_transaction_id, commission_amount_blue) VALUES ($1, $2, $3)`, [pubId, authorTxId, commissionAmount]);
+        console.log('[DEBUG] processRequestPayment: Log de transacciones creado. Procediendo a pool.query para OUTBOX...');
 
         // ═══════════════════════════════════════════════════════════════
         // OUTBOX PATTERN (Red de Seguridad Anti-Desincronización)
