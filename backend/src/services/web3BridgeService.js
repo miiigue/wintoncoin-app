@@ -432,15 +432,19 @@ class Web3BridgeService {
             const protocol = new ethers.Contract(PROTOCOL_ADDRESS, this.protocolAbi, this.provider);
             
             // TIMEOUT ENFORCER: No permitir que la llamada RPC se quede colgada infinitamente.
-            const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('RPC Timeout: El nodo blockchain no respondió en 3 segundos.')), 3000)
-            );
+            let timeoutId;
+            const timeoutPromise = new Promise((_, reject) => {
+                timeoutId = setTimeout(() => reject(new Error('RPC Timeout: El nodo blockchain no respondió en 3 segundos.')), 3000);
+            });
             
             // Competimos la llamada real contra el timeout
             const isPaused = await Promise.race([
                 protocol.paused(),
                 timeoutPromise
             ]);
+
+            // Limpiar el timeout si la llamada a la blockchain fue exitosa antes de los 3 segundos
+            clearTimeout(timeoutId);
 
             // Guardar en caché para evitar consultas repetitivas.
             this._pauseCache = isPaused;
