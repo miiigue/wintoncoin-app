@@ -1329,6 +1329,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
     router.post('/publications/:id/confirm-payment', verifyAdminToken, requireAcceptedLegalByUsernameField(['confirmerUsername']), async (req, res) => {
         const pubId = req.params.id;
         const { confirmerUsername, workerUsername } = req.body;
+        console.log(`[DEBUG] Recibida petición confirm-payment: pubId=${pubId}, confirmer=${confirmerUsername}, worker=${workerUsername}`);
         const actorUsername = resolveActorUsername(req, confirmerUsername);
 
         const client = await pool.connect();

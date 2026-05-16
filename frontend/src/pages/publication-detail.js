@@ -779,8 +779,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 break;
             case 'confirm-payment':
-                const authorUsername = document.querySelector('.detail-meta strong a')?.innerText || document.querySelector('.detail-meta strong')?.innerText;
-                await confirmPaymentAndRate(publicationId, authorUsername, userInAction);
+                try {
+                    const authorUsername = document.querySelector('.detail-meta strong a')?.innerText || document.querySelector('.detail-meta strong')?.innerText;
+                    await confirmPaymentAndRate(publicationId, authorUsername, userInAction);
+                } catch (err) {
+                    showCustomAlert("Error JS: " + err.message);
+                }
                 return;
             case 'delete':
                 showCustomConfirm('¿Deseas eliminar esta tarea? Esta acción no se puede deshacer.', async () => {
@@ -842,12 +846,17 @@ ${publicationUrl}`;
 
     async function confirmPaymentAndRate(pubId, authorUsername, acceptorUsername) {
         try {
+            console.log("DEBUG: Enviando confirm-payment al servidor...", { pubId, authorUsername, acceptorUsername });
             const result = await fetchFromServer(`/publications/${pubId}/confirm-payment`, 'POST', { confirmerUsername: storedUsername, workerUsername: acceptorUsername });
+            console.log("DEBUG: Respuesta confirm-payment:", result);
             if (result) {
                 openRatingModal(pubId, authorUsername, acceptorUsername);
+            } else {
+                console.log("DEBUG: result fue nulo, modal no abierto.");
             }
         } catch (error) {
-            // Error already shown in fetchFromServer
+            console.error("DEBUG: Error capturado en confirmPaymentAndRate:", error);
+            showCustomAlert("Error inesperado: " + error.message);
         }
     }
 
