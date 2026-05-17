@@ -17,6 +17,21 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
+### 2026-05-17 — Defensa en Profundidad KYC (Freno en Aceptación de Tareas + Propagación de Errores Web3)
+
+- **Contexto**: El Smart Contract `WintonProtocol` tiene una regla de cumplimiento financiero estricta (AML/KYC): exige que **TANTO el Payer (pagador) COMO el Payee (trabajador/beneficiario)** tengan su KYC verificado on-chain (`isKYCVerified`). Aunque se había implementado un freno pre-publicación para el autor, los trabajadores sin KYC podían aceptar tareas, invertir tiempo y completarlas. Al momento de confirmar el pago, el Smart Contract revertía con `WintonProtocol: Payee KYC not verified`. Al capturarse el error de forma genérica en el backend, el usuario veía un mensaje inespecífico en pantalla, generando confusión y falsos reportes de error en el autor.
+- **Decisión**:
+  - **Freno KYC Preventivo (Capa 1 - Fail-Fast)**: En `publicationController.js`, se modificó el endpoint `POST /publications/:id/accept`. Si la publicación implica remuneración (`request`), se consulta la blockchain para verificar que la wallet del trabajador (o la de su tutor si es menor de edad) tenga el KYC aprobado on-chain. Si no lo tiene, se bloquea la aceptación con HTTP 403 y un mensaje claro indicando que debe verificar su identidad antes de realizar trabajos pagados.
+  - **Propagación Exacta de Errores Web3 (Capa 2 - Defensa en Profundidad)**: En `web3BridgeService.js`, se modificó `syncPaymentToBlockchain` para no silenciar los errores de revert de la blockchain con `return null`, sino propagar la excepción (`throw error`).
+  - **Manejo de Errores en `publicationService.js`**: En `processRequestPayment` y `processDirectPaymentCompletion`, se implementó un bloque `try...catch` específico para analizar el mensaje de error de Web3. Si contiene `Payee KYC not verified`, `Payer KYC not verified` o errores de gas (`insufficient funds`), se arroja un mensaje HTTP 502 preciso y en español para mostrarse en el frontend, y se guarda el motivo exacto en la tabla `web3_pending_transactions`.
+- **Impacto**:
+  - **Cero Trabajo Perdido**: Los trabajadores sin KYC no pueden iniciar tareas remuneradas, garantizando que todo el que trabaja cobrará sin problemas técnicos ni legales.
+  - **Claridad Total en UX**: Si por algún motivo de auditoría se revoca un KYC a mitad de camino, el autor verá en su pantalla el motivo exacto del rechazo de la blockchain.
+  - **Trazabilidad de Errores**: La base de datos registra el motivo exacto del fallo de sincronización Web3 en el patrón Outbox.
+- **Evidencia**: Archivos modificados: `publicationController.js`, `publicationService.js`, `web3BridgeService.js`, `EVOLUCION.md`.
+
+---
+
 ### 2026-05-16 — Sistema KYC Compliance (Freno Pre-Publicación + Admin Panel On-Chain)
 
 - **Contexto**: El Smart Contract `WintonProtocol` exige que las billeteras del pagador tengan KYC verificado on-chain (`isKYCVerified`). Sin una validación previa en el backend, los usuarios podían crear publicaciones tipo "request" (que implican pago) y los trabajadores invertían tiempo en tareas que luego fallaban al intentar cobrar, generando un `CALL_EXCEPTION: Payer KYC not verified`. Además, se detectó un deadlock de base de datos (self-deadlock) por uso de `pool.query` dentro de transacciones activas con `client.query` (bloqueo `FOR UPDATE`).

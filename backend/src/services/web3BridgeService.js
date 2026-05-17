@@ -189,7 +189,7 @@ class Web3BridgeService {
 
         } catch (error) {
             console.error(`[WEB3 BRIDGE] ❌ Error en sincronización de pago:`, error.message);
-            return null;
+            throw error;
         }
     }
 

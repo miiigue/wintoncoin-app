@@ -313,18 +313,34 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         web3IntentId = intentRes.rows[0].id;
 
         // PASO 2: Ejecutar la transacción en blockchain (BLOQUEANTE).
-        const txHash = await Web3BridgeService.syncPaymentToBlockchain({
-            payerWalletAddress: payerWallet,
-            payeeWalletAddress: payeeWallet,
-            amountBlue: cost,
-            dbTransactionId: authorTxId,
-            publicationId: pubId,
-            payerUsername: author,
-            payeeUsername: workerUsername
-        });
+        let txHash;
+        try {
+            txHash = await Web3BridgeService.syncPaymentToBlockchain({
+                payerWalletAddress: payerWallet,
+                payeeWalletAddress: payeeWallet,
+                amountBlue: cost,
+                dbTransactionId: authorTxId,
+                publicationId: pubId,
+                payerUsername: author,
+                payeeUsername: workerUsername
+            });
+        } catch (web3Error) {
+            const errorMsg = web3Error.message || 'blockchain_rejected';
+            await client.query(`UPDATE web3_pending_transactions SET status = 'failed', error_reason = $1, resolved_at = NOW() WHERE id = $2`, [errorMsg.substring(0, 255), web3IntentId]);
+            
+            let userMessage = 'La transacción no pudo confirmarse en la blockchain. El pago ha sido cancelado para proteger tus fondos. Intenta nuevamente.';
+            if (errorMsg.includes('Payee KYC not verified')) {
+                userMessage = `El pago no pudo procesarse porque el trabajador (${workerUsername}) no tiene su identidad (KYC) verificada en la blockchain.`;
+            } else if (errorMsg.includes('Payer KYC not verified')) {
+                userMessage = `El pago no pudo procesarse porque tu cuenta no tiene la identidad (KYC) verificada en la blockchain.`;
+            } else if (errorMsg.includes('insufficient funds') || errorMsg.includes('exceeds balance')) {
+                userMessage = `La billetera del protocolo no cuenta con fondos suficientes de gas para ejecutar esta transacción on-chain.`;
+            }
+
+            throw { status: 502, message: userMessage };
+        }
 
         if (!txHash) {
-            // Blockchain falló: marcar intención como fallida y abortar.
             await client.query(`UPDATE web3_pending_transactions SET status = 'failed', error_reason = 'blockchain_rejected', resolved_at = NOW() WHERE id = $1`, [web3IntentId]);
             throw { status: 502, message: 'La transacción no pudo confirmarse en la blockchain. El pago ha sido cancelado para proteger tus fondos. Intenta nuevamente.' };
         }
@@ -573,15 +589,32 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         web3IntentId = intentRes.rows[0].id;
 
         // PASO 2: Ejecutar la transacción en blockchain (BLOQUEANTE).
-        const txHash = await Web3BridgeService.syncPaymentToBlockchain({
-            payerWalletAddress: payerWallet,
-            payeeWalletAddress: payeeWallet,
-            amountBlue: cost,
-            dbTransactionId: payerTxId,
-            publicationId: pubId,
-            payerUsername: payer,
-            payeeUsername: recipient
-        });
+        let txHash;
+        try {
+            txHash = await Web3BridgeService.syncPaymentToBlockchain({
+                payerWalletAddress: payerWallet,
+                payeeWalletAddress: payeeWallet,
+                amountBlue: cost,
+                dbTransactionId: payerTxId,
+                publicationId: pubId,
+                payerUsername: payer,
+                payeeUsername: recipient
+            });
+        } catch (web3Error) {
+            const errorMsg = web3Error.message || 'blockchain_rejected';
+            await client.query(`UPDATE web3_pending_transactions SET status = 'failed', error_reason = $1, resolved_at = NOW() WHERE id = $2`, [errorMsg.substring(0, 255), web3IntentId]);
+            
+            let userMessage = 'La transacción no pudo confirmarse en la blockchain. El pago ha sido cancelado para proteger tus fondos. Intenta nuevamente.';
+            if (errorMsg.includes('Payee KYC not verified')) {
+                userMessage = `El pago no pudo procesarse porque el beneficiario (${recipient}) no tiene su identidad (KYC) verificada en la blockchain.`;
+            } else if (errorMsg.includes('Payer KYC not verified')) {
+                userMessage = `El pago no pudo procesarse porque tu cuenta no tiene la identidad (KYC) verificada en la blockchain.`;
+            } else if (errorMsg.includes('insufficient funds') || errorMsg.includes('exceeds balance')) {
+                userMessage = `La billetera del protocolo no cuenta con fondos suficientes de gas para ejecutar esta transacción on-chain.`;
+            }
+
+            throw { status: 502, message: userMessage };
+        }
 
         if (!txHash) {
             await client.query(`UPDATE web3_pending_transactions SET status = 'failed', error_reason = 'blockchain_rejected', resolved_at = NOW() WHERE id = $1`, [web3IntentId]);

@@ -154,7 +154,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 if (!isKycVerified) {
                     await client.query('ROLLBACK');
                     return res.status(403).json({
-                        message: "Seguridad Financiera: Para publicar tareas y pagos reales, debes completar tu verificación de identidad (KYC) en tu Billetera Web3.",
+                        message: "Seguridad Financiera: Para publicar tareas y emitir pagos en token BLUE, debes completar tu verificación de identidad (KYC) en tu Billetera Web3.",
                         requires_kyc: true
                     });
                 }
@@ -757,7 +757,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             // 1. Verificar existencia del aceptador
             const acceptorResult = await client.query(
-                `SELECT id, is_minor, tutor_user_id, account_status FROM users WHERE username = $1`,
+                `SELECT id, is_minor, tutor_user_id, account_status, web3_wallet_address FROM users WHERE username = $1`,
                 [acceptorUsername]
             );
 
@@ -786,6 +786,46 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             }
             if (pub.is_paused) {
                 throw { status: 400, message: "Esta publicación está pausada temporalmente." };
+            }
+
+            // === FRENO KYC FINTECH PARA EL TRABAJADOR (Web3 Single Source of Truth) ===
+            // El Smart Contract exige que el beneficiario (Payee) tenga KYC verificado on-chain.
+            if (pub.category === 'request') {
+                let workerKycWallet = acceptor.web3_wallet_address;
+
+                // Si el trabajador es menor de edad, verificamos si usa la wallet de su tutor
+                if (acceptor.is_minor) {
+                    if (!acceptor.tutor_user_id || acceptor.account_status === 'pending_tutor') {
+                        await client.query('ROLLBACK');
+                        return res.status(403).json({
+                            message: "Por ser menor de edad, necesitas la autorización de un tutor para aceptar trabajos remunerados. Por favor, agrega un tutor a tu cuenta primero.",
+                            requires_tutor: true,
+                            is_minor: true
+                        });
+                    }
+                    const tutorWalletRes = await client.query(`SELECT web3_wallet_address FROM users WHERE id = $1`, [acceptor.tutor_user_id]);
+                    if (tutorWalletRes.rowCount > 0 && tutorWalletRes.rows[0].web3_wallet_address) {
+                        workerKycWallet = tutorWalletRes.rows[0].web3_wallet_address;
+                    }
+                }
+
+                if (!workerKycWallet) {
+                    await client.query('ROLLBACK');
+                    return res.status(403).json({
+                        message: "Seguridad Financiera: Para aceptar tareas remuneradas, debes conectar una Billetera Web3 a tu cuenta.",
+                        requires_wallet: true
+                    });
+                }
+
+                const Web3BridgeService = require('../services/web3BridgeService');
+                const isWorkerKycVerified = await Web3BridgeService.checkUserKYC(workerKycWallet);
+                if (!isWorkerKycVerified) {
+                    await client.query('ROLLBACK');
+                    return res.status(403).json({
+                        message: "Seguridad Financiera: Para aceptar tareas remuneradas y recibir pagos en token BLUE, debes completar tu verificación de identidad (KYC) en tu Billetera Web3.",
+                        requires_kyc: true
+                    });
+                }
             }
 
             // --- CASO A: DONACIÓN PROFESIONAL ---
