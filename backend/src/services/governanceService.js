@@ -817,10 +817,83 @@ async function _executeAction(client, req, govRequest) {
 
     try {
         if (govRequest.action_type === ACTION_TYPES.CONFIG_CHANGE) {
+            // PASO 1: Actualizar la base de datos (flujo existente).
             await client.query(
                 `UPDATE app_settings SET setting_value = $1 WHERE setting_key = $2`,
                 [govRequest.new_value, govRequest.target_key]
             );
+
+            // PASO 2 (NUEVO): Si el target_key es Web3, sincronizar con la blockchain.
+            // Se usa require() inline (lazy loading) para evitar dependencias circulares.
+            // NOTA ARQUITECTÓNICA: La llamada blockchain se ejecuta dentro del BEGIN/COMMIT
+            // de la transacción DB. Esto es aceptable porque:
+            // - Las operaciones L2 (Optimism) confirman en ~2 segundos (no 15+ como L1).
+            // - El pool de PostgreSQL tiene conexiones suficientes para manejar la latencia.
+            // - Si se necesita más resiliencia, migrar a un sistema de colas (Bull/Redis).
+            if (govRequest.target_key && govRequest.target_key.startsWith('web3_')) {
+                const web3Bridge = require('./web3BridgeService');
+                let web3Result = null;
+
+                // Dispatcher: cada target_key Web3 ejecuta una función específica del bridge.
+                switch (govRequest.target_key) {
+                    case 'web3_protocol_paused':
+                        // Si el nuevo valor es 'true', pausar; si es 'false', reanudar.
+                        web3Result = govRequest.new_value === 'true'
+                            ? await web3Bridge.pauseProtocol()
+                            : await web3Bridge.unpauseProtocol();
+                        break;
+                    case 'web3_max_transaction_amount':
+                        web3Result = await web3Bridge.setMaxTransactionAmount(govRequest.new_value);
+                        break;
+                    case 'web3_founders_wallet':
+                        web3Result = await web3Bridge.setFoundersWallet(govRequest.new_value);
+                        break;
+                    case 'web3_treasury_withdrawal':
+                        web3Result = await web3Bridge.withdrawSurplus(govRequest.new_value);
+                        // PREVENCIÓN DE RETIRO DUPLICADO: Después de ejecutar un retiro exitoso,
+                        // resetear el valor a '0' en app_settings para que el próximo guardián
+                        // no vea un monto residual y cree una solicitud duplicada por error.
+                        if (web3Result && web3Result.success) {
+                            await client.query(
+                                `UPDATE app_settings SET setting_value = '0' WHERE setting_key = 'web3_treasury_withdrawal'`
+                            );
+                            console.log('[GOVERNANCE] 🔄 web3_treasury_withdrawal reseteado a 0 tras retiro exitoso.');
+                        }
+                        break;
+                    default:
+                        console.warn(`[GOVERNANCE] ⚠️  target_key Web3 no reconocido: ${govRequest.target_key}`);
+                }
+
+                // Registrar resultado de la operación blockchain en audit_log.
+                if (web3Result) {
+                    await logAuditEvent(client, req, {
+                        eventType: web3Result.success ? 'GOV_WEB3_SYNC_SUCCESS' : 'GOV_WEB3_SYNC_FAILED',
+                        actorUsername: 'system',
+                        category: 'GOVERNANCE',
+                        metadata: {
+                            requestId: govRequest.id,
+                            targetKey: govRequest.target_key,
+                            txHash: web3Result.txHash,
+                            error: web3Result.error,
+                        },
+                    });
+
+                    // Guardar el tx_hash en la solicitud de gobernanza para trazabilidad.
+                    if (web3Result.txHash) {
+                        await client.query(
+                            `UPDATE governance_requests 
+                             SET metadata = jsonb_set(COALESCE(metadata, '{}'), '{tx_hash}', $2)
+                             WHERE id = $1`,
+                            [govRequest.id, JSON.stringify(web3Result.txHash)]
+                        );
+                    }
+
+                    // Si falló, loguear pero NO revertir (el admin puede reintentar manualmente).
+                    if (!web3Result.success) {
+                        console.warn(`[GOVERNANCE] ⚠️  Cambio en DB exitoso pero falló blockchain: ${web3Result.error}`);
+                    }
+                }
+            }
         } else if (govRequest.action_type === ACTION_TYPES.MEMBERSHIP_CHANGE) {
             const newVal = typeof govRequest.new_value === 'string'
                 ? JSON.parse(govRequest.new_value)

@@ -31,14 +31,25 @@ async function generateDemoBadges() {
         const outputPath = path.join(iconsDir, file.replace('icon-', 'demo-icon-'));
         
         try {
-            // Procesamiento de Alta Performance (Sharp)
-            // .greyscale(): Quitamos el azul original para no tener conflicto de balance térmico
-            // .tint(): Rociamos el tono institucional 'Demo' en RBG
+            // Obtenemos las dimensiones del icono original
+            const metadata = await sharp(inputPath).metadata();
+            
+            // Creamos una placa roja del mismo tamaño
+            const redOverlay = await sharp({
+                create: {
+                    width: metadata.width,
+                    height: metadata.height,
+                    channels: 4,
+                    background: { r: 206, g: 70, b: 169, alpha: 1 } // Rosa Magenta (#CE46A9)
+                }
+            }).png().toBuffer();
+
+            // Multiplicamos las capas: el blanco se vuelve del color, el negro sigue oscuro
             await sharp(inputPath)
-                .greyscale()      
-                .tint({ r: 139, g: 92, b: 246 }) // #8B5CF6
+                .composite([{ input: redOverlay, blend: 'multiply' }])
                 .toFile(outputPath);
-            console.log(`✅ Renderizado completo: ${path.basename(outputPath)}`);
+                
+            console.log(`✅ Renderizado completo (Magenta): ${path.basename(outputPath)}`);
             count++;
         } catch (error) {
             console.error(`❌ Fallo crítico en capa superior para el archivo ${file}:`, error.message);

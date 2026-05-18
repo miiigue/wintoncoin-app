@@ -1,0 +1,19 @@
+{
+  "name": "wintoncoin-web3",
+  "version": "1.0.0",
+  "description": "Smart Contracts militares y Tesorería PWA para WintonCoin en Capa 2",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "node": "hardhat node",
+    "deploy": "hardhat run scripts/deploy.js"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0",
+    "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.2"
+  }
+}

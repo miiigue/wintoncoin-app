@@ -45,10 +45,45 @@ function initializeProfilePage() {
 
     function renderHeader(user) {
         const ratingHTML = generateStarRating(user.average_rating, user.ratings_count);
+        
+        let walletHTML = '';
+        if (user.web3_wallet_address) {
+            const addr = user.web3_wallet_address;
+            const truncated = addr.substring(0, 6) + '...' + addr.substring(addr.length - 4);
+            walletHTML = `
+                <div class="profile-wallet-container" style="display: flex; align-items: center; justify-content: center; margin-top: 10px; background: rgba(255,255,255,0.05); padding: 8px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); width: fit-content; margin-left: auto; margin-right: auto;">
+                    <span style="color: #888; font-size: 14px; margin-right: 8px;">Billetera Web3:</span>
+                    <span id="walletAddressText" style="font-family: monospace; font-size: 14px; color: #fff; margin-right: 10px;">${truncated}</span>
+                    <button id="copyWalletBtn" data-address="${addr}" style="background: none; border: none; cursor: pointer; color: #4da6ff; padding: 0; display: flex; align-items: center; justify-content: center;" title="Copiar dirección">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                </div>
+            `;
+        }
+
         elements.profileHeader.innerHTML = `
             <h1 class="profile-username">${user.username}</h1>
             <div class="profile-rating">${ratingHTML}</div>
+            ${walletHTML}
         `;
+
+        if (user.web3_wallet_address) {
+            document.getElementById('copyWalletBtn').addEventListener('click', function() {
+                const fullAddress = this.dataset.address;
+                navigator.clipboard.writeText(fullAddress).then(() => {
+                    const originalHTML = this.innerHTML;
+                    this.innerHTML = '<span style="font-size:12px; font-weight:bold; color:#059669;">✓ Copiado</span>';
+                    setTimeout(() => {
+                        this.innerHTML = originalHTML;
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Error al copiar: ', err);
+                });
+            });
+        }
     }
 
     function renderRatings(ratings) {

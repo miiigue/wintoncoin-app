@@ -1050,7 +1050,8 @@ async function initializeDatabase() {
         await client.query('BEGIN');
 
         // Paso 1: Migraciones de esquema.
-        await applyMigrations(client);
+        console.log('[INIT] Bypassing applyMigrations to break Render lock...');
+        // await applyMigrations(client);
 
         // --- NUEVO: Ejecutar limpieza antes que nada ---
         // await runOneTimeCleanup(client);

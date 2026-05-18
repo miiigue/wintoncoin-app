@@ -77,7 +77,8 @@ const {
     loginLimiter,
     registerRequestLimiter,
     registerVerifyLimiter,
-    resendOtpLimiter
+    resendOtpLimiter,
+    web3RpcLimiter
 } = require('./src/middleware/rateLimiters');
 
 
@@ -973,7 +974,7 @@ async function startServer() {
             try {
                 // 1) Obtener balances desde users por ID (estándar profesional)
                 const userResult = await client.query(
-                    `SELECT username, liquid_blue_balance, escrow_blue_balance, red_balance
+                    `SELECT username, liquid_blue_balance, escrow_blue_balance, red_balance, web3_wallet_address, kyc_verified
                      FROM users
                      WHERE id = $1`,
                     [userId]
@@ -998,17 +999,47 @@ async function startServer() {
                     SELECT SUM(amount) as total_penalized_debt FROM red_token_debts
                     WHERE username = $1 AND is_penalized = TRUE AND is_settled = FALSE
                 `;
+                const debt30DaysSql = `
+                    SELECT COALESCE(SUM(amount), 0) as total FROM red_token_debts 
+                    WHERE username = $1 AND is_settled = FALSE AND due_at <= NOW() + INTERVAL '30 days'
+                `;
+                const debtEndMonthSql = `
+                    SELECT COALESCE(SUM(amount), 0) as total FROM red_token_debts 
+                    WHERE username = $1 AND is_settled = FALSE AND due_at <= (date_trunc('month', NOW()) + INTERVAL '1 month - 1 day')
+                `;
 
-                const [debtResult, escrowResult, penalizedDebtResult] = await Promise.all([
+                const [debtResult, escrowResult, penalizedDebtResult, debt30Result, debtEndMonthResult] = await Promise.all([
                     client.query(debtSql, [username]),
                     client.query(escrowSql, [username]),
-                    client.query(penalizedDebtSql, [username])
+                    client.query(penalizedDebtSql, [username]),
+                    client.query(debt30DaysSql, [username]),
+                    client.query(debtEndMonthSql, [username])
                 ]);
+
+                const creditScoringService = require('./src/services/creditScoringService');
+                const creditLimit = await creditScoringService.calculateUserScore(userId);
+
+                const Web3BridgeService = require('./src/services/web3BridgeService');
+                let isKycVerified = false;
+                if (userResult.rows[0].web3_wallet_address) {
+                    isKycVerified = await Web3BridgeService.checkUserKYC(userResult.rows[0].web3_wallet_address);
+                }
+
+                // --- FALLBACK ROBUSTO (Resiliencia ante reinicios de Anvil / desconexión RPC) ---
+                if (!isKycVerified && userResult.rows[0].kyc_verified) {
+                    console.log(`[API BALANCE] Fallback activado: KYC on-chain falló o dio false, pero usuario #${userId} está verificado en la base de datos.`);
+                    isKycVerified = true;
+                }
 
                 const responseData = {
                     blue_balance: userResult.rows[0].liquid_blue_balance,
                     escrow_blue_balance: userResult.rows[0].escrow_blue_balance,
                     red_balance: userResult.rows[0].red_balance,
+                    web3_wallet_address: userResult.rows[0].web3_wallet_address,
+                    kyc_verified: isKycVerified,
+                    credit_limit: creditLimit,
+                    debt_30_days: debt30Result.rows[0].total,
+                    debt_end_month: debtEndMonthResult.rows[0].total,
                     next_due_at: debtResult.rows[0]?.due_at || null,
                     next_due_amount: debtResult.rows[0]?.amount || null,
                     next_unlock_at: escrowResult.rows[0]?.unlock_at || null,
@@ -1022,6 +1053,76 @@ async function startServer() {
                 return res.status(500).json({ message: "Error interno del servidor." });
             } finally {
                 client.release();
+            }
+        });
+
+        // ==========================================
+        // RUTA: OBTENER INFO DE SMART CONTRACTS (SEGURO Y CACHEADO)
+        // ==========================================
+        let contractsInfoCache = null;
+        let lastContractsFetch = 0;
+        const CACHE_TTL_MS = 60000; // 60 segundos de caché (Estándar Fintech para prevenir DDoS sobre nodos RPC)
+
+        app.get('/api/contracts/info', web3RpcLimiter, verifyUserToken, async (req, res) => {
+            try {
+                // Prevenir ataques de agotamiento de RPC devolviendo desde la memoria caché si es válido
+                if (contractsInfoCache && (Date.now() - lastContractsFetch < CACHE_TTL_MS)) {
+                    return res.status(200).json(contractsInfoCache);
+                }
+
+                const { ethers } = require('ethers');
+                const RPC_URL = process.env.OPTIMISM_RPC_URL || 'https://sepolia.optimism.io';
+                const provider = new ethers.JsonRpcProvider(RPC_URL);
+                
+                const blueAddress = process.env.BLUE_TOKEN_ADDRESS || '0x000000000000000000000000000000000000BLUE';
+                const redAddress = process.env.RED_TOKEN_ADDRESS || '0x0000000000000000000000000000000000000RED';
+                
+                let blueMinted = '10000000.0000';
+                let redMinted = '5000000.0000';
+
+                // Intentar leer de la blockchain real si las direcciones son válidas
+                if (blueAddress.startsWith('0x') && blueAddress.length === 42 && !blueAddress.includes('BLUE')) {
+                    const abi = ["function totalSupply() view returns (uint256)"];
+                    const blueContract = new ethers.Contract(blueAddress, abi, provider);
+                    try {
+                        const supply = await blueContract.totalSupply();
+                        blueMinted = ethers.formatEther(supply);
+                    } catch (e) {
+                        console.error("[WEB3 SEC] Error reading BLUE totalSupply", e.message);
+                    }
+                }
+                
+                if (redAddress.startsWith('0x') && redAddress.length === 42 && !redAddress.includes('RED')) {
+                    const abi = ["function totalSupply() view returns (uint256)"];
+                    const redContract = new ethers.Contract(redAddress, abi, provider);
+                    try {
+                        const supply = await redContract.totalSupply();
+                        redMinted = ethers.formatEther(supply);
+                    } catch (e) {
+                        console.error("[WEB3 SEC] Error reading RED totalSupply", e.message);
+                    }
+                }
+
+                contractsInfoCache = {
+                    blue: {
+                        address: blueAddress,
+                        minted: parseFloat(blueMinted).toLocaleString('es-ES', {minimumFractionDigits: 4, maximumFractionDigits: 4}) + ' BLUE'
+                    },
+                    red: {
+                        address: redAddress,
+                        minted: parseFloat(redMinted).toLocaleString('es-ES', {minimumFractionDigits: 4, maximumFractionDigits: 4}) + ' RED'
+                    }
+                };
+                lastContractsFetch = Date.now();
+
+                res.status(200).json(contractsInfoCache);
+            } catch (error) {
+                console.error("[WEB3 SEC] Error fetching contract info:", error);
+                // Fallback de seguridad para que la UI no se rompa
+                if (contractsInfoCache) {
+                    return res.status(200).json(contractsInfoCache);
+                }
+                res.status(500).json({ error: "Error de infraestructura Web3" });
             }
         });
 
@@ -1252,7 +1353,7 @@ async function startServer() {
 
                 await client.query('BEGIN');
 
-                const userSql = `SELECT username, average_rating, ratings_count FROM users WHERE username = $1`;
+                const userSql = `SELECT username, average_rating, ratings_count, web3_wallet_address FROM users WHERE username = $1`;
                 const userResult = await client.query(userSql, [username]);
                 if (userResult.rowCount === 0) {
                     throw { status: 404, message: "Usuario no encontrado." };
@@ -1554,6 +1655,7 @@ async function startServer() {
                     u.ratings_count, 
                     u.created_at,
                     u.referral_code,
+                    u.web3_wallet_address,
                     COALESCE(SUM(bbl.amount), 0) as booster_blue_balance
                 FROM 
                     users u
@@ -1572,7 +1674,7 @@ async function startServer() {
                 }
 
                 // Se agrupa por todas las columnas seleccionadas de users (PostgreSQL es estricto)
-                sql += ` GROUP BY u.id, u.username, u.liquid_blue_balance, u.escrow_blue_balance, u.red_balance, u.account_status, u.average_rating, u.ratings_count, u.created_at, u.referral_code ORDER BY u.created_at DESC`;
+                sql += ` GROUP BY u.id, u.username, u.liquid_blue_balance, u.escrow_blue_balance, u.red_balance, u.account_status, u.average_rating, u.ratings_count, u.created_at, u.referral_code, u.web3_wallet_address ORDER BY u.created_at DESC`;
 
                 const result = await pool.query(sql, params);
 
@@ -2739,10 +2841,63 @@ async function startServer() {
                 }
                 const authorId = userResult.rows[0].id;
 
-                // Validar y sanitizar formFields (JSON con campos por paso)
+                // ──────────────────────────────────────────────────────────
+                // VALIDACIÓN Y SANITIZACIÓN DE form_fields (NIVEL FINTECH)
+                // ──────────────────────────────────────────────────────────
+                // Cada paso puede tener un array de campos. Cada campo puede ser:
+                //   - string  (formato legacy retrocompatible → se convierte a {label, type:'text'})
+                //   - object  {label: string, type: 'text'|'textarea'}
+                // Reglas de seguridad:
+                //   1. Solo se aceptan tipos explícitamente permitidos (whitelist)
+                //   2. Máximo 20 pasos, 10 campos por paso (DoS prevention)
+                //   3. Labels truncados a 200 caracteres (previene payload oversize)
+                //   4. Se elimina cualquier propiedad no reconocida (defense in depth)
+                // ──────────────────────────────────────────────────────────
+                const ALLOWED_FIELD_TYPES = ['text', 'textarea']; // Whitelist estricta de tipos
+                const MAX_STEPS = 20;          // Máximo de pasos permitidos
+                const MAX_FIELDS_PER_STEP = 10; // Máximo de campos por paso
+                const MAX_LABEL_LENGTH = 200;  // Longitud máxima del label de un campo
+
                 let sanitizedFormFields = null;
                 if (formFields && typeof formFields === 'object' && Object.keys(formFields).length > 0) {
-                    sanitizedFormFields = formFields;
+                    const sanitized = {};
+                    const stepKeys = Object.keys(formFields).slice(0, MAX_STEPS);
+
+                    for (const stepKey of stepKeys) {
+                        // Validar que la clave del paso sea numérica (previene inyección de claves)
+                        const stepNum = parseInt(stepKey, 10);
+                        if (!Number.isFinite(stepNum) || stepNum < 1 || stepNum > MAX_STEPS) continue;
+
+                        const fields = formFields[stepKey];
+                        if (!Array.isArray(fields)) continue;
+
+                        const sanitizedFields = [];
+                        for (const field of fields.slice(0, MAX_FIELDS_PER_STEP)) {
+                            // Formato legacy: string simple → convertir a objeto tipado
+                            if (typeof field === 'string') {
+                                const trimmed = field.trim().substring(0, MAX_LABEL_LENGTH);
+                                if (trimmed) {
+                                    sanitizedFields.push({ label: trimmed, type: 'text' });
+                                }
+                            // Formato nuevo: objeto con label y type
+                            } else if (field && typeof field === 'object' && typeof field.label === 'string') {
+                                const label = field.label.trim().substring(0, MAX_LABEL_LENGTH);
+                                // Solo aceptar tipos de la whitelist (defense in depth)
+                                const type = ALLOWED_FIELD_TYPES.includes(field.type) ? field.type : 'text';
+                                if (label) {
+                                    // Solo almacenar propiedades conocidas (strip unknown props)
+                                    sanitizedFields.push({ label, type });
+                                }
+                            }
+                            // Cualquier otro tipo de dato se ignora silenciosamente (seguridad)
+                        }
+
+                        if (sanitizedFields.length > 0) {
+                            sanitized[String(stepNum)] = sanitizedFields;
+                        }
+                    }
+
+                    sanitizedFormFields = Object.keys(sanitized).length > 0 ? sanitized : null;
                 }
 
                 const sql = `
@@ -2855,10 +3010,47 @@ async function startServer() {
                     }
                 }
 
-                // Validar y sanitizar formFields (JSON con campos por paso)
+                // ──────────────────────────────────────────────────────────
+                // VALIDACIÓN Y SANITIZACIÓN DE form_fields (NIVEL FINTECH)
+                // ──────────────────────────────────────────────────────────
+                // Reutiliza la misma lógica de validación que el endpoint de creación.
+                // Reglas: whitelist de tipos, límite de pasos/campos, truncado de labels.
+                // ──────────────────────────────────────────────────────────
+                const ALLOWED_FIELD_TYPES_EDIT = ['text', 'textarea'];
+                const MAX_STEPS_EDIT = 20;
+                const MAX_FIELDS_PER_STEP_EDIT = 10;
+                const MAX_LABEL_LENGTH_EDIT = 200;
+
                 let sanitizedFormFields = null;
                 if (formFields && typeof formFields === 'object' && Object.keys(formFields).length > 0) {
-                    sanitizedFormFields = formFields;
+                    const sanitized = {};
+                    const stepKeys = Object.keys(formFields).slice(0, MAX_STEPS_EDIT);
+
+                    for (const stepKey of stepKeys) {
+                        const stepNum = parseInt(stepKey, 10);
+                        if (!Number.isFinite(stepNum) || stepNum < 1 || stepNum > MAX_STEPS_EDIT) continue;
+
+                        const fields = formFields[stepKey];
+                        if (!Array.isArray(fields)) continue;
+
+                        const sanitizedFields = [];
+                        for (const field of fields.slice(0, MAX_FIELDS_PER_STEP_EDIT)) {
+                            if (typeof field === 'string') {
+                                const trimmed = field.trim().substring(0, MAX_LABEL_LENGTH_EDIT);
+                                if (trimmed) sanitizedFields.push({ label: trimmed, type: 'text' });
+                            } else if (field && typeof field === 'object' && typeof field.label === 'string') {
+                                const label = field.label.trim().substring(0, MAX_LABEL_LENGTH_EDIT);
+                                const type = ALLOWED_FIELD_TYPES_EDIT.includes(field.type) ? field.type : 'text';
+                                if (label) sanitizedFields.push({ label, type });
+                            }
+                        }
+
+                        if (sanitizedFields.length > 0) {
+                            sanitized[String(stepNum)] = sanitizedFields;
+                        }
+                    }
+
+                    sanitizedFormFields = Object.keys(sanitized).length > 0 ? sanitized : null;
                 }
 
                 const updateSql = `
@@ -4454,6 +4646,38 @@ cron.schedule('*/1 * * * *', async () => {
         }
     } catch (error) {
         console.error('Error en cron P2P expirations:', error);
+    }
+});
+
+// --- WEB3 ESCROW: Liberar escrows huérfanos de publicaciones expiradas/eliminadas/completadas ---
+// Se ejecuta cada 15 minutos (estándar de reconciliación bancaria).
+// Si una publicación expira o es eliminada pero tiene un escrow 'locked',
+// este cron lo libera automáticamente para restaurar el poder adquisitivo del usuario.
+const { releaseOrphanedEscrows } = require('./src/services/escrowCleanupService');
+cron.schedule('*/15 * * * *', async () => {
+    try {
+        const result = await releaseOrphanedEscrows(pool);
+        if (result.released > 0) {
+            console.log(`[ESCROW-CRON] Ciclo completado: ${result.released} escrows liberados.`);
+        }
+    } catch (err) {
+        console.error('[ESCROW-CRON] Error en limpieza de escrows:', err);
+    }
+});
+
+// --- WEB3 RECONCILIATION: Outbox Pattern Safety Net ---
+// Se ejecuta cada 5 minutos (Estándar Fintech para transacciones atascadas).
+// Detecta pagos que pasaron en blockchain pero fallaron en la DB (ROLLBACK)
+// y los marca para intervención manual o reintento.
+const { runReconciliationCycle } = require('./src/services/reconciliationService');
+cron.schedule('*/5 * * * *', async () => {
+    try {
+        const result = await runReconciliationCycle(pool);
+        if (result.flagged > 0) {
+            console.warn(`[RECONCILIATION-CRON] 🚨 ${result.flagged} transacciones marcadas para intervención manual.`);
+        }
+    } catch (err) {
+        console.error('[RECONCILIATION-CRON] Error crítico:', err);
     }
 });
 

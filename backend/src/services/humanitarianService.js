@@ -6,9 +6,9 @@
 //
 // Arquitectura:
 //   - Todas las operaciones de saldo usan record_booster_event() (Event Sourcing)
-//   - Las donaciones de usuarios no verificados quedan en estado 'on_hold'
-//   - La liberación automática ocurre vía Trigger de PostgreSQL (migración 039)
-//     cuando el admin aprueba el KYC del donante (is_verified = true)
+//   - Las donaciones de usuarios sin KYC Web3 quedan en estado 'on_hold'
+//   - La liberación automática ocurre vía Trigger de PostgreSQL (migración 056)
+//     cuando el admin aprueba el KYC Web3 del donante (kyc_verified = true)
 //
 // Seguridad:
 //   - Transacciones SQL con BEGIN/COMMIT/ROLLBACK
@@ -114,11 +114,11 @@ const submitCause = async (userId, data, req = null) => {
 //   1. Valida que la causa esté aprobada y no haya alcanzado su meta
 //   2. Verifica que el donante tenga saldo suficiente en booster_blue_ledger
 //   3. Debita el saldo del donante inmediatamente (los BLUE salen de su cuenta)
-//   4. Si el donante tiene KYC aprobado (is_verified = true):
+//   4. Si el donante tiene KYC Web3 aprobado (kyc_verified = true):
 //      → Acredita inmediatamente al beneficiario (status = 'released')
-//   5. Si el donante NO tiene KYC (is_verified = false):
+//   5. Si el donante NO tiene KYC Web3 (kyc_verified = false):
 //      → Registra la donación en 'on_hold' (el Trigger de BD la liberará
-//        automáticamente cuando el admin apruebe el KYC del donante)
+//        automáticamente cuando el admin apruebe el KYC Web3 del donante)
 //   6. Genera auditoría y notificaciones
 //
 // Parámetros:
@@ -195,14 +195,14 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
         }
 
         // =====================================================================
-        // PASO 3: Obtener datos del donante (username, is_verified)
+        // PASO 3: Obtener datos del donante (username, kyc_verified)
         // =====================================================================
         const donorRes = await client.query(
-            'SELECT username, is_verified FROM users WHERE id = $1',
+            'SELECT username, kyc_verified FROM users WHERE id = $1',
             [donorId]
         );
         const donor = donorRes.rows[0];
-        const isVerified = donor.is_verified === true;
+        const isVerified = donor.kyc_verified === true;
 
         // =====================================================================
         // PASO 4: Debitar saldo del donante (SIEMPRE se resta, es inmediato)
@@ -379,7 +379,7 @@ const getCauseDonations = async (causeId) => {
             hd.created_at,
             hd.released_at,
             u.username AS donor_username,
-            u.is_verified AS donor_verified
+            u.kyc_verified AS donor_verified
         FROM humanitarian_donations hd
         JOIN users u ON hd.donor_id = u.id
         WHERE hd.cause_id = $1

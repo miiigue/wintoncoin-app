@@ -101,7 +101,10 @@ document.addEventListener('DOMContentLoaded', () => {
         panelImpulsor: document.getElementById('panelImpulsor'),
         panelBilletera: document.getElementById('panelBilletera'),
         createPostPrelaunchModal: document.getElementById('createPostPrelaunchModal'),
-        createPostPrelaunchAccept: document.getElementById('createPostPrelaunchAccept')
+        createPostPrelaunchAccept: document.getElementById('createPostPrelaunchAccept'),
+        myWalletAddressContainer: document.getElementById('myWalletAddressContainer'),
+        myWalletAddressText: document.getElementById('myWalletAddressText'),
+        copyMyWalletBtn: document.getElementById('copyMyWalletBtn')
     };
 
     // Intervals for countdowns
@@ -546,6 +549,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (elements.logoutLink) {
             elements.logoutLink.addEventListener('click', handleLogout);
+        }
+
+        if (elements.copyMyWalletBtn) {
+            elements.copyMyWalletBtn.addEventListener('click', function() {
+                const fullAddress = this.dataset.address;
+                if (!fullAddress) return;
+                navigator.clipboard.writeText(fullAddress).then(() => {
+                    const originalHTML = this.innerHTML;
+                    this.innerHTML = '<span style="font-size:12px; font-weight:bold; color:#059669;">✓ Copiado</span>';
+                    setTimeout(() => {
+                        this.innerHTML = originalHTML;
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Error al copiar la billetera: ', err);
+                });
+            });
         }
 
         if (elements.publicationsList) {
@@ -1730,6 +1749,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Countdown timers
                 handleCountdownTimers(data);
+
+                // Web3 Wallet
+                if (data.web3_wallet_address && elements.myWalletAddressContainer && elements.myWalletAddressText && elements.copyMyWalletBtn) {
+                    const addr = data.web3_wallet_address;
+                    const truncated = addr.substring(0, 8) + '...' + addr.substring(addr.length - 6);
+                    elements.myWalletAddressText.textContent = truncated;
+                    elements.copyMyWalletBtn.dataset.address = addr;
+                    elements.myWalletAddressContainer.style.display = 'flex';
+                }
             }
         } catch (error) {
             console.error('Error al obtener saldos:', error);
@@ -2116,16 +2144,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 const data = await response.json();
                 
-                // Actualizar montos en la tarjeta
+                // Actualizar monto en la tarjeta
                 const amountElement = document.getElementById('referralAmount');
-                const amountNextElement = document.getElementById('referralAmountNext');
                 
                 if (amountElement && data.referral_reward_amount) {
                     amountElement.textContent = parseInt(data.referral_reward_amount);
-                }
-                
-                if (amountNextElement && data.referral_reward_after_expiry) {
-                    amountNextElement.textContent = parseInt(data.referral_reward_after_expiry);
                 }
 
                 // Iniciar el cronómetro si hay fecha

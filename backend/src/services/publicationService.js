@@ -5,6 +5,7 @@
 const pool = require('../config/db');
 const { sendTransactionEmail } = require('./emailService');
 const logAuditEvent = require('./auditService');
+const Web3BridgeService = require('./web3BridgeService');
 
 function resolveRepeatCooldownHours(body) {
             const days = parseInt(body.repeatCooldownDays, 10) || 0;
@@ -156,6 +157,7 @@ async function processRequestCompletion(client, acceptance) {
 async function processRequestPayment(client, acceptance, pubId, preLaunchMode, settings) {
     const { blue_cost, title, author_username: author, author_id: authorId, workerUsername, workerId: workerIdFromQuery } = acceptance;
     const cost = parseFloat(blue_cost);
+    let web3IntentId = null;
 
     if (preLaunchMode) {
         // --- MODO PRE-LANZAMIENTO ---
@@ -173,7 +175,19 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         await client.query('UPDATE users SET is_booster = TRUE WHERE id = $1', [workerId]);
         await updateUserBoosterLevel(client, workerId);
     } else {
-        // --- MODO NORMAL ---
+        // --- MODO NORMAL (Web3 Real) ---
+
+        // ═══════════════════════════════════════════════════════════════
+        // WEB3 ENFORCER: Verificar que el protocolo NO esté pausado.
+        // Si la blockchain está en pausa por gobernanza, NINGÚN pago
+        // real debe procesarse. Esto cumple con el estándar de
+        // sincronización CeFi/DeFi híbrido (Coinbase, Binance).
+        // ═══════════════════════════════════════════════════════════════
+        const isPaused = await Web3BridgeService.isProtocolPaused();
+        if (isPaused) {
+            throw { status: 503, message: 'El protocolo financiero está pausado por gobernanza. Las transacciones reales están suspendidas temporalmente. Intenta más tarde.' };
+        }
+
         const debtInterval = `${settings.debt_cycle_days || 30} days ${settings.debt_cycle_hours || 0} hours ${settings.debt_cycle_minutes || 0} minutes`;
         const escrowInterval = `${settings.blue_escrow_days || 1} days ${settings.blue_escrow_hours || 0} hours ${settings.blue_escrow_minutes || 0} minutes`;
         const commissionPercentage = parseFloat(settings.platform_commission_percentage || '0');
@@ -203,10 +217,25 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
             throw new Error('Regla económica violada: la deuda RED no puede asignarse al trabajador.');
         }
 
+        // --- INYECCIÓN DE SOLVENCIA AQUÍ ---
+        const creditScoringService = require('./creditScoringService');
+        const scoreLimit = await creditScoringService.calculateUserScore(debtResponsible.user_id);
+        console.log('[DEBUG] processRequestPayment: scoreLimit calculado');
+        const currentRedRes = await client.query('SELECT red_balance, liquid_blue_balance FROM users WHERE id = $1', [debtResponsible.user_id]);
+        const currentRed = parseFloat(currentRedRes.rows[0].red_balance) || 0;
+        const liquidBlue = parseFloat(currentRedRes.rows[0].liquid_blue_balance) || 0;
+
+        if (redForAuthor > (Math.max(0, scoreLimit - currentRed) + liquidBlue)) {
+            throw { status: 402, message: `Límite de Crédito WTS Excedido. Transacción requiere: ${redForAuthor.toFixed(4)}. Tienes disponible: ${(Math.max(0, scoreLimit - currentRed) + liquidBlue).toFixed(4)}.` };
+        }
+        console.log('[DEBUG] processRequestPayment: Validación WTS superada');
+        // ------------------------------------
+
         // Actualizar saldo RED del responsable (tutor si es menor, autor si no)
         // Usamos 'credit' para AUMENTAR el balance de deuda (RED)
         await client.query(`SELECT record_balance_event($1, 'credit', 'red', $2, NULL)`, [debtResponsible.user_id, redForAuthor]);
         await client.query(`INSERT INTO red_token_debts (user_id, username, amount, due_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${debtInterval}')`, [debtResponsible.user_id, debtResponsible.username, redForAuthor]);
+        console.log('[DEBUG] processRequestPayment: Deuda RED registrada');
 
         // Si la deuda es del tutor (menor con tutor), notificar al tutor
         if (debtResponsible.is_tutor) {
@@ -227,9 +256,12 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
                 return workerResult.rows[0].id;
             })();
 
+        console.log('[DEBUG] processRequestPayment: Worker ID resuelto', workerId);
+
         // Usamos 'payment_received' para AUMENTAR el balance en escrow (BLUE)
         await client.query(`SELECT record_balance_event($1, 'payment_received', 'escrow_blue', $2, NULL)`, [workerId, cost]);
         await client.query(`INSERT INTO blue_token_escrows (user_id, username, amount, unlock_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${escrowInterval}')`, [workerId, workerUsername, cost]);
+        console.log('[DEBUG] processRequestPayment: Escrow BLUE registrado');
 
         // Asignar comisión a la plataforma como tokens BLUE reales (cumple reglas económicas)
         const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
@@ -243,6 +275,7 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
                 await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'commission_received', $2, $3, 0, $4)`, [platformId, `Comisión por: "${title}"`, commissionAmount, pubId]);
             }
         }
+        console.log('[DEBUG] processRequestPayment: Comisión registrada');
 
         await client.query(`INSERT INTO platform_wallet (id, total_blue_commission_balance) VALUES (1, $1) ON CONFLICT (id) DO UPDATE SET total_blue_commission_balance = platform_wallet.total_blue_commission_balance + $1`, [commissionAmount]);
 
@@ -251,6 +284,93 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'payment_received', $2, $3, 0, $4)`, [workerId, `Realizaste: "${title}"`, cost, pubId]);
 
         await client.query(`INSERT INTO platform_commission_log (related_publication_id, related_user_transaction_id, commission_amount_blue) VALUES ($1, $2, $3)`, [pubId, authorTxId, commissionAmount]);
+        console.log('[DEBUG] processRequestPayment: Log de transacciones creado. Procediendo a pool.query para OUTBOX...');
+
+        // ═══════════════════════════════════════════════════════════════
+        // OUTBOX PATTERN (Red de Seguridad Anti-Desincronización)
+        // Se inserta un registro de "intención" FUERA de la transacción
+        // (usando pool, no client). Si la blockchain confirma pero la
+        // DB hace ROLLBACK, este registro sobrevive y un cron de
+        // reconciliación lo detecta para re-aplicar los cambios.
+        // Estándar: Saga/Outbox Pattern (Stripe, Coinbase).
+        // ═══════════════════════════════════════════════════════════════
+        const walletQuery = await client.query(
+            `SELECT id, username, web3_wallet_address FROM users WHERE username IN ($1, $2)`,
+            [author, workerUsername]
+        );
+        const payerRow = walletQuery.rows.find(u => u.username === author);
+        const payeeRow = walletQuery.rows.find(u => u.username === workerUsername);
+        const payerWallet = payerRow?.web3_wallet_address;
+        const payeeWallet = payeeRow?.web3_wallet_address;
+
+        // PASO 1: Registrar intención en la misma transacción (Evita Self-Deadlock PG).
+        const intentPayload = { payerWallet, payeeWallet, amountBlue: cost, pubId, author, workerUsername, authorTxId };
+        const intentRes = await client.query(
+            `INSERT INTO web3_pending_transactions (user_id, tx_type, payload, status)
+             VALUES ($1, 'request_payment', $2, 'intent') RETURNING id`,
+            [payerRow?.id, JSON.stringify(intentPayload)]
+        );
+        web3IntentId = intentRes.rows[0].id;
+
+        // PASO 2: Ejecutar la transacción en blockchain (BLOQUEANTE).
+        let txHash;
+        try {
+            txHash = await Web3BridgeService.syncPaymentToBlockchain({
+                payerWalletAddress: payerWallet,
+                payeeWalletAddress: payeeWallet,
+                amountBlue: cost,
+                dbTransactionId: authorTxId,
+                publicationId: pubId,
+                payerUsername: author,
+                payeeUsername: workerUsername
+            });
+        } catch (web3Error) {
+            const errorMsg = web3Error.message || 'blockchain_rejected';
+            await client.query(`UPDATE web3_pending_transactions SET status = 'failed', error_reason = $1, resolved_at = NOW() WHERE id = $2`, [errorMsg.substring(0, 255), web3IntentId]);
+            
+            let userMessage = 'La transacción no pudo confirmarse en la blockchain. El pago ha sido cancelado para proteger tus fondos. Intenta nuevamente.';
+            if (errorMsg.includes('Payee KYC not verified')) {
+                userMessage = `El pago no pudo procesarse porque el trabajador (${workerUsername}) no tiene su identidad (KYC) verificada en la blockchain.`;
+            } else if (errorMsg.includes('Payer KYC not verified')) {
+                userMessage = `El pago no pudo procesarse porque tu cuenta no tiene la identidad (KYC) verificada en la blockchain.`;
+            } else if (errorMsg.includes('insufficient funds') || errorMsg.includes('exceeds balance')) {
+                userMessage = `La billetera del protocolo no cuenta con fondos suficientes de gas para ejecutar esta transacción on-chain.`;
+            }
+
+            throw { status: 502, message: userMessage };
+        }
+
+        if (!txHash) {
+            await client.query(`UPDATE web3_pending_transactions SET status = 'failed', error_reason = 'blockchain_rejected', resolved_at = NOW() WHERE id = $1`, [web3IntentId]);
+            throw { status: 502, message: 'La transacción no pudo confirmarse en la blockchain. El pago ha sido cancelado para proteger tus fondos. Intenta nuevamente.' };
+        }
+
+        // PASO 3: Blockchain confirmó. Actualizar intención con tx_hash.
+        // Si el COMMIT posterior falla, este registro sobrevive con status 'blockchain_confirmed'
+        // y el cron de reconciliación lo detecta para re-aplicar los cambios en la DB.
+        await client.query(
+            `UPDATE web3_pending_transactions SET tx_hash = $1, status = 'blockchain_confirmed' WHERE id = $2`,
+            [txHash, web3IntentId]
+        );
+
+        // RESYNC: Después de un pago exitoso, actualizar los saldos on-chain
+        // en web3_wallets_sync para que la DB refleje la realidad de Optimism.
+        // Esto incluye la auto-amortización (quema) que el Smart Contract ejecutó.
+        Web3BridgeService.resyncUserWallet(payerWallet, payerRow?.id).catch(e => console.error('[RESYNC] Error payer:', e.message));
+        Web3BridgeService.resyncUserWallet(payeeWallet, payeeRow?.id).catch(e => console.error('[RESYNC] Error payee:', e.message));
+
+        // ═══════════════════════════════════════════════════════════════
+        // ESCROW RELEASE: Liberar el bloqueo de fondos de esta publicación.
+        // El pago ya fue confirmado on-chain, así que los fondos ya se
+        // descontaron realmente. Marcar como 'released' para que el
+        // poder adquisitivo del usuario se restaure correctamente.
+        // ═══════════════════════════════════════════════════════════════
+        await client.query(
+            `UPDATE web3_escrow_holds
+             SET status = 'released', released_at = NOW()
+             WHERE publication_id = $1 AND status = 'locked'`,
+            [pubId]
+        );
     }
 
     // --- NOTIFICACIONES POR CORREO (RECIBOS) ---
@@ -326,7 +446,7 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         : `¡Has recibido ${cost.toFixed(4)} BLUE (en depósito) por la tarea "${title}"!`;
     await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [workerUsername, notificationMessage]);
 
-    return { success: true, message: "Pago confirmado y tarea finalizada." };
+    return { success: true, message: "Pago confirmado y tarea finalizada.", web3IntentId };
 }
 
 
@@ -338,6 +458,7 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
     const { blue_cost, title, author_username: recipient, acceptance_id, category, completerUsername: payer } = acceptance;
     const cost = parseFloat(blue_cost);
     let resultMessage; // Usaremos una variable para el mensaje de retorno
+    let web3IntentId = null;
 
     if (preLaunchMode) {
         // --- MODO PRE-LANZAMIENTO: Transferencia desde el perfil de impulsor ---
@@ -370,7 +491,16 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
 
         resultMessage = "Transferencia completada exitosamente desde tu perfil de impulsor.";
     } else {
-        // --- MODO NORMAL: Creación de tokens RED/BLUE ---
+        // --- MODO NORMAL (Web3 Real): Creación de tokens RED/BLUE ---
+
+        // ═══════════════════════════════════════════════════════════════
+        // WEB3 ENFORCER: Verificar que el protocolo NO esté pausado.
+        // ═══════════════════════════════════════════════════════════════
+        const isPaused = await Web3BridgeService.isProtocolPaused();
+        if (isPaused) {
+            throw { status: 503, message: 'El protocolo financiero está pausado por gobernanza. Las transacciones reales están suspendidas temporalmente. Intenta más tarde.' };
+        }
+
         const debtInterval = `${settings.debt_cycle_days || 30} days ${settings.debt_cycle_hours || 0} hours ${settings.debt_cycle_minutes || 0} minutes`;
         const escrowInterval = `${settings.blue_escrow_days || 1} days ${settings.blue_escrow_hours || 0} hours ${settings.blue_escrow_minutes || 0} minutes`;
         const commissionPercentage = parseFloat(settings.platform_commission_percentage || '0');
@@ -379,6 +509,18 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
 
         // Determinar quién es responsable de la deuda (tutor si es menor)
         const debtResponsible = await getDebtResponsibleUser(client, payer);
+
+        // --- INYECCIÓN DE SOLVENCIA AQUÍ ---
+        const creditScoringService = require('./creditScoringService');
+        const scoreLimit = await creditScoringService.calculateUserScore(debtResponsible.user_id);
+        const currentRedRes = await client.query('SELECT red_balance, liquid_blue_balance FROM users WHERE id = $1', [debtResponsible.user_id]);
+        const currentRed = parseFloat(currentRedRes.rows[0].red_balance) || 0;
+        const liquidBlue = parseFloat(currentRedRes.rows[0].liquid_blue_balance) || 0;
+
+        if (redForPayer > (Math.max(0, scoreLimit - currentRed) + liquidBlue)) {
+            throw { status: 402, message: `Límite de Crédito WTS Excedido. Transacción requiere: ${redForPayer.toFixed(4)}. Tienes disponible: ${(Math.max(0, scoreLimit - currentRed) + liquidBlue).toFixed(4)}.` };
+        }
+        // ------------------------------------
 
         // Actualizar saldo RED del responsable (tutor si es menor, pagador si no)
         // Usamos 'credit' para AUMENTAR el balance de deuda (RED)
@@ -424,6 +566,80 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'payment_received', $2, $3, 0, $4)`, [recipientId, `Recibiste por: "${title}"`, cost, pubId]);
 
         await client.query(`INSERT INTO platform_commission_log (related_publication_id, related_user_transaction_id, commission_amount_blue) VALUES ($1, $2, $3)`, [pubId, payerTxId, commissionAmount]);
+
+        // ═══════════════════════════════════════════════════════════════
+        // OUTBOX PATTERN (Red de Seguridad Anti-Desincronización)
+        // ═══════════════════════════════════════════════════════════════
+        const walletQuery = await client.query(
+            `SELECT id, username, web3_wallet_address FROM users WHERE username IN ($1, $2)`,
+            [payer, recipient]
+        );
+        const payerRow = walletQuery.rows.find(u => u.username === payer);
+        const payeeRow = walletQuery.rows.find(u => u.username === recipient);
+        const payerWallet = payerRow?.web3_wallet_address;
+        const payeeWallet = payeeRow?.web3_wallet_address;
+
+        // PASO 1: Registrar intención en la misma transacción (Evita Self-Deadlock PG).
+        const intentPayload = { payerWallet, payeeWallet, amountBlue: cost, pubId, payer, recipient, payerTxId };
+        const intentRes = await client.query(
+            `INSERT INTO web3_pending_transactions (user_id, tx_type, payload, status)
+             VALUES ($1, 'direct_payment', $2, 'intent') RETURNING id`,
+            [payerRow?.id, JSON.stringify(intentPayload)]
+        );
+        web3IntentId = intentRes.rows[0].id;
+
+        // PASO 2: Ejecutar la transacción en blockchain (BLOQUEANTE).
+        let txHash;
+        try {
+            txHash = await Web3BridgeService.syncPaymentToBlockchain({
+                payerWalletAddress: payerWallet,
+                payeeWalletAddress: payeeWallet,
+                amountBlue: cost,
+                dbTransactionId: payerTxId,
+                publicationId: pubId,
+                payerUsername: payer,
+                payeeUsername: recipient
+            });
+        } catch (web3Error) {
+            const errorMsg = web3Error.message || 'blockchain_rejected';
+            await client.query(`UPDATE web3_pending_transactions SET status = 'failed', error_reason = $1, resolved_at = NOW() WHERE id = $2`, [errorMsg.substring(0, 255), web3IntentId]);
+            
+            let userMessage = 'La transacción no pudo confirmarse en la blockchain. El pago ha sido cancelado para proteger tus fondos. Intenta nuevamente.';
+            if (errorMsg.includes('Payee KYC not verified')) {
+                userMessage = `El pago no pudo procesarse porque el beneficiario (${recipient}) no tiene su identidad (KYC) verificada en la blockchain.`;
+            } else if (errorMsg.includes('Payer KYC not verified')) {
+                userMessage = `El pago no pudo procesarse porque tu cuenta no tiene la identidad (KYC) verificada en la blockchain.`;
+            } else if (errorMsg.includes('insufficient funds') || errorMsg.includes('exceeds balance')) {
+                userMessage = `La billetera del protocolo no cuenta con fondos suficientes de gas para ejecutar esta transacción on-chain.`;
+            }
+
+            throw { status: 502, message: userMessage };
+        }
+
+        if (!txHash) {
+            await client.query(`UPDATE web3_pending_transactions SET status = 'failed', error_reason = 'blockchain_rejected', resolved_at = NOW() WHERE id = $1`, [web3IntentId]);
+            throw { status: 502, message: 'La transacción no pudo confirmarse en la blockchain. El pago ha sido cancelado para proteger tus fondos. Intenta nuevamente.' };
+        }
+
+        // PASO 3: Blockchain confirmó. Actualizar intención con tx_hash.
+        await client.query(
+            `UPDATE web3_pending_transactions SET tx_hash = $1, status = 'blockchain_confirmed' WHERE id = $2`,
+            [txHash, web3IntentId]
+        );
+
+        // RESYNC: Actualizar saldos on-chain en web3_wallets_sync.
+        Web3BridgeService.resyncUserWallet(payerWallet, payerRow?.id).catch(e => console.error('[RESYNC] Error payer:', e.message));
+        Web3BridgeService.resyncUserWallet(payeeWallet, payeeRow?.id).catch(e => console.error('[RESYNC] Error payee:', e.message));
+
+        // ═══════════════════════════════════════════════════════════════
+        // ESCROW RELEASE: Liberar el bloqueo de fondos de esta publicación.
+        // ═══════════════════════════════════════════════════════════════
+        await client.query(
+            `UPDATE web3_escrow_holds
+             SET status = 'released', released_at = NOW()
+             WHERE publication_id = $1 AND status = 'locked'`,
+            [pubId]
+        );
 
         const recipientNotification = `¡Has recibido el pago de ${cost.toFixed(4)} BLUE (en depósito) por "${title}" de parte de ${payer}!`;
         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [recipient, recipientNotification]);

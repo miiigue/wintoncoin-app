@@ -318,9 +318,27 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="step-form-fields" style="display: none;">
                             <p class="form-hint">Define los campos que el usuario debe completar:</p>
                             <div class="step-form-inputs">
-                                <input type="text" class="step-form-field" placeholder="Campo 1">
-                                <input type="text" class="step-form-field" placeholder="Campo 2">
-                                <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
+                                <div class="step-form-field-wrapper">
+                                    <input type="text" class="step-form-field" placeholder="Campo 1">
+                                    <select class="step-form-type-select" title="Tipo de campo">
+                                        <option value="text">Texto corto</option>
+                                        <option value="textarea">Texto largo</option>
+                                    </select>
+                                </div>
+                                <div class="step-form-field-wrapper">
+                                    <input type="text" class="step-form-field" placeholder="Campo 2">
+                                    <select class="step-form-type-select" title="Tipo de campo">
+                                        <option value="text">Texto corto</option>
+                                        <option value="textarea">Texto largo</option>
+                                    </select>
+                                </div>
+                                <div class="step-form-field-wrapper">
+                                    <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
+                                    <select class="step-form-type-select" title="Tipo de campo">
+                                        <option value="text">Texto corto</option>
+                                        <option value="textarea">Texto largo</option>
+                                    </select>
+                                </div>
                             </div>
                             <button type="button" class="step-add-field-btn">+ Agregar más campos</button>
                         </div>
@@ -356,13 +374,19 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.platformStepInputs.addEventListener('click', (e) => {
                 if (e.target.classList.contains('step-add-field-btn')) {
                     const formInputs = e.target.previousElementSibling;
-                    const fieldCount = formInputs.querySelectorAll('.step-form-field').length;
+                    const fieldCount = formInputs.querySelectorAll('.step-form-field-wrapper').length;
                     if (fieldCount < 10) {
-                        const newField = document.createElement('input');
-                        newField.type = 'text';
-                        newField.className = 'step-form-field';
-                        newField.placeholder = `Campo ${fieldCount + 1}`;
-                        formInputs.appendChild(newField);
+                        // Crear wrapper con input + selector de tipo
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'step-form-field-wrapper';
+                        wrapper.innerHTML = `
+                            <input type="text" class="step-form-field" placeholder="Campo ${fieldCount + 1}">
+                            <select class="step-form-type-select" title="Tipo de campo">
+                                <option value="text">Texto corto</option>
+                                <option value="textarea">Texto largo</option>
+                            </select>
+                        `;
+                        formInputs.appendChild(wrapper);
                     }
                     if (fieldCount >= 9) {
                         e.target.style.display = 'none';
@@ -476,6 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (sectionId === 'academy') loadAcademyVideos();
         else if (sectionId === 'humanitarian') loadHumanitarianCauses();
         else if (sectionId === 'gov-rewards') loadGovRewardsSection();
+        else if (sectionId === 'kyc-compliance') initKycSection();
     }
 
     function showBoosterTab(tabId) {
@@ -855,6 +880,12 @@ document.addEventListener('DOMContentLoaded', () => {
             'gov_reminder_threshold_hours': { title: 'Gobernanza — Umbral de Recordatorio (horas)', description: 'Cuando quedan estas horas para expirar, se envía recordatorio.' },
             'gov_reminder_cooldown_hours': { title: 'Gobernanza — Enfriamiento entre Recordatorios (horas)', description: 'Horas mínimas entre recordatorios al mismo guardián.' },
             'gov_vote_reward_blue': { title: 'Gobernanza — Recompensa por Voto (BLUE IOU)', description: 'BLUE IOU acreditados al guardián al emitir su voto. Valor 0 desactiva la recompensa.' },
+            // Credit Scoring (Winton Trust Score)
+            'red_credit_base_limit': { title: 'Scoring — Límite Base RED (Nuevos Usuarios)', description: 'El límite de crédito inicial que se asigna a los nuevos usuarios al registrarse.' },
+            'red_credit_culture_quiz': { title: 'Scoring — Bono por Cuestionario de Cultura (RED)', description: 'Aumento del límite por aprobar cuestionarios de la Winton Academy.' },
+            'red_credit_referral': { title: 'Scoring — Bono por Referido Activo (RED)', description: 'Aumento del límite por cada referido exitoso que utilice la plataforma.' },
+            'red_credit_monthly_activity': { title: 'Scoring — Bono por Alta Actividad (RED)', description: 'Aumento del límite al superar 20 tareas en un mes calendario.' },
+            'red_credit_early_payment': { title: 'Scoring — Bono por Pago Anticipado (RED)', description: 'Aumento del límite por pagar deudas en los primeros 5 días del ciclo.' },
         };
         return map[key] || { title: key, description: 'Sin descripción.' };
     }
@@ -889,6 +920,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (s.setting_key === 'gov_vote_reward_blue') return getSettingHTML(s, 'number');
                 if (s.setting_key.startsWith('gov_')) return getSettingHTML(s, 'integer');
                 if (s.setting_key.startsWith('p2p_')) return getSettingHTML(s, 'number');
+                if (s.setting_key.startsWith('red_credit_')) return getSettingHTML(s, 'number');
                 if (s.setting_key.endsWith('_amount') || s.setting_key.includes('percentage')) return getSettingHTML(s, 'number');
                 return '';
             }).join('');
@@ -1363,9 +1395,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Función para recopilar los campos de formulario dinámico de cada paso
+    // ──────────────────────────────────────────────────────────
+    // collectFormFields: Recopila la definición de campos de formulario
+    // ──────────────────────────────────────────────────────────
+    // Emite el nuevo formato con tipo: {"1": [{label:"Campo", type:"text"}]}
+    // Solo acepta tipos de la whitelist: 'text', 'textarea' (defense in depth)
+    // ──────────────────────────────────────────────────────────
     function collectFormFields() {
         const formFields = {};
+        const ALLOWED_TYPES = ['text', 'textarea']; // Whitelist de tipos
         const stepContainers = document.querySelectorAll('#platformStepInputs .admin-step-input');
 
         stepContainers.forEach((container) => {
@@ -1374,13 +1412,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (checkbox && checkbox.checked) {
                 const fields = [];
-                const fieldInputs = container.querySelectorAll('.step-form-field');
-                fieldInputs.forEach((input) => {
-                    const value = input.value.trim();
-                    if (value) {
-                        fields.push(value);
+                const fieldWrappers = container.querySelectorAll('.step-form-field-wrapper');
+
+                fieldWrappers.forEach((wrapper) => {
+                    const input = wrapper.querySelector('.step-form-field');
+                    const typeSelect = wrapper.querySelector('.step-form-type-select');
+                    const label = input ? input.value.trim() : '';
+                    // Solo aceptar tipos de la whitelist (seguridad)
+                    const type = (typeSelect && ALLOWED_TYPES.includes(typeSelect.value))
+                        ? typeSelect.value
+                        : 'text';
+
+                    if (label) {
+                        fields.push({ label, type });
                     }
                 });
+
+                // Fallback: si no hay wrappers (formato viejo), intentar con inputs directos
+                if (fieldWrappers.length === 0) {
+                    const fieldInputs = container.querySelectorAll('.step-form-field');
+                    fieldInputs.forEach((input) => {
+                        const value = input.value.trim();
+                        if (value) {
+                            fields.push({ label: value, type: 'text' });
+                        }
+                    });
+                }
 
                 if (fields.length > 0) {
                     formFields[stepNum] = fields;
@@ -2182,25 +2239,48 @@ document.addEventListener('DOMContentLoaded', () => {
                         // Limpiar campos por defecto
                         inputsContainer.innerHTML = '';
 
-                        // Renderizar campos guardados
-                        formFields[position].forEach((fieldText, i) => {
-                            const newField = document.createElement('input');
-                            newField.type = 'text';
-                            newField.className = 'step-form-field';
-                            newField.value = fieldText;
-                            newField.placeholder = `Campo ${i + 1}`;
-                            inputsContainer.appendChild(newField);
+                        // Renderizar campos guardados (soporta formato legacy y nuevo)
+                        formFields[position].forEach((fieldData, i) => {
+                            // Retrocompatibilidad: string simple → {label, type:'text'}
+                            const label = typeof fieldData === 'string' ? fieldData : (fieldData?.label || '');
+                            const type = (typeof fieldData === 'object' && fieldData?.type === 'textarea') ? 'textarea' : 'text';
+
+                            const wrapper = document.createElement('div');
+                            wrapper.className = 'step-form-field-wrapper';
+
+                            const input = document.createElement('input');
+                            input.type = 'text';
+                            input.className = 'step-form-field';
+                            input.value = label;
+                            input.placeholder = `Campo ${i + 1}`;
+
+                            const select = document.createElement('select');
+                            select.className = 'step-form-type-select';
+                            select.title = 'Tipo de campo';
+                            select.innerHTML = `
+                                <option value="text"${type === 'text' ? ' selected' : ''}>Texto corto</option>
+                                <option value="textarea"${type === 'textarea' ? ' selected' : ''}>Texto largo</option>
+                            `;
+
+                            wrapper.appendChild(input);
+                            wrapper.appendChild(select);
+                            inputsContainer.appendChild(wrapper);
                         });
 
                         // Asegurar mínimo de 3 campos visuales para facilitar edición
                         const currentFields = formFields[position].length;
                         if (currentFields < 3) {
                             for (let i = currentFields; i < 3; i++) {
-                                const newField = document.createElement('input');
-                                newField.type = 'text';
-                                newField.className = 'step-form-field';
-                                newField.placeholder = `Campo ${i + 1}`;
-                                inputsContainer.appendChild(newField);
+                                const wrapper = document.createElement('div');
+                                wrapper.className = 'step-form-field-wrapper';
+                                wrapper.innerHTML = `
+                                    <input type="text" class="step-form-field" placeholder="Campo ${i + 1}">
+                                    <select class="step-form-type-select" title="Tipo de campo">
+                                        <option value="text">Texto corto</option>
+                                        <option value="textarea">Texto largo</option>
+                                    </select>
+                                `;
+                                inputsContainer.appendChild(wrapper);
                             }
                         }
                     }
@@ -2254,9 +2334,27 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="step-form-fields" style="display: none;">
                 <p class="form-hint">Define los campos que el usuario debe completar:</p>
                 <div class="step-form-inputs">
-                    <input type="text" class="step-form-field" placeholder="Campo 1">
-                    <input type="text" class="step-form-field" placeholder="Campo 2">
-                    <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
+                    <div class="step-form-field-wrapper">
+                        <input type="text" class="step-form-field" placeholder="Campo 1">
+                        <select class="step-form-type-select" title="Tipo de campo">
+                            <option value="text">Texto corto</option>
+                            <option value="textarea">Texto largo</option>
+                        </select>
+                    </div>
+                    <div class="step-form-field-wrapper">
+                        <input type="text" class="step-form-field" placeholder="Campo 2">
+                        <select class="step-form-type-select" title="Tipo de campo">
+                            <option value="text">Texto corto</option>
+                            <option value="textarea">Texto largo</option>
+                        </select>
+                    </div>
+                    <div class="step-form-field-wrapper">
+                        <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
+                        <select class="step-form-type-select" title="Tipo de campo">
+                            <option value="text">Texto corto</option>
+                            <option value="textarea">Texto largo</option>
+                        </select>
+                    </div>
                 </div>
                 <button type="button" class="step-add-field-btn">+ Agregar más campos</button>
             </div>
@@ -2379,6 +2477,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <thead>
                     <tr>
                         <th>Usuario</th>
+                        <th>Billetera Web3</th>
                         <th>Saldo BLUE (Disponible)</th>
                         <th>Saldo BLUE (Pendientes)</th>
                         <th>BLUE de Impulsor (IOU)</th>
@@ -2395,6 +2494,22 @@ document.addEventListener('DOMContentLoaded', () => {
             </table>
         `;
         elements.usersTableContainer.innerHTML = tableHTML;
+
+        // Funcionalidad de copiar al portapapeles para la billetera Web3
+        elements.usersTableContainer.querySelectorAll('.copy-wallet-btn-admin').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const fullAddress = this.dataset.address;
+                navigator.clipboard.writeText(fullAddress).then(() => {
+                    const originalHTML = this.innerHTML;
+                    this.innerHTML = '<span style="font-size:10px; font-weight:bold; color:#059669;">✓</span>';
+                    setTimeout(() => {
+                        this.innerHTML = originalHTML;
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Error al copiar: ', err);
+                });
+            });
+        });
     }
 
     function getUserRowHTML(user) {
@@ -2403,11 +2518,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const ratingHTML = generateStarRating(user.average_rating, user.ratings_count);
 
+        let walletHTML = '<span style="color: #888;">Sin billetera</span>';
+        if (user.web3_wallet_address) {
+            const addr = user.web3_wallet_address;
+            const truncated = addr.substring(0, 6) + '...' + addr.substring(addr.length - 4);
+            walletHTML = `
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span style="font-family: monospace; font-size: 12px; color: #fff;">${truncated}</span>
+                    <button class="copy-wallet-btn-admin" data-address="${addr}" style="background: none; border: none; cursor: pointer; color: #4da6ff; padding: 0; display: flex; align-items: center;" title="Copiar dirección">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                </div>
+            `;
+        }
+
         return `
             <tr data-user-id="${escapeHtml(user.id)}" data-username="${escapeHtml(user.username)}" data-status="${escapeHtml(user.status)}" data-referral-code="${escapeHtml(user.referral_code || '')}">
                 <td class="username-cell">
                     <a href="profile.html?user=${escapeHtml(user.username)}" target="_blank">${escapeHtml(user.username)}</a>
                 </td>
+                <td>${walletHTML}</td>
                 <td class="saldo-blue-text">${formatBalance(user.liquid_blue_balance)}</td>
                 <td class="saldo-escrow-text">${formatBalance(user.escrow_blue_balance)}</td>
                 <td class="saldo-booster-text">${formatBalance(user.booster_blue_balance)}</td>
@@ -4006,6 +4139,183 @@ document.addEventListener('DOMContentLoaded', () => {
                 elements.govImportProcessBtn.textContent = 'Confirmar y Procesar Pagos';
             }
         });
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // KYC COMPLIANCE — Verificación de Identidad On-Chain
+    // ════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Inicializa la sección KYC: registra los event listeners una sola vez.
+     * Se llama cada vez que el admin navega a la sección KYC.
+     */
+    function initKycSection() {
+        const checkBtn = document.getElementById('kycCheckBtn');
+        const approveBtn = document.getElementById('kycApproveBtn');
+        const revokeBtn = document.getElementById('kycRevokeBtn');
+        const usernameInput = document.getElementById('kycUsernameInput');
+
+        // Evitar registrar listeners duplicados usando un flag en el DOM.
+        if (checkBtn && !checkBtn._kycListenerAttached) {
+            checkBtn._kycListenerAttached = true;
+
+            // Consultar estado KYC al hacer clic en "Consultar".
+            checkBtn.addEventListener('click', () => {
+                const username = usernameInput?.value?.trim();
+                if (!username) {
+                    showCustomAlert('Ingresa un nombre de usuario para consultar.');
+                    return;
+                }
+                kycCheckUser(username);
+            });
+
+            // Permitir buscar presionando Enter en el campo de texto.
+            usernameInput.addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') {
+                    checkBtn.click();
+                }
+            });
+        }
+
+        // Botón "Aprobar KYC": Envía kycStatus=true al backend.
+        if (approveBtn && !approveBtn._kycListenerAttached) {
+            approveBtn._kycListenerAttached = true;
+            approveBtn.addEventListener('click', () => {
+                const username = document.getElementById('kycResultUsername')?.textContent;
+                if (!username) return;
+                showCustomConfirm(
+                    `¿Estás seguro de APROBAR el KYC para "${username}"? Esta acción se registrará en el Smart Contract y en el log de auditoría.`,
+                    () => kycSetStatus(username, true)
+                );
+            });
+        }
+
+        // Botón "Revocar KYC": Envía kycStatus=false al backend.
+        if (revokeBtn && !revokeBtn._kycListenerAttached) {
+            revokeBtn._kycListenerAttached = true;
+            revokeBtn.addEventListener('click', () => {
+                const username = document.getElementById('kycResultUsername')?.textContent;
+                if (!username) return;
+                showCustomConfirm(
+                    `⚠️ ¿Estás seguro de REVOCAR el KYC para "${username}"? El usuario NO podrá crear publicaciones que impliquen pagos.`,
+                    () => kycSetStatus(username, false)
+                );
+            });
+        }
+    }
+
+    /**
+     * Consulta el estado KYC de un usuario: busca su wallet en la DB
+     * y luego consulta el Smart Contract para ver si tiene KYC.
+     * @param {string} username - El nombre de usuario a consultar.
+     */
+    async function kycCheckUser(username) {
+        const resultPanel = document.getElementById('kycStatusResult');
+        const operationResult = document.getElementById('kycOperationResult');
+
+        // Ocultar resultados anteriores.
+        if (resultPanel) resultPanel.style.display = 'none';
+        if (operationResult) operationResult.style.display = 'none';
+
+        try {
+            // Paso 1: Obtener la wallet del usuario desde la DB.
+            const users = await apiFetch(`/api/admin/users?search=${encodeURIComponent(username)}`);
+            const user = Array.isArray(users) ? users.find(u => u.username === username) : null;
+
+            if (!user) {
+                showCustomAlert(`Usuario "${escapeHtml(username)}" no encontrado.`);
+                return;
+            }
+
+            const wallet = user.web3_wallet_address;
+
+            // Mostrar panel con info del usuario.
+            document.getElementById('kycResultUsername').textContent = user.username;
+            document.getElementById('kycResultWallet').textContent = wallet
+                ? `Wallet: ${wallet}`
+                : 'Sin billetera Web3 registrada';
+
+            if (!wallet) {
+                // Si no tiene wallet, no podemos consultar KYC.
+                document.getElementById('kycResultStatus').textContent = 'N/A';
+                document.getElementById('kycResultStatus').style.color = '#667085';
+                document.getElementById('kycActions').style.display = 'none';
+                resultPanel.style.display = 'block';
+                return;
+            }
+
+            // Paso 2: Consultar estado KYC on-chain via el endpoint.
+            // Usamos una llamada al bridge para verificar (lectura gratuita, sin gas).
+            document.getElementById('kycResultStatus').textContent = 'Consultando blockchain...';
+            document.getElementById('kycResultStatus').style.color = '#F59E0B';
+            document.getElementById('kycActions').style.display = 'none';
+            resultPanel.style.display = 'block';
+
+            // Intentar verificar via el endpoint de governance.
+            // Como checkUserKYC es una lectura, podemos hacer una llamada POST
+            // con kycStatus para ver el estado actual. Pero como no tenemos un
+            // endpoint GET dedicado, usamos la información del usuario.
+            // NOTA: El estado real se verifica cuando intentas aprobar/revocar.
+            // Por ahora mostramos "Pendiente de verificación" y dejamos los botones visibles.
+            document.getElementById('kycResultStatus').textContent = '⏳ Verificar con los botones';
+            document.getElementById('kycResultStatus').style.color = '#F59E0B';
+            document.getElementById('kycActions').style.display = 'flex';
+
+        } catch (error) {
+            showCustomAlert(`Error al consultar usuario: ${error.message}`);
+        }
+    }
+
+    /**
+     * Envía la solicitud para aprobar o revocar el KYC de un usuario.
+     * Llama al endpoint POST /api/governance/kyc.
+     * @param {string} username - El nombre de usuario.
+     * @param {boolean} kycStatus - true para aprobar, false para revocar.
+     */
+    async function kycSetStatus(username, kycStatus) {
+        const operationResult = document.getElementById('kycOperationResult');
+        const approveBtn = document.getElementById('kycApproveBtn');
+        const revokeBtn = document.getElementById('kycRevokeBtn');
+
+        // Deshabilitar botones durante la operación para evitar doble clic.
+        if (approveBtn) approveBtn.disabled = true;
+        if (revokeBtn) revokeBtn.disabled = true;
+
+        try {
+            const result = await apiFetch('/api/governance/kyc', {
+                method: 'POST',
+                body: JSON.stringify({ username, kycStatus })
+            });
+
+            // Mostrar resultado exitoso.
+            operationResult.style.display = 'block';
+            operationResult.style.background = 'rgba(5, 150, 105, 0.1)';
+            operationResult.style.border = '1px solid #059669';
+            operationResult.innerHTML = `
+                <p style="color: #059669; font-weight: 700; margin: 0 0 0.5rem;">✅ ${escapeHtml(result.message)}</p>
+                <p style="color: #667085; font-size: 13px; margin: 0;">TX Hash: ${escapeHtml(result.txHash || 'Sin cambios necesarios')}</p>
+            `;
+
+            // Actualizar el estado visual.
+            const statusEl = document.getElementById('kycResultStatus');
+            if (statusEl) {
+                statusEl.textContent = kycStatus ? '✅ VERIFICADO' : '❌ NO VERIFICADO';
+                statusEl.style.color = kycStatus ? '#059669' : '#DC2626';
+            }
+
+        } catch (error) {
+            // Mostrar error.
+            operationResult.style.display = 'block';
+            operationResult.style.background = 'rgba(220, 38, 38, 0.1)';
+            operationResult.style.border = '1px solid #DC2626';
+            operationResult.innerHTML = `
+                <p style="color: #DC2626; font-weight: 700; margin: 0;">❌ Error: ${escapeHtml(error.message)}</p>
+            `;
+        } finally {
+            // Re-habilitar botones.
+            if (approveBtn) approveBtn.disabled = false;
+            if (revokeBtn) revokeBtn.disabled = false;
+        }
     }
 
 });

@@ -46,19 +46,24 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             // --- INICIO DE LA TRANSACCIÓN ---
             await client.query('BEGIN');
 
-            // 1. VERIFICAR PERMISOS DE PUBLICACIÓN
+            // 1. VERIFICAR PERMISOS DE PUBLICACIÓN Y CARGAR CONFIGURACIÓN ECONÓMICA
+            // Se cargan tanto los permisos de tipo de publicación como los parámetros
+            // económicos necesarios para el cálculo de solvencia y Escrow Web3.
             const settingsKeys = [
                 'allow_request_publications',
                 'allow_sell_publications',
-                'allow_donation_publications'
+                'allow_donation_publications',
+                'platform_commission_percentage',
+                'pre_launch_mode_enabled'
             ];
             const settingsResult = await client.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1::text[])`, [settingsKeys]);
-            const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value === 'true' }), {});
+            // Almacenar valores crudos (string) para poder convertir a boolean o número según contexto.
+            const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
 
             const typePermissionMap = {
-                'request': settings.allow_request_publications,
-                'sell': settings.allow_sell_publications,
-                'donation': settings.allow_donation_publications
+                'request': settings.allow_request_publications === 'true',
+                'sell': settings.allow_sell_publications === 'true',
+                'donation': settings.allow_donation_publications === 'true'
             };
 
             if (!typePermissionMap[publicationType]) {
@@ -116,21 +121,48 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 repeatCooldown = 24;
             }
 
-            const userResult = await client.query(`SELECT id, is_minor, tutor_user_id, account_status FROM users WHERE username = $1`, [authorUsername]);
+            const userResult = await client.query(`SELECT id, is_minor, tutor_user_id, account_status, web3_wallet_address, kyc_verified FROM users WHERE username = $1`, [authorUsername]);
             if (userResult.rowCount === 0) {
                 throw { status: 404, message: "El autor de la publicación no existe." };
             }
             const author = userResult.rows[0];
             const authorId = author.id;
 
+            let kycWallet = author.web3_wallet_address;
+
             // Verificar si es menor sin tutor
-            if (author.is_minor && (!author.tutor_user_id || author.account_status === 'pending_tutor')) {
-                await client.query('ROLLBACK');
-                return res.status(403).json({
-                    message: "Por ser menor de edad, necesitas la autorización de un tutor para crear publicaciones. Por favor, agrega un tutor a tu cuenta primero.",
-                    requires_tutor: true,
-                    is_minor: true
-                });
+            if (author.is_minor) {
+                if (!author.tutor_user_id || author.account_status === 'pending_tutor') {
+                    await client.query('ROLLBACK');
+                    return res.status(403).json({
+                        message: "Por ser menor de edad, necesitas la autorización de un tutor para crear publicaciones. Por favor, agrega un tutor a tu cuenta primero.",
+                        requires_tutor: true,
+                        is_minor: true
+                    });
+                }
+                const tutorResult = await client.query(`SELECT web3_wallet_address FROM users WHERE id = $1`, [author.tutor_user_id]);
+                if (tutorResult.rowCount > 0) {
+                    kycWallet = tutorResult.rows[0].web3_wallet_address;
+                }
+            }
+
+            // === FRENO KYC FINTECH (Web3 Single Source of Truth) ===
+            // Validar KYC en la Blockchain antes de permitir publicaciones de gasto.
+            // En Modo Pre-lanzamiento (pre_launch_mode_enabled == 'true'), se exime esta validación para permitir la actividad off-chain en el Libro de Impulsores.
+            if (!isSellPost && settings.pre_launch_mode_enabled !== 'true') { 
+                const Web3BridgeService = require('../services/web3BridgeService');
+                let isKycVerified = await Web3BridgeService.checkUserKYC(kycWallet);
+                if (!isKycVerified && author.kyc_verified) {
+                    console.log(`[PUB CREATION] Fallback activado: KYC on-chain falló o dio false para ${authorUsername}, pero usuario está verificado en la base de datos.`);
+                    isKycVerified = true;
+                }
+                if (!isKycVerified) {
+                    await client.query('ROLLBACK');
+                    return res.status(403).json({
+                        message: "Seguridad Financiera: Para publicar tareas y emitir pagos en token BLUE, debes completar tu verificación de identidad (KYC) en tu Billetera Web3.",
+                        requires_kyc: true
+                    });
+                }
             }
 
             // --- NUEVO: Lógica para calcular la fecha de expiración ---
@@ -145,6 +177,54 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 expiresAt.setHours(expiresAt.getHours() + hours);
                 expiresAt.setMinutes(expiresAt.getMinutes() + minutes);
             }
+
+            // --- Freno de Solvencia (Pre-autorización) ---
+            // Solo aplica a publicaciones tipo 'request' (solicitud de trabajo).
+            // Calcula el riesgo total que asume el autor al crear la publicación
+            // y verifica que tenga suficiente crédito disponible.
+            if (publicationType === 'request') {
+                const commissionPercentage = parseFloat(settings.platform_commission_percentage || '0');
+                const costPerTask = cost * (1 + commissionPercentage / 100);
+                const totalRisk = costPerTask * slots * maxRepeat;
+
+                const { getDebtResponsibleUserById } = require('../services/publicationService');
+                const creditScoringService = require('../services/creditScoringService');
+
+                const debtResponsible = await getDebtResponsibleUserById(client, authorId, { useTutor: true });
+                // FOR UPDATE: Bloqueo pesimista para prevenir doble gasto concurrente.
+                // Si dos solicitudes llegan al mismo tiempo, la segunda ESPERA a que
+                // la primera termine antes de leer el saldo. Estándar bancario (ISO 27001).
+                const currentRedRes = await client.query(
+                    'SELECT red_balance, liquid_blue_balance FROM users WHERE id = $1 FOR UPDATE',
+                    [debtResponsible.user_id]
+                );
+                const currentRed = parseFloat(currentRedRes.rows[0].red_balance) || 0;
+                const liquidBlue = parseFloat(currentRedRes.rows[0].liquid_blue_balance) || 0;
+                
+                // ═══════════════════════════════════════════════════════════════
+                // CÁLCULO DE PODER ADQUISITIVO:
+                // Restar los fondos ya bloqueados en Escrow Web3 activos.
+                // Esto previene el ataque de doble gasto: si el usuario ya tiene
+                // publicaciones activas, su poder adquisitivo real es MENOR.
+                // ═══════════════════════════════════════════════════════════════
+                const escrowLockedRes = await client.query(
+                    `SELECT COALESCE(SUM(amount_locked), 0) as total_locked
+                     FROM web3_escrow_holds
+                     WHERE author_id = $1 AND status = 'locked'`,
+                    [debtResponsible.user_id]
+                );
+                const alreadyLocked = parseFloat(escrowLockedRes.rows[0].total_locked) || 0;
+
+                const scoreLimit = await creditScoringService.calculateUserScore(debtResponsible.user_id);
+                const availableCredit = Math.max(0, scoreLimit - currentRed - alreadyLocked);
+
+                // El usuario puede publicar si tiene suficiente crédito disponible
+                // (descontando lo que ya tiene bloqueado en otras publicaciones activas).
+                if (totalRisk > (availableCredit + liquidBlue)) {
+                    throw { status: 402, message: `Fondos Insuficientes para publicar. Esta tarea requiere garantizar ${totalRisk.toFixed(4)} BLUE/RED. Tu límite disponible es ${(availableCredit + liquidBlue).toFixed(2)} (ya tienes ${alreadyLocked.toFixed(2)} bloqueados en otras publicaciones).` };
+                }
+            }
+            // ----------------------------------------------------
 
             const sql = `
                         INSERT INTO publications
@@ -185,6 +265,36 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                     expires_at: expiresAt ? expiresAt.toISOString() : null
                 }
             });
+
+            // ═══════════════════════════════════════════════════════════════
+            // ESCROW WEB3: Bloquear fondos al momento de crear la publicación.
+            // Se ejecuta DENTRO de la transacción principal (antes del COMMIT)
+            // para eliminar la ventana de race condition donde un segundo
+            // request podría leer escrow = 0 entre el COMMIT y el INSERT.
+            // La FK a publications(id) funciona porque la publicación ya fue
+            // insertada en esta misma transacción (aún no commiteada).
+            // Solo aplica en modo Web3 real (NO en pre-lanzamiento).
+            // ═══════════════════════════════════════════════════════════════
+            const isPreLaunch = settings.pre_launch_mode_enabled === 'true';
+            if (publicationType === 'request' && !isPreLaunch && cost > 0) {
+                const commissionPct = parseFloat(settings.platform_commission_percentage || '0');
+                const costPerTask = cost * (1 + commissionPct / 100);
+                const totalToLock = costPerTask * slots * maxRepeat;
+
+                // Determinar responsable de la deuda (tutor si es menor).
+                const { getDebtResponsibleUserById } = require('../services/publicationService');
+                const debtResponsible = await getDebtResponsibleUserById(client, authorId, { useTutor: true });
+
+                // Insertar el bloqueo de fondos en la tabla web3_escrow_holds.
+                // Usa el mismo 'client' de la transacción para garantizar atomicidad.
+                await client.query(
+                    `INSERT INTO web3_escrow_holds
+                        (publication_id, author_id, responsible_user_id, amount_locked, commission_rate_locked, status)
+                     VALUES ($1, $2, $3, $4, $5, 'locked')`,
+                    [result.rows[0].id, authorId, debtResponsible.user_id, totalToLock, commissionPct]
+                );
+                console.log(`[ESCROW WEB3] ✅ Bloqueados ${totalToLock.toFixed(4)} BLUE/RED para publicación #${result.rows[0].id}`);
+            }
 
             await client.query('COMMIT');
             console.log(`[ROUTE DIAGNOSTIC] ✅ Transacción de publicación confirmada. ID: ${result.rows[0].id}`);
@@ -620,6 +730,16 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             await client.query('COMMIT');
 
+            // ═══════════════════════════════════════════════════════════════
+            // OUTBOX PATTERN: DB Confirmada Exitosamente.
+            // ═══════════════════════════════════════════════════════════════
+            if (result && result.web3IntentId) {
+                await pool.query(
+                    `UPDATE web3_pending_transactions SET status = 'fully_resolved', resolved_at = NOW() WHERE id = $1`,
+                    [result.web3IntentId]
+                );
+            }
+
             res.status(200).json({ message: result.message || "Pago realizado con éxito." });
 
         } catch (error) {
@@ -642,7 +762,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             // 1. Verificar existencia del aceptador
             const acceptorResult = await client.query(
-                `SELECT id, is_minor, tutor_user_id, account_status FROM users WHERE username = $1`,
+                `SELECT id, is_minor, tutor_user_id, account_status, web3_wallet_address, kyc_verified FROM users WHERE username = $1`,
                 [acceptorUsername]
             );
 
@@ -673,21 +793,66 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 throw { status: 400, message: "Esta publicación está pausada temporalmente." };
             }
 
+            // Cargar configuraciones para el procesamiento de tokens y modo operativo
+            const settingsResult = await client.query(`
+                SELECT setting_key, setting_value 
+                FROM app_settings 
+                WHERE setting_key IN ('pre_launch_mode_enabled', 'debt_cycle_days', 'debt_cycle_hours', 'debt_cycle_minutes', 'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes', 'platform_commission_percentage')
+            `);
+            const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
+            const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
+
+            // === FRENO KYC FINTECH PARA EL TRABAJADOR (Web3 Single Source of Truth) ===
+            // El Smart Contract exige que el beneficiario (Payee) tenga KYC verificado on-chain.
+            // En Modo Pre-lanzamiento (preLaunchMode == true), se exime esta validación para permitir la actividad off-chain en el Libro de Impulsores.
+            if (pub.category === 'request' && !preLaunchMode) {
+                let workerKycWallet = acceptor.web3_wallet_address;
+
+                // Si el trabajador es menor de edad, verificamos si usa la wallet de su tutor
+                if (acceptor.is_minor) {
+                    if (!acceptor.tutor_user_id || acceptor.account_status === 'pending_tutor') {
+                        await client.query('ROLLBACK');
+                        return res.status(403).json({
+                            message: "Por ser menor de edad, necesitas la autorización de un tutor para aceptar trabajos remunerados. Por favor, agrega un tutor a tu cuenta primero.",
+                            requires_tutor: true,
+                            is_minor: true
+                        });
+                    }
+                    const tutorWalletRes = await client.query(`SELECT web3_wallet_address FROM users WHERE id = $1`, [acceptor.tutor_user_id]);
+                    if (tutorWalletRes.rowCount > 0 && tutorWalletRes.rows[0].web3_wallet_address) {
+                        workerKycWallet = tutorWalletRes.rows[0].web3_wallet_address;
+                    }
+                }
+
+                if (!workerKycWallet) {
+                    await client.query('ROLLBACK');
+                    return res.status(403).json({
+                        message: "Seguridad Financiera: Para aceptar tareas remuneradas, debes conectar una Billetera Web3 a tu cuenta.",
+                        requires_wallet: true
+                    });
+                }
+
+                const Web3BridgeService = require('../services/web3BridgeService');
+                let isWorkerKycVerified = await Web3BridgeService.checkUserKYC(workerKycWallet);
+                if (!isWorkerKycVerified && acceptor.kyc_verified) {
+                    console.log(`[PUB ACCEPT] Fallback activado: KYC on-chain falló o dio false para ${acceptorUsername}, pero trabajador está verificado en la base de datos.`);
+                    isWorkerKycVerified = true;
+                }
+                if (!isWorkerKycVerified) {
+                    await client.query('ROLLBACK');
+                    return res.status(403).json({
+                        message: "Seguridad Financiera: Para aceptar tareas remuneradas y recibir pagos en token BLUE, debes completar tu verificación de identidad (KYC) en tu Billetera Web3.",
+                        requires_kyc: true
+                    });
+                }
+            }
+
             // --- CASO A: DONACIÓN PROFESIONAL ---
             if (pub.category === 'donation') {
                 const amount = parseFloat(donationAmount);
                 if (isNaN(amount) || amount <= 0) {
                     throw { status: 400, message: "Por favor, indica un monto válido para donar." };
                 }
-
-                // Cargar configuraciones para el procesamiento de tokens
-                const settingsResult = await client.query(`
-                                SELECT setting_key, setting_value 
-                                FROM app_settings 
-                                WHERE setting_key IN ('pre_launch_mode_enabled', 'debt_cycle_days', 'debt_cycle_hours', 'debt_cycle_minutes', 'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes', 'platform_commission_percentage')
-                            `);
-                const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
-                const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
 
                 const virtualAcceptance = {
                     blue_cost: amount,
@@ -698,7 +863,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 };
 
                 // Procesar pago instantáneo
-                await processDirectPaymentCompletion(client, virtualAcceptance, id, preLaunchMode, settings);
+                const result = await processDirectPaymentCompletion(client, virtualAcceptance, id, preLaunchMode, settings);
 
                 // Registrar la donación confirmada
                 await client.query(
@@ -736,6 +901,17 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 });
 
                 await client.query('COMMIT');
+
+                // ═══════════════════════════════════════════════════════════════
+                // OUTBOX PATTERN: DB Confirmada Exitosamente.
+                // ═══════════════════════════════════════════════════════════════
+                if (result && result.web3IntentId) {
+                    await pool.query(
+                        `UPDATE web3_pending_transactions SET status = 'fully_resolved', resolved_at = NOW() WHERE id = $1`,
+                        [result.web3IntentId]
+                    );
+                }
+
                 return res.status(200).json({ message: `¡Donación de ${amount} BLUE recibida! Gracias por tu apoyo.` });
             }
 
@@ -1084,11 +1260,58 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 throw { status: 404, message: "No se encontró una tarea o compra aprobada para procesar." };
             }
 
-            // Guardar respuestas del formulario si se proporcionan y la publicación tiene form_fields
-            const shouldSaveResponses = !!formResponses
-                && acceptance.form_fields
-                && typeof formResponses === 'object'
-                && Object.keys(formResponses).length > 0;
+            // ──────────────────────────────────────────────────────────
+            // SANITIZACIÓN DE form_responses (NIVEL FINTECH)
+            // ──────────────────────────────────────────────────────────
+            // Valida las respuestas enviadas por el usuario antes de almacenarlas.
+            // Reglas de seguridad:
+            //   1. Solo se aceptan claves numéricas de paso (previene inyección de claves JSONB)
+            //   2. Máximo 20 pasos, 10 campos por paso (DoS prevention)
+            //   3. Valores truncados a 5000 caracteres (previene payload oversize pero permite textareas largos)
+            //   4. Solo se guardan valores string (previene inyección de objetos/arrays)
+            // ──────────────────────────────────────────────────────────
+            const MAX_RESPONSE_STEPS = 20;           // Máximo de pasos en las respuestas
+            const MAX_RESPONSE_FIELDS = 10;          // Máximo de campos por paso en las respuestas
+            const MAX_RESPONSE_VALUE_LENGTH = 5000;  // Longitud máxima de cada respuesta (textarea)
+
+            let sanitizedFormResponses = null;
+            if (formResponses && acceptance.form_fields && typeof formResponses === 'object') {
+                const sanitized = {};
+                const stepKeys = Object.keys(formResponses).slice(0, MAX_RESPONSE_STEPS);
+
+                for (const stepKey of stepKeys) {
+                    // Solo aceptar claves numéricas (previene inyección de claves JSONB)
+                    const stepNum = parseInt(stepKey, 10);
+                    if (!Number.isFinite(stepNum) || stepNum < 1 || stepNum > MAX_RESPONSE_STEPS) continue;
+
+                    const stepResponses = formResponses[stepKey];
+                    if (!stepResponses || typeof stepResponses !== 'object' || Array.isArray(stepResponses)) continue;
+
+                    const sanitizedStep = {};
+                    const fieldKeys = Object.keys(stepResponses).slice(0, MAX_RESPONSE_FIELDS);
+
+                    for (const fieldKey of fieldKeys) {
+                        const value = stepResponses[fieldKey];
+                        // Solo aceptar valores string (previene inyección de objetos/arrays)
+                        if (typeof value === 'string') {
+                            // Truncar a longitud máxima segura y eliminar caracteres nulos
+                            sanitizedStep[fieldKey.substring(0, 200)] = value
+                                .replace(/\0/g, '')  // Eliminar caracteres nulos (seguridad PostgreSQL)
+                                .substring(0, MAX_RESPONSE_VALUE_LENGTH);
+                        }
+                    }
+
+                    if (Object.keys(sanitizedStep).length > 0) {
+                        sanitized[String(stepNum)] = sanitizedStep;
+                    }
+                }
+
+                if (Object.keys(sanitized).length > 0) {
+                    sanitizedFormResponses = sanitized;
+                }
+            }
+
+            const shouldSaveResponses = !!sanitizedFormResponses;
 
             if (shouldSaveResponses) {
                 const updateResponsesResult = await client.query(
@@ -1097,7 +1320,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                              form_responses_submitted_at = COALESCE(form_responses_submitted_at, NOW())
                          WHERE id = $2
                          RETURNING form_responses_submitted_at`,
-                    [formResponses, acceptance.acceptance_id]
+                    [sanitizedFormResponses, acceptance.acceptance_id]
                 );
 
                 if (!acceptance.form_responses_submitted_at) {
@@ -1117,7 +1340,6 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             // Añadir completerUsername al objeto acceptance para pasarlo a los helpers
             acceptance.completerUsername = completerUsername;
-
             let result;
             switch (acceptance.category) {
                 case 'sell':
@@ -1153,6 +1375,17 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             });
 
             await client.query('COMMIT');
+
+            // ═══════════════════════════════════════════════════════════════
+            // OUTBOX PATTERN: DB Confirmada Exitosamente.
+            // ═══════════════════════════════════════════════════════════════
+            if (result && result.web3IntentId) {
+                await pool.query(
+                    `UPDATE web3_pending_transactions SET status = 'fully_resolved', resolved_at = NOW() WHERE id = $1`,
+                    [result.web3IntentId]
+                );
+            }
+
             res.status(200).json({ message: result.message });
 
         } catch (error) {
@@ -1168,14 +1401,14 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
     router.post('/publications/:id/confirm-payment', verifyAdminToken, requireAcceptedLegalByUsernameField(['confirmerUsername']), async (req, res) => {
         const pubId = req.params.id;
         const { confirmerUsername, workerUsername } = req.body;
+        console.log(`[DEBUG] Recibida petición confirm-payment: pubId=${pubId}, confirmer=${confirmerUsername}, worker=${workerUsername}`);
         const actorUsername = resolveActorUsername(req, confirmerUsername);
 
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
+            console.log(`[DEBUG] Transacción BEGIN iniciada para pubId=${pubId}`);
 
-            // 1. OBTENER DATOS Y VERIFICAR PERMISOS
-            // Se obtiene la publicación y se asegura que el `confirmerUsername` es el autor.
             const acceptanceResult = await client.query(
                 `SELECT p.blue_cost, p.title, p.category, p.is_booster_task,
                     u.id as author_id,
@@ -1188,22 +1421,20 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                      JOIN publication_acceptances pa ON p.id = pa.publication_id
                      JOIN users w ON pa.acceptor_username = w.username
              WHERE p.id = $1 AND pa.acceptor_username = $2 AND pa.status = 'completed'
-             FOR UPDATE`, // FOR UPDATE bloquea la fila para evitar concurrencia
+             FOR UPDATE`,
                 [pubId, workerUsername]
             );
+            console.log(`[DEBUG] FOR UPDATE finalizado. Filas encontradas: ${acceptanceResult.rowCount}`);
 
             const acceptance = acceptanceResult.rows[0];
             if (!acceptance) {
                 throw { status: 404, message: "No se encontró una tarea completada válida para este trabajador." };
             }
 
-            // 2. Fallar rápido si el usuario no es el autor.
             if (acceptance.author_username !== actorUsername) {
                 throw { status: 403, message: "No tienes permiso para confirmar el pago de esta tarea." };
             }
 
-            // 2.1 Seguridad: no confiar en el username enviado por cliente.
-            // Usamos el acceptor_username real de la DB como "worker".
             if (workerUsername && acceptance.acceptor_username !== workerUsername) {
                 await logAuditEvent(client, req, {
                     eventType: 'publication.confirm_payment.mismatch',
@@ -1219,34 +1450,36 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 throw { status: 400, message: "El trabajador indicado no coincide con el registrado en la solicitud." };
             }
 
-            // VALIDACIÓN: Esta ruta es solo para 'requests'
             if (acceptance.category !== 'request') {
                 throw { status: 400, message: "Esta acción solo es válida para publicaciones de tipo 'solicitud'." };
             }
 
-            // 3. OBTENER CONFIGURACIONES DE LA PLATAFORMA
             const settingsResult = await client.query(`
             SELECT setting_key, setting_value FROM app_settings 
             WHERE setting_key IN ('pre_launch_mode_enabled', 'debt_cycle_days', 'debt_cycle_hours', 'debt_cycle_minutes', 'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes', 'platform_commission_percentage')
         `);
             const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
             const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
+            console.log(`[DEBUG] Settings cargados. preLaunchMode=${preLaunchMode}`);
 
-            // 4. PROCESAR EL PAGO
-            acceptance.workerUsername = acceptance.acceptor_username; // Usar el valor de DB (no el del cliente)
+            acceptance.workerUsername = acceptance.acceptor_username;
             acceptance.workerId = acceptance.worker_id;
+            
+            console.log(`[DEBUG] Llamando a processRequestPayment...`);
             const result = await processRequestPayment(client, acceptance, pubId, preLaunchMode, settings);
+            console.log(`[DEBUG] processRequestPayment finalizado exitosamente.`);
 
-            // 5. ACTUALIZAR ESTADO FINAL
             await client.query(`UPDATE publication_acceptances SET status = 'confirmed_paid' WHERE id = $1`, [acceptance.acceptance_id]);
+            console.log(`[DEBUG] UPDATE publication_acceptances finalizado.`);
 
-            // PUSH NOTIFICATION (Pago Confirmado — tipo TRANSACTIONAL: no puede ser bloqueado)
+            console.log(`[DEBUG] Enviando push notification...`);
             await notificationService.sendNotificationToUser(acceptance.worker_id, {
                 title: '¡Pago Recibido! 🏆',
                 body: `Tu trabajo en "${acceptance.title}" ha sido pagado. +${parseFloat(acceptance.blue_cost).toFixed(2)} BLUE IOU acreditados.`,
                 icon: '/assets/icons/icon-192x192.png',
                 data: { url: '/history.html' }
             }, 'TRANSACTIONAL');
+            console.log(`[DEBUG] Push notification enviada.`);
 
             await logAuditEvent(client, req, {
                 eventType: 'publication.confirmed_paid',
@@ -1260,8 +1493,23 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                     is_booster_task: !!acceptance.is_booster_task
                 }
             });
+            console.log(`[DEBUG] logAuditEvent finalizado.`);
 
             await client.query('COMMIT');
+            console.log(`[DEBUG] Transacción COMMIT finalizada.`);
+
+            // ═══════════════════════════════════════════════════════════════
+            // OUTBOX PATTERN: DB Confirmada Exitosamente.
+            // Si hubo interacción con blockchain, marcamos la intención como
+            // 'fully_resolved'. El cron de reconciliación ignorará este registro.
+            // ═══════════════════════════════════════════════════════════════
+            if (result.web3IntentId) {
+                await pool.query(
+                    `UPDATE web3_pending_transactions SET status = 'fully_resolved', resolved_at = NOW() WHERE id = $1`,
+                    [result.web3IntentId]
+                );
+            }
+
             res.status(200).json({ message: result.message });
 
         } catch (error) {

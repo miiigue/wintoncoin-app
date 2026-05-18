@@ -532,3 +532,46 @@ git checkout backend/server.js
 
 **¡Buena suerte con las pruebas!** 🚀
 
+---
+
+## 🌐 Prueba 4: Integración Web3 y Winton Trust Score (WTS) {#prueba-4}
+
+**Objetivo**: Verificar que las billeteras se generan correctamente, la UI "Azure Glass" responde, y las transacciones se sincronizan on-chain en Optimism Sepolia.
+
+### 4.1 Generación de Billetera Invisible
+**Pasos**:
+1. Entra al entorno Demo o Local y crea una **nueva cuenta** desde `/register.html`.
+2. Una vez dentro, ve al **Dashboard** o a `/contract_interaction.html`.
+3. Verifica la sección "Tu Billetera Web3".
+**Resultados esperados**:
+- ✅ Debe mostrar una dirección que empiece por `0x...` truncada (ej: `0x1234...abcd`).
+- ✅ Al hacer clic en el botón de copiar, debe salir la alerta "¡Dirección copiada!" y guardar la dirección completa en el portapapeles.
+- ✅ *Backend*: En la base de datos, la tabla `users` debe tener `web3_wallet_address` y el blob encriptado en `web3_private_key_encrypted`.
+
+### 4.2 Sincronización del Scoring WTS (On-Login)
+**Pasos**:
+1. Cierra sesión y vuelve a **iniciar sesión** con cualquier cuenta.
+2. Revisa los logs de la terminal del servidor (Render o Local).
+**Resultados esperados**:
+- ✅ El login debe ser exitoso (No Error 500).
+- ✅ En los logs debe aparecer el mensaje de sincronización del `CreditScoringService` indicando que calculó el límite base (ej. 100) más bonos, y lo envió a la blockchain.
+- ✅ *Opcional*: Si el usuario tiene 2 referidos, el límite calculado debe ser 110 (100 base + 5x2).
+
+### 4.3 Verificación de Diseño "Azure Glass"
+**Pasos**:
+1. Ve a `/contract_interaction.html` (o la pestaña de referidos del Dashboard).
+**Resultados esperados**:
+- ✅ El banner principal debe tener un fondo de cristal esmerilado azul.
+- ✅ La tipografía debe ser "Inter" (limpia y moderna, no serif).
+- ✅ Debe mostrar tu código de referido destacado y el bono de "5 BLUE" centrado, sin las flechas rojas antiguas.
+- ✅ El diseño debe ser responsive (adaptable si reduces el tamaño de la ventana).
+
+### 4.4 Sincronización de Pagos On-Chain (Web3 Bridge)
+**Pasos**:
+1. Realiza una acción que transfiera BLUE entre dos usuarios (ej. aceptar una publicación o hacer un pago P2P).
+2. Observa los logs del servidor (Terminal de Render o Local).
+**Resultados esperados**:
+- ✅ El pago off-chain debe completarse al instante en la UI.
+- ✅ En los logs de Render debe aparecer: `[WEB3 BRIDGE] Iniciando sincronización de pago...`
+- ✅ Unos segundos después (dependiendo de la red Sepolia), debe aparecer: `[WEB3 BRIDGE] Sincronización EXITOSA. Tx: 0x...`
+- ✅ Si buscas ese hash (`0x...`) en [Optimistic Sepolia Etherscan](https://sepolia-optimism.etherscan.io/), debe mostrar una transacción exitosa hacia el `WintonProtocol`.
