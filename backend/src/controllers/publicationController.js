@@ -148,7 +148,8 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             // === FRENO KYC FINTECH (Web3 Single Source of Truth) ===
             // Validar KYC en la Blockchain antes de permitir publicaciones de gasto.
-            if (!isSellPost) { 
+            // En Modo Pre-lanzamiento (pre_launch_mode_enabled == 'true'), se exime esta validación para permitir la actividad off-chain en el Libro de Impulsores.
+            if (!isSellPost && settings.pre_launch_mode_enabled !== 'true') { 
                 const Web3BridgeService = require('../services/web3BridgeService');
                 let isKycVerified = await Web3BridgeService.checkUserKYC(kycWallet);
                 if (!isKycVerified && author.kyc_verified) {
@@ -792,9 +793,19 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 throw { status: 400, message: "Esta publicación está pausada temporalmente." };
             }
 
+            // Cargar configuraciones para el procesamiento de tokens y modo operativo
+            const settingsResult = await client.query(`
+                SELECT setting_key, setting_value 
+                FROM app_settings 
+                WHERE setting_key IN ('pre_launch_mode_enabled', 'debt_cycle_days', 'debt_cycle_hours', 'debt_cycle_minutes', 'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes', 'platform_commission_percentage')
+            `);
+            const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
+            const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
+
             // === FRENO KYC FINTECH PARA EL TRABAJADOR (Web3 Single Source of Truth) ===
             // El Smart Contract exige que el beneficiario (Payee) tenga KYC verificado on-chain.
-            if (pub.category === 'request') {
+            // En Modo Pre-lanzamiento (preLaunchMode == true), se exime esta validación para permitir la actividad off-chain en el Libro de Impulsores.
+            if (pub.category === 'request' && !preLaunchMode) {
                 let workerKycWallet = acceptor.web3_wallet_address;
 
                 // Si el trabajador es menor de edad, verificamos si usa la wallet de su tutor
@@ -842,15 +853,6 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 if (isNaN(amount) || amount <= 0) {
                     throw { status: 400, message: "Por favor, indica un monto válido para donar." };
                 }
-
-                // Cargar configuraciones para el procesamiento de tokens
-                const settingsResult = await client.query(`
-                                SELECT setting_key, setting_value 
-                                FROM app_settings 
-                                WHERE setting_key IN ('pre_launch_mode_enabled', 'debt_cycle_days', 'debt_cycle_hours', 'debt_cycle_minutes', 'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes', 'platform_commission_percentage')
-                            `);
-                const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
-                const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
 
                 const virtualAcceptance = {
                     blue_cost: amount,

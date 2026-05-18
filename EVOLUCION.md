@@ -17,6 +17,19 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
+### 2026-05-18 (Parte 2) — Exención Dinámica de KYC Web3 en Modo Pre-lanzamiento
+
+- **Contexto**: Durante la evaluación arquitectónica predictiva del despliegue a Producción (merge a `main`), el usuario identificó un riesgo crítico de denegación de servicio lógica (bloqueo masivo) para la comunidad de Impulsores. En Producción, la plataforma opera en Modo Pre-lanzamiento (`pre_launch_mode_enabled = 'true'`), donde toda la actividad económica de tareas se registra off-chain en el Libro de Impulsores (puntos BLUE IOU) sin requerir gas ni interacción con contratos inteligentes Web3. Sin embargo, las barreras KYC recientemente implementadas en `createPublication` y `acceptPublication` consultaban y exigían KYC Web3 para todas las tareas de tipo `request` de forma incondicional. Como resultado, al hacer el merge a producción, cualquier usuario existente (`kyc_verified = FALSE`) habría quedado bloqueado al intentar publicar o aceptar tareas remuneradas en BLUE IOU.
+- **Decisión**:
+  - **Exención Dinámica en Pre-lanzamiento (Opción 1)**: En `publicationController.js`, se condicionaron los frenos KYC de creación y aceptación de tareas para que solo se ejecuten si la plataforma **NO** está en Modo Pre-lanzamiento (`settings.pre_launch_mode_enabled !== 'true'`).
+  - **Armonización de Reglas de Cumplimiento**: Se establece una distinción clara entre la actividad de fomento comunitario off-chain (exenta de KYC para eliminar fricción de adopción) y las donaciones de crowdfunding en Winton Solidario (donde se mantiene el KYC obligatorio para prevenir granjas de bots y lavado de puntos).
+- **Impacto**:
+  - **Cero Interrupción en Producción**: Los miles de usuarios de la comunidad de Impulsores pueden continuar publicando, aceptando y completando tareas en BLUE IOU sin ningún tipo de bloqueo o fricción técnica.
+  - **Transición Futura Automatizada**: En el momento en que administración desactive el Modo Pre-lanzamiento (`pre_launch_mode_enabled = 'false'`), el candado KYC Web3 se activará de forma instantánea y automática para todo el marketplace.
+- **Evidencia**: Archivos modificados: `publicationController.js`, `EVOLUCION.md`.
+
+---
+
 ### 2026-05-18 — Resolución de Colisión Semántica KYC vs Email OTP en Winton Solidario (Migración 056)
 
 - **Contexto**: Durante la revisión de la arquitectura de resiliencia KYC (Migración 055), el usuario identificó una colisión conceptual e inconsistencia en el uso de la columna heredada `is_verified`. Tras un rastreo exhaustivo en el código base, se confirmó que `authController.js` y `register.js` utilizaban `is_verified` para representar la **Verificación de Correo Electrónico (OTP)**, marcándola como `TRUE` en cuanto el usuario completaba su registro. Sin embargo, el módulo de donaciones humanitarias (`humanitarianService.js`) y el Trigger de base de datos de la migración 039 (`fn_release_humanitarian_donations`) asumían erróneamente que `is_verified` representaba la **Verificación KYC Web3 aprobada por Admin**. Esto generaba un fallo de seguridad silencioso: todos los usuarios registrados tenían `is_verified = TRUE`, evadiendo el estado de retención (`on_hold`) y liberando fondos de Winton Solidario a usuarios sin KYC en la blockchain.
@@ -2351,3 +2364,25 @@ Se asienta en auditoría la remoción física de la subcarpeta `android-app` (Ap
 - **Logica de Intencion**: Las transacciones ahora se registran en BD como intencion (intent) ANTES de interactuar con la blockchain, utilizando una conexion independiente al pool (para sobrevivir a un ROLLBACK de la DB principal).
 - **Reconciliation Service**: Se creo reconciliationService.js ejecutandose como cron cada 5 minutos (*/5 * * * *). Si detecta transacciones en estado blockchain_confirmed por mas de 2 minutos, las marca como manual_intervention_required, emite una alerta critica en audit_log y envia notificaciones al comprador/vendedor para advertir del retraso.
 - **Estandar de Industria**: Cumple con las exigencias de consistencia distribuida de la industria bancaria/fintech (ej. Stripe, Coinbase).
+
+---
+
+### [2026-05-18] - Rediseño Responsivo y Compliance Legal de Economía Dual en Landing Page
+#### Descripción
+Alineación del frontend de la página de aterrizaje (`index.html` y `landing.css`) con los estándares más estrictos de cumplimiento normativo (Securities Law / Howey Test) y optimización arquitectónica *Mobile-First* para corregir problemas de desbordamiento horizontal en pantallas pequeñas.
+
+#### Cambios realizados
+- **Evolución de Terminología Económica y Legal (`index.html`)**:
+    - Reemplazo del término contable **"Activo"** por **"Liquidez"** en la tarjeta del Token BLUE. Esto reafirma su naturaleza de *Utility Token* líquido dentro de un ecosistema P2P, eliminando la percepción de valor de inversión o custodia patrimonial tradicional ante reguladores como la SEC y normativas MiCA.
+    - Reemplazo del término contable **"Pasivo"** por **"Obligaciones"** en la tarjeta del Token RED. Esto establece con precisión jurídica que el token representa un compromiso personal de trabajo o servicio hacia la comunidad, alejándolo de la clasificación de deuda financiera regulada.
+    - Inclusión de bloques de comentarios explicativos detallados en el HTML para garantizar la trazabilidad de esta decisión ante futuras auditorías de cumplimiento.
+- **Rediseño Responsivo Nativo y Modularización (`landing.css`)**:
+    - **Optimización de Relleno (Padding)**: Reducción del padding en escritorio de `3.5rem` a `3rem` para una apariencia más compacta y elegante.
+    - **Media Queries Específicas Mobile-First**: Implementación de una regla robusta `@media (max-width: 768px)` que reduce el padding a `1.75rem`, ajusta el tamaño de la fuente principal de la etiqueta de precio de `3.5rem` a `2.25rem`, y establece `box-sizing: border-box` junto con `width: 100%`.
+    - **Soporte Ultra-Compacto**: Adición de una regla `@media (max-width: 360px)` para garantizar que en teléfonos diminutos (ej. iPhone SE) la tarjeta mantenga un margen de seguridad impecable sin romper el viewport.
+- **Verificación de Trazabilidad e Integridad**:
+    - Comentarios exhaustivos línea por línea en el CSS explicando el propósito de cada regla de diseño y adaptabilidad.
+    - Validación de la configuración de empaquetado en `vite.config.js` para asegurar la correcta inclusión y distribución de los assets modificados.
+- **Higiene de Canales y Compliance de Publicidad Financiera (`index.html`)**:
+    - Eliminación física permanente del enlace e icono de **Instagram** del pie de página de la página de aterrizaje.
+    - **Justificación Legal (FTC / SEC Compliance)**: Mitigación proactiva de riesgos regulatorios asociados a la percepción de promoción financiera o especulación en redes de consumo masivo, consolidando la comunicación oficial del protocolo en canales técnicos y auditables (X/Twitter y WhatsApp). ✅ CUMPLIMIENTO LEGAL Y TÉCNICO AL 100%

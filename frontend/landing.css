@@ -1131,24 +1131,33 @@ h2 {
 }
 
 /* --- Tokenomics Cards Enhanced --- */
+/* ==========================================================================
+   SECCIÓN DE ECONOMÍA DUAL (TARJETAS TOKEN BLUE Y TOKEN RED)
+   Optimización de Ingeniería y Arquitectura Responsiva (Mobile-First & UI/UX)
+   ========================================================================== */
 .cards-duo {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 3rem;
+    gap: 3rem; /* Espaciado entre tarjetas en escritorio */
     margin-top: 4rem;
-    perspective: 1000px;
+    perspective: 1000px; /* Profundidad 3D para efectos de levitación */
+    width: 100%; /* Garantiza que ocupe el ancho disponible sin desbordar */
+    box-sizing: border-box; /* Incluye padding y borde en el cálculo del ancho */
 }
 
+/* Estructura principal de la tarjeta de token (Glassmorphism Premium) */
 .token-card {
-    padding: 3.5rem;
-    border-radius: 30px;
-    background: rgba(20, 25, 40, 0.6);
-    backdrop-filter: blur(30px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 3rem; /* Reducido de 3.5rem a 3rem en escritorio para mayor elegancia y compacidad */
+    border-radius: 30px; /* Bordes redondeados modernos */
+    background: rgba(20, 25, 40, 0.6); /* Fondo translúcido obsidiana */
+    backdrop-filter: blur(30px); /* Efecto de desenfoque de cristal (Glassmorphism) */
+    border: 1px solid rgba(255, 255, 255, 0.08); /* Borde sutil semitransparente */
     position: relative;
-    overflow: hidden;
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+    overflow: hidden; /* Evita que los elementos internos sobresalgan del contenedor */
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Animación fluida de hover */
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2); /* Sombra base para dar sensación de flotabilidad */
+    box-sizing: border-box; /* Fundamental para evitar desbordamiento horizontal en móviles */
+    width: 100%; /* Ocupa el 100% del contenedor padre */
 }
 
 .token-card::before {
@@ -1157,15 +1166,15 @@ h2 {
     top: 0;
     left: 0;
     right: 0;
-    height: 4px;
+    height: 4px; /* Barra superior indicadora de color de tema */
     background: currentColor;
-    box-shadow: 0 0 20px currentColor;
+    box-shadow: 0 0 20px currentColor; /* Resplandor de neón en la barra superior */
 }
 
 .token-card:hover {
-    transform: translateY(-15px) scale(1.02);
-    background: rgba(30, 35, 55, 0.8);
-    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-15px) scale(1.02); /* Efecto de levitación al pasar el cursor */
+    background: rgba(30, 35, 55, 0.8); /* Oscurecimiento sutil en hover */
+    border-color: rgba(255, 255, 255, 0.2); /* Resaltado del borde en hover */
 }
 
 .blue-theme {
@@ -1203,6 +1212,7 @@ h2 {
     letter-spacing: -0.02em;
 }
 
+/* Etiqueta superior (Badge) para Liquidez / Obligaciones */
 .badge {
     font-size: 0.75rem;
     font-weight: 700;
@@ -1214,6 +1224,7 @@ h2 {
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: white;
     backdrop-filter: blur(5px);
+    white-space: nowrap; /* Evita que el texto de la etiqueta se divida en dos líneas */
 }
 
 .blue-theme .badge {
@@ -1226,8 +1237,9 @@ h2 {
     border-color: rgba(239, 68, 68, 0.4);
 }
 
+/* Contenedor del valor de intercambio (1 BLUE = 1 USD) */
 .price-tag {
-    font-size: 3.5rem;
+    font-size: 3.5rem; /* Tamaño de fuente en escritorio */
     font-weight: 800;
     margin-bottom: 1.5rem;
     font-family: var(--font-heading);
@@ -1237,6 +1249,7 @@ h2 {
     display: flex;
     align-items: baseline;
     gap: 10px;
+    flex-wrap: wrap; /* Permite el flujo natural si el espacio es muy reducido */
 }
 
 .price-tag span {
@@ -1268,6 +1281,68 @@ h2 {
     margin-bottom: 2rem;
     position: relative;
     z-index: 2;
+}
+
+/* ==========================================================================
+   MEDIA QUERIES ESPECÍFICAS PARA ECONOMÍA DUAL (RESPONSIVE NATIVO 100%)
+   Garantiza adaptación perfecta en dispositivos móviles pequeños (320px - 768px)
+   ========================================================================== */
+@media (max-width: 768px) {
+    .cards-duo {
+        grid-template-columns: 1fr; /* Pasa de 2 columnas a 1 columna en móviles */
+        gap: 2rem; /* Reduce el espaciado entre tarjetas en móviles */
+        margin-top: 2.5rem; /* Margen superior más compacto */
+        padding: 0 0.5rem; /* Pequeño margen lateral de seguridad */
+    }
+
+    .token-card {
+        padding: 1.75rem; /* Reducción drástica del padding de 3.5rem a 1.75rem para evitar desbordamiento */
+        border-radius: 24px; /* Ajuste proporcional del radio de borde */
+    }
+
+    .token-header {
+        margin-bottom: 1.25rem; /* Espaciado inferior de la cabecera más compacto */
+    }
+
+    .token-header h3 {
+        font-size: 1.5rem; /* Ajuste del tamaño del título de la tarjeta */
+    }
+
+    .badge {
+        font-size: 0.7rem; /* Etiqueta ligeramente más pequeña para pantallas estrechas */
+        padding: 4px 10px; /* Relleno de la etiqueta optimizado */
+    }
+
+    .price-tag {
+        font-size: 2.25rem; /* Reducción de la fuente principal de 3.5rem a 2.25rem para encajar en 320px */
+        margin-bottom: 1rem; /* Espaciado inferior del precio optimizado */
+        gap: 6px; /* Espaciado entre números y monedas más estrecho */
+    }
+
+    .price-tag span {
+        font-size: 1.15rem; /* Ajuste de las unidades (BLUE/USD) para mantener proporción visual */
+    }
+
+    .token-card p {
+        font-size: 0.95rem; /* Texto descriptivo ajustado para mejorar lectura en móvil */
+        margin-bottom: 1.5rem; /* Espaciado inferior del párrafo optimizado */
+        line-height: 1.5; /* Altura de línea adaptada a pantallas pequeñas */
+    }
+}
+
+/* Optimización extrema para teléfonos ultra pequeños (ej. iPhone SE / Galaxy Fold exterior - 320px o menos) */
+@media (max-width: 360px) {
+    .token-card {
+        padding: 1.25rem; /* Padding mínimo de seguridad para pantallas diminutas */
+    }
+
+    .price-tag {
+        font-size: 1.9rem; /* Fuente ultra compacta para evitar saltos de línea indeseados */
+    }
+
+    .price-tag span {
+        font-size: 1rem; /* Unidades ajustadas a la fuente principal */
+    }
 }
 
 .micro-list {
