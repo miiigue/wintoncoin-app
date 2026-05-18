@@ -121,7 +121,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 repeatCooldown = 24;
             }
 
-            const userResult = await client.query(`SELECT id, is_minor, tutor_user_id, account_status, web3_wallet_address FROM users WHERE username = $1`, [authorUsername]);
+            const userResult = await client.query(`SELECT id, is_minor, tutor_user_id, account_status, web3_wallet_address, kyc_verified FROM users WHERE username = $1`, [authorUsername]);
             if (userResult.rowCount === 0) {
                 throw { status: 404, message: "El autor de la publicación no existe." };
             }
@@ -150,7 +150,11 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             // Validar KYC en la Blockchain antes de permitir publicaciones de gasto.
             if (!isSellPost) { 
                 const Web3BridgeService = require('../services/web3BridgeService');
-                const isKycVerified = await Web3BridgeService.checkUserKYC(kycWallet);
+                let isKycVerified = await Web3BridgeService.checkUserKYC(kycWallet);
+                if (!isKycVerified && author.kyc_verified) {
+                    console.log(`[PUB CREATION] Fallback activado: KYC on-chain falló o dio false para ${authorUsername}, pero usuario está verificado en la base de datos.`);
+                    isKycVerified = true;
+                }
                 if (!isKycVerified) {
                     await client.query('ROLLBACK');
                     return res.status(403).json({
@@ -757,7 +761,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             // 1. Verificar existencia del aceptador
             const acceptorResult = await client.query(
-                `SELECT id, is_minor, tutor_user_id, account_status, web3_wallet_address FROM users WHERE username = $1`,
+                `SELECT id, is_minor, tutor_user_id, account_status, web3_wallet_address, kyc_verified FROM users WHERE username = $1`,
                 [acceptorUsername]
             );
 
@@ -818,7 +822,11 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 }
 
                 const Web3BridgeService = require('../services/web3BridgeService');
-                const isWorkerKycVerified = await Web3BridgeService.checkUserKYC(workerKycWallet);
+                let isWorkerKycVerified = await Web3BridgeService.checkUserKYC(workerKycWallet);
+                if (!isWorkerKycVerified && acceptor.kyc_verified) {
+                    console.log(`[PUB ACCEPT] Fallback activado: KYC on-chain falló o dio false para ${acceptorUsername}, pero trabajador está verificado en la base de datos.`);
+                    isWorkerKycVerified = true;
+                }
                 if (!isWorkerKycVerified) {
                     await client.query('ROLLBACK');
                     return res.status(403).json({

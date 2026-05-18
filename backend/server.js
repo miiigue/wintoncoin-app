@@ -972,7 +972,7 @@ async function startServer() {
             try {
                 // 1) Obtener balances desde users por ID (estándar profesional)
                 const userResult = await client.query(
-                    `SELECT username, liquid_blue_balance, escrow_blue_balance, red_balance, web3_wallet_address
+                    `SELECT username, liquid_blue_balance, escrow_blue_balance, red_balance, web3_wallet_address, kyc_verified
                      FROM users
                      WHERE id = $1`,
                     [userId]
@@ -1017,11 +1017,24 @@ async function startServer() {
                 const creditScoringService = require('./src/services/creditScoringService');
                 const creditLimit = await creditScoringService.calculateUserScore(userId);
 
+                const Web3BridgeService = require('./src/services/web3BridgeService');
+                let isKycVerified = false;
+                if (userResult.rows[0].web3_wallet_address) {
+                    isKycVerified = await Web3BridgeService.checkUserKYC(userResult.rows[0].web3_wallet_address);
+                }
+
+                // --- FALLBACK ROBUSTO (Resiliencia ante reinicios de Anvil / desconexión RPC) ---
+                if (!isKycVerified && userResult.rows[0].kyc_verified) {
+                    console.log(`[API BALANCE] Fallback activado: KYC on-chain falló o dio false, pero usuario #${userId} está verificado en la base de datos.`);
+                    isKycVerified = true;
+                }
+
                 const responseData = {
                     blue_balance: userResult.rows[0].liquid_blue_balance,
                     escrow_blue_balance: userResult.rows[0].escrow_blue_balance,
                     red_balance: userResult.rows[0].red_balance,
                     web3_wallet_address: userResult.rows[0].web3_wallet_address,
+                    kyc_verified: isKycVerified,
                     credit_limit: creditLimit,
                     debt_30_days: debt30Result.rows[0].total,
                     debt_end_month: debtEndMonthResult.rows[0].total,

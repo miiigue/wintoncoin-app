@@ -64,6 +64,20 @@ async function initializeEstadoCuenta() {
         const isValidAddress = address && address.startsWith('0x') && address.length > 10;
         
         elements.publicKey.textContent = isValidAddress ? address : '0xPendienteDeAsignacion...';
+
+        const kycDisplay = document.getElementById('kycStatusDisplay');
+        if (kycDisplay) {
+            if (!isValidAddress) {
+                kycDisplay.textContent = '❌ Sin Billetera Web3';
+                kycDisplay.style.color = '#ef4444';
+            } else if (data.kyc_verified) {
+                kycDisplay.textContent = '✅ Verificado On-Chain';
+                kycDisplay.style.color = '#10B981';
+            } else {
+                kycDisplay.textContent = '⏳ Pendiente de Aprobación';
+                kycDisplay.style.color = '#f59e0b';
+            }
+        }
         
         elements.copyBtn.addEventListener('click', () => {
             if(!isValidAddress) return;

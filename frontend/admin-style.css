@@ -593,6 +593,38 @@ input:checked+.slider:before {
     /* Importante para que el padding no desborde el contenedor */
 }
 
+/* --- NUEVO: Estilos premium para inputs oscuros en el panel de administración --- */
+.form-group-admin input.admin-input-dark,
+.form-group-admin textarea.admin-input-dark,
+.form-group-admin select.admin-input-dark,
+.admin-input-dark {
+    width: 100%;
+    padding: 14px 18px;
+    border-radius: 8px;
+    background-color: #ffffff !important;
+    border: 2px solid var(--admin-border) !important;
+    color: #111111 !important;
+    font-size: 1.1rem !important;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+}
+
+.form-group-admin input.admin-input-dark:focus,
+.form-group-admin textarea.admin-input-dark:focus,
+.form-group-admin select.admin-input-dark:focus,
+.admin-input-dark:focus {
+    border-color: var(--admin-primary) !important;
+    box-shadow: 0 0 0 3px rgba(106, 90, 205, 0.3) !important;
+    outline: none;
+}
+
+.form-group-admin input.admin-input-dark::placeholder,
+.form-group-admin textarea.admin-input-dark::placeholder,
+.admin-input-dark::placeholder {
+    color: #667085 !important;
+    opacity: 0.8;
+}
+
 .admin-text-input,
 .admin-textarea-input {
     width: 100%;

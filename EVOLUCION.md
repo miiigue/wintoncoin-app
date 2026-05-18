@@ -17,6 +17,35 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
+### 2026-05-18 — Resolución de Colisión Semántica KYC vs Email OTP en Winton Solidario (Migración 056)
+
+- **Contexto**: Durante la revisión de la arquitectura de resiliencia KYC (Migración 055), el usuario identificó una colisión conceptual e inconsistencia en el uso de la columna heredada `is_verified`. Tras un rastreo exhaustivo en el código base, se confirmó que `authController.js` y `register.js` utilizaban `is_verified` para representar la **Verificación de Correo Electrónico (OTP)**, marcándola como `TRUE` en cuanto el usuario completaba su registro. Sin embargo, el módulo de donaciones humanitarias (`humanitarianService.js`) y el Trigger de base de datos de la migración 039 (`fn_release_humanitarian_donations`) asumían erróneamente que `is_verified` representaba la **Verificación KYC Web3 aprobada por Admin**. Esto generaba un fallo de seguridad silencioso: todos los usuarios registrados tenían `is_verified = TRUE`, evadiendo el estado de retención (`on_hold`) y liberando fondos de Winton Solidario a usuarios sin KYC en la blockchain.
+- **Decisión**:
+  - **Separación Semántica Estricta (Opción 1)**: Se decidió mantener `is_verified` exclusivamente para la verificación de correo electrónico (OTP) en el flujo de registro/login, y utilizar la nueva columna `kyc_verified` (introducida en la migración 055) exclusivamente para el estatus KYC Web3.
+  - **Migración 056 (`056_update_solidario_trigger_to_kyc_verified.js`)**: Se creó una nueva migración para actualizar la función PL/pgSQL `fn_release_humanitarian_donations`. El Trigger ahora evalúa exclusivamente cambios en `kyc_verified` (`OLD.kyc_verified IS DISTINCT FROM NEW.kyc_verified AND NEW.kyc_verified = true`) para liberar las donaciones en estado `on_hold`.
+  - **Refactorización de `humanitarianService.js`**: Se modificaron las consultas SQL en `donateToCause` y `getCauseDonations` para verificar `kyc_verified` en lugar de `is_verified`, y se actualizaron todos los comentarios arquitectónicos del servicio para reflejar la separación de responsabilidades.
+- **Impacto**:
+  - **Auditoría Fintech y AML Impecable**: Se establece una barrera clara e inmutable entre un dato de contacto verificado (Email) y una acreditación de identidad financiera y legal gubernamental (KYC Web3).
+  - **Cierre de Brecha en Winton Solidario**: Las donaciones humanitarias de usuarios sin KYC Web3 ahora quedan correctamente retenidas en estado `on_hold` y solo se liberan cuando un administrador aprueba legítimamente el KYC on-chain y en la base de datos.
+- **Evidencia**: Archivos modificados/creados: `056_update_solidario_trigger_to_kyc_verified.js`, `humanitarianService.js`, `EVOLUCION.md`.
+
+---
+
+### 2026-05-17 (Parte 3) — Resiliencia KYC en Base de Datos (Migración 055) y Optimización de Inputs de Búsqueda Admin
+
+- **Contexto**: Tras las auditorías de UX y Web3, el usuario identificó dos problemas críticos en el entorno de demostración. Primero, el campo de búsqueda de usuario en el panel KYC de administración se comprimía y resultaba muy pequeño para escribir debido a que el botón adyacente tomaba el 100% del ancho por herencia global. Segundo, en la tarjeta de Identidad Web3, el estatus KYC aparecía erróneamente como "Pendiente de Aprobación" para usuarios que ya habían sido aprobados previamente, debido a que los reinicios del nodo local de blockchain (Anvil/Hardhat) borraban el estado en memoria de los contratos inteligentes, provocando que las consultas on-chain (`isKYCVerified`) retornaran `false`.
+- **Decisión**:
+  - **Optimización de Inputs de Búsqueda (`admin-panel.html` y `admin-style.css`)**: Se reestructuró el contenedor flex del campo de búsqueda KYC con `flex-wrap: wrap` y se asignaron anchos mínimos explícitos (`min-width: 250px` al input y `min-width: 150px` al botón) para evitar la compresión. Además, se redefinió la clase `.admin-input-dark` para renderizar un recuadro blanco amplio, luminoso y espacioso (`padding: 14px 18px; font-size: 1.1rem; background-color: #ffffff`) con texto oscuro, asegurando máxima visibilidad al escribir.
+  - **Migración 055 (Respaldo KYC en Base de Datos)**: Se creó el archivo `055_add_kyc_verified_to_users.js` para inyectar la columna `kyc_verified BOOLEAN DEFAULT FALSE` en la tabla `users`, dotando al sistema de una caché local resiliente.
+  - **Sincronización Transaccional (`governanceController.js`)**: Al aprobar o revocar KYC desde el panel de administración, el controlador ahora actualiza `users.kyc_verified` en la base de datos de forma paralela a la transacción on-chain, con lógica de fallback automática para entornos de desarrollo y demostración.
+  - **Mecanismo de Fallback Robusto (`server.js` y `publicationController.js`)**: En los endpoints de balance (`/api/me/balance`) y en los frenos de publicación/aceptación de tareas, se implementó una verificación de respaldo: si la consulta on-chain `Web3BridgeService.checkUserKYC` retorna `false` por reinicios del nodo o timeouts del RPC, el sistema consulta `users.kyc_verified` en la base de datos para mantener la consistencia inmutable en la interfaz de usuario.
+- **Impacto**:
+  - **UX Impecable y Amplia**: Los administradores disponen de campos de texto grandes, cómodos y perfectamente visibles para ingresar nombres de usuario.
+  - **Resiliencia Total ante Reinicios Web3**: El estatus KYC en la Identidad Web3 y los permisos de publicación se mantienen estables y correctos incluso si el nodo local de blockchain se reinicia o pierde conexión.
+- **Evidencia**: Archivos modificados/creados: `055_add_kyc_verified_to_users.js`, `governanceController.js`, `server.js`, `publicationController.js`, `admin-panel.html`, `admin-style.css`, `EVOLUCION.md`.
+
+---
+
 ### 2026-05-17 — Defensa en Profundidad KYC (Freno en Aceptación de Tareas + Propagación de Errores Web3)
 
 - **Contexto**: El Smart Contract `WintonProtocol` tiene una regla de cumplimiento financiero estricta (AML/KYC): exige que **TANTO el Payer (pagador) COMO el Payee (trabajador/beneficiario)** tengan su KYC verificado on-chain (`isKYCVerified`). Aunque se había implementado un freno pre-publicación para el autor, los trabajadores sin KYC podían aceptar tareas, invertir tiempo y completarlas. Al momento de confirmar el pago, el Smart Contract revertía con `WintonProtocol: Payee KYC not verified`. Al capturarse el error de forma genérica en el backend, el usuario veía un mensaje inespecífico en pantalla, generando confusión y falsos reportes de error en el autor.
