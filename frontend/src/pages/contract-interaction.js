@@ -73,12 +73,6 @@ document.addEventListener('DOMContentLoaded', () => {
         publicationSearchClear: document.getElementById('publicationSearchClear'),
         saldoBlue: document.getElementById('saldoBlue'),
         saldoRed: document.getElementById('saldoRed'),
-        saldoEscrowBlue: document.getElementById('saldoEscrowBlue'),
-        burnModal: document.getElementById('burnModal'),
-        burnTriggerBtn: document.getElementById('burnTriggerBtn'),
-        closeModalBtn: document.querySelector('#burnModal .close-button'),
-        burnForm: document.getElementById('burnForm'),
-        burnModalBalances: document.getElementById('burnModalBalances'),
         ratingModal: document.getElementById('ratingModal'),
         ratingForm: document.getElementById('ratingForm'),
         publicationTypeModal: document.getElementById('publicationTypeModal'),
@@ -140,9 +134,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (elements.usernameDisplay) {
         elements.usernameDisplay.textContent = storedUsername;
     }
-
     function setCriticalActionButtonsDisabled(disabled) {
-        const ids = ['openPublicationModalBtn', 'openQuickSaleModalBtn', 'burnTriggerBtn'];
+        const ids = ['openPublicationModalBtn', 'openQuickSaleModalBtn'];
         ids.forEach((id) => {
             const button = document.getElementById(id);
             if (!button) return;
@@ -265,7 +258,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Show cached balances immediately
     if (elements.saldoBlue) elements.saldoBlue.innerHTML = formatBalance(localStorage.getItem('blue_balance'));
-    if (elements.saldoEscrowBlue) elements.saldoEscrowBlue.innerHTML = formatBalance(localStorage.getItem('escrow_blue_balance'));
     if (elements.saldoRed) elements.saldoRed.innerHTML = formatBalance(localStorage.getItem('red_balance'));
 
     // Load data
@@ -590,25 +582,7 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.publicationSearchClear.addEventListener('click', clearSearch);
         }
 
-        if (elements.burnTriggerBtn) {
-            elements.burnTriggerBtn.addEventListener('click', () => {
-                updateBurnModal();
-                if (elements.burnModal) elements.burnModal.style.display = 'flex';
-            });
-        }
 
-        if (elements.closeModalBtn) {
-            elements.closeModalBtn.addEventListener('click', () => {
-                if (elements.burnModal) elements.burnModal.style.display = 'none';
-            });
-        }
-
-        if (elements.burnForm) {
-            elements.burnForm.addEventListener('submit', handleBurnSubmit);
-        }
-
-        // Setup burn confirmation modal
-        setupBurnConfirmModal();
 
         if (elements.ratingForm) {
             elements.ratingForm.addEventListener('submit', handleRatingSubmit);
@@ -650,7 +624,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         window.addEventListener('click', (event) => {
-            if (event.target === elements.burnModal && elements.burnModal) elements.burnModal.style.display = 'none';
             if (event.target === elements.ratingModal && elements.ratingModal) elements.ratingModal.style.display = 'none';
             if (event.target === elements.publicationTypeModal && elements.publicationTypeModal) elements.publicationTypeModal.style.display = 'none';
             if (event.target === elements.createPostPrelaunchModal && elements.createPostPrelaunchModal) elements.createPostPrelaunchModal.style.display = 'none';
@@ -1738,7 +1711,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 const data = await response.json();
                 if (elements.saldoBlue) elements.saldoBlue.innerHTML = formatBalance(data.blue_balance);
-                if (elements.saldoEscrowBlue) elements.saldoEscrowBlue.innerHTML = formatBalance(data.escrow_blue_balance);
                 if (elements.saldoRed) elements.saldoRed.innerHTML = formatBalance(data.red_balance);
 
                 localStorage.setItem('blue_balance', data.blue_balance);

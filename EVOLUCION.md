@@ -17,6 +17,20 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
+### 2026-05-19 (Parte 2) — Purificación Arquitectónica de Billetera Web3 (Materia-Antimateria)
+
+- **Contexto**: Tras una auditoría de coherencia entre los Smart Contracts (`WintonProtocol.sol`, `BlueToken.sol`) y la interfaz de la billetera Web3 (`contract_interaction.html`), se detectó que la UI contenía "artefactos fantasma" heredados de la arquitectura previa. Específicamente, el saldo BLUE mostraba tokens "Pendientes" (un concepto off-chain) y el saldo RED presentaba un botón manual de "Quemar". 
+- **Decisión Matemática y Lógica**:
+  - Desde la migración a la arquitectura EIP-7702 con el **Vigilante de Auto-Amortización** (`triggerAutoAmortize`), es algorítmicamente imposible que un usuario posea tokens BLUE líquidos y deuda RED simultáneamente. Al momento de recibir BLUE, el contrato aniquila proporcionalmente la deuda RED de forma instantánea.
+  - Se eliminó por completo el botón manual "Quemar" y todo su código JavaScript subyacente (ya que el usuario nunca tendría BLUE para quemar RED manualmente sin que se hubiese activado la auto-amortización primero).
+  - Se eliminó la visualización de tokens "Pendientes" de la vista Web3 pura, ya que es un estado de base de datos (escrow) y no un token ERC-20 real emitido.
+  - Se reemplazó el botón de quemar con una elegante alerta explicativa: *"Tu deuda RED se amortizará automáticamente en el instante que recibas tokens BLUE"*.
+  - Se mantuvo intacto el temporizador de vencimiento (alimentado por el backend) como un disuasivo visual y recordatorio financiero para evitar la "Página LOVE".
+- **Impacto**: La Billetera Web3 ahora refleja la verdad on-chain absoluta. Es una interfaz minimalista, honesta y sin fricciones que expone el poder y la automatización del protocolo EIP-7702.
+- **Evidencia**: Eliminación de `saldoEscrowBlue`, `burnTriggerBtn`, modales de quemado en `contract_interaction.html` y `contract-interaction.js`.
+
+---
+
 ### 2026-05-19 — Aislamiento de UX en Billetera Web3 (Interferencia de Botón Quemar)
 
 - **Contexto**: En la interfaz principal de la billetera Web3 (`contract_interaction.html`), tanto el panel de saldo BLUE como el de saldo RED estaban configurados como elementos clickeables que redirigían a la página de "Estado de Cuenta" (`estado-cuenta.html`). Sin embargo, el panel RED incluye un botón de acción crítica: **🔥 Quemar 🔥**. Esta superposición de áreas clickeables provocaba que los usuarios pudieran pulsar accidentalmente el área de saldo RED mientras intentaban usar el botón de quemar, siendo redirigidos involuntariamente y causando fricción de UX.
