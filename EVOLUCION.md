@@ -24,7 +24,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Desde la migración a la arquitectura EIP-7702 con el **Vigilante de Auto-Amortización** (`triggerAutoAmortize`), es algorítmicamente imposible que un usuario posea tokens BLUE líquidos y deuda RED simultáneamente. Al momento de recibir BLUE, el contrato aniquila proporcionalmente la deuda RED de forma instantánea.
   - Se eliminó por completo el botón manual "Quemar" y todo su código JavaScript subyacente (ya que el usuario nunca tendría BLUE para quemar RED manualmente sin que se hubiese activado la auto-amortización primero).
   - Se eliminó la visualización de tokens "Pendientes" de la vista Web3 pura, ya que es un estado de base de datos (escrow) y no un token ERC-20 real emitido.
-  - Se reemplazó el botón de quemar con una elegante alerta explicativa: *"Tu deuda RED se amortizará automáticamente en el instante que recibas tokens BLUE"*.
+  - A petición del usuario, no se dejó ningún mensaje de texto explicativo en la zona RED para mantener el máximo nivel de minimalismo en la interfaz.
   - Se mantuvo intacto el temporizador de vencimiento (alimentado por el backend) como un disuasivo visual y recordatorio financiero para evitar la "Página LOVE".
 - **Impacto**: La Billetera Web3 ahora refleja la verdad on-chain absoluta. Es una interfaz minimalista, honesta y sin fricciones que expone el poder y la automatización del protocolo EIP-7702.
 - **Evidencia**: Eliminación de `saldoEscrowBlue`, `burnTriggerBtn`, modales de quemado en `contract_interaction.html` y `contract-interaction.js`.
