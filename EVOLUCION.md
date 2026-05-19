@@ -17,6 +17,17 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
+### 2026-05-19 — Aislamiento de UX en Billetera Web3 (Interferencia de Botón Quemar)
+
+- **Contexto**: En la interfaz principal de la billetera Web3 (`contract_interaction.html`), tanto el panel de saldo BLUE como el de saldo RED estaban configurados como elementos clickeables que redirigían a la página de "Estado de Cuenta" (`estado-cuenta.html`). Sin embargo, el panel RED incluye un botón de acción crítica: **🔥 Quemar 🔥**. Esta superposición de áreas clickeables provocaba que los usuarios pudieran pulsar accidentalmente el área de saldo RED mientras intentaban usar el botón de quemar, siendo redirigidos involuntariamente y causando fricción de UX.
+- **Decisión**: 
+  - Se eliminaron los atributos `onclick="window.location.href='estado-cuenta.html'"` y `style="cursor: pointer;"` exclusivamente del contenedor `.balance-section.red-section`.
+  - El acceso al Estado de Cuenta se mantiene activo y exclusivo desde la sección del saldo BLUE (y el botón de navegación principal).
+- **Impacto**: Aislamiento visual y funcional del área de deuda (RED). Ahora los usuarios pueden interactuar con la información y el botón de quemar sin riesgo de redirecciones accidentales. La UX es más limpia, predecible y segura.
+- **Evidencia**: Modificación del contenedor de saldo RED en `contract_interaction.html`.
+
+---
+
 ### 2026-05-18 (Parte 2) — Exención Dinámica de KYC Web3 en Modo Pre-lanzamiento
 
 - **Contexto**: Durante la evaluación arquitectónica predictiva del despliegue a Producción (merge a `main`), el usuario identificó un riesgo crítico de denegación de servicio lógica (bloqueo masivo) para la comunidad de Impulsores. En Producción, la plataforma opera en Modo Pre-lanzamiento (`pre_launch_mode_enabled = 'true'`), donde toda la actividad económica de tareas se registra off-chain en el Libro de Impulsores (puntos BLUE IOU) sin requerir gas ni interacción con contratos inteligentes Web3. Sin embargo, las barreras KYC recientemente implementadas en `createPublication` y `acceptPublication` consultaban y exigían KYC Web3 para todas las tareas de tipo `request` de forma incondicional. Como resultado, al hacer el merge a producción, cualquier usuario existente (`kyc_verified = FALSE`) habría quedado bloqueado al intentar publicar o aceptar tareas remuneradas en BLUE IOU.
