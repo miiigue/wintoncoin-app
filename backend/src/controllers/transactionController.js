@@ -35,18 +35,23 @@ const getMyTransactions = async (req, res) => {
         return res.status(401).json({ message: 'No autenticado. Sesión inválida.' });
     }
 
-    // 2. Definición del query SQL parametrizado.
-    // - Filtramos el tipo de transacciones (t.type) para incluir únicamente interacciones 
-    //   financieras reales del protocolo, tales como envíos/recepción de tokens, cobro de
-    //   comisiones, quemas de tokens por deuda amortizada y liberaciones de escrow.
-    // - Excluimos bonos promocionales off-chain (referral_bonus, welcome_bonus, gov_vote_reward)
-    //   los cuales se muestran exclusivamente en el "Perfil Impulsor".
+    // 2. Definición del query SQL parametrizado según el filtro.
+    const filterType = req.query.type || 'web3'; // Por defecto Web3 para mantener seguridad
+    
+    let typeCondition = '';
+    if (filterType === 'marketing') {
+        typeCondition = "t.type IN ('referral_bonus', 'welcome_bonus', 'gov_vote_reward')";
+    } else {
+        // web3
+        typeCondition = "t.type IN ('payment_sent', 'payment_received', 'commission_received', 'burn', 'escrow_release', 'booster_reward')";
+    }
+
     const sql = `
         SELECT t.*, u.username
         FROM transactions t
         JOIN users u ON t.user_id = u.id
         WHERE t.user_id = $1
-          AND t.type IN ('payment_sent', 'payment_received', 'commission_received', 'burn', 'escrow_release', 'booster_reward')
+          AND ${typeCondition}
         ORDER BY t.created_at DESC
     `;
 
@@ -80,12 +85,21 @@ const getUserTransactionsLegacy = async (req, res) => {
     }
 
     // 2. Consulta parametrizada unificando los criterios de filtrado
+    const filterType = req.query.type || 'web3';
+    
+    let typeCondition = '';
+    if (filterType === 'marketing') {
+        typeCondition = "t.type IN ('referral_bonus', 'welcome_bonus', 'gov_vote_reward')";
+    } else {
+        typeCondition = "t.type IN ('payment_sent', 'payment_received', 'commission_received', 'burn', 'escrow_release', 'booster_reward')";
+    }
+
     const sql = `
         SELECT t.*, u.username 
         FROM transactions t 
         JOIN users u ON t.user_id = u.id 
         WHERE u.username = $1 
-          AND t.type IN ('payment_sent', 'payment_received', 'commission_received', 'burn', 'escrow_release', 'booster_reward')
+          AND ${typeCondition}
         ORDER BY t.created_at DESC
     `;
 

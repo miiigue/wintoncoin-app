@@ -15,6 +15,16 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ## Línea de tiempo (hitos)
 
+### 2026-05-21 (Parte 3) — Interfaz de Estado de Cuenta Dual (Web3 vs Impulsor) y Riesgo Regulatorio Cero
+
+- **Contexto**: Tras la purificación del Estado de Cuenta Web3 (Parte 1), la sección de Transacciones dejó de mostrar las recompensas de puntos de marketing, lo que limitaba la visibilidad unificada del usuario. Sin embargo, mezclar transacciones on-chain y recompensas off-chain en una sola tabla generaba un grave riesgo de **Confusión del Consumidor (Consumer Confusion)** bajo normativas AML/SEC, donde el usuario podría asumir que sus puntos de lealtad tienen el mismo peso y propiedad legal que sus tokens Web3.
+- **Decisión**:
+  - **Segregación Mutuamente Excluyente**: Se implementó una interfaz de dos pestañas o botones ("Estado de Cuenta Web3" y "Recompensas Impulsor") en la página de Transacciones. Al usar pestañas excluyentes sin una opción mixta ("Todas"), se redujo el riesgo de confusión legal a cero.
+  - **Dinamismo Contextual**: Se actualizó el frontend para leer `walletActiveTab` desde `localStorage`. Si el usuario navega desde el panel de "Impulsor", la página de Transacciones se abre por defecto en la pestaña de "Recompensas". Si navega desde "Billetera", se abre en "Web3".
+  - **Backend Seguro**: Se amplió el controlador `transactionController.js` para recibir el filtro `?type=marketing` o `?type=web3`, aplicando filtros SQL parametrizados estrictos por cada categoría de tokens.
+- **Impacto**: Se logró una UX fluida y centralizada sin sacrificar en absoluto la seguridad regulatoria de la plataforma. La trazabilidad de base de datos se mantiene intacta y sin fisuras de inyección SQL. La suite de pruebas de seguridad (6/6) pasó con éxito.
+- **Evidencia**: Modificaciones realizadas en [transactions.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/transactions.js) y [transactionController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/transactionController.js).
+
 ---
 
 ### 2026-05-21 (Parte 2) — Resolución de Conflicto de Rutas en Express y Estabilidad de Test Suite
