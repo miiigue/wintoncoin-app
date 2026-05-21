@@ -21,9 +21,10 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Decisión**:
   - **Segregación Mutuamente Excluyente**: Se implementó una interfaz de dos pestañas o botones ("Estado de Cuenta Web3" y "Recompensas Impulsor") en la página de Transacciones. Al usar pestañas excluyentes sin una opción mixta ("Todas"), se redujo el riesgo de confusión legal a cero.
   - **Dinamismo Contextual**: Se actualizó el frontend para leer `walletActiveTab` desde `localStorage`. Si el usuario navega desde el panel de "Impulsor", la página de Transacciones se abre por defecto en la pestaña de "Recompensas". Si navega desde "Billetera", se abre en "Web3".
+  - **Diseño Mobile-First (Bancario)**: Se reescribió el CSS de la tabla para móviles (`@media max-width: 768px`). Se eliminó el contenedor oscuro limitante y se implementó un `Grid` de 2x2 súper compacto (estilo Revolut/Binance) que evita el texto aplastado y maximiza el espacio inmersivo en celulares.
   - **Backend Seguro**: Se amplió el controlador `transactionController.js` para recibir el filtro `?type=marketing` o `?type=web3`, aplicando filtros SQL parametrizados estrictos por cada categoría de tokens.
-- **Impacto**: Se logró una UX fluida y centralizada sin sacrificar en absoluto la seguridad regulatoria de la plataforma. La trazabilidad de base de datos se mantiene intacta y sin fisuras de inyección SQL. La suite de pruebas de seguridad (6/6) pasó con éxito.
-- **Evidencia**: Modificaciones realizadas en [transactions.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/transactions.js) y [transactionController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/transactionController.js).
+- **Impacto**: Se logró una UX fluida, centralizada y visualmente premium, sin sacrificar en absoluto la seguridad regulatoria de la plataforma. La trazabilidad de base de datos se mantiene intacta y sin fisuras de inyección SQL. La suite de pruebas de seguridad (6/6) pasó con éxito.
+- **Evidencia**: Modificaciones realizadas en `transactions.js`, `style.css` y `transactionController.js`.
 
 ---
 

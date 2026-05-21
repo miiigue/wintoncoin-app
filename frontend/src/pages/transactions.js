@@ -115,10 +115,10 @@ function initializeTransactionsPage() {
             const redClassName = tx.red_change !== 0 ? 'red-text-always' : 'no-change';
 
             row.innerHTML = `
-                <td>${formattedDate}</td>
-                <td>${tx.description}</td>
-                <td class="${blueChange.className}">${blueChange.text}</td>
-                <td class="${redClassName}">${redChange.text}</td>
+                <td data-label="Fecha">${formattedDate}</td>
+                <td data-label="Descripción">${tx.description}</td>
+                <td data-label="BLUE" class="${blueChange.className}">${blueChange.text}</td>
+                <td data-label="RED" class="${redClassName}">${redChange.text}</td>
             `;
             elements.tableBody.appendChild(row);
         });
