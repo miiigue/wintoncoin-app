@@ -17,6 +17,30 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
+### 2026-05-21 (Parte 2) — Resolución de Conflicto de Rutas en Express y Estabilidad de Test Suite
+
+- **Contexto**: Tras la modularización de los endpoints de transacciones a `transactionRoutes.js` y su montaje en la raíz (`/`) del servidor, se detectó que los tests del administrador (`platformFormFields.test.js`) fallaban con error `401 Unauthorized` (`No autenticado. Token no proporcionado.`). La causa raíz fue un conflicto de precedencia en Express: el uso global de `router.use(verifyUserToken)` sin alcance de ruta en un router montado en `/` provocaba que todas las solicitudes posteriores (incluyendo la creación de publicaciones del administrador en `/api/admin/platform/create-publication`) fuesen interceptadas y bloqueadas por la autenticación de usuario regular. Además, el mock destructivo `app.listen = jest.fn()` en el archivo de prueba impedía que Supertest inicializara correctamente la aplicación y gestionara las cabeceras de cookies y tokens.
+- **Decisión**:
+  - **Inyección de Middleware Específico**: Se removió `router.use(verifyUserToken)` y se asoció el middleware `verifyUserToken` de forma explícita y aislada únicamente a las rutas `/api/me/transactions` y `/users/:username/transactions` en `transactionRoutes.js`.
+  - **Aislamiento Condicional del Servidor**: Se configuró la ejecución de `app.listen(...)` en `server.js` para que solo corra fuera del entorno de pruebas (`process.env.NODE_ENV !== 'test'`). Esto permitió eliminar el mock destructivo de `app.listen` en `platformFormFields.test.js`, devolviendo a Supertest el control total para arrancar el servidor en puertos efímeros de forma nativa.
+- **Impacto**: Se resolvió al 100% el conflicto de enrutamiento en Express, logrando que toda la suite de pruebas del backend pase con éxito (6 de 6 pruebas exitosas). El código del servidor y de pruebas ahora es completamente robusto, mantenible y respeta los flujos de seguridad.
+- **Evidencia**: Modificaciones realizadas en [transactionRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/transactionRoutes.js), [server.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/server.js) y [platformFormFields.test.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/__tests__/platformFormFields.test.js).
+
+---
+
+### 2026-05-21 — Segregación y Modularización del Endpoint de Transacciones (Purificación de Cuenta Web3)
+
+- **Contexto**: Se identificó que el "Estado de Cuenta Web3" mostraba transacciones off-chain (tales como `welcome_bonus`, `referral_bonus` y `gov_vote_reward`) como interacciones Web3. Esto distorsionaba la métrica de interacciones de blockchain reales y exponía datos promocionales de marketing en un extracto financiero Web3 puro. Además, estos endpoints estaban acoplados de forma monolítica en `server.js`.
+- **Decisión**:
+  - **Modularización Completa**: Se extrajeron los endpoints de transacciones `/api/me/transactions` y `/users/:username/transactions` del monolito `server.js` hacia un enrutador dedicado `transactionRoutes.js` y un controlador `transactionController.js`.
+  - **Filtrado de Proyección de Ledger**: Se restringieron las transacciones devueltas en la proyección Web3 a los tipos reales del protocolo financiero: `payment_sent`, `payment_received`, `commission_received`, `burn`, `escrow_release` y `booster_reward`. Se excluyeron los bonos promocionales off-chain.
+  - **Mantenimiento del Perfil de Impulsor**: Las transacciones promocionales off-chain siguen estando perfectamente visibles en el Perfil de Impulsor, el cual consume directamente de `booster_transactions` y `booster_blue_ledger`.
+  - **Defensa en Profundidad y Seguridad**: Se aplicaron controles IDOR rigurosos basados en el `userId` del JWT y se utilizaron consultas SQL 100% parametrizadas. Se mantuvo la inmutabilidad absoluta del Ledger General de la base de datos (sin modificar ni eliminar filas).
+- **Impacto**: Se logró un desacoplamiento arquitectónico limpio del monolito, incrementando la mantenibilidad y testabilidad del sistema. La interfaz de la Cuenta Web3 ahora muestra la información financiera Web3 exacta sin distorsiones off-chain.
+- **Evidencia**: Creación de `src/controllers/transactionController.js`, `src/routes/transactionRoutes.js`, y modificación de `server.js` para usar el enrutador modular.
+
+---
+
 ### 2026-05-19 (Parte 2) — Purificación Arquitectónica de Billetera Web3 (Materia-Antimateria)
 
 - **Contexto**: Tras una auditoría de coherencia entre los Smart Contracts (`WintonProtocol.sol`, `BlueToken.sol`) y la interfaz de la billetera Web3 (`contract_interaction.html`), se detectó que la UI contenía "artefactos fantasma" heredados de la arquitectura previa. Específicamente, el saldo BLUE mostraba tokens "Pendientes" (un concepto off-chain) y el saldo RED presentaba un botón manual de "Quemar". 

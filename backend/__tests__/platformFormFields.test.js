@@ -48,9 +48,6 @@ describe('Admin Form Fields Processor Tests', () => {
     beforeAll(async () => {
         mockPool = new Pool();
 
-        // Deshabilitar la apertura nativa de puerto simulando éxito
-        app.listen = jest.fn();
-
         // Esperemos a que el backend cargue las rutas
         await startServer();
 

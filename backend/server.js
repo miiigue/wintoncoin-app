@@ -39,6 +39,7 @@ const validationRoutes = require('./src/routes/validationRoutes');
 const solidarioRoutes = require('./src/routes/solidarioRoutes');
 const recruitmentRoutes = require('./src/routes/recruitmentRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
+const createTransactionRouter = require('./src/routes/transactionRoutes');
 
 // --- NUEVO: Gestión profesional de la clave secreta de JWT ---
 // Buscamos la clave secreta en las variables de entorno.
@@ -207,6 +208,9 @@ async function startServer() {
         const createGovernanceRouter = require('./src/routes/governanceRoutes');
         const { requireActiveGuardian } = require('./src/middleware/authMiddleware');
         app.use('/api/governance', createGovernanceRouter(pool, verifyUserToken, verifyAdminToken, requireActiveGuardian, logAuditEvent));
+
+        // Registrar rutas de Transacciones Web3 y del historial modularizado
+        app.use('/', createTransactionRouter(verifyUserToken));
 
 
         // =================================================================================
@@ -860,50 +864,9 @@ async function startServer() {
             }
         });
 
-        // Ruta: Obtener las transacciones de un usuario
-        app.get('/users/:username/transactions', verifyUserToken, async (req, res) => {
-            const { username } = req.params;
-            if (!req.user?.username || req.user.username !== username) {
-                return res.status(403).json({ message: 'No autorizado para consultar transacciones de otro usuario.' });
-            }
-            const sql = `
-                SELECT t.*, u.username 
-                FROM transactions t 
-                JOIN users u ON t.user_id = u.id 
-                WHERE u.username = $1 
-                ORDER BY t.created_at DESC
-            `;
-            try {
-                const result = await pool.query(sql, [username]);
-                res.status(200).json(result.rows);
-            } catch (err) {
-                console.error("Error al obtener las transacciones:", err.message);
-                return res.status(500).json({ message: "Error interno del servidor." });
-            }
-        });
-
-        // --- ENDPOINT PROFESIONAL: transacciones del usuario autenticado ---
-        // Fuente de verdad: userId del JWT.
-        app.get('/api/me/transactions', verifyUserToken, async (req, res) => {
-            const userId = req.user?.userId;
-            if (!userId) {
-                return res.status(401).json({ message: 'No autenticado.' });
-            }
-            const sql = `
-                SELECT t.*, u.username
-                FROM transactions t
-                JOIN users u ON t.user_id = u.id
-                WHERE t.user_id = $1
-                ORDER BY t.created_at DESC
-            `;
-            try {
-                const result = await pool.query(sql, [userId]);
-                res.status(200).json(result.rows);
-            } catch (err) {
-                console.error("Error al obtener las transacciones (/api/me/transactions):", err.message);
-                return res.status(500).json({ message: "Error interno del servidor." });
-            }
-        });
+        // NOTA: Las rutas /users/:username/transactions y /api/me/transactions
+        // se han movido a src/routes/transactionRoutes.js y src/controllers/transactionController.js
+        // bajo la modularización del endpoint de transacciones para el cumplimiento de auditoría y Web3.
 
         // RUTA: Obtener los saldos de un usuario
         app.get('/users/:username/balance', verifyUserToken, async (req, res) => {
@@ -3449,11 +3412,13 @@ async function startServer() {
         }
         runMailWorker(); // Iniciar inmediatamente
 
-        app.listen(PORT, '0.0.0.0', () => {
-            console.log(`Servidor corriendo en:`);
-            console.log(`- Local: http://localhost:${PORT}`);
-            console.log(`- Red:   http://192.168.100.7:${PORT} (Usa esta en tu teléfono)`);
-        });
+        if (process.env.NODE_ENV !== 'test') {
+            app.listen(PORT, '0.0.0.0', () => {
+                console.log(`Servidor corriendo en:`);
+                console.log(`- Local: http://localhost:${PORT}`);
+                console.log(`- Red:   http://192.168.100.7:${PORT} (Usa esta en tu teléfono)`);
+            });
+        }
 
         // --- ENDPOINTS DE COMPATIBILIDAD (LEGACY) ---
         app.get('/api/legal-status', async (req, res) => {
