@@ -17,7 +17,215 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
-### 2025-07-15 — Donaciones: categoría dedicada (UI + lógica)
+### 2026-05-19 (Parte 2) — Purificación Arquitectónica de Billetera Web3 (Materia-Antimateria)
+
+- **Contexto**: Tras una auditoría de coherencia entre los Smart Contracts (`WintonProtocol.sol`, `BlueToken.sol`) y la interfaz de la billetera Web3 (`contract_interaction.html`), se detectó que la UI contenía "artefactos fantasma" heredados de la arquitectura previa. Específicamente, el saldo BLUE mostraba tokens "Pendientes" (un concepto off-chain) y el saldo RED presentaba un botón manual de "Quemar". 
+- **Decisión Matemática y Lógica**:
+  - Desde la migración a la arquitectura EIP-7702 con el **Vigilante de Auto-Amortización** (`triggerAutoAmortize`), es algorítmicamente imposible que un usuario posea tokens BLUE líquidos y deuda RED simultáneamente. Al momento de recibir BLUE, el contrato aniquila proporcionalmente la deuda RED de forma instantánea.
+  - Se eliminó por completo el botón manual "Quemar" y todo su código JavaScript subyacente (ya que el usuario nunca tendría BLUE para quemar RED manualmente sin que se hubiese activado la auto-amortización primero).
+  - Se eliminó la visualización de tokens "Pendientes" de la vista Web3 pura, ya que es un estado de base de datos (escrow) y no un token ERC-20 real emitido.
+  - A petición del usuario, no se dejó ningún mensaje de texto explicativo en la zona RED para mantener el máximo nivel de minimalismo en la interfaz.
+  - Se mantuvo intacto el temporizador de vencimiento (alimentado por el backend) como un disuasivo visual y recordatorio financiero para evitar la "Página LOVE".
+- **Impacto**: La Billetera Web3 ahora refleja la verdad on-chain absoluta. Es una interfaz minimalista, honesta y sin fricciones que expone el poder y la automatización del protocolo EIP-7702.
+- **Evidencia**: Eliminación de `saldoEscrowBlue`, `burnTriggerBtn`, modales de quemado en `contract_interaction.html` y `contract-interaction.js`.
+
+---
+
+### 2026-05-19 — Aislamiento de UX en Billetera Web3 (Interferencia de Botón Quemar)
+
+- **Contexto**: En la interfaz principal de la billetera Web3 (`contract_interaction.html`), tanto el panel de saldo BLUE como el de saldo RED estaban configurados como elementos clickeables que redirigían a la página de "Estado de Cuenta" (`estado-cuenta.html`). Sin embargo, el panel RED incluye un botón de acción crítica: **🔥 Quemar 🔥**. Esta superposición de áreas clickeables provocaba que los usuarios pudieran pulsar accidentalmente el área de saldo RED mientras intentaban usar el botón de quemar, siendo redirigidos involuntariamente y causando fricción de UX.
+- **Decisión**: 
+  - Se eliminaron los atributos `onclick="window.location.href='estado-cuenta.html'"` y `style="cursor: pointer;"` exclusivamente del contenedor `.balance-section.red-section`.
+  - El acceso al Estado de Cuenta se mantiene activo y exclusivo desde la sección del saldo BLUE (y el botón de navegación principal).
+- **Impacto**: Aislamiento visual y funcional del área de deuda (RED). Ahora los usuarios pueden interactuar con la información y el botón de quemar sin riesgo de redirecciones accidentales. La UX es más limpia, predecible y segura.
+- **Evidencia**: Modificación del contenedor de saldo RED en `contract_interaction.html`.
+
+---
+
+### 2026-05-18 (Parte 2) — Exención Dinámica de KYC Web3 en Modo Pre-lanzamiento
+
+- **Contexto**: Durante la evaluación arquitectónica predictiva del despliegue a Producción (merge a `main`), el usuario identificó un riesgo crítico de denegación de servicio lógica (bloqueo masivo) para la comunidad de Impulsores. En Producción, la plataforma opera en Modo Pre-lanzamiento (`pre_launch_mode_enabled = 'true'`), donde toda la actividad económica de tareas se registra off-chain en el Libro de Impulsores (puntos BLUE IOU) sin requerir gas ni interacción con contratos inteligentes Web3. Sin embargo, las barreras KYC recientemente implementadas en `createPublication` y `acceptPublication` consultaban y exigían KYC Web3 para todas las tareas de tipo `request` de forma incondicional. Como resultado, al hacer el merge a producción, cualquier usuario existente (`kyc_verified = FALSE`) habría quedado bloqueado al intentar publicar o aceptar tareas remuneradas en BLUE IOU.
+- **Decisión**:
+  - **Exención Dinámica en Pre-lanzamiento (Opción 1)**: En `publicationController.js`, se condicionaron los frenos KYC de creación y aceptación de tareas para que solo se ejecuten si la plataforma **NO** está en Modo Pre-lanzamiento (`settings.pre_launch_mode_enabled !== 'true'`).
+  - **Armonización de Reglas de Cumplimiento**: Se establece una distinción clara entre la actividad de fomento comunitario off-chain (exenta de KYC para eliminar fricción de adopción) y las donaciones de crowdfunding en Winton Solidario (donde se mantiene el KYC obligatorio para prevenir granjas de bots y lavado de puntos).
+- **Impacto**:
+  - **Cero Interrupción en Producción**: Los miles de usuarios de la comunidad de Impulsores pueden continuar publicando, aceptando y completando tareas en BLUE IOU sin ningún tipo de bloqueo o fricción técnica.
+  - **Transición Futura Automatizada**: En el momento en que administración desactive el Modo Pre-lanzamiento (`pre_launch_mode_enabled = 'false'`), el candado KYC Web3 se activará de forma instantánea y automática para todo el marketplace.
+- **Evidencia**: Archivos modificados: `publicationController.js`, `EVOLUCION.md`.
+
+---
+
+### 2026-05-18 — Resolución de Colisión Semántica KYC vs Email OTP en Winton Solidario (Migración 056)
+
+- **Contexto**: Durante la revisión de la arquitectura de resiliencia KYC (Migración 055), el usuario identificó una colisión conceptual e inconsistencia en el uso de la columna heredada `is_verified`. Tras un rastreo exhaustivo en el código base, se confirmó que `authController.js` y `register.js` utilizaban `is_verified` para representar la **Verificación de Correo Electrónico (OTP)**, marcándola como `TRUE` en cuanto el usuario completaba su registro. Sin embargo, el módulo de donaciones humanitarias (`humanitarianService.js`) y el Trigger de base de datos de la migración 039 (`fn_release_humanitarian_donations`) asumían erróneamente que `is_verified` representaba la **Verificación KYC Web3 aprobada por Admin**. Esto generaba un fallo de seguridad silencioso: todos los usuarios registrados tenían `is_verified = TRUE`, evadiendo el estado de retención (`on_hold`) y liberando fondos de Winton Solidario a usuarios sin KYC en la blockchain.
+- **Decisión**:
+  - **Separación Semántica Estricta (Opción 1)**: Se decidió mantener `is_verified` exclusivamente para la verificación de correo electrónico (OTP) en el flujo de registro/login, y utilizar la nueva columna `kyc_verified` (introducida en la migración 055) exclusivamente para el estatus KYC Web3.
+  - **Migración 056 (`056_update_solidario_trigger_to_kyc_verified.js`)**: Se creó una nueva migración para actualizar la función PL/pgSQL `fn_release_humanitarian_donations`. El Trigger ahora evalúa exclusivamente cambios en `kyc_verified` (`OLD.kyc_verified IS DISTINCT FROM NEW.kyc_verified AND NEW.kyc_verified = true`) para liberar las donaciones en estado `on_hold`.
+  - **Refactorización de `humanitarianService.js`**: Se modificaron las consultas SQL en `donateToCause` y `getCauseDonations` para verificar `kyc_verified` en lugar de `is_verified`, y se actualizaron todos los comentarios arquitectónicos del servicio para reflejar la separación de responsabilidades.
+- **Impacto**:
+  - **Auditoría Fintech y AML Impecable**: Se establece una barrera clara e inmutable entre un dato de contacto verificado (Email) y una acreditación de identidad financiera y legal gubernamental (KYC Web3).
+  - **Cierre de Brecha en Winton Solidario**: Las donaciones humanitarias de usuarios sin KYC Web3 ahora quedan correctamente retenidas en estado `on_hold` y solo se liberan cuando un administrador aprueba legítimamente el KYC on-chain y en la base de datos.
+- **Evidencia**: Archivos modificados/creados: `056_update_solidario_trigger_to_kyc_verified.js`, `humanitarianService.js`, `EVOLUCION.md`.
+
+---
+
+### 2026-05-17 (Parte 3) — Resiliencia KYC en Base de Datos (Migración 055) y Optimización de Inputs de Búsqueda Admin
+
+- **Contexto**: Tras las auditorías de UX y Web3, el usuario identificó dos problemas críticos en el entorno de demostración. Primero, el campo de búsqueda de usuario en el panel KYC de administración se comprimía y resultaba muy pequeño para escribir debido a que el botón adyacente tomaba el 100% del ancho por herencia global. Segundo, en la tarjeta de Identidad Web3, el estatus KYC aparecía erróneamente como "Pendiente de Aprobación" para usuarios que ya habían sido aprobados previamente, debido a que los reinicios del nodo local de blockchain (Anvil/Hardhat) borraban el estado en memoria de los contratos inteligentes, provocando que las consultas on-chain (`isKYCVerified`) retornaran `false`.
+- **Decisión**:
+  - **Optimización de Inputs de Búsqueda (`admin-panel.html` y `admin-style.css`)**: Se reestructuró el contenedor flex del campo de búsqueda KYC con `flex-wrap: wrap` y se asignaron anchos mínimos explícitos (`min-width: 250px` al input y `min-width: 150px` al botón) para evitar la compresión. Además, se redefinió la clase `.admin-input-dark` para renderizar un recuadro blanco amplio, luminoso y espacioso (`padding: 14px 18px; font-size: 1.1rem; background-color: #ffffff`) con texto oscuro, asegurando máxima visibilidad al escribir.
+  - **Migración 055 (Respaldo KYC en Base de Datos)**: Se creó el archivo `055_add_kyc_verified_to_users.js` para inyectar la columna `kyc_verified BOOLEAN DEFAULT FALSE` en la tabla `users`, dotando al sistema de una caché local resiliente.
+  - **Sincronización Transaccional (`governanceController.js`)**: Al aprobar o revocar KYC desde el panel de administración, el controlador ahora actualiza `users.kyc_verified` en la base de datos de forma paralela a la transacción on-chain, con lógica de fallback automática para entornos de desarrollo y demostración.
+  - **Mecanismo de Fallback Robusto (`server.js` y `publicationController.js`)**: En los endpoints de balance (`/api/me/balance`) y en los frenos de publicación/aceptación de tareas, se implementó una verificación de respaldo: si la consulta on-chain `Web3BridgeService.checkUserKYC` retorna `false` por reinicios del nodo o timeouts del RPC, el sistema consulta `users.kyc_verified` en la base de datos para mantener la consistencia inmutable en la interfaz de usuario.
+- **Impacto**:
+  - **UX Impecable y Amplia**: Los administradores disponen de campos de texto grandes, cómodos y perfectamente visibles para ingresar nombres de usuario.
+  - **Resiliencia Total ante Reinicios Web3**: El estatus KYC en la Identidad Web3 y los permisos de publicación se mantienen estables y correctos incluso si el nodo local de blockchain se reinicia o pierde conexión.
+- **Evidencia**: Archivos modificados/creados: `055_add_kyc_verified_to_users.js`, `governanceController.js`, `server.js`, `publicationController.js`, `admin-panel.html`, `admin-style.css`, `EVOLUCION.md`.
+
+---
+
+### 2026-05-17 — Defensa en Profundidad KYC (Freno en Aceptación de Tareas + Propagación de Errores Web3)
+
+- **Contexto**: El Smart Contract `WintonProtocol` tiene una regla de cumplimiento financiero estricta (AML/KYC): exige que **TANTO el Payer (pagador) COMO el Payee (trabajador/beneficiario)** tengan su KYC verificado on-chain (`isKYCVerified`). Aunque se había implementado un freno pre-publicación para el autor, los trabajadores sin KYC podían aceptar tareas, invertir tiempo y completarlas. Al momento de confirmar el pago, el Smart Contract revertía con `WintonProtocol: Payee KYC not verified`. Al capturarse el error de forma genérica en el backend, el usuario veía un mensaje inespecífico en pantalla, generando confusión y falsos reportes de error en el autor.
+- **Decisión**:
+  - **Freno KYC Preventivo (Capa 1 - Fail-Fast)**: En `publicationController.js`, se modificó el endpoint `POST /publications/:id/accept`. Si la publicación implica remuneración (`request`), se consulta la blockchain para verificar que la wallet del trabajador (o la de su tutor si es menor de edad) tenga el KYC aprobado on-chain. Si no lo tiene, se bloquea la aceptación con HTTP 403 y un mensaje claro indicando que debe verificar su identidad antes de realizar trabajos pagados.
+  - **Propagación Exacta de Errores Web3 (Capa 2 - Defensa en Profundidad)**: En `web3BridgeService.js`, se modificó `syncPaymentToBlockchain` para no silenciar los errores de revert de la blockchain con `return null`, sino propagar la excepción (`throw error`).
+  - **Manejo de Errores en `publicationService.js`**: En `processRequestPayment` y `processDirectPaymentCompletion`, se implementó un bloque `try...catch` específico para analizar el mensaje de error de Web3. Si contiene `Payee KYC not verified`, `Payer KYC not verified` o errores de gas (`insufficient funds`), se arroja un mensaje HTTP 502 preciso y en español para mostrarse en el frontend, y se guarda el motivo exacto en la tabla `web3_pending_transactions`.
+- **Impacto**:
+  - **Cero Trabajo Perdido**: Los trabajadores sin KYC no pueden iniciar tareas remuneradas, garantizando que todo el que trabaja cobrará sin problemas técnicos ni legales.
+  - **Claridad Total en UX**: Si por algún motivo de auditoría se revoca un KYC a mitad de camino, el autor verá en su pantalla el motivo exacto del rechazo de la blockchain.
+  - **Trazabilidad de Errores**: La base de datos registra el motivo exacto del fallo de sincronización Web3 en el patrón Outbox.
+- **Evidencia**: Archivos modificados: `publicationController.js`, `publicationService.js`, `web3BridgeService.js`, `EVOLUCION.md`.
+
+---
+
+### 2026-05-16 — Sistema KYC Compliance (Freno Pre-Publicación + Admin Panel On-Chain)
+
+- **Contexto**: El Smart Contract `WintonProtocol` exige que las billeteras del pagador tengan KYC verificado on-chain (`isKYCVerified`). Sin una validación previa en el backend, los usuarios podían crear publicaciones tipo "request" (que implican pago) y los trabajadores invertían tiempo en tareas que luego fallaban al intentar cobrar, generando un `CALL_EXCEPTION: Payer KYC not verified`. Además, se detectó un deadlock de base de datos (self-deadlock) por uso de `pool.query` dentro de transacciones activas con `client.query` (bloqueo `FOR UPDATE`).
+- **Decisión**:
+  - **Corrección de Deadlock (Patrón Outbox)**: Reemplazar todas las llamadas a `pool.query` por `client.query` dentro de `processRequestPayment` y `processDirectPaymentCompletion` en `publicationService.js`, asegurando que las operaciones de auditoría se ejecuten en la misma conexión transaccional.
+  - **Freno KYC Pre-Publicación**: En `publicationController.js`, antes de permitir la creación de publicaciones tipo `request`, se consulta directamente la blockchain (`isKYCVerified`) para verificar el KYC del autor (o su tutor si es menor de edad). Si no tiene KYC → se bloquea la publicación con HTTP 403. Política Fail-Safe: ante duda, se bloquea.
+  - **Método `checkUserKYC()` en `web3BridgeService.js`**: Lectura gratuita (sin gas, función `view`) con timeout de 3 segundos para no congelar el servidor si Alchemy está caído.
+  - **Método `setUserKYC()` en `web3BridgeService.js`**: Escritura on-chain (`setKYCStatus`) con prevención de revert (verifica estado actual antes de gastar gas), validación de dirección Ethereum y tipo booleano explícito.
+  - **Endpoint Admin `POST /api/governance/kyc`**: Protegido por `verifyAdminToken`. Valida usuario/wallet, ejecuta la operación blockchain, y registra TODA la acción en `audit_log` con IP, user-agent, wallet, txHash, timestamp y resultado (éxito o fracaso). Categoría: `compliance`.
+  - **Panel de Administración (Frontend)**: Nueva sección "🔐 KYC" en `admin-panel.html` con formulario de búsqueda de usuario, visualización de estado KYC, y botones de "Aprobar" / "Revocar" con diálogo de confirmación. Listeners protegidos contra doble-clic y registro duplicado.
+- **Arquitectura preparada para proveedores externos**: El método `setUserKYC()` es la pieza final del rompecabezas. Hoy lo llama un admin manualmente. Mañana, un webhook de Onfido/Jumio/Sumsub llamará al mismo endpoint sin cambios en el Smart Contract ni en el freno de publicaciones.
+- **Impacto**:
+  - Eliminación de deadlocks de base de datos.
+  - Los trabajadores nunca más perderán tiempo en tareas impagables.
+  - Cumplimiento de normativa KYC/AML: sin verificación, sin transacciones financieras.
+  - Trazabilidad bancaria completa: toda operación KYC queda en `audit_log` y en la blockchain.
+- **Evidencia**: Archivos modificados: `publicationService.js`, `web3BridgeService.js`, `publicationController.js`, `governanceController.js`, `governanceRoutes.js`, `admin-panel.html`, `admin-panel.js`.
+
+---
+
+### 2026-05-08 — Integración Gobernanza → Blockchain (Winton-Consensus + Web3 Bridge)
+
+- **Contexto**: Los Smart Contracts desplegados en Optimism Sepolia tienen funciones administrativas (`pause`, `setMaxTransactionAmount`, `setFoundersWallet`, `withdrawSurplus`) que solo se podían ejecutar por consola de Hardhat. Se necesitaba integrarlas con el sistema de gobernanza Winton-Consensus existente para que los guardianes pudieran gestionarlas con multifirma, votación y auditoría.
+- **Decisión**:
+  - **Ampliar `web3BridgeService.js`**: Reescribir con ABI completa del protocolo y treasury. Agregar funciones para `pauseProtocol`, `unpauseProtocol`, `setMaxTransactionAmount`, `setFoundersWallet`, `withdrawSurplus` y `getProtocolStatus` (lectura sin gas).
+  - **Integrar en `_executeAction` de `governanceService.js`**: Después de actualizar `app_settings`, si el `target_key` empieza con `web3_`, ejecutar la operación blockchain correspondiente vía el bridge. El tx_hash se guarda en `audit_log` y en `governance_requests.metadata`.
+  - **Catálogo de settings** (`settingsDisplayMap.js`): Agregar las 4 opciones Web3 con etiquetas en español para que aparezcan en el formulario de gobernanza.
+  - **Migración 052**: Insertar los 4 registros de `app_settings` con valores iniciales que coinciden con los Smart Contracts desplegados.
+- **Impacto**:
+  - Los guardianes pueden gestionar los Smart Contracts desde el panel de gobernanza existente, sin tocar consola.
+  - Cada cambio on-chain queda registrado con tx_hash en el audit_log (trazabilidad completa DB + Blockchain).
+  - El formulario de solicitud existente se reutiliza sin cambios de frontend.
+- **Evidencia**: Archivos modificados: `web3BridgeService.js`, `governanceService.js`, `settingsDisplayMap.js`. Migración `052_add_web3_governance_settings.js`.
+
+---
+
+### 2026-05-08 — Migración a EIP-7702 (Pectra/Isthmus) + Auditoría de Seguridad Profunda
+
+- **Contexto**: Los Smart Contracts (BlueToken, RedToken, WintonProtocol, WintonTreasury) usaban ERC-2771 (meta-transacciones de primera generación). Optimism activó EIP-7702 (Pectra/Isthmus) en mayo 2025, habilitando el estándar más moderno de Account Abstraction sin necesidad de Trusted Forwarder.
+- **Decisión**:
+  - **Migración a EIP-7702**: Eliminar `ERC2771Context` de WintonProtocol y WintonTreasury. Con EIP-7702, `msg.sender` ES la dirección real del usuario (la red lo resuelve nativamente). Se eliminaron los 3 overrides de contexto (`_msgSender`, `_msgData`, `_contextSuffixLength`).
+  - **Relayer explícito**: Añadir variable `relayer` separada del Owner. `processPayment` ahora recibe `payer` como parámetro (verificado por el backend), protegido por `onlyRelayerOrOwner`.
+  - **Vigilante de Auto-Amortización**: Implementar hook en `BlueToken._update()` que llama a `WintonProtocol.triggerAutoAmortize(receptor)` en cada recepción de BLUE. Esto cierra la vulnerabilidad de transferencia directa que permitía acumular BLUE y RED simultáneamente.
+  - **Optimización de gas**: Lista de direcciones exentas del vigilante (Treasury, Protocol) + eliminación de llamada redundante a `_autoAmortize` en `processPayment`.
+  - **Circuit Breaker**: Añadir `maxTransactionAmount` (1M BLUE) como límite por transacción individual.
+  - **Bloqueo de `renounceOwnership()`**: Sobreescrito en los 4 contratos para prevenir que el protocolo quede huérfano accidental o maliciosamente.
+- **Auditoría de Seguridad**: Se probaron 20+ escenarios de ataque incluyendo: bypass del backend, reentrada, overflow, dust attack, impersonación del relayer, front-running de Merkle root, ataque de polvo, envío de ETH directo, y compromiso de llave del Owner. Cero vulnerabilidades encontradas.
+- **Impacto**:
+  - Contratos más simples (menos herencia, menos código ejecutable, menor superficie de ataque).
+  - Gas reducido (~5,000 gas menos por transacción al eliminar overrides de contexto).
+  - Compatibilidad con el estándar más moderno de la industria (EIP-7702, mayo 2025).
+  - Regla Materia-Antimateria ahora es matemáticamente inviolable sin importar el origen de los tokens.
+- **Evidencia**: Compilación exitosa con Hardhat 2.28.6, OpenZeppelin v5.6.1, Solidity 0.8.24.
+
+#### ⚠️ MEJORAS FUTURAS (Pre-Producción):
+
+1. **Sistema de Roles con AccessControl (OpenZeppelin)**:
+   - `KYC_MANAGER_ROLE` → Backend automático (sin multifirma) para `setKYCStatus`.
+   - `FINANCIAL_ADMIN_ROLE` → Gnosis Safe multifirma para cambios de comisión, retiro de excedentes, cambio de Relayer.
+   - `EMERGENCY_ROLE` → Cualquier firmante individual del Safe puede pausar (velocidad crítica en emergencias).
+2. **Gnosis Safe Multisig como Owner**: Transferir ownership a un Safe (3/5 multifirma) antes de ir a mainnet.
+3. **Timelock en cambios financieros**: Agregar un contrato Timelock (24-48h de espera) para cambios de comisión y retiros del Treasury, dando tiempo a la comunidad de reaccionar.
+4. **Evaluación de EIP-7702 nativo**: Cuando el ecosistema de SDKs (Pimlico, ZeroDev) madure, implementar transacciones patrocinadas tipo 0x04 directamente desde el frontend.
+
+---    
+### 2026-05-04 — Estado de Cuenta Web3 (Auditoría Financiera)
+
+- **Contexto**: La página principal de la billetera debía mantenerse simple para las transacciones diarias, pero se necesitaba un espacio profesional para mostrar métricas financieras y Web3, el límite de crédito RED, equivalencia fiat y estadísticas transaccionales, cumpliendo estándares de auditoría.
+- **Decisión**:
+  - Implementar un diseño de "Divulgación Progresiva" (Progressive Disclosure) creando la nueva página `estado-cuenta.html`.
+  - Agregar la Llave Pública con estado de conexión a la red "Optimism Sepolia" y enlace directo al Explorador de Bloques.
+  - Mostrar el detalle de la Línea de Crédito RED y estructurar vencimientos a 30 días y a fin de mes.
+  - Mostrar la Liquidez BLUE detallando fondos disponibles vs bloqueados (escrow) y su fecha de liberación.
+  - Generar un bloque de estadísticas de actividad de red (interacciones, enviadas, recibidas).
+- **Impacto**: 
+  - Mayor transparencia técnica y financiera sin ensuciar la UX principal de la billetera.
+  - Interfaz estandarizada a la de plataformas como Binance y Coinbase.
+- **Evidencia**: Archivos creados `estado-cuenta.html`, `estado-cuenta.js` e inclusión en `vite.config.js`.
+
+---
+
+### 2026-05-01 — Rediseño del Banner de Referidos (Booster Edition)
+
+- **Contexto**: El botón de compartir código de referido tenía una estética desalineada con el resto del ecosistema "Booster" (Impulsor). Tras iterar con Montserrat, se detectó que el "molde" de la letra no encajaba con la seriedad fintech buscada.
+- **Decisión**:
+  - Implementar un diseño **Azure Glass** con la tipografía **Inter** (UI Premium).
+  - Adoptar Inter por su molde más estilizado, vertical y compacto, ideal para interfaces Web3.
+  - Aplicar `backdrop-filter: blur(16px)` para lograr un efecto de cristal esmerilado.
+  - Mantener el dorado para los valores numéricos con peso `800` (Extra Bold) para máxima legibilidad sobre el vidrio.
+- **Impacto**:
+  - Estética profesional de alto nivel, alineada con estándares de industria.
+  - Mayor densidad de información sin sacrificar la elegancia.
+- **Evidencia**: Rediseño aplicado en `style.css` con tipografía Inter y nuevo icono de nodos estilo WhatsApp en `contract_interaction.html`.
+
+---
+
+### 2026-05-02 — Despliegue de WintonProtocol en Optimism Sepolia (Testnet Pública)
+
+- **Contexto**: El entorno Demo necesitaba operar bajo estándares profesionales de la industria Web3 (Staging real), abandonando simulaciones locales (`localhost`) para conectarse a una Blockchain pública.
+- **Decisión**:
+  - Compilación y despliegue del contrato inteligente `WintonProtocol.sol` en la red de Capa 2 **Optimism Sepolia**.
+  - Configuración de un nodo RPC mediante **Alchemy** para el puente de comunicación.
+  - Implementación de una billetera segura de despliegue ("Deployer Demo") actuando como el **Relayer** autorizado del protocolo.
+- **Impacto**:
+  - La aplicación (Demo) ahora es una DApp 100% funcional y auditable on-chain.
+  - Los pagos (Off-chain) y el Scoring de Crédito WTS se sincronizan de forma segura con la Testnet sin costo de gas para el usuario final ("Cero Fricción").
+- **Evidencia**: 
+  - Contrato desplegado en la dirección: `0x0066269E090a38618A24A1fB65b52AEBBa3c00C4`
+
+---
+
+### 2026-05-02 — Infraestructura Web3 y Scoring Conductual (Migración 050)
+
+- **Contexto**: El sistema requería una base sólida para el almacenamiento de billeteras Web3 y la configuración del Scoring de Crédito RED (WTS) en el entorno de producción/demo.
+- **Decisión**:
+  - Implementar la **Migración 050** para añadir las columnas `web3_wallet_address` y `web3_private_key_encrypted` a la tabla `users`.
+  - Registrar las variables maestras de Scoring en `app_settings` (base 100, bonos por referido/actividad) para permitir ajustes sin redespliegue.
+  - Asegurar la **idempotencia** de la migración para despliegues seguros en Render.
+- **Impacto**:
+  - Habilitación del sistema de "Bóvedas Invisibles" para usuarios.
+  - Sincronización automática de límites de crédito entre DB y Smart Contracts.
+- **Evidencia**: Archivo de migración `050_add_web3_wallet_and_scoring_settings.js` desplegado y ejecutado.
+
+---
+
+### 2026-05-01 — Rediseño del Banner de Referidos (Booster Edition)
+>>>>>>> feature/wallet-ux-fixes
 
 - **Contexto**: “donación” es un tipo de publicación distinto (no es venta ni solicitud). Si se trata como genérico, la UX y las reglas se vuelven confusas.
 - **Decisión**: crear categoría de donaciones con estilos y lógica específica en frontend, con soporte backend donde aplica.
