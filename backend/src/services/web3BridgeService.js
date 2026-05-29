@@ -300,6 +300,69 @@ class Web3BridgeService {
     }
 
     /**
+     * Consulta el estado KYC on-chain con información detallada del resultado.
+     * 
+     * DIFERENCIA CON checkUserKYC():
+     * - checkUserKYC() retorna solo `boolean` → no se puede distinguir entre
+     *   "blockchain dijo false" y "blockchain no respondió".
+     * - checkUserKYCDetailed() retorna `{ success, verified }` → el caller puede
+     *   tomar decisiones informadas (sincronizar DB si blockchain respondió, o
+     *   usar fallback si blockchain no respondió).
+     * 
+     * ESTÁNDAR: Este patrón (Result Object) es usado por Stripe, Coinbase y
+     * servicios financieros que necesitan distinguir entre "dato real" y "fallo
+     * de infraestructura" para mantener consistencia en sus cachés.
+     * 
+     * @param {string} walletAddress - La dirección de la billetera a verificar.
+     * @returns {Promise<{ success: boolean, verified: boolean }>}
+     *   - success=true, verified=true  → Blockchain respondió: usuario SÍ tiene KYC.
+     *   - success=true, verified=false → Blockchain respondió: usuario NO tiene KYC.
+     *   - success=false, verified=false → Blockchain no respondió (error/timeout).
+     */
+    async checkUserKYCDetailed(walletAddress) {
+        // Validación de precondiciones: el Relayer debe estar configurado y
+        // la dirección de wallet debe existir.
+        if (!this._isReady() || !walletAddress) {
+            console.warn(`[WEB3 BRIDGE] KYC Detailed Check Omitido: Relayer no listo o wallet indefinida (${walletAddress})`);
+            // Retornamos success=false para indicar que NO pudimos consultar la blockchain.
+            return { success: false, verified: false };
+        }
+
+        let timeoutId;
+        try {
+            // Obtener instancia del contrato WintonProtocol.
+            const protocol = this._getProtocol();
+
+            // TIMEOUT ENFORCER: Evitar que un nodo RPC caído bloquee al servidor.
+            // 3 segundos es el estándar fintech para lecturas on-chain en L2.
+            const timeoutPromise = new Promise((_, reject) => {
+                timeoutId = setTimeout(() => reject(new Error('RPC Timeout al verificar KYC (detailed)')), 3000);
+            });
+
+            // Competir la llamada real contra el timeout.
+            const isVerified = await Promise.race([
+                protocol.isKYCVerified(walletAddress),
+                timeoutPromise
+            ]);
+
+            // success=true porque la blockchain respondió exitosamente.
+            // verified contiene la respuesta real del Smart Contract.
+            return { success: true, verified: isVerified };
+
+        } catch (error) {
+            // La blockchain no respondió (timeout, nodo caído, contrato inválido, etc.).
+            // Logueamos el error para trazabilidad pero NO lanzamos excepción.
+            console.error(`[WEB3 BRIDGE] ❌ Error verificando KYC on-chain (detailed) para ${walletAddress}:`, error.message);
+            // success=false: el caller debe usar fallback (caché DB).
+            return { success: false, verified: false };
+        } finally {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+        }
+    }
+
+    /**
      * Escribe el estado KYC de una billetera en el Smart Contract (on-chain).
      * Solo el Owner del contrato (Relayer) puede ejecutar esta función.
      * 

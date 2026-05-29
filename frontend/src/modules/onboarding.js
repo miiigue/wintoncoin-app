@@ -655,7 +655,7 @@ function runTaskDriver(pubElement) {
                 }
             },
             {
-                element: `.${uniqueClass} .cost-ribbon-left`,
+                element: `.${uniqueClass} .cost-ribbon-right`,
                 popover: {
                     title: '💰 Recompensa / Costo',
                     description: 'La cantidad de <b>BLUE</b> involucrada en la transacción.',

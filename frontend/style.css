@@ -2271,15 +2271,16 @@ hr {
 
 /* NUEVO: Banner de estado dentro de la tarjeta de publicación */
 .publication-status-banner {
-    padding: 8px 10px;
-    font-size: 0.85rem;
+    flex: 1; /* Ocupa el espacio central entre la X y el precio */
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 10px;
+    font-size: 0.8rem;
     font-weight: 600;
-    text-align: center;
     color: #fff;
-    border-radius: 12px 12px 0 0;
-    /* Ajustamos el margen para que el banner ocupe todo el ancho superior de la tarjeta
-       y empuje el resto del contenido hacia abajo. */
-    margin: -1rem -1rem 1rem -1rem;
+    margin: 0;
+    border-radius: 0; /* Ya no necesita border-radius, el contenedor padre lo recorta */
 }
 
 .publication-status-banner.status-pending {
@@ -6923,96 +6924,79 @@ body.wallet-tour-active #prelaunchWalletModal {
     text-decoration: underline;
 }
 
-/* --- Nuevo Diseño de Tarjeta (Precio Izquierda / Menú Derecha) --- */
+/* --- Nuevo Diseño de Tarjeta (Fila Única: Menú, Estado y Precio) --- */
 .card-top-row {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    align-items: stretch; /* Hijos ocupan todo el alto */
+    margin-top: -1.25rem; /* Ajustado al padding exacto de .publication-item para que no queden huecos */
+    margin-left: -1.25rem;
+    margin-right: -1.25rem;
     margin-bottom: 0.5rem;
-    height: 32px;
-    /* Altura mínima para contener price ribbon y menú */
-    /* Anular padding superior del padre visualmente */
-    margin-top: -1rem;
-    margin-left: -1rem;
-    /* Pegado al borde izq */
-    margin-right: -1rem;
-    /* Pegado al borde der */
     padding: 0;
-    width: calc(100% + 2rem);
-    /* Compensar márgenes negativos */
+    width: calc(100% + 2.5rem);
+    min-height: 38px;
+    border-radius: 16px 16px 0 0; /* Se alinea perfecto con el borde de la tarjeta */
+    overflow: hidden; /* Corta mágicamente cualquier esquina de los hijos para alinear al 100% */
+    position: relative;
+    background: transparent;
 }
 
-.cost-ribbon-left {
+/* El botón siempre al inicio (izquierda) en el flujo natural */
+.card-close-btn {
+    position: relative;
+    width: 44px;
+    flex-shrink: 0;
+    background: rgba(0,0,0,0.1);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+    z-index: 10;
+    padding: 0;
+    margin: 0;
+}
+
+.card-close-btn:hover {
+    background: rgba(220, 53, 69, 0.9);
+}
+
+.card-close-btn svg {
+    stroke: #ffffff !important;
+    stroke-width: 2.5 !important;
+    width: 18px;
+    height: 18px;
+    pointer-events: none;
+}
+
+/* Si no hay banner de status, aseguramos un color sutil para la X */
+.card-top-row:not(.has-status) .card-close-btn {
+    background: transparent;
+}
+.card-top-row:not(.has-status) .card-close-btn svg {
+    stroke: #94a3b8 !important;
+}
+.card-top-row:not(.has-status) .card-close-btn:hover svg {
+    stroke: #ffffff !important;
+}
+
+/* El precio (ahora fluye naturalmente a la derecha) */
+.cost-ribbon-right {
+    margin-left: auto; /* Empuja el precio a la derecha si no hay banner central */
+    flex-shrink: 0;
     background-color: var(--primary-color);
     color: white;
-    padding: 2px 8px;
-    /* Padding reducido para compensar fuente grande */
-    border-radius: 0 0 12px 0;
-    /* Solo redondeado abajo-derecha */
+    padding: 4px 14px;
     font-weight: 700;
-    /* Más negrita para legibilidad */
     font-size: 1.15rem;
-    /* Fuente AUMENTADA significativamente */
-    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
-    /* Ya no necesita absolute, fluye en el flexbox */
+    border-radius: 0 0 0 12px; /* Redondear esquina inferior izquierda (la superior derecha la corta overflow:hidden) */
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 30px;
-}
-
-/* Variantes de color para la cinta */
-.cost-ribbon-left.sell-mode {
-    background-color: #ff4d4d;
-    /* Rojo Venta */
-}
-
-.cost-ribbon-left.donation-mode {
-    background-color: #ffca28;
-    /* Amarillo Donación */
-    color: #333;
-}
-
-
-
-/* Estructura Base de Tarjeta */
-.publication-item {
-    position: relative;
-    /* Referencia para elementos absolutos (X) */
-    display: flex;
-    flex-direction: column;
-    /* Flujo vertical limpio */
-    width: 100%;
-    box-sizing: border-box;
-    overflow: hidden;
-    /* Estilos heredados de la definición principal - DRY Principle */
-}
-
-/* Botón de cerrar "X" en la tarjeta - POSICIONAMIENTO ABSOLUTO FORZADO */
-.card-close-btn {
-    position: absolute;
-    /* Fuera del flujo flex */
-    top: 10px;
-    right: 10px;
-    z-index: 2000 !important;
-    /* Siempre encima DE TODO */
-
-    width: 32px;
-    height: 32px;
-    background: transparent;
-    /* Fondo transparente (solo la X) */
-    border: none;
-    /* Sin borde */
-    border-radius: 50%;
-
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    cursor: pointer;
-    transition: all 0.2s ease;
-    padding: 0;
-    margin: 0;
+    box-shadow: none; /* No necesita sombra al estar incrustado */
+    white-space: nowrap;
+    z-index: 10;
 }
 
 .card-close-btn:hover {

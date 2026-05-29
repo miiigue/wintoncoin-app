@@ -4213,55 +4213,91 @@ document.addEventListener('DOMContentLoaded', () => {
         const resultPanel = document.getElementById('kycStatusResult');
         const operationResult = document.getElementById('kycOperationResult');
 
-        // Ocultar resultados anteriores.
+        // Ocultar resultados anteriores para evitar confusión visual.
         if (resultPanel) resultPanel.style.display = 'none';
         if (operationResult) operationResult.style.display = 'none';
 
         try {
-            // Paso 1: Obtener la wallet del usuario desde la DB.
+            // ── PASO 1: Buscar al usuario por username para obtener su userId ──
+            // El admin escribe el username (dato humano), pero internamente
+            // usamos el userId (INTEGER PK) para las operaciones de API.
+            // Esto sigue la buena práctica de usar IDs inmutables e indexados.
             const users = await apiFetch(`/api/admin/users?search=${encodeURIComponent(username)}`);
             const user = Array.isArray(users) ? users.find(u => u.username === username) : null;
 
+            // Validar que el usuario exista en la base de datos.
             if (!user) {
                 showCustomAlert(`Usuario "${escapeHtml(username)}" no encontrado.`);
                 return;
             }
 
-            const wallet = user.web3_wallet_address;
-
-            // Mostrar panel con info del usuario.
+            // Mostrar nombre de usuario inmediatamente mientras consultamos la blockchain.
             document.getElementById('kycResultUsername').textContent = user.username;
-            document.getElementById('kycResultWallet').textContent = wallet
-                ? `Wallet: ${wallet}`
+            document.getElementById('kycResultWallet').textContent = user.web3_wallet_address
+                ? `Wallet: ${user.web3_wallet_address}`
                 : 'Sin billetera Web3 registrada';
-
-            if (!wallet) {
-                // Si no tiene wallet, no podemos consultar KYC.
-                document.getElementById('kycResultStatus').textContent = 'N/A';
-                document.getElementById('kycResultStatus').style.color = '#667085';
-                document.getElementById('kycActions').style.display = 'none';
-                resultPanel.style.display = 'block';
-                return;
-            }
-
-            // Paso 2: Consultar estado KYC on-chain via el endpoint.
-            // Usamos una llamada al bridge para verificar (lectura gratuita, sin gas).
-            document.getElementById('kycResultStatus').textContent = 'Consultando blockchain...';
+            // Indicador visual de "cargando" mientras se consulta la blockchain.
+            document.getElementById('kycResultStatus').textContent = '⏳ Consultando blockchain...';
             document.getElementById('kycResultStatus').style.color = '#F59E0B';
             document.getElementById('kycActions').style.display = 'none';
             resultPanel.style.display = 'block';
 
-            // Intentar verificar via el endpoint de governance.
-            // Como checkUserKYC es una lectura, podemos hacer una llamada POST
-            // con kycStatus para ver el estado actual. Pero como no tenemos un
-            // endpoint GET dedicado, usamos la información del usuario.
-            // NOTA: El estado real se verifica cuando intentas aprobar/revocar.
-            // Por ahora mostramos "Pendiente de verificación" y dejamos los botones visibles.
-            document.getElementById('kycResultStatus').textContent = '⏳ Verificar con los botones';
-            document.getElementById('kycResultStatus').style.color = '#F59E0B';
-            document.getElementById('kycActions').style.display = 'flex';
+            // ── PASO 2: Consultar estado KYC real via el endpoint dedicado ──
+            // Usamos el userId (INTEGER PK) en la URL, no el username.
+            // El endpoint consulta directamente la blockchain Y la DB, y
+            // devuelve ambos estados + flag de sincronización.
+            const kycData = await apiFetch(`/api/admin/users/${user.id}/kyc-status`);
+
+            // ── PASO 3: Renderizar el resultado según la respuesta ──────────
+            const statusEl = document.getElementById('kycResultStatus');
+            const actionsEl = document.getElementById('kycActions');
+
+            // Actualizar la wallet mostrada (por si el endpoint devolvió más info).
+            document.getElementById('kycResultWallet').textContent = kycData.walletAddress
+                ? `Wallet: ${kycData.walletAddress}`
+                : 'Sin billetera Web3 registrada';
+
+            // CASO 1: El usuario no tiene billetera → no se puede verificar KYC.
+            if (!kycData.walletAddress) {
+                statusEl.textContent = 'N/A — Sin billetera Web3';
+                statusEl.style.color = '#667085';
+                actionsEl.style.display = 'none';
+                return;
+            }
+
+            // CASO 2: La blockchain no respondió → mostramos el estado de la DB
+            // con advertencia visual para que el admin sepa que es un dato cached.
+            if (!kycData.blockchainQuerySuccess) {
+                const dbStatus = kycData.kycInDatabase ? '✅ VERIFICADO (caché DB)' : '❌ NO VERIFICADO (caché DB)';
+                statusEl.textContent = `⚠️ ${dbStatus}`;
+                statusEl.style.color = '#F59E0B';
+                // Mostrar botones de acción por si el admin quiere forzar un cambio.
+                actionsEl.style.display = 'flex';
+                return;
+            }
+
+            // CASO 3: La blockchain respondió exitosamente → mostramos el estado real.
+            if (kycData.kycOnChain === true) {
+                statusEl.textContent = '✅ VERIFICADO ON-CHAIN';
+                statusEl.style.color = '#059669';
+            } else {
+                statusEl.textContent = '❌ NO VERIFICADO ON-CHAIN';
+                statusEl.style.color = '#DC2626';
+            }
+
+            // Si hubo auto-sincronización, informar al admin.
+            if (kycData.message && kycData.message.includes('discrepancia')) {
+                const syncNotice = document.createElement('p');
+                syncNotice.style.cssText = 'color: #F59E0B; font-size: 12px; margin: 4px 0 0; font-style: italic;';
+                syncNotice.textContent = '⚡ ' + kycData.message;
+                statusEl.parentNode.insertBefore(syncNotice, statusEl.nextSibling);
+            }
+
+            // Mostrar botones de Aprobar/Revocar para que el admin pueda cambiar el estado.
+            actionsEl.style.display = 'flex';
 
         } catch (error) {
+            // Error de red o del servidor → mostrar alerta al admin.
             showCustomAlert(`Error al consultar usuario: ${error.message}`);
         }
     }

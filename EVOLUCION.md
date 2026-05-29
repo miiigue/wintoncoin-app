@@ -15,6 +15,43 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ## Línea de tiempo (hitos)
 
+### 2026-05-29 — Sincronización KYC Blockchain ↔ Base de Datos y Resolución de Discrepancias
+
+- **Contexto**: Se identificó una discrepancia en el entorno de Demostración donde los usuarios (como `test1`) mostraban estar verificados "On-Chain" en su app móvil/frontend, pero aparecían sin verificación KYC ni dirección de billetera en el Panel de Administración. Esto ocurría porque el panel admin consultaba únicamente la base de datos (`users.kyc_verified`), la cual no estaba sincronizada con el estado real on-chain en la blockchain tras cambios directos o reinicios de nodo, y el panel admin no disponía de un método directo para consultar la verdad de la blockchain.
+- **Decisión**:
+  - **Diferenciación de Errores de Conexión y Control de Timers (`web3BridgeService.js`)**: Se introdujo el método `checkUserKYCDetailed()` que, a diferencia de `checkUserKYC()`, retorna un objeto `{ success, verified }` permitiendo al servidor distinguir de forma segura entre "blockchain respondió que el KYC es falso" y "hubo un fallo al consultar la blockchain (timeout o error RPC)". Adicionalmente, se configuró la liberación del timer `timeoutId` mediante un bloque `finally` para evitar fugas de memoria o temporizadores huérfanos en el event loop ante fallos de conexión tempranos.
+  - **Sincronización Automática Await-Enforced (`server.js`)**: En el endpoint de consulta del saldo/perfil del usuario (`/api/me/balance`), se implementó un mecanismo de reconciliación automática: si se detecta una discrepancia entre la base de datos y la blockchain, y la blockchain responde exitosamente, se actualiza automáticamente el campo `kyc_verified` y la wallet en la base de datos de forma segura, inmutable y sincrónica (`await`), eliminando condiciones de carrera de pool en `node-postgres` al liberar el cliente en la cláusula `finally` de la petición.
+  - **Consultas del Panel Admin por ID (`server.js`)**: Se diseñó el nuevo endpoint administrativo `GET /api/admin/users/:userId/kyc-status` protegido con autenticación de administrador y límite de tasa RPC (`web3RpcLimiter`). Este endpoint usa el ID interno único (`userId`) en lugar de `username` siguiendo las mejores prácticas de la industria fintech, y realiza una consulta directa de la blockchain para reportar al administrador la verdad absoluta on-chain y cualquier discrepancia.
+  - **Interfaz de Admin Actualizada (`admin-panel.js`)**: Se modificó la función `kycCheckUser()` del frontend administrativo para realizar la búsqueda secuencial: primero obtiene la información básica del usuario por username y, a partir del ID de usuario, consulta el nuevo endpoint para renderizar en tiempo real el estado on-chain y los datos de sincronización del usuario en el panel.
+- **Impacto**: Se elimina la inconsistencia visual y de datos entre el panel de administración y el estado real del usuario. Se garantiza la consistencia transaccional y la seguridad del pool de conexiones al evitar condiciones de carrera, y se mantiene la inmutabilidad y la trazabilidad de los datos, reduciendo la latencia de actualización a cero mediante sincronización perezosa (lazy synchronization) al consultar el balance.
+- **Evidencia**: Modificaciones realizadas en `web3BridgeService.js`, `server.js` y `admin-panel.js`.
+
+---
+
+### 2026-05-28 — Optimización de Diseño de Tarjetas de Publicaciones (UX/UI)
+
+- **Contexto**: Las tarjetas de publicaciones en el dashboard (`contract_interaction.html`) presentaban el indicador de precio ("BLUE iou") en la esquina superior izquierda con un borde cuadrado, rompiendo la armonía visual de los bordes redondeados de la tarjeta principal de 16px. Adicionalmente, el estado de la publicación ("Tarea culminada. Esperando confirmación") utilizaba toda una fila completa, desperdiciando espacio vertical valioso en móviles.
+- **Decisión**:
+  - **Fila Única Multifuncional (Flexbox Avanzado)**: Se reestructuró la fila superior de la tarjeta (`.card-top-row`) convirtiéndola en un contenedor Flexbox continuo (sin elementos flotantes). Se reordenó el DOM para que el botón de descartar ('X') se sitúe a la izquierda, el banner de estado al centro (`flex: 1`) y el precio a la derecha. Ahora todos conviven en la misma línea, maximizando el espacio.
+  - **Recorte Perfecto (Cero Gaps)**: Para solucionar el ligero desfase de pixeles entre el precio y el borde de la tarjeta, se aplicó `margin: -1.25rem` para contrarrestar exactamente el padding de la tarjeta, y se utilizó `overflow: hidden` junto con `border-radius: 16px 16px 0 0` en el contenedor padre. Esto obliga a la esquina del precio a mimetizarse milimétricamente con la esquina de la tarjeta.
+  - **Renombramiento Semántico**: Se actualizó la clase CSS y selectores en JavaScript de `.cost-ribbon-left` a `.cost-ribbon-right` en todos los archivos involucrados (`style.css`, `contract-interaction.js` y `onboarding.js`).
+- **Impacto**: Interfaz visualmente más premium, compacta y sin espacios residuales ("zero gaps"). Mejor aprovechamiento del alto de la pantalla, demostrando alta atención al detalle en la experiencia de usuario (UX).
+- **Evidencia**: Modificaciones realizadas en `style.css`, `contract-interaction.js`, y `onboarding.js`.
+
+---
+
+### 2026-05-22 — Auditoría Arquitectónica y Diagnóstico de Segregación On-Chain/Off-Chain
+
+- **Contexto**: Se requería una evaluación en profundidad del grado de desacoplamiento entre las operaciones en la base de datos (off-chain) y las interacciones con la blockchain (on-chain), así como un análisis de riesgos de cumplimiento legal/regulatorio y la detección de posibles cuellos de botella e inconsistencias técnicas.
+- **Decisión**:
+  - **Identificación de Inconsistencia Crítica**: Se documentó que el backend (`creditScoringService.js`) invoca la función `updateUserTrustScore` en `WintonProtocol`, la cual no existe en el contrato Solidity desplegado en Optimism Sepolia, provocando excepciones JSON-RPC silenciosas pero constantes en cada login y registro de usuario.
+  - **Mecanismos de Resiliencia**: Se verificó y validó el patrón Outbox/Safety Net para el control transaccional híbrido en `web3_pending_transactions` y el cron de reconciliación.
+  - **Diagnóstico Regulatorio**: Se evaluó el riesgo legal de custodia (Hosted Wallet) bajo la perspectiva de FinCEN y MiCA, recomendando una transición futura hacia soluciones MPC/No custodiales (Web3Auth/Privy) y EIP-7702 para erradicar las liabilities de Money Transmitter (MTL/MSB).
+- **Impacto**: Se elaboró un diagnóstico detallado en un artefacto dedicado, mapeando las prioridades de refactorización y resolución de bugs (el error del score) para garantizar que la plataforma sea 100% segura, robusta y escalable legalmente en producción.
+- **Evidencia**: Creación del reporte [web3_architecture_diagnostic.md](file:///C:/Users/migue/.gemini/antigravity-ide/brain/b02b92dc-18bd-44ee-b446-5f646d962ba6/web3_architecture_diagnostic.md).
+
+---
+
 ### 2026-05-21 (Parte 3) — Interfaz de Estado de Cuenta Dual (Web3 vs Impulsor) y Riesgo Regulatorio Cero
 
 - **Contexto**: Tras la purificación del Estado de Cuenta Web3 (Parte 1), la sección de Transacciones dejó de mostrar las recompensas de puntos de marketing, lo que limitaba la visibilidad unificada del usuario. Sin embargo, mezclar transacciones on-chain y recompensas off-chain en una sola tabla generaba un grave riesgo de **Confusión del Consumidor (Consumer Confusion)** bajo normativas AML/SEC, donde el usuario podría asumir que sus puntos de lealtad tienen el mismo peso y propiedad legal que sus tokens Web3.

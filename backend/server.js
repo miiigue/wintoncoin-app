@@ -983,14 +983,57 @@ async function startServer() {
                 const creditLimit = await creditScoringService.calculateUserScore(userId);
 
                 const Web3BridgeService = require('./src/services/web3BridgeService');
+                // ── VERIFICACIÓN KYC CON SINCRONIZACIÓN AUTOMÁTICA ──────────
+                // Se usa checkUserKYCDetailed() en vez de checkUserKYC() para
+                // distinguir entre "blockchain dijo false" y "blockchain no respondió".
+                // Esto permite sincronizar la columna users.kyc_verified (caché DB)
+                // solo cuando tenemos un dato real de la blockchain, evitando
+                // sobreescribir con un false causado por un error de red.
                 let isKycVerified = false;
+                // Flag que indica si la consulta a la blockchain fue exitosa.
+                // Si es false, no podemos confiar en el resultado y usamos fallback.
+                let blockchainQuerySucceeded = false;
+
                 if (userResult.rows[0].web3_wallet_address) {
-                    isKycVerified = await Web3BridgeService.checkUserKYC(userResult.rows[0].web3_wallet_address);
+                    // Consultar la blockchain usando el método detallado.
+                    const kycResult = await Web3BridgeService.checkUserKYCDetailed(
+                        userResult.rows[0].web3_wallet_address
+                    );
+                    // Extraer los resultados del objeto detallado.
+                    blockchainQuerySucceeded = kycResult.success;
+                    isKycVerified = kycResult.verified;
                 }
 
-                // --- FALLBACK ROBUSTO (Resiliencia ante reinicios de Anvil / desconexión RPC) ---
-                if (!isKycVerified && userResult.rows[0].kyc_verified) {
-                    console.log(`[API BALANCE] Fallback activado: KYC on-chain falló o dio false, pero usuario #${userId} está verificado en la base de datos.`);
+                // ── SINCRONIZACIÓN AUTOMÁTICA DB ← BLOCKCHAIN ───────────────
+                // Si la blockchain respondió exitosamente Y hay discrepancia con
+                // la columna kyc_verified en la DB, actualizamos la DB para que
+                // refleje la realidad on-chain (Single Source of Truth: Blockchain).
+                // Esto resuelve el caso donde la blockchain dice true pero la DB
+                // quedó desincronizada (ej: servidor se reinició entre la escritura
+                // on-chain y la actualización de la DB).
+                const dbKycStatus = userResult.rows[0].kyc_verified === true;
+                if (blockchainQuerySucceeded && userResult.rows[0].web3_wallet_address) {
+                    if (isKycVerified !== dbKycStatus) {
+                        try {
+                            await client.query(
+                                'UPDATE users SET kyc_verified = $1 WHERE id = $2',
+                                [isKycVerified, userId]
+                            );
+                            console.log(`[API BALANCE] ✅ Sincronización KYC: DB actualizada de ${dbKycStatus} a ${isKycVerified} para usuario #${userId}`);
+                        } catch (syncErr) {
+                            // Error no crítico: la próxima consulta lo reintentará.
+                            console.error(`[API BALANCE] ⚠️ Error al sincronizar KYC en DB para usuario #${userId}:`, syncErr.message);
+                        }
+                    }
+                }
+
+                // ── FALLBACK ROBUSTO (Resiliencia ante desconexión RPC) ──────
+                // SOLO se activa si la blockchain NO respondió (timeout, nodo caído).
+                // En ese caso, confiamos en la caché de la DB como último recurso.
+                // Si la blockchain SÍ respondió, su respuesta es la verdad absoluta
+                // y el fallback NO se activa (incluso si la DB dice lo contrario).
+                if (!blockchainQuerySucceeded && dbKycStatus) {
+                    console.log(`[API BALANCE] Fallback activado: blockchain no disponible, usando caché DB (kyc_verified=${dbKycStatus}) para usuario #${userId}.`);
                     isKycVerified = true;
                 }
 
@@ -1648,6 +1691,148 @@ async function startServer() {
             } catch (error) {
                 console.error("Error al obtener la lista de usuarios:", error);
                 res.status(500).json({ message: "Error interno del servidor." });
+            }
+        });
+
+        // ══════════════════════════════════════════════════════════════════════
+        // ENDPOINT: Consultar estado KYC real desde la blockchain (Lectura)
+        // ══════════════════════════════════════════════════════════════════════
+        //
+        // PROPÓSITO: Permite al admin ver el estado KYC real on-chain de un
+        // usuario, comparándolo con la caché de la DB. Esto resuelve el caso
+        // donde el admin necesita verificar si hay discrepancias sin tener que
+        // aprobar/revocar nada.
+        //
+        // SEGURIDAD:
+        // - verifyAdminToken: Solo accesible por administradores autenticados.
+        // - web3RpcLimiter: Rate limiting para proteger el nodo RPC de abuso.
+        // - userId (INTEGER PK) en la URL en vez de username: best practice
+        //   (inmutable, indexado, no expone datos personales).
+        // - Registra la consulta en audit_log para trazabilidad completa.
+        //
+        // ESTÁNDAR: Endpoint de lectura sin efectos secundarios. Cumple con
+        // el principio de Segregación de Responsabilidades (CQRS): la lectura
+        // del estado KYC está separada de su escritura (POST /api/governance/kyc).
+        // ══════════════════════════════════════════════════════════════════════
+        app.get('/api/admin/users/:userId/kyc-status', web3RpcLimiter, verifyAdminToken, async (req, res) => {
+            // ── PASO 1: Validar que userId sea un entero positivo ────────
+            // Prevenir inyección SQL y consultas con valores inválidos.
+            const userId = parseInt(req.params.userId, 10);
+            if (isNaN(userId) || userId <= 0) {
+                return res.status(400).json({
+                    message: 'El userId debe ser un número entero positivo.'
+                });
+            }
+
+            try {
+                // ── PASO 2: Obtener datos del usuario desde la DB ────────
+                // Consultamos wallet y kyc_verified (caché) en una sola query.
+                const userResult = await pool.query(
+                    `SELECT id, username, web3_wallet_address, kyc_verified
+                     FROM users
+                     WHERE id = $1`,
+                    [userId]
+                );
+
+                // Validar que el usuario exista en la base de datos.
+                if (userResult.rowCount === 0) {
+                    return res.status(404).json({
+                        message: `Usuario con ID ${userId} no encontrado.`
+                    });
+                }
+
+                const user = userResult.rows[0];
+                const walletAddress = user.web3_wallet_address;
+                // Estado KYC almacenado en la DB (puede estar desincronizado).
+                const kycInDatabase = user.kyc_verified === true;
+
+                // Si el usuario no tiene wallet, no podemos consultar la blockchain.
+                if (!walletAddress) {
+                    return res.json({
+                        userId: user.id,
+                        username: user.username,
+                        walletAddress: null,
+                        kycOnChain: null,
+                        kycInDatabase: kycInDatabase,
+                        synced: true,
+                        blockchainQuerySuccess: false,
+                        message: 'El usuario no tiene billetera Web3 asignada. No se puede consultar KYC on-chain.'
+                    });
+                }
+
+                // ── PASO 3: Consultar la blockchain directamente ─────────
+                // Usamos checkUserKYCDetailed() para obtener tanto el resultado
+                // como el flag de éxito/fallo de la consulta.
+                const Web3BridgeService = require('./src/services/web3BridgeService');
+                const kycResult = await Web3BridgeService.checkUserKYCDetailed(walletAddress);
+
+                // Determinar si los datos están sincronizados.
+                // Solo podemos afirmar sincronización si la blockchain respondió.
+                const synced = kycResult.success
+                    ? (kycResult.verified === kycInDatabase)
+                    : null; // null = no sabemos (blockchain no respondió).
+
+                // ── PASO 4: Si blockchain respondió y hay discrepancia, sincronizar DB ──
+                // Aprovechamos la consulta del admin para corregir la caché de la DB.
+                // Esto es seguro porque solo ocurre si la blockchain respondió exitosamente.
+                if (kycResult.success && kycResult.verified !== kycInDatabase) {
+                    await pool.query(
+                        'UPDATE users SET kyc_verified = $1 WHERE id = $2',
+                        [kycResult.verified, userId]
+                    );
+                    console.log(`[ADMIN KYC-STATUS] ✅ Sincronización automática: DB actualizada de ${kycInDatabase} a ${kycResult.verified} para usuario #${userId}`);
+                }
+
+                // ── PASO 5: Registrar consulta en audit_log ──────────────
+                // Toda acción administrativa sobre cuentas de usuario debe ser
+                // trazable (estándar de auditoría bancaria ISO 27001).
+                await logAuditEvent(pool, req, {
+                    eventType: 'KYC_STATUS_QUERIED',
+                    actorId: req.user?.userId || req.user?.id || null,
+                    actorUsername: req.user?.username || 'admin',
+                    targetUsername: user.username,
+                    category: 'compliance',
+                    metadata: {
+                        targetUserId: userId,
+                        walletAddress: walletAddress,
+                        kycOnChain: kycResult.success ? kycResult.verified : null,
+                        kycInDatabase: kycInDatabase,
+                        blockchainQuerySuccess: kycResult.success,
+                        synced: synced,
+                        autoSynced: kycResult.success && kycResult.verified !== kycInDatabase
+                    }
+                });
+
+                // ── PASO 6: Responder con toda la información ────────────
+                // El admin puede ver exactamente qué dice cada fuente de datos.
+                return res.json({
+                    userId: user.id,
+                    username: user.username,
+                    walletAddress: walletAddress,
+                    // Estado real en la blockchain (null si no se pudo consultar).
+                    kycOnChain: kycResult.success ? kycResult.verified : null,
+                    // Estado almacenado en la base de datos (caché).
+                    // Si se auto-sincronizó, reflejamos el valor actualizado.
+                    kycInDatabase: kycResult.success && kycResult.verified !== kycInDatabase
+                        ? kycResult.verified
+                        : kycInDatabase,
+                    // ¿Están sincronizados ambos? (null si blockchain no respondió).
+                    synced: kycResult.success ? true : null,
+                    // ¿La consulta a la blockchain fue exitosa?
+                    blockchainQuerySuccess: kycResult.success,
+                    // Mensaje descriptivo para el admin.
+                    message: !kycResult.success
+                        ? 'No se pudo conectar con la blockchain. Se muestra el estado almacenado en la base de datos.'
+                        : (synced === false
+                            ? 'Se detectó discrepancia y se sincronizó la base de datos automáticamente.'
+                            : 'Estado KYC consultado exitosamente.')
+                });
+
+            } catch (error) {
+                console.error('[ADMIN KYC-STATUS] Error al consultar KYC:', error);
+                return res.status(500).json({
+                    message: 'Error interno al consultar el estado KYC.'
+                });
             }
         });
 

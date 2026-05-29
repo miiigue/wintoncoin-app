@@ -1270,17 +1270,18 @@ document.addEventListener('DOMContentLoaded', () => {
             <a href="publication-detail.html?id=${pub.id}" class="publication-item-link">
                 <div class="publication-item ${expirationInfo.isExpired ? 'expired' : ''} ${isDonation ? 'donation-card' : ''}" data-id="${pub.id}" data-author="${safeAuthorAttr}">
                     
-                    <div class="card-top-row">
-                        <div class="cost-ribbon-left ${ribbonClass}">${rewardText}</div>
+                    <div class="card-top-row ${statusMessageHTML ? 'has-status' : ''}">
                         <button class="card-close-btn" onclick="event.preventDefault(); event.stopPropagation(); window.handleCardAction('hide', ${pub.id})">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="18" y1="6" x2="6" y2="18"></line>
                                 <line x1="6" y1="6" x2="18" y2="18"></line>
                             </svg>
                         </button>
-                    </div>
+                        
+                        ${statusMessageHTML}
 
-                    ${statusMessageHTML}
+                        <div class="cost-ribbon-right ${ribbonClass}">${rewardText}</div>
+                    </div>
 
                     <div class="publication-header">
                         ${cardTitle}
