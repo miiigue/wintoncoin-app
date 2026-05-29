@@ -1150,20 +1150,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (userStatus === 'approved') {
             if (pub.is_sell_post) {
-                message = 'Completa el pago para recibir el producto.';
+                message = 'Pendiente pago';
             } else {
-                message = '¡Aprobado! Ya puedes realizar la tarea.';
+                message = 'Tarea aprobada';
             }
             className = 'status-approved';
         } else if (userStatus === 'completed') {
             if (pub.is_sell_post) {
-                message = 'Pago realizado. Esperando confirmación del vendedor.';
+                message = 'Esperando confirmación';
             } else {
-                message = 'Tarea culminada. Esperando confirmación.';
+                message = 'Esperando confirmación';
             }
             className = 'status-completed';
         } else if (userStatus === 'pending_approval') {
-            message = 'Solicitud enviada. Esperando aprobación.';
+            message = 'Esperando aprobación';
             className = 'status-pending';
         }
 
