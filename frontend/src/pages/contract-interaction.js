@@ -1152,7 +1152,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (pub.is_sell_post) {
                 message = 'Pendiente pago';
             } else {
-                message = 'Tarea aprobada';
+                message = 'Puedes comenzar!';
             }
             className = 'status-approved';
         } else if (userStatus === 'completed') {
