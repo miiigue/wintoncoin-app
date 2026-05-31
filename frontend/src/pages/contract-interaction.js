@@ -653,22 +653,35 @@ document.addEventListener('DOMContentLoaded', () => {
      * Actualiza el estado visual (aria-pressed, clase active) y re-renderiza.
      */
     function handleFilterChipClick(event) {
+        // Obtenemos el chip clickeado
         const chip = event.target.closest('.filter-chip');
         if (!chip || chip.classList.contains('active')) return;
 
-        // Desactivar todos los chips
+        // Registramos el filtro previo y el nuevo para evaluar si es necesario hacer fetch
+        const previousFilter = currentFilter;
+        const newFilter = chip.dataset.filter;
+
+        // Desactivar todos los chips para limpiar la visualización
         elements.publicationFilterChips.querySelectorAll('.filter-chip').forEach(c => {
             c.classList.remove('active');
             c.setAttribute('aria-pressed', 'false');
         });
 
-        // Activar el chip seleccionado
+        // Activar el chip seleccionado y marcar el estado accesible aria-pressed
         chip.classList.add('active');
         chip.setAttribute('aria-pressed', 'true');
 
-        // Actualizar estado y re-renderizar
-        currentFilter = chip.dataset.filter;
-        renderPublicationsWithFilters();
+        // Actualizar el estado del filtro activo en el módulo
+        currentFilter = newFilter;
+
+        // Si transicionamos desde o hacia el filtro "Ocultas" (hidden), debemos realizar una consulta
+        // fresca al servidor (Lazy Loading) ya que los datasets son disjuntos (activos vs ocultados).
+        // Para filtros ordinarios del feed activo, mantenemos la velocidad renderizando localmente en caché.
+        if (previousFilter === 'hidden' || newFilter === 'hidden') {
+            fetchAndDisplayPublications();
+        } else {
+            renderPublicationsWithFilters();
+        }
     }
 
     /**
@@ -875,24 +888,41 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!elements.publicationsList) return;
 
         try {
-            const response = await fetch(`${API_URL}/publications/active?user=${storedUsername}`);
+            // Construimos dinámicamente la query string de forma segura.
+            // Si el filtro actual es 'hidden', añadimos el parámetro correspondiente para el lazy loading.
+            const filterParam = currentFilter === 'hidden' ? '&filter=hidden' : '';
+            const response = await fetch(`${API_URL}/publications/active?user=${storedUsername}${filterParam}`);
+            
             if (!response.ok) {
                 elements.publicationsList.innerHTML = '<p>Error al cargar las publicaciones.</p>';
                 return;
             }
             const publications = await response.json();
 
+            // Lógica UX de estado vacío diferenciado para una experiencia premium
             if (publications.length === 0) {
-                elements.publicationsList.innerHTML = `
-                    <div class="empty-state-container">
-                        <div class="empty-state-icon">🚀</div>
-                        <h3>¡El mercado está tranquilo!</h3>
-                        <p>Es el momento perfecto para definir la economía.</p>
-                        <button onclick="document.getElementById('openPublicationModalBtn').click()" class="action-button primary-action pulse-animation">
-                            Crear la Primera Publicación
-                        </button>
-                    </div>
-                `;
+                if (currentFilter === 'hidden') {
+                    // Estado vacío específico para la pestaña de publicaciones archivadas/ocultas
+                    elements.publicationsList.innerHTML = `
+                        <div class="empty-state-container">
+                            <div class="empty-state-icon">📁</div>
+                            <h3>No tienes publicaciones ocultas</h3>
+                            <p>Las publicaciones que decidas ocultar con el botón 'X' aparecerán aquí para que puedas recuperarlas.</p>
+                        </div>
+                    `;
+                } else {
+                    // Estado vacío por defecto para el mercado principal
+                    elements.publicationsList.innerHTML = `
+                        <div class="empty-state-container">
+                            <div class="empty-state-icon">🚀</div>
+                            <h3>¡El mercado está tranquilo!</h3>
+                            <p>Es el momento perfecto para definir la economía.</p>
+                            <button onclick="document.getElementById('openPublicationModalBtn').click()" class="action-button primary-action pulse-animation">
+                                Crear la Primera Publicación
+                            </button>
+                        </div>
+                    `;
+                }
                 updatePublicationsCount([]);
                 return;
             }
@@ -1263,6 +1293,29 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
 
+        // Determinamos si el feed activo está mostrando las publicaciones ocultas.
+        const isHiddenView = currentFilter === 'hidden';
+
+        // Estilo dinámico: Si el usuario visualiza las publicaciones ocultas, se renderiza
+        // un botón para deshacer/restaurar (icono de retorno) en lugar de la X de cerrar.
+        const actionButtonHTML = isHiddenView
+            ? `
+            <button class="card-close-btn restore-btn" title="Restaurar publicación" onclick="event.preventDefault(); event.stopPropagation(); window.handleCardAction('unhide', ${pub.id})">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                    <polyline points="3 3 3 8 8 8"></polyline>
+                </svg>
+            </button>
+            `
+            : `
+            <button class="card-close-btn" title="Ocultar publicación" onclick="event.preventDefault(); event.stopPropagation(); window.handleCardAction('hide', ${pub.id})">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+            `;
+
         // Título de la tarjeta — XSS Prevention: escapar título del servidor
         const cardTitle = `<h3>${escapeHtml(pub.title)}</h3>`;
 
@@ -1271,12 +1324,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="publication-item ${expirationInfo.isExpired ? 'expired' : ''} ${isDonation ? 'donation-card' : ''}" data-id="${pub.id}" data-author="${safeAuthorAttr}">
                     
                     <div class="card-top-row ${statusMessageHTML ? 'has-status' : ''}">
-                        <button class="card-close-btn" onclick="event.preventDefault(); event.stopPropagation(); window.handleCardAction('hide', ${pub.id})">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                            </svg>
-                        </button>
+                        ${actionButtonHTML}
                         
                         ${statusMessageHTML}
 
@@ -1351,10 +1399,41 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // Acción directa de ocultar
+    // Acción directa de ocultar y restaurar (unhide) publicaciones
     window.handleCardAction = async function (action, id) {
         if (action === 'hide') {
             await hidePublication(id);
+        } else if (action === 'unhide') {
+            // Estándar UX: Animación optimista inmediata antes de la respuesta del servidor.
+            // Esto le da al usuario una experiencia fluida sin esperas de red molestas.
+            const item = document.querySelector(`.publication-item[data-id="${id}"]`);
+            if (item) {
+                const cardLink = item.closest('.publication-item-link');
+                if (cardLink) {
+                    // Transición suave de salida
+                    cardLink.style.transition = 'all 0.3s ease';
+                    cardLink.style.opacity = '0';
+                    cardLink.style.transform = 'scale(0.9)';
+                    
+                    // Remoción física del DOM tras finalizar la animación
+                    setTimeout(() => {
+                        cardLink.remove();
+                        // Si se restauró la última tarjeta oculta, renderizar el estado vacío correspondiente.
+                        const remainingItems = elements.publicationsList.querySelectorAll('.publication-item-link');
+                        if (remainingItems.length === 0) {
+                            elements.publicationsList.innerHTML = `
+                                <div class="empty-state-container">
+                                    <div class="empty-state-icon">📁</div>
+                                    <h3>No tienes publicaciones ocultas</h3>
+                                    <p>Las publicaciones que decidas ocultar con el botón 'X' aparecerán aquí para que puedas recuperarlas.</p>
+                                </div>
+                            `;
+                        }
+                    }, 300);
+                }
+            }
+            // Ejecutamos la petición de red persistente al backend
+            await unhidePublication(id);
         }
     };
 

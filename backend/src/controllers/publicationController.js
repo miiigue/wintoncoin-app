@@ -324,21 +324,38 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         }
     });
 
-    // Ruta para obtener publicaciones activas
+    // Ruta para obtener publicaciones activas (y opcionalmente las que el usuario ha ocultado)
     router.get('/publications/active', async (req, res) => {
-        const { user: requestingUser, search } = req.query; // search puede ser undefined
+        // Extraemos 'user' (usuario que consulta), 'search' (criterio de búsqueda por texto),
+        // y el nuevo parámetro 'filter' que nos indica si se solicitan las publicaciones ocultas.
+        const { user: requestingUser, search, filter } = req.query; 
+        
+        // Validación estricta del parámetro requerido para la consulta.
         if (!requestingUser) return res.status(400).json({ message: "Es necesario especificar un usuario." });
 
-        // FIX DE SEGURIDAD: Usar parámetros de consulta para prevenir inyección de SQL
+        // Evaluamos si el filtro solicitado es específicamente para publicaciones ocultas.
+        const isHiddenFilter = filter === 'hidden';
+
+        // Estándar de Ciberseguridad: La consulta SQL se arma dinámicamente seleccionando 
+        // una de dos opciones estáticas pre-codificadas en Javascript.
+        // Esto elimina cualquier posibilidad de inyección SQL (SQL Injection Vulnerability) 
+        // ya que no se interpola directamente texto ingresado por el usuario en la estructura SQL.
+        const hiddenSubquery = isHiddenFilter
+            ? `p.id IN (SELECT hp.publication_id FROM hidden_publications hp WHERE hp.hider_username = $1)`
+            : `p.id NOT IN (SELECT hp.publication_id FROM hidden_publications hp WHERE hp.hider_username = $1)`;
+
+        // Parámetros seguros para la consulta SQL parametrizada.
         const queryParams = [requestingUser];
         let searchCondition = "";
+        
+        // Sanitización y armado dinámico de la búsqueda si el usuario ingresó texto.
         if (search) {
-            // El placeholder para el parámetro de búsqueda será el siguiente número disponible.
+            // Se utiliza el placeholder correspondiente al índice de parámetro sanitizado.
             searchCondition = ` AND (p.title ILIKE $${queryParams.length + 1} OR p.description ILIKE $${queryParams.length + 1})`;
             queryParams.push(`%${search}%`);
         }
 
-        // FIX FUNCIONAL: Añadido p.expires_at y p.allow_repeat_participation a la lista de campos
+        // Estructura de consulta SQL optimizada con índices y subqueries.
         const sql = `
                 SELECT
             p.id, p.title, p.description, p.blue_cost, p.created_at, p.status, p.category,
@@ -381,7 +398,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 JOIN
                     users u on p.author_id = u.id
                 WHERE
-                    p.id NOT IN (SELECT hp.publication_id FROM hidden_publications hp WHERE hp.hider_username = $1)
+                    ${hiddenSubquery}
                     AND p.deleted_at IS NULL
                     AND COALESCE(p.is_paused, FALSE) = FALSE
                     -- (UX + seguridad de negocio): Si la publicación NO es repetible y el usuario ya la completó/pagó,

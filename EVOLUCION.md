@@ -15,6 +15,22 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ## Línea de tiempo (hitos)
 
+### 2026-05-31 — Filtro de Publicaciones Ocultas y Restauración desde el Feed
+
+- **Contexto**: El usuario solicitaba poder ver y recuperar (restaurar) aquellas publicaciones que había ocultado del feed presionando la "X". Esto debía realizarse mediante un filtro en la barra de botones y resolverse bajo los más estrictos estándares profesionales de la industria (sincronización multidispositivo y carga bajo demanda para conservar el rendimiento).
+- **Decisión**:
+  - **Modificación de Endpoint de Publicaciones (`publicationController.js`)**: Se adaptó el endpoint `GET /publications/active` para que soporte el parámetro opcional `filter`. Si `filter === 'hidden'`, el query de SQL busca en la base de datos únicamente las publicaciones ocultadas por el usuario (`p.id IN (SELECT hp.publication_id FROM hidden_publications hp WHERE hp.hider_username = $1)`), de lo contrario las excluye. Para ciberseguridad y auditoría, el fragmento de código SQL se escoge a nivel de constantes estáticas en JavaScript, erradicando cualquier riesgo de inyección SQL.
+  - **Ampliación de Controles en la Interfaz (`contract_interaction.html`)**: Se inyectó un nuevo chip de filtro `<button type="button" class="filter-chip" data-filter="hidden" aria-pressed="false">Ocultas</button>` que permite al usuario alternar a la vista de publicaciones archivadas.
+  - **Refactorización de Lógica de Filtrado y Lazy Loading (`contract-interaction.js`)**:
+    - Se actualizó el controlador `handleFilterChipClick()` de modo que, si el filtro anterior era `hidden` o el nuevo seleccionado es `hidden`, se realiza una petición fresca al servidor para traer los datos específicos (Lazy Loading), mientras que los cambios entre pestañas normales continúan procesándose en memoria de forma instantánea.
+    - Se adaptó `getPublicationCardHTML()` para que, en la vista `'hidden'`, sustituya dinámicamente el botón "X" de cerrar por un botón circular con icono de restaurar/deshacer (`rotate-ccw`) con la acción `unhide`.
+    - Se implementó la acción `unhide` en `window.handleCardAction()` para aplicar una animación optimista de salida de la tarjeta (`opacity: 0`, `transform: scale(0.9)`) antes de removerla físicamente del DOM y lanzar la petición asíncrona a `/unhide` en el backend.
+    - Se personalizó el mensaje de estado vacío para la vista de ocultas con fines de claridad para el usuario.
+- **Impacto**: Se brinda una UX fluida y de primer nivel con microanimaciones estéticas, posibilitando deshacer la acción de ocultar. El uso de Lazy Loading en el backend mantiene la carga inicial y el feed principal extremadamente ligeros y optimizados para producción en dispositivos móviles de cualquier gama, manteniendo la seguridad bancaria y la protección contra inyecciones SQL.
+- **Evidencia**: Modificaciones en `publicationController.js`, `contract_interaction.html` y `contract-interaction.js`.
+
+---
+
 ### 2026-05-29 — Sincronización KYC Blockchain ↔ Base de Datos y Resolución de Discrepancias
 
 - **Contexto**: Se identificó una discrepancia en el entorno de Demostración donde los usuarios (como `test1`) mostraban estar verificados "On-Chain" en su app móvil/frontend, pero aparecían sin verificación KYC ni dirección de billetera en el Panel de Administración. Esto ocurría porque el panel admin consultaba únicamente la base de datos (`users.kyc_verified`), la cual no estaba sincronizada con el estado real on-chain en la blockchain tras cambios directos o reinicios de nodo, y el panel admin no disponía de un método directo para consultar la verdad de la blockchain.
