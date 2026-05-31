@@ -92,3 +92,11 @@ frontend/dist/
 # Android Java Heap Dumps
 *.hprof
 
+# Vite Temporary Config Compilation Files
+frontend/vite.config.js.timestamp-*.mjs
+frontend/vite.config.js.timestamp-*.js
+
+# Local Developer Debug/Scratch Directories
+backend/scratch/
+frontend/scratch/
+
