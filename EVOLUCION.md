@@ -15,6 +15,22 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ## Línea de tiempo (hitos)
 
+### 2026-06-01 — Refactorización y Auditoría Bancaria de Publicaciones Ocultas
+
+- **Contexto**: Se requería que los usuarios pudieran ver en un carrusel las publicaciones que habían ocultado. Al analizar el código base para implementar esta funcionalidad, se identificó un problema de "código monolítico": las rutas `/hide` y `/unhide` estaban escritas directamente en `server.js` y, más críticamente, **no generaban registros de auditoría (Audit Log)** al ser invocadas, incumpliendo las estrictas políticas de trazabilidad bancaria y seguridad del proyecto.
+- **Decisión**:
+  - **Modularización Estricta**: Se eliminaron las rutas `/hide` y `/unhide` de `server.js` y se migraron a su controlador correspondiente `publicationController.js`, limpiando el archivo principal del servidor y respetando la arquitectura de capas.
+  - **Auditoría Transaccional 100% Trazable**: Se integró la función `logAuditEvent` dentro de una transacción (`BEGIN...COMMIT`) en ambas rutas. Ahora, cada vez que un usuario oculta o restaura una publicación, se genera un registro inmutable en la base de datos (`event_type: 'publication.hidden'` y `event_type: 'publication.unhidden'`), asegurando trazabilidad bancaria completa.
+  - **Nuevo Endpoint de Lectura**: Se creó el endpoint `GET /publications/hidden` en `publicationController.js` para retornar de manera segura únicamente las publicaciones ocultadas por el usuario autenticado, respetando los filtros de seguridad y joins de la base de datos.
+  - **Evolución del Frontend**: Se añadió el chip interactivo "Ocultadas" en `contract_interaction.html`, aprovechando las reglas CSS nativas del carrusel (`overflow-x: auto`). En `contract-interaction.js`, se implementó la lógica para detectar el filtro "Ocultadas", recargar los datos desde el nuevo endpoint y transformar dinámicamente el botón "X" de cada publicación en un botón de "Desocultar" con su respectivo ícono y funcionalidad de restauración en tiempo real.
+- **Impacto**:
+  - Cumplimiento absoluto del estándar de ingeniería de trazabilidad bancaria para operaciones de visualización crítica.
+  - El código backend es más limpio, modular y fácil de mantener.
+  - Mejora sustancial en la Experiencia de Usuario (UX) sin afectar la estética premium (Fintech Design), permitiendo a los usuarios gestionar su propio feed con total transparencia.
+- **Evidencia**: Modificaciones en `server.js`, `publicationController.js`, `contract_interaction.html`, y `contract-interaction.js`.
+
+---
+
 ### 2026-05-29 — Sincronización KYC Blockchain ↔ Base de Datos y Resolución de Discrepancias
 
 - **Contexto**: Se identificó una discrepancia en el entorno de Demostración donde los usuarios (como `test1`) mostraban estar verificados "On-Chain" en su app móvil/frontend, pero aparecían sin verificación KYC ni dirección de billetera en el Panel de Administración. Esto ocurría porque el panel admin consultaba únicamente la base de datos (`users.kyc_verified`), la cual no estaba sincronizada con el estado real on-chain en la blockchain tras cambios directos o reinicios de nodo, y el panel admin no disponía de un método directo para consultar la verdad de la blockchain.

@@ -666,9 +666,16 @@ document.addEventListener('DOMContentLoaded', () => {
         chip.classList.add('active');
         chip.setAttribute('aria-pressed', 'true');
 
-        // Actualizar estado y re-renderizar
+        const previousFilter = currentFilter;
         currentFilter = chip.dataset.filter;
-        renderPublicationsWithFilters();
+
+        if (currentFilter === 'hidden' || previousFilter === 'hidden') {
+            // Recargar datos desde el servidor si entramos o salimos de 'Ocultadas'
+            fetchAndDisplayPublications();
+        } else {
+            // Solo filtrar en caché para el resto
+            renderPublicationsWithFilters();
+        }
     }
 
     /**
@@ -875,7 +882,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!elements.publicationsList) return;
 
         try {
-            const response = await fetch(`${API_URL}/publications/active?user=${storedUsername}`);
+            const endpoint = currentFilter === 'hidden' ? '/publications/hidden' : '/publications/active';
+            const response = await fetch(`${API_URL}${endpoint}?user=${storedUsername}`);
             if (!response.ok) {
                 elements.publicationsList.innerHTML = '<p>Error al cargar las publicaciones.</p>';
                 return;
@@ -1006,7 +1014,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // --- Paso 1: Aplicar filtro por tipo/estado ---
-        if (activeFilter === 'pending') {
+        if (activeFilter === 'hidden') {
+            // No aplicamos más filtros de estado, las recibimos directo del backend filtradas
+        } else if (activeFilter === 'pending') {
             result = result.filter(pub => isPendingForUser(pub));
         } else if (activeFilter === 'request' || activeFilter === 'sell' || activeFilter === 'donation') {
             result = result.filter(pub => getPublicationType(pub) === activeFilter);
@@ -1265,17 +1275,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Título de la tarjeta — XSS Prevention: escapar título del servidor
         const cardTitle = `<h3>${escapeHtml(pub.title)}</h3>`;
+        
+        const isHiddenView = currentFilter === 'hidden';
+        const actionBtnAction = isHiddenView ? 'unhide' : 'hide';
+        // Icono de Ojo con tachado (o restauración) si está oculto, Icono X si no lo está
+        const actionBtnIcon = isHiddenView 
+            ? `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>` 
+            : `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
 
         return `
             <a href="publication-detail.html?id=${pub.id}" class="publication-item-link">
                 <div class="publication-item ${expirationInfo.isExpired ? 'expired' : ''} ${isDonation ? 'donation-card' : ''}" data-id="${pub.id}" data-author="${safeAuthorAttr}">
                     
                     <div class="card-top-row ${statusMessageHTML ? 'has-status' : ''}">
-                        <button class="card-close-btn" onclick="event.preventDefault(); event.stopPropagation(); window.handleCardAction('hide', ${pub.id})">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                            </svg>
+                        <button class="card-close-btn ${isHiddenView ? 'unhide-btn' : ''}" onclick="event.preventDefault(); event.stopPropagation(); window.handleCardAction('${actionBtnAction}', ${pub.id})" title="${isHiddenView ? 'Desocultar' : 'Ocultar'}">
+                            ${actionBtnIcon}
                         </button>
                         
                         ${statusMessageHTML}
@@ -1351,10 +1365,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // Acción directa de ocultar
+    // Acción directa de ocultar/desocultar
     window.handleCardAction = async function (action, id) {
         if (action === 'hide') {
             await hidePublication(id);
+        } else if (action === 'unhide') {
+            await unhidePublication(id);
+            // Si estamos en la vista de ocultadas, removemos el item
+            if (currentFilter === 'hidden') {
+                const item = document.querySelector(`.publication-item[data-id="${id}"]`);
+                const cardLink = item?.closest('.publication-item-link');
+                if (cardLink) {
+                    cardLink.style.display = 'none';
+                }
+            }
         }
     };
 
