@@ -26,8 +26,9 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
     - Se adaptó `getPublicationCardHTML()` para que, en la vista `'hidden'`, sustituya dinámicamente el botón "X" de cerrar por un botón circular con icono de restaurar/deshacer (`rotate-ccw`) con la acción `unhide`.
     - Se implementó la acción `unhide` en `window.handleCardAction()` para aplicar una animación optimista de salida de la tarjeta (`opacity: 0`, `transform: scale(0.9)`) antes de removerla físicamente del DOM y lanzar la petición asíncrona a `/unhide` en el backend.
     - Se personalizó el mensaje de estado vacío para la vista de ocultas con fines de claridad para el usuario.
-- **Impacto**: Se brinda una UX fluida y de primer nivel con microanimaciones estéticas, posibilitando deshacer la acción de ocultar. El uso de Lazy Loading en el backend mantiene la carga inicial y el feed principal extremadamente ligeros y optimizados para producción en dispositivos móviles de cualquier gama, manteniendo la seguridad bancaria y la protección contra inyecciones SQL.
-- **Evidencia**: Modificaciones en `publicationController.js`, `contract_interaction.html` y `contract-interaction.js`.
+  - **Resolución de Regresión de Diseño y Desplazamiento Horizontal (`style.css`)**: Al agregar una sexta pestaña de filtro ('Ocultas'), la fila de chips superaba el ancho de pantalla en móviles y se recortaba de forma inaccesible debido a la combinación de `justify-content: center` y `overflow-x: auto` en `.publication-filter-chips`. Se cambió la alineación a `justify-content: flex-start` y se ajustó el padding lateral de los chips para garantizar que el contenedor se comporte como un carrusel deslizable horizontal de forma nativa e interactiva sin alterar el diseño.
+- **Impacto**: Se brinda una UX fluida y de primer nivel con microanimaciones estéticas, posibilitando deslizar lateralmente las píldoras de filtro tipo carrusel en móviles y deshacer la acción de ocultar. El uso de Lazy Loading en el backend mantiene la carga inicial y el feed principal extremadamente ligeros y optimizados para producción en dispositivos móviles de cualquier gama, manteniendo la seguridad bancaria y la protección contra inyecciones SQL.
+- **Evidencia**: Modificaciones en `publicationController.js`, `contract_interaction.html`, `contract-interaction.js` y `style.css`.
 
 ---
 

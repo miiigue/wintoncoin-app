@@ -739,12 +739,13 @@ hr {
 .publication-filter-chips {
     display: flex;
     flex-wrap: nowrap;
-    justify-content: center;
+    justify-content: flex-start; /* ESTÁNDAR UX FINTECH: Alineación al inicio para permitir scroll horizontal fluido sin pérdida de coordenadas de scroll en pantallas móviles */
     gap: 6px;
-    padding: 0;
+    padding: 2px 8px; /* Padding interno para que los bordes y sombras activas de los chips no se recorten en los extremos */
     overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch; /* Habilita momentum scrolling nativo en dispositivos iOS */
+    scrollbar-width: none; /* Oculta la barra de scroll nativa en Firefox para mantener estética limpia */
+    width: 100%; /* Ocupa todo el ancho del contenedor padre */
 }
 
 .publication-filter-chips::-webkit-scrollbar {
