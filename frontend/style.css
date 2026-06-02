@@ -41,6 +41,8 @@ body {
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
     width: 100%;
     max-width: 450px;
+    min-width: 0; /* Fundamental: evita que el contenedor se ensanche por los chips (flex min-width bug) */
+    box-sizing: border-box; /* Fundamental: evita que el padding se sume al 100% de ancho en móviles */
     text-align: center;
     position: relative;
     /* Necesario para posicionar la banda diagonal */
@@ -739,13 +741,22 @@ hr {
 .publication-filter-chips {
     display: flex;
     flex-wrap: nowrap;
-    justify-content: center; /* Fallback para navegadores antiguos: mantiene el centrado original */
-    justify-content: safe center; /* ESTÁNDAR UX FINTECH: Centra los chips si caben en pantalla (aspecto de 18:44), pero alinea a flex-start si desbordan para permitir scroll correcto */
+    /* justify-content se remueve para usar el truco de auto margins (::before/::after) que funciona en el 100% de móviles */
     gap: 6px;
-    padding: 0; /* Restauramos a 0 para mantener la estructura original exacta */
+    padding: 4px 0; /* Padding vertical para estética, 0 horizontal para respetar el contenedor */
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    width: 100%; /* Toma todo el ancho disponible del contenedor sin romperlo */
+    max-width: 100%;
+    box-sizing: border-box; /* Fundamental: asegura que el padding/ancho no rompan la pantalla */
+}
+
+/* Truco maestro UX Fintech: Centra los elementos si hay espacio, pero permite scroll alineado a la izquierda si desbordan */
+.publication-filter-chips::before,
+.publication-filter-chips::after {
+    content: '';
+    margin: auto;
 }
 
 .publication-filter-chips::-webkit-scrollbar {

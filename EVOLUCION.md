@@ -15,6 +15,27 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ## Línea de tiempo (hitos)
 
+### 2026-06-02 — Resolución de Conexión de Base de Datos en Entorno Local (SSL)
+
+- **Contexto**: El servidor de desarrollo fallaba al iniciar en entornos locales con el error `The server does not support SSL connections`. El archivo de configuración de base de datos (`db.js`) intentaba adivinar si desactivar el SSL buscando la palabra `localhost` en la cadena de conexión, pero si el desarrollador no tenía la variable definida o usaba otra IP local, el servidor forzaba SSL obligatoriamente causando que PostgreSQL local rechazara la conexión.
+- **Decisión**: Se implementó la buena práctica de la industria en `backend/src/config/db.js` priorizando la verificación del entorno mediante la variable `NODE_ENV`. Si `process.env.NODE_ENV !== 'production'`, el SSL se desactiva por completo sin importar cómo esté construida la cadena de conexión.
+- **Impacto**: Los desarrolladores ahora pueden arrancar el servidor en sus computadoras locales instantáneamente (`npm start`) sin fallos de SSL, mientras que el entorno de producción en la nube sigue protegido y encriptado.
+- **Evidencia**: Modificación del chequeo de entorno en `backend/src/config/db.js`.
+
+---
+
+### 2026-06-02 — Resolución Definitiva: Bug de Ancho Intrínseco en Flexbox (Layout Mobile)
+
+- **Contexto Matemático**: La adición del 6to chip ("Ocultas") incrementó el ancho mínimo intrínseco (`min-content`) del carrusel de filtros a más de ~420px. Al estar todo dentro del `.container` (el cual es un elemento Flex en el `body`), las reglas de Flexbox (`min-width: auto`) forzaron al contenedor a ignorar su límite del 100% en pantallas móviles (ej. 360px) y expandirse hasta los 420px. 
+- **El Efecto Visual**: Al expandirse y estar centrado, el contenedor se desbordó unos ~30px por cada lado de la pantalla, empujando todo el `padding` (márgenes laterales) fuera del área visible, lo que causó que botones y tarjetas chocaran abruptamente contra los bordes del dispositivo.
+- **Decisión de Ingeniería**: Se agregaron dos reglas maestras a la clase `.container` principal:
+  1. `min-width: 0;`: Obliga a Flexbox a permitir que el contenedor se encoja por debajo del tamaño de los chips.
+  2. `box-sizing: border-box;`: Garantiza matemáticamente que el 100% del ancho ya incluya los 24px de padding, evitando cualquier desbordamiento futuro por box-model.
+- **Impacto**: La interfaz recupera de inmediato sus márgenes elegantes (padding de 1.5rem), y el scroll horizontal de los chips funciona libremente en su área sin destruir la geometría del contenedor padre. Diseño Premium y Fintech garantizado.
+- **Evidencia**: Modificación de la clase global `.container` en `frontend/style.css`.
+
+---
+
 ### 2026-05-31 — Filtro de Publicaciones Ocultas y Restauración desde el Feed
 
 - **Contexto**: El usuario solicitaba poder ver y recuperar (restaurar) aquellas publicaciones que había ocultado del feed presionando la "X". Esto debía realizarse mediante un filtro en la barra de botones y resolverse bajo los más estrictos estándares profesionales de la industria (sincronización multidispositivo y carga bajo demanda para conservar el rendimiento).
