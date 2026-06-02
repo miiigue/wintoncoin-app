@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>[DEMO] WintonCoin</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Plataforma de intercambio de bienes y servicios con tokens BLUE y RED">
+    <meta name="theme-color" content="#4a90d9">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="WintonCoin">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="WintonCoin">
+    <meta name="msapplication-TileColor" content="#1a1a2e">
+    <meta name="msapplication-tap-highlight" content="no">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.demo.json">
+
+    <!-- PWA Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="./assets/icon-96x96.DCzaNkg0.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="./assets/icon-72x72.BGJbw9VK.png">
+    <link rel="apple-touch-icon" href="./assets/icon-192x192.DTV1SGDv.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="./assets/icon-152x152.HiZk-PlL.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/icon-192x192.DTV1SGDv.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="./assets/icon-192x192.DTV1SGDv.png">
+
+    <!-- Splash screens for iOS -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+
+    <!-- Importación de la fuente Poppins desde Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400&family=Poppins:wght@300;400;600&display=swap"
+        rel="stylesheet">
+    <!-- Driver.js for Onboarding -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css" />
+  <script type="module" crossorigin src="./assets/dashboard.afCmDRgp.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill.B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="./assets/alerts.CawRDXDp.js">
+  <link rel="modulepreload" crossorigin href="./assets/config.Br4uoD7s.js">
+  <link rel="modulepreload" crossorigin href="./assets/auth.PfzP10z-.js">
+  <link rel="modulepreload" crossorigin href="./assets/index.Dk_Cx65J.js">
+  <link rel="modulepreload" crossorigin href="./assets/pushManager.C2effs3l.js">
+  <link rel="stylesheet" crossorigin href="./assets/pushManager.B1WnFsPR.css">
+  <link rel="stylesheet" crossorigin href="./assets/style.C7Ud9owh.css">
+  <link rel="stylesheet" crossorigin href="./assets/admin-switch.z10rU-x2.css">
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+
+<body>
+    <div class="header-menu">
+        <!-- Menú de Perfil del Usuario -->
+        <div class="profile-menu">
+            <div class="profile-trigger" style="align-items: flex-start; margin-top: -10px;">
+                <span id="usernameDisplay">Usuario</span> <!-- El nombre se insertará aquí -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-list"
+                    viewBox="0 0 16 16" style="margin-top: -2px; margin-left: 8px;">
+                    <path fill-rule="evenodd"
+                        d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z" />
+                </svg>
+            </div>
+            <div class="dropdown-content" id="profileDropdown">
+                <a href="como-funciona.html">¿Cómo funciona?</a>
+                <a href="p2p.html">Vende o Compra BLUE</a>
+                <a href="history.html">Historial</a>
+                <a href="transactions.html">Transacciones</a>
+                <a href="referrals.html">Referidos</a>
+                <a href="booster-profile.html">Perfil de Impulsor</a>
+                <a href="estado-cuenta.html" style="color: #10B981; font-weight: 600;">Billetera Web3 📊</a>
+                <a href="#" id="menuSolidarioHistory"
+                    style="display: none; color: #e83e8c; font-weight: 600;">Donaciones ❤️</a>
+                <a href="momentum-dashboard.html" id="momentumMenuLink"
+                    style="display: none; color: #f59e0b; font-weight: 600;">Winton Momentum ⚡</a>
+                <a href="love.html">Página LOVE</a>
+                <a href="documentation.html">Documentación</a>
+                <a href="https://www.wintoncoin.com" target="_blank">🌐 Ir al Sitio Web</a>
+                <a href="#" id="openSettingsModal">⚙️ Configuración</a>
+                <a href="#" id="logoutLink">Cerrar Sesión</a>
+            </div>
+        </div>
+
+        <!-- Menú de Notificaciones -->
+        <div class="notification-menu">
+            <div class="notification-trigger" style="margin-top: -5px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" fill="currentColor"
+                    class="bi bi-bell-fill" viewBox="0 0 16 16">
+                    <path
+                        d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2zm.995-14.901a1 1 0 1 0-1.99 0A5.002 5.002 0 0 0 3 6c0 1.098-.5 6-2.5 7h13c-2-1-2.5-5.902-2.5-7 0-2.42-1.72-4.44-4.005-4.901z" />
+                </svg>
+                <span class="notification-badge" id="notificationBadge"></span>
+            </div>
+            <div class="dropdown-content" id="notificationDropdown">
+                <!-- Las notificaciones se cargarán aquí -->
+            </div>
+        </div>
+    </div>
+
+    <div class="container interaction-container"> <!-- Contenedor para centrar y dar estilo -->
+        <!-- Badge de Pre-lanzamiento (Banda Diagonal) -->
+        <div class="pre-launch-ribbon">
+            <span class="pre-launch-text">
+                <span class="ribbon-shine-overlay"></span>
+                <span class="ribbon-text-content info-text-clickable" role="button" tabindex="0"
+                    aria-label="Información sobre el estado de pre-lanzamiento" data-tooltip-id="tooltip-prelaunch">
+                    Pre-lanzamiento<br>
+                    <span class="ribbon-subtext">VERSION BETA</span>
+                </span>
+            </span>
+        </div>
+        <div id="tooltip-prelaunch" class="info-tooltip prelaunch-tooltip" role="tooltip" aria-hidden="true">
+            <p>Estás en fase de pre-lanzamiento. Las recompensas en BLUE iou se registran en el Perfil de Impulsor y los
+                saldos en la billetera principal se mantienen en cero hasta el lanzamiento oficial.</p>
+        </div>
+
+        <div class="main-title-container">
+            <div class="main-title-row">
+                <h1 class="main-title">
+                    <span class="logo-winton">Winton</span><span class="logo-coin">Coin</span>
+                </h1>
+            </div>
+        </div>
+        <!-- =============================================================== -->
+        <!-- ==           INTERFAZ DE TABS (IMPULSOR / BILLETERA)          == -->
+        <!-- =============================================================== -->
+        <div class="wallet-tabs-container">
+            <div class="wallet-tabs-nav">
+                <button class="wallet-tab-btn active" data-tab="impulsor" id="tabImpulsor">
+                    Impulsor
+                </button>
+                <button class="wallet-tab-btn" data-tab="billetera" id="tabBilletera">
+                    Billetera
+                </button>
+            </div>
+
+            <!-- Panel IMPULSOR -->
+            <div class="wallet-tab-panel active" id="panelImpulsor" data-panel="impulsor">
+                <a id="boosterSummary" class="booster-banner" href="booster-profile.html">
+                    <div class="booster-banner-header">
+                        <span class="booster-banner-title">Perfil de Impulsor</span>
+                    </div>
+                    <div class="booster-banner-body">
+                        <span class="booster-label">SALDO ACUMULADO</span>
+                        <div id="boosterTotalBlue" class="booster-amount">0 BLUE iou</div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- Panel BILLETERA -->
+            <div class="wallet-tab-panel" id="panelBilletera" data-panel="billetera">
+                <div id="myWalletAddressContainer" style="display: none; align-items: center; justify-content: center; margin-bottom: 20px; background: rgba(0,0,0,0.25); padding: 6px 14px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.05); width: fit-content; margin: 0 auto 20px auto; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+                        <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+                        <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+                        <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
+                    </svg>
+                    <span id="myWalletAddressText" style="font-family: 'Courier New', Courier, monospace; font-size: 13px; color: #e2e8f0; margin-right: 10px; font-weight: normal; letter-spacing: 0.5px;">...</span>
+                    <button id="copyMyWalletBtn" style="background: none; border: none; cursor: pointer; color: #4da6ff; padding: 2px; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;" title="Copiar dirección" data-address="">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="balances-container">
+                    <!-- Sección BLUE -->
+                    <div class="balance-section blue-section" onclick="window.location.href='estado-cuenta.html'" style="cursor: pointer;" title="Ver Estado de Cuenta">
+                        <h3 class="balance-title">
+                            <span class="info-text-clickable" role="button" tabindex="0"
+                                aria-label="Información sobre SALDO BLUE" data-tooltip-id="tooltip-saldo-blue">SALDO
+                                BLUE</span>
+                        </h3>
+                        <div id="tooltip-saldo-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
+                            <p>Los tokens BLUE son tu activo. Puedes usarlos para pagar servicios, recibirlos por
+                                trabajo
+                                realizado, o quemarlos para reducir tu deuda RED. Al lanzamiento oficial
+                                <strong>14-2-2027</strong>, <strong>1 BLUE = 1 USD</strong>.
+                            </p>
+                        </div>
+                        <div class="balance-items">
+                            <div class="balance-item-wrapper">
+                                <span class="balance-label">
+                                    <span class="info-text-clickable" role="button" tabindex="0"
+                                        aria-label="Información sobre Disponibles"
+                                        data-tooltip-id="tooltip-disponibles">Disponibles</span>
+                                </span>
+                                <div id="tooltip-disponibles" class="info-tooltip" role="tooltip" aria-hidden="true">
+                                    <p>Son tus tokens BLUE que puedes usar inmediatamente. Puedes pagar con ellos,
+                                        transferirlos
+                                        o quemarlos para reducir tu deuda RED.</p>
+                                </div>
+                                <div class="balance-item">
+                                    <span id="saldoBlue" class="balance-amount blue-amount">--</span>
+                                </div>
+                                <div id="available-countdown-container" class="countdown-container"
+                                    style="display: none;">
+                                    <p id="available-countdown-text" class="countdown-text info-text-clickable"
+                                        role="button" tabindex="0" aria-label="Información sobre próxima liberación"
+                                        data-tooltip-id="tooltip-proxima-liberacion"></p>
+                                    <div id="tooltip-proxima-liberacion" class="info-tooltip" role="tooltip"
+                                        aria-hidden="true">
+                                        <p>Tiempo restante para que tus tokens BLUE pendientes se liberen y estén
+                                            disponibles
+                                            para usar. Este período de espera protege a ambas partes en las
+                                            transacciones.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sección RED -->
+                    <div class="balance-section red-section" title="Ver Estado de Cuenta">
+                        <h3 class="balance-title">
+                            <span class="info-text-clickable" role="button" tabindex="0"
+                                aria-label="Información sobre Saldo RED" data-tooltip-id="tooltip-saldo-red">SALDO
+                                RED</span>
+                        </h3>
+                        <div id="tooltip-saldo-red" class="info-tooltip" role="tooltip" aria-hidden="true">
+                            <p>Los tokens RED representan tu deuda en el sistema. Se crean cuando realizas un pago a otro usuario. Gracias a la <strong>Regla Materia-Antimateria</strong>, esta deuda se amortizará automáticamente de forma instantánea en cuanto recibas tokens BLUE. Si no logras saldarla antes del vencimiento, tu usuario será listado públicamente en la <strong>página LOVE</strong> (Lista de Obligaciones Vencidas).</p>
+                        </div>
+                        <div class="balance-items red-balance-items">
+                            <div class="balance-item-wrapper red-balance-wrapper">
+                                <span class="balance-label">
+                                    <span class="info-text-clickable" role="button" tabindex="0"
+                                        aria-label="Información sobre Debes"
+                                        data-tooltip-id="tooltip-saldo-red-label">Tu
+                                        Deuda</span>
+                                </span>
+                                <div id="tooltip-saldo-red-label" class="info-tooltip" role="tooltip"
+                                    aria-hidden="true">
+                                    <p>Es la cantidad total de tokens RED (deuda) que tienes actualmente. Esta deuda
+                                        tiene un
+                                        tiempo de vencimiento. Se aniquilará matemáticamente en cuanto recibas tokens BLUE líquidos. Si llegas a la fecha límite sin haber saldado la deuda, serás listado en la <strong>página LOVE</strong>.</p>
+                                </div>
+                                <div class="balance-item">
+                                    <span id="saldoRed" class="balance-amount red-amount">--</span>
+                                </div>
+                                <div id="debt-countdown-container" class="countdown-container" style="display: none;">
+                                    <p id="debt-countdown-text" class="countdown-text info-text-clickable" role="button"
+                                        tabindex="0" aria-label="Información sobre próximo vencimiento"
+                                        data-tooltip-id="tooltip-proximo-vencimiento"></p>
+                                    <div id="tooltip-proximo-vencimiento" class="info-tooltip" role="tooltip"
+                                        aria-hidden="true">
+                                        <p>Tiempo restante antes de que tu deuda RED venza. Recuerda realizar trabajos o tareas remuneradas para recibir tokens BLUE; la aniquilación de la deuda será automática on-chain. Si llegas al límite, serás listado en la <strong>página LOVE</strong>.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- ==           UBICACIÓN DEFINITIVA DEL BANNER DE VALOR        == -->
+        <!-- =============================================================== -->
+
+        <div class="referral-motivation-section">
+            <div class="referral-promo-card" id="shareReferralCard">
+
+                <!-- Sección: Contador regresivo de expiración -->
+                <div class="promo-timer-container">
+                    <span class="promo-timer-label">Expira en:</span>
+                    <div id="referralPromoTimer" class="promo-timer-display">
+                        <div class="timer-unit"><span id="timer-days">00</span><small>d</small></div>
+                        <div class="timer-unit"><span id="timer-hours">00</span><small>h</small></div>
+                        <div class="timer-unit"><span id="timer-mins">00</span><small>m</small></div>
+                        <div class="timer-unit"><span id="timer-secs">00</span><small>s</small></div>
+                    </div>
+                </div>
+
+                <!-- Sección: Recompensa actual centrada -->
+                <div class="promo-reward-info">
+                    <div class="reward-main-centered">
+                        <div class="reward-group">
+                            <span class="reward-label">Bono por referir hoy</span>
+                            <div class="reward-value gold-premium">
+                                <span id="referralAmount">1000</span> <small>BLUE IOU</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección: Botón de compartir (CTA principal) -->
+                <button class="referral-share-button">
+                    <div class="button-content">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2.5"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="18" cy="5" r="3"></circle>
+                            <circle cx="6" cy="12" r="3"></circle>
+                            <circle cx="18" cy="19" r="3"></circle>
+                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                        </svg>
+                        <span>Compartir mi código</span>
+                    </div>
+                </button>
+
+            </div><!-- /.referral-promo-card -->
+        </div><!-- /.referral-motivation-section -->
+
+        <!-- =============================================================== -->
+        <!-- == TARJETA WINTON SOLIDARIO (Visible solo si tiene causa)     == -->
+        <!-- =============================================================== -->
+        <div id="solidarioDashboardCard" class="solidario-dashboard-card"
+            style="display: none; cursor: pointer; position: relative;">
+            <div class="solidario-card-header" style="justify-content: space-between;">
+                <div style="display: flex; align-items: center;">
+                    <span class="solidario-card-icon" style="color: #e83e8c;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                            fill="currentColor" stroke="none">
+                            <path
+                                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                        </svg>
+                    </span>
+                    <span class="solidario-card-title" id="solidarioCardHeaderTitle" style="font-size: 0.9rem;">Winton
+                        Solidario</span>
+                </div>
+            </div>
+            <div class="solidario-card-body">
+                <div class="solidario-card-cause-title" id="solidarioCardCauseTitle">--</div>
+                <div class="solidario-card-progress">
+                    <div class="solidario-card-progress-bar" style="display: flex;">
+                        <div class="solidario-card-progress-fill" id="solidarioCardProgressFill"
+                            style="width: 0%; height: 100%; padding:0; margin:0;"></div>
+                        <div class="solidario-card-progress-fill-hold" id="solidarioCardProgressFillHold"
+                            style="width: 0%; height: 100%; padding:0; margin:0; background: repeating-linear-gradient(45deg, rgba(232, 62, 140, 0.4), rgba(232, 62, 140, 0.4) 10px, rgba(232, 62, 140, 0.6) 10px, rgba(232, 62, 140, 0.6) 20px);">
+                        </div>
+                    </div>
+                    <div class="solidario-card-progress-text">
+                        <span id="solidarioCardAmount" style="color: #ffffff; font-weight: 700;">0</span> / <span
+                            id="solidarioCardGoal">0</span> BLUE IOU
+                    </div>
+                </div>
+            </div>
+
+            <div class="solidario-history-link-container" id="solidarioHistoryLinkContainer"
+                style="display:none; text-align: center; margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px;">
+                <a href="#" id="solidarioHistoryBtn"
+                    style="color: #94a3b8; font-size: 0.85rem; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; transition: color 0.3s;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 3v18h18" />
+                        <path d="M18 9l-5 5-4-4-4 4" />
+                        <path d="M14 15l4 4" />
+                    </svg>
+                    Ver historial de mis causas
+                </a>
+            </div>
+        </div>
+
+        <div class="publications-section">
+
+            <div class="main-actions-container">
+                <a href="#" id="openPublicationModalBtn" class="button-link primary-action">Crear Nueva Publicación</a>
+                <a href="#" id="openQuickSaleModalBtn" class="button-link secondary-action">⚡ Venta Rápida</a>
+            </div>
+
+            <div class="publications-title">
+                Publicaciones Activas <span class="publications-count-wrapper"><span id="publicationsCount"
+                        class="publications-count">0</span></span>
+            </div>
+
+            <!-- Controles de filtrado y ordenamiento (separados por responsabilidad) -->
+            <div class="publication-controls">
+                <!-- Chips de filtro por tipo de publicación -->
+                <div class="publication-filter-chips" id="publicationFilterChips" role="group" aria-label="Filtrar publicaciones por tipo">
+                    <button type="button" class="filter-chip active" data-filter="all" aria-pressed="true">Todos</button>
+                    <button type="button" class="filter-chip" data-filter="pending" aria-pressed="false">En proceso</button>
+                    <button type="button" class="filter-chip" data-filter="request" aria-pressed="false">Solicitud</button>
+                    <button type="button" class="filter-chip" data-filter="sell" aria-pressed="false">Venta</button>
+                    <button type="button" class="filter-chip" data-filter="donation" aria-pressed="false">Donación</button>
+                    <button type="button" class="filter-chip" data-filter="hidden" aria-pressed="false">Ocultadas</button>
+                </div>
+                <!-- Búsqueda + Ordenamiento (en línea horizontal) -->
+                <div class="publication-sort-container">
+                    <div class="publication-search-wrapper">
+                        <input type="text" id="publicationSearchInput" class="publication-search-input"
+                            placeholder="Buscar..." autocomplete="off" aria-label="Buscar publicaciones por título, descripción o autor">
+                        <button type="button" class="publication-search-clear" id="publicationSearchClear"
+                            aria-label="Limpiar búsqueda" style="display: none;">&times;</button>
+                    </div>
+                    <label for="publicationSortSelect" class="publication-sort-label">Ordenar:</label>
+                    <select id="publicationSortSelect" class="publication-sort-select" aria-label="Ordenar publicaciones">
+                        <option value="recent" selected>Más reciente</option>
+                        <option value="oldest">Más antigua</option>
+                        <option value="reward_desc">Mayor recompensa</option>
+                        <option value="reward_asc">Menor recompensa</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="publications-list">
+                <!-- Las publicaciones se cargarán aquí dinámicamente -->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MODAL PARA VENTA RÁPIDA -->
+    <div id="quickSaleModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button quick-sale-close">&times;</span>
+            <form id="quickSaleForm">
+                <h2>⚡ Venta Rápida</h2>
+                <p>Crea un cobro directo con un enlace de pago único. Ideal para transacciones inmediatas.</p>
+                <div class="form-group">
+                    <label for="quickSaleAmount">Monto a cobrar (BLUE):</label>
+                    <input type="text" inputmode="decimal" id="quickSaleAmount" name="amount" required
+                        placeholder="Ej: 150.50">
+                </div>
+                <div class="form-group">
+                    <label for="quickSaleTitle">Título / Concepto (opcional):</label>
+                    <input type="text" id="quickSaleTitle" name="title" placeholder="Ej: Pago por diseño web">
+                </div>
+                <div class="form-group">
+                    <label for="quickSaleTargetUsername">Comprador específico (opcional):</label>
+                    <input type="text" id="quickSaleTargetUsername" name="targetUsername"
+                        placeholder="Ej: nombredeusuario">
+                    <small class="input-hint">Si lo dejas en blanco, cualquiera con el enlace podrá pagar.</small>
+                </div>
+                <button type="submit" class="action-button confirm">Generar QR de Cobro</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Historial de Causas Solidarias -->
+    <div id="solidarioHistoryModal" class="modal">
+        <div class="modal-content" style="max-height: 80vh; display: flex; flex-direction: column;">
+            <span class="close-button solidario-history-close">&times;</span>
+            <h2 style="color: #e83e8c; margin-bottom: 5px;">Historial de Causas</h2>
+            <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 20px;">Registro inmutable y transparente de tus
+                recaudaciones pasadas</p>
+            <div id="solidarioHistoryList"
+                style="overflow-y: auto; flex: 1; display:flex; flex-direction:column; gap: 15px; padding-right: 5px;">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PARA MOSTRAR CÓDIGO QR -->
+    <div id="qrCodeModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button qr-code-close">&times;</span>
+            <div class="qr-code-container">
+                <h2>¡Listo! Comparte este QR para recibir tu pago</h2>
+                <p>El enlace de pago es válido por 5 minutos.</p>
+                <div id="qrCodeOutput"></div> <!-- El QR se generará aquí -->
+                <input type="text" id="qrCodeUrl" readonly>
+                <button id="copyQrCodeUrl" class="action-button">Copiar Enlace</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="burnModal" class="modal">
+        <div class="modal-content burn-modal-content">
+            <span class="close-button">&times;</span>
+            <div class="burn-container">
+
+                <p class="burn-description">Esta acción es irreversible y restará la cantidad especificada de tus saldos
+                    de BLUE y RED.</p>
+
+                <div class="burn-balance-info">
+                    <h4>Tu saldo actual</h4>
+                    <div id="burnModalBalances" class="burn-modal-balances">
+                        <!-- Los saldos se insertarán aquí dinámicamente con JS -->
+                    </div>
+                </div>
+
+                <form id="burnForm">
+                    <div class="form-group">
+                        <label for="burnAmount">Cantidad a quemar:</label>
+                        <input type="text" inputmode="decimal" id="burnAmount" name="burnAmount"
+                            placeholder="Ej: 10.5000" required pattern="^[0-9]+([.,][0-9]{1,4})?$">
+                        <small class="input-hint">Usa un punto (.) o una coma (,) para los decimales.</small>
+                    </div>
+                    <button type="submit" class="action-button burn-button">Quemar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación de Quema (Fintech Style) -->
+    <div id="burnConfirmModal" class="modal burn-confirm-modal">
+        <div class="modal-content burn-confirm-content">
+            <div class="burn-confirm-icon">⚠️</div>
+            <h2 class="burn-confirm-title">Confirmar Operación</h2>
+
+            <div class="burn-confirm-summary">
+                <p class="burn-confirm-label">Vas a quemar:</p>
+                <div class="burn-confirm-amounts">
+                    <div class="burn-confirm-amount blue">
+                        <span class="amount-value" id="confirmBurnBlue">0.0000</span>
+                        <span class="amount-label">BLUE</span>
+                    </div>
+                    <div class="burn-confirm-amount red">
+                        <span class="amount-value" id="confirmBurnRed">0.0000</span>
+                        <span class="amount-label">RED</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="burn-confirm-warning">
+                <span class="warning-icon">🔒</span>
+                <p>Esta acción es <strong>IRREVERSIBLE</strong>. Los tokens serán eliminados permanentemente y no podrán
+                    ser recuperados.</p>
+            </div>
+
+            <div class="burn-confirm-buttons">
+                <button type="button" class="burn-confirm-btn cancel" id="burnConfirmCancel">Cancelar</button>
+                <button type="button" class="burn-confirm-btn confirm" id="burnConfirmAccept">🔥 Confirmar
+                    Quema</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Calificación -->
+    <div id="ratingModal" class="modal">
+        <div class="modal-content rating-modal-content">
+            <span class="close-button rating-close-button">&times;</span>
+
+            <form id="ratingForm">
+                <input type="hidden" id="ratingPublicationId" name="publication_id">
+                <input type="hidden" id="ratingRaterUsername" name="rater_username">
+                <input type="hidden" id="ratingRateeUsername" name="ratee_username">
+
+                <div class="rating-form-header">
+                    <h2 id="ratingModalTitle">Calificar al Usuario</h2>
+                    <div class="star-rating">
+                        <!-- Las estrellas están en orden inverso (5 a 1) para que el CSS funcione correctamente -->
+                        <input type="radio" id="5-stars" name="rating" value="5" required /><label for="5-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="4-stars" name="rating" value="4" /><label for="4-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="3-stars" name="rating" value="3" /><label for="3-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="2-stars" name="rating" value="2" /><label for="2-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="1-star" name="rating" value="1" /><label for="1-star"
+                            class="star">&#9733;</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <textarea id="ratingComment" name="comment" rows="2"
+                        placeholder="¿Qué te pareció la experiencia? (opcional)"></textarea>
+                </div>
+
+                <button type="submit" class="action-button confirm">Enviar Calificación</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ES Modules (Vite) -->
+
+    <!-- Modal de Alerta Personalizado -->
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación Personalizado -->
+    <div id="customConfirmModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button confirm-close-button">&times;</span>
+            <p id="customConfirmMessage"></p>
+            <div class="confirm-buttons">
+                <button class="action-button cancel-button">Cancelar</button>
+                <button class="action-button confirm-button">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Selección de Tipo de Publicación -->
+    <div id="publicationTypeModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button publication-type-close">&times;</span>
+            <h2>¿Qué te gustaría hacer?</h2>
+            <p>Elige una opción para continuar. Cada acción te llevará a un formulario específico.</p>
+            <div class="modal-options">
+                <a href="publish.html?type=request" class="modal-option-button request">
+                    <div class="option-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
+                            class="bi bi-person-plus" viewBox="0 0 16 16">
+                            <path
+                                d="M6 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H1s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C9.516 10.68 8.289 10 6 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z" />
+                            <path fill-rule="evenodd"
+                                d="M13.5 5a.5.5 0 0 1 .5.5V7h1.5a.5.5 0 0 1 0 1H14v1.5a.5.5 0 0 1-1 0V8h-1.5a.5.5 0 0 1 0-1H13V5.5a.5.5 0 0 1 .5-.5z" />
+                        </svg>
+                    </div>
+                    <h3>Solicitar un Ayudante</h3>
+                    <p>Pagarás BLUE a cambio de una tarea o servicio, recibirás RED.</p>
+                </a>
+                <a href="publish.html?type=sell" class="modal-option-button sell">
+                    <div class="option-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
+                            class="bi bi-tag" viewBox="0 0 16 16">
+                            <path d="M6 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-1 0a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0z" />
+                            <path
+                                d="M2 1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 1 6.586V2a1 1 0 0 1 1-1zm0 5.586 7 7L13.586 9l-7-7H2v4.586z" />
+                        </svg>
+                    </div>
+                    <h3>Venta / Ofrecer Servicio</h3>
+                    <p>Recibirás BLUE por un producto, servicio o monedas que vendas a otros usuarios.</p>
+                </a>
+                <a href="publish.html?type=donation" class="modal-option-button donation">
+                    <div class="option-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
+                            class="bi bi-heart-fill" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd"
+                                d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z" />
+                        </svg>
+                    </div>
+                    <h3>Recibir Donaciones</h3>
+                    <p>Publica una causa para recibir apoyo de la comunidad en BLUE.</p>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Etiqueta de Versión Beta -->
+    <div class="beta-version-tag" style="display: none;">
+        VERSION BETA
+    </div>
+    <!-- Modal Pre-Lanzamiento Billetera -->
+    <div class="prelaunch-modal-overlay" id="prelaunchWalletModal" style="display: none;">
+        <div class="prelaunch-modal">
+            <div class="prelaunch-modal-icon">💰</div>
+            <h3 class="prelaunch-modal-title">Fase Pre-lanzamiento</h3>
+            <div class="prelaunch-modal-text">
+                <p style="margin-bottom: 10px;">
+                    Actualmente estás acumulando <strong>BLUE iou</strong> (pagarés).
+                </p>
+                <p>
+                    A partir del <strong class="highlight-date">14 de febrero de 2027</strong>, recibirás tus
+                    <strong>tokens
+                        BLUE</strong> conforme al <a href="https://boosters.wintoncoin.com/detalles/pagos.html"
+                        target="_blank" class="modal-link">Programa de Incentivos para Impulsores</a>.
+                </p>
+            </div>
+            <button class="prelaunch-modal-btn" id="prelaunchModalAccept">Entendido</button>
+        </div>
+    </div>
+
+    <!-- Modal Aviso Pre-Lanzamiento (Crear Publicación) -->
+    <div class="prelaunch-modal-overlay" id="createPostPrelaunchModal" style="display: none;">
+        <div class="prelaunch-modal">
+            <div class="prelaunch-modal-icon">🚀</div>
+            <h3 class="prelaunch-modal-title">Fase de Desarrollo</h3>
+            <div class="prelaunch-modal-text">
+                <p>
+                    Durante la <strong>fase de pre-lanzamiento</strong>, las publicaciones de usuarios están
+                    deshabilitadas.
+                </p>
+                <p>
+                    Solo tareas de la plataforma con fines educativos, promocion, desarrollo y pruebas.
+                </p>
+            </div>
+            <button class="prelaunch-modal-btn" id="createPostPrelaunchAccept">Entendido</button>
+        </div>
+    </div>
+
+    <!-- Modal de Configuración -->
+    <div id="settingsModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close-button" id="closeSettingsModal">&times;</span>
+            <h2 style="margin-bottom: 20px;">⚙️ Configuración</h2>
+
+            <!-- Sección de Notificaciones -->
+            <div class="settings-section">
+                <h3 style="margin-bottom: 15px; color: #4a90d9;">🔔 Notificaciones</h3>
+                <p style="font-size: 0.9em; color: #888; margin-bottom: 20px;">
+                    Controla qué tipo de notificaciones deseas recibir.
+                </p>
+
+                <!-- Switch Seguridad (Bloqueado) -->
+                <div class="notification-setting-item">
+                    <div class="notification-setting-info">
+                        <strong>🔒 Seguridad y Transacciones</strong>
+                        <p style="font-size: 0.85em; color: #999; margin: 5px 0 0 0;">
+                            Alertas críticas de seguridad, pagos y verificaciones. <strong>Siempre activas.</strong>
+                        </p>
+                    </div>
+                    <label class="admin-switch" style="opacity: 0.6; cursor: not-allowed;">
+                        <input type="checkbox" id="notifSecuritySwitch" checked disabled>
+                        <span class="admin-slider"></span>
+                    </label>
+                </div>
+
+                <!-- Switch Social -->
+                <div class="notification-setting-item">
+                    <div class="notification-setting-info">
+                        <strong>👥 Actividad Social</strong>
+                        <p style="font-size: 0.85em; color: #999; margin: 5px 0 0 0;">
+                            Mensajes, interacciones, tareas completadas y actividad de tus publicaciones.
+                        </p>
+                    </div>
+                    <label class="admin-switch">
+                        <input type="checkbox" id="notifSocialSwitch" checked>
+                        <span class="admin-slider"></span>
+                    </label>
+                </div>
+
+                <!-- Switch Marketing -->
+                <div class="notification-setting-item">
+                    <div class="notification-setting-info">
+                        <strong>📢 Novedades y Promociones</strong>
+                        <p style="font-size: 0.85em; color: #999; margin: 5px 0 0 0;">
+                            Nuevas campañas, bonos, actualizaciones de la plataforma y ofertas especiales.
+                        </p>
+                    </div>
+                    <label class="admin-switch">
+                        <input type="checkbox" id="notifMarketingSwitch" checked>
+                        <span class="admin-slider"></span>
+                    </label>
+                </div>
+
+                <button id="saveNotificationSettings" class="action-button" style="margin-top: 25px; width: 100%;">
+                    Guardar Preferencias
+                </button>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- Sección de Descarga de la Aplicación (PWA Install)           -->
+            <!-- ============================================================ -->
+            <!-- MOTIVO: Botón redundante de instalación para usuarios que    -->
+            <!-- descartaron el botón flotante. Estándar de la industria.     -->
+            <!-- Se oculta automáticamente si la app ya está instalada.       -->
+            <!-- ============================================================ -->
+            <div class="settings-section settings-pwa-section" id="pwa-settings-section">
+                <h3 style="margin-bottom: 15px; color: #00d4aa;">📲 Descargar App</h3>
+                <p style="font-size: 0.9em; color: #888; margin-bottom: 20px;">
+                    Instala WintonCoin en tu dispositivo para acceso rápido desde la pantalla de inicio.
+                </p>
+                <button id="pwa-settings-install-btn" type="button">
+                    📲 Descargar App
+                </button>
+                <p id="pwa-settings-status" class="pwa-settings-status"></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+
+</html>

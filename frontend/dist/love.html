@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>[DEMO] Página LOVE</title> <!-- Reutilizamos los estilos principales -->
+  <script type="module" crossorigin src="./assets/love.CVH1u3w5.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill.B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="./assets/alerts.CawRDXDp.js">
+  <link rel="modulepreload" crossorigin href="./assets/config.Br4uoD7s.js">
+  <link rel="modulepreload" crossorigin href="./assets/auth.PfzP10z-.js">
+  <link rel="modulepreload" crossorigin href="./assets/index.Dk_Cx65J.js">
+  <link rel="stylesheet" crossorigin href="./assets/style.C7Ud9owh.css">
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+<body class="love-page">
+    <header class="love-header">
+        <a href="contract_interaction.html" class="back-link">← Volver</a>
+        <h1>Página LOVE</h1>
+    </header>
+
+    <main class="love-main">
+        <section id="love-section" class="love-card">
+            <h2>Lista de Obligaciones Vencidas</h2>
+            <p>Esta es una lista pública de todos los usuarios con deudas de tokens RED que han sido penalizadas y aún no se han saldado.</p>
+            
+            <div id="loading" class="loading-spinner" style="display: none;"></div>
+            
+            <div class="table-container love-table-container">
+                <table class="love-table">
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Deuda Vencida (RED)</th>
+                            <th>Vencido Desde</th>
+                            <th>Reincidencias</th>
+                        </tr>
+                    </thead>
+                    <tbody id="love-table-body">
+                        <!-- Las filas se insertarán aquí dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- ES Modules (Vite) -->
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+</html>

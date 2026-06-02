@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Panel de control de Winton Momentum — Gestiona tus misiones, saldos y entregas.">
+    <title>[DEMO] Mi Dashboard — Winton Momentum</title>
+    <link rel="icon" href="./assets/favicon.DuxeKF20.ico">
+  <script type="module" crossorigin src="./assets/momentumDashboard.D7aUGb0A.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill.B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="./assets/config.Br4uoD7s.js">
+  <link rel="modulepreload" crossorigin href="./assets/auth.PfzP10z-.js">
+  <link rel="stylesheet" crossorigin href="./assets/momentum-dashboard.PVUfBBWy.css">
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+
+<body class="momentum-dashboard">
+
+    <!-- ========== HEADER ========== -->
+    <header class="mmd-header">
+        <div class="mmd-header__left">
+            <span class="mmd-header__logo">⚡ Momentum</span>
+            <span class="mmd-header__tier --pendiente" id="mmd-tier-badge">Cargando...</span>
+        </div>
+        <div class="mmd-header__right">
+            <span class="mmd-header__user" id="mmd-username"></span>
+        </div>
+    </header>
+
+    <!-- ========== MAIN CONTENT ========== -->
+    <main class="mmd-container" id="mmd-main">
+        <div class="mmd-loading" id="mmd-loading">
+            <div class="mmd-spinner"></div>
+        </div>
+    </main>
+
+    <!-- ========== SUBMIT TASK MODAL ========== -->
+    <div class="mmd-modal-overlay" id="mmd-modal-overlay">
+        <div class="mmd-modal">
+            <h3 class="mmd-modal__title" id="mmd-modal-title">Enviar Entrega</h3>
+            <p class="mmd-modal__subtitle" id="mmd-modal-subtitle">Pega el link de tu contenido para esta misión.</p>
+
+            <!-- Contenedor para descripción completa -->
+            <div class="mmd-modal-mission-info" id="mmd-modal-mission-desc"></div>
+
+            <form id="mmd-submit-form">
+                <input type="hidden" id="mmd-modal-campaign-id">
+                <div class="mmd-modal__field">
+                    <label for="mmd-proof-link">URL de tu contenido</label>
+                    <input type="url" id="mmd-proof-link" placeholder="https://..." required>
+                </div>
+                <div class="mmd-modal__actions">
+                    <button type="button" class="mmd-btn mmd-btn--ghost" id="mmd-modal-cancel">Cancelar</button>
+                    <button type="submit" class="mmd-btn mmd-btn--gold" id="mmd-modal-submit">📤 Enviar Entrega</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="mmd-toast" id="mmd-toast"></div>
+
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+
+</html>

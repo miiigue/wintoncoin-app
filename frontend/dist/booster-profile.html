@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>[DEMO] Mi Perfil de Impulsor - Winton Coin</title>
+  <script type="module" crossorigin src="./assets/boosterProfile.D1nq2NgT.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill.B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="./assets/alerts.CawRDXDp.js">
+  <link rel="modulepreload" crossorigin href="./assets/config.Br4uoD7s.js">
+  <link rel="modulepreload" crossorigin href="./assets/auth.PfzP10z-.js">
+  <link rel="modulepreload" crossorigin href="./assets/index.Dk_Cx65J.js">
+  <link rel="stylesheet" crossorigin href="./assets/style.C7Ud9owh.css">
+  <link rel="stylesheet" crossorigin href="./assets/booster-style.D-r1XA9w.css">
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+
+<body>
+    <div class="container booster-container">
+        <a href="contract_interaction.html" class="back-link">&larr; Volver</a>
+
+        <div id="booster-profile-content">
+            <!-- El contenido se cargará aquí dinámicamente -->
+            <div class="loading-spinner"></div>
+        </div>
+    </div>
+
+    <!-- ES Modules (Vite) -->
+
+    <!-- Modal de Alerta -->
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- Modal de Condiciones de Desbloqueo (Estilo Refinado Centrado) -->
+    <div class="prelaunch-modal-overlay" id="unlockConditionsModalOverlay">
+        <div class="prelaunch-modal">
+            <div class="prelaunch-modal-icon">🔒</div>
+            <h3 class="prelaunch-modal-title">Requisitos</h3>
+            <div class="prelaunch-modal-text">
+                <p style="margin-bottom: 20px;">Medidas de seguridad anti-fraude para el canje de recompensas y bonos:
+                </p>
+                <ul>
+                    <li>Tu usuario debe estar <strong>"Verificado" (KYC)</strong>, al igual que los referidos
+                        que hayan generado tus recompensas.</li>
+                    <li>Debes haber realizado <strong>al menos una transacción</strong> en la plataforma en los últimos
+                        30 días.</li>
+                </ul>
+            </div>
+            <button class="prelaunch-modal-btn" id="unlockModalAccept">Entendido</button>
+        </div>
+    </div>
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+
+</html>

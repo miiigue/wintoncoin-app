@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[DEMO] Trabaja con nosotros - WintonCoin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-winton: #3B82F6;
+            --primary-glow: rgba(59, 130, 246, 0.3);
+            --sapphire-dark: #0A0A1A;
+        }
+
+        body {
+            background-color: #05050A;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .talent-container {
+            max-width: 700px;
+            margin: 80px auto;
+            padding: 2.5rem;
+            background: rgba(15, 15, 30, 0.7);
+            backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 28px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+        }
+
+        .header-talent {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .header-talent h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.8rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #60A5FA, #2563EB);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-talent p {
+            color: #94A3B8;
+            font-size: 1.1rem;
+        }
+
+        /* Bloque de Compensación Premium */
+        .compensation-box {
+            background: rgba(59, 130, 246, 0.08);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            padding: 1.5rem;
+            border-radius: 16px;
+            margin-bottom: 2.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .compensation-box h3 {
+            color: #60A5FA;
+            margin-top: 0;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .multiplier-badge {
+            background: #2563EB;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 800;
+        }
+
+        .compensation-text {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #E2E8F0;
+        }
+
+        .compensation-text a {
+            color: #60A5FA;
+            text-decoration: underline;
+        }
+
+        .form-group {
+            margin-bottom: 1.8rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.6rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #94A3B8;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 1.1rem;
+            background: #ffffff !important;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: #1e293b !important;
+            font-size: 1rem;
+            transition: all 0.3s;
+            box-sizing: border-box;
+        }
+
+        input::placeholder {
+            color: #94A3B8;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary-winton);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            background: rgba(255, 255, 255, 0.03);
+            border: 2px dashed rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .file-input-wrapper:hover {
+            border-color: var(--primary-winton);
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .file-input-wrapper input {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .file-info {
+            color: #94A3B8;
+            font-size: 0.9rem;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 1.2rem;
+            background: linear-gradient(135deg, #3B82F6, #1D4ED8);
+            border: none;
+            border-radius: 14px;
+            color: white;
+            font-weight: 700;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3);
+            margin-top: 1rem;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px rgba(37, 99, 235, 0.5);
+        }
+
+        .legal-clause {
+            font-size: 0.8rem;
+            color: #64748B;
+            text-align: center;
+            margin-top: 1.5rem;
+            line-height: 1.4;
+        }
+
+        .status-msg {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1.5rem;
+            text-align: center;
+            display: none;
+        }
+
+        .status-success { background: rgba(34, 197, 94, 0.2); color: #4ADE80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .status-error { background: rgba(239, 68, 68, 0.2); color: #F87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #94A3B8;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.3s;
+        }
+
+        .back-link:hover { color: white; }
+    </style>
+  <link rel="stylesheet" crossorigin href="./assets/style.C7Ud9owh.css">
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+
+<body>
+    <div class="talent-container">
+        <a href="index.html" class="back-link">&larr; Volver al Inicio</a>
+        
+        <div class="header-talent">
+            <h1>Únete al Equipo</h1>
+            <p>Ayúdanos a construir el futuro de WintonCoin.</p>
+        </div>
+
+        <div class="compensation-box">
+            <h3>
+                <span>🚀</span> Compensación Temprana (Pre-Lanzamiento) 
+                <span class="multiplier-badge" id="dynMultiplier">15X ACTIVO</span>
+            </h3>
+            <div class="compensation-text">
+                Actualmente nos encontramos en <strong>fase inicial de desarrollo y pre-lanzamiento</strong>. Por ello, valoramos tu aporte temprano mediante <strong>BLUE IOU</strong>, permitiéndote acumular valor antes de la salida oficial al mercado.<br><br>
+                <strong>Dinámica:</strong> Tu trabajo se cuantifica en <strong>USD</strong> y se emite en BLUE IOU aplicando el multiplicador vigente al momento de tu postulación.<br><br>
+                <strong>Ejemplo:</strong> Por cada <strong>$100 USD</strong> de valor aportado hoy, recibirás <strong id="exampleCalc">1,500 BLUE IOU</strong>, canjeables por tokens BLUE* siguiendo las pautas de nuestro <a href="https://www.boosters.wintoncoin.com/" target="_blank" rel="noopener">Programa Boosters</a> (lectura obligatoria).<br><br>
+                <small>*Cálculo sujeto al multiplicador actual de <span id="smallMultiplier">15</span>x, el cual disminuye progresivamente según las fases del proyecto.</small>
+            </div>
+        </div>
+
+        <form id="recruitmentForm">
+            <div class="form-group">
+                <label for="full_name">Nombre Completo</label>
+                <input type="text" id="full_name" name="full_name" placeholder="Ej: Juan Pérez" required>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Correo Electrónico</label>
+                <input type="email" id="email" name="email" placeholder="tu@email.com" required>
+            </div>
+
+            <div class="form-group">
+                <label for="linkedin_url">Enlace LinkedIn (Opcional)</label>
+                <input type="url" id="linkedin_url" name="linkedin_url" placeholder="https://linkedin.com/in/tuperfil">
+            </div>
+
+            <div class="form-group">
+                <label for="role">¿Cuál es tu especialidad?</label>
+                <select id="role" name="role" required>
+                    <option value="" disabled selected>Selecciona una opción</option>
+                    <option value="Frontend Developer">Frontend Developer</option>
+                    <option value="Backend Developer">Backend Developer</option>
+                    <option value="UI/UX Designer">UI/UX Designer</option>
+                    <option value="Marketing / Growth">Marketing / Growth</option>
+                    <option value="Moderador de Comunidad">Moderador de Comunidad</option>
+                    <option value="Legal / Compliance">Legal / Compliance</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="expected_salary">Ingreso mensual pretendido (USD)</label>
+                <input type="text" id="expected_salary" name="expected_salary" placeholder="Ej: $1,500" required>
+            </div>
+
+            <p class="legal-clause">
+                Al enviar tu postulación aceptas que <strong>WTN Solutions LLC</strong> almacene y procese tus datos con fines de reclutamiento y contacto profesional.
+            </p>
+
+            <button type="submit" class="btn-submit" id="submitBtn">Enviar Postulación</button>
+            <div id="statusMsg" class="status-msg"></div>
+        </form>
+    </div>
+
+    <script>
+        // ============================================================
+        // Resolución de URL del Backend API (misma lógica que config.js)
+        // ============================================================
+        // Como esta página es standalone (no pasa por Vite modules),
+        // replicamos la lógica de getApiUrl() para resolver correctamente
+        // la dirección del backend según el entorno (local, demo, producción).
+        function getApiUrl() {
+            const hostname = window.location.hostname;
+            const isFileProtocol = window.location.protocol === 'file:';
+            const isPrivateIp = /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
+            const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || isPrivateIp || isFileProtocol;
+
+            // Protocolo file:// (abrir HTML directo)
+            if (isFileProtocol) return 'http://localhost:3000';
+
+            // Entornos locales o de red privada
+            if (isLocal) return `http://${hostname}:3000`;
+
+            // Entorno DEMO (demo.wintoncoin.com)
+            if (hostname.startsWith('demo.') || hostname.includes('demo.')) {
+                return 'https://wintoncoin-backend-demo.onrender.com';
+            }
+
+            // Producción por defecto
+            return 'https://wintoncoin-backend.onrender.com';
+        }
+
+        // URL resuelta del backend API
+        const API_URL = getApiUrl();
+        console.log('[RECRUITMENT] 🌐 API URL resuelta:', API_URL);
+
+        // Multiplicador visual por defecto (fallback seguro si falla la API)
+        let currentRecruitmentMultiplier = 1;
+
+        const form = document.getElementById('recruitmentForm');
+        const statusMsg = document.getElementById('statusMsg');
+        const submitBtn = document.getElementById('submitBtn');
+
+        // Actualiza el bloque visual de compensación con el multiplicador vigente.
+        function updateCompensationUI(multiplier) {
+            const safeMultiplier = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;
+            currentRecruitmentMultiplier = safeMultiplier;
+
+            const dynMultiplierEl = document.getElementById('dynMultiplier');
+            const smallMultiplierEl = document.getElementById('smallMultiplier');
+            const exampleCalcEl = document.getElementById('exampleCalc');
+
+            if (dynMultiplierEl) dynMultiplierEl.textContent = `${safeMultiplier}X ACTIVO`;
+            if (smallMultiplierEl) smallMultiplierEl.textContent = String(safeMultiplier);
+            if (exampleCalcEl) {
+                const exampleValue = (100 * safeMultiplier).toLocaleString('es-ES');
+                exampleCalcEl.textContent = `${exampleValue} BLUE IOU`;
+            }
+        }
+
+        // Carga configuración pública de reclutamiento desde backend (DB).
+        async function loadRecruitmentConfig() {
+            try {
+                const response = await fetch(`${API_URL}/api/recruitment/config`);
+                const data = await response.json();
+                if (data.success) {
+                    updateCompensationUI(Number(data.recruitmentMultiplier));
+                } else {
+                    updateCompensationUI(1);
+                }
+            } catch (error) {
+                console.warn('[RECRUITMENT] No se pudo cargar el multiplicador dinámico:', error);
+                updateCompensationUI(1);
+            }
+        }
+
+        // Envío del formulario
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Enviando...';
+            statusMsg.style.display = 'none';
+
+            const payload = {
+                full_name: document.getElementById('full_name')?.value?.trim() || '',
+                email: document.getElementById('email')?.value?.trim() || '',
+                linkedin_url: document.getElementById('linkedin_url')?.value?.trim() || '',
+                role: document.getElementById('role')?.value || '',
+                expected_salary: document.getElementById('expected_salary')?.value?.trim() || ''
+            };
+
+            try {
+                // Usamos API_URL para apuntar al backend correcto (Render)
+                const response = await fetch(`${API_URL}/api/recruitment/apply`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    statusMsg.className = 'status-msg status-success';
+                    statusMsg.innerText = `✅ ¡Postulación enviada! Multiplicador aplicado: ${data.multiplierApplied || currentRecruitmentMultiplier}x.`;
+                    statusMsg.style.display = 'block';
+                    form.reset();
+                } else {
+                    throw new Error(data.message || 'Error al enviar la postulación.');
+                }
+            } catch (error) {
+                statusMsg.className = 'status-msg status-error';
+                statusMsg.innerText = '❌ ' + error.message;
+                statusMsg.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = 'Enviar Postulación';
+            }
+        });
+
+        // Carga inicial del multiplicador dinámico.
+        loadRecruitmentConfig();
+    </script>
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+
+</html>

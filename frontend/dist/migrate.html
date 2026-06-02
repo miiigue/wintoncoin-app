@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[DEMO] Actualizando WintonCoin...</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .loader {
+            border: 4px solid #333;
+            border-top: 4px solid #4a90d9;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        p {
+            opacity: 0.8;
+        }
+    </style>
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+
+<body>
+    <div class="loader"></div>
+    <p>Migrando tu sesión a la nueva versión...</p>
+    <script>
+        // Esta página recibe el token del dominio viejo y lo guarda en el nuevo
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('t');
+        const username = params.get('u');
+
+        if (token && username) {
+            try {
+                localStorage.setItem('token', token);
+                localStorage.setItem('username', username);
+                console.log('Sesión migrada exitosamente.');
+                // Redirigir al dashboard
+                setTimeout(() => {
+                    window.location.href = 'contract_interaction.html';
+                }, 500);
+            } catch (e) {
+                console.error("Error migrando sesión", e);
+                window.location.href = 'login.html';
+            }
+        } else {
+            // Si no hay params, mandar al login
+            window.location.href = 'login.html';
+        }
+    </script>
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+
+</html>

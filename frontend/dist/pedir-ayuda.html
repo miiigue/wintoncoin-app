@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[DEMO] Cómo Pedir Ayuda | WintonCoin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@300;500;700&display=swap"
+        rel="stylesheet"> <!-- Reusamos base --> <!-- Estilos específicos -->
+  <link rel="stylesheet" crossorigin href="./assets/pedirAyuda.qJ5oB8DN.css">
+  <link rel="stylesheet" crossorigin href="./assets/landing.Bhf4toDS.css">
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+
+<body>
+
+    <!-- Fondo Animado (Reutilizado) -->
+    <div class="background-mesh">
+        <div class="hero-bg-image help-bg"></div>
+        <div class="mesh-1"></div>
+        <div class="mesh-2"></div>
+        <div class="mesh-overlay"></div>
+    </div>
+
+    <!-- Navegación -->
+    <nav class="glass-nav">
+        <a href="index.html" class="btn-back-nav">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            Volver
+        </a>
+        <div class="logo">WintonCoin<span class="dot">.</span></div>
+        <div class="nav-links">
+            <a href="index.html">Volver al Inicio</a>
+            <a href="register.html" class="btn-primary-nav">Iniciar App</a>
+        </div>
+    </nav>
+
+    <header class="help-hero">
+        <div class="container">
+            <h1>Consigue Ayuda <span class="text-gradient">Sin Dinero</span></h1>
+            <p class="hero-subtitle">El poder de la colaboración en 3 simples pasos. Tu reputación es tu moneda.</p>
+        </div>
+    </header>
+
+    <section class="steps-process">
+        <div class="container">
+            <div class="step-card fade-in-up" style="--delay: 0.2s">
+                <div class="step-number">01</div>
+                <div class="step-content">
+                    <h3>Publica tu Solicitud</h3>
+                    <p>Describe qué necesitas, dónde y cuándo. Define cuántos tokens <strong>BLUE</strong> ofreces por
+                        la ayuda.</p>
+                    <div class="step-highlight">
+                        <span class="icon">💡</span> No necesitas tener Dinero ni tokens BLUE para publicar.
+                    </div>
+                </div>
+                <div class="step-visual visual-publish">
+                    <!-- Espacio para ilustración CSS o Imagen -->
+                    <div class="mock-post">
+                        <div class="line title-line"></div>
+                        <div class="line desc-line"></div>
+                        <div class="line desc-line short"></div>
+                        <div class="badge-offer">Offering: 100 BLUE</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="step-connector"></div>
+
+            <div class="step-card reverse fade-in-up" style="--delay: 0.4s">
+                <div class="step-number">02</div>
+                <div class="step-content">
+                    <h3>Acepta al Colaborador</h3>
+                    <p>Revisa quién se postula. Mira su reputación y estrellas. Si te convence, acéptalo y coordina los
+                        detalles.</p>
+                    <div class="step-highlight">
+                        <span class="icon">🤝</span> Todo se basa en la confianza mutua.
+                    </div>
+                </div>
+                <div class="step-visual visual-accept">
+                    <div class="mock-profile">
+                        <div class="avatar"></div>
+                        <div class="info">
+                            <div class="line name-line"></div>
+                            <div class="stars">★★★★★</div>
+                        </div>
+                        <div class="btn-mock">Aceptar</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="step-connector"></div>
+
+            <div class="step-card fade-in-up" style="--delay: 0.6s">
+                <div class="step-number">03</div>
+                <div class="step-content">
+                    <h3>Confirma y Paga</h3>
+                    <p>Cuando el trabajo esté hecho, pulsa <strong>OK</strong>. El sistema genera los tokens
+                        automáticamente.</p>
+                    <ul class="payment-logic">
+                        <li><span class="blue">Colaborador:</span> Recibe +100 BLUE (Ganancia)</li>
+                        <li><span class="red">Tú:</span> Recibes +100 RED (Deuda)</li>
+                    </ul>
+                </div>
+                <div class="step-visual visual-confirm">
+                    <div class="transaction-mock">
+                        <div class="tx-row blue-tx">+100 BLUE</div>
+                        <div class="tx-row red-tx">+100 RED</div>
+                        <div class="tx-status">Success</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="debt-explanation">
+        <div class="container">
+            <div class="explanation-box">
+                <h2>¿Cómo pago mi deuda?</h2>
+                <div class="debt-cycle">
+                    <div class="cycle-step">
+                        <span class="step-icon">⏳</span>
+                        <h4>Tienes 30 Días</h4>
+                        <p>Para saldar tu compromiso sin penalización.</p>
+                    </div>
+                    <div class="cycle-arrow">→</div>
+                    <div class="cycle-step">
+                        <span class="step-icon">🛠️</span>
+                        <h4>Ayuda a Otros</h4>
+                        <p>Realiza tareas y gana <span class="blue">BLUE</span>.</p>
+                    </div>
+                    <div class="cycle-arrow">→</div>
+                    <div class="cycle-step">
+                        <span class="step-icon">🔥</span>
+                        <h4>Quema Tokens</h4>
+                        <p>1 RED + 1 BLUE = 0. ¡Deuda saldada!</p>
+                    </div>
+                </div>
+
+                <div class="warning-zone">
+                    <h3>⚠️ ¿Qué pasa si no pago a tiempo?</h3>
+                    <p>Si vences el plazo de 30 días, tu perfil ingresará automáticamente a la:</p>
+                    <div class="love-card">
+                        <div class="love-title">L.O.V.E.</div>
+                        <div class="love-subtitle">Lista de Obligaciones Vencidas</div>
+                        <p>Una lista pública de reputación. En la nueva economía, tu palabra es tu activo más
+                            valioso. Perder credibilidad significa perder oportunidades.</p>
+                    </div>
+                </div>
+
+                <a href="register.html" class="btn-glow-large">Empezar Ahora</a>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 WintonCoin. La moneda de la gente.</p>
+        </div>
+    </footer>
+
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+
+</html>

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[DEMO] Preguntas Frecuentes FAQ | WintonCoin</title>
+    <style>
+        .faq-section {
+            /* Top padding reduced: nav header was removed (linked to non-existent pages) */
+            padding: 60px 0 80px;
+            background: #020408;
+            min-height: 100vh;
+        }
+
+        .faq-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .faq-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .faq-header h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 20px;
+            letter-spacing: -1px;
+        }
+
+        .faq-header p {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            opacity: 0.8;
+        }
+
+        .faq-item {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .faq-item:hover {
+            border-color: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .faq-question {
+            padding: 24px 30px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 700;
+            color: white;
+            font-size: 1.1rem;
+        }
+
+        .faq-question::after {
+            content: '+';
+            font-size: 1.5rem;
+            color: var(--accent-blue, #3B82F6);
+            transition: transform 0.3s ease;
+        }
+
+        .faq-item.active .faq-question::after {
+            transform: rotate(45deg);
+        }
+
+        .faq-answer {
+            padding: 0 30px;
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            color: rgba(255, 255, 255, 0.6);
+            line-height: 1.7;
+            font-size: 1rem;
+        }
+
+        .faq-item.active .faq-answer {
+            padding: 0 30px 30px;
+            max-height: 500px;
+        }
+
+        .whatsapp-cta {
+            text-align: center;
+            margin-top: 60px;
+            padding: 40px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .whatsapp-cta h3 {
+            color: white;
+            margin-bottom: 15px;
+        }
+
+        .btn-whatsapp {
+            display: inline-block;
+            background: #25D366;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            margin-top: 10px;
+            transition: transform 0.3s;
+        }
+
+        .btn-whatsapp:hover {
+            transform: scale(1.05);
+        }
+
+        @media (max-width: 768px) {
+            .faq-header h1 {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+  <link rel="stylesheet" crossorigin href="./assets/landing.Bhf4toDS.css">
+  <link rel="stylesheet" crossorigin href="./assets/main.D-E8-YLy.css">
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+
+<body>
+    <!-- FAQ section: standalone page without navigation header -->
+    <section class="faq-section">
+        <div class="faq-container">
+            <div class="faq-header">
+                <h1>Preguntas Frecuentes</h1>
+                <p>Todo lo que necesitas saber sobre el ecosistema WintonCoin.</p>
+            </div>
+
+            <div class="faq-list">
+                <div class="faq-item">
+                    <div class="faq-question">¿Qué es una Stablecoin?</div>
+                    <div class="faq-answer">
+                        Son criptomonedas que mantienen un valor estable al estar vinculadas 1 a 1 con el Dólar. Algunas
+                        de las stablecoins más populares son USDT, USDC y DAI, que están respaldadas por dólares
+                        estadounidenses.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">¿Qué es Quemar (Burn) criptomonedas y tokens?</div>
+                    <div class="faq-answer">
+                        Quemar criptomonedas o tokens es como eliminar y desaparecer de forma permanente, haciendo que
+                        sean inaccesibles para todos.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">¿Qué es un Token BLUE?</div>
+                    <div class="faq-answer">
+                        Es una representación de una moneda equivalente al Dólar que se obtiene cuando se completa una
+                        actividad que otra persona ha solicitado en la plataforma. Representa el pago que hace la
+                        persona por ayudarla. 1 token BLUE es igual a 1 Dólar.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">¿Qué es un Token RED?</div>
+                    <div class="faq-answer">
+                        Al igual que el BLUE es una representación de una moneda equivalente al Dólar, pero en este caso
+                        representa una deuda que se adquiere cuando el colaborador completa la actividad que solicitaste
+                        en la plataforma; es decir, un debito. 1 token RED es igual a 1 Dólar que debes pagar, no se
+                        puede transferir y solo puede ser quemado en igual cantidad de tokens BLUE.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">¿Qué es una moneda fiduciaria, moneda fiat, divisa legal?</div>
+                    <div class="faq-answer">
+                        El valor de la moneda depende de la confianza que la sociedad tenga en la estabilidad económica
+                        y política de la entidad que la emite. Las monedas emitidas por los gobiernos son monedas de
+                        este tipo, tales como el Dólar, Euro, Yuan, Yen Japonés, Dólar Canadiense, el Peso, etc.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">¿Puedo solicitar dinero Fiat como el Dólar?</div>
+                    <div class="faq-answer">
+                        Sí, siempre que las condiciones (efectivo, transferencia, en persona...) y montos que indiques
+                        sean atractivas y aceptadas por el colaborador. Es necesario un excelente récord de pagos y
+                        buena reputación. Asegúrate de coordinar bien y tomar precauciones de seguridad para evitar
+                        estafas.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">¿Qué es un ecosistema de colaboradores?</div>
+                    <div class="faq-answer">
+                        Cuando una persona recibe una ayuda y esta a su vez devuelve esa colaboración a otra persona; es
+                        decir, una persona ayuda y recibe ayuda de otra y así sucesivamente de manera infinita.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">¿Qué son las notificaciones publicitarias?</div>
+                    <div class="faq-answer">
+                        Son notificaciones que llegan al dispositivo de la persona que tiene tokens RED en su billetera,
+                        para avisarle que hay solicitudes de ayuda cercanas a su ubicación o de actividades que empresas
+                        pagan por realizar (ver publicidad, dar likes, etc), para que saldes tu deuda. Recuerda, el
+                        token RED es un compromiso de pago o deuda pendiente.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">¿Qué pasa si no ayudo, no veo las notificaciones y no pago mi deuda?</div>
+                    <div class="faq-answer">
+                        Si tienes token RED en tu billetera es por que ya recibiste colaboración de alguien, por tal, es
+                        un compromiso o deuda que debes devolver o saldar responsablemente. La plataforma dispondrá de
+                        una pagina de acceso público donde se incluirá la información de quienes incumplen con su
+                        responsabilidad de pagar o devolver la colaboración, afectando su reputación y la suspensión en
+                        la plataforma. Es fundamental mantener un compromiso ético y transparente para garantizar un
+                        ambiente de colaboración confiable y justo para todos los usuarios.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">¿Qué es una billetera de criptomonedas?</div>
+                    <div class="faq-answer">
+                        Si utilizas el celular o la computadora para hacer transferencias, lo haces en una aplicación
+                        que es una billetera del banco donde esta tu dinero, las billeteras de criptomonedas es igual
+                        solo que es una aplicación que guarda tus tokens o criptomonedas. La billetera mas utilizada es
+                        METAMASK.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">¿Qué es la comisión del servicio?</div>
+                    <div class="faq-answer">
+                        Nuestra plataforma cobra una comisión que varia entre el 1% al 10% del monto ofrecido cada vez
+                        que se concreta una actividad. Esta comisión es transferida al usuario que hace la solicitud en
+                        tokens RED, por ejemplo: supongamos que la comisión es del 3% y que el solicitante publica una
+                        solicitud ofreciendo 10 tokens BLUE, al culminar la actividad el solicitante recibe en su
+                        billetera 10,3 tokens RED (10 por la actividad + 0,3 por la comisión del servicio).
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">¿Por qué no me figura en el saldo los BLUE iou obtenidos?</div>
+                    <div class="faq-answer">
+                        En el perfil de impulsor se registran y acumulan los BLUE iou que obtienes haciendo tareas en la
+                        etapa de pre-lanzamiento. Estos BLUE iou acumulados es una deuda de la empresa WintonCoin con
+                        sus poseedores que se comenzarán a canjear por tokens BLUE oficiales a partir del primer mes
+                        después del lanzamiento oficial pautado para el 14-2-2027 (sujeto a cambios) según lo acumulado
+                        en la tesorería de la plataforma.
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <div class="faq-question">¿Es segura la plataforma? ¿Cómo evitan el fraude?</div>
+                    <div class="faq-answer">
+                        La seguridad es nuestra prioridad. Implementamos protocolos de verificación de identidad (KYC)
+                        para asegurar que cada usuario sea una persona real. Además, todas las transacciones de tokens
+                        BLUE y RED quedan registradas en la Blockchain, lo que garantiza transparencia total y evita la
+                        creación de cuentas falsas para manipular el sistema.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">¿Qué es el Sistema de Reputación?</div>
+                    <div class="faq-answer">
+                        Cada vez que colaboras o recibes ayuda, el sistema genera una calificación. Una buena reputación
+                        te permite acceder a tareas que pagan más tokens BLUE y te da prioridad al solicitar ayuda. Por
+                        el contrario, una mala reputación (incumplimiento de deudas RED) puede limitar tus funciones o
+                        resultar en la suspensión de la cuenta.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">¿Puedo ganar tokens invitando amigos?</div>
+                    <div class="faq-answer">
+                        ¡Sí! Contamos con un programa de referidos donde obtienes bonificaciones en BLUE iou por cada
+                        amigo que se una y complete su verificación. Si eres un "Booster" (Impulsor), estas recompensas
+                        son aún mayores y se acumulan en tu perfil para el canje oficial tras el lanzamiento.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">¿De dónde sale el valor del token BLUE si no es una moneda del gobierno?
+                    </div>
+                    <div class="faq-answer">
+                        El valor del BLUE proviene del trabajo real y los servicios intercambiados dentro del
+                        ecosistema. Al estar anclado 1:1 con el Dólar (Stablecoin) y respaldado por una reserva técnica
+                        alimentada por las comisiones y la actividad de la comunidad, el BLUE funciona como un activo de
+                        confianza para el intercambio de valor real entre personas.
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">¿Puedo usar WintonCoin desde mi teléfono celular?</div>
+                    <div class="faq-answer">
+                        Totalmente. Nuestra plataforma es una Aplicación Web Progresiva (PWA) diseñada para funcionar
+                        perfectamente en cualquier dispositivo móvil. Puedes gestionar tus tokens, recibir
+                        notificaciones de tareas cercanas y colaborar directamente desde tu navegador móvil favorito o
+                        vinculando tu billetera Metamask Mobile.
+                    </div>
+                </div>
+            </div>
+
+            <div class="whatsapp-cta">
+                <h3>¿Aún tienes dudas?</h3>
+                <p>Si no encuentras la respuesta que necesitas escríbenos al Whatsapp</p>
+                <a href="https://wa.me/5491136491716" class="btn-whatsapp" target="_blank">Contactar por Whatsapp</a>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <h4>WintonCoin</h4>
+                    <p>Homenaje a Nicholas Winton. Salvando economías, una tarea a la vez.</p>
+                </div>
+                <div class="footer-col">
+                    <h5>Plataforma</h5>
+                    <a href="register.html">Registrarse</a>
+                    <a href="login.html">Ingresar</a>
+                </div>
+                <div class="footer-col">
+                    <h5>Boosters</h5>
+                    <a href="https://boosters.wintoncoin.com/" target="_blank">Programa para Impulsores</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                &copy; 2026 WintonCoin Project. Descentralizando el futuro.
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        document.querySelectorAll('.faq-question').forEach(button => {
+            button.addEventListener('click', () => {
+                const faqItem = button.parentElement;
+                faqItem.classList.toggle('active');
+            });
+        });
+    </script>
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+
+</html>

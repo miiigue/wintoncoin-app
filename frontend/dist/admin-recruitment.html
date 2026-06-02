@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[DEMO] Winton Talent - Panel de Reclutamiento</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* Layout General Uniforme con el Admin */
+        .admin-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Toolbar Compacta: Buscador + Stats + Filtros */
+        .controls-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 15px 25px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .search-group {
+            flex: 1;
+            position: relative;
+            min-width: 250px;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748B;
+        }
+
+        #searchInput {
+            width: 100%;
+            padding: 10px 15px 10px 40px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        /* Estadísticas en línea */
+        .stats-compact {
+            display: flex;
+            gap: 20px;
+            border-left: 1px solid rgba(255,255,255,0.1);
+            border-right: 1px solid rgba(255,255,255,0.1);
+            padding: 0 25px;
+        }
+
+        .sc-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .sc-label {
+            font-size: 0.65rem;
+            color: #64748B;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sc-value {
+            font-size: 1.2rem;
+            font-weight: 800;
+            font-family: 'Outfit', sans-serif;
+            color: var(--talent-primary);
+        }
+
+        .sc-item.warning .sc-value { color: var(--talent-warning); }
+        .sc-item.info .sc-value { color: var(--talent-info); }
+
+        .filters-inline {
+            display: flex;
+            gap: 10px;
+        }
+
+        .filter-mini {
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            color: #94A3B8;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        /* Tabla y Perfiles */
+        .talent-table { width: 100%; border-collapse: collapse; }
+        .talent-table th { 
+            text-align: left; padding: 15px; font-size: 0.75rem; 
+            color: #64748B; border-bottom: 2px solid rgba(255,255,255,0.05);
+        }
+        .talent-table td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+
+        .talent-profile { display: flex; align-items: center; gap: 12px; }
+        .avatar { 
+            width: 36px; height: 36px; background: var(--talent-primary); 
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.9rem; color: white;
+        }
+        .info { display: flex; flex-direction: column; }
+        .name { font-weight: 600; color: #F1F5F9; font-size: 0.9rem; }
+        .id { font-size: 0.7rem; color: #64748B; }
+
+        .contact-info { display: flex; flex-direction: column; gap: 4px; }
+        .email { font-size: 0.85rem; color: #94A3B8; }
+        .linkedin-link { font-size: 0.75rem; color: var(--talent-primary); text-decoration: none; }
+
+        .salary-text.highlight { color: #10B981; font-weight: 700; font-size: 0.95rem; }
+
+        /* Botones de Acción Estilo Admin */
+        .actions { 
+            display: flex; justify-content: flex-end; gap: 8px; 
+        }
+        .btn-action {
+            width: 32px; height: 32px; border: none; border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.2s; font-size: 0.9rem;
+        }
+        .btn-action.review { background: rgba(99, 102, 241, 0.1); color: #818CF8; }
+        .btn-action.accept { background: rgba(34, 197, 94, 0.1); color: #4ADE80; }
+        .btn-action.reject { background: rgba(239, 68, 68, 0.1); color: #F87171; }
+        .btn-action:hover { transform: translateY(-2px); filter: brightness(1.2); }
+
+        .status-btn {
+            padding: 4px 10px; border-radius: 4px; font-size: 0.7rem;
+            font-weight: 700; text-transform: uppercase;
+        }
+        .status-btn.pending { background: rgba(245, 158, 11, 0.1); color: #FBBF24; }
+        .status-btn.reviewing { background: rgba(99, 102, 241, 0.1); color: #818CF8; }
+        .status-btn.accepted { background: rgba(34, 197, 94, 0.1); color: #4ADE80; }
+
+        @media (max-width: 900px) {
+            .controls-toolbar { flex-direction: column; align-items: stretch; }
+            .stats-compact { border: none; padding: 15px 0; justify-content: space-around; }
+        }
+    </style>
+  <link rel="stylesheet" crossorigin href="./assets/style.C7Ud9owh.css">
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+<body>
+    <div class="admin-container">
+        <!-- HEADER COMPACTO -->
+        <header class="admin-header">
+            <div class="header-left">
+                <a href="admin.html" class="btn-back">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Volver</span>
+                </a>
+                <div class="title-group">
+                    <h1>Winton <span class="accent">Talent</span></h1>
+                </div>
+            </div>
+        </header>
+
+        <!-- BUSCADOR + ESTADÍSTICAS EN UNA LÍNEA -->
+        <section class="controls-toolbar card">
+            <div class="search-group">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="searchInput" placeholder="Buscar candidato...">
+            </div>
+            
+            <div class="stats-compact">
+                <div class="sc-item">
+                    <span class="sc-label">TOTAL</span>
+                    <span class="sc-value" id="statTotal">0</span>
+                </div>
+                <div class="sc-item warning">
+                    <span class="sc-label">PENDIENTES</span>
+                    <span class="sc-value" id="statPending">0</span>
+                </div>
+                <div class="sc-item info">
+                    <span class="sc-label">REVISION</span>
+                    <span class="sc-value" id="statReviewing">0</span>
+                </div>
+            </div>
+
+            <div class="filters-inline">
+                <select id="statusFilter" class="filter-mini">
+                    <option value="all">Estados</option>
+                    <option value="pending">Pendientes</option>
+                    <option value="reviewing">Revisión</option>
+                    <option value="accepted">Aceptados</option>
+                </select>
+                <select id="roleFilter" class="filter-mini">
+                    <option value="all">Especialidad</option>
+                    <option value="UI/UX Designer">UI/UX</option>
+                    <option value="Frontend Developer">Frontend</option>
+                    <option value="Backend Developer">Backend</option>
+                    <option value="Marketing / Growth">Marketing</option>
+                </select>
+            </div>
+        </section>
+
+        <!-- TABLA ULTRA COMPACTA -->
+        <main class="table-section card">
+            <div class="table-responsive">
+                <table class="talent-table">
+                    <thead>
+                        <tr>
+                            <th>CANDIDATO</th>
+                            <th>CONTACTO / RRSS</th>
+                            <th>ESPECIALIDAD</th>
+                            <th>SALARIO</th>
+                            <th>FECHA</th>
+                            <th>ESTADO</th>
+                            <th class="text-right">ACCIONES</th>
+                        </tr>
+                    </thead>
+                    <tbody id="talentTableBody">
+                        <!-- LLenado dinámico -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // ============================================================
+        // LÓGICA DEL PANEL DE RECLUTAMIENTO ADMIN
+        // ============================================================
+
+        // Resolución de URL del Backend API (misma lógica que config.js)
+        function getApiUrl() {
+            const hostname = window.location.hostname;
+            const isFileProtocol = window.location.protocol === 'file:';
+            const isPrivateIp = /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
+            const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || isPrivateIp || isFileProtocol;
+            if (isFileProtocol) return 'http://localhost:3000';
+            if (isLocal) return `http://${hostname}:3000`;
+            if (hostname.startsWith('demo.') || hostname.includes('demo.')) {
+                return 'https://wintoncoin-backend-demo.onrender.com';
+            }
+            return 'https://wintoncoin-backend.onrender.com';
+        }
+
+        const API_URL = getApiUrl();
+
+        // ============================================================
+        // AUTENTICACIÓN POR COOKIES (igual que admin-panel.js)
+        // ============================================================
+        // El admin panel usa cookies httpOnly gestionadas por el backend.
+        // No usamos localStorage ni Bearer tokens.
+        // Si la cookie no existe o expiró, el backend responde 401
+        // y redirigimos a admin.html (login).
+
+        // Función segura para peticiones autenticadas (igual que apiFetch en admin-panel.js)
+        async function apiFetch(endpoint) {
+            const response = await fetch(`${API_URL}${endpoint}`, {
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include' // Envía las cookies httpOnly automáticamente
+            });
+
+            // Si no está autenticado, redirigir al login
+            if (response.status === 401 || response.status === 403) {
+                window.location.href = 'admin.html';
+                throw new Error('Sesión expirada.');
+            }
+
+            return response.json();
+        }
+
+        // Función para peticiones con body (PATCH, POST)
+        async function apiFetchWithBody(endpoint, method, body) {
+            const response = await fetch(`${API_URL}${endpoint}`, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include', // Cookies httpOnly
+                body: JSON.stringify(body)
+            });
+
+            if (response.status === 401 || response.status === 403) {
+                window.location.href = 'admin.html';
+                throw new Error('Sesión expirada.');
+            }
+
+            return response.json();
+        }
+
+        // Elementos del DOM
+        const tableBody = document.getElementById('talentTableBody');
+        const searchInput = document.getElementById('searchInput');
+        const statusFilter = document.getElementById('statusFilter');
+        const roleFilter = document.getElementById('roleFilter');
+
+        // Cargar postulaciones
+        async function loadProposals() {
+            try {
+                const params = new URLSearchParams();
+                const status = statusFilter.value;
+                const role = roleFilter.value;
+                const search = searchInput.value.trim();
+
+                if (status !== 'all') params.set('status', status);
+                if (role !== 'all') params.set('role', role);
+                if (search) params.set('search', search);
+
+                const data = await apiFetch(`/api/recruitment/admin/list?${params.toString()}`);
+
+                if (!data.success) throw new Error(data.message);
+
+                renderTable(data.proposals);
+                updateStats(data.proposals);
+            } catch (error) {
+                tableBody.innerHTML = `<tr><td colspan="7" class="empty-state">
+                    <div class="emoji">⚠️</div>
+                    <p>Error al cargar: ${error.message}</p>
+                </td></tr>`;
+            }
+        }
+
+        // Renderizar tabla con toda la información
+        function renderTable(proposals) {
+            if (proposals.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="7" class="empty-state">
+                    <div class="emoji">📭</div>
+                    <p>No hay postulaciones con estos filtros.</p>
+                </td></tr>`;
+                return;
+            }
+
+            tableBody.innerHTML = proposals.map(p => {
+                const date = new Date(p.created_at).toLocaleDateString('es-ES', {
+                    day: '2-digit', month: 'short', year: 'numeric'
+                });
+
+                return `
+                    <tr class="talent-row">
+                        <td>
+                            <div class="talent-profile">
+                                <div class="avatar">${p.full_name.charAt(0)}</div>
+                                <div class="info">
+                                    <span class="name">${escapeHtml(p.full_name)}</span>
+                                    <span class="id">ID: #${p.id}</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="contact-info">
+                                <span class="email"><i class="far fa-envelope"></i> ${escapeHtml(p.email)}</span>
+                                ${p.linkedin_url ? `<a href="${escapeHtml(p.linkedin_url)}" target="_blank" class="linkedin-link"><i class="fab fa-linkedin"></i> LinkedIn ↗</a>` : '<span class="no-link">Sin LinkedIn</span>'}
+                            </div>
+                        </td>
+                        <td><span class="badge role">${escapeHtml(p.role)}</span></td>
+                        <td><span class="salary-text highlight">${p.expected_salary ? `$ ${escapeHtml(p.expected_salary)}` : 'N/A'}</span></td>
+                        <td><span class="date">${date}</span></td>
+                        <td><span class="status-btn ${p.status}">${p.status.toUpperCase()}</span></td>
+                        <td class="text-right">
+                            <div class="actions">
+                                ${p.status === 'pending' ? `
+                                    <button onclick="updateStatus(${p.id}, 'reviewing')" class="btn-action review" title="Revisar">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                ` : ''}
+                                ${['pending', 'reviewing'].includes(p.status) ? `
+                                    <button onclick="updateStatus(${p.id}, 'accepted')" class="btn-action accept" title="Aceptar">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button onclick="updateStatus(${p.id}, 'rejected')" class="btn-action reject" title="Rechazar">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Actualizar estadísticas de forma eficiente
+        function updateStats(proposals) {
+            // Usamos los datos actuales para evitar doble petición si es posible
+            const total = proposals.length;
+            const pending = proposals.filter(p => p.status === 'pending').length;
+            const reviewing = proposals.filter(p => p.status === 'reviewing').length;
+            
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statPending').textContent = pending;
+            document.getElementById('statReviewing').textContent = reviewing;
+        }
+
+        // Actualizar estado de una postulación
+        async function updateStatus(id, newStatus) {
+            const notes = newStatus === 'rejected'
+                ? prompt('¿Motivo del rechazo? (opcional):')
+                : null;
+
+            try {
+                const data = await apiFetchWithBody(`/api/recruitment/admin/${id}/status`, 'PATCH', { status: newStatus, notes });
+                if (data.success) {
+                    loadProposals(); // Recargar tabla
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                alert('Error de conexión: ' + error.message);
+            }
+        }
+
+        // Descargar CV
+        function downloadCV(filename) {
+            window.open(`${API_URL}/api/recruitment/admin/download/${filename}`, '_blank');
+        }
+
+        // Sanitización XSS
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Eventos de filtros
+        searchInput.addEventListener('input', debounce(loadProposals, 400));
+        statusFilter.addEventListener('change', loadProposals);
+        roleFilter.addEventListener('change', loadProposals);
+
+        // Debounce para evitar peticiones excesivas
+        function debounce(fn, ms) {
+            let timer;
+            return function(...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => fn.apply(this, args), ms);
+            };
+        }
+
+        // Carga inicial
+        loadProposals();
+    </script>
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+</html>

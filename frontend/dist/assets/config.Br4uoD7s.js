@@ -1,0 +1,2 @@
+const n={};function r(){return"https://wintoncoin-backend-demo.onrender.com"}async function c(){const e=r();try{if(Object.keys(n).length>0)return;const t=await fetch(`${e}/api/app-settings`);if(!t.ok)throw new Error("No se pudo cargar la configuración de la aplicación.");const a=await t.json();Object.assign(n,a),document.dispatchEvent(new CustomEvent("app-settings-loaded"))}catch(t){console.error("Error de red al cargar la configuración de la aplicación:",t)}}export{n as a,c as f,r as g};
+//# sourceMappingURL=config.Br4uoD7s.js.map

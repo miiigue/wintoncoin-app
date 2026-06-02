@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>[DEMO] Detalle de Publicación - WintonCoin</title>
+  <script type="module" crossorigin src="./assets/publicationDetail.BWd65ADs.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill.B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="./assets/alerts.CawRDXDp.js">
+  <link rel="modulepreload" crossorigin href="./assets/config.Br4uoD7s.js">
+  <link rel="modulepreload" crossorigin href="./assets/auth.PfzP10z-.js">
+  <link rel="modulepreload" crossorigin href="./assets/index.Dk_Cx65J.js">
+  <link rel="stylesheet" crossorigin href="./assets/style.C7Ud9owh.css">
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+
+<body>
+    <div class="container" id="publication-detail-container">
+        <!-- Enlace para volver al panel principal -->
+        <a href="contract_interaction.html" class="back-link">&larr; Volver</a>
+
+        <div id="publication-content">
+            <!-- El contenido se cargará aquí dinámicamente -->
+            <div class="loading-spinner"></div>
+        </div>
+
+    </div>
+
+    <!-- ES Modules (Vite) -->
+
+    <!-- Modales (reutilizados de otras páginas para consistencia) -->
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+    <div id="customConfirmModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button confirm-close-button">&times;</span>
+            <p id="customConfirmMessage"></p>
+            <div class="confirm-buttons">
+                <button class="action-button cancel-button">Cancelar</button>
+                <button class="action-button confirm-button">Confirmar</button>
+            </div>
+        </div>
+    </div>
+    <div id="ratingModal" class="modal">
+        <div class="modal-content rating-modal-content">
+            <span class="close-button rating-close-button">&times;</span>
+            <form id="ratingForm">
+                <input type="hidden" id="ratingPublicationId" name="publication_id">
+                <input type="hidden" id="ratingRaterUsername" name="rater_username">
+                <input type="hidden" id="ratingRateeUsername" name="ratee_username">
+                <div class="rating-form-header">
+                    <h2 id="ratingModalTitle">Calificar al Usuario</h2>
+                    <div class="star-rating">
+                        <input type="radio" id="5-stars" name="rating" value="5" required /><label for="5-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="4-stars" name="rating" value="4" /><label for="4-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="3-stars" name="rating" value="3" /><label for="3-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="2-stars" name="rating" value="2" /><label for="2-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="1-star" name="rating" value="1" /><label for="1-star"
+                            class="star">&#9733;</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <textarea id="ratingComment" name="comment" rows="2"
+                        placeholder="¿Qué te pareció la experiencia? (opcional)"></textarea>
+                </div>
+                <button type="submit" class="action-button confirm">Enviar Calificación</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Intersticial (Pre-flight) -->
+    <div id="preflightModal" class="modal" style="display: none; background: rgba(0,0,0,0.9);">
+        <div class="modal-content" style="max-width: 500px; text-align: center; border: 1px solid var(--accent-light);">
+            <div class="preflight-header" style="margin-bottom: 20px;">
+                <h2 id="preflightTitle" style="color: var(--accent-light); margin: 0;"></h2>
+            </div>
+            <div id="preflightMessage"
+                style="margin-bottom: 30px; line-height: 1.6; font-size: 1.1rem; white-space: pre-wrap;"></div>
+            <button id="preflightContinueBtn" class="action-button confirm"
+                style="width: 100%; padding: 15px; font-weight: bold; text-transform: uppercase;">Continuar</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+
+</html>
