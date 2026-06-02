@@ -15,6 +15,17 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ## Línea de tiempo (hitos)
 
+### 2026-06-02 — Modularización del Dashboard Administrativo y Métrica de BLUE IOU Escrow
+
+- **Contexto**: El dashboard administrativo necesitaba mostrar la suma total de BLUE IOU comprometidos (Escrow) correspondientes a las tareas activas publicadas por la plataforma en la etapa de pre-lanzamiento. Además, el archivo \`server.js\` contenía lógica monolítica (deuda técnica) para la ruta de estadísticas del dashboard.
+- **Decisión**:
+  - **Métrica Escrow**: Se implementó la consulta SQL \`SUM(p.available_slots * p.blue_cost)\` filtrando por tareas de \`Plataforma WintonCoin\` que estén activas, no pausadas y con cupos disponibles. Esta métrica se agregó al frontend bajo el título "BLUE IOU Comprometidos (Tareas Plataforma)".
+  - **Modularización Profesional**: Se eliminó la función anónima monolítica de la ruta \`/api/admin/dashboard-stats\` en \`server.js\` y se delegó la lógica al controlador dedicado \`adminController.getDashboardStats\` en \`backend/src/controllers/adminController.js\`, cumpliendo con estándares profesionales de Clean Code y escalabilidad.
+- **Impacto**: Reducción de la deuda técnica en el archivo central del servidor, mayor claridad visual para la administración financiera de los pasivos de la plataforma durante el pre-lanzamiento, y una arquitectura backend más limpia y profesional.
+- **Evidencia**: Modificaciones en \`server.js\`, \`adminController.js\` y \`admin-panel.js\`.
+
+---
+
 ### 2026-06-02 — Resolución de Conexión de Base de Datos en Entorno Local (SSL)
 
 - **Contexto**: El servidor de desarrollo fallaba al iniciar en entornos locales con el error `The server does not support SSL connections`. El archivo de configuración de base de datos (`db.js`) intentaba adivinar si desactivar el SSL buscando la palabra `localhost` en la cadena de conexión, pero si el desarrollador no tenía la variable definida o usaba otra IP local, el servidor forzaba SSL obligatoriamente causando que PostgreSQL local rechazara la conexión.

@@ -1648,6 +1648,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <h4>BLUE en Circulación (Tokens Reales)</h4>
                 <p class="stat-value saldo-blue-text">${formatBalance(stats.totalBlue)}</p>
             </div>
+            <div class="stat-card" style="border-left: 4px solid #8B5CF6;">
+                <h4>BLUE IOU Comprometidos (Tareas Plataforma)</h4>
+                <p class="stat-value" style="color: #8B5CF6;">${formatBalance(stats.totalPlatformEscrow || 0)}</p>
+            </div>
             <div class="stat-card">
                 <h4>RED en Circulación (Deuda Total)</h4>
                 <p class="stat-value saldo-red-text">${formatBalance(stats.totalRed)}</p>

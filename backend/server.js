@@ -1897,55 +1897,9 @@ async function startServer() {
             }
         });
 
-        app.get('/api/admin/dashboard-stats', verifyAdminToken, async (req, res) => {
-            const client = await pool.connect();
-            try {
-                // EXCLUIR USUARIO DE PLATAFORMA Y FONDOS DE IMPULSORES
-                const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
-
-                const [usersData, publicationsData, tokensData, platformWalletData, boosterFundsData] = await Promise.all([
-                    client.query('SELECT COUNT(*) AS total_users FROM users WHERE username != $1', [platformUsername]),
-                    client.query(`
-                        SELECT COUNT(DISTINCT p.id) AS active_publications FROM publications p
-                        LEFT JOIN publication_acceptances pa ON p.id = pa.publication_id
-                        WHERE pa.status IS NULL OR pa.status != 'confirmed_paid'
-                    `),
-                    // SOLO tokens reales en circulación (excluyendo plataforma y fondos de impulsores)
-                    client.query(`
-                        SELECT 
-                            SUM(CASE WHEN username != $1 THEN liquid_blue_balance + escrow_blue_balance ELSE 0 END) AS users_total_blue, 
-                            SUM(red_balance) AS total_red 
-                        FROM users
-                    `, [platformUsername]),
-                    client.query('SELECT total_blue_commission_balance FROM platform_wallet WHERE id = 1'),
-                    // Fondos de impulsores (NO son tokens en circulación)
-                    client.query('SELECT SUM(amount) AS total_booster_funds FROM booster_blue_ledger')
-                ]);
-
-                const usersTotalBlue = parseFloat(tokensData.rows[0].users_total_blue) || 0;
-                const platformCommissionBalance = parseFloat(platformWalletData.rows[0]?.total_blue_commission_balance) || 0;
-                const totalBoosterFunds = parseFloat(boosterFundsData.rows[0]?.total_booster_funds) || 0;
-
-                // SOLO tokens reales en circulación (excluyendo fondos de impulsores)
-                const totalBlueInSystem = usersTotalBlue + platformCommissionBalance;
-
-                const stats = {
-                    totalUsers: parseInt(usersData.rows[0].total_users, 10),
-                    activePublications: parseInt(publicationsData.rows[0].active_publications, 10),
-                    totalBlue: totalBlueInSystem, // SOLO tokens reales en circulación
-                    totalRed: parseFloat(tokensData.rows[0].total_red) || 0,
-                    platformCommissionBalance: platformCommissionBalance,
-                    totalBoosterFunds: totalBoosterFunds // Información separada (NO son tokens en circulación)
-                };
-
-                res.status(200).json(stats);
-            } catch (error) {
-                console.error("Error al obtener estadísticas del dashboard:", error);
-                res.status(500).json({ message: "Error interno del servidor." });
-            } finally {
-                client.release();
-            }
-        });
+        // REFACTOR PROFESIONAL: Delegamos la lógica al controlador especializado `adminController`.
+        const adminController = require('./src/controllers/adminController');
+        app.get('/api/admin/dashboard-stats', verifyAdminToken, adminController.getDashboardStats);
 
         // ENDPOINT PÚBLICO: Lista de Obligaciones Vencidas (LOVE)
         app.get('/api/love-list', async (req, res) => {

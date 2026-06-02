@@ -286,7 +286,7 @@ async function getDashboardStats(req, res) {
         const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
 
         // Ejecutar todas las consultas en paralelo para minimizar latencia
-        const [usersData, publicationsData, tokensData, platformWalletData, boosterFundsData] = await Promise.all([
+        const [usersData, publicationsData, tokensData, platformWalletData, boosterFundsData, platformEscrow] = await Promise.all([
             client.query('SELECT COUNT(*) AS total_users FROM users WHERE username != $1', [platformUsername]),
             client.query(`
                 SELECT COUNT(DISTINCT p.id) AS active_publications FROM publications p
@@ -300,7 +300,17 @@ async function getDashboardStats(req, res) {
                 FROM users
             `, [platformUsername]),
             client.query('SELECT total_blue_commission_balance FROM platform_wallet WHERE id = 1'),
-            client.query('SELECT SUM(amount) AS total_booster_funds FROM booster_blue_ledger')
+            client.query('SELECT SUM(amount) AS total_booster_funds FROM booster_blue_ledger'),
+            client.query(`
+                SELECT COALESCE(SUM(p.available_slots * p.blue_cost), 0) AS total_platform_escrow
+                FROM publications p
+                JOIN users u ON p.author_id = u.id
+                WHERE u.username = $1
+                  AND p.deleted_at IS NULL
+                  AND (p.expires_at IS NULL OR p.expires_at >= NOW())
+                  AND p.available_slots > 0
+                  AND COALESCE(p.is_paused, FALSE) = FALSE
+            `, [platformUsername])
         ]);
 
         const stats = {
@@ -310,7 +320,8 @@ async function getDashboardStats(req, res) {
                                        (parseFloat(platformWalletData.rows[0]?.total_blue_commission_balance) || 0),
             totalRed:                  parseFloat(tokensData.rows[0].total_red) || 0,
             platformCommissionBalance: parseFloat(platformWalletData.rows[0]?.total_blue_commission_balance) || 0,
-            totalBoosterFunds:         parseFloat(boosterFundsData.rows[0]?.total_booster_funds) || 0
+            totalBoosterFunds:         parseFloat(boosterFundsData.rows[0]?.total_booster_funds) || 0,
+            totalPlatformEscrow:       parseFloat(platformEscrow.rows[0]?.total_platform_escrow) || 0
         };
 
         res.status(200).json(stats);
