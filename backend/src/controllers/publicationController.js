@@ -491,6 +491,82 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         }
     });
 
+    // NUEVO: Ruta para obtener publicaciones ocultas por el usuario
+    router.get('/publications/hidden', async (req, res) => {
+        const { user: requestingUser, search } = req.query; // search puede ser undefined
+        if (!requestingUser) return res.status(400).json({ message: "Es necesario especificar un usuario." });
+
+        // FIX DE SEGURIDAD: Usar parámetros de consulta para prevenir inyección de SQL
+        const queryParams = [requestingUser];
+        let searchCondition = "";
+        if (search) {
+            // El placeholder para el parámetro de búsqueda será el siguiente número disponible.
+            searchCondition = ` AND (p.title ILIKE $${queryParams.length + 1} OR p.description ILIKE $${queryParams.length + 1})`;
+            queryParams.push(`%${search}%`);
+        }
+
+        const sql = `
+                SELECT
+            p.id, p.title, p.description, p.blue_cost, p.created_at, p.status, p.category,
+            p.is_booster_task, p.is_sell_post, p.available_slots, p.expires_at, p.allow_repeat_participation, p.max_repeat_per_user, p.repeat_cooldown_hours,
+            p.goal_amount, p.current_amount,
+                    u.username as author_username,
+            u.average_rating as author_average_rating,
+            u.ratings_count as author_ratings_count,
+                    (
+                        SELECT pa.status 
+                        FROM publication_acceptances pa 
+                        WHERE pa.publication_id = p.id AND pa.acceptor_username = $1
+                        ORDER BY created_at DESC LIMIT 1
+                    ) as user_acceptance_status,
+                    (
+                        SELECT COUNT(*)
+                        FROM publication_acceptances pa
+                        WHERE pa.publication_id = p.id 
+                        AND pa.acceptor_username = $1 
+                        AND pa.status = 'confirmed_paid'
+                    ) as successful_participations,
+                    (CASE
+                        WHEN u.username = $1 THEN (
+                            SELECT json_agg(json_build_object(
+                                'username', participant_user.username,
+                                'status', pa.status,
+                                'accepted_at', pa.created_at,
+                                'blue_cost', pa.blue_cost,
+                                'average_rating', participant_user.average_rating,
+                                'ratings_count', participant_user.ratings_count
+                            ) ORDER BY pa.created_at)
+                            FROM publication_acceptances pa
+                            JOIN users participant_user ON pa.acceptor_username = participant_user.username
+                            WHERE pa.publication_id = p.id
+                        )
+                        ELSE NULL
+                    END) as participants
+                FROM
+                    publications p
+                JOIN
+                    users u on p.author_id = u.id
+                WHERE
+                    p.id IN (SELECT hp.publication_id FROM hidden_publications hp WHERE hp.hider_username = $1)
+                    AND p.deleted_at IS NULL
+            ${searchCondition}
+                ORDER BY
+                    p.created_at DESC
+            `;
+
+        try {
+            const result = await pool.query(sql, queryParams);
+            const publications = result.rows.map(p => ({
+                ...p,
+                participants: p.participants || [],
+            }));
+            res.status(200).json(publications);
+        } catch (error) {
+            console.error("Error al obtener las publicaciones ocultas:", error);
+            return res.status(500).json({ message: "Error interno del servidor." });
+        }
+    });
+
     // NUEVO: Endpoint para crear una Venta Rápida
     router.post('/api/quick-sale', requireAcceptedLegalByUsernameField(['authorUsername']), async (req, res) => {
         let { title, amount, authorUsername, targetUsername } = req.body;
@@ -1636,102 +1712,6 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             res.status(500).json({ message: "Error interno del servidor al obtener los detalles de la publicación." });
         } finally {
             client.release();
-        }
-    });
-
-    // Ruta para OCULTAR una publicación
-    router.post('/publications/:id/hide', requireAcceptedLegalByUsernameField(['username']), async (req, res) => {
-        const { id } = req.params;
-        const { username } = req.body;
-
-        const client = await pool.connect();
-        try {
-            await client.query('BEGIN');
-            const sql = `INSERT INTO hidden_publications (publication_id, hider_username) VALUES ($1, $2) ON CONFLICT DO NOTHING`;
-            await client.query(sql, [id, username]);
-            
-            await logAuditEvent(client, req, {
-                eventType: 'publication.hidden',
-                actorUsername: username,
-                publicationId: parseInt(id, 10),
-                category: 'publication_interaction',
-                metadata: { action: 'hide' }
-            });
-
-            await client.query('COMMIT');
-            res.status(200).json({ message: "Publicación ocultada de tu vista." });
-        } catch (error) {
-            await client.query('ROLLBACK');
-            console.error("Error en /hide:", error);
-            res.status(500).json({ message: "Error interno del servidor." });
-        } finally {
-            client.release();
-        }
-    });
-
-    // Ruta para DESHACER OCULTAR (Unhide)
-    router.post('/publications/:id/unhide', requireAcceptedLegalByUsernameField(['username']), async (req, res) => {
-        const { id } = req.params;
-        const { username } = req.body;
-
-        const client = await pool.connect();
-        try {
-            await client.query('BEGIN');
-            const sql = `DELETE FROM hidden_publications WHERE publication_id = $1 AND hider_username = $2`;
-            await client.query(sql, [id, username]);
-            
-            await logAuditEvent(client, req, {
-                eventType: 'publication.unhidden',
-                actorUsername: username,
-                publicationId: parseInt(id, 10),
-                category: 'publication_interaction',
-                metadata: { action: 'unhide' }
-            });
-
-            await client.query('COMMIT');
-            res.status(200).json({ message: "Publicación restaurada." });
-        } catch (error) {
-            await client.query('ROLLBACK');
-            console.error("Error en /unhide:", error);
-            res.status(500).json({ message: "Error interno del servidor." });
-        } finally {
-            client.release();
-        }
-    });
-
-    // Ruta para obtener publicaciones ocultadas por el usuario
-    router.get('/publications/hidden', async (req, res) => {
-        const { user: requestingUser } = req.query;
-        if (!requestingUser) return res.status(400).json({ message: "Es necesario especificar un usuario." });
-
-        const sql = `
-            SELECT
-                p.id, p.title, p.description, p.blue_cost, p.created_at, p.status, p.category,
-                p.is_booster_task, p.is_sell_post, p.available_slots, p.expires_at, p.allow_repeat_participation, p.max_repeat_per_user, p.repeat_cooldown_hours,
-                p.goal_amount, p.current_amount,
-                u.username as author_username,
-                u.average_rating as author_average_rating,
-                u.ratings_count as author_ratings_count,
-                NULL as participants
-            FROM
-                publications p
-            JOIN
-                users u on p.author_id = u.id
-            JOIN
-                hidden_publications hp on p.id = hp.publication_id
-            WHERE
-                hp.hider_username = $1
-                AND p.deleted_at IS NULL
-            ORDER BY
-                hp.created_at DESC
-        `;
-
-        try {
-            const result = await pool.query(sql, [requestingUser]);
-            res.status(200).json(result.rows);
-        } catch (error) {
-            console.error("Error al obtener las publicaciones ocultadas:", error);
-            return res.status(500).json({ message: "Error interno del servidor." });
         }
     });
 

@@ -113,8 +113,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // para evitar peticiones HTTP redundantes al cambiar filtro/orden/búsqueda.
     // Se invalida solo cuando se recargan las publicaciones desde el servidor.
     const userRatingsCache = new Map();
-    // Filtro activo para publicaciones ('all' | 'pending' | 'request' | 'sell' | 'donation')
+    // Filtro activo para publicaciones ('all' | 'pending' | 'request' | 'sell' | 'donation' | 'hidden')
     let currentFilter = 'all';
+    // Endpoint actual del cual se cargaron los datos en caché
+    let currentEndpoint = 'active';
     // Texto de búsqueda activo (normalizado a minúsculas)
     let currentSearchText = '';
     let searchDebounceTimer = null;
@@ -652,7 +654,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * Usa event delegation: el listener está en el contenedor, no en cada chip.
      * Actualiza el estado visual (aria-pressed, clase active) y re-renderiza.
      */
-    function handleFilterChipClick(event) {
+    async function handleFilterChipClick(event) {
         const chip = event.target.closest('.filter-chip');
         if (!chip || chip.classList.contains('active')) return;
 
@@ -666,14 +668,16 @@ document.addEventListener('DOMContentLoaded', () => {
         chip.classList.add('active');
         chip.setAttribute('aria-pressed', 'true');
 
-        const previousFilter = currentFilter;
+        // Actualizar estado
         currentFilter = chip.dataset.filter;
 
-        if (currentFilter === 'hidden' || previousFilter === 'hidden') {
-            // Recargar datos desde el servidor si entramos o salimos de 'Ocultadas'
-            fetchAndDisplayPublications();
+        // Evaluar si necesitamos recargar del servidor por cambio de vista
+        const neededEndpoint = currentFilter === 'hidden' ? 'hidden' : 'active';
+        if (neededEndpoint !== currentEndpoint) {
+            currentEndpoint = neededEndpoint;
+            await fetchAndDisplayPublications();
         } else {
-            // Solo filtrar en caché para el resto
+            // Re-renderizar con el filtro actual localmente
             renderPublicationsWithFilters();
         }
     }
@@ -882,8 +886,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!elements.publicationsList) return;
 
         try {
-            const endpoint = currentFilter === 'hidden' ? '/publications/hidden' : '/publications/active';
-            const response = await fetch(`${API_URL}${endpoint}?user=${storedUsername}`);
+            const response = await fetch(`${API_URL}/publications/${currentEndpoint}?user=${storedUsername}`);
             if (!response.ok) {
                 elements.publicationsList.innerHTML = '<p>Error al cargar las publicaciones.</p>';
                 return;
@@ -1014,9 +1017,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // --- Paso 1: Aplicar filtro por tipo/estado ---
-        if (activeFilter === 'hidden') {
-            // No aplicamos más filtros de estado, las recibimos directo del backend filtradas
-        } else if (activeFilter === 'pending') {
+        if (activeFilter === 'pending') {
             result = result.filter(pub => isPendingForUser(pub));
         } else if (activeFilter === 'request' || activeFilter === 'sell' || activeFilter === 'donation') {
             result = result.filter(pub => getPublicationType(pub) === activeFilter);
@@ -1275,21 +1276,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Título de la tarjeta — XSS Prevention: escapar título del servidor
         const cardTitle = `<h3>${escapeHtml(pub.title)}</h3>`;
-        
-        const isHiddenView = currentFilter === 'hidden';
-        const actionBtnAction = isHiddenView ? 'unhide' : 'hide';
-        // Icono de Ojo con tachado (o restauración) si está oculto, Icono X si no lo está
-        const actionBtnIcon = isHiddenView 
-            ? `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>` 
-            : `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
 
         return `
             <a href="publication-detail.html?id=${pub.id}" class="publication-item-link">
                 <div class="publication-item ${expirationInfo.isExpired ? 'expired' : ''} ${isDonation ? 'donation-card' : ''}" data-id="${pub.id}" data-author="${safeAuthorAttr}">
                     
                     <div class="card-top-row ${statusMessageHTML ? 'has-status' : ''}">
-                        <button class="card-close-btn ${isHiddenView ? 'unhide-btn' : ''}" onclick="event.preventDefault(); event.stopPropagation(); window.handleCardAction('${actionBtnAction}', ${pub.id})" title="${isHiddenView ? 'Desocultar' : 'Ocultar'}">
-                            ${actionBtnIcon}
+                        <button class="card-close-btn" onclick="event.preventDefault(); event.stopPropagation(); window.handleCardAction('hide', ${pub.id})">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
                         </button>
                         
                         ${statusMessageHTML}
@@ -1365,20 +1362,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // Acción directa de ocultar/desocultar
+    // Acción directa de ocultar
     window.handleCardAction = async function (action, id) {
         if (action === 'hide') {
             await hidePublication(id);
-        } else if (action === 'unhide') {
-            await unhidePublication(id);
-            // Si estamos en la vista de ocultadas, removemos el item
-            if (currentFilter === 'hidden') {
-                const item = document.querySelector(`.publication-item[data-id="${id}"]`);
-                const cardLink = item?.closest('.publication-item-link');
-                if (cardLink) {
-                    cardLink.style.display = 'none';
-                }
-            }
         }
     };
 

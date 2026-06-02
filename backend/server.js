@@ -1314,7 +1314,35 @@ async function startServer() {
             }
         });
 
+        // Ruta para OCULTAR una publicación
+        app.post('/publications/:id/hide', requireAcceptedLegalByUsernameField(['username']), async (req, res) => {
+            const { id } = req.params;
+            const { username } = req.body;
 
+            try {
+                const sql = `INSERT INTO hidden_publications (publication_id, hider_username) VALUES ($1, $2) ON CONFLICT DO NOTHING`;
+                await pool.query(sql, [id, username]);
+                res.status(200).json({ message: "Publicación ocultada de tu vista." });
+            } catch (error) {
+                console.error("Error en /hide:", error);
+                res.status(500).json({ message: "Error interno del servidor." });
+            }
+        });
+
+        // Ruta para DESHACER OCULTAR (Unhide)
+        app.post('/publications/:id/unhide', requireAcceptedLegalByUsernameField(['username']), async (req, res) => {
+            const { id } = req.params;
+            const { username } = req.body;
+
+            try {
+                const sql = `DELETE FROM hidden_publications WHERE publication_id = $1 AND hider_username = $2`;
+                await pool.query(sql, [id, username]);
+                res.status(200).json({ message: "Publicación restaurada." });
+            } catch (error) {
+                console.error("Error en /unhide:", error);
+                res.status(500).json({ message: "Error interno del servidor." });
+            }
+        });
 
         // Ruta para obtener el perfil público de un usuario
         app.get('/users/:username/profile', async (req, res) => {
