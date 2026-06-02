@@ -16,7 +16,7 @@ const pool = new Pool({
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-const DEMO_PASSWORD = 'password123'; // Contraseña común para todos los usuarios demo
+const DEMO_PASSWORD = process.env.DEMO_USER_PASSWORD || 'password123'; // Contraseña común (inyectable vía env)
 
 async function seedDemoData() {
     console.log('🌱 Iniciando sembrado de datos para DEMO...');
