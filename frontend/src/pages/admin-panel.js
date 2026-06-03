@@ -1648,10 +1648,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <h4>BLUE en Circulación (Tokens Reales)</h4>
                 <p class="stat-value saldo-blue-text">${formatBalance(stats.totalBlue)}</p>
             </div>
-            <div class="stat-card" style="border-left: 4px solid #8B5CF6;">
-                <h4>BLUE IOU Comprometidos (Tareas Plataforma)</h4>
-                <p class="stat-value" style="color: #8B5CF6;">${formatBalance(stats.totalPlatformEscrow || 0)}</p>
-            </div>
             <div class="stat-card">
                 <h4>RED en Circulación (Deuda Total)</h4>
                 <p class="stat-value saldo-red-text">${formatBalance(stats.totalRed)}</p>
@@ -1660,9 +1656,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 <h4>Comisiones Acumuladas</h4>
                 <p class="stat-value saldo-blue-text">${formatBalance(stats.platformCommissionBalance)}</p>
             </div>
-            <div class="stat-card">
-                <h4>Fondos de Impulsores (Deuda Futura)</h4>
-                <p class="stat-value saldo-escrow-text">${formatBalance(stats.totalBoosterFunds || 0)}</p>
+            
+            <div class="stat-card" style="border-left: 4px solid #8B5CF6;">
+                <h4>BLUE IOU Comprometidos (Tareas Plataforma)</h4>
+                <p class="stat-value" style="color: #8B5CF6;">${formatBalance(stats.totalPlatformEscrow || 0)}</p>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid #8B5CF6;">
+                <h4>BLUE IOU en Proceso</h4>
+                <p class="stat-value" style="color: #8B5CF6;">${formatBalance(stats.totalPlatformInProcess || 0)}</p>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid #8B5CF6;">
+                <h4>BLUE IOU Entregados (Deuda Futura)</h4>
+                <p class="stat-value" style="color: #8B5CF6;">${formatBalance(stats.totalBoosterFunds || 0)}</p>
             </div>
         `;
     }

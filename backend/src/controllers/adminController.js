@@ -286,7 +286,7 @@ async function getDashboardStats(req, res) {
         const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
 
         // Ejecutar todas las consultas en paralelo para minimizar latencia
-        const [usersData, publicationsData, tokensData, platformWalletData, boosterFundsData, platformEscrow] = await Promise.all([
+        const [usersData, publicationsData, tokensData, platformWalletData, boosterFundsData, platformEscrow, platformInProcess] = await Promise.all([
             client.query('SELECT COUNT(*) AS total_users FROM users WHERE username != $1', [platformUsername]),
             client.query(`
                 SELECT COUNT(DISTINCT p.id) AS active_publications FROM publications p
@@ -310,6 +310,14 @@ async function getDashboardStats(req, res) {
                   AND (p.expires_at IS NULL OR p.expires_at >= NOW())
                   AND p.available_slots > 0
                   AND COALESCE(p.is_paused, FALSE) = FALSE
+            `, [platformUsername]),
+            client.query(`
+                SELECT COALESCE(SUM(p.blue_cost), 0) AS total_platform_in_process
+                FROM publication_acceptances pa
+                JOIN publications p ON pa.publication_id = p.id
+                JOIN users u ON p.author_id = u.id
+                WHERE u.username = $1
+                  AND pa.status NOT IN ('confirmed_paid', 'rejected', 'cancelled', 'abandoned')
             `, [platformUsername])
         ]);
 
@@ -321,7 +329,8 @@ async function getDashboardStats(req, res) {
             totalRed:                  parseFloat(tokensData.rows[0].total_red) || 0,
             platformCommissionBalance: parseFloat(platformWalletData.rows[0]?.total_blue_commission_balance) || 0,
             totalBoosterFunds:         parseFloat(boosterFundsData.rows[0]?.total_booster_funds) || 0,
-            totalPlatformEscrow:       parseFloat(platformEscrow.rows[0]?.total_platform_escrow) || 0
+            totalPlatformEscrow:       parseFloat(platformEscrow.rows[0]?.total_platform_escrow) || 0,
+            totalPlatformInProcess:    parseFloat(platformInProcess.rows[0]?.total_platform_in_process) || 0
         };
 
         res.status(200).json(stats);

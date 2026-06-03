@@ -16,7 +16,10 @@ const pool = new Pool({
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-const DEMO_PASSWORD = process.env.DEMO_USER_PASSWORD || 'password123'; // Contraseña común (inyectable vía env)
+const DEMO_PASSWORD = process.env.DEMO_USER_PASSWORD;
+if (!DEMO_PASSWORD) {
+    throw new Error("⛔ Error Crítico de Seguridad: La variable de entorno DEMO_USER_PASSWORD no está definida en tu archivo .env.demo. Regla Zero Hardcoded Secrets.");
+}
 
 async function seedDemoData() {
     console.log('🌱 Iniciando sembrado de datos para DEMO...');
