@@ -1662,8 +1662,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 <p class="stat-value" style="color: #8B5CF6;">${formatBalance(stats.totalPlatformEscrow || 0)}</p>
             </div>
             <div class="stat-card" style="border-left: 4px solid #8B5CF6;">
-                <h4>BLUE IOU en Proceso</h4>
-                <p class="stat-value" style="color: #8B5CF6;">${formatBalance(stats.totalPlatformInProcess || 0)}</p>
+                <h4>BLUE IOU en Ejecución (Fondos Asignados)</h4>
+                <p class="stat-value" style="color: #8B5CF6;">${formatBalance(stats.totalPlatformInExecution || 0)}</p>
+            </div>
+            <div class="stat-card" style="border-left: 4px solid #8B5CF6;">
+                <h4>BLUE IOU Pendientes de Pago (En Auditoría)</h4>
+                <p class="stat-value" style="color: #8B5CF6;">${formatBalance(stats.totalPlatformPendingPayment || 0)}</p>
             </div>
             <div class="stat-card" style="border-left: 4px solid #8B5CF6;">
                 <h4>BLUE IOU Entregados (Deuda Futura)</h4>

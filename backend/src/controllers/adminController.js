@@ -286,7 +286,7 @@ async function getDashboardStats(req, res) {
         const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
 
         // Ejecutar todas las consultas en paralelo para minimizar latencia
-        const [usersData, publicationsData, tokensData, platformWalletData, boosterFundsData, platformEscrow, platformInProcess] = await Promise.all([
+        const [usersData, publicationsData, tokensData, platformWalletData, boosterFundsData, platformEscrow, platformInExecution, platformPendingPayment] = await Promise.all([
             client.query('SELECT COUNT(*) AS total_users FROM users WHERE username != $1', [platformUsername]),
             client.query(`
                 SELECT COUNT(DISTINCT p.id) AS active_publications FROM publications p
@@ -312,25 +312,34 @@ async function getDashboardStats(req, res) {
                   AND COALESCE(p.is_paused, FALSE) = FALSE
             `, [platformUsername]),
             client.query(`
-                SELECT COALESCE(SUM(p.blue_cost), 0) AS total_platform_in_process
+                SELECT COALESCE(SUM(p.blue_cost), 0) AS total_platform_in_execution
                 FROM publication_acceptances pa
                 JOIN publications p ON pa.publication_id = p.id
                 JOIN users u ON p.author_id = u.id
                 WHERE u.username = $1
-                  AND pa.status NOT IN ('confirmed_paid', 'rejected', 'cancelled', 'abandoned')
+                  AND pa.status NOT IN ('completed', 'confirmed_paid', 'rejected', 'cancelled', 'abandoned')
+            `, [platformUsername]),
+            client.query(`
+                SELECT COALESCE(SUM(p.blue_cost), 0) AS total_platform_pending_payment
+                FROM publication_acceptances pa
+                JOIN publications p ON pa.publication_id = p.id
+                JOIN users u ON p.author_id = u.id
+                WHERE u.username = $1
+                  AND pa.status = 'completed'
             `, [platformUsername])
         ]);
 
         const stats = {
-            totalUsers:                parseInt(usersData.rows[0].total_users, 10),
-            activePublications:        parseInt(publicationsData.rows[0].active_publications, 10),
-            totalBlue:                 (parseFloat(tokensData.rows[0].users_total_blue) || 0) +
-                                       (parseFloat(platformWalletData.rows[0]?.total_blue_commission_balance) || 0),
-            totalRed:                  parseFloat(tokensData.rows[0].total_red) || 0,
-            platformCommissionBalance: parseFloat(platformWalletData.rows[0]?.total_blue_commission_balance) || 0,
-            totalBoosterFunds:         parseFloat(boosterFundsData.rows[0]?.total_booster_funds) || 0,
-            totalPlatformEscrow:       parseFloat(platformEscrow.rows[0]?.total_platform_escrow) || 0,
-            totalPlatformInProcess:    parseFloat(platformInProcess.rows[0]?.total_platform_in_process) || 0
+            totalUsers:                  parseInt(usersData.rows[0].total_users, 10),
+            activePublications:          parseInt(publicationsData.rows[0].active_publications, 10),
+            totalBlue:                   (parseFloat(tokensData.rows[0].users_total_blue) || 0) +
+                                         (parseFloat(platformWalletData.rows[0]?.total_blue_commission_balance) || 0),
+            totalRed:                    parseFloat(tokensData.rows[0].total_red) || 0,
+            platformCommissionBalance:   parseFloat(platformWalletData.rows[0]?.total_blue_commission_balance) || 0,
+            totalBoosterFunds:           parseFloat(boosterFundsData.rows[0]?.total_booster_funds) || 0,
+            totalPlatformEscrow:         parseFloat(platformEscrow.rows[0]?.total_platform_escrow) || 0,
+            totalPlatformInExecution:    parseFloat(platformInExecution.rows[0]?.total_platform_in_execution) || 0,
+            totalPlatformPendingPayment: parseFloat(platformPendingPayment.rows[0]?.total_platform_pending_payment) || 0
         };
 
         res.status(200).json(stats);
