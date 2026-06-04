@@ -2667,3 +2667,21 @@ Se asienta en auditoría la remoción física de la subcarpeta `android-app` (Ap
   - **Cero Interrupción en Producción**: Los miles de usuarios de la comunidad de Impulsores pueden continuar publicando, aceptando y completando tareas en BLUE IOU sin ningún tipo de bloqueo o fricción técnica.
   - **Transición Futura Automatizada**: En el momento en que administración desactive el Modo Pre-lanzamiento (`pre_launch_mode_enabled = 'false'`), el candado KYC Web3 se activará de forma instantánea y automática para todo el marketplace.
 - **Evidencia**: Archivos modificados: `publicationController.js`, `EVOLUCION.md`.
+
+---
+
+### 2026-06-04 — Refactorización Crítica: Extracción Administrativa y Diseño Dashboard (Fase 1 y 2)
+
+- **Contexto**: El proyecto acumulaba una severa deuda técnica en su núcleo principal (`server.js`), el cual operaba como un monolito gigante, gestionando a la vez flujos de usuario y rutas críticas de administración (DB, moderación, KYC, backups). Simultáneamente, la interfaz de usuario `contract_interaction.html` adolecía de un diseño "Mobile-Only", resultando pobre y genérica cuando se visualizaba desde un navegador de computadora. El reto fue refactorizar sin afectar la estabilidad ni el despliegue actual.
+- **Decisión Fase 1 (Backend - Modularización)**:
+  - **Extirpación Quirúrgica**: Se extrajeron las funciones críticas de administración (`getUserKycStatus`, `getDatabaseStats`, `createDatabaseBackup`, rutinas de `cleanup`, moderación de publicaciones) desde el `server.js` hacia un nuevo módulo dedicado: `src/controllers/adminController.js`.
+  - **Enlace de Seguridad**: Se creó un enrutador `adminRoutes.js` enlazado con el middleware `verifyAdminToken` para blindar todos los accesos.
+  - **Resolución de Rutas**: Trasladamos de manera segura las llamadas al sistema de backup, corrigiendo la ruta de importación (`../../backup-database.js`) para prevenir caídas (fallo 500).
+- **Decisión Fase 2 (Frontend - Opción A: Mobile-First Dashboard)**:
+  - **Contención de CSS (Mobile-First)**: Se inyectó en `style.css` un bloque `@media (min-width: 1024px)` garantizando un **Riesgo Cero** para los celulares, cuyo diseño permanece inalterado por CSS por defecto.
+  - **Barra Lateral Glassmorphism**: Se introdujo el componente `<aside class="desktop-sidebar">` con acabado premium Fintech (efecto de cristal y paleta oscura) para PC.
+  - **Observer Telepático (JS Proxy)**: Para evitar reescribir la lógica de eventos de JS, se inyectó un `MutationObserver` en el HTML que sincroniza visualmente el estado de visibilidad y mapea los clics de la nueva Barra Lateral hacia los elementos originales del menú del celular ocultos por CSS, resolviendo la colisión de IDs sin arriesgar regresiones en la lógica core de `contract-interaction.js`.
+- **Impacto**:
+  - Un backend auditable, seguro, y alineado con los estándares de ingeniería más exigentes.
+  - Una Interfaz de Usuario "Wow-factor" en pantallas grandes, combinando usabilidad avanzada para PC y mantenimiento sin fricción para el soporte móvil preexistente.
+- **Evidencia**: Archivos modificados: `backend/server.js`, `src/controllers/adminController.js`, `src/routes/adminRoutes.js`, `frontend/contract_interaction.html`, `frontend/style.css`, `EVOLUCION.md`.

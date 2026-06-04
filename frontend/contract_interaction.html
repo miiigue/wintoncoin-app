@@ -48,56 +48,124 @@
 </head>
 
 <body>
-    <div class="header-menu">
-        <!-- Menú de Perfil del Usuario -->
-        <div class="profile-menu">
-            <div class="profile-trigger" style="align-items: flex-start; margin-top: -10px;">
-                <span id="usernameDisplay">Usuario</span> <!-- El nombre se insertará aquí -->
-                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-list"
-                    viewBox="0 0 16 16" style="margin-top: -2px; margin-left: 8px;">
-                    <path fill-rule="evenodd"
-                        d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z" />
-                </svg>
+    <div class="app-wrapper">
+        <!-- ========================================================= -->
+        <!-- DASHBOARD LATERAL PARA PC (Opción A) -->
+        <!-- ========================================================= -->
+        <aside class="desktop-sidebar">
+            <div class="sidebar-logo">
+                <img src="assets/branding/wintoncoin_transparent_phrase.png" alt="WintonCoin" style="height: 36px; width: auto;">
             </div>
-            <div class="dropdown-content" id="profileDropdown">
-                <a href="como-funciona.html">¿Cómo funciona?</a>
-                <a href="p2p.html">Vende o Compra BLUE</a>
-                <a href="history.html">Historial</a>
-                <a href="transactions.html">Transacciones</a>
-                <a href="referrals.html">Referidos</a>
-                <a href="booster-profile.html">Perfil de Impulsor</a>
-                <a href="estado-cuenta.html" style="color: #10B981; font-weight: 600;">Billetera Web3 📊</a>
-                <a href="#" id="menuSolidarioHistory"
-                    style="display: none; color: #e83e8c; font-weight: 600;">Donaciones ❤️</a>
-                <a href="momentum-dashboard.html" id="momentumMenuLink"
-                    style="display: none; color: #f59e0b; font-weight: 600;">Winton Momentum ⚡</a>
-                <a href="love.html">Página LOVE</a>
-                <a href="documentation.html">Documentación</a>
-                <a href="https://www.wintoncoin.com" target="_blank">🌐 Ir al Sitio Web</a>
-                <a href="#" id="openSettingsModal">⚙️ Configuración</a>
-                <a href="#" id="logoutLink">Cerrar Sesión</a>
+            
+            <nav class="sidebar-nav">
+                <!-- Enlaces duplicados visualmente, sincronizados mediante MutationObserver -->
+                <a href="estado-cuenta.html" style="color: #10B981;">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                    Billetera Web3
+                </a>
+                <a href="p2p.html">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                    Vende o Compra BLUE
+                </a>
+                <a href="history.html">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Historial
+                </a>
+                <a href="transactions.html">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+                    Transacciones
+                </a>
+                <a href="referrals.html">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    Referidos
+                </a>
+                <a href="booster-profile.html">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    Perfil de Impulsor
+                </a>
+                <a href="#" id="menuSolidarioHistorySidebar" style="display: none; color: #e83e8c;">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+                    Donaciones
+                </a>
+                <a href="momentum-dashboard.html" id="momentumMenuLinkSidebar" style="display: none; color: #f59e0b;">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    Winton Momentum
+                </a>
+                <a href="love.html">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    Página LOVE
+                </a>
+            </nav>
+            
+            <div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px;">
+                <a href="como-funciona.html" style="color: #94a3b8; text-decoration: none; padding: 10px 15px; font-size: 0.9rem; display: flex; align-items: center; gap: 10px;">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    ¿Cómo funciona?
+                </a>
+                <a href="#" id="openSettingsModalSidebar" style="color: #94a3b8; text-decoration: none; padding: 10px 15px; font-size: 0.9rem; display: flex; align-items: center; gap: 10px;">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Configuración
+                </a>
+                <a href="#" id="logoutLinkSidebar" style="color: #ef4444; text-decoration: none; padding: 10px 15px; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; background: rgba(239, 68, 68, 0.1); border-radius: 8px;">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    Cerrar Sesión
+                </a>
             </div>
-        </div>
+        </aside>
+        <!-- ========================================================= -->
 
-        <!-- Menú de Notificaciones -->
-        <div class="notification-menu">
-            <div class="notification-trigger" style="margin-top: -5px;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" fill="currentColor"
-                    class="bi bi-bell-fill" viewBox="0 0 16 16">
-                    <path
-                        d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2zm.995-14.901a1 1 0 1 0-1.99 0A5.002 5.002 0 0 0 3 6c0 1.098-.5 6-2.5 7h13c-2-1-2.5-5.902-2.5-7 0-2.42-1.72-4.44-4.005-4.901z" />
-                </svg>
-                <span class="notification-badge" id="notificationBadge"></span>
-            </div>
-            <div class="dropdown-content" id="notificationDropdown">
-                <!-- Las notificaciones se cargarán aquí -->
-            </div>
-        </div>
-    </div>
+        <div class="main-content-area">
+            <!-- Menú Original de Teléfonos (Oculto en PC por CSS) -->
+            <div class="header-menu">
+                <!-- Menú de Perfil del Usuario -->
+                <div class="profile-menu">
+                    <div class="profile-trigger" style="align-items: flex-start; margin-top: -10px;">
+                        <span id="usernameDisplay">Usuario</span> <!-- El nombre se insertará aquí -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-list"
+                            viewBox="0 0 16 16" style="margin-top: -2px; margin-left: 8px;">
+                            <path fill-rule="evenodd"
+                                d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z" />
+                        </svg>
+                    </div>
+                    <div class="dropdown-content" id="profileDropdown">
+                        <a href="como-funciona.html">¿Cómo funciona?</a>
+                        <a href="p2p.html">Vende o Compra BLUE</a>
+                        <a href="history.html">Historial</a>
+                        <a href="transactions.html">Transacciones</a>
+                        <a href="referrals.html">Referidos</a>
+                        <a href="booster-profile.html">Perfil de Impulsor</a>
+                        <a href="estado-cuenta.html" style="color: #10B981; font-weight: 600;">Billetera Web3 📊</a>
+                        <a href="#" id="menuSolidarioHistory"
+                            style="display: none; color: #e83e8c; font-weight: 600;">Donaciones ❤️</a>
+                        <a href="momentum-dashboard.html" id="momentumMenuLink"
+                            style="display: none; color: #f59e0b; font-weight: 600;">Winton Momentum ⚡</a>
+                        <a href="love.html">Página LOVE</a>
+                        <a href="documentation.html">Documentación</a>
+                        <a href="https://www.wintoncoin.com" target="_blank">🌐 Ir al Sitio Web</a>
+                        <a href="#" id="openSettingsModal">⚙️ Configuración</a>
+                        <a href="#" id="logoutLink">Cerrar Sesión</a>
+                    </div>
+                </div>
 
-    <div class="container interaction-container"> <!-- Contenedor para centrar y dar estilo -->
-        <!-- Badge de Pre-lanzamiento (Banda Diagonal) -->
-        <div class="pre-launch-ribbon">
+                <!-- Menú de Notificaciones -->
+                <div class="notification-menu">
+                    <div class="notification-trigger" style="margin-top: -5px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" fill="currentColor"
+                            class="bi bi-bell-fill" viewBox="0 0 16 16">
+                            <path
+                                d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2zm.995-14.901a1 1 0 1 0-1.99 0A5.002 5.002 0 0 0 3 6c0 1.098-.5 6-2.5 7h13c-2-1-2.5-5.902-2.5-7 0-2.42-1.72-4.44-4.005-4.901z" />
+                        </svg>
+                        <span class="notification-badge" id="notificationBadge"></span>
+                    </div>
+                    <div class="dropdown-content" id="notificationDropdown">
+                        <!-- Las notificaciones se cargarán aquí -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="container interaction-container"> <!-- Contenedor para centrar y dar estilo -->
+                <!-- Badge de Pre-lanzamiento (Banda Diagonal) -->
+                <div class="pre-launch-ribbon">
             <span class="pre-launch-text">
                 <span class="ribbon-shine-overlay"></span>
                 <span class="ribbon-text-content info-text-clickable" role="button" tabindex="0"
@@ -748,6 +816,37 @@
 
     <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
+    <!-- Script de Sincronización Telepática (Sidebar Observer) -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const syncVisibility = (sourceId, targetId) => {
+                const source = document.getElementById(sourceId);
+                const target = document.getElementById(targetId);
+                if(source && target) {
+                    const observer = new MutationObserver(() => {
+                        target.style.display = source.style.display;
+                    });
+                    observer.observe(source, { attributes: true, attributeFilter: ['style'] });
+                }
+            };
+            syncVisibility('menuSolidarioHistory', 'menuSolidarioHistorySidebar');
+            syncVisibility('momentumMenuLink', 'momentumMenuLinkSidebar');
+
+            const proxyClick = (targetId, sourceId) => {
+                const target = document.getElementById(targetId);
+                if(target) {
+                    target.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        document.getElementById(sourceId).click();
+                    });
+                }
+            };
+            proxyClick('logoutLinkSidebar', 'logoutLink');
+            proxyClick('openSettingsModalSidebar', 'openSettingsModal');
+        });
+    </script>
+        </div> <!-- Cierre del main-content-area -->
+    </div> <!-- Cierre del app-wrapper -->
 </body>
 
 </html>
