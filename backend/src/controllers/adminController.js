@@ -24,6 +24,9 @@ const pool = require('../config/db');
 const jwt = require('jsonwebtoken');
 const { logAuditEvent } = require('../services/auditService');
 const boosterService = require('../services/boosterService');
+const govDemoRewardService = require('../services/governanceDemoRewardService');
+const notificationService = require('../services/notificationService');
+const { sendGovernanceEmail } = require('../services/emailService');
 
 // ─── Helper: Governance Guard ────────────────────────────────────────────
 // Verifica si el sistema de gobernanza está activo.
@@ -1171,4 +1174,178 @@ module.exports = {
     cleanupTestData,
     cleanupInactiveUsers,
     cleanupOldPublications,
+    getDemoExportStats,
+    generateDemoExport,
+    getDemoExportHistory,
+    downloadDemoExport,
+    previewDemoImport,
+    processDemoImport,
 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GOBERNANZA DEMO (IMPORTACIÓN Y EXPORTACIÓN)
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function getDemoExportStats(req, res) {
+    try {
+        const stats = await govDemoRewardService.getExportStats(pool);
+        return res.json(stats);
+    } catch (error) {
+        console.error('[ADMIN] Error obteniendo stats de exportación demo:', error);
+        return res.status(500).json({ message: 'Error al obtener estadísticas de exportación.' });
+    }
+}
+
+async function generateDemoExport(req, res) {
+    try {
+        const result = await govDemoRewardService.generateExport(pool, req.user.userId);
+        if (!result) {
+            return res.json({ message: 'No hay votos pendientes de exportar.', data: null });
+        }
+        return res.json({ message: `${result.summary.total_votes} voto(s) exportados.`, data: result });
+    } catch (error) {
+        console.error('[ADMIN] Error generando exportación demo:', error);
+        return res.status(500).json({ message: error.message });
+    }
+}
+
+async function getDemoExportHistory(req, res) {
+    try {
+        const history = await govDemoRewardService.getExportHistory(pool);
+        return res.json(history);
+    } catch (error) {
+        console.error('[ADMIN] Error obteniendo historial de exportaciones:', error);
+        return res.status(500).json({ message: 'Error al obtener historial de exportaciones.' });
+    }
+}
+
+async function downloadDemoExport(req, res) {
+    try {
+        const exportRecord = await govDemoRewardService.getExportById(
+            pool, req.params.id, req.user.userId
+        );
+        return res.json(exportRecord);
+    } catch (error) {
+        console.error('[ADMIN] Error descargando exportación:', error);
+        return res.status(error.message.includes('no encontrada') ? 404 : 500)
+            .json({ message: error.message });
+    }
+}
+
+async function previewDemoImport(req, res) {
+    try {
+        const { fileData } = req.body;
+        if (!fileData) {
+            return res.status(400).json({ message: 'No se proporcionó el contenido del archivo.' });
+        }
+        const validated = govDemoRewardService.validateImport(fileData);
+        const preview   = await govDemoRewardService.previewImport(pool, validated);
+        return res.json(preview);
+    } catch (error) {
+        console.error('[ADMIN] Error en preview de importación demo:', error);
+        return res.status(400).json({ message: error.message });
+    }
+}
+
+async function processDemoImport(req, res) {
+    try {
+        const { fileData, expectedMultiplier } = req.body;
+        if (!fileData) {
+            return res.status(400).json({ message: 'No se proporcionó el contenido del archivo.' });
+        }
+        const validated = govDemoRewardService.validateImport(fileData);
+
+        if (expectedMultiplier !== undefined && expectedMultiplier !== null) {
+            const current     = await govDemoRewardService.getCurrentRateAndMultiplier(pool);
+            const currentMult = Number(current.multiplier);
+            const expected    = Number(expectedMultiplier);
+            const EPSILON     = 1e-9;
+            const drifted     =
+                Number.isFinite(currentMult) &&
+                Number.isFinite(expected) &&
+                Math.abs(currentMult - expected) > EPSILON;
+
+            if (drifted) {
+                return res.status(409).json({
+                    code:    'MULTIPLIER_CHANGED',
+                    message:
+                        `La etapa booster cambió entre la previsualización y el procesamiento. ` +
+                        `Visto en preview: ${expected}x. Vigente ahora: ${currentMult}x ` +
+                        `(${current.stageName}). Revise la preview nuevamente y vuelva a confirmar.`,
+                    expectedMultiplier: expected,
+                    currentMultiplier:  currentMult,
+                    currentStageName:   current.stageName,
+                });
+            }
+        }
+
+        const result = await govDemoRewardService.processImport(pool, validated, req.user.userId);
+
+        const multiplierLabel =
+            Number.isFinite(result.multiplier) && result.multiplier !== 1
+                ? `x${result.multiplier} (${result.stageName})`
+                : `x1 (${result.stageName || 'Sin etapa activa'})`;
+
+        for (const [userId, summary] of Object.entries(result.byGuardian)) {
+            const safeUserId = parseInt(userId, 10);
+
+            notificationService.sendNotificationToUser(safeUserId, {
+                title: `+${summary.totalAmount.toFixed(2)} BLUE IOU acreditados`,
+                body:
+                    `Recompensa por ${summary.votesPaid} voto(s) de gobernanza ` +
+                    `(${summary.basePerVote.toFixed(2)} x ${summary.multiplier} = ` +
+                    `${summary.ratePerVote.toFixed(2)} BLUE/voto).`,
+                icon:  '/assets/icons/icon-192x192.png',
+                data:  { url: '/history.html' },
+            }, 'TRANSACTIONAL').catch(err =>
+                console.error(`[ADMIN] Error push demo reward user ${safeUserId}:`, err)
+            );
+
+            if (summary.email) {
+                const votesList = summary.demoVoteIds
+                    .map(id => `\u2022 Voto demo #${id}`)
+                    .join('\n');
+
+                sendGovernanceEmail({
+                    toEmail:  summary.email,
+                    subject:  `+${summary.totalAmount.toFixed(2)} BLUE IOU — Recompensa por pruebas de gobernanza`,
+                    title:    `Recompensa acreditada: +${summary.totalAmount.toFixed(2)} BLUE IOU`,
+                    body:
+                        `Hola ${summary.username},\n\n` +
+                        `Se han acreditado recompensas BLUE IOU a tu cuenta por tu participación ` +
+                        `en las pruebas del sistema de gobernanza Winton-Consensus.\n\n` +
+                        `Tu trabajo probando la plataforma es fundamental para garantizar ` +
+                        `la calidad y seguridad del sistema. Gracias por tu dedicación.\n\n` +
+                        `Detalle:\n${votesList}`,
+                    severity: 'success',
+                    details: [
+                        { label: 'Votos compensados',     value: String(summary.votesPaid) },
+                        { label: 'Tasa base por voto',    value: `${summary.basePerVote.toFixed(2)} BLUE IOU` },
+                        { label: 'Multiplicador (etapa)', value: `x${summary.multiplier} — ${summary.stageName}` },
+                        { label: 'Tasa final por voto',   value: `${summary.ratePerVote.toFixed(2)} BLUE IOU` },
+                        { label: 'Subtotal base',         value: `${summary.totalBase.toFixed(2)} BLUE IOU` },
+                        { label: 'Total acreditado',      value: `+${summary.totalAmount.toFixed(2)} BLUE IOU` },
+                        { label: 'Nuevo saldo BLUE IOU',  value: `${summary.newBalance.toFixed(2)} BLUE IOU` },
+                        { label: 'Origen',                value: 'Entorno de pruebas (Demo)' },
+                    ],
+                }).catch(err =>
+                    console.error(`[ADMIN] Error email demo reward user ${safeUserId}:`, err)
+                );
+            }
+        }
+
+        return res.json({
+            message:             `${result.totalProcessed} voto(s) procesados exitosamente ${multiplierLabel}.`,
+            totalProcessed:      result.totalProcessed,
+            totalSkipped:        result.totalSkipped,
+            rateUsed:            result.rateUsed,
+            multiplier:          result.multiplier,
+            stageName:           result.stageName,
+            finalRatePerVote:    result.finalRatePerVote,
+            guardiansAffected:   Object.keys(result.byGuardian).length,
+        });
+    } catch (error) {
+        console.error('[ADMIN] Error procesando importación demo:', error);
+        return res.status(500).json({ message: error.message });
+    }
+}

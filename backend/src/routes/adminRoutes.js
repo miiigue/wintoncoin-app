@@ -56,4 +56,12 @@ router.post('/database/cleanup-test-data', verifyAdminToken, adminController.cle
 router.post('/database/cleanup-inactive-users', verifyAdminToken, adminController.cleanupInactiveUsers);
 router.post('/database/cleanup-old-publications', verifyAdminToken, adminController.cleanupOldPublications);
 
+// Gobernanza Demo (Importación y Exportación)
+router.get('/governance/demo-export-stats', verifyAdminToken, adminController.getDemoExportStats);
+router.post('/governance/demo-export', verifyAdminToken, adminController.generateDemoExport);
+router.get('/governance/demo-export-history', verifyAdminToken, adminController.getDemoExportHistory);
+router.get('/governance/demo-export/:id/download', verifyAdminToken, adminController.downloadDemoExport);
+router.post('/governance/demo-import-preview', verifyAdminToken, adminController.previewDemoImport);
+router.post('/governance/demo-import-process', verifyAdminToken, adminController.processDemoImport);
+
 module.exports = router;
