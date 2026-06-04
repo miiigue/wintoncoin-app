@@ -677,6 +677,471 @@ async function getBroadcastRecipients(req, res) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// ENDPOINT: Consultar estado KYC real desde la blockchain (Lectura)
+// ═══════════════════════════════════════════════════════════════════════════
+async function getUserKycStatus(req, res) {
+    const userId = parseInt(req.params.userId, 10);
+    if (isNaN(userId) || userId <= 0) {
+        return res.status(400).json({
+            message: 'El userId debe ser un número entero positivo.'
+        });
+    }
+
+    try {
+        const userResult = await pool.query(
+            `SELECT id, username, web3_wallet_address, kyc_verified
+             FROM users
+             WHERE id = $1`,
+            [userId]
+        );
+
+        if (userResult.rowCount === 0) {
+            return res.status(404).json({
+                message: `Usuario con ID ${userId} no encontrado.`
+            });
+        }
+
+        const user = userResult.rows[0];
+        const walletAddress = user.web3_wallet_address;
+        const kycInDatabase = user.kyc_verified === true;
+
+        if (!walletAddress) {
+            return res.json({
+                userId: user.id,
+                username: user.username,
+                walletAddress: null,
+                kycOnChain: null,
+                kycInDatabase: kycInDatabase,
+                synced: true,
+                blockchainQuerySuccess: false,
+                message: 'El usuario no tiene billetera Web3 asignada. No se puede consultar KYC on-chain.'
+            });
+        }
+
+        const Web3BridgeService = require('../services/web3BridgeService');
+        const kycResult = await Web3BridgeService.checkUserKYCDetailed(walletAddress);
+
+        const synced = kycResult.success
+            ? (kycResult.verified === kycInDatabase)
+            : null;
+
+        if (kycResult.success && kycResult.verified !== kycInDatabase) {
+            await pool.query(
+                'UPDATE users SET kyc_verified = $1 WHERE id = $2',
+                [kycResult.verified, userId]
+            );
+            console.log(`[ADMIN KYC-STATUS] ✅ Sincronización automática: DB actualizada de ${kycInDatabase} a ${kycResult.verified} para usuario #${userId}`);
+        }
+
+        await logAuditEvent(pool, req, {
+            eventType: 'KYC_STATUS_QUERIED',
+            actorId: req.user?.userId || req.user?.id || null,
+            actorUsername: req.user?.username || 'admin',
+            targetUsername: user.username,
+            category: 'compliance',
+            metadata: {
+                targetUserId: userId,
+                walletAddress: walletAddress,
+                kycOnChain: kycResult.success ? kycResult.verified : null,
+                kycInDatabase: kycInDatabase,
+                blockchainQuerySuccess: kycResult.success,
+                synced: synced,
+                autoSynced: kycResult.success && kycResult.verified !== kycInDatabase
+            }
+        });
+
+        return res.json({
+            userId: user.id,
+            username: user.username,
+            walletAddress: walletAddress,
+            kycOnChain: kycResult.success ? kycResult.verified : null,
+            kycInDatabase: kycResult.success && kycResult.verified !== kycInDatabase
+                ? kycResult.verified
+                : kycInDatabase,
+            synced: kycResult.success ? true : null,
+            blockchainQuerySuccess: kycResult.success,
+            message: !kycResult.success
+                ? 'No se pudo conectar con la blockchain. Se muestra el estado almacenado en la base de datos.'
+                : (synced === false
+                    ? 'Se detectó discrepancia y se sincronizó la base de datos automáticamente.'
+                    : 'Estado KYC consultado exitosamente.')
+        });
+
+    } catch (error) {
+        console.error('[ADMIN KYC-STATUS] Error al consultar KYC:', error);
+        return res.status(500).json({
+            message: 'Error interno al consultar el estado KYC.'
+        });
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MODERACIÓN DE PUBLICACIONES
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function getAdminPublications(req, res) {
+    const searchTerm = req.query.search || '';
+    const filter = String(req.query.filter || 'active').toLowerCase();
+    try {
+        const allowedFilters = new Set(['active', 'deleted', 'expired', 'completed', 'all']);
+        const safeFilter = allowedFilters.has(filter) ? filter : 'active';
+
+        let filterCondition = '';
+        if (safeFilter === 'active') {
+            filterCondition = `AND p.deleted_at IS NULL AND (p.expires_at IS NULL OR p.expires_at >= NOW()) AND p.available_slots > 0 AND COALESCE(p.is_paused, FALSE) = FALSE`;
+        } else if (safeFilter === 'deleted') {
+            filterCondition = `AND p.deleted_at IS NOT NULL`;
+        } else if (safeFilter === 'expired') {
+            filterCondition = `AND p.deleted_at IS NULL AND p.expires_at IS NOT NULL AND p.expires_at < NOW()`;
+        } else if (safeFilter === 'completed') {
+            filterCondition = `
+                AND p.deleted_at IS NULL
+                AND (
+                    (COALESCE(p.is_quick_sale, FALSE) = TRUE AND p.status <> 'open')
+                    OR
+                    (p.available_slots <= 0)
+                )
+            `;
+        } else if (safeFilter === 'all') {
+            filterCondition = '';
+        }
+
+        const query = `
+            SELECT
+                p.id, p.title, p.description, p.blue_cost, p.status, p.created_at, p.is_paused, p.is_sell_post, p.available_slots, p.category,
+                p.expires_at, p.deleted_at, p.deleted_by_username, p.is_quick_sale,
+                u.username AS author_username,
+                (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id) AS participants_count,
+                (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status = 'confirmed_paid') AS completed_count,
+                (p.deleted_at IS NOT NULL) AS is_deleted,
+                (p.expires_at IS NOT NULL AND p.expires_at < NOW()) AS is_expired,
+                (
+                    CASE
+                        WHEN COALESCE(p.is_quick_sale, FALSE) = TRUE THEN (p.status <> 'open')
+                        ELSE (
+                            p.available_slots <= 0
+                        )
+                    END
+                ) AS is_completed_publication
+            FROM publications p
+            JOIN users u ON p.author_id = u.id
+            WHERE (p.title ILIKE $1 OR u.username ILIKE $1)
+            ${filterCondition}
+            ORDER BY p.created_at DESC
+        `;
+        const result = await pool.query(query, [`%${searchTerm}%`]);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching all publications for admin:', error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+}
+
+async function restorePublication(req, res) {
+    const { id } = req.params;
+    try {
+        const pubResult = await pool.query(
+            `SELECT id, category, deleted_at FROM publications WHERE id = $1`,
+            [id]
+        );
+
+        if (pubResult.rowCount === 0) {
+            return res.status(404).json({ message: 'Publicación no encontrada.' });
+        }
+
+        if (!pubResult.rows[0].deleted_at) {
+            return res.status(200).json({ success: true, message: 'La publicación no está eliminada.' });
+        }
+
+        await pool.query(
+            `UPDATE publications
+             SET deleted_at = NULL, deleted_by_username = NULL
+             WHERE id = $1`,
+            [id]
+        );
+
+        await logAuditEvent(pool, req, {
+            eventType: 'admin.publication.restored',
+            actorUsername: 'admin',
+            publicationId: parseInt(id, 10),
+            category: pubResult.rows[0].category,
+            metadata: { soft_delete: false, restored: true }
+        });
+
+        return res.json({ success: true, message: 'Publicación restaurada correctamente.' });
+    } catch (error) {
+        console.error(`Error restoring publication ${id} for admin:`, error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+}
+
+async function deletePublicationAdmin(req, res) {
+    const { id } = req.params;
+    try {
+        const pubResult = await pool.query(
+            `SELECT id, category, deleted_at FROM publications WHERE id = $1`,
+            [id]
+        );
+
+        if (pubResult.rowCount === 0) {
+            return res.status(404).json({ message: 'Publicación no encontrada.' });
+        }
+
+        if (pubResult.rows[0].deleted_at) {
+            return res.status(200).json({ success: true, message: 'La publicación ya estaba eliminada.' });
+        }
+
+        const updateResult = await pool.query(
+            `UPDATE publications
+             SET deleted_at = NOW(), deleted_by_username = 'admin'
+             WHERE id = $1`,
+            [id]
+        );
+
+        if (updateResult.rowCount === 0) {
+            return res.status(404).json({ message: 'Publicación no encontrada.' });
+        }
+
+        await logAuditEvent(pool, req, {
+            eventType: 'admin.publication.deleted',
+            actorUsername: 'admin',
+            publicationId: parseInt(id, 10),
+            category: pubResult.rows[0].category,
+            metadata: { soft_delete: true }
+        });
+
+        res.json({ success: true, message: 'Publicación eliminada (soft delete) correctamente.' });
+    } catch (error) {
+        console.error(`Error deleting publication ${id} for admin:`, error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GESTIÓN SEGURA DE DATOS (BACKUPS Y LIMPIEZA)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Endpoint para obtener estadísticas detalladas de la base de datos
+async function getDatabaseStats(req, res) {
+    const client = await pool.connect();
+    try {
+        const stats = await client.query(`
+            SELECT 
+                (SELECT COUNT(*) FROM users) as total_users,
+                (SELECT COUNT(*) FROM users WHERE username ILIKE '%test%' OR username ILIKE '%demo%') as test_users,
+                (SELECT COUNT(*) FROM users WHERE created_at < NOW() - INTERVAL '90 days' AND liquid_blue_balance = 100.0000 AND escrow_blue_balance = 0.0000 AND red_balance = 0.0000) as inactive_users,
+                (SELECT COUNT(*) FROM publications) as total_publications,
+                (SELECT COUNT(*) FROM publications WHERE created_at < NOW() - INTERVAL '180 days' AND status IN ('completed', 'confirmed_paid')) as old_publications,
+                (SELECT COUNT(*) FROM transactions) as total_transactions,
+                (SELECT COUNT(*) FROM notifications) as total_notifications,
+                (SELECT COUNT(*) FROM notifications WHERE created_at < NOW() - INTERVAL '30 days') as old_notifications,
+                (SELECT COUNT(*) FROM ratings) as total_ratings,
+                (SELECT COUNT(*) FROM red_token_debts WHERE is_settled = FALSE) as active_debts,
+                (SELECT COUNT(*) FROM blue_token_escrows WHERE is_released = FALSE) as active_escrows,
+                (SELECT pg_size_pretty(pg_database_size(current_database()))) as database_size
+        `);
+
+        res.json(stats.rows[0]);
+    } catch (error) {
+        console.error('Error fetching database stats:', error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    } finally {
+        client.release();
+    }
+}
+
+// Endpoint para crear backup de la base de datos
+async function createDatabaseBackup(req, res) {
+    try {
+        const { createBackup } = require('../../backup-database.js');
+        const backupFile = await createBackup();
+
+        // Obtener solo el nombre del archivo para no exponer rutas del sistema
+        const backupFileName = require('path').basename(backupFile);
+
+        res.json({
+            success: true,
+            message: 'Backup creado exitosamente',
+            filename: backupFileName
+        });
+    } catch (error) {
+        console.error('Error creating backup:', error);
+        res.status(500).json({ message: 'Error al crear el backup: ' + error.message });
+    }
+}
+
+// Endpoint para limpiar datos de prueba
+async function cleanupTestData(req, res) {
+    const client = await pool.connect();
+    try {
+        console.log(`[ADMIN CLEANUP] Administrador inició limpieza de datos de prueba`);
+
+        // Crear backup automático antes de la limpieza
+        const { createBackup } = require('../../backup-database.js');
+        await createBackup();
+
+        await client.query('BEGIN');
+
+        // Eliminar usuarios de prueba
+        const testUsersResult = await client.query(`
+            DELETE FROM users 
+            WHERE (username ILIKE '%test%' OR username ILIKE '%demo%' OR username ILIKE '%example%')
+            AND username NOT LIKE '%Plataforma%'
+            RETURNING username
+        `);
+
+        // Eliminar publicaciones de prueba
+        const testPublicationsResult = await client.query(`
+            DELETE FROM publications 
+            WHERE title ILIKE '%test%' OR title ILIKE '%demo%' OR title ILIKE '%example%'
+            RETURNING id, title
+        `);
+
+        // Limpiar notificaciones antiguas (más de 30 días)
+        const oldNotificationsResult = await client.query(`
+            DELETE FROM notifications 
+            WHERE created_at < NOW() - INTERVAL '30 days'
+            RETURNING id
+        `);
+
+        await client.query('COMMIT');
+
+        console.log(`[ADMIN CLEANUP] Limpieza completada - Usuarios: ${testUsersResult.rowCount}, Publicaciones: ${testPublicationsResult.rowCount}, Notificaciones: ${oldNotificationsResult.rowCount}`);
+
+        res.json({
+            success: true,
+            message: 'Limpieza de datos de prueba completada',
+            results: {
+                testUsersDeleted: testUsersResult.rowCount,
+                testPublicationsDeleted: testPublicationsResult.rowCount,
+                oldNotificationsDeleted: oldNotificationsResult.rowCount
+            }
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[ADMIN CLEANUP] Error durante limpieza de datos de prueba:', error);
+        res.status(500).json({ message: 'Error durante la limpieza: ' + error.message });
+    } finally {
+        client.release();
+    }
+}
+
+// Endpoint para limpiar usuarios inactivos
+async function cleanupInactiveUsers(req, res) {
+    const { daysInactive = 90 } = req.body;
+    const client = await pool.connect();
+
+    try {
+        console.log(`[ADMIN CLEANUP] Administrador inició limpieza de usuarios inactivos (${daysInactive} días)`);
+
+        // Validación de seguridad
+        if (daysInactive < 30) {
+            return res.status(400).json({
+                message: 'Por seguridad, no se pueden eliminar usuarios con menos de 30 días de inactividad'
+            });
+        }
+
+        // Crear backup automático
+        const { createBackup } = require('../../backup-database.js');
+        await createBackup();
+
+        await client.query('BEGIN');
+
+        // Obtener usuarios inactivos para mostrar en los logs
+        const inactiveUsersQuery = await client.query(`
+            SELECT username, created_at, liquid_blue_balance, escrow_blue_balance, red_balance
+            FROM users 
+            WHERE created_at < NOW() - INTERVAL '${daysInactive} days'
+            AND username NOT LIKE '%Plataforma%'
+            AND liquid_blue_balance = 100.0000
+            AND escrow_blue_balance = 0.0000
+            AND red_balance = 0.0000
+        `);
+
+        // Eliminar usuarios inactivos
+        const deleteResult = await client.query(`
+            DELETE FROM users 
+            WHERE created_at < NOW() - INTERVAL '${daysInactive} days'
+            AND username NOT LIKE '%Plataforma%'
+            AND liquid_blue_balance = 100.0000
+            AND escrow_blue_balance = 0.0000
+            AND red_balance = 0.0000
+        `);
+
+        await client.query('COMMIT');
+
+        console.log(`[ADMIN CLEANUP] Usuarios inactivos eliminados: ${deleteResult.rowCount}`);
+
+        res.json({
+            success: true,
+            message: `Limpieza de usuarios inactivos completada`,
+            results: {
+                usersDeleted: deleteResult.rowCount,
+                daysInactive: daysInactive
+            }
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[ADMIN CLEANUP] Error durante limpieza de usuarios inactivos:', error);
+        res.status(500).json({ message: 'Error durante la limpieza: ' + error.message });
+    } finally {
+        client.release();
+    }
+}
+
+// Endpoint para limpiar publicaciones antiguas
+async function cleanupOldPublications(req, res) {
+    const { daysOld = 180 } = req.body;
+    const client = await pool.connect();
+
+    try {
+        console.log(`[ADMIN CLEANUP] Administrador inició limpieza de publicaciones antiguas (${daysOld} días)`);
+
+        // Validación de seguridad
+        if (daysOld < 90) {
+            return res.status(400).json({
+                message: 'Por seguridad, no se pueden eliminar publicaciones con menos de 90 días de antigüedad'
+            });
+        }
+
+        // Crear backup automático
+        const { createBackup } = require('../../backup-database.js');
+        await createBackup();
+
+        await client.query('BEGIN');
+
+        // Eliminar publicaciones antiguas
+        const deleteResult = await client.query(`
+            DELETE FROM publications 
+            WHERE created_at < NOW() - INTERVAL '${daysOld} days'
+            AND status IN ('completed', 'confirmed_paid')
+        `);
+
+        await client.query('COMMIT');
+
+        console.log(`[ADMIN CLEANUP] Publicaciones antiguas eliminadas: ${deleteResult.rowCount}`);
+
+        res.json({
+            success: true,
+            message: `Limpieza de publicaciones antiguas completada`,
+            results: {
+                publicationsDeleted: deleteResult.rowCount,
+                daysOld: daysOld
+            }
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[ADMIN CLEANUP] Error durante limpieza de publicaciones antiguas:', error);
+        res.status(500).json({ message: 'Error durante la limpieza: ' + error.message });
+    } finally {
+        client.release();
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // EXPORTACIÓN DE MÓDULO
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -697,4 +1162,13 @@ module.exports = {
     createBroadcastEmail,
     getBroadcastEmails,
     getBroadcastRecipients,
+    getUserKycStatus,
+    getAdminPublications,
+    restorePublication,
+    deletePublicationAdmin,
+    getDatabaseStats,
+    createDatabaseBackup,
+    cleanupTestData,
+    cleanupInactiveUsers,
+    cleanupOldPublications,
 };
