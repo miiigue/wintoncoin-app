@@ -4,36 +4,23 @@ require('dotenv').config();
 // 1. Importar las librerías necesarias
 const express = require('express');
 const pool = require('./src/config/db'); // Importamos la conexión a BD centralizada
-const bcrypt = require('bcrypt');
 const cors = require('cors');
 const cookieParser = require('cookie-parser'); // NECESARIO PARA COOKIES
 const path = require('path');
 const jwt = require('jsonwebtoken');
-const rateLimit = require('express-rate-limit'); // <-- SEGURIDAD: Importar rate-limit
 const cron = require('node-cron');
-const crypto = require('crypto');
 require('./config'); // Carga la configuración del entorno (development o production)
-const { initializeDatabase, generateUniqueReferralCode } = require('./src/config/databaseInit');
-const { generateOtp6, hashOtpForEmail, sendOtpEmail, sendTransactionEmail, sendAnnouncementEmail, processPendingBroadcasts, normalizeEmail, safeEqualHex } = require('./src/services/emailService');
+const { initializeDatabase } = require('./src/config/databaseInit');
+const { processPendingBroadcasts } = require('./src/services/emailService');
 const { logAuditEvent, startAuditCleanupJob } = require('./src/services/auditService');
 const authRoutes = require('./src/routes/authRoutes');
-const notificationService = require('./src/services/notificationService'); // Importamos el servicio de notificaciones
 const eventBus = require('./src/services/notificationEventBus'); // BUS DE EVENTOS GLOBAL
 const {
-    requireAcceptedLegalForAuthenticatedUser,
     requireAcceptedLegalByUsernameField
 } = require('./src/middleware/legalAcceptanceMiddleware');
+const { verifyAdminToken } = require('./src/middleware/adminAuthMiddleware');
 
 // === SERVICIOS Y RUTAS MODULARIZADOS NUEVAS ===
-const {
-    resolveRepeatCooldownHours,
-    updateUserBoosterLevel,
-    getDebtResponsibleUser,
-    getDebtResponsibleUserById,
-    processRequestCompletion,
-    processRequestPayment,
-    processDirectPaymentCompletion
-} = require('./src/services/publicationService');
 const publicationRoutes = require('./src/routes/publicationRoutes');
 const validationRoutes = require('./src/routes/validationRoutes');
 const solidarioRoutes = require('./src/routes/solidarioRoutes');
@@ -539,8 +526,6 @@ async function startServer() {
         process.exit(1);
     }
 }
-
-const { verifyAdminToken } = require('./src/middleware/adminAuthMiddleware');
 
 /**
  * Middleware combinado para flujos de publicación:
