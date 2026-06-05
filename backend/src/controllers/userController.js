@@ -2,6 +2,129 @@ const pool = require('../config/db');
 const { logAuditEvent } = require('../services/auditService');
 
 // ==========================================
+// HELPERS PARA PERFIL DE IMPULSOR (BOOSTER)
+// ==========================================
+
+async function getBoosterRankData(client, userId) {
+    const result = await client.query(
+        `
+        WITH totals AS (
+            SELECT user_id, SUM(amount) AS total
+            FROM booster_blue_ledger
+            GROUP BY user_id
+            HAVING SUM(amount) > 0
+        ),
+        ranked AS (
+            SELECT
+                user_id,
+                total,
+                RANK() OVER (ORDER BY total DESC) AS rank_position,
+                COUNT(*) OVER () AS total_users
+            FROM totals
+        )
+        SELECT rank_position, total_users
+        FROM ranked
+        WHERE user_id = $1
+        `,
+        [userId]
+    );
+
+    if (result.rowCount === 0) return null;
+
+    const rankPosition = parseInt(result.rows[0].rank_position || '0', 10);
+    const rankTotal = parseInt(result.rows[0].total_users || '0', 10);
+    const rankPercentile = rankTotal > 0 ? Math.ceil((rankPosition / rankTotal) * 100) : null;
+
+    return {
+        rank_position: rankPosition,
+        rank_total: rankTotal,
+        rank_percentile: rankPercentile
+    };
+}
+
+async function getReferralRankData(client, userId) {
+    const result = await client.query(
+        `
+        WITH friends AS (
+            SELECT $1::int AS user_id
+            UNION
+            SELECT referred_user_id
+            FROM referral_log
+            WHERE referrer_user_id = $1
+        ),
+        totals AS (
+            SELECT
+                f.user_id,
+                COALESCE(SUM(bbl.amount), 0) AS total
+            FROM friends f
+            LEFT JOIN booster_blue_ledger bbl ON bbl.user_id = f.user_id
+            GROUP BY f.user_id
+        ),
+        ranked AS (
+            SELECT
+                user_id,
+                total,
+                RANK() OVER (ORDER BY total DESC) AS rank_position,
+                COUNT(*) OVER () AS total_users
+            FROM totals
+        )
+        SELECT rank_position, total_users
+        FROM ranked
+        WHERE user_id = $1
+        `,
+        [userId]
+    );
+
+    if (result.rowCount === 0) return null;
+
+    const rankPosition = parseInt(result.rows[0].rank_position || '0', 10);
+    const rankTotal = parseInt(result.rows[0].total_users || '0', 10);
+    const rankPercentile = rankTotal > 0 ? Math.ceil((rankPosition / rankTotal) * 100) : null;
+
+    return {
+        rank_position: rankPosition,
+        rank_total: rankTotal,
+        rank_percentile: rankPercentile
+    };
+}
+
+async function getBoosterDailyData(client, userId) {
+    const [todayResult, yesterdayResult] = await Promise.all([
+        client.query(
+            `
+            SELECT COALESCE(SUM(amount), 0) AS total
+            FROM booster_blue_ledger
+            WHERE user_id = $1
+              AND amount > 0
+              AND created_at >= date_trunc('day', NOW())
+              AND created_at < date_trunc('day', NOW()) + INTERVAL '1 day'
+            `,
+            [userId]
+        ),
+        client.query(
+            `
+            SELECT COALESCE(SUM(amount), 0) AS total
+            FROM booster_blue_ledger
+            WHERE user_id = $1
+              AND amount > 0
+              AND created_at >= date_trunc('day', NOW()) - INTERVAL '1 day'
+              AND created_at < date_trunc('day', NOW())
+            `,
+            [userId]
+        )
+    ]);
+
+    const todayEarned = parseFloat(todayResult.rows[0]?.total) || 0;
+    const yesterdayEarned = parseFloat(yesterdayResult.rows[0]?.total) || 0;
+
+    return {
+        daily_today: todayEarned,
+        daily_yesterday: yesterdayEarned,
+        daily_improved: todayEarned > yesterdayEarned
+    };
+}
+
+// ==========================================
 // CONTROLADOR DE USUARIOS (USER CONTROLLER)
 // ==========================================
 
@@ -429,6 +552,226 @@ const UserController = {
             await client.query('ROLLBACK');
             console.error("Error en la ruta /users/burn:", error);
             res.status(500).json({ message: error.message || "Error del servidor." });
+        } finally {
+            client.release();
+        }
+    },
+
+    // ------------------------------------------------------------------------
+    // Crear una calificación para otro usuario (Mapeado de /rate)
+    // ------------------------------------------------------------------------
+    createRating: async (req, res) => {
+        const { publication_id, rater_username, ratee_username, rating, comment } = req.body;
+        if (!publication_id || !rater_username || !ratee_username || !rating) {
+            return res.status(400).json({ message: 'Faltan datos requeridos para la calificación.' });
+        }
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            const insertRatingQuery = `
+                INSERT INTO ratings (publication_id, rater_username, ratee_username, rating, comment)
+                VALUES ($1, $2, $3, $4, $5)
+            `;
+            await client.query(insertRatingQuery, [publication_id, rater_username, ratee_username, rating, comment || null]);
+
+            const updateUserRatingQuery = `
+                UPDATE users u
+                SET 
+                    ratings_count = r.total_ratings,
+                    average_rating = r.avg_rating
+                FROM (
+                    SELECT 
+                        ratee_username, COUNT(*) AS total_ratings, AVG(rating) AS avg_rating
+                    FROM ratings WHERE ratee_username = $1 GROUP BY ratee_username
+                ) r
+                WHERE u.username = $1;
+            `;
+            await client.query(updateUserRatingQuery, [ratee_username]);
+
+            await client.query('COMMIT');
+            res.status(201).json({ message: `¡Gracias! Tu calificación para ${ratee_username} ha sido guardada.` });
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error('Error al guardar la calificación:', error.message);
+            res.status(500).json({ message: 'Error interno al guardar la calificación.' });
+        } finally {
+            client.release();
+        }
+    },
+
+    // ------------------------------------------------------------------------
+    // Obtener información de referidos de un usuario (su código y referidos)
+    // ------------------------------------------------------------------------
+    getReferralInfo: async (req, res) => {
+        const { username } = req.params;
+
+        if (!username) {
+            return res.status(400).json({ message: "Se requiere un nombre de usuario." });
+        }
+
+        const client = await pool.connect();
+        try {
+            const [userResult, referredUsersResult] = await Promise.all([
+                client.query('SELECT id, referral_code FROM users WHERE username = $1', [username]),
+                client.query(`
+                    SELECT
+                        u.username as referred_username,
+                        rl.created_at,
+                        (
+                            SELECT COALESCE(SUM(amount), 0)
+                            FROM booster_blue_ledger
+                            WHERE user_id = u.id
+                        ) as total_booster_blue
+                    FROM referral_log rl
+                    JOIN users u ON rl.referred_user_id = u.id
+                    WHERE rl.referrer_user_id = (SELECT id FROM users WHERE username = $1)
+                    ORDER BY total_booster_blue DESC, rl.created_at DESC;
+                `, [username])
+            ]);
+
+            if (userResult.rowCount === 0) {
+                return res.status(404).json({ message: 'Usuario no encontrado.' });
+            }
+
+            const referralCode = userResult.rows[0].referral_code;
+            const referredUsers = referredUsersResult.rows;
+
+            res.status(200).json({
+                referral_code: referralCode,
+                referred_users: referredUsers
+            });
+
+        } catch (error) {
+            console.error(`Error al obtener la información de referidos para ${username}:`, error);
+            res.status(500).json({ message: 'Error interno del servidor.' });
+        } finally {
+            client.release();
+        }
+    },
+
+    // ------------------------------------------------------------------------
+    // Obtener perfil de impulsor de un usuario por username (público/detallado)
+    // ------------------------------------------------------------------------
+    getUserBoosterProfile: async (req, res) => {
+        const { username } = req.params;
+        if (!username) {
+            return res.status(400).json({ message: 'Se requiere un nombre de usuario.' });
+        }
+
+        const client = await pool.connect();
+        try {
+            const userResult = await client.query(
+                `SELECT id, username FROM users WHERE username = $1`,
+                [username]
+            );
+
+            if (userResult.rowCount === 0) {
+                return res.status(404).json({ message: 'Usuario no encontrado.' });
+            }
+
+            const user = userResult.rows[0];
+
+            const totalResult = await client.query(
+                'SELECT COALESCE(SUM(amount), 0) AS total FROM booster_blue_ledger WHERE user_id = $1',
+                [user.id]
+            );
+            const totalBoosterBlue = parseFloat(totalResult.rows[0].total) || 0;
+
+            if (totalBoosterBlue <= 0) {
+                return res.json({
+                    is_booster: false,
+                    message: 'Este usuario aún no forma parte del programa de impulsores.'
+                });
+            }
+
+            const [ledgerHistoryResult, levelSettingsResult, currentLevelResult, tasksCountResult, rankData, friendsRankData, dailyData] = await Promise.all([
+                client.query(
+                    `
+                    SELECT
+                        bbl.id,
+                        bbl.amount,
+                        bbl.created_at,
+                        bbl.source_publication_id AS related_publication_id,
+                        COALESCE(bt_pick.type,
+                            CASE
+                                WHEN bbl.source_publication_id IS NOT NULL AND bbl.amount > 0 THEN 'task_reward'
+                                WHEN bbl.amount < 0 THEN 'debit'
+                                ELSE 'credit'
+                            END
+                        ) AS type,
+                        COALESCE(
+                            bt_pick.description,
+                            CASE
+                                WHEN p.title IS NOT NULL THEN 'Actividad de Impulsor: \"' || p.title || '\"'
+                                ELSE 'Actividad de Impulsor (legacy)'
+                            END
+                        ) AS description
+                    FROM booster_blue_ledger bbl
+                    LEFT JOIN publications p ON p.id = bbl.source_publication_id
+                    LEFT JOIN LATERAL (
+                        SELECT bt.type, bt.description
+                        FROM booster_transactions bt
+                        WHERE bt.user_id = bbl.user_id
+                          AND bt.amount = bbl.amount
+                          AND bt.related_publication_id IS NOT DISTINCT FROM bbl.source_publication_id
+                          AND bt.created_at BETWEEN (bbl.created_at - INTERVAL '2 minutes') AND (bbl.created_at + INTERVAL '2 minutes')
+                        ORDER BY ABS(EXTRACT(EPOCH FROM (bt.created_at - bbl.created_at))) ASC
+                        LIMIT 1
+                    ) bt_pick ON TRUE
+                    WHERE bbl.user_id = $1
+                    ORDER BY bbl.created_at DESC
+                    `,
+                    [user.id]
+                ),
+                client.query('SELECT * FROM booster_level_settings ORDER BY level ASC'),
+                client.query(
+                    'SELECT MAX(level) AS current_level FROM booster_level_settings WHERE min_blue_required <= $1',
+                    [totalBoosterBlue]
+                ),
+                client.query(
+                    `SELECT COUNT(*) AS tasks_completed
+                     FROM booster_blue_ledger bbl
+                     WHERE bbl.user_id = $1 AND bbl.amount > 0 AND bbl.source_publication_id IS NOT NULL`,
+                    [user.id]
+                ),
+                getBoosterRankData(client, user.id),
+                getReferralRankData(client, user.id),
+                getBoosterDailyData(client, user.id)
+            ]);
+
+            const allLevels = levelSettingsResult.rows;
+            const currentLevel = currentLevelResult.rows[0].current_level || 0;
+            const currentLevelInfo = allLevels.find(l => l.level === currentLevel) || null;
+            const nextLevelInfo = allLevels.find(l => l.level === (currentLevel || 0) + 1) || null;
+
+            const tasksCompleted = parseInt(tasksCountResult.rows[0]?.tasks_completed || '0', 10);
+
+            res.json({
+                is_booster: true,
+                username: user.username,
+                booster_level: currentLevel,
+                total_booster_blue: totalBoosterBlue,
+                current_level_info: currentLevelInfo,
+                next_level_info: nextLevelInfo,
+                booster_tasks_completed_count: tasksCompleted,
+                transactions: ledgerHistoryResult.rows,
+                all_levels: allLevels,
+                rank_position: rankData?.rank_position || null,
+                rank_total: rankData?.rank_total || null,
+                rank_percentile: rankData?.rank_percentile || null,
+                friends_rank_position: friendsRankData?.rank_position || null,
+                friends_rank_total: friendsRankData?.rank_total || null,
+                friends_rank_percentile: friendsRankData?.rank_percentile || null,
+                daily_today: dailyData?.daily_today || 0,
+                daily_yesterday: dailyData?.daily_yesterday || 0,
+                daily_improved: dailyData?.daily_improved || false
+            });
+
+        } catch (error) {
+            console.error(`Error al obtener el perfil de impulsor para ${username}:`, error);
+            res.status(500).json({ message: 'Error interno del servidor.' });
         } finally {
             client.release();
         }

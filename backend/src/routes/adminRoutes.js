@@ -19,6 +19,13 @@ router.post('/logout', adminController.logout);
 router.get('/settings', verifyAdminToken, adminController.getSettings);
 router.post('/settings', verifyAdminToken, adminController.updateSetting);
 
+// Gestión de Impulsores (Boosters)
+router.get('/boosters/settings', verifyAdminToken, adminController.getBoosterSettings);
+router.post('/boosters/settings', verifyAdminToken, adminController.updateBoosterSettings);
+router.get('/boosters/stats', verifyAdminToken, adminController.getBoosterStats);
+router.get('/boosters/list', verifyAdminToken, adminController.getBoostersList);
+router.post('/boosters/rebuild-ledger/:username', verifyAdminToken, adminController.rebuildBoosterLedger);
+
 // Gestión de Etapas de Booster y Multiplicadores
 router.get('/boosters/config-stages', verifyAdminToken, adminController.getBoosterStages);
 router.post('/boosters/config-stages', verifyAdminToken, adminController.saveBoosterStage);
@@ -27,6 +34,7 @@ router.post('/boosters/config-stages', verifyAdminToken, adminController.saveBoo
 router.get('/users', verifyAdminToken, adminController.getUsers);
 router.get('/users/:userId/kyc-status', web3RpcLimiter, verifyAdminToken, adminController.getUserKycStatus);
 router.post('/users/:userId/status', verifyAdminToken, adminController.updateUserStatus);
+router.put('/users/:userId/referral-code', verifyAdminToken, adminController.updateUserReferralCode);
 router.get('/debtors', verifyAdminToken, adminController.getDebtors);
 
 // Moderación de Publicaciones
@@ -40,6 +48,18 @@ router.get('/dashboard-stats', verifyAdminToken, adminController.getDashboardSta
 // Billetera de Plataforma
 router.get('/platform-wallet/balance', verifyAdminToken, adminController.getPlatformWalletBalance);
 router.get('/platform-wallet/log', verifyAdminToken, adminController.getPlatformWalletLog);
+
+// Log de Referidos
+router.get('/referrals/log', verifyAdminToken, adminController.getReferralsLog);
+
+// Publicaciones de Plataforma
+router.post('/platform/create-publication', verifyAdminToken, adminController.createPlatformPublication);
+router.put('/platform/publications/:id', verifyAdminToken, adminController.updatePlatformPublication);
+router.get('/platform/publications-with-participants', verifyAdminToken, adminController.getPlatformPublicationsWithParticipants);
+
+// Recompensas de Gobernanza (Batch)
+router.get('/governance/reward-stats', verifyAdminToken, adminController.getGovernanceRewardStats);
+router.post('/governance/process-rewards', verifyAdminToken, adminController.processGovernanceRewards);
 
 // Broadcast Email
 router.post('/broadcast-email', verifyAdminToken, adminController.createBroadcastEmail);

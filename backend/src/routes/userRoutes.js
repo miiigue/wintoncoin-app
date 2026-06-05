@@ -39,4 +39,13 @@ router.get('/api/me/booster-profile', authenticateToken, UserController.getMyBoo
 // 9. Quema de Tokens (Financial Transaction)
 router.post('/users/burn', requireAcceptedLegalByUsernameField(['username']), UserController.burnTokens);
 
+// 10. Crear una calificación (Mapeado de /rate)
+router.post('/rate', requireAcceptedLegalByUsernameField(['rater_username']), UserController.createRating);
+
+// 11. Obtener información de referidos
+router.get('/api/users/:username/referral-info', UserController.getReferralInfo);
+
+// 12. Obtener perfil de impulsor de un usuario por username
+router.get('/api/users/:username/booster-profile', UserController.getUserBoosterProfile);
+
 module.exports = router;

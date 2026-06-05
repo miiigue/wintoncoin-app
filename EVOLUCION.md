@@ -13,6 +13,23 @@ Para el detalle â€œtipo releaseâ€, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: quÃ© problema resolviÃ³ y quÃ© habilita hacia adelante.
 
+### 2026-06-05 (Parte 3) — Refactorización del Monolito (server.js) y Desacoplamiento Modular (Fase 6)
+
+- **Contexto**: El archivo central de servidor `server.js` operaba como un monolito gigante que acumulaba lógica duplicada de configuración, calificaciones, enrutamiento administrativo secundario y utilidades del sistema, dificultando el mantenimiento y violando el principio de única responsabilidad.
+- **Decisión**:
+  - **Saneamiento de server.js**: Se extrajeron todas las rutas remanentes que residían inline y se delegaron a sus respectivos controladores y enrutadores modulares. Esto incluyó:
+    - El endpoint de calificaciones `/rate` se mudó a `UserController.createRating` en `userController.js` y se registró en `userRoutes.js`.
+    - Las rutas secundarias de publicaciones (`/publications/:id/participants`, `DELETE /publications/:id`, `/publications/:id/toggle-pause`, `/publications/:id/hide`, y `/publications/:id/unhide`) se trasladaron a `publicationController.js` y `publicationRoutes.js`.
+    - Se creó el módulo de utilidades y configuraciones públicas (`systemController.js` y `systemRoutes.js`) para alojar de forma segura y cacheada los endpoints `GET /settings`, `GET /platform-settings`, `GET /public-settings`, `GET /contracts/info`, `GET /referral-settings`, `GET /referral-expiry-date`, y `GET /love-list`.
+    - La ruta administrativa de actualización de códigos de referido (`PUT /api/admin/users/:userId/referral-code`) se migró a `adminController.updateUserReferralCode` en `adminController.js` y se registró en `adminRoutes.js` bajo protección estricta del middleware de administración y con auditoría completa.
+  - **Limpieza de Código Duplicado**: Se eliminaron las definiciones inline redundantes de `server.js`, reduciendo el tamaño y acoplamiento del archivo principal.
+  - **Corrección de Bug de Sintaxis en Admin Controller**: Se resolvió un bug preexistente de duplicación de bloque `catch` en `cleanupOldPublications` dentro de `adminController.js` que impedía la compilación y prueba correctas del servidor.
+  - **Adaptación en la Suite de Pruebas**: Se actualizó `__tests__/publication.test.js` para importar y montar `systemRoutes` con el fin de restaurar el acceso al endpoint de configuraciones públicas sin alterar el entorno aislado de test.
+- **Impacto**: Desacoplamiento arquitectónico completo de la lógica de backend bajo el patrón MVC. Código 100% auditable y reproducible, alineado con los estándares más estrictos de gobernanza y seguridad de la industria fintech (Zero Hardcoded Secrets y control de acceso RBAC).
+- **Evidencia**: Cambios confirmados en `server.js`, `userController.js`, `userRoutes.js`, `publicationController.js`, `publicationRoutes.js`, `systemController.js`, `systemRoutes.js`, `adminController.js`, `adminRoutes.js` y `__tests__/publication.test.js`. Todas las pruebas pasaron exitosamente.
+
+---
+
 ### 2026-06-05 (Parte 2) — Resolución de Regresión de Layout en Móviles (Restauración de Box-Model)
 
 - **Contexto**: Tras la restauración del menú móvil original en `contract_interaction.html`, se detectó una deformación visual del diseño responsivo en smartphones. La causa raíz radicaba en que el wrapper de diseño de escritorio `<div class="dashboard-main-content">` (introducido en la Fase 5 para separar el sidebar premium del contenido) carecía de estilos en móviles (donde el sidebar de escritorio no se carga), convirtiéndose en un nodo `div` block-level sin ancho definido. Al estar dentro de `body` (que opera con `display: flex; justify-content: center; align-items: center;`), rompía la relación directa de caja flexible entre el body y el `.container`, provocando que este último perdiera su ajuste del 100% de ancho y el comportamiento inmutable de la regla `box-sizing: border-box;`.
