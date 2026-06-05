@@ -28,9 +28,7 @@ function initializeBoosterProfilePage() {
             const token = localStorage.getItem('token');
             const loggedUsername = localStorage.getItem('username');
             const isMe = loggedUsername && username === loggedUsername && token;
-            const url = isMe
-                ? `${API_URL}/api/me/booster-profile`
-                : `${API_URL}/api/users/${username}/booster-profile`;
+            const url = `${API_URL}/api/users/${username}/booster-profile`;
 
             const response = await fetch(url, {
                 headers: isMe ? { 'Authorization': `Bearer ${token}` } : {}

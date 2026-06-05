@@ -7,7 +7,7 @@ import { getApiUrl, showCustomAlert } from '../modules/index.js';
 function initializeProfilePage() {
     const API_URL = getApiUrl();
     const urlParams = new URLSearchParams(window.location.search);
-    const username = urlParams.get('username') || urlParams.get('user');
+    const username = urlParams.get('username') || urlParams.get('user') || localStorage.getItem('username');
 
     const elements = {
         profileHeader: document.getElementById('profile-header'),
