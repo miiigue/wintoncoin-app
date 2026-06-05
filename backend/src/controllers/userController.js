@@ -241,6 +241,162 @@ const UserController = {
         } catch (err) {
             return res.status(500).json({ message: "Error interno del servidor." });
         }
+    },
+
+    // ------------------------------------------------------------------------
+    // Obtener el historial de un usuario (Legacy)
+    // ------------------------------------------------------------------------
+    getUserHistoryLegacy: async (req, res) => {
+        const { username } = req.params;
+        if (!req.user?.username || req.user.username !== username) {
+            return res.status(403).json({ message: 'No autorizado para consultar historial de otro usuario.' });
+        }
+        try {
+            const authoredSql = `
+                SELECT
+                    p.*,
+                    u.username as author_username,
+                    (p.deleted_at IS NOT NULL) AS is_deleted,
+                    (p.expires_at IS NOT NULL AND p.expires_at < NOW()) AS is_expired,
+                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id) AS participants_count,
+                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status = 'confirmed_paid') AS completed_count,
+                    (
+                        CASE
+                            WHEN COALESCE(p.is_quick_sale, FALSE) = TRUE THEN (p.status <> 'open')
+                            ELSE (
+                                p.available_slots <= 0
+                            )
+                        END
+                    ) AS is_completed_publication
+                FROM publications p
+                JOIN users u ON p.author_id = u.id
+                WHERE u.username = $1
+                ORDER BY p.created_at DESC
+            `;
+
+            const completedSql = `
+                SELECT
+                    p.*,
+                    u.username as author_username,
+                    pa.status as user_acceptance_status,
+                    pa.form_responses,
+                    (p.deleted_at IS NOT NULL) AS is_deleted,
+                    (p.expires_at IS NOT NULL AND p.expires_at < NOW()) AS is_expired
+                FROM publications p
+                JOIN users u ON p.author_id = u.id
+                JOIN publication_acceptances pa ON p.id = pa.publication_id
+                WHERE pa.acceptor_username = $1 AND pa.status = 'confirmed_paid'
+                ORDER BY p.created_at DESC
+            `;
+
+            const [authoredResult, completedResult] = await Promise.all([
+                pool.query(authoredSql, [username]),
+                pool.query(completedSql, [username])
+            ]);
+
+            res.status(200).json({ authored: authoredResult.rows, completed: completedResult.rows });
+        } catch (err) {
+            console.error("Error al obtener el historial legacy:", err.message);
+            res.status(500).json({ message: "Error interno del servidor." });
+        }
+    },
+
+    // ------------------------------------------------------------------------
+    // Obtener el historial del usuario autenticado (Profesional)
+    // ------------------------------------------------------------------------
+    getMyHistory: async (req, res) => {
+        const userId = req.user?.userId;
+        const username = req.user?.username;
+        if (!userId || !username) {
+            return res.status(401).json({ message: 'No autenticado.' });
+        }
+
+        try {
+            const authoredSql = `
+                SELECT
+                    p.*,
+                    u.username as author_username,
+                    (p.deleted_at IS NOT NULL) AS is_deleted,
+                    (p.expires_at IS NOT NULL AND p.expires_at < NOW()) AS is_expired,
+                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id) AS participants_count,
+                    (SELECT COUNT(*) FROM publication_acceptances pa WHERE pa.publication_id = p.id AND pa.status = 'confirmed_paid') AS completed_count,
+                    (
+                        CASE
+                            WHEN COALESCE(p.is_quick_sale, FALSE) = TRUE THEN (p.status <> 'open')
+                            ELSE (
+                                p.available_slots <= 0
+                            )
+                        END
+                    ) AS is_completed_publication
+                FROM publications p
+                JOIN users u ON p.author_id = u.id
+                WHERE p.author_id = $1
+                ORDER BY p.created_at DESC
+            `;
+
+            const completedSql = `
+                SELECT
+                    p.*,
+                    u.username as author_username,
+                    pa.status as user_acceptance_status,
+                    pa.form_responses,
+                    (p.deleted_at IS NOT NULL) AS is_deleted,
+                    (p.expires_at IS NOT NULL AND p.expires_at < NOW()) AS is_expired
+                FROM publications p
+                JOIN users u ON p.author_id = u.id
+                JOIN publication_acceptances pa ON p.id = pa.publication_id
+                WHERE pa.acceptor_username = $1 AND pa.status = 'confirmed_paid'
+                ORDER BY p.created_at DESC
+            `;
+
+            const [authoredResult, completedResult] = await Promise.all([
+                pool.query(authoredSql, [userId]),
+                pool.query(completedSql, [username])
+            ]);
+
+            res.status(200).json({ authored: authoredResult.rows, completed: completedResult.rows });
+        } catch (err) {
+            console.error("Error al obtener historial (/api/me/history):", err.message);
+            res.status(500).json({ message: "Error interno del servidor." });
+        }
+    },
+
+    // ------------------------------------------------------------------------
+    // Obtener el perfil de Impulsor del usuario autenticado
+    // ------------------------------------------------------------------------
+    getMyBoosterProfile: async (req, res) => {
+        const userId = req.user?.userId;
+        if (!userId) return res.status(401).json({ message: "No autenticado." });
+
+        try {
+            // 1. Obtener nivel actual
+            const currentLevelResult = await pool.query(
+                `SELECT bls.level_name, bls.level_id
+                 FROM user_booster_levels ubl
+                 JOIN booster_level_settings bls ON ubl.level_id = bls.level_id
+                 WHERE ubl.user_id = $1`,
+                [userId]
+            );
+
+            // 2. Historial de transacciones (compras/usos)
+            const historyResult = await pool.query(
+                `SELECT transaction_type, token_amount, usdt_value, description, created_at 
+                 FROM booster_transactions 
+                 WHERE user_id = $1 
+                 ORDER BY created_at DESC`,
+                [userId]
+            );
+
+            res.json({
+                currentLevel: currentLevelResult.rows.length > 0 ? currentLevelResult.rows[0].level_name : 'No activo',
+                levelId: currentLevelResult.rows.length > 0 ? currentLevelResult.rows[0].level_id : 0,
+                history: historyResult.rows
+            });
+
+        } catch (error) {
+            console.error("Error obteniendo perfil booster:", error);
+            res.status(500).json({ message: "Error interno del servidor." });
+        }
     }
 };
 
