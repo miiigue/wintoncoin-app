@@ -485,40 +485,142 @@ const UserController = {
     },
 
     // ------------------------------------------------------------------------
-    // Obtener el perfil de Impulsor del usuario autenticado
+    // Obtener el perfil de Impulsor del usuario autenticado (Estructura Enriquecida)
+    // Optimización: Consolidación de sumatorias en base a booster_blue_ledger
+    // Seguridad: Autenticación obligatoria mediante JWT extraído de req.user
+    // Auditoría: Extracción directa de la base de datos de movimientos (Ledger)
     // ------------------------------------------------------------------------
     getMyBoosterProfile: async (req, res) => {
+        // [Auditoría] Extraer el ID de usuario autenticado desde el token decodificado por el middleware
         const userId = req.user?.userId;
-        if (!userId) return res.status(401).json({ message: "No autenticado." });
+        // [Auditoría] Extraer el nombre de usuario autenticado para adjuntarlo en la respuesta
+        const username = req.user?.username;
+        
+        // [Seguridad] Validar que exista el identificador de usuario en el contexto de la sesión
+        if (!userId) {
+            return res.status(401).json({ message: "No autenticado." });
+        }
 
+        // [Rendimiento] Adquirir un cliente específico del pool de conexiones para transacciones concurrentes
+        const client = await pool.connect();
         try {
-            // 1. Obtener nivel actual
-            const currentLevelResult = await pool.query(
-                `SELECT bls.level_name, bls.level_id
-                 FROM user_booster_levels ubl
-                 JOIN booster_level_settings bls ON ubl.level_id = bls.level_id
-                 WHERE ubl.user_id = $1`,
+            // [Auditoría / Integridad] Sumatoria histórica consolidada del saldo BLUE IOU directamente de la fuente de verdad (Ledger)
+            const totalResult = await client.query(
+                'SELECT COALESCE(SUM(amount), 0) AS total FROM booster_blue_ledger WHERE user_id = $1',
                 [userId]
             );
+            // Convertir el resultado a número flotante para consistencia de operaciones matemáticas
+            const totalBoosterBlue = parseFloat(totalResult.rows[0].total) || 0;
 
-            // 2. Historial de transacciones (compras/usos)
-            const historyResult = await pool.query(
-                `SELECT transaction_type, token_amount, usdt_value, description, created_at 
-                 FROM booster_transactions 
-                 WHERE user_id = $1 
-                 ORDER BY created_at DESC`,
-                [userId]
-            );
+            // [Lógica de Negocio] Validar si el usuario forma parte activa del programa de impulsores
+            if (totalBoosterBlue <= 0) {
+                return res.json({
+                    is_booster: false,
+                    message: 'Aún no formas parte del programa de impulsores.'
+                });
+            }
 
+            // [Rendimiento] Ejecución concurrente mediante Promise.all para reducir la latencia de respuesta (I/O Bound)
+            const [ledgerHistoryResult, levelSettingsResult, currentLevelResult, tasksCountResult, rankData, friendsRankData, dailyData] = await Promise.all([
+                // A) Consultar historial de ledger cruzando con booster_transactions para obtener descripciones y tipos legibles
+                client.query(
+                    `
+                    SELECT
+                        bbl.id,
+                        bbl.amount,
+                        bbl.created_at,
+                        bbl.source_publication_id AS related_publication_id,
+                        COALESCE(bt_pick.type,
+                            CASE
+                                WHEN bbl.source_publication_id IS NOT NULL AND bbl.amount > 0 THEN 'task_reward'
+                                WHEN bbl.amount < 0 THEN 'debit'
+                                ELSE 'credit'
+                            END
+                        ) AS type,
+                        COALESCE(
+                            bt_pick.description,
+                            CASE
+                                WHEN p.title IS NOT NULL THEN 'Actividad de Impulsor: "' || p.title || '"'
+                                ELSE 'Actividad de Impulsor (legacy)'
+                            END
+                        ) AS description
+                    FROM booster_blue_ledger bbl
+                    LEFT JOIN publications p ON p.id = bbl.source_publication_id
+                    LEFT JOIN LATERAL (
+                        SELECT bt.type, bt.description
+                        FROM booster_transactions bt
+                        WHERE bt.user_id = bbl.user_id
+                          AND bt.amount = bbl.amount
+                          AND bt.related_publication_id IS NOT DISTINCT FROM bbl.source_publication_id
+                          AND bt.created_at BETWEEN (bbl.created_at - INTERVAL '2 minutes') AND (bbl.created_at + INTERVAL '2 minutes')
+                        ORDER BY ABS(EXTRACT(EPOCH FROM (bt.created_at - bbl.created_at))) ASC
+                        LIMIT 1
+                    ) bt_pick ON TRUE
+                    WHERE bbl.user_id = $1
+                    ORDER BY bbl.created_at DESC
+                    `,
+                    [userId]
+                ),
+                // B) Configuración global de todos los niveles del sistema
+                client.query('SELECT * FROM booster_level_settings ORDER BY level ASC'),
+                // C) Calcular el nivel actual del usuario basado en el total acumulado de BLUE iou
+                client.query(
+                    'SELECT MAX(level) AS current_level FROM booster_level_settings WHERE min_blue_required <= $1',
+                    [totalBoosterBlue]
+                ),
+                // D) Contar la cantidad de tareas individuales completadas por el impulsor
+                client.query(
+                    `SELECT COUNT(*) AS tasks_completed
+                     FROM booster_blue_ledger bbl
+                     WHERE bbl.user_id = $1 AND bbl.amount > 0 AND bbl.source_publication_id IS NOT NULL`,
+                    [userId]
+                ),
+                // E) Obtener ranking global (mundial) del usuario
+                getBoosterRankData(client, userId),
+                // F) Obtener ranking de amigos (referidos directos)
+                getReferralRankData(client, userId),
+                // G) Obtener métricas comparativas diarias (hoy vs ayer)
+                getBoosterDailyData(client, userId)
+            ]);
+
+            // [Modularización] Procesamiento y mapeo de niveles del sistema
+            const allLevels = levelSettingsResult.rows;
+            const currentLevel = currentLevelResult.rows[0].current_level || 0;
+            const currentLevelInfo = allLevels.find(l => l.level === currentLevel) || null;
+            const nextLevelInfo = allLevels.find(l => l.level === (currentLevel || 0) + 1) || null;
+
+            // [Modularización] Formatear conteo de tareas a tipo entero nativo
+            const tasksCompleted = parseInt(tasksCountResult.rows[0]?.tasks_completed || '0', 10);
+
+            // [Auditoría] Responder con la estructura completa enriquecida requerida por el frontend
             res.json({
-                currentLevel: currentLevelResult.rows.length > 0 ? currentLevelResult.rows[0].level_name : 'No activo',
-                levelId: currentLevelResult.rows.length > 0 ? currentLevelResult.rows[0].level_id : 0,
-                history: historyResult.rows
+                is_booster: true,
+                username: username,
+                booster_level: currentLevel,
+                total_booster_blue: totalBoosterBlue,
+                current_level_info: currentLevelInfo,
+                next_level_info: nextLevelInfo,
+                booster_tasks_completed_count: tasksCompleted,
+                transactions: ledgerHistoryResult.rows,
+                all_levels: allLevels,
+                rank_position: rankData?.rank_position || null,
+                rank_total: rankData?.rank_total || null,
+                rank_percentile: rankData?.rank_percentile || null,
+                friends_rank_position: friendsRankData?.rank_position || null,
+                friends_rank_total: friendsRankData?.rank_total || null,
+                friends_rank_percentile: friendsRankData?.rank_percentile || null,
+                daily_today: dailyData?.daily_today || 0,
+                daily_yesterday: dailyData?.daily_yesterday || 0,
+                daily_improved: dailyData?.daily_improved || false
             });
 
         } catch (error) {
+            // [Auditoría / Diagnóstico] Registro detallado del error en logs del servidor
             console.error("Error obteniendo perfil booster:", error);
             res.status(500).json({ message: "Error interno del servidor." });
+        } finally {
+            // [Seguridad / Rendimiento] Liberación obligatoria del cliente para prevenir fugas de conexión en el Pool
+            client.release();
         }
     },
 

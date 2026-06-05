@@ -13,6 +13,15 @@ Para el detalle â€œtipo releaseâ€, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: quÃ© problema resolviÃ³ y quÃ© habilita hacia adelante.
 
+### 2026-06-05 (Parte 4) — Corrección del Saldo Acumulado de BLUE IOU en Pantalla Principal (Bugfix)
+
+- **Contexto**: El dashboard principal (`contract_interaction.html`) mostraba incorrectamente un saldo de `0 BLUE iou` acumulado para los usuarios impulsores activos, mientras que la pantalla de perfil del impulsor (`booster-profile.html`) sí mostraba el saldo real correcto. La causa raíz fue la simplificación excesiva del endpoint seguro `/api/me/booster-profile` en `userController.js` durante la modularización en el commit `9d61b77`, eliminando el cálculo de la sumatoria del ledger y otros metadatos necesarios (is_booster, rankings, metas diarias, etc.).
+- **Decisión**: Se reestructuró la función `getMyBoosterProfile` en `backend/src/controllers/userController.js` para que vuelva a conectarse al ledger (`booster_blue_ledger`), calcule el saldo acumulado real y ejecute en paralelo la recopilación de clasificaciones (`getBoosterRankData`), referidos (`getReferralRankData`) y metas comparativas diarias (`getBoosterDailyData`). Esto homologó el comportamiento con el endpoint por username público, respetando el contrato de la API esperado por el frontend.
+- **Impacto**: Corrección inmediata de la visualización del saldo acumulado en la pantalla principal de los usuarios sin comprometer la seguridad. Cumplimiento con las mejores prácticas de gobernanza financiera (auditoría directa del ledger), rendimiento (consultas paralelas con `Promise.all`), legibilidad (código 100% comentado línea por línea) y prevención de fugas de conexión a base de datos al liberar obligatoriamente el cliente de PostgreSQL.
+- **Evidencia**: Modificación y validación de `getMyBoosterProfile` en `backend/src/controllers/userController.js`. Pruebas automatizadas Jest (`npm test`) pasadas con éxito.
+
+---
+
 ### 2026-06-05 (Parte 3) — Refactorización del Monolito (server.js) y Desacoplamiento Modular (Fase 6)
 
 - **Contexto**: El archivo central de servidor `server.js` operaba como un monolito gigante que acumulaba lógica duplicada de configuración, calificaciones, enrutamiento administrativo secundario y utilidades del sistema, dificultando el mantenimiento y violando el principio de única responsabilidad.
