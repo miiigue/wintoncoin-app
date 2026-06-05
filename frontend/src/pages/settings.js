@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { getApiUrl, showCustomAlert, handleSessionExpired } from '../modules/index.js';
+import { initSettingsInstallButton } from '../modules/pwa-install.js';
 
 function initializeSettingsPage() {
     const API_URL = getApiUrl();
@@ -16,6 +17,7 @@ function initializeSettingsPage() {
     }
 
     loadNotificationSettings();
+    initSettingsInstallButton(); // Inicializar botón "Descargar App" en página de Configuración
 
     document.getElementById('saveNotificationSettings').addEventListener('click', async (e) => {
         const btn = e.target;

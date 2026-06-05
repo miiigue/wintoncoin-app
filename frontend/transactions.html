@@ -8,10 +8,19 @@
     <meta http-equiv="Expires" content="0">
     <title>Historial de Transacciones - Winton Coin</title>
     <link id="main-stylesheet" rel="stylesheet" href="style.css">
+    
+    <!-- Fuentes Premium -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <!-- Componente Premium Sidebar -->
+    <script src="src/components/sidebar.js"></script>
 </head>
 <body>
-    <div class="container">
-        <a href="contract_interaction.html" class="back-link">&larr; Volver</a>
+    <div class="dashboard-main-content">
+        <div class="container interaction-container">
+            <a href="contract_interaction.html" class="back-link">&larr; Volver</a>
         
         <h1>Historial de Transacciones</h1>
         <p class="subtitle" id="transactionsUsername">Transacciones para ...</p>
@@ -32,6 +41,7 @@
             </table>
         </div>
         <p id="no-transactions-message" style="display: none;">No tienes ninguna transacción todavía.</p>
+        </div>
     </div>
 
     <!-- ES Modules (Vite) -->

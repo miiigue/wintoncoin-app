@@ -5399,17 +5399,14 @@ input:checked+.slider:before {
 
 .main-actions-container .button-link {
     margin: 0;
-    /* Reseteamos el margen que tenían individualmente */
     flex: 1;
-    /* Ocupan el espacio disponible */
     display: flex;
-    /* Usar flexbox para centrado perfecto */
     justify-content: center;
-    /* Centrado horizontal */
     align-items: center;
-    /* Centrado vertical */
     gap: 0.5em;
-    /* Espacio entre el icono y el texto */
+    /* Reducir tamaño del botón */
+    padding: 0.75rem 0.5rem;
+    font-size: 0.95rem;
 }
 
 /* Ajuste para el botón de acción secundaria (Venta Rápida) */
@@ -7211,8 +7208,8 @@ body.wallet-tour-active #prelaunchWalletModal {
 .main-actions-container {
     margin-bottom: 2.5rem;
     display: flex;
-    flex-direction: column;
-    gap: 1rem;
+    flex-direction: row; /* Colocarlos uno al lado del otro */
+    gap: 0.8rem; /* Reducir levemente el gap para pantallas pequeñas */
 }
 
 /* Título de Lista -> Lista */

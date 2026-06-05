@@ -1,4 +1,4 @@
-﻿# EvoluciÃ³n de WintonCoin
+# EvoluciÃ³n de WintonCoin
 
 ---
 
@@ -14,6 +14,22 @@ Para el detalle â€œtipo releaseâ€, ver `CHANGELOG.md`.
 - **Impacto**: quÃ© problema resolviÃ³ y quÃ© habilita hacia adelante.
 
 ## LÃ­nea de tiempo (hitos)
+
+### 2026-06-05 â€” EstandarizaciÃ³n Premium Global y Ciberseguridad (Fase 6)
+
+- **Contexto**: Tras la implementaciÃ³n inicial de la UI Premium en el Panel Principal, se hacÃ­a evidente que sub-pÃ¡ginas como ConfiguraciÃ³n, Transacciones, Referidos y Perfil de Impulsor seguÃ­an utilizando el diseÃ±o antiguo "Mobile-Only" y modales intrusivos. AdemÃ¡s, era imperativo garantizar que los nuevos flujos financieros tuvieran Cero Riesgo de inyecciÃ³n y fuga de datos.
+- **DecisiÃ³n ArquitectÃ³nica y Visual**:
+  - **PÃ¡gina Nativa de Settings**: Se destruyÃ³ el antiguo Modal de ConfiguraciÃ³n de Notificaciones. Se migrÃ³ toda su lÃ³gica y la lÃ³gica de "Descargar App PWA" a una pÃ¡gina exclusiva \`settings.html\` y \`settings.js\`, permitiendo escalabilidad futura (como aÃ±adir opciones de cambio de contraseÃ±a o 2FA).
+  - **ExpansiÃ³n Global del Dashboard**: Se inyectÃ³ el wrapper \`.dashboard-main-content\` y el componente \`sidebar.js\` en las Ãºltimas pÃ¡ginas faltantes (\`transactions.html\`, \`booster-profile.html\`, \`referrals.html\`), logrando una estÃ©tica de escritorio 100% unificada y premium en toda la aplicaciÃ³n.
+  - **Limpieza de UX**: Se retirÃ³ el arroba (\`@\`) del nombre de usuario en el sidebar, presentÃ¡ndolo exactamente como proviene de la base de datos para evitar redundancias visuales.
+  - **OptimizaciÃ³n de Botones de AcciÃ³n**: Los botones de "Crear PublicaciÃ³n" y "Venta RÃ¡pida" se compactaron en una disposiciÃ³n horizontal (\`flex-direction: row\`) reduciendo su padding para ahorrar espacio vertical crÃ­tico en dispositivos mÃ³viles.
+- **AuditorÃ­a de Ciberseguridad (Zero Risk)**:
+  - Se certificÃ³ que los mÃ©todos HTTP de actualizaciÃ³n de configuraciones (\`/api/notifications/settings\`) estÃ¡n blindados con consultas parametrizadas (\`$1\`, \`$2\`) contra InyecciÃ³n SQL.
+  - Se comprobÃ³ que los mÃ©todos de parseo de JSON fuerzan un casteo booleano (\`!!\`), impidiendo ataques de Payload Modification.
+  - Se verificÃ³ la trazabilidad mediante \`auditService.logAuditEvent()\`.
+- **Impacto**: La plataforma ahora luce como una aplicaciÃ³n bancaria nativa de escritorio y mÃ³vil sin pÃ¡ginas "huÃ©rfanas" de diseÃ±o. El rÃ©cord de seguridad del backend se mantiene inmaculado, apto para entorno de producciÃ³n financiero real.
+- **Evidencia**: Modificaciones en \`settings.html\`, \`settings.js\`, \`transactions.html\`, \`booster-profile.html\`, \`referrals.html\`, \`sidebar.js\`, \`style.css\`.
+
 
 ### 2026-06-05 â€” RefactorizaciÃ³n CrÃ­tica: Arquitectura MVC P2P (Fase 4) y EstandarizaciÃ³n Premium UI (Fase 5)
 

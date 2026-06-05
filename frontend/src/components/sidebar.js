@@ -117,11 +117,9 @@ function loadUserProfile() {
         const usernameEl = document.getElementById('sidebar-username');
         const avatarEl = document.getElementById('sidebar-avatar');
 
-        // Capitalizar el nombre de usuario para mostrarlo como "Nombre" principal
-        const displayName = username.charAt(0).toUpperCase() + username.slice(1);
-
-        nameEl.textContent = displayName;
-        usernameEl.textContent = `@${username}`;
+        // Mostrar el nombre de usuario exactamente como viene de la base de datos
+        nameEl.textContent = username;
+        usernameEl.style.display = 'none'; // Ocultar el subtítulo con @ para no ser redundante
 
         // Configurar Avatar (iniciales basadas en el username)
         const initials = username.substring(0, 2).toUpperCase();
