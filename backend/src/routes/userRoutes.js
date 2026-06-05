@@ -6,6 +6,7 @@ const UserController = require('../controllers/userController');
 
 // Importamos el middleware de seguridad OFICIAL
 const { authenticateToken } = require('../middleware/authMiddleware');
+const { requireAcceptedLegalByUsernameField } = require('../middleware/legalAcceptanceMiddleware');
 
 // ==========================================
 // RUTAS DE USUARIO (SEGURAS Y MODULARIZADAS)
@@ -34,5 +35,8 @@ router.get('/api/me/history', authenticateToken, UserController.getMyHistory);
 
 // 8. Obtener perfil de impulsor (Booster Profile)
 router.get('/api/me/booster-profile', authenticateToken, UserController.getMyBoosterProfile);
+
+// 9. Quema de Tokens (Financial Transaction)
+router.post('/users/burn', requireAcceptedLegalByUsernameField(['username']), UserController.burnTokens);
 
 module.exports = router;

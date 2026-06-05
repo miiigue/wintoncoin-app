@@ -397,6 +397,41 @@ const UserController = {
             console.error("Error obteniendo perfil booster:", error);
             res.status(500).json({ message: "Error interno del servidor." });
         }
+    },
+
+    // ------------------------------------------------------------------------
+    // Quema de Tokens (Transacción Financiera)
+    // ------------------------------------------------------------------------
+    burnTokens: async (req, res) => {
+        const { username, amount } = req.body;
+        const amountToBurnString = (amount || "0").toString().replace(',', '.');
+        const amountToBurn = parseFloat(amountToBurnString);
+
+        if (!username || !amountToBurn || amountToBurn <= 0) {
+            return res.status(400).json({ message: "La cantidad a quemar debe ser un número positivo." });
+        }
+
+        const client = await pool.connect();
+        const FinancialCoreService = require('../services/financialCoreService');
+
+        try {
+            await client.query('BEGIN');
+            const burnResult = await FinancialCoreService.executeBurn(client, username, amountToBurn);
+
+            if (burnResult.success) {
+                await client.query('COMMIT');
+                res.json({ message: burnResult.message });
+            } else {
+                await client.query('ROLLBACK');
+                res.status(400).json({ message: burnResult.message });
+            }
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error("Error en la ruta /users/burn:", error);
+            res.status(500).json({ message: error.message || "Error del servidor." });
+        } finally {
+            client.release();
+        }
     }
 };
 

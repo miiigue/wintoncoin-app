@@ -346,7 +346,7 @@ async function startServer() {
             try {
                 await client.query('BEGIN');
 
-                const burnResult = await executeBurn(client, username, amountToBurn);
+                const burnResult = await require('./src/services/financialCoreService').executeBurn(client, username, amountToBurn);
 
                 if (burnResult.success) {
                     await client.query('COMMIT');
@@ -1998,109 +1998,6 @@ async function startServer() {
 
         // --- Procesos en segundo plano ---
 
-        // Función reutilizable y centralizada para la quema de tokens
-        async function executeBurn(client, username, amountToBurn) {
-            if (amountToBurn <= 0) {
-                return { success: false, message: 'La cantidad a quemar debe ser positiva.', actualAmountBurned: 0 };
-            }
-
-            // 1. Obtener saldos y deudas del usuario dentro de una transacción
-            const userResult = await client.query(
-                `SELECT id, liquid_blue_balance, escrow_blue_balance, red_balance FROM users WHERE username = $1 FOR UPDATE`,
-                [username]
-            );
-
-            if (userResult.rowCount === 0) {
-                return { success: false, message: 'Usuario no encontrado.', actualAmountBurned: 0 };
-            }
-
-            const user = userResult.rows[0];
-            const userId = user.id;
-            const liquidBlue = parseFloat(user.liquid_blue_balance);
-            const escrowBlue = parseFloat(user.escrow_blue_balance);
-            const totalBlueAvailable = liquidBlue + escrowBlue;
-            const totalRed = parseFloat(user.red_balance);
-
-            // Determinar la cantidad real que se puede quemar (la más pequeña entre BLUE disponible, RED disponible y la cantidad solicitada)
-            const actualAmountToBurn = Math.min(amountToBurn, totalBlueAvailable, totalRed);
-
-            if (actualAmountToBurn < 0.0001) { // Usamos un umbral pequeño para evitar problemas de punto flotante
-                return { success: true, message: 'No hay saldo suficiente para quemar.', actualAmountBurned: 0 };
-            }
-
-            // 2. Determinar cuánto se quema de cada tipo de saldo BLUE
-            const burnedFromLiquid = Math.min(actualAmountToBurn, liquidBlue);
-            const burnedFromEscrow = actualAmountToBurn - burnedFromLiquid;
-
-            // 3. Saldar deudas RED (las más antiguas primero)
-            const debtsResult = await client.query(
-                `SELECT id, amount FROM red_token_debts WHERE username = $1 AND is_settled = FALSE ORDER BY due_at ASC FOR UPDATE`,
-                [username]
-            );
-
-            let remainingToSettle = actualAmountToBurn;
-            for (const debt of debtsResult.rows) {
-                if (remainingToSettle <= 0) break;
-
-                const amountFromThisDebt = Math.min(remainingToSettle, parseFloat(debt.amount));
-                const newDebtAmount = parseFloat(debt.amount) - amountFromThisDebt;
-
-                if (newDebtAmount < 0.0001) {
-                    // CORRECCIÓN: Si la deuda se paga por completo, la marcamos como saldada antes de eliminarla.
-                    // Esto cumple con las reglas económicas y permite auditoría adecuada.
-                    await client.query(`UPDATE red_token_debts SET is_settled = TRUE WHERE id = $1`, [debt.id]);
-                    await client.query(`DELETE FROM red_token_debts WHERE id = $1`, [debt.id]);
-                } else {
-                    // Si el pago es parcial, solo actualizamos el monto restante.
-                    await client.query(`UPDATE red_token_debts SET amount = $1 WHERE id = $2`, [newDebtAmount, debt.id]);
-                }
-                remainingToSettle -= amountFromThisDebt;
-            }
-
-            // 4. Consumir de los depósitos BLUE en escrow si es necesario
-            if (burnedFromEscrow > 0.0001) {
-                const escrowLotsResult = await client.query(
-                    `SELECT id, amount FROM blue_token_escrows WHERE username = $1 AND is_released = FALSE ORDER BY unlock_at ASC FOR UPDATE`,
-                    [username]
-                );
-
-                let remainingToConsumeFromEscrow = burnedFromEscrow;
-                for (const escrowLot of escrowLotsResult.rows) {
-                    if (remainingToConsumeFromEscrow <= 0) break;
-
-                    const amountFromThisLot = Math.min(remainingToConsumeFromEscrow, parseFloat(escrowLot.amount));
-                    const newEscrowLotAmount = parseFloat(escrowLot.amount) - amountFromThisLot;
-
-                    if (newEscrowLotAmount < 0.0001) {
-                        await client.query(`DELETE FROM blue_token_escrows WHERE id = $1`, [escrowLot.id]);
-                    } else {
-                        await client.query(`UPDATE blue_token_escrows SET amount = $1 WHERE id = $2`, [newEscrowLotAmount, escrowLot.id]);
-                    }
-                    remainingToConsumeFromEscrow -= amountFromThisLot;
-                }
-            }
-
-            // 5. Actualizar los saldos principales del usuario (Event Sourcing)
-            if (burnedFromLiquid > 0) {
-                await client.query(`SELECT record_balance_event($1, 'burn', 'liquid_blue', $2, NULL)`, [userId, burnedFromLiquid]);
-            }
-            if (burnedFromEscrow > 0) {
-                await client.query(`SELECT record_balance_event($1, 'burn', 'escrow_blue', $2, NULL)`, [userId, burnedFromEscrow]);
-            }
-            if (actualAmountToBurn > 0) {
-                await client.query(`SELECT record_balance_event($1, 'burn', 'red', $2, NULL)`, [userId, actualAmountToBurn]);
-            }
-
-            // 6. Registrar la transacción
-            const burnDesc = `Quemaste ${actualAmountToBurn.toFixed(4)} tokens. Se usaron ${burnedFromLiquid.toFixed(4)} BLUE (disponible) y ${burnedFromEscrow.toFixed(4)} BLUE (pendiente).`;
-            await client.query(
-                `INSERT INTO transactions (user_id, type, description, blue_change, red_change) VALUES ($1, 'burn', $2, $3, $4)`,
-                [userId, burnDesc, -actualAmountToBurn, -actualAmountToBurn]
-            );
-
-            return { success: true, message: `Se han quemado ${actualAmountToBurn.toFixed(4)} tokens exitosamente.`, actualAmountBurned: actualAmountToBurn };
-        }
-
         const DEBT_COLLECTOR_INTERVAL_MS = 3 * 60 * 1000; // 3 minutos
         setInterval(async () => {
             console.log('DEBT COLLECTOR: Iniciando ciclo de recolección de deudas vencidas...');
@@ -2141,7 +2038,7 @@ async function startServer() {
                     // La función executeBurn ya determina el máximo posible a quemar.
                     // Le pasamos el total de la deuda y ella hará el resto.
                     console.log(`DEBT COLLECTOR: Intentando saldar ${amountToSettle.toFixed(4)} RED para el usuario ${username}.`);
-                    const burnResult = await executeBurn(client, username, amountToSettle);
+                    const burnResult = await require('./src/services/financialCoreService').executeBurn(client, username, amountToSettle);
 
                     if (burnResult.success && burnResult.actualAmountBurned > 0) {
                         const notificationMessage = `Se realizó una quema automática de ${burnResult.actualAmountBurned.toFixed(4)} tokens para cubrir tu deuda vencida.`;
