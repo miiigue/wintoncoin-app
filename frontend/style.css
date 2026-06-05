@@ -5400,13 +5400,26 @@ input:checked+.slider:before {
 .main-actions-container .button-link {
     margin: 0;
     flex: 1;
+    /* Para que ambos botones ocupen el mismo ancho */
+    padding: 1rem;
+    box-sizing: border-box;
+    /* Asegura que el padding no rompa el diseño */
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 0.5em;
-    /* Reducir tamaño del botón */
-    padding: 0.75rem 0.5rem;
-    font-size: 0.95rem;
+}
+
+/* Ajustes exclusivos para escritorio (lado a lado y más pequeños) */
+@media (min-width: 1024px) {
+    .main-actions-container {
+        flex-direction: row;
+        gap: 0.8rem;
+    }
+    .main-actions-container .button-link {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.95rem;
+    }
 }
 
 /* Ajuste para el botón de acción secundaria (Venta Rápida) */
@@ -7208,8 +7221,8 @@ body.wallet-tour-active #prelaunchWalletModal {
 .main-actions-container {
     margin-bottom: 2.5rem;
     display: flex;
-    flex-direction: row; /* Colocarlos uno al lado del otro */
-    gap: 0.8rem; /* Reducir levemente el gap para pantallas pequeñas */
+    flex-direction: column;
+    gap: 1rem;
 }
 
 /* Título de Lista -> Lista */
