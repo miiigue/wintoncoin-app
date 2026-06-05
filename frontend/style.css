@@ -33,6 +33,14 @@ body {
     min-height: 100vh;
 }
 
+/* --- Compatibilidad del Contenedor Principal (Mobile Layout) --- */
+/* Cuando no estamos en el layout de panel de escritorio (body:not(.dashboard-layout)), el wrapper */
+/* .dashboard-main-content debe comportarse como transparente ('display: contents') para no interferir */
+/* en la relación padre/hijo flex entre el body y el .container, respetando el box-sizing y max-width móvil. */
+body:not(.dashboard-layout) .dashboard-main-content {
+    display: contents;
+}
+
 /* --- Contenedor Principal --- */
 .container {
     background-color: var(--surface-color);
@@ -5399,27 +5407,17 @@ input:checked+.slider:before {
 
 .main-actions-container .button-link {
     margin: 0;
+    /* Reseteamos el margen que tenían individualmente */
     flex: 1;
-    /* Para que ambos botones ocupen el mismo ancho */
-    padding: 1rem;
-    box-sizing: border-box;
-    /* Asegura que el padding no rompa el diseño */
+    /* Ocupan el espacio disponible */
     display: flex;
+    /* Usar flexbox para centrado perfecto */
     justify-content: center;
+    /* Centrado horizontal */
     align-items: center;
+    /* Centrado vertical */
     gap: 0.5em;
-}
-
-/* Ajustes exclusivos para escritorio (lado a lado y más pequeños) */
-@media (min-width: 1024px) {
-    .main-actions-container {
-        flex-direction: row;
-        gap: 0.8rem;
-    }
-    .main-actions-container .button-link {
-        padding: 0.75rem 0.5rem;
-        font-size: 0.95rem;
-    }
+    /* Espacio entre el icono y el texto */
 }
 
 /* Ajuste para el botón de acción secundaria (Venta Rápida) */

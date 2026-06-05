@@ -4,7 +4,23 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Inyectar CSS si no existe
+    // 1. Detección de pantalla: Solo activar sidebar en escritorio (≥769px)
+    // En teléfono se conserva el menú hamburguesa original de contract_interaction.html
+    const isDesktop = window.matchMedia('(min-width: 769px)').matches;
+    if (!isDesktop) {
+        // En móvil, no inyectamos el sidebar.
+        // El menú original (header-menu) maneja la navegación del teléfono.
+        return;
+    }
+
+    // 2. Ocultar el menú original del teléfono (header-menu) en escritorio
+    // para que no se duplique con el sidebar premium
+    const originalMobileMenu = document.querySelector('.header-menu');
+    if (originalMobileMenu) {
+        originalMobileMenu.style.display = 'none';
+    }
+
+    // 3. Inyectar CSS si no existe
     if (!document.querySelector('link[href*="premium-dashboard.css"]')) {
         const link = document.createElement('link');
         link.rel = 'stylesheet';
@@ -12,10 +28,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.head.appendChild(link);
     }
 
-    // 2. Aplicar la clase al body
+    // 4. Aplicar la clase al body
     document.body.classList.add('dashboard-layout');
 
-    // 3. Crear Estructura HTML
+    // 5. Crear Estructura HTML del Sidebar Premium
     const sidebarHTML = `
         <!-- Mobile Overlay -->
         <div class="sidebar-overlay" id="mobile-overlay"></div>
@@ -41,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             <nav class="sidebar-nav">
                 <ul>
-                    <li><a href="/contract_interaction.html" class="nav-link"><span class="icon">🏠</span> Panel Principal</a></li>
+                    <li><a href="/contract_interaction.html" class="nav-link"><span class="icon">🏠</span> Resumen</a></li>
                     <li><a href="/como-funciona.html" class="nav-link"><span class="icon">❓</span> ¿Cómo funciona?</a></li>
                     <li><a href="/p2p.html" class="nav-link"><span class="icon">💱</span> Vende o Compra BLUE</a></li>
                     <li><a href="/history.html" class="nav-link"><span class="icon">📜</span> Historial</a></li>
@@ -49,12 +65,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <li><a href="/referrals.html" class="nav-link"><span class="icon">👥</span> Referidos</a></li>
                     <li><a href="/booster-profile.html" class="nav-link"><span class="icon">🚀</span> Perfil de Impulsor</a></li>
                     <li><a href="/estado-cuenta.html" class="nav-link"><span class="icon">📊</span> Billetera Web3</a></li>
-                    <li><a href="/solicitud-solidaria.html" class="nav-link"><span class="icon">❤️</span> Donaciones</a></li>
+                    <li><a href="/causa-solidaria.html" class="nav-link"><span class="icon">❤️</span> Donaciones</a></li>
                     <li><a href="/momentum-landing.html" class="nav-link"><span class="icon">⚡</span> Winton Momentum</a></li>
                     <li><a href="/love.html" class="nav-link"><span class="icon">💖</span> Página LOVE</a></li>
                     <li><a href="/documentation.html" class="nav-link"><span class="icon">📄</span> Documentación</a></li>
-                    <li><a href="https://wintoncoin.com" target="_blank" class="nav-link"><span class="icon">🌐</span> Ir al Sitio Web</a></li>
-                    <li><a href="/settings.html" class="nav-link"><span class="icon">⚙️</span> Configuración</a></li>
+                    <li><a href="https://www.wintoncoin.com" target="_blank" class="nav-link"><span class="icon">🌐</span> Ir al Sitio Web</a></li>
+                    <li><a href="/profile.html" class="nav-link"><span class="icon">⚙️</span> Configuración</a></li>
                 </ul>
             </nav>
 
@@ -117,9 +133,11 @@ function loadUserProfile() {
         const usernameEl = document.getElementById('sidebar-username');
         const avatarEl = document.getElementById('sidebar-avatar');
 
-        // Mostrar el nombre de usuario exactamente como viene de la base de datos
-        nameEl.textContent = username;
-        usernameEl.style.display = 'none'; // Ocultar el subtítulo con @ para no ser redundante
+        // Capitalizar el nombre de usuario para mostrarlo como "Nombre" principal
+        const displayName = username.charAt(0).toUpperCase() + username.slice(1);
+
+        nameEl.textContent = displayName;
+        usernameEl.textContent = `@${username}`;
 
         // Configurar Avatar (iniciales basadas en el username)
         const initials = username.substring(0, 2).toUpperCase();

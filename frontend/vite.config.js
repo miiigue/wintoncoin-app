@@ -95,7 +95,6 @@ export default defineConfig(({ mode }) => ({
         publish: resolve(__dirname, 'publish.html'),
         publicationDetail: resolve(__dirname, 'publication-detail.html'),
         profile: resolve(__dirname, 'profile.html'),
-        settings: resolve(__dirname, 'settings.html'),
         history: resolve(__dirname, 'history.html'),
         transactions: resolve(__dirname, 'transactions.html'),
         referrals: resolve(__dirname, 'referrals.html'),

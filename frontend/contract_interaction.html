@@ -51,6 +51,57 @@
 </head>
 
 <body>
+    <!-- ============================================================= -->
+    <!-- MENÚ ORIGINAL MÓVIL (header-menu) - Visible solo en teléfonos -->
+    <!-- El sidebar premium se encargará de escritorio (≥768px)         -->
+    <!-- ============================================================= -->
+    <div class="header-menu">
+        <!-- Menú de Perfil del Usuario -->
+        <div class="profile-menu">
+            <div class="profile-trigger" style="align-items: flex-start; margin-top: -10px;">
+                <span id="usernameDisplay">Usuario</span> <!-- El nombre se insertará aquí -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-list"
+                    viewBox="0 0 16 16" style="margin-top: -2px; margin-left: 8px;">
+                    <path fill-rule="evenodd"
+                        d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z" />
+                </svg>
+            </div>
+            <div class="dropdown-content" id="profileDropdown">
+                <a href="como-funciona.html">¿Cómo funciona?</a>
+                <a href="p2p.html">Vende o Compra BLUE</a>
+                <a href="history.html">Historial</a>
+                <a href="transactions.html">Transacciones</a>
+                <a href="referrals.html">Referidos</a>
+                <a href="booster-profile.html">Perfil de Impulsor</a>
+                <a href="estado-cuenta.html" style="color: #10B981; font-weight: 600;">Billetera Web3 📊</a>
+                <a href="#" id="menuSolidarioHistory"
+                    style="display: none; color: #e83e8c; font-weight: 600;">Donaciones ❤️</a>
+                <a href="momentum-dashboard.html" id="momentumMenuLink"
+                    style="display: none; color: #f59e0b; font-weight: 600;">Winton Momentum ⚡</a>
+                <a href="love.html">Página LOVE</a>
+                <a href="documentation.html">Documentación</a>
+                <a href="https://www.wintoncoin.com" target="_blank">🌐 Ir al Sitio Web</a>
+                <a href="#" id="openSettingsModal">⚙️ Configuración</a>
+                <a href="#" id="logoutLink">Cerrar Sesión</a>
+            </div>
+        </div>
+
+        <!-- Menú de Notificaciones -->
+        <div class="notification-menu">
+            <div class="notification-trigger" style="margin-top: -5px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" fill="currentColor"
+                    class="bi bi-bell-fill" viewBox="0 0 16 16">
+                    <path
+                        d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2zm.995-14.901a1 1 0 1 0-1.99 0A5.002 5.002 0 0 0 3 6c0 1.098-.5 6-2.5 7h13c-2-1-2.5-5.902-2.5-7 0-2.42-1.72-4.44-4.005-4.901z" />
+                </svg>
+                <span class="notification-badge" id="notificationBadge"></span>
+            </div>
+            <div class="dropdown-content" id="notificationDropdown">
+                <!-- Las notificaciones se cargarán aquí -->
+            </div>
+        </div>
+    </div>
+
     <div class="dashboard-main-content">
 
             <div class="container interaction-container"> <!-- Contenedor para centrar y dar estilo -->
@@ -621,6 +672,86 @@
                 </p>
             </div>
             <button class="prelaunch-modal-btn" id="createPostPrelaunchAccept">Entendido</button>
+        </div>
+    </div>
+
+    <!-- Modal de Configuración -->
+    <div id="settingsModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close-button" id="closeSettingsModal">&times;</span>
+            <h2 style="margin-bottom: 20px;">⚙️ Configuración</h2>
+
+            <!-- Sección de Notificaciones -->
+            <div class="settings-section">
+                <h3 style="margin-bottom: 15px; color: #4a90d9;">🔔 Notificaciones</h3>
+                <p style="font-size: 0.9em; color: #888; margin-bottom: 20px;">
+                    Controla qué tipo de notificaciones deseas recibir.
+                </p>
+
+                <!-- Switch Seguridad (Bloqueado) -->
+                <div class="notification-setting-item">
+                    <div class="notification-setting-info">
+                        <strong>🔒 Seguridad y Transacciones</strong>
+                        <p style="font-size: 0.85em; color: #999; margin: 5px 0 0 0;">
+                            Alertas críticas de seguridad, pagos y verificaciones. <strong>Siempre activas.</strong>
+                        </p>
+                    </div>
+                    <label class="admin-switch" style="opacity: 0.6; cursor: not-allowed;">
+                        <input type="checkbox" id="notifSecuritySwitch" checked disabled>
+                        <span class="admin-slider"></span>
+                    </label>
+                </div>
+
+                <!-- Switch Social -->
+                <div class="notification-setting-item">
+                    <div class="notification-setting-info">
+                        <strong>👥 Actividad Social</strong>
+                        <p style="font-size: 0.85em; color: #999; margin: 5px 0 0 0;">
+                            Mensajes, interacciones, tareas completadas y actividad de tus publicaciones.
+                        </p>
+                    </div>
+                    <label class="admin-switch">
+                        <input type="checkbox" id="notifSocialSwitch" checked>
+                        <span class="admin-slider"></span>
+                    </label>
+                </div>
+
+                <!-- Switch Marketing -->
+                <div class="notification-setting-item">
+                    <div class="notification-setting-info">
+                        <strong>📢 Novedades y Promociones</strong>
+                        <p style="font-size: 0.85em; color: #999; margin: 5px 0 0 0;">
+                            Nuevas campañas, bonos, actualizaciones de la plataforma y ofertas especiales.
+                        </p>
+                    </div>
+                    <label class="admin-switch">
+                        <input type="checkbox" id="notifMarketingSwitch" checked>
+                        <span class="admin-slider"></span>
+                    </label>
+                </div>
+
+                <button id="saveNotificationSettings" class="action-button" style="margin-top: 25px; width: 100%;">
+                    Guardar Preferencias
+                </button>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- Sección de Descarga de la Aplicación (PWA Install)           -->
+            <!-- ============================================================ -->
+            <!-- MOTIVO: Botón redundante de instalación para usuarios que    -->
+            <!-- descartaron el botón flotante. Estándar de la industria.     -->
+            <!-- Se oculta automáticamente si la app ya está instalada.       -->
+            <!-- ============================================================ -->
+            <div class="settings-section settings-pwa-section" id="pwa-settings-section">
+                <h3 style="margin-bottom: 15px; color: #00d4aa;">📲 Descargar App</h3>
+                <p style="font-size: 0.9em; color: #888; margin-bottom: 20px;">
+                    Instala WintonCoin en tu dispositivo para acceso rápido desde la pantalla de inicio.
+                </p>
+                <button id="pwa-settings-install-btn" type="button">
+                    📲 Descargar App
+                </button>
+                <p id="pwa-settings-status" class="pwa-settings-status"></p>
+            </div>
         </div>
     </div>
 

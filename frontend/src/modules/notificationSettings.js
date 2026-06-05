@@ -41,15 +41,6 @@ export function initializeNotificationSettings() {
     saveBtn.addEventListener('click', async () => {
         await saveNotificationSettings();
     });
-
-    // Check URL params to auto-open
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('openSettings') === 'true') {
-        setTimeout(async () => {
-            await loadNotificationSettings();
-            modal.style.display = 'block';
-        }, 500); // Pequeño retraso para que cargue la interfaz
-    }
 }
 
 /**

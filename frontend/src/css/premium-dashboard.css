@@ -35,7 +35,8 @@ body.dashboard-layout {
 }
 
 /* Contenedor principal de la página (a la derecha de la barra lateral) */
-.dashboard-main-content {
+/* Solo se activa cuando el body tiene dashboard-layout (escritorio) */
+body.dashboard-layout .dashboard-main-content {
     flex: 1;
     margin-left: var(--sidebar-width);
     padding: 2rem;
@@ -45,9 +46,14 @@ body.dashboard-layout {
 }
 
 /* Permitir que los contenedores se expandan en el dashboard premium (escritorio) */
-.dashboard-main-content .container {
+body.dashboard-layout .dashboard-main-content .container {
     max-width: 1400px;
     padding: 3rem 4rem;
+}
+
+/* En escritorio con sidebar, ocultar el menú hamburguesa original del teléfono */
+body.dashboard-layout .header-menu {
+    display: none !important;
 }
 
 /* === THE SIDEBAR COMPONENT === */
@@ -243,46 +249,28 @@ body.dashboard-layout {
     }
 }
 
+/* En móvil el sidebar NO se inyecta (sidebar.js hace return), pero si por
+   alguna razón premium-dashboard.css se carga, estas reglas protegen el layout */
 @media (max-width: 768px) {
-    .dashboard-main-content {
+    body.dashboard-layout .dashboard-main-content {
         margin-left: 0 !important;
-        padding-top: calc(var(--header-height) + 1.5rem) !important;
+        padding-top: 0 !important;
     }
     
-    .dashboard-main-content .container {
+    body.dashboard-layout .dashboard-main-content .container {
         max-width: 450px;
         padding: 2rem 1.5rem;
     }
 
     .mobile-header {
-        display: flex;
+        display: none; /* No usar el mobile-header del sidebar en móvil */
     }
 
     #premium-sidebar {
-        transform: translateX(-100%); /* Oculto por defecto en móvil */
+        display: none; /* Sidebar completamente oculto en móvil */
     }
 
-    #premium-sidebar.open {
-        transform: translateX(0); /* Mostrado al clickear hamburguesa */
-    }
-
-    /* Backdrop overlay for mobile */
     .sidebar-overlay {
         display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0,0,0,0.5);
-        backdrop-filter: blur(4px);
-        z-index: 998;
-        opacity: 0;
-        transition: opacity 0.3s;
-    }
-
-    .sidebar-overlay.active {
-        display: block;
-        opacity: 1;
     }
 }
