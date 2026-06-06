@@ -1656,4 +1656,163 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         }
     });
 
+    // Ruta para obtener todos los participantes de una publicación
+    router.get('/publications/:id/participants', async (req, res) => {
+        const { id } = req.params;
+        const sql = `
+            SELECT pa.acceptor_username, pa.status, pa.created_at as accepted_at, u.average_rating, u.ratings_count
+            FROM publication_acceptances pa JOIN users u ON pa.acceptor_username = u.username
+            WHERE pa.publication_id = $1 ORDER BY pa.created_at
+        `;
+        try {
+            const result = await pool.query(sql, [id]);
+            res.status(200).json(result.rows);
+        } catch (error) {
+            console.error('Error al obtener participantes:', error);
+            res.status(500).json({ message: "Error interno del servidor." });
+        }
+    });
+
+    // Ruta para ELIMINAR una publicación
+    router.delete('/publications/:id', requireAcceptedLegalByUsernameField(['deleterUsername']), async (req, res) => {
+        const { id } = req.params;
+        const { deleterUsername } = req.body;
+        if (!deleterUsername) return res.status(400).json({ message: "Se requiere nombre de usuario." });
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            const pubResult = await client.query(
+                `SELECT p.*, u.username as author_username
+                 FROM publications p
+                 JOIN users u ON p.author_id = u.id
+                 WHERE p.id = $1
+                 FOR UPDATE`,
+                [id]
+            );
+            const pub = pubResult.rows[0];
+
+            if (!pub) throw { status: 404, message: "La publicación no existe." };
+            if (pub.deleted_at) throw { status: 400, message: "La publicación ya fue eliminada." };
+            if (pub.author_username !== deleterUsername) throw { status: 403, message: "No tienes permiso para eliminar esto." };
+
+            const participantsCheck = await client.query(
+                `SELECT 1 FROM publication_acceptances WHERE publication_id = $1 AND status IN ('approved', 'completed') LIMIT 1`,
+                [id]
+            );
+            if (participantsCheck.rowCount > 0) {
+                throw { status: 403, message: "No se puede eliminar una tarea con participantes activos." };
+            }
+
+            // ✅ Soft delete (no rompe FKs y mantiene historial/auditoría)
+            await client.query(
+                `UPDATE publications
+                 SET deleted_at = NOW(), deleted_by_username = $2
+                 WHERE id = $1`,
+                [id, deleterUsername]
+            );
+
+            await logAuditEvent(client, req, {
+                eventType: 'publication.deleted',
+                actorUsername: deleterUsername,
+                publicationId: parseInt(id, 10),
+                category: pub.category,
+                metadata: { soft_delete: true }
+            });
+
+            await client.query('COMMIT');
+            res.status(200).json({ message: "Publicación eliminada (soft delete) correctamente." });
+        } catch (err) {
+            await client.query('ROLLBACK');
+            console.error("Error al eliminar publicación:", err.message);
+            res.status(err.status || 500).json({ message: err.message || "Error interno." });
+        } finally {
+            client.release();
+        }
+    });
+
+    // Ruta para PAUSAR/REANUDAR una publicación (REFACTORIZADA PARA MÁXIMA SEGURIDAD)
+    router.post('/publications/:id/toggle-pause', requireAcceptedLegalByUsernameField(['username']), async (req, res) => {
+        const { id } = req.params;
+        const { username } = req.body;
+
+        if (!username) {
+            return res.status(400).json({ message: "Se requiere nombre de usuario." });
+        }
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // 1. OBTENER la publicación y VERIFICAR permisos explícitamente.
+            const pubResult = await client.query(
+                `SELECT p.is_paused, u.username as author_username FROM publications p JOIN users u ON p.author_id = u.id WHERE p.id = $1 FOR UPDATE`,
+                [id]
+            );
+
+            if (pubResult.rowCount === 0) {
+                await client.query('ROLLBACK');
+                return res.status(404).json({ message: "La publicación no existe." });
+            }
+
+            const publication = pubResult.rows[0];
+
+            // 2. Fallar rápido si el usuario no es el autor.
+            if (publication.author_username !== username) {
+                await client.query('ROLLBACK');
+                return res.status(403).json({ message: "No tienes permiso para modificar esta publicación." });
+            }
+
+            // 3. Si los permisos son correctos, proceder con la actualización.
+            const newPausedState = !publication.is_paused;
+            await client.query(
+                `UPDATE publications SET is_paused = $1 WHERE id = $2`,
+                [newPausedState, id]
+            );
+
+            await client.query('COMMIT');
+
+            const message = newPausedState ? "Publicación pausada." : "Publicación reanudada.";
+            res.status(200).json({ message, isPaused: newPausedState });
+
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error("Error en toggle-pause:", error);
+            res.status(500).json({ message: "Error interno del servidor." });
+        } finally {
+            if (client) client.release();
+        }
+    });
+
+    // Ruta para OCULTAR una publicación
+    router.post('/publications/:id/hide', requireAcceptedLegalByUsernameField(['username']), async (req, res) => {
+        const { id } = req.params;
+        const { username } = req.body;
+
+        try {
+            const sql = `INSERT INTO hidden_publications (publication_id, hider_username) VALUES ($1, $2) ON CONFLICT DO NOTHING`;
+            await pool.query(sql, [id, username]);
+            res.status(200).json({ message: "Publicación ocultada de tu vista." });
+        } catch (error) {
+            console.error("Error en /hide:", error);
+            res.status(500).json({ message: "Error interno del servidor." });
+        }
+    });
+
+    // Ruta para DESHACER OCULTAR (Unhide)
+    router.post('/publications/:id/unhide', requireAcceptedLegalByUsernameField(['username']), async (req, res) => {
+        const { id } = req.params;
+        const { username } = req.body;
+
+        try {
+            const sql = `DELETE FROM hidden_publications WHERE publication_id = $1 AND hider_username = $2`;
+            await pool.query(sql, [id, username]);
+            res.status(200).json({ message: "Publicación restaurada." });
+        } catch (error) {
+            console.error("Error en /unhide:", error);
+            res.status(500).json({ message: "Error interno del servidor." });
+        }
+    });
+
 };

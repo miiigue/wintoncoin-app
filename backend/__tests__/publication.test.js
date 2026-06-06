@@ -1,6 +1,7 @@
 const request = require('supertest');
 const { app, pool } = require('../server'); // Asegurarnos de exportar app desde server.js para Testing
 const publicationRoutes = require('../src/routes/publicationRoutes');
+const systemRoutes = require('../src/routes/systemRoutes');
 
 // Montar las rutas en el entorno de pruebas usando mocks para middlewares
 const mockRequireAcceptedLegal = () => (req, res, next) => next();
@@ -8,6 +9,7 @@ const mockVerifyAdminToken = (req, res, next) => next();
 const mockLogAuditEvent = jest.fn().mockResolvedValue(true);
 
 app.use('/', publicationRoutes(pool, mockRequireAcceptedLegal, mockVerifyAdminToken, mockLogAuditEvent));
+app.use('/api', systemRoutes);
 // Mocks para evitar enviar emails reales o depender de la configuración externa en los tests unitarios
 jest.mock('../src/services/emailService', () => ({
     sendTransactionEmail: jest.fn().mockResolvedValue(true),

@@ -33,6 +33,14 @@ body {
     min-height: 100vh;
 }
 
+/* --- Compatibilidad del Contenedor Principal (Mobile Layout) --- */
+/* Cuando no estamos en el layout de panel de escritorio (body:not(.dashboard-layout)), el wrapper */
+/* .dashboard-main-content debe comportarse como transparente ('display: contents') para no interferir */
+/* en la relación padre/hijo flex entre el body y el .container, respetando el box-sizing y max-width móvil. */
+body:not(.dashboard-layout) .dashboard-main-content {
+    display: contents;
+}
+
 /* --- Contenedor Principal --- */
 .container {
     background-color: var(--surface-color);
@@ -3501,7 +3509,8 @@ body.love-page {
         font-size: 0.9rem;
         line-height: 1.3;
         display: -webkit-box;
-        -webkit-line-clamp: 2; /* Máximo 2 líneas de descripción */
+        -webkit-line-clamp: 2; /* Prefijo Webkit: Máximo 2 líneas de descripción */
+        line-clamp: 2; /* Estándar CSS: Asegura compatibilidad a futuro en todos los navegadores */
         -webkit-box-orient: vertical;
         overflow: hidden;
     }
@@ -7857,3 +7866,4 @@ body.wallet-tour-active #prelaunchWalletModal {
         flex-direction: column;
     }
 }
+

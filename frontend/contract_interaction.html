@@ -45,9 +45,16 @@
         rel="stylesheet">
     <!-- Driver.js for Onboarding -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css" />
+    
+    <!-- Componente Premium Sidebar -->
+    <script src="src/components/sidebar.js"></script>
 </head>
 
 <body>
+    <!-- ============================================================= -->
+    <!-- MENÚ ORIGINAL MÓVIL (header-menu) - Visible solo en teléfonos -->
+    <!-- El sidebar premium se encargará de escritorio (≥768px)         -->
+    <!-- ============================================================= -->
     <div class="header-menu">
         <!-- Menú de Perfil del Usuario -->
         <div class="profile-menu">
@@ -95,9 +102,11 @@
         </div>
     </div>
 
-    <div class="container interaction-container"> <!-- Contenedor para centrar y dar estilo -->
-        <!-- Badge de Pre-lanzamiento (Banda Diagonal) -->
-        <div class="pre-launch-ribbon">
+    <div class="dashboard-main-content">
+
+            <div class="container interaction-container"> <!-- Contenedor para centrar y dar estilo -->
+                <!-- Badge de Pre-lanzamiento (Banda Diagonal) -->
+                <div class="pre-launch-ribbon">
             <span class="pre-launch-text">
                 <span class="ribbon-shine-overlay"></span>
                 <span class="ribbon-text-content info-text-clickable" role="button" tabindex="0"
@@ -748,6 +757,8 @@
 
     <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
+
+        </div> <!-- Cierre del dashboard-main-content -->
 </body>
 
 </html>
