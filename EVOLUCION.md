@@ -2761,3 +2761,18 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
   - Una Interfaz de Usuario "Wow-factor" en pantallas grandes, combinando usabilidad avanzada para PC y mantenimiento sin fricciÃ³n para el soporte mÃ³vil preexistente.
 - **Evidencia**: Archivos modificados: `backend/server.js`, `src/controllers/adminController.js`, `src/routes/adminRoutes.js`, `frontend/contract_interaction.html`, `frontend/style.css`, `EVOLUCION.md`.
 
+---
+
+### 2026-06-05 — Corrección del Saldo Acumulado BLUE IOU y Limpieza del Backend (Fase 6)
+
+- **Contexto**: Se detectó que la pantalla principal (`contract_interaction.html`) mostraba erróneamente un saldo acumulado de `0 BLUE iou`, a pesar de que la vista de perfil de impulsor (`booster-profile.html`) desplegaba el saldo real correcto. Este error se originó a partir de una simplificación incompleta del endpoint `/api/me/booster-profile` en el controlador `userController.js` durante refactorizaciones previas, donde se omitió consultar el ledger de auditoría financiera del token BLUE.
+- **Decisión de Ingeniería**:
+  - **Restauración del Ledger Financiero**: Se actualizó el controlador `userController.js` (método `getUserBoosterProfile`) para reinstaurar las consultas SQL exactas al balance total de `booster_blue_ledger`, metas de ganancias diarias, rankings y perfiles de nivel vigentes.
+  - **Higiene de Repositorio**: Se eliminaron los archivos temporales de análisis `server_monolith_original.js` y `audit_modularization.js` de la raíz del proyecto para evitar la polución del repositorio.
+  - **Alineación de Calidad y Tests**: Se certificó que todas las pruebas unitarias de Jest (`npm test`) se ejecuten con éxito al 100% y que la compilación de producción del cliente (`npm run build:demo`) no presente errores.
+- **Impacto**:
+  - El balance acumulado de BLUE IOU del usuario se renderiza de forma consistente e instantánea en el dashboard de la aplicación.
+  - El repositorio de control de versiones queda limpio y libre de archivos analíticos redundantes.
+  - El sistema mantiene altos niveles de auditoría bancaria a través de consultas directas y parametrizadas al ledger histórico.
+- **Evidencia**: Archivos modificados y eliminados: `backend/src/controllers/userController.js`, `backend/server_monolith_original.js` [DELETE], `backend/audit_modularization.js` [DELETE], `EVOLUCION.md`.
+
