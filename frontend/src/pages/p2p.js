@@ -58,6 +58,52 @@ document.addEventListener('DOMContentLoaded', () => {
 
     init();
 
+    async function p2pFetch(url, options = {}) {
+        try {
+            const response = await fetch(url, options);
+            if (handleSessionExpired(response)) return null;
+
+            // Clonar la respuesta para poder leer su body sin consumirlo
+            const responseText = await response.clone().text();
+            let result = {};
+            try {
+                result = JSON.parse(responseText);
+            } catch (e) {
+                if (!response.ok) {
+                    throw new Error(responseText || `Error ${response.status}`);
+                }
+            }
+
+            if (!response.ok) {
+                // Interceptar error de aceptación legal (403 LEGAL_ACCEPTANCE_REQUIRED)
+                if (response.status === 403 && result.code === 'LEGAL_ACCEPTANCE_REQUIRED') {
+                    return new Promise((resolve, reject) => {
+                        window.showLegalAcceptanceModal(
+                            result.pending_documents,
+                            async (acceptResult) => {
+                                console.log('[LEGAL] Términos aceptados desde modal (P2P). Reintentando operación original...');
+                                try {
+                                    const retryResponse = await p2pFetch(url, options);
+                                    resolve(retryResponse);
+                                } catch (retryErr) {
+                                    reject(retryErr);
+                                }
+                            },
+                            () => {
+                                reject(new Error('Acción bloqueada: Debes aceptar los términos y condiciones vigentes.'));
+                            }
+                        );
+                    });
+                }
+            }
+
+            return response;
+        } catch (error) {
+            console.error('[P2P fetch error]:', error);
+            throw error;
+        }
+    }
+
     function init() {
         setupEventListeners();
         loadPaymentMethods();
@@ -116,10 +162,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadPaymentMethods() {
         try {
-            const response = await fetch(`${API_URL}/api/p2p/payment-methods`, {
+            const response = await p2pFetch(`${API_URL}/api/p2p/payment-methods`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (handleSessionExpired(response)) return;
+            if (!response) return;
             if (!response.ok) throw new Error('No se pudieron cargar métodos de pago.');
             paymentMethods = await response.json();
             renderPaymentMethods();
@@ -165,10 +211,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (elements.amountFilter.value) params.set('min', elements.amountFilter.value);
 
         try {
-            const response = await fetch(`${API_URL}/api/p2p/offers?${params.toString()}`, {
+            const response = await p2pFetch(`${API_URL}/api/p2p/offers?${params.toString()}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (handleSessionExpired(response)) return;
+            if (!response) return;
             if (!response.ok) throw new Error('No se pudieron cargar ofertas.');
             const offers = await response.json();
             const sortedOffers = [...offers].sort((a, b) => Number(a.price_per_blue) - Number(b.price_per_blue));
@@ -183,10 +229,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!elements.myOffersList) return;
         elements.myOffersList.innerHTML = '<div class="loading-spinner"></div>';
         try {
-            const response = await fetch(`${API_URL}/api/p2p/offers/mine`, {
+            const response = await p2pFetch(`${API_URL}/api/p2p/offers/mine`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (handleSessionExpired(response)) return;
+            if (!response) return;
             if (!response.ok) throw new Error('No se pudieron cargar tus anuncios.');
             const offers = await response.json();
             renderMyOffers(offers);
@@ -256,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         try {
-            const response = await fetch(`${API_URL}/api/p2p/orders`, {
+            const response = await p2pFetch(`${API_URL}/api/p2p/orders`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -264,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify({ offerId: selectedOffer.id, fiatAmount: amount })
             });
-            if (handleSessionExpired(response)) return;
+            if (!response) return;
             const result = await response.json();
             if (!response.ok) throw new Error(result.message || 'No se pudo crear la orden.');
             showCustomAlert('Orden creada. Tienes 15 minutos para pagar.');
@@ -296,7 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         try {
-            const response = await fetch(`${API_URL}/api/p2p/offers`, {
+            const response = await p2pFetch(`${API_URL}/api/p2p/offers`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -304,7 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 body: JSON.stringify(payload)
             });
-            if (handleSessionExpired(response)) return;
+            if (!response) return;
             const result = await response.json();
             if (!response.ok) throw new Error(result.message || 'No se pudo crear la oferta.');
             showCustomAlert('Anuncio publicado correctamente.');
@@ -320,10 +366,10 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadOrders() {
         elements.ordersList.innerHTML = '<div class="loading-spinner"></div>';
         try {
-            const response = await fetch(`${API_URL}/api/p2p/orders`, {
+            const response = await p2pFetch(`${API_URL}/api/p2p/orders`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (handleSessionExpired(response)) return;
+            if (!response) return;
             if (!response.ok) throw new Error('No se pudieron cargar órdenes.');
             const orders = await response.json();
             renderOrders(orders);
@@ -483,11 +529,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function postOrderAction(orderId, action) {
-        const response = await fetch(`${API_URL}/api/p2p/orders/${orderId}/${action}`, {
+        const response = await p2pFetch(`${API_URL}/api/p2p/orders/${orderId}/${action}`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (handleSessionExpired(response)) throw new Error('Sesión expirada');
+        if (!response) throw new Error('Sesión expirada');
         const result = await response.json();
         if (!response.ok) throw new Error(result.message || 'Error en la acción.');
         return result;

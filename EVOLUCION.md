@@ -13,6 +13,26 @@ Para el detalle â€œtipo releaseâ€, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: quÃ© problema resolviÃ³ y quÃ© habilita hacia adelante.
 
+### 2026-06-06 — Auditoría y Corrección Integral de la Aceptación de Términos y Condiciones (TyC)
+
+- **Contexto**: Durante una auditoría del flujo de autenticación y aceptación legal, se detectó que los usuarios a los que les faltaba aceptar los términos y condiciones vigentes eran bloqueados con un `alert()` clásico del navegador y sin enlaces interactivos, o bien la operación fallaba silenciosamente impidiéndoles publicar o aceptar tareas. Además, si el backend carecía de documentos legales activos publicados en la base de datos, el flujo web entraba en un bucle de error permanente.
+- **Decisión**: Se implementó una solución profesional de grado bancario y fintech:
+  1. **Modal Premium & Responsive**: Diseño `#legalAcceptanceModal` con estilo glassmorphism (desenfoques del fondo, degradados, bordes suaves de color y glow dinámico), totalmente responsivo (reorganización de botones en columna-reverse en pantallas pequeñas) y seguro contra inyecciones XSS mediante sanitización activa. Se configuró para lanzarse automáticamente al cargar el dashboard si existen términos pendientes, eliminando fricción visual y relegando el banner amarillo a un mero recordatorio secundario si el usuario decide cancelarlo para revisar saldos primero.
+  2. **Active Assent Legal**: Cumpliendo normativas contractuales y de firmas electrónicas, el modal requiere que el usuario marque explícitamente casillas independientes para cada documento pendiente para poder habilitar el botón de envío.
+  3. **Interceptación y Reintento Automático**: Modificación de las funciones de red (`postToServer` en `contract-interaction.js`, `fetchFromServer` en `publication-detail.js` y `p2pFetch` en `p2p.js`) para interceptar errores `403` con código `LEGAL_ACCEPTANCE_REQUIRED`, desplegar el modal de aceptación y, una vez guardada la firma en DB mediante `POST /api/legal/accept`, reintentar la operación original de forma totalmente transparente al usuario.
+  4. **Bloqueo Técnico Defensivo**: Corrección de la lógica de renderizado del banner legal en el dashboard. Si el servidor reporta que no hay documentos activos configurados (`NO_ACTIVE_LEGAL_DOCUMENTS`), la interfaz muestra una advertencia de bloqueo técnico en rojo y deshabilita preventivamente los botones de acción crítica para evitar inconsistencias o llamadas de red fallidas.
+- **Impacto**: Experiencia de usuario (UX) fluida y sin fricciones en todo el ciclo operativo de WintonCoin. Cumplimiento legal del consentimiento del usuario acorde con estándares de startups fintech de Silicon Valley. Robustez ante fallos de configuración del servidor y seguridad extrema en las transacciones protegidas.
+- **Evidencia**:
+  - Nuevos estilos en [style.css](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/style.css).
+  - Implementación de `showLegalAcceptanceModal` en [alerts.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/modules/alerts.js).
+  - Integración en [index.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/modules/index.js).
+  - Modificación de interceptación en [contract-interaction.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/contract-interaction.js) y lógica de banner.
+  - Modificación de interceptación en [publication-detail.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/publication-detail.js).
+  - Creación del wrapper `p2pFetch` e interceptación de llamadas en [p2p.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/p2p.js).
+  - Plan de pruebas de QA local adaptado a esquemas append-only en [local_testing_plan.md](file:///C:/Users/migue/.gemini/antigravity-ide/brain/23559a04-6476-455a-8125-3f8ac9409bfa/local_testing_plan.md).
+
+---
+
 ### 2026-06-05 (Parte 4) — Corrección del Saldo Acumulado de BLUE IOU en Pantalla Principal (Bugfix)
 
 - **Contexto**: El dashboard principal (`contract_interaction.html`) mostraba incorrectamente un saldo de `0 BLUE iou` acumulado para los usuarios impulsores activos, mientras que la pantalla de perfil del impulsor (`booster-profile.html`) sí mostraba el saldo real correcto. La causa raíz fue la simplificación excesiva del endpoint seguro `/api/me/booster-profile` en `userController.js` durante la modularización en el commit `9d61b77`, eliminando el cálculo de la sumatoria del ledger y otros metadatos necesarios (is_booster, rankings, metas diarias, etc.).

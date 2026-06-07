@@ -158,81 +158,98 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const pendingNames = legalStatus.pending_documents
-            .map((d) => d.type === 'terms_and_conditions' ? 'Términos y Condiciones' : (d.type === 'privacy_policy' ? 'Política de Privacidad' : d.type))
-            .join(', ');
-
         const banner = existingBanner || document.createElement('div');
         banner.id = 'legal-acceptance-banner';
-        banner.style.background = '#fff3cd';
-        banner.style.color = '#5f370e';
-        banner.style.border = '1px solid #ffe69c';
-        banner.style.borderRadius = '10px';
-        banner.style.padding = '12px';
-        banner.style.margin = '12px auto';
-        banner.style.maxWidth = '1200px';
-        banner.innerHTML = `
-            <strong>Actualizamos nuestros términos.</strong>
-            Revisa y acepta para seguir operando.
-            <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
-                <a href="terms.html" target="_blank" rel="noopener noreferrer" class="btn">Leer Términos</a>
-                <a href="privacy.html" target="_blank" rel="noopener noreferrer" class="btn">Leer Privacidad</a>
-                <button id="accept-legal-docs-btn" class="btn">He leído y acepto</button>
-            </div>
-        `;
 
-        if (!existingBanner) {
-            const rootContainer = document.querySelector('.container') || document.body;
-            rootContainer.prepend(banner);
+        // Estándar de seguridad: si no hay documentos o hay error de configuración en DB, bloqueamos técnicamente
+        if (legalStatus.legal_config_error === 'NO_ACTIVE_LEGAL_DOCUMENTS' || !legalStatus.pending_documents || legalStatus.pending_documents.length === 0) {
+            banner.style.background = '#f8d7da';
+            banner.style.color = '#721c24';
+            banner.style.border = '1px solid #f5c6cb';
+            banner.style.borderRadius = '10px';
+            banner.style.padding = '12px';
+            banner.style.margin = '12px auto';
+            banner.style.maxWidth = '1200px';
+            banner.innerHTML = `
+                <strong>Bloqueo de Seguridad Técnico:</strong>
+                El servidor no tiene configurados documentos legales activos. Las operaciones de la plataforma están deshabilitadas temporalmente por seguridad. Por favor, contacte soporte.
+            `;
+            if (!existingBanner) {
+                const rootContainer = document.querySelector('.container') || document.body;
+                rootContainer.prepend(banner);
+            }
+            setCriticalActionButtonsDisabled(true);
+            return;
         }
 
-        const acceptBtn = document.getElementById('accept-legal-docs-btn');
-        if (acceptBtn) {
-            acceptBtn.onclick = async () => {
-                const token = localStorage.getItem('token');
-                if (!token) return;
-                if (!Array.isArray(legalStatus.pending_documents) || legalStatus.pending_documents.length === 0) {
-                    showCustomAlert('No se encontraron documentos pendientes para aceptar. Recarga la página o contacta soporte.');
-                    return;
-                }
-
-                acceptBtn.disabled = true;
-                acceptBtn.textContent = 'Registrando aceptación...';
-                try {
-                    const response = await fetch(`${API_URL}/api/legal/accept`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({
-                            acceptedDocuments: legalStatus.pending_documents
-                        })
-                    });
-                    const payload = await response.json();
-                    if (!response.ok) {
-                        throw new Error(payload.message || 'No se pudo registrar la aceptación legal.');
-                    }
+        // Si requiere aceptación y aún no se ha lanzado automáticamente en esta carga de página:
+        if (!window.qaModalShownOnLoad) {
+            window.qaModalShownOnLoad = true;
+            // Lanzamos el modal de una vez, bloqueando la pantalla con el modal glassmorphic premium
+            window.showLegalAcceptanceModal(
+                legalStatus.pending_documents,
+                (payload) => {
                     legalStatus = {
                         requires_terms_acceptance: !!payload.requires_terms_acceptance,
-                        pending_documents: payload.pending_documents || []
+                        pending_documents: payload.pending_documents || [],
+                        legal_config_error: payload.legal_config_error || null
                     };
                     renderLegalAcceptanceBanner();
                     showCustomAlert('Aceptación legal registrada correctamente. Ya puedes operar con normalidad.');
-                } catch (error) {
-                    console.error('[Legal] Error al aceptar documentos:', error);
-                    showCustomAlert(error.message || 'No se pudo registrar la aceptación legal.');
-                } finally {
-                    const liveBtn = document.getElementById('accept-legal-docs-btn');
-                    if (liveBtn) {
-                        liveBtn.disabled = false;
-                        liveBtn.textContent = 'He leído y acepto';
-                    }
+                },
+                () => {
+                    console.log('[LEGAL] Modal automático cancelado. Mostrando recordatorio secundario.');
+                    renderWarningBannerReminder();
                 }
-            };
+            );
+        } else {
+            // Si el usuario canceló el modal automático, dejamos el banner de recordatorio secundario arriba
+            renderWarningBannerReminder();
         }
 
-        setCriticalActionButtonsDisabled(true);
+        function renderWarningBannerReminder() {
+            banner.style.background = '#fff3cd';
+            banner.style.color = '#5f370e';
+            banner.style.border = '1px solid #ffe69c';
+            banner.style.borderRadius = '10px';
+            banner.style.padding = '12px';
+            banner.style.margin = '12px auto';
+            banner.style.maxWidth = '1200px';
+            banner.innerHTML = `
+                <strong>Tienes documentos legales pendientes de aceptar.</strong>
+                Para habilitar todas las operaciones de WintonCoin, por favor firma los términos vigentes.
+                <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button id="accept-legal-docs-btn" class="btn">Revisar y Aceptar Términos</button>
+                </div>
+            `;
+
+            if (!existingBanner) {
+                const rootContainer = document.querySelector('.container') || document.body;
+                rootContainer.prepend(banner);
+            }
+
+            const acceptBtn = document.getElementById('accept-legal-docs-btn');
+            if (acceptBtn) {
+                acceptBtn.onclick = () => {
+                    window.showLegalAcceptanceModal(
+                        legalStatus.pending_documents,
+                        (payload) => {
+                            legalStatus = {
+                                requires_terms_acceptance: !!payload.requires_terms_acceptance,
+                                pending_documents: payload.pending_documents || [],
+                                legal_config_error: payload.legal_config_error || null
+                            };
+                            renderLegalAcceptanceBanner();
+                            showCustomAlert('Aceptación legal registrada correctamente. Ya puedes operar con normalidad.');
+                        },
+                        () => {
+                            console.log('[LEGAL] Cancelado nuevamente.');
+                        }
+                    );
+                };
+            }
+            setCriticalActionButtonsDisabled(true);
+        }
     }
 
     async function loadLegalStatus() {
@@ -248,7 +265,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const payload = await response.json();
             legalStatus = {
                 requires_terms_acceptance: !!payload.requires_terms_acceptance,
-                pending_documents: payload.pending_documents || []
+                pending_documents: payload.pending_documents || [],
+                legal_config_error: payload.legal_config_error || null
             };
             renderLegalAcceptanceBanner();
         } catch (error) {
@@ -844,6 +862,35 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (!response.ok) {
+                // Interceptar bloqueo legal (403 LEGAL_ACCEPTANCE_REQUIRED)
+                if (response.status === 403 && result.code === 'LEGAL_ACCEPTANCE_REQUIRED') {
+                    return new Promise((resolve, reject) => {
+                        window.showLegalAcceptanceModal(
+                            result.pending_documents,
+                            async (acceptResult) => {
+                                console.log('[LEGAL] Términos aceptados desde modal. Refrescando UI y reintentando...');
+                                
+                                // Refrescar estado local del dashboard
+                                if (typeof loadLegalStatus === 'function') {
+                                    await loadLegalStatus();
+                                }
+                                
+                                // Reintentar la llamada original de forma transparente
+                                try {
+                                    const retryResult = await postToServer(endpoint, body, options);
+                                    resolve(retryResult);
+                                } catch (retryErr) {
+                                    reject(retryErr);
+                                }
+                            },
+                            () => {
+                                // Flujo cancelado por el usuario
+                                reject(new Error('Acción bloqueada: Debes aceptar los términos y condiciones vigentes.'));
+                            }
+                        );
+                    });
+                }
+
                 showCustomAlert(result.message || `Error: ${response.status}`);
                 throw new Error(result.message);
             }

@@ -900,6 +900,27 @@ ${publicationUrl}`;
             }
 
             if (!response.ok) {
+                // Interceptar bloqueo por Términos y Condiciones pendientes (403 LEGAL_ACCEPTANCE_REQUIRED)
+                if (response.status === 403 && result.code === 'LEGAL_ACCEPTANCE_REQUIRED') {
+                    return new Promise((resolve, reject) => {
+                        window.showLegalAcceptanceModal(
+                            result.pending_documents,
+                            async (acceptResult) => {
+                                console.log('[LEGAL] Términos aceptados desde modal (detalle de tarea). Reintentando...');
+                                try {
+                                    const retryResult = await fetchFromServer(endpoint, method, body);
+                                    resolve(retryResult);
+                                } catch (retryErr) {
+                                    reject(retryErr);
+                                }
+                            },
+                            () => {
+                                reject(new Error('Acción cancelada: Debes aceptar los términos y condiciones vigentes.'));
+                            }
+                        );
+                    });
+                }
+
                 showCustomAlert(result.message || `Error en el servidor: ${response.status}`);
                 throw new Error(result.message);
             }
