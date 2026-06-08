@@ -73,7 +73,8 @@ const authenticateAdmin = (req, res, next) => {
             return res.status(403).json({ message: 'Token de administrador inválido o expirado.' });
         }
 
-        req.user = { ...user, role: 'admin' };
+        // Preservamos el rol real inyectado en el JWT de administración y asignamos 'admin' como fallback de seguridad
+        req.user = { ...user, role: user.role || 'admin' };
         next();
     });
 };

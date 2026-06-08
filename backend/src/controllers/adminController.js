@@ -22,6 +22,7 @@
 
 const pool = require('../config/db');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 const { logAuditEvent } = require('../services/auditService');
 const boosterService = require('../services/boosterService');
 const govDemoRewardService = require('../services/governanceDemoRewardService');
@@ -53,35 +54,79 @@ async function _checkGovernanceActive() {
 
 /**
  * Login de administrador.
- * Valida la contraseña contra env y emite JWT como cookie HttpOnly.
+ * Valida el nombre de usuario y la contraseña hasheada en la base de datos (bcrypt).
+ * Emite JWT como cookie HttpOnly para máxima seguridad.
  */
-function login(req, res) {
-    const { password } = req.body;
-    if (!password) {
-        return res.status(400).json({ message: "Se requiere la contraseña." });
+async function login(req, res) {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ message: "Se requiere usuario y contraseña." });
     }
 
-    if (password === process.env.ADMIN_PASSWORD) {
-        // Generar JWT firmado con la clave secreta del admin
+    try {
+        // 1. Buscar el administrador en la base de datos (con query parametrizado)
+        const adminResult = await pool.query(
+            'SELECT id, username, password_hash, role, account_status FROM admin_users WHERE username = $1',
+            [username]
+        );
+
+        let user = null;
+        let dbHash = '';
+
+        if (adminResult.rowCount > 0) {
+            user = adminResult.rows[0];
+            if (user.account_status !== 'active') {
+                return res.status(403).json({ message: "La cuenta de administrador está inactiva o suspendida." });
+            }
+            dbHash = user.password_hash;
+        } else {
+            // Mitigación de Timing Attacks (Enumeración de usuarios):
+            // Si el administrador no existe, ejecutamos bcrypt.compare contra un hash ficticio pre-calculado
+            // para que el tiempo de respuesta sea el mismo que si el usuario existiera.
+            dbHash = '$2b$10$fG6a7C4t0NlzC.xQG9dZteBypZ4q63T0bXj7vG.6X6l2kZ0gZ9m2u';
+        }
+
+        // 2. Comparación segura contra fuerza bruta (bcrypt)
+        const isMatch = await bcrypt.compare(password, dbHash);
+
+        if (!user || !isMatch) {
+            return res.status(401).json({ message: "Usuario o contraseña incorrecta." });
+        }
+
+        // 3. Generar token JWT con la identidad y el rol real recuperado de la base de datos (superadmin, admin, auditor, etc.)
         const accessToken = jwt.sign(
-            { name: 'admin' },
+            { userId: user.id, username: user.username, role: user.role },
             process.env.ADMIN_SECRET_KEY,
             { expiresIn: '8h' }
         );
 
-        // SEGURIDAD: Enviar el token como una cookie HttpOnly
-        // (inaccesible desde JavaScript del cliente → previene XSS robo de token)
+        // 4. Inyectar cookie HttpOnly (grado bancario: previene robo por XSS)
         res.cookie('admin_token', accessToken, {
-            httpOnly: true,                                              // No accesible desde JS del cliente
-            secure: process.env.NODE_ENV === 'production',               // Solo HTTPS en producción
-            sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax', // Cross-site en producción
-            maxAge: 8 * 60 * 60 * 1000,                                  // 8 horas de validez
-            path: '/'                                                    // Disponible en todas las rutas
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+            maxAge: 8 * 60 * 60 * 1000,
+            path: '/'
         });
 
-        return res.json({ message: "Login exitoso" });
-    } else {
-        return res.status(401).json({ message: "Contraseña incorrecta." });
+        // 5. Registrar evento de auditoría
+        await logAuditEvent(pool, req, {
+            eventType: 'admin.auth.login',
+            actorUsername: user.username,
+            category: 'admin',
+            metadata: { ip: req.ip, user_agent: req.headers['user-agent'] }
+        });
+
+        // 6. Actualizar fecha de último inicio de sesión
+        await pool.query(
+            'UPDATE admin_users SET last_login = NOW() WHERE id = $1',
+            [user.id]
+        );
+
+        return res.json({ message: "Login exitoso", username: user.username });
+    } catch (error) {
+        console.error('[AdminController] Error en login de administrador:', error);
+        return res.status(500).json({ message: "Error interno del servidor." });
     }
 }
 
@@ -150,7 +195,7 @@ async function updateSetting(req, res) {
         // Registrar evento de auditoría
         await logAuditEvent(pool, req, {
             eventType: 'admin.settings.updated',
-            actorUsername: 'admin',
+            actorUsername: req.user?.username || 'admin',
             category: 'admin',
             metadata: { setting_key: key, new_value: value }
         });
@@ -247,7 +292,7 @@ async function updateUserStatus(req, res) {
         // Registrar evento de auditoría
         await logAuditEvent(pool, req, {
             eventType: 'admin.user.status_updated',
-            actorUsername: 'admin',
+            actorUsername: req.user?.username || 'admin',
             targetUsername: targetUser.rows[0].username,
             metadata: { new_status: status }
         });
@@ -307,7 +352,7 @@ async function updateUserReferralCode(req, res) {
         // Audit Log
         await logAuditEvent(client, req, {
             eventType: 'admin.user.update_referral_code',
-            actorUsername: 'admin',
+            actorUsername: req.user?.username || 'admin',
             targetUsername: targetUsername,
             metadata: {
                 old_code: oldCode,
@@ -528,7 +573,7 @@ async function saveBoosterStage(req, res) {
         // Registrar evento de auditoría
         await logAuditEvent(pool, req, {
             eventType: 'admin.booster_stage.saved',
-            actorUsername: 'admin',
+            actorUsername: req.user?.username || 'admin',
             category: 'admin',
             metadata: {
                 stage_id:   stage.id,
@@ -938,7 +983,7 @@ async function restorePublication(req, res) {
 
         await logAuditEvent(pool, req, {
             eventType: 'admin.publication.restored',
-            actorUsername: 'admin',
+            actorUsername: req.user?.username || 'admin',
             publicationId: parseInt(id, 10),
             category: pubResult.rows[0].category,
             metadata: { soft_delete: false, restored: true }
@@ -969,9 +1014,9 @@ async function deletePublicationAdmin(req, res) {
 
         const updateResult = await pool.query(
             `UPDATE publications
-             SET deleted_at = NOW(), deleted_by_username = 'admin'
+             SET deleted_at = NOW(), deleted_by_username = $2
              WHERE id = $1`,
-            [id]
+            [id, req.user?.username || 'admin']
         );
 
         if (updateResult.rowCount === 0) {
@@ -980,7 +1025,7 @@ async function deletePublicationAdmin(req, res) {
 
         await logAuditEvent(pool, req, {
             eventType: 'admin.publication.deleted',
-            actorUsername: 'admin',
+            actorUsername: req.user?.username || 'admin',
             publicationId: parseInt(id, 10),
             category: pubResult.rows[0].category,
             metadata: { soft_delete: true }
@@ -1413,7 +1458,7 @@ async function rebuildBoosterLedger(req, res) {
 
         await logAuditEvent(client, req, {
             eventType: 'booster.ledger_rebuilt',
-            actorUsername: 'admin',
+            actorUsername: req.user?.username || 'admin',
             targetUsername: username,
             category: 'admin',
             metadata: {
@@ -1654,7 +1699,7 @@ async function createPlatformPublication(req, res) {
 
         await logAuditEvent(pool, req, {
             eventType: 'admin.platform_publication.created',
-            actorUsername: 'admin',
+            actorUsername: req.user?.username || 'admin',
             targetUsername: sanitizedTargetUsername,
             publicationId: newPubId,
             category: 'platform',
@@ -1821,6 +1866,14 @@ async function updatePlatformPublication(req, res) {
             id
         ]);
 
+        await logAuditEvent(pool, req, {
+            eventType: 'admin.platform_publication.updated',
+            actorUsername: req.user?.username || 'admin',
+            publicationId: parseInt(id, 10),
+            category: 'platform',
+            metadata: { title, cost }
+        });
+
         res.json({ message: "Publicación de la plataforma actualizada exitosamente." });
     } catch (error) {
         console.error("[AdminController] Error al editar publicación de la plataforma:", error);
@@ -1966,6 +2019,11 @@ module.exports = {
     downloadDemoExport,
     previewDemoImport,
     processDemoImport,
+    createInvitation,
+    getInvitations,
+    verifyInvitation,
+    claimInvitation,
+    getAdminProfile,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2135,3 +2193,343 @@ async function processDemoImport(req, res) {
         return res.status(500).json({ message: error.message });
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GESTIÓN DE INVITACIONES PARA ADMINISTRADORES INDIVIDUALES
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Crea una nueva invitación de administrador.
+ * Genera un token aleatorio, lo hashea usando SHA-256 para almacenamiento seguro,
+ * y envía un correo electrónico al destinatario.
+ * Requiere rol 'superadmin'.
+ */
+async function createInvitation(req, res) {
+    // 1. Autorización RBAC: solo superadmin puede crear cuentas del equipo
+    if (req.user?.role !== 'superadmin') {
+        return res.status(403).json({ message: "Requiere privilegios de Super Administrador para crear invitaciones." });
+    }
+
+    const { email, role } = req.body;
+    if (!email || !role) {
+        return res.status(400).json({ message: "Se requiere email y rol." });
+    }
+
+    // Validación formal de correo electrónico
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: "Formato de correo electrónico inválido." });
+    }
+
+    const allowedRoles = ['admin', 'auditor', 'superadmin'];
+    if (!allowedRoles.includes(role)) {
+        return res.status(400).json({ message: "Rol inválido especificado." });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 2. Comprobar si el correo ya tiene una cuenta administrativa o una invitación activa pendiente.
+        // Un administrador puede ser un usuario registrado previamente en la plataforma, por lo que su correo
+        // existirá en la tabla de usuarios generales ('users') y NO debemos bloquearlo por ese motivo.
+        // Para verificar si ya posee acceso admin, buscamos si tiene una invitación reclamada en 'admin_invitations'.
+        const adminCheck = await client.query(
+            "SELECT id FROM admin_invitations WHERE email = $1 AND used_at IS NOT NULL",
+            [email]
+        );
+        const inviteCheck = await client.query(
+            "SELECT id FROM admin_invitations WHERE email = $1 AND used_at IS NULL AND expires_at > NOW()",
+            [email]
+        );
+
+        if (adminCheck.rowCount > 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ message: "Este correo electrónico ya está registrado como administrador en el sistema." });
+        }
+
+        if (inviteCheck.rowCount > 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ message: "Ya existe una invitación activa y pendiente para este correo." });
+        }
+
+        // 3. Generar token de alta entropía (criptográficamente seguro)
+        const crypto = require('crypto');
+        const token = crypto.randomBytes(32).toString('hex');
+        // Hashear el token para mitigar el riesgo si la DB es filtrada (Zero Hardcoded/Leaked Secrets)
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+        // La invitación expira en 24 horas (estándar de seguridad de startups)
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+        // 4. Guardar en base de datos
+        await client.query(
+            `INSERT INTO admin_invitations (email, token_hash, role, created_by, expires_at)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [email.toLowerCase().trim(), tokenHash, role, req.user.username, expiresAt]
+        );
+
+        // 5. Enviar el correo electrónico
+        const { sendAnnouncementEmail } = require('../services/emailService');
+        
+        const isProd = process.env.NODE_ENV === 'production';
+        const domain = isProd ? 'https://sc.wintoncoin.com' : 'http://localhost:5173';
+        const claimUrl = `${domain}/admin-register.html?token=${token}`;
+
+        const subject = "Invitación al panel de administración de WintonCoin";
+        const title = "Invitación de Administrador";
+        const bodyHtml = `
+            Hola,<br><br>
+            Has sido invitado a unirte al equipo de administración de WintonCoin con el rol de <strong>${role}</strong>.<br><br>
+            Para reclamar tu cuenta y configurar tu contraseña de acceso privada, haz clic en el botón de abajo o accede al siguiente enlace:<br><br>
+            <a href="${claimUrl}" style="color:#0052FF; text-decoration:underline;">${claimUrl}</a><br><br>
+            Por razones de seguridad, esta invitación expirará en 24 horas.
+        `;
+
+        await sendAnnouncementEmail({
+            toEmail: email,
+            subject,
+            title,
+            bodyHtml,
+            buttonText: "Configurar Cuenta",
+            buttonUrl: claimUrl
+        });
+
+        // 6. Auditoría inmutable de la acción
+        await logAuditEvent(client, req, {
+            eventType: 'admin.invitation.created',
+            actorUsername: req.user.username,
+            category: 'admin',
+            metadata: { target_email: email, assigned_role: role }
+        });
+
+        await client.query('COMMIT');
+
+        // Log en desarrollo para permitir pruebas manuales sin servidor SMTP real
+        if (!isProd) {
+            console.log(`\n--- [DESARROLLO] INVITACIÓN GENERADA ---`);
+            console.log(`Email: ${email}`);
+            console.log(`Rol: ${role}`);
+            console.log(`Token Plano: ${token}`);
+            console.log(`URL de Registro: ${claimUrl}`);
+            console.log(`----------------------------------------\n`);
+        }
+
+        res.status(201).json({
+            message: "Invitación creada y enviada con éxito.",
+            email,
+            role,
+            // Exponemos el token de forma segura solo en desarrollo para agilizar las pruebas manuales del cliente
+            token: !isProd ? token : undefined
+        });
+
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error("Error al crear invitación administrativa:", err);
+        res.status(500).json({ message: "Error interno al procesar la invitación." });
+    } finally {
+        client.release();
+    }
+}
+
+/**
+ * Obtiene el listado de invitaciones administrativas.
+ */
+async function getInvitations(req, res) {
+    try {
+        const result = await pool.query(
+            `SELECT id, email, role, created_by, created_at, expires_at, used_at,
+                    (expires_at < NOW() AND used_at IS NULL) as is_expired
+             FROM admin_invitations
+             ORDER BY created_at DESC`
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error("Error al obtener invitaciones administrativas:", err);
+        res.status(500).json({ message: "Error al cargar la lista de invitaciones." });
+    }
+}
+
+/**
+ * Verifica si un token de invitación es válido y está activo.
+ */
+async function verifyInvitation(req, res) {
+    const { token } = req.params;
+    if (!token) {
+        return res.status(400).json({ message: "Token requerido." });
+    }
+
+    try {
+        const crypto = require('crypto');
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+        const result = await pool.query(
+            `SELECT email, role, expires_at, used_at
+             FROM admin_invitations
+             WHERE token_hash = $1`,
+            [tokenHash]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: "Invitación no encontrada." });
+        }
+
+        const invite = result.rows[0];
+
+        if (invite.used_at) {
+            return res.status(400).json({ message: "Esta invitación ya ha sido utilizada." });
+        }
+
+        if (new Date(invite.expires_at) < new Date()) {
+            return res.status(400).json({ message: "Esta invitación ha expirado." });
+        }
+
+        res.json({
+            email: invite.email,
+            role: invite.role
+        });
+
+    } catch (err) {
+        console.error("Error al verificar invitación:", err);
+        res.status(500).json({ message: "Error interno al verificar la invitación." });
+    }
+}
+
+/**
+ * Reclama una invitación creando la cuenta de administrador e invalidando el token.
+ */
+async function claimInvitation(req, res) {
+    const { token, username, password } = req.body;
+    if (!token || !username || !password) {
+        return res.status(400).json({ message: "Token, usuario y contraseña son requeridos." });
+    }
+
+    // Validación de username: alfanumérico y guion bajo (longitud 3-30)
+    const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/;
+    if (!usernameRegex.test(username)) {
+        return res.status(400).json({ message: "El nombre de usuario debe tener entre 3 y 30 caracteres y solo contener letras, números y guiones bajos." });
+    }
+
+    // Fuerza de la contraseña: mínimo 8 caracteres, al menos una letra y un número
+    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+        return res.status(400).json({ message: "La contraseña debe tener al menos 8 caracteres, incluyendo letras y números." });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Validar el token
+        const crypto = require('crypto');
+        const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+        const inviteResult = await client.query(
+            `SELECT id, email, role, expires_at, used_at FROM admin_invitations 
+             WHERE token_hash = $1 FOR UPDATE`,
+            [tokenHash]
+        );
+
+        if (inviteResult.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: "Invitación no encontrada." });
+        }
+
+        const invite = inviteResult.rows[0];
+
+        if (invite.used_at) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: "Esta invitación ya ha sido utilizada." });
+        }
+
+        if (new Date(invite.expires_at) < new Date()) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: "Esta invitación ha expirado." });
+        }
+
+        // 2. Verificar duplicidad de username (case-insensitive para evitar 'migue' vs 'Migue')
+        const userCheck = await client.query(
+            'SELECT id FROM admin_users WHERE LOWER(username) = LOWER($1)',
+            [username]
+        );
+
+        if (userCheck.rowCount > 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ message: "El nombre de usuario administrativo ya está en uso." });
+        }
+
+        // 3. Hashear la contraseña con bcrypt (10 rounds)
+        const saltRounds = 10;
+        const passwordHash = await bcrypt.hash(password, saltRounds);
+
+        // 4. Crear el nuevo administrador en admin_users
+        await client.query(
+            `INSERT INTO admin_users (username, password_hash, role, account_status)
+             VALUES ($1, $2, $3, 'active')`,
+            [username, passwordHash, invite.role]
+        );
+
+        // 5. Marcar invitación como utilizada
+        await client.query(
+            `UPDATE admin_invitations SET used_at = NOW() WHERE id = $1`,
+            [invite.id]
+        );
+
+        // 6. Registrar auditoría del reclamo
+        await logAuditEvent(client, req, {
+            eventType: 'admin.invitation.claimed',
+            actorUsername: username,
+            category: 'admin',
+            metadata: { email: invite.email, assigned_role: invite.role }
+        });
+
+        await client.query('COMMIT');
+        res.json({ message: "Cuenta de administrador creada exitosamente. Ya puedes iniciar sesión." });
+
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error("Error al reclamar invitación administrativa:", err);
+        res.status(500).json({ message: "Error interno al crear la cuenta." });
+    } finally {
+        client.release();
+    }
+}
+
+/**
+ * Obtiene el perfil de la cuenta de administrador autenticada actualmente.
+ * Esta función es invocada por el enrutador /api/admin/profile.
+ * Se requiere autenticación previa mediante verifyAdminToken (JWT inyectado en req.user).
+ *
+ * @param {Object} req - Objeto de solicitud de Express, que contiene req.user.username inyectado por el middleware.
+ * @param {Object} res - Objeto de respuesta de Express para retornar el perfil en formato JSON.
+ */
+async function getAdminProfile(req, res) {
+    // 1. Validar la existencia del usuario autenticado en la solicitud
+    if (!req.user || !req.user.username) {
+        // Retornamos 401 Unauthorized si la solicitud carece de credenciales de usuario inyectadas
+        return res.status(401).json({ message: "Sesión administrativa no válida o no autenticada." });
+    }
+
+    try {
+        // 2. Realizar consulta SQL parametrizada a la tabla admin_users
+        // Consultamos id, username y role de forma segura para evitar inyecciones SQL y optimizar el rendimiento al traer solo campos necesarios.
+        const result = await pool.query(
+            'SELECT id, username, role FROM admin_users WHERE username = $1',
+            [req.user.username]
+        );
+
+        // 3. Comprobar si se encontró el registro correspondiente en la base de datos
+        if (result.rowCount === 0) {
+            // Si el registro no existe, respondemos con 404 Not Found para evitar revelar estructura e indicar la inconsistencia
+            return res.status(404).json({ message: "Perfil administrativo no encontrado en el sistema." });
+        }
+
+        // 4. Retornar el perfil del administrador autenticado de forma exitosa (200 OK)
+        res.json(result.rows[0]);
+    } catch (err) {
+        // 5. Capturar y loguear cualquier excepción imprevista del motor de base de datos
+        console.error("Error al obtener perfil de admin:", err);
+        // Retornamos 500 Internal Server Error con mensaje genérico de seguridad sin exponer detalles técnicos internos
+        res.status(500).json({ message: "Error interno del servidor al recuperar el perfil." });
+    }
+}
+

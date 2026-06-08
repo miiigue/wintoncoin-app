@@ -4,14 +4,58 @@
 
 # EvoluciÃ³n del proyecto (historia tÃ©cnica + decisiones)
 
-Este documento explica **cÃ³mo y por quÃ©** evolucionÃ³ el cÃ³digo (decisiones, trade-offs y impacto).  
-Para el detalle â€œtipo releaseâ€, ver `CHANGELOG.md`.
+# Evolución de WintonCoin
 
-## CÃ³mo leer este documento
+---
+
+# Evolución del proyecto (historia técnica + decisiones)
+
+Este documento explica **cómo y por qué** evolucionó el código (decisiones, trade-offs y impacto).  
+Para el detalle “tipo release”, ver `CHANGELOG.md`.
+
+## Cómo leer este documento
 
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
-- **Impacto**: quÃ© problema resolviÃ³ y quÃ© habilita hacia adelante.
+- **Impacto**: qué problema resolvió y qué habilita hacia adelante.
+
+### 2026-06-07 (Parte 2) — Sistema de Registro de Administradores por Invitación Criptográfica y Roles RBAC (Riesgo 1 - Fase B)
+
+- **Contexto**: Tras implementar las credenciales individuales de administrador para mitigar el no-repudio, resultaba necesario un flujo seguro para aprovisionar nuevas cuentas de equipo. Permitir que un administrador elija la contraseña de otro viola la confidencialidad y la auditoría. Asimismo, el panel requería control de accesos basado en roles (RBAC) para limitar la gestión de equipo solo a usuarios `superadmin`.
+- **Decisión**: Se implementó el flujo de invitaciones criptográficas:
+  1. **Aprovisionamiento Efímero Seguro**: Los superadmins pueden invitar nuevos miembros de equipo vía correo. Se genera un token de un solo uso mediante `crypto.randomBytes(32)` con expiración automática de 24 horas.
+  2. **Almacenamiento Blindado (Zero Knowledge & Zero Secrets)**: Para evitar el secuestro de invitaciones si la base de datos es vulnerada, el token se hashea en formato SHA-256 (`crypto.createHash('sha256')`) antes de ser guardado en la tabla `admin_invitations`. Los usuarios configuran sus propias contraseñas localmente (zero-knowledge) y se guardan cifradas con `bcrypt` (10 rounds).
+  3. **Control RBAC y Rutas**: Se implementó `/api/admin/profile` y `/api/admin/invitations` controlados por rol. Solo el rol `superadmin` puede emitir y ver invitaciones. Se corrigieron además bugs de herencia de rol (donde se forzaba estáticamente a `'admin'` pisando privilegios de superadministrador) y de validación cruzada redundante contra la tabla de usuarios comunes (`users`) que bloqueaba invitaciones para personas previamente registradas en la plataforma.
+  4. **Frontend Modular y Responsivo**:
+     - Se vinculó la inyección del menú "👥 Equipo" (`#sidebarTeamLi`) y la sección `#team-section` en [admin-panel.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-panel.html).
+     - Se implementó la lógica en [admin-panel.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/admin-panel.js) para verificar el rol del perfil, cargar la lista de invitaciones y enviar invitaciones.
+     - Se integró la nueva página pública de registro [admin-register.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-register.html) y su script [admin-register.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/admin-register.js) en el archivo de compilación [vite.config.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/vite.config.js).
+- **Impacto**: Se cumple el estándar de seguridad bancaria y de cumplimiento (SOC 2, PCI-DSS) de no-repudio absoluto en la creación de credenciales. La plataforma WintonCoin ahora cuenta con una delegación descentralizada de accesos de TI.
+- **Evidencia**:
+  - Migración: [058_create_admin_invitations_table.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/058_create_admin_invitations_table.js).
+  - Backend: [adminController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/adminController.js) y [adminRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/adminRoutes.js).
+  - Frontend: [admin-panel.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/admin-panel.js), [vite.config.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/vite.config.js), [admin-register.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-register.html), [admin-register.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/admin-register.js).
+
+---
+
+### 2026-06-07 — Endurecimiento de Seguridad en Panel Administrativo: Credenciales Individuales y Auditoría Activa (Riesgo 1)
+
+- **Contexto**: El panel de administración utilizaba previamente una sola contraseña global y compartida (`ADMIN_PASSWORD`) definida en el archivo `.env`. Esto presentaba un riesgo crítico de repudio (repudiation) según normativas financieras (SOC 2, PCI-DSS), ya que todas las acciones del panel de control quedaban atribuidas al actor genérico `'admin'` sin trazabilidad hacia una persona física específica.
+- **Decisión**: Se implementó una solución robusta y profesional de grado bancario:
+  1. **Base de Datos y Migración Idempotente**: Se diseñó la migración [057_create_admin_users_table.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/057_create_admin_users_table.js) para crear la tabla `admin_users` y aprovisionar dinámicamente un usuario inicial `admin` hasheado con `bcrypt` a partir de `process.env.ADMIN_PASSWORD` (o un fallback seguro de desarrollo).
+  2. **Autenticación Segura (Anti-Timing Attacks)**: Se refactorizó la lógica en [adminController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/adminController.js) para realizar el login buscando en la tabla `admin_users` y validando contraseñas mediante `bcrypt.compare`. En caso de que el usuario no exista, se implementó una comparación criptográfica de relleno contra un hash ficticio para mitigar ataques de enumeración de usuarios basados en tiempo de respuesta.
+  3. **No-Repudio en Log de Auditoría**: Se reemplazó el actor fijo `'admin'` en todas las llamadas a `logAuditEvent` en el backend con la identidad dinámica y autenticada extraída del JWT (`req.user?.username || 'admin'`).
+  4. **Frontend Multi-Administrador**:
+     - Se actualizó el formulario en [admin.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin.html) agregando el campo para ingresar el nombre de usuario (`#adminUsername`).
+     - Se modificó [admin-login.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/admin-login.js) para capturar y enviar el usuario en el payload PO      - Se inyectó un indicador `#adminConnectedUser` en la barra lateral de [admin-panel.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-panel.html), y se vinculó en [admin-panel.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/admin-panel.js) para pintar el usuario activo y purgarlo de `localStorage` al hacer logout.
+     - **Corrección de Bug de Mapeo de Estados**: Se corrigió un bug en la función `handleUserAction` en [admin-panel.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/admin-panel.js) donde las acciones del frontend `'suspend'` y `'ban'` se enviaban tal cual al backend en lugar de sus correspondientes participios `'suspended'` y `'banned'` requeridos por el backend y base de datos, lo que generaba errores 400.
+- **Impacto**: Se logró la atribución individual de cada cambio administrativo en la plataforma WintonCoin (cumpliendo con estándares de seguridad de grado bancario) y se resolvió de forma transparente el error de mapeo de estados del usuario al suspender/reactivar. Las pruebas unitarias Jest de compatibilidad y formularios pasaron al 100%.
+- **Evidencia**:
+  - Migración: [057_create_admin_users_table.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/057_create_admin_users_table.js).
+  - Backend: [adminController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/adminController.js).
+  - Frontend: [admin.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin.html), [admin-login.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/admin-login.js), [admin-panel.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-panel.html), [admin-panel.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/admin-panel.js).NTONCOIN/smart-contract/frontend/src/pages/admin-panel.js).
+
+---
 
 ### 2026-06-06 — Auditoría y Corrección Integral de la Aceptación de Términos y Condiciones (TyC)
 
