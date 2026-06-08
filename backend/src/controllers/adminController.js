@@ -2274,11 +2274,14 @@ async function createInvitation(req, res) {
         // 5. Enviar el correo electrónico
         const { sendAnnouncementEmail } = require('../services/emailService');
         
+        // Declaramos las constantes del entorno fuera del condicional para evitar ReferenceError (isProd no definido)
+        // cuando FRONTEND_URL está definido en las variables de entorno del servidor.
+        const isProd = process.env.NODE_ENV === 'production';
+        const isDemo = process.env.IS_DEMO_ENV === 'true' || process.env.DATABASE_URL?.includes('wintoncoin_demo');
+
         // Determinar dinámicamente la URL base del frontend para evitar cruces entre entornos (Local, Demo y Producción)
         let domain = process.env.FRONTEND_URL;
         if (!domain) {
-            const isProd = process.env.NODE_ENV === 'production';
-            const isDemo = process.env.IS_DEMO_ENV === 'true' || process.env.DATABASE_URL?.includes('wintoncoin_demo');
             if (isDemo) {
                 domain = 'https://demo.wintoncoin.com';
             } else if (isProd) {
