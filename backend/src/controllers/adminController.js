@@ -2024,6 +2024,7 @@ module.exports = {
     verifyInvitation,
     claimInvitation,
     getAdminProfile,
+    deleteInvitation,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2230,7 +2231,7 @@ async function createInvitation(req, res) {
     try {
         await client.query('BEGIN');
 
-        // 2. Comprobar si el correo ya tiene una cuenta administrativa o una invitación activa pendiente.
+        // 2. Comprobar si el correo ya tiene una cuenta administrativa activa reclamada.
         // Un administrador puede ser un usuario registrado previamente en la plataforma, por lo que su correo
         // existirá en la tabla de usuarios generales ('users') y NO debemos bloquearlo por ese motivo.
         // Para verificar si ya posee acceso admin, buscamos si tiene una invitación reclamada en 'admin_invitations'.
@@ -2238,19 +2239,10 @@ async function createInvitation(req, res) {
             "SELECT id FROM admin_invitations WHERE email = $1 AND used_at IS NOT NULL",
             [email]
         );
-        const inviteCheck = await client.query(
-            "SELECT id FROM admin_invitations WHERE email = $1 AND used_at IS NULL AND expires_at > NOW()",
-            [email]
-        );
 
         if (adminCheck.rowCount > 0) {
             await client.query('ROLLBACK');
             return res.status(409).json({ message: "Este correo electrónico ya está registrado como administrador en el sistema." });
-        }
-
-        if (inviteCheck.rowCount > 0) {
-            await client.query('ROLLBACK');
-            return res.status(409).json({ message: "Ya existe una invitación activa y pendiente para este correo." });
         }
 
         // 3. Generar token de alta entropía (criptográficamente seguro)
@@ -2262,10 +2254,20 @@ async function createInvitation(req, res) {
         // La invitación expira en 24 horas (estándar de seguridad de startups)
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-        // 4. Guardar en base de datos
+        // 4. Guardar en base de datos usando el patrón Upsert (ON CONFLICT).
+        // Esto permite a los superadmins re-enviar la invitación de forma segura,
+        // invalidando inmediatamente el token antiguo y configurando una nueva expiración de 24 horas.
         await client.query(
-            `INSERT INTO admin_invitations (email, token_hash, role, created_by, expires_at)
-             VALUES ($1, $2, $3, $4, $5)`,
+            `INSERT INTO admin_invitations (email, token_hash, role, created_by, expires_at, used_at)
+             VALUES ($1, $2, $3, $4, $5, NULL)
+             ON CONFLICT (email)
+             DO UPDATE SET 
+                token_hash = EXCLUDED.token_hash,
+                role = EXCLUDED.role,
+                created_by = EXCLUDED.created_by,
+                expires_at = EXCLUDED.expires_at,
+                used_at = NULL,
+                created_at = NOW()`,
             [email.toLowerCase().trim(), tokenHash, role, req.user.username, expiresAt]
         );
 
@@ -2541,6 +2543,75 @@ async function getAdminProfile(req, res) {
         console.error("Error al obtener perfil de admin:", err);
         // Retornamos 500 Internal Server Error con mensaje genérico de seguridad sin exponer detalles técnicos internos
         res.status(500).json({ message: "Error interno del servidor al recuperar el perfil." });
+    }
+}
+
+/**
+ * Revoca (elimina) una invitación de administrador pendiente de forma segura.
+ * Cumple con los estándares de ciberseguridad y auditoría bancaria (trazabilidad y no-repudio).
+ * Requiere privilegios de rol 'superadmin'.
+ * 
+ * @param {Object} req - Objeto de solicitud de Express que contiene req.body.email y el usuario autenticado.
+ * @param {Object} res - Objeto de respuesta de Express para retornar el resultado.
+ */
+async function deleteInvitation(req, res) {
+    // 1. Control de accesos basado en roles (RBAC)
+    // Solo permitimos a cuentas 'superadmin' realizar la revocación para cumplir directrices de seguridad.
+    if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ message: "Requiere privilegios de Super Administrador para revocar invitaciones." });
+    }
+
+    const { email } = req.body;
+    if (!email) {
+        return res.status(400).json({ message: "Se requiere especificar el email de la invitación a revocar." });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 2. Verificar que la invitación exista y no haya sido reclamada aún
+        // Esto previene que se revoque accidentalmente una cuenta de administrador que ya fue creada
+        const checkRes = await client.query(
+            "SELECT id, used_at FROM admin_invitations WHERE email = $1",
+            [email.toLowerCase().trim()]
+        );
+
+        if (checkRes.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: "No se encontró ninguna invitación activa o expirada para este correo." });
+        }
+
+        if (checkRes.rows[0].used_at !== null) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: "No se puede revocar esta invitación porque la cuenta ya ha sido creada y reclamada." });
+        }
+
+        // 3. Eliminar físicamente el registro (anula el token por completo)
+        // Al eliminarlo, cualquier enlace con el token hash viejo fallará de inmediato al no ser encontrado en DB.
+        await client.query(
+            "DELETE FROM admin_invitations WHERE email = $1",
+            [email.toLowerCase().trim()]
+        );
+
+        // 4. Registro auditable inmutable de la acción de revocación
+        // Cumple con la normativa SOC 2 de control de accesos administrativos
+        await logAuditEvent(client, req, {
+            eventType: 'admin.invitation.revoked',
+            actorUsername: req.user.username,
+            category: 'admin',
+            metadata: { target_email: email }
+        });
+
+        await client.query('COMMIT');
+        return res.json({ message: `Invitación para ${email} revocada y anulada con éxito.` });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[DATABASE ERROR] Error al revocar la invitación:', error.message);
+        return res.status(500).json({ message: "Error interno del servidor al procesar la revocación." });
+    } finally {
+        client.release();
     }
 }
 

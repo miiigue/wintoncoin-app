@@ -89,6 +89,7 @@ router.post('/governance/demo-import-process', verifyAdminToken, adminController
 router.get('/profile', verifyAdminToken, adminController.getAdminProfile);
 router.post('/invitations', verifyAdminToken, adminController.createInvitation);
 router.get('/invitations', verifyAdminToken, adminController.getInvitations);
+router.delete('/invitations', verifyAdminToken, adminController.deleteInvitation);
 router.get('/invitations/verify/:token', adminController.verifyInvitation);
 router.post('/invitations/claim', adminController.claimInvitation);
 

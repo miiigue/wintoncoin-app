@@ -4506,6 +4506,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <th>Fecha Envío</th>
                             <th>Expiración</th>
                             <th>Estado</th>
+                            <th>Acción</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -4514,13 +4515,22 @@ document.addEventListener('DOMContentLoaded', () => {
             list.forEach(row => {
                 let statusText = 'Pendiente';
                 let statusStyle = 'background: rgba(245, 158, 11, 0.15); color: #F59E0B; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;';
+                let actionBtnHtml = '';
                 
                 if (row.used_at) {
                     statusText = 'Reclamada';
                     statusStyle = 'background: rgba(16, 185, 129, 0.15); color: #10B981; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;';
-                } else if (row.is_expired) {
-                    statusText = 'Expirada';
-                    statusStyle = 'background: rgba(239, 68, 68, 0.15); color: #EF4444; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;';
+                    actionBtnHtml = '<span style="color:#64748B;">—</span>';
+                } else {
+                    if (row.is_expired) {
+                        statusText = 'Expirada';
+                        statusStyle = 'background: rgba(239, 68, 68, 0.15); color: #EF4444; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;';
+                    }
+                    actionBtnHtml = `
+                        <button type="button" class="btn-revoke-invite" data-email="${escapeHtml(row.email)}" style="background:none; border:none; color:#EF4444; cursor:pointer; font-weight:bold; font-size:12px; text-decoration:underline; padding:0;">
+                            Revocar
+                        </button>
+                    `;
                 }
                 
                 const createdStr = new Date(row.created_at).toLocaleString('es-ES');
@@ -4534,6 +4544,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td>${createdStr}</td>
                         <td>${expiresStr}</td>
                         <td><span style="${statusStyle}">${statusText}</span></td>
+                        <td>${actionBtnHtml}</td>
                     </tr>
                 `;
             });
@@ -4544,6 +4555,40 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             
             container.innerHTML = html;
+            
+            // Registrar event listener para el botón de revocación (Event Delegation)
+            // Se asegura de asociar el listener una sola vez por contenedor usando dataset.
+            if (!container.dataset.listenerRegistered) {
+                container.dataset.listenerRegistered = 'true';
+                container.addEventListener('click', async (e) => {
+                    const btn = e.target.closest('.btn-revoke-invite');
+                    if (btn) {
+                        const email = btn.dataset.email;
+                        if (!email) return;
+                        
+                        const confirmRevoke = confirm(`¿Estás seguro de que deseas revocar y anular permanentemente la invitación para ${email}? Esta acción es irreversible.`);
+                        if (!confirmRevoke) return;
+                        
+                        try {
+                            btn.disabled = true;
+                            const originalText = btn.innerText;
+                            btn.innerText = "Revocando...";
+                            
+                            const result = await apiFetch('/api/admin/invitations', {
+                                method: 'DELETE',
+                                body: JSON.stringify({ email })
+                            });
+                            
+                            showCustomAlert(result.message || `Invitación de ${email} revocada con éxito.`);
+                            loadInvitationsList();
+                        } catch (err) {
+                            showCustomAlert(err.message || "Error al revocar la invitación.");
+                            btn.disabled = false;
+                            btn.innerText = "Revocar";
+                        }
+                    }
+                });
+            }
             
         } catch (err) {
             container.innerHTML = `<p class="error-message">Error al cargar la tabla de invitaciones: ${escapeHtml(err.message)}</p>`;
