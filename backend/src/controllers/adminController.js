@@ -2317,6 +2317,7 @@ async function createInvitation(req, res) {
         await logAuditEvent(client, req, {
             eventType: 'admin.invitation.created',
             actorUsername: req.user.username,
+            targetUsername: email, // Poblamos la columna TARGET con el email del invitado para auditoría rápida
             category: 'admin',
             metadata: { target_email: email, assigned_role: role }
         });
@@ -2496,6 +2497,7 @@ async function claimInvitation(req, res) {
         await logAuditEvent(client, req, {
             eventType: 'admin.invitation.claimed',
             actorUsername: username,
+            targetUsername: username, // Definimos al nuevo administrador como el objetivo del evento
             category: 'admin',
             metadata: { email: invite.email, assigned_role: invite.role }
         });
@@ -2604,6 +2606,7 @@ async function deleteInvitation(req, res) {
         await logAuditEvent(client, req, {
             eventType: 'admin.invitation.revoked',
             actorUsername: req.user.username,
+            targetUsername: email, // Poblamos la columna TARGET con el correo revocado para visibilidad directa
             category: 'admin',
             metadata: { target_email: email }
         });
@@ -2715,6 +2718,7 @@ async function updateAdminStatus(req, res) {
         await logAuditEvent(client, req, {
             eventType: 'admin.user.status_updated',
             actorUsername: req.user.username,
+            targetUsername: targetUser.username, // Poblamos la columna TARGET con el usuario cuyo estado fue modificado
             category: 'admin',
             metadata: { target_admin: targetUser.username, new_status: status }
         });
