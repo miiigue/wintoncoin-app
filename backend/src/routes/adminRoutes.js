@@ -93,4 +93,8 @@ router.delete('/invitations', verifyAdminToken, adminController.deleteInvitation
 router.get('/invitations/verify/:token', adminController.verifyInvitation);
 router.post('/invitations/claim', adminController.claimInvitation);
 
+// Gestión de Accesos de Equipo (Administradores Activos y Suspensión)
+router.get('/team', verifyAdminToken, adminController.getAdminUsers);
+router.post('/team/:adminId/status', verifyAdminToken, adminController.updateAdminStatus);
+
 module.exports = router;

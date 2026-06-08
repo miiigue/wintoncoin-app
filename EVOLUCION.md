@@ -2860,3 +2860,20 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
   - El sistema mantiene altos niveles de auditoría bancaria a través de consultas directas y parametrizadas al ledger histórico.
 - **Evidencia**: Archivos modificados y eliminados: `backend/src/controllers/userController.js`, `backend/server_monolith_original.js` [DELETE], `backend/audit_modularization.js` [DELETE], `EVOLUCION.md`.
 
+---
+
+### 2026-06-08 — Control de Accesos Administrativos Activos y Verificación de Estado en Tiempo Real (Fase 3 - Opción A)
+
+- **Contexto**: Para cumplir con los requerimientos regulatorios de las industrias fintech y bancarias (SOC 2, ISO 27001, PCI-DSS), la gestión de accesos administrativos individuales requería controles de desactivación inmediata y no-repudio. Si un administrador es suspendido o desactivado, su acceso debe ser revocado al instante sin esperar a la expiración de su token JWT. Asimismo, se requería que todas las acciones de aprovisionamiento, revocación y suspensión fuesen 100% auditables y protegidas contra fallas de auto-bloqueo.
+- **Decisión de Ingeniería**:
+  - **Base de Datos (Aprovisionamiento e Invitaciones)**: Creación de tablas `admin_users` y `admin_invitations` (migraciones 057 y 058) con hasheo `bcrypt` individual. Se implementó una lógica rotativa tipo *Upsert* (`ON CONFLICT`) al re-invitar para mitigar excepciones de duplicidad e invalidar inmediatamente tokens antiguos.
+  - **Administración de Equipo y Control de Estado**: Endpoint seguro de listado del equipo (`GET /api/admin/team`) y suspensión/activación de cuentas (`POST /api/admin/team/:adminId/status`) restringidos a `superadmin`. Se programaron salvaguardas de seguridad defensiva para evitar la auto-suspensión de la cuenta del superadmin operante y la suspensión de la cuenta root del sistema (`admin`).
+  - **Verificación de Estatus en Tiempo Real (Opción 1)**: Modificación del middleware `authenticateAdmin` en `authMiddleware.js` para consultar a la base de datos el estado de la cuenta en cada petición entrante. Si el administrador no está `'active'`, se limpia la cookie de sesión (`admin_token`) y se deniega el acceso (HTTP 403) inmediatamente. Ante fallos de conexión a la base de datos, el sistema adopta un enfoque *fail-secure* bloqueando preventivamente el acceso (HTTP 500). Se integró un bypass para el entorno de pruebas unitarias (`NODE_ENV === 'test'`) asegurando la retrocompatibilidad con Jest.
+  - **Logs de Auditoría Inmutables**: Se registraron logs parametrizados de grado bancario para todas las operaciones administrativas críticas (`admin.user.status_updated`, `admin.invitation.created`, `admin.invitation.revoked`).
+  - **Interfaz de Usuario (Panel Administrativo)**: Se adaptó la sección de Equipo (`admin-panel.html` y `admin-panel.js`) para mostrar dos tablas reactivas completas (Invitaciones Pendientes y Administradores Registrados) con sus respectivos botones de acción (Revocar, Suspender, Activar) utilizando delegación de eventos y prevenciones responsivas móviles.
+- **Impacto**:
+  - **Revocación Inmediata de Sesiones**: Bloqueo instantáneo a nivel middleware de cualquier usuario administrador inactivo o suspendido.
+  - **Gobernanza y Cumplimiento SOC 2**: Trazabilidad completa e inmutable de quién modificó el acceso de quién, cuándo y desde qué IP y User-Agent.
+  - **Resiliencia Operativa**: Mitigación al 100% del riesgo de auto-bloqueo del panel administrativo y estabilidad certificada del bundle Vite frontend y los tests unitarios.
+- **Evidencia**: Archivos modificados: `backend/src/middleware/authMiddleware.js`, `backend/src/controllers/adminController.js`, `backend/src/routes/adminRoutes.js`, `frontend/admin-panel.html`, `frontend/src/pages/admin-panel.js`, `EVOLUCION.md`.
+

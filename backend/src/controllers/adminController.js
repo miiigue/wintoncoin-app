@@ -2025,6 +2025,8 @@ module.exports = {
     claimInvitation,
     getAdminProfile,
     deleteInvitation,
+    getAdminUsers,
+    updateAdminStatus,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2613,6 +2615,117 @@ async function deleteInvitation(req, res) {
         await client.query('ROLLBACK');
         console.error('[DATABASE ERROR] Error al revocar la invitación:', error.message);
         return res.status(500).json({ message: "Error interno del servidor al procesar la revocación." });
+    } finally {
+        client.release();
+    }
+}
+
+/**
+ * Lista todos los administradores registrados en la plataforma.
+ * Cumple con los estándares de control de accesos de TI y auditoría bancaria.
+ * Requiere privilegios de rol 'superadmin'.
+ * 
+ * @param {Object} req - Objeto de solicitud de Express.
+ * @param {Object} res - Objeto de respuesta de Express.
+ */
+async function getAdminUsers(req, res) {
+    if (req.user?.role !== 'superadmin') {
+        return res.status(403).json({ message: "Requiere privilegios de Super Administrador para ver el equipo." });
+    }
+
+    try {
+        // Consultamos id, username, role, account_status, last_login y created_at de forma parametrizada y segura.
+        // Excluimos explícitamente password_hash por seguridad de la información.
+        const result = await pool.query(
+            `SELECT id, username, role, account_status, last_login, created_at 
+             FROM admin_users 
+             ORDER BY created_at DESC`
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error("[AdminController] Error al listar equipo de administración:", err);
+        res.status(500).json({ message: "Error interno al obtener el equipo de administración." });
+    }
+}
+
+/**
+ * Suspende o reactiva una cuenta de administrador de forma segura.
+ * Implementa controles de seguridad defensivos para evitar bloqueos del sistema.
+ * Registra auditoría de grado bancario (SOC 2).
+ * 
+ * @param {Object} req - Objeto de solicitud de Express con params.adminId y body.status.
+ * @param {Object} res - Objeto de respuesta de Express.
+ */
+async function updateAdminStatus(req, res) {
+    if (req.user?.role !== 'superadmin') {
+        return res.status(403).json({ message: "Requiere privilegios de Super Administrador para gestionar el equipo." });
+    }
+
+    const { adminId } = req.params;
+    const { status } = req.body;
+    const validStatuses = ['active', 'suspended'];
+
+    const safeAdminId = parseInt(adminId, 10);
+    if (!Number.isFinite(safeAdminId) || safeAdminId <= 0) {
+        return res.status(400).json({ message: "ID de administrador inválido." });
+    }
+
+    if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Estado de cuenta inválido." });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Obtener detalles del administrador objetivo
+        const checkRes = await client.query(
+            "SELECT id, username, role, account_status FROM admin_users WHERE id = $1",
+            [safeAdminId]
+        );
+
+        if (checkRes.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: "Administrador no encontrado." });
+        }
+
+        const targetUser = checkRes.rows[0];
+
+        // 2. Control de Seguridad Defensivo 1: Evitar auto-suspensión
+        // Previene que el superadministrador activo se bloquee a sí mismo, dejando el sistema sin administración
+        if (targetUser.username.toLowerCase() === req.user.username.toLowerCase()) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: "Operación inválida: No puedes suspender o cambiar el estado de tu propia cuenta." });
+        }
+
+        // 3. Control de Seguridad Defensivo 2: Proteger la cuenta admin por defecto
+        const protectedAdmin = (process.env.ADMIN_USERNAME || 'admin').toLowerCase();
+        if (targetUser.username.toLowerCase() === protectedAdmin) {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ message: "No está permitido modificar el estado de la cuenta administradora de resguardo del sistema." });
+        }
+
+        // 4. Actualizar el estado en base de datos
+        await client.query(
+            "UPDATE admin_users SET account_status = $1 WHERE id = $2",
+            [status, safeAdminId]
+        );
+
+        // 5. Registro de auditoría bancaria inmutable
+        await logAuditEvent(client, req, {
+            eventType: 'admin.user.status_updated',
+            actorUsername: req.user.username,
+            category: 'admin',
+            metadata: { target_admin: targetUser.username, new_status: status }
+        });
+
+        await client.query('COMMIT');
+        return res.json({ message: `Estado del administrador ${targetUser.username} actualizado a "${status}" con éxito.` });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[DATABASE ERROR] Error al actualizar estado de administrador:', error.message);
+        return res.status(500).json({ message: "Error interno del servidor al actualizar el estado." });
     } finally {
         client.release();
     }

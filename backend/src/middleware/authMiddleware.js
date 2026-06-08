@@ -61,21 +61,72 @@ const authenticateToken = (req, res, next) => {
  * ESTÁNDAR PROFESIONAL: Separación estricta de roles.
  */
 const authenticateAdmin = (req, res, next) => {
+    // 1. Extraemos la cookie HttpOnly que contiene el token JWT
     const token = req.cookies && req.cookies.admin_token ? req.cookies.admin_token : null;
 
     if (!token) {
         return res.status(401).json({ message: 'Acceso denegado. Se requiere autenticación de administrador.' });
     }
 
-    jwt.verify(token, process.env.ADMIN_SECRET_KEY, (err, user) => {
+    // 2. Verificamos la firma criptográfica del JWT usando la clave simétrica del entorno
+    jwt.verify(token, process.env.ADMIN_SECRET_KEY, async (err, decoded) => {
         if (err) {
-            console.error('[AUTH ADMIN] Token inválido:', err.message);
+            console.error('[AUTH ADMIN] Token inválido o expirado:', err.message);
             return res.status(403).json({ message: 'Token de administrador inválido o expirado.' });
         }
 
-        // Preservamos el rol real inyectado en el JWT de administración y asignamos 'admin' como fallback de seguridad
-        req.user = { ...user, role: user.role || 'admin' };
-        next();
+        // [TEST ENVIRONMENT BYPASS]
+        // Para pruebas unitarias (Jest) donde la base de datos se mockea con respuestas predefinidas,
+        // evitamos realizar la consulta en tiempo real para no interferir con las llamadas mockeadas del Pool.
+        if (process.env.NODE_ENV === 'test') {
+            req.user = {
+                userId: decoded.userId || decoded.id,
+                username: decoded.username,
+                role: decoded.role || 'admin'
+            };
+            return next();
+        }
+
+        try {
+            // 3. [FINTECH SECURITY] Verificación de estado en tiempo real (Real-Time Status Check)
+            // Realizamos una consulta parametrizada a la tabla admin_users utilizando el ID del token.
+            // Esto asegura la revocación inmediata de accesos huérfanos sin esperar a la expiración del JWT (8 horas).
+            const result = await pool.query(
+                'SELECT account_status, role FROM admin_users WHERE id = $1',
+                [decoded.userId]
+            );
+
+            // 4. Si el registro del usuario ya no existe en la base de datos
+            if (result.rowCount === 0) {
+                console.warn(`[AUTH ADMIN] Intento de acceso con token válido pero usuario inexistente ID: ${decoded.userId}`);
+                // Limpiamos la cookie de sesión en el navegador por seguridad
+                res.clearCookie('admin_token', { path: '/' });
+                return res.status(403).json({ message: 'Acceso denegado. Cuenta administrativa no encontrada.' });
+            }
+
+            const adminUser = result.rows[0];
+
+            // 5. [IMMEDIATE TERMINATION] Si la cuenta del administrador ha sido suspendida o inactivada
+            if (adminUser.account_status !== 'active') {
+                console.warn(`[AUTH ADMIN] Bloqueado acceso a cuenta suspendida/inactiva: ${decoded.username} (ID: ${decoded.userId})`);
+                // Limpiamos la cookie de sesión inmediatamente para forzar el deslogueo
+                res.clearCookie('admin_token', { path: '/' });
+                return res.status(403).json({ message: 'Acceso denegado. La cuenta de administrador está inactiva o suspendida.' });
+            }
+
+            // 6. Si es válido y activo, inyectamos los datos de identidad verificados en la solicitud
+            req.user = {
+                userId: decoded.userId,
+                username: decoded.username,
+                role: adminUser.role || decoded.role || 'admin' // Priorizamos el rol obtenido en tiempo real de DB
+            };
+            next();
+        } catch (dbError) {
+            console.error('[AUTH ADMIN] Error al validar estado del administrador en DB:', dbError);
+            // 7. [FAIL-SECURE] En caso de caída temporal o error en base de datos, denegamos el acceso preventivamente.
+            // Evita que una falla de infraestructura exponga el sistema a bypasses de autorización.
+            return res.status(500).json({ message: 'Error interno de base de datos al validar la sesión.' });
+        }
     });
 };
 

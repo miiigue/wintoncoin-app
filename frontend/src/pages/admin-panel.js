@@ -525,6 +525,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (sectionId === 'team') {
             initTeamSection();
             loadInvitationsList();
+            loadActiveAdminsList();
         }
     }
 
@@ -4592,6 +4593,136 @@ document.addEventListener('DOMContentLoaded', () => {
             
         } catch (err) {
             container.innerHTML = `<p class="error-message">Error al cargar la tabla de invitaciones: ${escapeHtml(err.message)}</p>`;
+        }
+    }
+
+    /**
+     * Carga los administradores activos en el sistema y los plasma en la tabla.
+     * Permite suspender o reactivar accesos del equipo administrativo.
+     */
+    async function loadActiveAdminsList() {
+        const container = document.getElementById('active-admins-table-container');
+        if (!container) return;
+        
+        container.innerHTML = '<div class="loading-spinner"></div>';
+        
+        try {
+            const list = await apiFetch('/api/admin/team');
+            
+            if (!list || list.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:#94A3B8; padding:20px;">No hay administradores registrados.</p>';
+                return;
+            }
+            
+            let html = `
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Nombre Usuario</th>
+                            <th>Rol</th>
+                            <th>Creado El</th>
+                            <th>Última Conexión</th>
+                            <th>Estado</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            const currentUser = localStorage.getItem('admin_username') || '';
+            const systemAdmin = 'admin'; // Cuenta protegida del sistema
+            
+            list.forEach(row => {
+                let statusText = 'Activo';
+                let statusStyle = 'background: rgba(16, 185, 129, 0.15); color: #10B981; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;';
+                let actionBtnHtml = '';
+                
+                const isSelf = row.username.toLowerCase() === currentUser.toLowerCase();
+                const isSystemAdmin = row.username.toLowerCase() === systemAdmin;
+                
+                if (row.account_status === 'suspended') {
+                    statusText = 'Suspendido';
+                    statusStyle = 'background: rgba(239, 68, 68, 0.15); color: #EF4444; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;';
+                }
+                
+                if (isSelf || isSystemAdmin) {
+                    actionBtnHtml = '<span style="color:#64748B;">Protegido</span>';
+                } else {
+                    if (row.account_status === 'suspended') {
+                        actionBtnHtml = `
+                            <button type="button" class="btn-toggle-admin-status" data-id="${row.id}" data-username="${escapeHtml(row.username)}" data-target-status="active" style="background:none; border:none; color:#10B981; cursor:pointer; font-weight:bold; font-size:12px; text-decoration:underline; padding:0;">
+                                Activar
+                            </button>
+                        `;
+                    } else {
+                        actionBtnHtml = `
+                            <button type="button" class="btn-toggle-admin-status" data-id="${row.id}" data-username="${escapeHtml(row.username)}" data-target-status="suspended" style="background:none; border:none; color:#EF4444; cursor:pointer; font-weight:bold; font-size:12px; text-decoration:underline; padding:0;">
+                                Suspender
+                            </button>
+                        `;
+                    }
+                }
+                
+                const createdStr = row.created_at ? new Date(row.created_at).toLocaleString('es-ES') : 'N/A';
+                const lastLoginStr = row.last_login ? new Date(row.last_login).toLocaleString('es-ES') : 'Nunca';
+                
+                html += `
+                    <tr>
+                        <td class="username-cell">${escapeHtml(row.username)}</td>
+                        <td style="text-transform: capitalize;">${escapeHtml(row.role)}</td>
+                        <td>${createdStr}</td>
+                        <td>${lastLoginStr}</td>
+                        <td><span style="${statusStyle}">${statusText}</span></td>
+                        <td>${actionBtnHtml}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            container.innerHTML = html;
+            
+            // Event listener único para suspender/activar usando event delegation
+            if (!container.dataset.listenerRegistered) {
+                container.dataset.listenerRegistered = 'true';
+                container.addEventListener('click', async (e) => {
+                    const btn = e.target.closest('.btn-toggle-admin-status');
+                    if (btn) {
+                        const adminId = btn.dataset.id;
+                        const username = btn.dataset.username;
+                        const targetStatus = btn.dataset.targetStatus;
+                        
+                        if (!adminId || !targetStatus) return;
+                        
+                        const actionWord = targetStatus === 'suspended' ? 'SUSPENDER' : 'ACTIVAR';
+                        const confirmAction = confirm(`¿Estás seguro de que deseas ${actionWord} al administrador "${username}"?`);
+                        if (!confirmAction) return;
+                        
+                        try {
+                            btn.disabled = true;
+                            btn.innerText = targetStatus === 'suspended' ? "Suspendiendo..." : "Activando...";
+                            
+                            const result = await apiFetch(`/api/admin/team/${adminId}/status`, {
+                                method: 'POST',
+                                body: JSON.stringify({ status: targetStatus })
+                            });
+                            
+                            showCustomAlert(result.message || `Estado de ${username} actualizado con éxito.`);
+                            loadActiveAdminsList();
+                        } catch (err) {
+                            showCustomAlert(err.message || "Error al actualizar el estado del administrador.");
+                            btn.disabled = false;
+                            btn.innerText = targetStatus === 'suspended' ? "Suspender" : "Activar";
+                        }
+                    }
+                });
+            }
+            
+        } catch (err) {
+            container.innerHTML = `<p class="error-message">Error al cargar el equipo administrativo: ${escapeHtml(err.message)}</p>`;
         }
     }
 
