@@ -74,24 +74,24 @@ function _formatGovEmailDate(d) {
     }
 }
 
-// Helper para construir URL absoluta del panel de gobernanza
-// focusVote: true → ?id=&focus=vote (UX solo votación; el proponente usa sin focus)
+// Helper para construir URL absoluta del panel de gobernanza para correos y notificaciones
+// focusVote: true → ?id=&focus=vote (UX optimizada para ir directo a votación)
 function _getGovernancePanelUrl(requestId, opts = {}) {
-    // Detectar entorno automáticamente
+    // PRIORIDAD MÁXIMA: Usar la variable de entorno explícita para evitar cruces (Zero Hardcoded Secrets)
     let baseUrl = process.env.FRONTEND_URL;
     
     if (!baseUrl) {
-        // PRIORIDAD 1: Verificar si es DEMO (antes de producción)
+        // PRIORIDAD 1: Detectar si el backend corre en el entorno Demo
         if (process.env.IS_DEMO_ENV === 'true' || process.env.DATABASE_URL?.includes('wintoncoin_demo')) {
             baseUrl = 'https://demo.wintoncoin.com';
         }
-        // PRIORIDAD 2: Verificar si es producción
+        // PRIORIDAD 2: Detectar si el backend corre en el entorno de Producción
         else if (process.env.NODE_ENV === 'production') {
             baseUrl = 'https://sc.wintoncoin.com';
         }
-        // PRIORIDAD 3: Local por defecto
+        // PRIORIDAD 3: Entorno de desarrollo local (Alineado con el puerto por defecto de Vite 5173)
         else {
-            baseUrl = 'http://localhost:3000';
+            baseUrl = 'http://localhost:5173';
         }
     }
 

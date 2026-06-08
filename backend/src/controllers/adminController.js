@@ -2272,8 +2272,19 @@ async function createInvitation(req, res) {
         // 5. Enviar el correo electrónico
         const { sendAnnouncementEmail } = require('../services/emailService');
         
-        const isProd = process.env.NODE_ENV === 'production';
-        const domain = isProd ? 'https://sc.wintoncoin.com' : 'http://localhost:5173';
+        // Determinar dinámicamente la URL base del frontend para evitar cruces entre entornos (Local, Demo y Producción)
+        let domain = process.env.FRONTEND_URL;
+        if (!domain) {
+            const isProd = process.env.NODE_ENV === 'production';
+            const isDemo = process.env.IS_DEMO_ENV === 'true' || process.env.DATABASE_URL?.includes('wintoncoin_demo');
+            if (isDemo) {
+                domain = 'https://demo.wintoncoin.com';
+            } else if (isProd) {
+                domain = 'https://sc.wintoncoin.com';
+            } else {
+                domain = 'http://localhost:5173';
+            }
+        }
         const claimUrl = `${domain}/admin-register.html?token=${token}`;
 
         const subject = "Invitación al panel de administración de WintonCoin";

@@ -19,11 +19,25 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-08 — Auditoría de Seguridad de Red: CORS Dinámico, Unificación de Puertos de Desarrollo y Aislamiento de Entornos
+
+- **Contexto**: Para asegurar un aislamiento hermético entre los entornos de Desarrollo (local), Demo y Producción, se requería una solución robusta para resolver URLs y gestionar los permisos de origen cruzado (CORS). Hardcodear dominios o puertos obsoletos (como el puerto local `3000` del backend heredado para el frontend de gobernanza) generaba desajustes operativos al usar Vite (`5173`) y riesgos de bloqueo en CORS ante cambios de URL en la infraestructura de Render u Hostinger.
+- **Decisión**: Se implementó una arquitectura dinámica y tolerante a fallos:
+  1. **CORS Dinámico Autogestionado**: En [server.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/server.js), se configuró la inyección segura de `process.env.FRONTEND_URL` dentro de la lista de orígenes permitidos (`ALLOWED_ORIGINS`). El código valida y parsea la URL usando la API `new URL()`, agregando el origen crudo y la variante con `www` (si aplica) de manera dinámica. Esto previene fallos de CORS inesperados en el frontend si se migra de servidor o se usan URLs efímeras en la nube.
+  2. **Unificación de Puertos Locales en Servicios**: En [notificationEventBus.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/notificationEventBus.js), se actualizó el puerto de fallback para el panel de gobernanza local a `http://localhost:5173`, coincidiendo con el puerto por defecto de Vite del frontend unificado.
+  3. **Zero Hardcoded Secrets**: Ambas optimizaciones se alinean con la doctrina de 12-Factor App, priorizando variables del sistema inyectadas en Render (`FRONTEND_URL` e `IS_DEMO_ENV`) antes de recurrir a los fallbacks estáticos de resguardo.
+- **Impacto**: Aislamiento total y hermético entre los entornos local, demo y producción. Se eliminaron riesgos de fallos de CORS de red y discrepancias de redirección de enlaces de gobernanza/correo en desarrollo. Las pruebas automatizadas Jest pasaron exitosamente.
+- **Evidencia**:
+  - Configuración del Servidor: [server.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/server.js).
+  - Bus de Eventos: [notificationEventBus.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/notificationEventBus.js).
+
+---
+
 ### 2026-06-07 (Parte 2) — Sistema de Registro de Administradores por Invitación Criptográfica y Roles RBAC (Riesgo 1 - Fase B)
 
 - **Contexto**: Tras implementar las credenciales individuales de administrador para mitigar el no-repudio, resultaba necesario un flujo seguro para aprovisionar nuevas cuentas de equipo. Permitir que un administrador elija la contraseña de otro viola la confidencialidad y la auditoría. Asimismo, el panel requería control de accesos basado en roles (RBAC) para limitar la gestión de equipo solo a usuarios `superadmin`.
 - **Decisión**: Se implementó el flujo de invitaciones criptográficas:
-  1. **Aprovisionamiento Efímero Seguro**: Los superadmins pueden invitar nuevos miembros de equipo vía correo. Se genera un token de un solo uso mediante `crypto.randomBytes(32)` con expiración automática de 24 horas.
+  1. **Aprovisionamiento Efímero Seguro y Aislamiento de Entornos**: Los superadmins pueden invitar nuevos miembros de equipo vía correo. Se genera un token de un solo uso mediante `crypto.randomBytes(32)` con expiración automática de 24 horas, y se determina el dominio base del enlace de forma dinámica (`process.env.FRONTEND_URL` o detección de `IS_DEMO_ENV`) para garantizar un aislamiento absoluto de red entre los entornos Local, Demo y Producción.
   2. **Almacenamiento Blindado (Zero Knowledge & Zero Secrets)**: Para evitar el secuestro de invitaciones si la base de datos es vulnerada, el token se hashea en formato SHA-256 (`crypto.createHash('sha256')`) antes de ser guardado en la tabla `admin_invitations`. Los usuarios configuran sus propias contraseñas localmente (zero-knowledge) y se guardan cifradas con `bcrypt` (10 rounds).
   3. **Control RBAC y Rutas**: Se implementó `/api/admin/profile` y `/api/admin/invitations` controlados por rol. Solo el rol `superadmin` puede emitir y ver invitaciones. Se corrigieron además bugs de herencia de rol (donde se forzaba estáticamente a `'admin'` pisando privilegios de superadministrador) y de validación cruzada redundante contra la tabla de usuarios comunes (`users`) que bloqueaba invitaciones para personas previamente registradas en la plataforma.
   4. **Frontend Modular y Responsivo**:
