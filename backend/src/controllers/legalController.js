@@ -24,6 +24,8 @@ exports.getMyLegalStatus = async (req, res) => {
     }
 
     try {
+
+
         const legalStatus = await getUserLegalStatusByUserId(pool, userId);
         return res.status(200).json({
             username,
@@ -43,6 +45,8 @@ exports.acceptActiveDocuments = async (req, res) => {
     if (!userId) {
         return res.status(401).json({ message: 'No autenticado.' });
     }
+
+
 
     const payloadValidation = validateAcceptedDocumentsPayload(acceptedDocuments);
     if (!payloadValidation.isValid) {

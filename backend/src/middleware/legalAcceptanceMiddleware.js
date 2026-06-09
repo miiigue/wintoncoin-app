@@ -47,6 +47,8 @@ function resolveAuthenticatedActor(req) {
 
 function requireAcceptedLegalForAuthenticatedUser() {
     return async (req, res, next) => {
+
+
         const userId = req.user?.userId;
         if (!userId) {
             return res.status(401).json({ message: 'No autenticado.' });
@@ -83,6 +85,9 @@ function requireAcceptedLegalByUsernameField(fieldNames = []) {
     return async (req, res, next) => {
         try {
             const actor = resolveAuthenticatedActor(req);
+
+
+
             if (!actor) {
                 return res.status(401).json({ message: 'No autenticado.' });
             }

@@ -148,11 +148,29 @@ document.addEventListener('DOMContentLoaded', () => {
     let legalStatus = { requires_terms_acceptance: false };
     setupEventListeners();
     // checkLegalStatus(); // Ruta obsoleta eliminada para mayor fluidez del panel
+    renderConnectedUser(); // Inyectar el nombre de usuario del administrador activo
+    checkAdminProfile(); // NUEVO: Verificar rol administrativo y ajustar menú del equipo
     showSection('dashboard');
     refreshPlatformPendingBadge();
     refreshHumanitarianBadge();
     setInterval(refreshPlatformPendingBadge, 30000);
     setInterval(refreshHumanitarianBadge, 30000);
+
+    // --- Módulo: Renderizar Administrador Conectado ---
+    function renderConnectedUser() {
+        const adminUsername = localStorage.getItem('admin_username');
+        const connectedUserEl = document.getElementById('adminConnectedUser');
+        if (connectedUserEl) {
+            if (adminUsername) {
+                // Sanitizar y mostrar el usuario conectado
+                connectedUserEl.textContent = `Conectado: ${escapeHtml(adminUsername)}`;
+                connectedUserEl.style.display = 'block';
+            } else {
+                connectedUserEl.textContent = '';
+                connectedUserEl.style.display = 'none';
+            }
+        }
+    }
 
     // --- Lógica de la Interfaz ---
     function setupEventListeners() {
@@ -170,10 +188,13 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.logoutBtn.addEventListener('click', async (e) => {
                 e.preventDefault();
                 try {
+                    // Petición POST para limpiar las cookies HttpOnly del servidor
                     await fetch(`${API_URL}/api/admin/logout`, { method: 'POST', credentials: 'include' });
                 } catch (err) {
                     console.error("Error al cerrar sesión", err);
                 }
+                // Limpiar la referencia del usuario de localStorage
+                localStorage.removeItem('admin_username');
                 window.location.href = 'admin.html';
             });
         }
@@ -501,6 +522,11 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (sectionId === 'humanitarian') loadHumanitarianCauses();
         else if (sectionId === 'gov-rewards') loadGovRewardsSection();
         else if (sectionId === 'kyc-compliance') initKycSection();
+        else if (sectionId === 'team') {
+            initTeamSection();
+            loadInvitationsList();
+            loadActiveAdminsList();
+        }
     }
 
     function showBoosterTab(tabId) {
@@ -1290,7 +1316,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const newStatus = action === 'activate' ? 'active' : action;
+            // Mapeamos las acciones del frontend a los estados válidos del backend/BD
+            let newStatus = 'active';
+            if (action === 'suspend') {
+                newStatus = 'suspended';
+            } else if (action === 'ban') {
+                newStatus = 'banned';
+            }
 
             showCustomConfirm(`¿Estás seguro de que quieres ${verb} al usuario "${escapeHtml(username)}"?`, async () => {
                 try {
@@ -4364,6 +4396,333 @@ document.addEventListener('DOMContentLoaded', () => {
             // Re-habilitar botones.
             if (approveBtn) approveBtn.disabled = false;
             if (revokeBtn) revokeBtn.disabled = false;
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // GESTIÓN DE EQUIPO — Invitaciones para Administradores (Superadmin)
+    // ════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Consulta el perfil de administrador para ajustar la visualización de privilegios.
+     * Solo si el rol es 'superadmin', se mostrará la sección de Equipo en la barra lateral.
+     */
+    async function checkAdminProfile() {
+        try {
+            // Realizar fetch al perfil administrativo actual
+            const profile = await apiFetch('/api/admin/profile');
+            const sidebarTeamLi = document.getElementById('sidebarTeamLi');
+            
+            // Validar rol de superadmin para inyectar/mostrar pestaña de equipo
+            if (sidebarTeamLi) {
+                if (profile.role === 'superadmin') {
+                    sidebarTeamLi.style.display = 'block';
+                } else {
+                    sidebarTeamLi.style.display = 'none';
+                }
+            }
+            
+            // Sincronizar el nombre de usuario de localStorage con el del token oficial
+            if (profile.username) {
+                localStorage.setItem('admin_username', profile.username);
+                renderConnectedUser();
+            }
+        } catch (err) {
+            console.error("Error al obtener perfil administrativo de control:", err);
+            // El backend retorna 401 si no está autenticado, lo que maneja apiFetch
+        }
+    }
+
+    /**
+     * Inicializa los listeners de formulario para la sección del equipo.
+     * Se asegura de registrar la delegación del botón de submit una única vez.
+     */
+    function initTeamSection() {
+        const form = document.getElementById('inviteAdminForm');
+        if (form && !form._teamListenerAttached) {
+            form._teamListenerAttached = true;
+            
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const emailInput = document.getElementById('inviteEmailInput');
+                const roleSelect = document.getElementById('inviteRoleSelect');
+                const submitBtn = document.getElementById('sendInviteBtn');
+                
+                const email = emailInput?.value?.trim();
+                const role = roleSelect?.value;
+                
+                if (!email || !role) {
+                    showCustomAlert("Por favor, introduce un email y selecciona un rol.");
+                    return;
+                }
+
+                // Evitar doble submit deshabilitando el botón de acción
+                if (submitBtn) submitBtn.disabled = true;
+
+                try {
+                    const result = await apiFetch('/api/admin/invitations', {
+                        method: 'POST',
+                        body: JSON.stringify({ email, role })
+                    });
+                    
+                    showCustomAlert(result.message || "Invitación de administrador enviada correctamente.");
+                    if (emailInput) emailInput.value = '';
+                    
+                    // Recargar el listado de invitaciones para reflejar el estado pendiente
+                    loadInvitationsList();
+                } catch (err) {
+                    showCustomAlert(err.message || "Error al generar la invitación.");
+                } finally {
+                    if (submitBtn) submitBtn.disabled = false;
+                }
+            });
+        }
+    }
+
+    /**
+     * Carga las invitaciones administrativas del backend y las plasma en la tabla.
+     */
+    async function loadInvitationsList() {
+        const container = document.getElementById('invitations-table-container');
+        if (!container) return;
+        
+        container.innerHTML = '<div class="loading-spinner"></div>';
+        
+        try {
+            const list = await apiFetch('/api/admin/invitations');
+            
+            if (!list || list.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:#94A3B8; padding:20px;">No hay invitaciones registradas en la base de datos.</p>';
+                return;
+            }
+            
+            let html = `
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Rol</th>
+                            <th>Creado Por</th>
+                            <th>Fecha Envío</th>
+                            <th>Expiración</th>
+                            <th>Estado</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            list.forEach(row => {
+                let statusText = 'Pendiente';
+                let statusStyle = 'background: rgba(245, 158, 11, 0.15); color: #F59E0B; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;';
+                let actionBtnHtml = '';
+                
+                if (row.used_at) {
+                    statusText = 'Reclamada';
+                    statusStyle = 'background: rgba(16, 185, 129, 0.15); color: #10B981; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;';
+                    actionBtnHtml = '<span style="color:#64748B;">—</span>';
+                } else {
+                    if (row.is_expired) {
+                        statusText = 'Expirada';
+                        statusStyle = 'background: rgba(239, 68, 68, 0.15); color: #EF4444; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;';
+                    }
+                    actionBtnHtml = `
+                        <button type="button" class="btn-revoke-invite" data-email="${escapeHtml(row.email)}" style="background:none; border:none; color:#EF4444; cursor:pointer; font-weight:bold; font-size:12px; text-decoration:underline; padding:0;">
+                            Revocar
+                        </button>
+                    `;
+                }
+                
+                const createdStr = new Date(row.created_at).toLocaleString('es-ES');
+                const expiresStr = new Date(row.expires_at).toLocaleString('es-ES');
+                
+                html += `
+                    <tr>
+                        <td class="username-cell">${escapeHtml(row.email)}</td>
+                        <td style="text-transform: capitalize;">${escapeHtml(row.role)}</td>
+                        <td>${escapeHtml(row.created_by)}</td>
+                        <td>${createdStr}</td>
+                        <td>${expiresStr}</td>
+                        <td><span style="${statusStyle}">${statusText}</span></td>
+                        <td>${actionBtnHtml}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            container.innerHTML = html;
+            
+            // Registrar event listener para el botón de revocación (Event Delegation)
+            // Se asegura de asociar el listener una sola vez por contenedor usando dataset.
+            if (!container.dataset.listenerRegistered) {
+                container.dataset.listenerRegistered = 'true';
+                container.addEventListener('click', async (e) => {
+                    const btn = e.target.closest('.btn-revoke-invite');
+                    if (btn) {
+                        const email = btn.dataset.email;
+                        if (!email) return;
+                        
+                        const confirmRevoke = confirm(`¿Estás seguro de que deseas revocar y anular permanentemente la invitación para ${email}? Esta acción es irreversible.`);
+                        if (!confirmRevoke) return;
+                        
+                        try {
+                            btn.disabled = true;
+                            const originalText = btn.innerText;
+                            btn.innerText = "Revocando...";
+                            
+                            const result = await apiFetch('/api/admin/invitations', {
+                                method: 'DELETE',
+                                body: JSON.stringify({ email })
+                            });
+                            
+                            showCustomAlert(result.message || `Invitación de ${email} revocada con éxito.`);
+                            loadInvitationsList();
+                        } catch (err) {
+                            showCustomAlert(err.message || "Error al revocar la invitación.");
+                            btn.disabled = false;
+                            btn.innerText = "Revocar";
+                        }
+                    }
+                });
+            }
+            
+        } catch (err) {
+            container.innerHTML = `<p class="error-message">Error al cargar la tabla de invitaciones: ${escapeHtml(err.message)}</p>`;
+        }
+    }
+
+    /**
+     * Carga los administradores activos en el sistema y los plasma en la tabla.
+     * Permite suspender o reactivar accesos del equipo administrativo.
+     */
+    async function loadActiveAdminsList() {
+        const container = document.getElementById('active-admins-table-container');
+        if (!container) return;
+        
+        container.innerHTML = '<div class="loading-spinner"></div>';
+        
+        try {
+            const list = await apiFetch('/api/admin/team');
+            
+            if (!list || list.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:#94A3B8; padding:20px;">No hay administradores registrados.</p>';
+                return;
+            }
+            
+            let html = `
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Nombre Usuario</th>
+                            <th>Rol</th>
+                            <th>Creado El</th>
+                            <th>Última Conexión</th>
+                            <th>Estado</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            const currentUser = localStorage.getItem('admin_username') || '';
+            const systemAdmin = 'admin'; // Cuenta protegida del sistema
+            
+            list.forEach(row => {
+                let statusText = 'Activo';
+                let statusStyle = 'background: rgba(16, 185, 129, 0.15); color: #10B981; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;';
+                let actionBtnHtml = '';
+                
+                const isSelf = row.username.toLowerCase() === currentUser.toLowerCase();
+                const isSystemAdmin = row.username.toLowerCase() === systemAdmin;
+                
+                if (row.account_status === 'suspended') {
+                    statusText = 'Suspendido';
+                    statusStyle = 'background: rgba(239, 68, 68, 0.15); color: #EF4444; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;';
+                }
+                
+                if (isSelf || isSystemAdmin) {
+                    actionBtnHtml = '<span style="color:#64748B;">Protegido</span>';
+                } else {
+                    if (row.account_status === 'suspended') {
+                        actionBtnHtml = `
+                            <button type="button" class="btn-toggle-admin-status" data-id="${row.id}" data-username="${escapeHtml(row.username)}" data-target-status="active" style="background:none; border:none; color:#10B981; cursor:pointer; font-weight:bold; font-size:12px; text-decoration:underline; padding:0;">
+                                Activar
+                            </button>
+                        `;
+                    } else {
+                        actionBtnHtml = `
+                            <button type="button" class="btn-toggle-admin-status" data-id="${row.id}" data-username="${escapeHtml(row.username)}" data-target-status="suspended" style="background:none; border:none; color:#EF4444; cursor:pointer; font-weight:bold; font-size:12px; text-decoration:underline; padding:0;">
+                                Suspender
+                            </button>
+                        `;
+                    }
+                }
+                
+                const createdStr = row.created_at ? new Date(row.created_at).toLocaleString('es-ES') : 'N/A';
+                const lastLoginStr = row.last_login ? new Date(row.last_login).toLocaleString('es-ES') : 'Nunca';
+                
+                html += `
+                    <tr>
+                        <td class="username-cell">${escapeHtml(row.username)}</td>
+                        <td style="text-transform: capitalize;">${escapeHtml(row.role)}</td>
+                        <td>${createdStr}</td>
+                        <td>${lastLoginStr}</td>
+                        <td><span style="${statusStyle}">${statusText}</span></td>
+                        <td>${actionBtnHtml}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            container.innerHTML = html;
+            
+            // Event listener único para suspender/activar usando event delegation
+            if (!container.dataset.listenerRegistered) {
+                container.dataset.listenerRegistered = 'true';
+                container.addEventListener('click', async (e) => {
+                    const btn = e.target.closest('.btn-toggle-admin-status');
+                    if (btn) {
+                        const adminId = btn.dataset.id;
+                        const username = btn.dataset.username;
+                        const targetStatus = btn.dataset.targetStatus;
+                        
+                        if (!adminId || !targetStatus) return;
+                        
+                        const actionWord = targetStatus === 'suspended' ? 'SUSPENDER' : 'ACTIVAR';
+                        const confirmAction = confirm(`¿Estás seguro de que deseas ${actionWord} al administrador "${username}"?`);
+                        if (!confirmAction) return;
+                        
+                        try {
+                            btn.disabled = true;
+                            btn.innerText = targetStatus === 'suspended' ? "Suspendiendo..." : "Activando...";
+                            
+                            const result = await apiFetch(`/api/admin/team/${adminId}/status`, {
+                                method: 'POST',
+                                body: JSON.stringify({ status: targetStatus })
+                            });
+                            
+                            showCustomAlert(result.message || `Estado de ${username} actualizado con éxito.`);
+                            loadActiveAdminsList();
+                        } catch (err) {
+                            showCustomAlert(err.message || "Error al actualizar el estado del administrador.");
+                            btn.disabled = false;
+                            btn.innerText = targetStatus === 'suspended' ? "Suspender" : "Activar";
+                        }
+                    }
+                });
+            }
+            
+        } catch (err) {
+            container.innerHTML = `<p class="error-message">Error al cargar el equipo administrativo: ${escapeHtml(err.message)}</p>`;
         }
     }
 

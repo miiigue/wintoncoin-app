@@ -77,11 +77,24 @@ router.post('/database/cleanup-inactive-users', verifyAdminToken, adminControlle
 router.post('/database/cleanup-old-publications', verifyAdminToken, adminController.cleanupOldPublications);
 
 // Gobernanza Demo (Importación y Exportación)
+// Gobernanza Demo (Importación y Exportación)
 router.get('/governance/demo-export-stats', verifyAdminToken, adminController.getDemoExportStats);
 router.post('/governance/demo-export', verifyAdminToken, adminController.generateDemoExport);
 router.get('/governance/demo-export-history', verifyAdminToken, adminController.getDemoExportHistory);
 router.get('/governance/demo-export/:id/download', verifyAdminToken, adminController.downloadDemoExport);
 router.post('/governance/demo-import-preview', verifyAdminToken, adminController.previewDemoImport);
 router.post('/governance/demo-import-process', verifyAdminToken, adminController.processDemoImport);
+
+// Gestión de Invitaciones para Administradores
+router.get('/profile', verifyAdminToken, adminController.getAdminProfile);
+router.post('/invitations', verifyAdminToken, adminController.createInvitation);
+router.get('/invitations', verifyAdminToken, adminController.getInvitations);
+router.delete('/invitations', verifyAdminToken, adminController.deleteInvitation);
+router.get('/invitations/verify/:token', adminController.verifyInvitation);
+router.post('/invitations/claim', adminController.claimInvitation);
+
+// Gestión de Accesos de Equipo (Administradores Activos y Suspensión)
+router.get('/team', verifyAdminToken, adminController.getAdminUsers);
+router.post('/team/:adminId/status', verifyAdminToken, adminController.updateAdminStatus);
 
 module.exports = router;

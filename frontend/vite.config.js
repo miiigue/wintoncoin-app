@@ -123,6 +123,7 @@ export default defineConfig(({ mode }) => ({
         // Admin
         admin: resolve(__dirname, 'admin.html'),
         adminPanel: resolve(__dirname, 'admin-panel.html'),
+        adminRegister: resolve(__dirname, 'admin-register.html'),
 
         // Momentum System
         momentumLanding: resolve(__dirname, 'momentum-landing.html'),

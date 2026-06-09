@@ -28,7 +28,8 @@ import {
     showCustomConfirm,
     closeCustomConfirm,
     handleConfirm,
-    initializeAlertListeners
+    initializeAlertListeners,
+    showLegalAcceptanceModal
 } from './alerts.js';
 
 import {
@@ -70,6 +71,7 @@ if (typeof window !== 'undefined') {
     window.showCustomConfirm = showCustomConfirm;
     window.closeCustomConfirm = closeCustomConfirm;
     window.handleConfirm = handleConfirm;
+    window.showLegalAcceptanceModal = showLegalAcceptanceModal;
 
     // --- Configuración ---
     window.appSettings = appSettings;

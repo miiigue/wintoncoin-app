@@ -7866,4 +7866,267 @@ body.wallet-tour-active #prelaunchWalletModal {
         flex-direction: column;
     }
 }
+
+/* ============================================================================
+   ESTILOS PARA EL MODAL DE ACEPTACIÓN LEGAL (T&C / POLÍTICA DE PRIVACIDAD)
+   ============================================================================
+   Estilo premium con glassmorphism, sombras difuminadas, micro-transiciones
+   y responsividad móvil completa para entorno bancario y fintech.
+   ============================================================================ */
+#legalAcceptanceModal {
+    display: none; /* Oculto por defecto, se activa flex por JS */
+    position: fixed;
+    z-index: 10000; /* Prioridad superior sobre cualquier otro modal o banner */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(8, 12, 24, 0.82); /* Fondo oscuro semitransparente premium */
+    backdrop-filter: blur(16px); /* Efecto de desenfoque de cristal premium */
+    -webkit-backdrop-filter: blur(16px);
+    justify-content: center;
+    align-items: center;
+    animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    padding: 1.5rem;
+    box-sizing: border-box;
+}
+
+#legalAcceptanceModal .modal-content {
+    background: linear-gradient(135deg, rgba(17, 24, 43, 0.95) 0%, rgba(9, 13, 26, 0.98) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    padding: 2.5rem 2.2rem;
+    width: 100%;
+    max-width: 520px;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65), 
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    color: #e2e8f0;
+    text-align: left;
+    position: relative;
+    transform: scale(0.96);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-sizing: border-box;
+}
+
+#legalAcceptanceModal.active .modal-content {
+    transform: scale(1);
+}
+
+#legalAcceptanceModal h3 {
+    margin-top: 0;
+    margin-bottom: 0.85rem;
+    font-size: 1.65rem;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: -0.02em;
+    background: linear-gradient(90deg, #60a5fa, #3b82f6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 0.85rem;
+}
+
+#legalAcceptanceModal p.legal-intro-text {
+    font-size: 0.96rem;
+    line-height: 1.6;
+    color: #94a3b8;
+    margin-bottom: 1.75rem;
+}
+
+.legal-checklist {
+    margin-bottom: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+}
+
+.legal-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.9rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 1.1rem;
+    border-radius: 12px;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.legal-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(59, 130, 246, 0.35);
+    transform: translateY(-1px);
+}
+
+.legal-checkbox-container {
+    display: flex;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+    margin-top: 3px;
+}
+
+.legal-checkbox-container input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.legal-checkmark {
+    position: relative;
+    height: 22px;
+    width: 22px;
+    background-color: rgba(255, 255, 255, 0.08);
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.legal-checkbox-container:hover input ~ .legal-checkmark {
+    border-color: #60a5fa;
+    background-color: rgba(59, 130, 246, 0.08);
+}
+
+.legal-checkbox-container input:checked ~ .legal-checkmark {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+    box-shadow: 0 0 12px rgba(59, 130, 246, 0.45);
+}
+
+.legal-checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+.legal-checkbox-container input:checked ~ .legal-checkmark:after {
+    display: block;
+}
+
+.legal-checkbox-container .legal-checkmark:after {
+    left: 6px;
+    top: 2px;
+    width: 6px;
+    height: 11px;
+    border: solid white;
+    border-width: 0 2.5px 2.5px 0;
+    transform: rotate(45deg);
+}
+
+.legal-label-text {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #cbd5e1;
+    cursor: pointer;
+}
+
+.legal-link {
+    color: #60a5fa;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s ease, text-shadow 0.2s ease;
+    border-bottom: 1px dotted rgba(96, 165, 250, 0.4);
+    display: inline-block;
+}
+
+.legal-link:hover {
+    color: #93c5fd;
+    text-shadow: 0 0 8px rgba(96, 165, 250, 0.3);
+    border-bottom-color: #93c5fd;
+}
+
+.legal-actions-layout {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 2rem;
+}
+
+.legal-btn {
+    padding: 0.8rem 1.6rem;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.96rem;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    border: none;
+    outline: none;
+}
+
+.legal-btn-cancel {
+    background: transparent;
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.legal-btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.legal-btn-accept {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.35);
+}
+
+.legal-btn-accept:hover:not(:disabled) {
+    background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+    box-shadow: 0 6px 22px rgba(59, 130, 246, 0.5);
+    transform: translateY(-1.5px);
+}
+
+.legal-btn-accept:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.legal-btn-accept:disabled {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #4b5563 !important;
+    cursor: not-allowed;
+    box-shadow: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.legal-warning-box {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-radius: 12px;
+    padding: 1.1rem;
+    margin-bottom: 1.8rem;
+    color: #fca5a5;
+    font-size: 0.92rem;
+    line-height: 1.55;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.legal-warning-box svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+@media (max-width: 480px) {
+    #legalAcceptanceModal {
+        padding: 1rem;
+    }
+    #legalAcceptanceModal .modal-content {
+        padding: 2rem 1.4rem;
+    }
+    .legal-actions-layout {
+        flex-direction: column-reverse;
+        gap: 0.75rem;
+    }
+    .legal-btn {
+        width: 100%;
+        text-align: center;
+        padding: 0.9rem 1.6rem;
+    }
+}
+
 

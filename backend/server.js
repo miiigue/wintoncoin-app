@@ -85,6 +85,30 @@ const ALLOWED_ORIGINS = [
     'https://www.demo.wintoncoin.com' // Entorno DEMO (con www)
 ];
 
+// SEGURIDAD FINTECH / AUDITORÍA BANCARIA: Cero Hardcoded Secrets y resolución dinámica.
+// Inyectamos dinámicamente FRONTEND_URL en el listado de orígenes permitidos por CORS.
+// Esto evita el cruce de entornos y asegura que si el dominio se reconfigura en Render/AWS,
+// el sistema acepte las conexiones de origen cruzado de manera estrictamente controlada.
+if (process.env.FRONTEND_URL) {
+    const rawFrontendUrl = process.env.FRONTEND_URL.trim();
+    if (rawFrontendUrl) {
+        try {
+            // Normalizamos el origen parseándolo como una URL válida para extraer el protocolo y host
+            const parsedOrigin = new URL(rawFrontendUrl).origin;
+            ALLOWED_ORIGINS.push(parsedOrigin);
+            
+            // Si el frontend está configurado sin 'www', agregamos la variante con 'www' para evitar bloqueos
+            if (parsedOrigin.startsWith('https://') && !parsedOrigin.includes('://www.')) {
+                const domainWithoutProtocol = parsedOrigin.replace('https://', '');
+                ALLOWED_ORIGINS.push(`https://www.${domainWithoutProtocol}`);
+            }
+        } catch (error) {
+            // Registro auditable en caso de configuración errónea en las variables del servidor
+            console.error('[CORS SECURITY WARNING]: FRONTEND_URL configurado con formato inválido:', error.message);
+        }
+    }
+}
+
 if (process.env.NODE_ENV !== 'production') {
     ALLOWED_ORIGINS.push(
         'http://localhost:3000',

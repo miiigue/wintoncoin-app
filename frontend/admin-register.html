@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Configuración de Administrador - Winton Coin</title>
+    <link id="main-stylesheet" rel="stylesheet" href="style.css">
+    <style>
+        body {
+            background: radial-gradient(circle at center, #0F172A 0%, #020617 100%);
+            color: #FFFFFF;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Outfit', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .register-card {
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 480px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+        .logo-text {
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            margin-bottom: 30px;
+        }
+        .logo-text span.blue {
+            color: #3B82F6;
+        }
+        h1 {
+            font-size: 22px;
+            font-weight: 600;
+            margin: 0 0 10px 0;
+            color: #F8FAFC;
+        }
+        p.subtitle {
+            color: #94A3B8;
+            font-size: 14px;
+            margin: 0 0 30px 0;
+        }
+        .form-group {
+            text-align: left;
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #CBD5E1;
+            margin-bottom: 8px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 8px;
+            color: #FFFFFF;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #3B82F6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        .invite-info {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 25px;
+            text-align: left;
+            font-size: 13px;
+            color: #93C5FD;
+            line-height: 1.5;
+        }
+        button[type="submit"] {
+            width: 100%;
+            padding: 14px;
+            background: #3B82F6;
+            border: none;
+            border-radius: 8px;
+            color: #FFFFFF;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        button[type="submit"]:hover {
+            background: #2563EB;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+        }
+        .loading-container {
+            padding: 40px 0;
+        }
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.05);
+            border-top: 3px solid #3B82F6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error-message {
+            color: #EF4444;
+            font-size: 14px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 25px;
+            color: #94A3B8;
+            font-size: 13px;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        .back-link:hover {
+            color: #FFFFFF;
+        }
+    </style>
+</head>
+<body>
+    <div class="register-card">
+        <div class="logo-text">Winton<span class="blue">Coin</span></div>
+        
+        <!-- Estado de Carga -->
+        <div id="loadingState" class="loading-container">
+            <div class="spinner"></div>
+            <p style="color: #94A3B8; font-size: 14px;">Validando enlace de invitación...</p>
+        </div>
+
+        <!-- Mensaje de Error (Si el token es inválido o expirado) -->
+        <div id="errorState" style="display: none;">
+            <svg style="width: 48px; height: 48px; fill: #EF4444; margin-bottom: 20px;" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+            </svg>
+            <h1>Enlace de Invitación Inválido</h1>
+            <p class="error-message" id="errorText">El token de invitación es inválido, ya fue reclamado o ha expirado después de 24 horas.</p>
+            <a href="admin.html" class="back-link">Ir al inicio de sesión</a>
+        </div>
+
+        <!-- Formulario de Registro (Si el token es válido) -->
+        <div id="formState" style="display: none;">
+            <h1>Crear Cuenta de Administrador</h1>
+            <p class="subtitle">Configura tus credenciales individuales de acceso.</p>
+            
+            <div class="invite-info">
+                <strong>Invitado:</strong> <span id="inviteEmail">cargando...</span><br>
+                <strong>Rol asignado:</strong> <span id="inviteRole" style="text-transform: capitalize;">cargando...</span>
+            </div>
+
+            <form id="adminClaimForm">
+                <div class="form-group">
+                    <label for="adminUsername">Nombre de Usuario:</label>
+                    <input type="text" id="adminUsername" name="adminUsername" required placeholder="Ej: migue_admin" autocomplete="username">
+                </div>
+                
+                <div class="form-group">
+                    <label for="adminPassword">Contraseña:</label>
+                    <input type="password" id="adminPassword" name="adminPassword" required placeholder="Mínimo 8 caracteres" autocomplete="new-password">
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Confirmar Contraseña:</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" required placeholder="Repite tu contraseña" autocomplete="new-password">
+                </div>
+
+                <button type="submit">Activar Cuenta</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ES Modules -->
+    <script type="module" src="src/pages/admin-register.js"></script>
+
+    <!-- Modal de Alertas Custom -->
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+</body>
+</html>

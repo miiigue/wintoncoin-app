@@ -16,8 +16,12 @@
 
         <form id="adminLoginForm">
             <div>
+                <label for="adminUsername">Usuario de Administrador:</label>
+                <input type="text" id="adminUsername" name="adminUsername" required placeholder="Ej: admin" autocomplete="username">
+            </div>
+            <div>
                 <label for="adminPassword">Contraseña de Administrador:</label>
-                <input type="password" id="adminPassword" name="adminPassword" required>
+                <input type="password" id="adminPassword" name="adminPassword" required autocomplete="current-password">
             </div>
             
             <div>
