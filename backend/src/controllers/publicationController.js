@@ -714,13 +714,15 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             const sellerUsername = publication.author_username;
 
             // Crear un objeto acceptance similar al que usa processDirectPaymentCompletion
+            // AUDITORÍA FINTECH: Se incluye 'is_booster_task' para propagar correctamente el flag al motor de pagos.
             const acceptance = {
                 blue_cost: cost,
                 title: publication.title,
                 author_username: sellerUsername,
                 acceptance_id: null, // No hay acceptance para venta rápida
                 category: 'sell',
-                completerUsername: buyerUsername
+                completerUsername: buyerUsername,
+                is_booster_task: !!publication.is_booster_task
             };
 
             // Procesar el pago según las reglas económicas
@@ -821,8 +823,11 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             // === FRENO KYC FINTECH PARA EL TRABAJADOR (Web3 Single Source of Truth) ===
             // El Smart Contract exige que el beneficiario (Payee) tenga KYC verificado on-chain.
-            // En Modo Pre-lanzamiento (preLaunchMode == true), se exime esta validación para permitir la actividad off-chain en el Libro de Impulsores.
-            if (pub.category === 'request' && !preLaunchMode) {
+            // En Modo Pre-lanzamiento (preLaunchMode == true) o si la publicación es una Tarea de Impulsor (is_booster_task == true),
+            // se exime esta validación para permitir la actividad off-chain en el Libro de Impulsores.
+            // AUDITABILIDAD: Se define la variable 'isBoosterTx' para bifurcar la verificación KYC de forma segura.
+            const isBoosterTx = preLaunchMode || !!pub.is_booster_task;
+            if (pub.category === 'request' && !isBoosterTx) {
                 let workerKycWallet = acceptor.web3_wallet_address;
 
                 // Si el trabajador es menor de edad, verificamos si usa la wallet de su tutor
@@ -871,12 +876,14 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                     throw { status: 400, message: "Por favor, indica un monto válido para donar." };
                 }
 
+                // AUDITORÍA FINTECH: Agregamos el flag 'is_booster_task' para propagar el modo de cobro off-chain.
                 const virtualAcceptance = {
                     blue_cost: amount,
                     title: pub.title,
                     author_username: pub.author_username,
                     category: 'donation',
-                    completerUsername: acceptorUsername
+                    completerUsername: acceptorUsername,
+                    is_booster_task: !!pub.is_booster_task
                 };
 
                 // Procesar pago instantáneo
@@ -1259,8 +1266,9 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
 
             // 2. FETCH ACCEPTANCE DATA
+            // AUDITORÍA FINTECH: Agregamos 'p.is_booster_task' a la consulta SQL para recuperar el tipo de tarea y modularizar el comportamiento transaccional de pagos.
             const acceptanceResult = await client.query(
-                `SELECT p.blue_cost, p.is_sell_post, p.title, p.category, p.form_fields,
+                `SELECT p.blue_cost, p.is_sell_post, p.title, p.category, p.form_fields, p.is_booster_task,
                             u.username as author_username,
                             pa.id as acceptance_id,
                             pa.form_responses_submitted_at

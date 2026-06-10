@@ -19,6 +19,21 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-09 — Motor Transaccional Híbrido: Flujo Off-Chain para Tareas de Impulsor en Modo Normal (Opción A)
+
+- **Contexto**: Anteriormente, las tareas marcadas como oficiales del programa de impulsores (`is_booster_task = true`) se ejecutaban a través de la blockchain (on-chain) requiriendo gas real, KYC on-chain verificado del colaborador y generando deuda RED para la plataforma cuando el sistema operaba en Modo Normal (`pre_launch_mode_enabled = false`). Esto provocaba bloqueos en el onboarding de usuarios nuevos sin KYC, desperdicio de gas y una discrepancia en los comprobantes de correo que ya indicaban que el pago era virtual ("BLUE iou").
+- **Decisión**: Se implementó una bifurcación transaccional híbrida que permite procesar estas tareas de forma off-chain permanente:
+  1. **Bypass de KYC en Aceptación**: En [publicationController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/publicationController.js) se exime la verificación de KYC para colaborar en tareas de tipo solicitud si la publicación tiene activo el flag `is_booster_task`.
+  2. **Propagación Segura de Propiedades**: Se añadió el mapeo de `is_booster_task` en los flujos de creación de aceptaciones para donaciones y ventas rápidas. Asimismo, se corrigió el query SQL de `/complete` para retornar dicho flag.
+  3. **Bifurcación en Capa de Servicios**: En [publicationService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/publicationService.js), las funciones `processRequestPayment` y `processDirectPaymentCompletion` evalúan la variable combinada `isBoosterTx = preLaunchMode || acceptance.is_booster_task`. Si es verdadera, se acredita la recompensa virtualmente en `booster_blue_ledger` y `booster_transactions` sin realizar llamadas Web3 ni generar deuda RED.
+  4. **Corrección de Recibos y Preflight**: Los comprobantes de correo indican `BLUE iou` y contabilizan las recompensas como acumuladas en el perfil del impulsor, evitando la confusión legal sobre la custodia del token y reflejando de forma fidedigna que se trata de pasivos devengados off-chain a ser liquidados al finalizar la etapa de pre-lanzamiento.
+- **Impacto**: Se elimina la fricción en el registro y participación inicial de nuevos impulsores sin comprometer la seguridad. Ahorro sustancial en cargos de gas del protocolo y simplificación regulatoria (FinCEN/MiCA) de cara a la custodia temporal de tokens virtuales previos a la liquidación mensual.
+- **Evidencia**:
+  - Rutas y Controladores: [publicationController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/publicationController.js).
+  - Lógica de Servicio Financiero: [publicationService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/publicationService.js).
+
+---
+
 ### 2026-06-08 — Auditoría de Seguridad de Red: CORS Dinámico, Unificación de Puertos de Desarrollo y Aislamiento de Entornos
 
 - **Contexto**: Para asegurar un aislamiento hermético entre los entornos de Desarrollo (local), Demo y Producción, se requería una solución robusta para resolver URLs y gestionar los permisos de origen cruzado (CORS). Hardcodear dominios o puertos obsoletos (como el puerto local `3000` del backend heredado para el frontend de gobernanza) generaba desajustes operativos al usar Vite (`5173`) y riesgos de bloqueo en CORS ante cambios de URL en la infraestructura de Render u Hostinger.
