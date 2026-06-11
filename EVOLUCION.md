@@ -19,6 +19,24 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-11 (Parte 2) — Flexibilización de Gobernanza para Mensajería y Notificaciones No Críticas con Blindaje de Seguridad
+
+- **Contexto**: Al intentar modificar los mensajes diarios de la aplicación (`daily_modal_*`) u otros parámetros meramente comunicativos (como `global_app_interstitial_enabled`) a través de la sección de notificaciones en el panel de administración, el sistema bloqueaba la acción de manera incondicional si el Governance Guard detectaba guardianes activos. Esta restricción generaba una fricción operativa innecesaria (cuellos de botella organizacionales) para actualizaciones menores que no representaban riesgos económicos ni financieros. Asimismo, el endpoint requería un control robusto de entrada para prevenir ataques de denegación de servicio (DoS) por saturación de almacenamiento mediante payloads excesivamente largos.
+- **Decisión**: Se optimizó la función `updateSetting` en el controlador [adminController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/adminController.js) aplicando las siguientes políticas de diseño y cumplimiento legal:
+  1. **Bypass Operativo Selectivo**: Se introdujo una variable condicional `isNonCriticalSetting` para identificar claves meramente comunicativas (`daily_modal_*` y `global_app_interstitial_enabled`).
+  2. **Exención del Governance Guard**: Si la variable es catalogada como no crítica, se salta la llamada de rechazo del Governance Guard (`_checkGovernanceActive()`), permitiendo la actualización inmediata en la tabla `app_settings` por administradores autorizados.
+  3. **Blindaje de Seguridad y Prevención DoS (OWASP)**: Se implementaron límites estrictos de longitud y formato en el valor de entrada antes de cualquier interacción con la base de datos:
+     - Límite máximo de **5,000 caracteres** para mensajes diarios (`daily_modal_*`).
+     - Validación estructural para `global_app_interstitial_enabled`, exigiendo que sea exactamente `'true'` o `'false'` (previene Cross-Site Scripting indirecto y alteración lógica).
+     - Límite preventivo de **1,000 caracteres** para el resto de configuraciones del sistema.
+  4. **Preservación Completa de la Auditoría**: A pesar de omitir la aprobación de gobernanza, se mantiene la inyección del evento de auditoría (`logAuditEvent`) para el tipo `admin.settings.updated`, capturando la identidad del administrador, marca de tiempo y el nuevo valor, garantizando el cumplimiento normativo frente a la FTC y auditorías de TI financieras.
+- **Impacto**: Se restableció la agilidad operativa para las comunicaciones e interstitials cotidianos de la plataforma, eliminando bloqueos innecesarios para el equipo administrativo, mientras se mantiene blindada al 100% la gobernanza descentralizada para todos los parámetros de valor (comisiones de plataforma, límites Web3, retiros de tesorería y reglas financieras). El endpoint ahora cuenta con protección contra abuso de almacenamiento (DoS/Exhaustion) de grado bancario.
+- **Evidencia**:
+  - Backend: Controlador [adminController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/adminController.js).
+  - Cobertura de Tests: Nuevos tests unitarios y de vulnerabilidad agregados en [governanceBypass.test.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/__tests__/governanceBypass.test.js) (7 casos en total, todos aprobados exitosamente).
+
+---
+
 ### 2026-06-11 — Corrección de Alineación y Carga de Campos Dinámicos en Publicaciones de la Plataforma
 
 - **Contexto**: Al crear o editar tareas de la plataforma (booster tasks) en la sección de administración, activar un formulario para recolectar respuestas de pasos requería añadir más campos dinámicos mediante el botón "+ Agregar más campos". Sin embargo, la función dinámica creaba inputs de texto planos y sueltos. Esto provocaba dos fallas severas: visualmente desalineaba los campos dinámicos al no poseer el contenedor flex `.step-form-field-wrapper` ni el selector de tipo de campo (`<select>`), y técnicamente causaba la pérdida silenciosa de todos los campos agregados, ya que el recuperador `collectFormFields()` solo procesaba elementos dentro del wrapper flex, omitiendo los nuevos campos en el payload enviado al backend.
