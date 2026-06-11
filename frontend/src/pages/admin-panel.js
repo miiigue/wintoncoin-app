@@ -2423,12 +2423,34 @@ document.addEventListener('DOMContentLoaded', () => {
         const inputsContainer = toggleWrapper.querySelector('.step-form-inputs');
         if (addBtn && inputsContainer) {
             addBtn.addEventListener('click', () => {
+                // AUDITORÍA DE PASO: Contabilizar campos existentes para asignar un índice coherente y secuencial al placeholder (Campo X).
                 const currentCount = inputsContainer.querySelectorAll('.step-form-field').length;
+                
+                // CONTENEDOR DE CONTROL: Crear el contenedor wrapper flex '.step-form-field-wrapper' para forzar la correcta alineación y distribución responsiva.
+                const wrapper = document.createElement('div');
+                wrapper.className = 'step-form-field-wrapper';
+                
+                // CONTROL DE ENTRADA: Instanciar un campo de texto input para la etiqueta descriptiva que los usuarios verán en el paso.
                 const newField = document.createElement('input');
                 newField.type = 'text';
                 newField.className = 'step-form-field';
                 newField.placeholder = `Campo ${currentCount + 1}`;
-                inputsContainer.appendChild(newField);
+                
+                // CONTROL DE CONFIGURACIÓN: Instanciar un menú desplegable (select) para configurar el tipo de dato requerido ('text' o 'textarea').
+                const typeSelect = document.createElement('select');
+                typeSelect.className = 'step-form-type-select';
+                typeSelect.title = 'Tipo de campo';
+                typeSelect.innerHTML = `
+                    <option value="text">Texto corto</option>
+                    <option value="textarea">Texto largo</option>
+                `;
+                
+                // ENSAMBLAJE DE COMPONENTES: Unir el input y el select dentro del wrapper flex asegurando consistencia visual y semántica con el resto de la interfaz.
+                wrapper.appendChild(newField);
+                wrapper.appendChild(typeSelect);
+                
+                // PERSISTENCIA DE ESTRUCTURA: Insertar el wrapper en el contenedor de campos dinámicos para que collectFormFields() lo pueda detectar y guardar correctamente.
+                inputsContainer.appendChild(wrapper);
             });
         }
 

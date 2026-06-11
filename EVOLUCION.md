@@ -19,6 +19,32 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-11 — Corrección de Alineación y Carga de Campos Dinámicos en Publicaciones de la Plataforma
+
+- **Contexto**: Al crear o editar tareas de la plataforma (booster tasks) en la sección de administración, activar un formulario para recolectar respuestas de pasos requería añadir más campos dinámicos mediante el botón "+ Agregar más campos". Sin embargo, la función dinámica creaba inputs de texto planos y sueltos. Esto provocaba dos fallas severas: visualmente desalineaba los campos dinámicos al no poseer el contenedor flex `.step-form-field-wrapper` ni el selector de tipo de campo (`<select>`), y técnicamente causaba la pérdida silenciosa de todos los campos agregados, ya que el recuperador `collectFormFields()` solo procesaba elementos dentro del wrapper flex, omitiendo los nuevos campos en el payload enviado al backend.
+- **Decisión**: Se refactorizó la lógica de adición de campos dinámicos en la función `ensurePlatformStepInput` dentro de [admin-panel.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/admin-panel.js):
+  1. **Wrapper Flex de Consistencia**: Se encapsula cada nuevo campo dentro de un contenedor `div` con clase `.step-form-field-wrapper`.
+  2. **Selector de Tipo de Campo**: Se crea e inserta un selector `<select class="step-form-type-select">` con las opciones de tipo de campo ("Texto corto" y "Texto largo") de manera adyacente al input.
+  3. **Trazabilidad y Comentarios de Auditoría**: Se agregaron comentarios detallados línea por línea de grado bancario para garantizar la reproducibilidad y auditabilidad del código de acuerdo con las normativas fintech (Zero Secrets y RBAC).
+- **Impacto**: Se resolvió de manera definitiva la desalineación visual responsiva y el error lógico de pérdida de datos. Ahora todos los campos agregados dinámicamente son perfectamente capturados, clasificados por tipo, y persistidos de manera correcta en el backend y la base de datos (columna `form_fields` JSONB).
+- **Evidencia**:
+  - Frontend: [admin-panel.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/admin-panel.js).
+
+---
+
+### 2026-06-10 — Ampliación del Plan de Pruebas Manuales UAT: Validaciones de Registro y Seguridad en Pre-lanzamiento
+
+- **Contexto**: Para asegurar la estabilidad y auditabilidad absoluta del Motor Transaccional Híbrido, era fundamental contar con una suite completa de pruebas manuales de aceptación de usuario (UAT) que validen los flujos y restricciones contables off-chain específicos bajo el modo de pre-lanzamiento (`pre_launch_mode_enabled = true`). Asimismo, se requería facilitar el trabajo de los testers proporcionando datos de prueba unificados con un valor estándar de recompensa y un mecanismo claro de envío de evidencias.
+- **Decisión**: Se expandió el plan de pruebas manuales ([manual_testing_plan.md](file:///C:/Users/migue/.gemini/antigravity-ide/brain/73b15ca4-5174-40e0-91b9-ff7b10a128ee/manual_testing_plan.md)) bajo las siguientes directivas:
+  1. **Ajuste de Valor**: Se estableció el valor uniforme de **270 BLUE** (deuda BLUE iou) para todas las tareas publicadas del plan (Casos 1, 2, 3, 5, 6, 11 y 12).
+  2. **Codificación de Tareas**: Cada tarea de publicación fue identificada con un prefijo del tipo `QA-01`, `QA-02`, etc., al inicio del título.
+  3. **Instrucciones Detalladas y Captura de Video**: Se detallaron de manera minuciosa los pasos a seguir por el tester y se integraron campos dinámicos (`form_fields` en formato JSON para el API/Panel) en las especificaciones para que los testers ingresen el enlace de la grabación de pantalla del proceso como evidencia de aceptación y entrega.
+  4. **Nuevos Casos de Prueba (8 al 12)**: Se añadieron 5 nuevos casos que comprueban el bono de bienvenida (Caso 8), la doble recompensa de referidos (Caso 9), la ausencia de deuda RED en pre-lanzamiento (Caso 10), el bypass de dirección de billetera (Caso 11) y la exclusión de comisiones (Caso 12).
+- **Impacto**: Se brinda al equipo de QA y a los auditores financieros un marco robusto, reproducible y profesional de pruebas de cumplimiento (grado de auditoría bancaria) con payloads y flujos de recolección de evidencias listos para ser operados por testers.
+- **Evidencia**: Plan de Pruebas: [manual_testing_plan.md](file:///C:/Users/migue/.gemini/antigravity-ide/brain/73b15ca4-5174-40e0-91b9-ff7b10a128ee/manual_testing_plan.md).
+
+---
+
 ### 2026-06-09 — Motor Transaccional Híbrido: Flujo Off-Chain para Tareas de Impulsor en Modo Normal (Opción A)
 
 - **Contexto**: Anteriormente, las tareas marcadas como oficiales del programa de impulsores (`is_booster_task = true`) se ejecutaban a través de la blockchain (on-chain) requiriendo gas real, KYC on-chain verificado del colaborador y generando deuda RED para la plataforma cuando el sistema operaba en Modo Normal (`pre_launch_mode_enabled = false`). Esto provocaba bloqueos en el onboarding de usuarios nuevos sin KYC, desperdicio de gas y una discrepancia en los comprobantes de correo que ya indicaban que el pago era virtual ("BLUE iou").
