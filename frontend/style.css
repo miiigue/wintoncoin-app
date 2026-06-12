@@ -7921,6 +7921,7 @@ body.wallet-tour-active #prelaunchWalletModal {
     letter-spacing: -0.02em;
     background: linear-gradient(90deg, #60a5fa, #3b82f6);
     -webkit-background-clip: text;
+    background-clip: text; /* Propiedad estándar para compatibilidad cruzada de navegadores (W3C standard) */
     -webkit-text-fill-color: transparent;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     padding-bottom: 0.85rem;

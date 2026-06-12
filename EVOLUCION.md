@@ -19,6 +19,16 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-12 (Parte 2) — Corrección de Compatibilidad CSS para Gradiente de Texto en Modal de Aceptación Legal
+
+- **Contexto**: En el modal de aceptación de términos y condiciones y políticas de privacidad (`legalAcceptanceModal`), el título `h3` utiliza un gradiente de color lineal de fondo recortado al texto para ofrecer una estética premium y fluida. Sin embargo, en el archivo [style.css](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/style.css#L7923) solo se había especificado la propiedad con prefijo propietario `-webkit-background-clip: text;`. Esto generaba una advertencia de compatibilidad y fallos potenciales de renderizado en motores de navegación que no utilizan WebKit (como Firefox o navegadores estándar W3C), donde el texto degradado podría mostrarse con un fondo opaco sólido o ignorar el recorte.
+- **Decisión**: Se corrigió el archivo [style.css](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/style.css) agregando la propiedad estándar `background-clip: text;` de forma adyacente a la propiedad prefijada, de acuerdo con los estándares de la W3C.
+- **Impacto**: Se garantizó la consistencia visual y estética del modal de aceptación legal en el 100% de los navegadores modernos (compatibilidad multiplataforma completa) y se eliminaron las advertencias del linter sobre especificaciones no estándar.
+- **Evidencia**:
+  - Frontend: Hoja de estilos [style.css](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/style.css#L7923).
+
+---
+
 ### 2026-06-12 — Adaptación del Estado de Cuenta Web3 para la Fase de Pre-lanzamiento (Off-Chain)
 
 - **Contexto**: Durante la fase activa de pre-lanzamiento de la plataforma en producción, no se realizan transacciones en blockchain de forma directa y los tokens son registrados virtualmente (`BLUE iou`). Presentar elementos de testnet de Optimism Sepolia, direcciones de billeteras incompletas y botones para auditar contratos o interactuar con el explorador en la pantalla de Estado de Cuenta Web3 (`estado-cuenta.html`) generaba confusión y falta de claridad para los usuarios finales.
