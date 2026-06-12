@@ -63,6 +63,13 @@ async function initializeEstadoCuenta() {
             console.error("Error al obtener configuraciones de plataforma:", platformErr);
         }
 
+        // De acuerdo con los estándares fintech, determinamos el entorno de ejecución del cliente.
+        // Los cambios visuales restrictivos de la fase de pre-lanzamiento (enmascaramiento y ocultamiento)
+        // solo deben aplicarse en el entorno de producción (MODE === 'production').
+        // En los entornos de demostración (MODE === 'demo') y desarrollo se mantiene activa la blockchain testnet.
+        const isProduction = import.meta.env.MODE === 'production';
+        const applyPreLaunchUI = preLaunchMode && isProduction;
+
         // Obtenemos los balances del usuario desde el backend
         const response = await fetch(`${API_URL}/api/me/balance`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -77,7 +84,7 @@ async function initializeEstadoCuenta() {
         const address = data.web3_wallet_address || localStorage.getItem('myWalletAddress');
         const isValidAddress = address && address.startsWith('0x') && address.length > 10;
         
-        if (preLaunchMode) {
+        if (applyPreLaunchUI) {
             // Enmascaramos la dirección pública de la billetera en pre-lanzamiento para evitar fugas de datos y confusión en el usuario
             elements.publicKey.textContent = 'xxxx....';
             // Si el elemento de etiqueta de la llave pública existe, actualizamos su descripción para reflejar el estado fuera de cadena
@@ -108,7 +115,7 @@ async function initializeEstadoCuenta() {
         // Recuperamos el contenedor visual del estado de verificación KYC del usuario
         const kycDisplay = document.getElementById('kycStatusDisplay');
         if (kycDisplay) {
-            if (preLaunchMode) {
+            if (applyPreLaunchUI) {
                 // En modo de pre-lanzamiento, el KYC on-chain no es mandatorio ni auditable directamente en blockchain
                 // Forzamos un estado de 'Pendiente de Aprobación' para reflejar el estado administrativo off-chain
                 kycDisplay.textContent = '⏳ Pendiente de Aprobación';
@@ -131,7 +138,7 @@ async function initializeEstadoCuenta() {
         // Registramos el listener de clic para copiar la dirección pública al portapapeles
         elements.copyBtn.addEventListener('click', () => {
             // Verificación de seguridad: abortamos de inmediato si no hay billetera válida o si estamos en fase de pre-lanzamiento
-            if(!isValidAddress || preLaunchMode) return;
+            if(!isValidAddress || applyPreLaunchUI) return;
             // Realizamos la escritura segura en el portapapeles del cliente usando la API del navegador
             navigator.clipboard.writeText(address);
             // Retroalimentación visual al usuario cambiando el texto temporalmente
