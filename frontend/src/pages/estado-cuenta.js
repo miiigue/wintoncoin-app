@@ -18,6 +18,8 @@ async function initializeEstadoCuenta() {
         content: document.getElementById('web3Data'),
         publicKey: document.getElementById('publicKeyDisplay'),
         copyBtn: document.getElementById('copyPublicKeyBtn'),
+        networkStatusDisplay: document.getElementById('networkStatusDisplay'),
+        publicKeyLabel: document.getElementById('publicKeyLabel'),
         blueAvailable: document.getElementById('blueAvailable'),
         blueEscrow: document.getElementById('blueEscrow'),
         blueUnlockDate: document.getElementById('blueUnlockDate'),
@@ -49,6 +51,25 @@ async function initializeEstadoCuenta() {
     }
 
     try {
+        // Obtener configuración de pre-lanzamiento de la plataforma de forma segura
+        let preLaunchMode = false;
+        try {
+            const platformResponse = await fetch(`${API_URL}/api/platform-settings`);
+            if (platformResponse.ok) {
+                const platformData = await platformResponse.json();
+                preLaunchMode = platformData.pre_launch_mode_enabled === true;
+            }
+        } catch (platformErr) {
+            console.error("Error al obtener configuraciones de plataforma:", platformErr);
+        }
+
+        // De acuerdo con los estándares fintech, determinamos el entorno de ejecución del cliente.
+        // Los cambios visuales restrictivos de la fase de pre-lanzamiento (enmascaramiento y ocultamiento)
+        // solo deben aplicarse en el entorno de producción (MODE === 'production').
+        // En los entornos de demostración (MODE === 'demo') y desarrollo se mantiene activa la blockchain testnet.
+        const isProduction = import.meta.env.MODE === 'production';
+        const applyPreLaunchUI = preLaunchMode && isProduction;
+
         // Obtenemos los balances del usuario desde el backend
         const response = await fetch(`${API_URL}/api/me/balance`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -63,28 +84,68 @@ async function initializeEstadoCuenta() {
         const address = data.web3_wallet_address || localStorage.getItem('myWalletAddress');
         const isValidAddress = address && address.startsWith('0x') && address.length > 10;
         
-        elements.publicKey.textContent = isValidAddress ? address : '0xPendienteDeAsignacion...';
+        if (applyPreLaunchUI) {
+            // Enmascaramos la dirección pública de la billetera en pre-lanzamiento para evitar fugas de datos y confusión en el usuario
+            elements.publicKey.textContent = 'xxxx....';
+            // Si el elemento de etiqueta de la llave pública existe, actualizamos su descripción para reflejar el estado fuera de cadena
+            if (elements.publicKeyLabel) {
+                elements.publicKeyLabel.textContent = 'Llave pública (por asignar)';
+            }
+            // Actualizamos la etiqueta de estado de red para indicar de forma explícita que operamos en Off-Chain
+            if (elements.networkStatusDisplay) {
+                elements.networkStatusDisplay.textContent = 'Pre-lanzamiento (Off-Chain)';
+                // Asignamos la clase highlight-blue para mantener una estética fintech premium acorde a la fase
+                elements.networkStatusDisplay.className = 'data-value highlight-blue';
+            }
+            // Ocultamos el botón de copiado puesto que no existe una llave real en el portapapeles del usuario en esta etapa
+            if (elements.copyBtn) {
+                elements.copyBtn.style.display = 'none';
+            }
+            // Ocultamos el acceso al contrato inteligente BLUE on-chain para prevenir llamadas a contratos no desplegados
+            if (elements.scBlueBtn) elements.scBlueBtn.style.display = 'none';
+            // Ocultamos el acceso al contrato inteligente RED on-chain para asegurar un flujo puramente virtual en pre-lanzamiento
+            if (elements.scRedBtn) elements.scRedBtn.style.display = 'none';
+            // Ocultamos el botón del explorador de bloques porque no existen transacciones reales en el ledger público de testnet
+            if (elements.explorerLinkBtn) elements.explorerLinkBtn.style.display = 'none';
+        } else {
+            // Si el modo pre-lanzamiento está inactivo, asignamos la dirección real del usuario si es válida, o el mensaje por defecto
+            elements.publicKey.textContent = isValidAddress ? address : '0xPendienteDeAsignacion...';
+        }
 
+        // Recuperamos el contenedor visual del estado de verificación KYC del usuario
         const kycDisplay = document.getElementById('kycStatusDisplay');
         if (kycDisplay) {
-            if (!isValidAddress) {
+            if (applyPreLaunchUI) {
+                // En modo de pre-lanzamiento, el KYC on-chain no es mandatorio ni auditable directamente en blockchain
+                // Forzamos un estado de 'Pendiente de Aprobación' para reflejar el estado administrativo off-chain
+                kycDisplay.textContent = '⏳ Pendiente de Aprobación';
+                kycDisplay.style.color = '#f59e0b'; // Usamos código de color ámbar para denotar estado transicional seguro
+            } else if (!isValidAddress) {
+                // Si la red está activa pero el usuario carece de billetera Web3, mostramos error de vinculación
                 kycDisplay.textContent = '❌ Sin Billetera Web3';
-                kycDisplay.style.color = '#ef4444';
+                kycDisplay.style.color = '#ef4444'; // Color rojo de advertencia estándar
             } else if (data.kyc_verified) {
+                // Si cuenta con dirección válida y está verificado, reflejamos su estado verificado en el ledger on-chain
                 kycDisplay.textContent = '✅ Verificado On-Chain';
-                kycDisplay.style.color = '#10B981';
+                kycDisplay.style.color = '#10B981'; // Color verde de éxito y conformidad
             } else {
+                // Para cualquier otro caso, mantenemos el estado pendiente a la espera de la firma del KYC
                 kycDisplay.textContent = '⏳ Pendiente de Aprobación';
                 kycDisplay.style.color = '#f59e0b';
             }
         }
         
+        // Registramos el listener de clic para copiar la dirección pública al portapapeles
         elements.copyBtn.addEventListener('click', () => {
-            if(!isValidAddress) return;
+            // Verificación de seguridad: abortamos de inmediato si no hay billetera válida o si estamos en fase de pre-lanzamiento
+            if(!isValidAddress || applyPreLaunchUI) return;
+            // Realizamos la escritura segura en el portapapeles del cliente usando la API del navegador
             navigator.clipboard.writeText(address);
+            // Retroalimentación visual al usuario cambiando el texto temporalmente
             elements.copyBtn.textContent = 'Copiado ✓';
             elements.copyBtn.style.background = 'rgba(16, 185, 129, 0.4)';
             elements.copyBtn.style.color = '#fff';
+            // Restauramos el estado del botón después de 2 segundos de manera asíncrona
             setTimeout(() => {
                 elements.copyBtn.textContent = 'Copiar';
                 elements.copyBtn.style.background = '';

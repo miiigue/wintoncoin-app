@@ -162,14 +162,57 @@ async function getSettings(req, res) {
  */
 async function updateSetting(req, res) {
     const { key, value } = req.body;
+    
+    // 1. [FINTECH SECURITY - VALIDACIÓN DE ENTRADA]
+    // Validar de forma estricta que la clave del parámetro y el valor enviado existan y sean de tipo texto.
+    // Esto previene inyecciones de payloads anómalos o desajustes lógicos a nivel de controlador.
     if (!key || typeof value !== 'string') {
-        return res.status(400).json({ message: "Se requiere 'key' y 'value'." });
+        return res.status(400).json({ message: "Se requiere 'key' y 'value' en formato de texto válido." });
+    }
+
+    // 2. [FINTECH SECURITY - CONTROL DE CARGA / PREVENCIÓN DE DoS]
+    // Aplicar límites rigurosos de longitud y formato al valor ingresado para evitar ataques
+    // de agotamiento de almacenamiento (Storage Exhaustion) en la base de datos Postgres y ralentización en el renderizado de UI.
+    if (key.startsWith('daily_modal_')) {
+        // Los mensajes diarios tienen un límite máximo de 5000 caracteres (aprox 5KB), suficiente para avisos extensos.
+        if (value.length > 5000) {
+            return res.status(400).json({
+                message: `El contenido del mensaje excede el límite máximo de seguridad de 5000 caracteres (longitud actual: ${value.length}).`
+            });
+        }
+    } else if (key === 'global_app_interstitial_enabled') {
+        // La bandera del modal global debe ser estrictamente un booleano expresado en texto.
+        // Esto previene que se almacenen strings corruptos o scripts maliciosos en la configuración de la app.
+        if (value !== 'true' && value !== 'false') {
+            return res.status(400).json({
+                message: "El valor de configuración para el estado del modal global debe ser exactamente 'true' o 'false'."
+            });
+        }
+    } else {
+        // Para cualquier otro parámetro crítico del sistema o variable económica,
+        // limitamos preventivamente la longitud a 1000 caracteres para asegurar la consistencia y acotación del buffer.
+        if (value.length > 1000) {
+            return res.status(400).json({
+                message: `El valor configurado excede el límite preventivo general de 1000 caracteres (longitud actual: ${value.length}).`
+            });
+        }
     }
 
     try {
-        // GOVERNANCE GUARD: Bloquear si hay guardianes activos
+        // GOVERNANCE GUARD: Bloquear modificaciones si la gobernanza está activa en la base de datos
+        // pero permitir el bypass únicamente para configuraciones no críticas de mensajería y UI.
+        
+        // 1. Evaluar si la clave corresponde a configuraciones operativas / informativas de notificaciones:
+        //    - Claves que comienzan con 'daily_modal_' (Textos del modal informativo por día).
+        //    - Clave exacta 'global_app_interstitial_enabled' (Interruptor para habilitar/deshabilitar el modal de anuncios).
+        const isNonCriticalSetting = key.startsWith('daily_modal_') || key === 'global_app_interstitial_enabled';
+
+        // 2. Verificar el estado del sistema de gobernanza (si existen guardianes activos registrados).
         const isGovActive = await _checkGovernanceActive();
-        if (isGovActive) {
+
+        // 3. Aplicar el Governance Guard: si la gobernanza está activa Y la configuración no es catalogada como exenta (no crítica),
+        //    se bloquea la petición retornando un estado 403 (Forbidden) y notificando al frontend.
+        if (isGovActive && !isNonCriticalSetting) {
             return res.status(403).json({
                 message: `El sistema de gobernanza está activo. Los cambios deben ser aprobados por guardianes.`,
                 governance_required: true,

@@ -157,9 +157,15 @@ async function processRequestCompletion(client, acceptance) {
 async function processRequestPayment(client, acceptance, pubId, preLaunchMode, settings) {
     const { blue_cost, title, author_username: author, author_id: authorId, workerUsername, workerId: workerIdFromQuery } = acceptance;
     const cost = parseFloat(blue_cost);
+    // AUDITORÍA FINTECH: Se establece la variable global de resguardo de base de datos
     let web3IntentId = null;
 
-    if (preLaunchMode) {
+    // MOTOR TRANSACCIONAL HÍBRIDO (OPCIÓN A):
+    // Si la plataforma está en pre-lanzamiento o si la tarea en sí es una Tarea de Impulsor (is_booster_task = true),
+    // procesamos de forma virtual off-chain mediante el Libro de Impulsores (booster_blue_ledger).
+    const isBoosterTx = preLaunchMode || !!acceptance.is_booster_task;
+
+    if (isBoosterTx) {
         // --- MODO PRE-LANZAMIENTO ---
         console.log(`MODO PRE-LANZAMIENTO: Acumulando ${cost} BLUE para ${workerUsername} en perfil de impulsor.`);
         const workerResult = await client.query('SELECT id FROM users WHERE username = $1', [workerUsername]);
@@ -407,15 +413,17 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         }
 
         // 2. Comprobante para el AUTOR (Realizó pago)
+        // AUDITORÍA FINTECH: Si es una transacción booster, el monto pagado se marca como Subvencionado en BLUE iou
+        // para reflejar que no hay costo real en tokens en esta etapa promocional.
         if (authorEmail) {
             let authMsg = '';
             let authAmount = '';
             let authTitle = '';
 
-            if (preLaunchMode) {
+            if (isBoosterTx) {
                 authTitle = 'Tarea Completada';
-                authMsg = `El usuario ${workerUsername} completó tu tarea "${title}". El sistema ha enviado la recompensa.`;
-                authAmount = `${cost.toFixed(4)} ${currencyLabel} (Subvencionado)`;
+                authMsg = `El usuario ${workerUsername} completó tu tarea "${title}". La recompensa ha sido contabilizada en el Perfil de Impulsor de ${workerUsername} como BLUE iou.`;
+                authAmount = `${cost.toFixed(4)} ${currencyLabel}`;
             } else {
                 const totalPaid = cost * (1 + (parseFloat(settings.platform_commission_percentage || '0') / 100));
                 authTitle = 'Pago Enviado';
@@ -441,7 +449,8 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
     }
 
 
-    const notificationMessage = preLaunchMode
+    // AUDITORÍA FINTECH: Grabación de notificación adaptada a booster
+    const notificationMessage = isBoosterTx
         ? `¡Has acumulado ${cost.toFixed(4)} BLUE en tu Perfil de Impulsor por la tarea "${title}"!`
         : `¡Has recibido ${cost.toFixed(4)} BLUE (en depósito) por la tarea "${title}"!`;
     await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [workerUsername, notificationMessage]);
@@ -458,9 +467,15 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
     const { blue_cost, title, author_username: recipient, acceptance_id, category, completerUsername: payer } = acceptance;
     const cost = parseFloat(blue_cost);
     let resultMessage; // Usaremos una variable para el mensaje de retorno
+    // AUDITORÍA FINTECH: Inicialización de ID de intención Web3
     let web3IntentId = null;
 
-    if (preLaunchMode) {
+    // MOTOR TRANSACCIONAL HÍBRIDO (OPCIÓN A):
+    // Si la plataforma está en pre-lanzamiento o si la publicación es una Tarea de Impulsor (is_booster_task = true),
+    // procesamos de forma virtual off-chain mediante el Libro de Impulsores (booster_blue_ledger).
+    const isBoosterTx = preLaunchMode || !!acceptance.is_booster_task;
+
+    if (isBoosterTx) {
         // --- MODO PRE-LANZAMIENTO: Transferencia desde el perfil de impulsor ---
         const payerResult = await client.query('SELECT id FROM users WHERE username = $1', [payer]);
         const payerId = payerResult.rows[0].id;
@@ -641,7 +656,10 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
             [pubId]
         );
 
-        const recipientNotification = `¡Has recibido el pago de ${cost.toFixed(4)} BLUE (en depósito) por "${title}" de parte de ${payer}!`;
+        // AUDITORÍA FINTECH: Registro de notificación para el receptor del pago (booster vs normal)
+        const recipientNotification = isBoosterTx
+            ? `¡Has recibido el pago de ${cost.toFixed(4)} BLUE en tu perfil de impulsor por "${title}" de parte de ${payer}!`
+            : `¡Has recibido el pago de ${cost.toFixed(4)} BLUE (en depósito) por "${title}" de parte de ${payer}!`;
         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [recipient, recipientNotification]);
 
         resultMessage = "¡Compra/Donación completada y pagada! Gracias.";
@@ -655,12 +673,13 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         const dateStr = new Date().toLocaleDateString('es-ES');
 
         // 1. Recibo para el COMPRADOR/DONANTE (Pagó)
+        // AUDITORÍA FINTECH: Adaptamos el recibo para indicar la moneda (BLUE iou vs RED/BLUE)
         if (payerEmail) {
             let totalPaid = cost;
-            let currency = 'BLUE';
+            let currency = isBoosterTx ? 'BLUE iou' : 'BLUE';
             let status = 'Completado';
 
-            if (!preLaunchMode) {
+            if (!isBoosterTx) {
                 totalPaid = cost * (1 + (parseFloat(settings.platform_commission_percentage || '0') / 100));
                 currency = 'RED'; // En modo normal genera deuda RED
                 status = 'Deuda Generada';
@@ -684,14 +703,16 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         }
 
         // 2. Notificación para el VENDEDOR/RECEPTOR (Recibió)
+        // AUDITORÍA FINTECH: Adaptamos el recibo para reflejar el estado del perfil de impulsor
         if (recipientEmail) {
-            const receiveStatus = preLaunchMode ? 'Recibido (Booster)' : 'En Depósito (Escrow)';
+            const receiveStatus = isBoosterTx ? 'Recibido (Booster)' : 'En Depósito (Escrow)';
+            const currencyLabel = isBoosterTx ? 'BLUE iou' : 'BLUE';
             await sendTransactionEmail({
                 toEmail: recipientEmail,
                 subject: `¡Te han pagado por "${title}"!`,
                 title: 'Nuevo Pago Recibido',
                 message: `${payer} ha pagado por tu publicación "${title}".`,
-                amount: `${cost.toFixed(4)} BLUE`,
+                amount: `${cost.toFixed(4)} ${currencyLabel}`,
                 details: [
                     { label: 'Concepto', value: title },
                     { label: 'Pagador', value: payer },
