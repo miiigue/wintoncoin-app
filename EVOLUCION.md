@@ -19,6 +19,25 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-12 — Adaptación del Estado de Cuenta Web3 para la Fase de Pre-lanzamiento (Off-Chain)
+
+- **Contexto**: Durante la fase activa de pre-lanzamiento de la plataforma en producción, no se realizan transacciones en blockchain de forma directa y los tokens son registrados virtualmente (`BLUE iou`). Presentar elementos de testnet de Optimism Sepolia, direcciones de billeteras incompletas y botones para auditar contratos o interactuar con el explorador en la pantalla de Estado de Cuenta Web3 (`estado-cuenta.html`) generaba confusión y falta de claridad para los usuarios finales.
+- **Decisión de Ingeniería**:
+  - **Identificación de Estado de Red y Etiquetas**: Se modificó el archivo HTML [estado-cuenta.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/estado-cuenta.html) para inyectar selectores únicos (`id="networkStatusDisplay"` y `id="publicKeyLabel"`) permitiendo un acceso preciso y seguro por parte de JavaScript.
+  - **Lógica Reactiva en el Frontend**: Se refactorizó la lógica en [estado-cuenta.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/estado-cuenta.js) para consultar dinámicamente el estado del modo pre-lanzamiento de la plataforma llamando al endpoint público `/api/platform-settings`.
+  - **Ocultamiento y Enmascaramiento Preventivo**: Si `pre_launch_mode_enabled` está activo:
+    1. Se actualiza el estado de red a `"Pre-lanzamiento (Off-Chain)"` aplicando la clase visual de realce azul (`highlight-blue`).
+    2. Se enmascara la llave pública del usuario como `"xxxx...."` y se renombra la etiqueta a `"Llave pública (por asignar)"`.
+    3. Se oculta el botón de copiado (`copyPublicKeyBtn`) y los botones de interacción Web3 (`scBlueBtn`, `scRedBtn`, `explorerLinkBtn`).
+    4. Se fuerza el estado KYC a `"⏳ Pendiente de Aprobación"` de forma controlada.
+  - **Cumplimiento Legal y Resiliencia**: El comportamiento es 100% dinámico. Si en el futuro se desactiva el modo de pre-lanzamiento, la interfaz automáticamente restaurará la visibilidad de los datos on-chain reales y de los botones de auditoría correspondientes, asegurando transparencia y no-repudio de cara a auditores externos y normativas Fintech.
+- **Impacto**: Se eliminó la confusión para los usuarios en la fase de pre-lanzamiento al ocultar botones y datos on-chain inactivos, mejorando la UX general del sistema sin comprometer la extensibilidad futura del código ni requerir despliegues adicionales cuando se realice la transición on-chain.
+- **Evidencia**:
+  - Frontend: [estado-cuenta.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/estado-cuenta.html) y [estado-cuenta.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/estado-cuenta.js).
+  - Compilación: Generación exitosa del bundle de demostración mediante Vite (`npm run build:demo`).
+
+---
+
 ### 2026-06-11 (Parte 3) — Robustez y Blindaje de Resiliencia ante Fallas de Conexión de Base de Datos
 
 - **Contexto**: Tras detectar caídas en Render por errores de red `connect EHOSTUNREACH` al intentar conectar a la base de datos PostgreSQL, se identificó que las tareas programadas en segundo plano (`TOKEN RELEASER`, `DEBT COLLECTOR`, `executeBoosterPayments` y `processPendingBroadcasts`) realizaban llamadas a `pool.connect()` fuera de bloques `try/catch`. Al fallar la base de datos, el rechazo de la promesa causaba excepciones no controladas que tumbaban todo el proceso de Node.js.
