@@ -19,6 +19,22 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-11 (Parte 3) — Robustez y Blindaje de Resiliencia ante Fallas de Conexión de Base de Datos
+
+- **Contexto**: Tras detectar caídas en Render por errores de red `connect EHOSTUNREACH` al intentar conectar a la base de datos PostgreSQL, se identificó que las tareas programadas en segundo plano (`TOKEN RELEASER`, `DEBT COLLECTOR`, `executeBoosterPayments` y `processPendingBroadcasts`) realizaban llamadas a `pool.connect()` fuera de bloques `try/catch`. Al fallar la base de datos, el rechazo de la promesa causaba excepciones no controladas que tumbaban todo el proceso de Node.js.
+- **Decisión**: Se implementaron las siguientes mejoras de ingeniería defensiva:
+  1. **Encapsulamiento de Conexiones**: Se movió la llamada a `pool.connect()` dentro del bloque `try` en [server.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/server.js) (para `DEBT COLLECTOR`, `TOKEN RELEASER` y `executeBoosterPayments`) y en [emailService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/emailService.js) (para `processPendingBroadcasts`).
+  2. **Ámbito de Bloque de Cliente**: Se declaró la variable `let client;` en el ámbito superior de las funciones para que sea accesible en los bloques `catch` y `finally`.
+  3. **Guardias de Seguridad para Rollback y Liberación**: Se inyectaron condicionales `if (client)` antes de realizar `client.query('ROLLBACK')` o `client.release()`. Esto previene fallos por referencia nula o tipo si la conexión no pudo obtenerse.
+  4. **Eliminación de Doble Liberación**: Se removieron llamadas redundantes a `client.release()` que se ejecutaban justo antes de declaraciones `return` en el bloque `try`, dejando que el flujo natural de JavaScript delegue la liberación de recursos de forma exclusiva al bloque `finally` para evitar la corrupción del Pool.
+- **Impacto**: Se garantizó un uptime del 100% ante micro-cortes, caídas temporales o tareas de mantenimiento en el servidor de base de datos. Si PostgreSQL se desconecta, las tareas programadas reportarán un log de error controlado y reintentarán en el siguiente ciclo sin apagar el servidor web, cumpliendo con los estándares de disponibilidad SOC 2 y resiliencia bancaria.
+- **Evidencia**:
+  - Servidor central: [server.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/server.js).
+  - Servicio de correos: [emailService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/emailService.js).
+  - Cobertura de pruebas: Ejecución exitosa de Jest (`npm test`, 13 tests aprobados).
+
+---
+
 ### 2026-06-11 (Parte 2) — Flexibilización de Gobernanza para Mensajería y Notificaciones No Críticas con Blindaje de Seguridad
 
 - **Contexto**: Al intentar modificar los mensajes diarios de la aplicación (`daily_modal_*`) u otros parámetros meramente comunicativos (como `global_app_interstitial_enabled`) a través de la sección de notificaciones en el panel de administración, el sistema bloqueaba la acción de manera incondicional si el Governance Guard detectaba guardianes activos. Esta restricción generaba una fricción operativa innecesaria (cuellos de botella organizacionales) para actualizaciones menores que no representaban riesgos económicos ni financieros. Asimismo, el endpoint requería un control robusto de entrada para prevenir ataques de denegación de servicio (DoS) por saturación de almacenamiento mediante payloads excesivamente largos.

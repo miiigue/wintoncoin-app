@@ -372,10 +372,16 @@ async function startServer() {
         const DEBT_COLLECTOR_INTERVAL_MS = 3 * 60 * 1000; // 3 minutos
         setInterval(async () => {
             console.log('DEBT COLLECTOR: Iniciando ciclo de recolección de deudas vencidas...');
-            const client = await pool.connect();
+            // Declaramos la variable del cliente de base de datos en el ámbito exterior para que sea accesible en try/catch/finally
+            let client;
             try {
+                // Obtenemos la conexión del pool. Si falla la red (EHOSTUNREACH), se captura de forma segura en el catch
+                client = await pool.connect();
+
+                // Iniciamos la transacción SQL de manera segura
                 await client.query('BEGIN');
 
+                // Consultamos si el sistema de deudas está activado en las configuraciones de la aplicación
                 const settingsResult = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'debt_system_enabled'`);
                 const isDebtSystemEnabled = settingsResult.rows[0]?.setting_value === 'true';
 
@@ -426,22 +432,39 @@ async function startServer() {
                     );
                 }
 
+                // Confirmamos la transacción tras procesar correctamente
                 await client.query('COMMIT');
                 console.log('DEBT COLLECTOR: Ciclo de recolección finalizado exitosamente.');
 
             } catch (error) {
-                await client.query('ROLLBACK');
-                console.error('DEBT COLLECTOR: Error crítico durante el ciclo de recolección de deudas.', error);
+                // Solo ejecutamos ROLLBACK si el cliente logró conectarse e iniciar la transacción
+                if (client) {
+                    try {
+                        await client.query('ROLLBACK');
+                    } catch (rollbackError) {
+                        console.error('DEBT COLLECTOR: Error al ejecutar ROLLBACK:', rollbackError.message);
+                    }
+                }
+                // Registramos el error de forma auditable sin tumbar la aplicación
+                console.error('DEBT COLLECTOR: Error crítico durante el ciclo de recolección de deudas.', error.message || error);
             } finally {
-                client.release();
+                // Liberamos el cliente de vuelta al pool si fue instanciado para prevenir fugas de conexiones
+                if (client) {
+                    client.release();
+                }
             }
         }, DEBT_COLLECTOR_INTERVAL_MS);
 
         const TOKEN_RELEASER_INTERVAL_MS = 1 * 60 * 1000; // 1 minuto
         setInterval(async () => {
             console.log('TOKEN RELEASER: Iniciando ciclo de liberación de tokens BLUE...');
-            const client = await pool.connect();
+            // Declaramos la variable del cliente de base de datos en el ámbito exterior para que sea accesible en try/catch/finally
+            let client;
             try {
+                // Obtenemos la conexión del pool. Si falla la red (EHOSTUNREACH), se captura de forma segura en el catch
+                client = await pool.connect();
+
+                // Iniciamos la transacción SQL de manera segura
                 await client.query('BEGIN');
 
                 // 1. Obtener todos los depósitos vencidos y no liberados, agrupados por usuario
@@ -497,14 +520,26 @@ async function startServer() {
                     await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [username, notificationMessage]);
                 }
 
+                // Confirmamos la transacción tras procesar correctamente
                 await client.query('COMMIT');
                 console.log('TOKEN RELEASER: Ciclo de liberación finalizado exitosamente.');
 
             } catch (error) {
-                await client.query('ROLLBACK');
-                console.error('TOKEN RELEASER: Error crítico durante el ciclo de liberación de tokens.', error);
+                // Solo ejecutamos ROLLBACK si el cliente logró conectarse e iniciar la transacción
+                if (client) {
+                    try {
+                        await client.query('ROLLBACK');
+                    } catch (rollbackError) {
+                        console.error('TOKEN RELEASER: Error al ejecutar ROLLBACK:', rollbackError.message);
+                    }
+                }
+                // Registramos el error de forma auditable sin tumbar la aplicación
+                console.error('TOKEN RELEASER: Error crítico durante el ciclo de liberación de tokens.', error.message || error);
             } finally {
-                client.release();
+                // Liberamos el cliente de vuelta al pool si fue instanciado para prevenir fugas de conexiones
+                if (client) {
+                    client.release();
+                }
             }
         }, TOKEN_RELEASER_INTERVAL_MS);
 
@@ -851,15 +886,19 @@ async function executeBoosterPayments() {
     }
 
     console.log('BOOSTER PAYMENTS: Iniciando ciclo de pagos a impulsores...');
-    const client = await pool.connect();
+    // Declaramos la variable del cliente de base de datos en el ámbito exterior para que sea accesible en try/catch/finally
+    let client;
     try {
+        // Obtenemos la conexión del pool. Si falla la red (EHOSTUNREACH), se captura de forma segura en el catch
+        client = await pool.connect();
+
+        // Iniciamos la transacción SQL de manera segura
         await client.query('BEGIN');
 
         const settingsResult = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'booster_system_enabled'`);
         if (settingsResult.rows[0]?.setting_value !== 'true') {
             console.log('BOOSTER PAYMENTS: El sistema de impulsores está desactivado. Saltando ciclo.');
             await client.query('ROLLBACK');
-            client.release();
             return;
         }
 
@@ -872,7 +911,6 @@ async function executeBoosterPayments() {
         if (lastPaymentResult.rowCount > 0) {
             console.log(`BOOSTER PAYMENTS: El pago para ${paymentMonthString} ya fue realizado. Saltando ciclo.`);
             await client.query('ROLLBACK');
-            client.release();
             return;
         }
 
@@ -886,7 +924,6 @@ async function executeBoosterPayments() {
         if (fundsAvailable <= 0) {
             console.log(`BOOSTER PAYMENTS: No hay fondos de comisiones disponibles para el mes ${paymentMonthString}.`);
             await client.query('ROLLBACK');
-            client.release();
             return;
         }
 
@@ -941,14 +978,26 @@ async function executeBoosterPayments() {
             fundsAvailable -= totalDebtForLevel * paymentPercentage;
         }
 
+        // Confirmamos la transacción tras procesar correctamente
         await client.query('COMMIT');
         console.log('BOOSTER PAYMENTS: Ciclo de pagos finalizado exitosamente.');
 
     } catch (error) {
-        await client.query('ROLLBACK');
-        console.error('BOOSTER PAYMENTS: Error crítico durante el ciclo de pagos a impulsores.', error);
+        // Solo ejecutamos ROLLBACK si el cliente logró conectarse e iniciar la transacción
+        if (client) {
+            try {
+                await client.query('ROLLBACK');
+            } catch (rollbackError) {
+                console.error('BOOSTER PAYMENTS: Error al ejecutar ROLLBACK:', rollbackError.message);
+            }
+        }
+        // Registramos el error de forma auditable sin tumbar la aplicación
+        console.error('BOOSTER PAYMENTS: Error crítico durante el ciclo de pagos a impulsores.', error.message || error);
     } finally {
-        if (client) client.release();
+        // Liberamos el cliente de vuelta al pool si fue instanciado para prevenir fugas de conexiones
+        if (client) {
+            client.release();
+        }
     }
 }
 

@@ -470,9 +470,13 @@ async function sendAnnouncementEmail({ toEmail, subject, title, bodyHtml, button
  */
 async function processPendingBroadcasts(pool) {
   const BATCH_SIZE = 20; // Enviar de 20 en 20 para mayor velocidad sin saturar SES (sandbox)
-  const client = await pool.connect();
+  // Declaramos la variable del cliente en el ámbito superior para que sea accesible en try/catch/finally
+  let client;
 
   try {
+    // Obtenemos la conexión de base de datos de manera protegida ante fallas de red
+    client = await pool.connect();
+
     // 1. Buscar el primer broadcast que esté en progreso o pendiente
     const broadcastResult = await client.query(
       `SELECT id, subject, title, body, button_text, button_url FROM email_broadcasts 
@@ -546,9 +550,12 @@ async function processPendingBroadcasts(pool) {
     }
 
   } catch (error) {
-    console.error("Error crítico en processPendingBroadcasts:", error);
+    console.error("Error crítico en processPendingBroadcasts:", error.message || error);
   } finally {
-    client.release();
+    // Liberamos el cliente si se instanció correctamente, previniendo leaks de conexiones
+    if (client) {
+      client.release();
+    }
   }
 }
 
