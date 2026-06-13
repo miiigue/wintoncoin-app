@@ -474,6 +474,7 @@ async function applyMigrations(client) {
             user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             amount NUMERIC(19, 4) NOT NULL,
             source_publication_id INTEGER REFERENCES publications(id) ON DELETE SET NULL,
+            type VARCHAR(50) NOT NULL DEFAULT 'legacy_entry',
             created_at TIMESTAMPTZ DEFAULT NOW()
         );`,
             `CREATE TABLE IF NOT EXISTS booster_payment_log (
@@ -1208,8 +1209,10 @@ async function initializeDatabase() {
             LANGUAGE plpgsql
             AS $$
             BEGIN
-                INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id)
-                VALUES (p_user_id, p_amount, p_publication_id);
+                -- Modificado para insertar el parámetro p_type de forma nativa en la columna type
+                -- garantizando auditabilidad profunda y rastreo en el ledger.
+                INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id, type)
+                VALUES (p_user_id, p_amount, p_publication_id, p_type);
             END;
             $$;
         `);

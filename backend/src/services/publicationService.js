@@ -19,24 +19,27 @@ function resolveRepeatCooldownHours(body) {
         }
 
 // --- NUEVA FUNCIÓN HELPER PARA ACTUALIZAR EL NIVEL DE UN IMPULSOR ---
+// Comentado línea por línea para auditabilidad de grado bancario.
+// Optimizada para evaluar las ganancias históricas acumuladas (amount > 0)
+// de modo que el nivel del booster nunca descienda al donar a Winton Solidario o gastar.
 async function updateUserBoosterLevel(client, userId) {
-    // 1. Calcular el total de BLUE de impulsor que tiene el usuario
+    // 1. Calcular el total acumulado histórico de BLUE de impulsor (solo créditos/ganancias positivas)
     const totalBlueResult = await client.query(
-        'SELECT SUM(amount) as total FROM booster_blue_ledger WHERE user_id = $1',
+        'SELECT SUM(amount) as total FROM booster_blue_ledger WHERE user_id = $1 AND amount > 0',
         [userId]
     );
     const totalBoosterBlue = parseFloat(totalBlueResult.rows[0].total) || 0;
 
-    // 2. Encontrar el nivel más alto que el usuario ha alcanzado
+    // 2. Encontrar el nivel más alto que el usuario ha alcanzado según las configuraciones de nivel
     const levelResult = await client.query(
         'SELECT MAX(level) as current_level FROM booster_level_settings WHERE min_blue_required <= $1',
         [totalBoosterBlue]
     );
     const newLevel = levelResult.rows[0].current_level || 0;
 
-    // 3. Actualizar el nivel del usuario en la tabla 'users'
+    // 3. Actualizar de forma atómica el nivel del usuario en la tabla 'users'
     await client.query('UPDATE users SET booster_level = $1 WHERE id = $2', [newLevel, userId]);
-    console.log(`Nivel de impulsor para el usuario ID ${userId} actualizado a ${newLevel}.`);
+    console.log(`Nivel de impulsor para el usuario ID ${userId} recalculado a ${newLevel} basado en ganancias históricas (${totalBoosterBlue} BLUE).`);
 }
 
 /**

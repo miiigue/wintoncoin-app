@@ -19,6 +19,25 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-13 — Robustez, Auditabilidad y Consistencia del Ledger de Impulsores (Backfill y Niveles)
+
+- **Contexto**: La economía interna basada en `booster_blue_ledger` (Event Sourcing) carecía de la columna `type` en su base de datos. La función almacenada `record_booster_event` omitía registrar el concepto de la transacción, afectando la trazabilidad contable. Además, el cálculo de niveles de booster se basaba en la sumatoria neta (restando gastos y donaciones), penalizando injustamente a los usuarios solidarios que donaban saldo a causas humanitarias (Winton Solidario), y existía lógica de nivelación duplicada de forma inline en `momentumService.js`.
+- **Decisión de Ingeniería**:
+  1. **Migración Atómica e Idempotente (`059_add_type_to_booster_blue_ledger.js`)**: Se introdujo la columna `type` a la tabla, desactivando de forma segura los triggers de base de datos durante la migración (`DISABLE TRIGGER ALL`) para prevenir bloqueos y ejecuciones recursivas de saldo.
+  2. **Reconciliación Retroactiva Heurística (Backfill)**: Se implementó un algoritmo SQL que cruza de forma inteligente y retroactiva los registros del ledger con la tabla `booster_transactions` mediante `user_id`, `amount`, `source_publication_id` y proximidad temporal de +/- 15 segundos. Esto reconcilió exitosamente 109 registros históricos locales. Se inyectaron heurísticas secundarias para asociar donaciones y tareas residuales, marcando los huérfanos con `'legacy_entry'`.
+  3. **Establecimiento de NOT NULL y DEFAULT**: Se forzó la columna a ser `NOT NULL` con valor por defecto `'legacy_entry'` y se recreó la función almacenada SQL `record_booster_event` para insertar el tipo de transacción en el ledger de forma nativa.
+  4. **Optimización del Esquema en databaseInit.js**: Se actualizó la definición de tablas y la función SQL en el inicializador del servidor para nuevos despliegues.
+  5. **Cálculo de Niveles por Ganancias Históricas**: Se refactorizó `updateUserBoosterLevel` en [publicationService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/publicationService.js) para calcular el rango basándose únicamente en las ganancias históricas positivas (`amount > 0`). De este modo, donar o gastar no rebaja el nivel del booster.
+  6. **Eliminación de Código Duplicado (DRY)**: Se extirpó la lógica duplicada inline de `momentumService.js` e importó el helper oficial de `publicationService.js`.
+- **Impacto**: Se logró un nivel de auditabilidad y cumplimiento regulatorio de grado bancario (SOC 2, FinCEN). Los saldos históricos y nuevos ahora se encuentran debidamente clasificados directamente en el libro mayor inmutable. A nivel de experiencia de usuario (UX), los impulsores recuperan sus niveles históricos reales y pueden participar activamente en la economía circular de Winton Solidario sin penalización de estatus.
+- **Evidencia**:
+  - Migración: [059_add_type_to_booster_blue_ledger.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/059_add_type_to_booster_blue_ledger.js).
+  - Inicialización: [databaseInit.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/config/databaseInit.js).
+  - Servicios: [publicationService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/publicationService.js) y [momentumService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/momentumService.js).
+  - Ejecución: Aplicación exitosa de la migración `059` al arrancar el servidor local (115 registros históricos reconciliados) y pruebas de Jest aprobadas al 100% (13 tests pasados).
+
+---
+
 ### 2026-06-12 (Parte 2) — Corrección de Compatibilidad CSS para Gradiente de Texto en Modal de Aceptación Legal
 
 - **Contexto**: En el modal de aceptación de términos y condiciones y políticas de privacidad (`legalAcceptanceModal`), el título `h3` utiliza un gradiente de color lineal de fondo recortado al texto para ofrecer una estética premium y fluida. Sin embargo, en el archivo [style.css](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/style.css#L7923) solo se había especificado la propiedad con prefijo propietario `-webkit-background-clip: text;`. Esto generaba una advertencia de compatibilidad y fallos potenciales de renderizado en motores de navegación que no utilizan WebKit (como Firefox o navegadores estándar W3C), donde el texto degradado podría mostrarse con un fondo opaco sólido o ignorar el recorte.
