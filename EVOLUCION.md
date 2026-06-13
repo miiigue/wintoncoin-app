@@ -29,11 +29,13 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   4. **Optimización del Esquema en databaseInit.js**: Se actualizó la definición de tablas y la función SQL en el inicializador del servidor para nuevos despliegues.
   5. **Cálculo de Niveles por Ganancias Históricas**: Se refactorizó `updateUserBoosterLevel` en [publicationService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/publicationService.js) para calcular el rango basándose únicamente en las ganancias históricas positivas (`amount > 0`). De este modo, donar o gastar no rebaja el nivel del booster.
   6. **Eliminación de Código Duplicado (DRY)**: Se extirpó la lógica duplicada inline de `momentumService.js` e importó el helper oficial de `publicationService.js`.
+  7. **Recálculo de Niveles en Caliente del Perfil de Impulsor**: Se optimizaron las funciones `getMyBoosterProfile` y `getUserBoosterProfile` en [userController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/userController.js) para calcular dinámicamente el nivel de booster utilizando las ganancias históricas acumuladas (`amount > 0`) en lugar del saldo neto disponible. Esto resolvió la inconsistencia donde el nivel del usuario bajaba en la interfaz al donar o gastar saldo.
 - **Impacto**: Se logró un nivel de auditabilidad y cumplimiento regulatorio de grado bancario (SOC 2, FinCEN). Los saldos históricos y nuevos ahora se encuentran debidamente clasificados directamente en el libro mayor inmutable. A nivel de experiencia de usuario (UX), los impulsores recuperan sus niveles históricos reales y pueden participar activamente en la economía circular de Winton Solidario sin penalización de estatus.
 - **Evidencia**:
   - Migración: [059_add_type_to_booster_blue_ledger.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/059_add_type_to_booster_blue_ledger.js).
   - Inicialización: [databaseInit.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/config/databaseInit.js).
   - Servicios: [publicationService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/publicationService.js) y [momentumService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/momentumService.js).
+  - Controlador: [userController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/userController.js).
   - Ejecución: Aplicación exitosa de la migración `059` al arrancar el servidor local (115 registros históricos reconciliados) y pruebas de Jest aprobadas al 100% (13 tests pasados).
 
 ---
