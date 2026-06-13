@@ -504,7 +504,7 @@ const UserController = {
         // [Rendimiento] Adquirir un cliente específico del pool de conexiones para transacciones concurrentes
         const client = await pool.connect();
         try {
-            // [Auditoría / Integridad] Sumatoria histórica consolidada del saldo BLUE IOU directamente de la fuente de verdad (Ledger)
+            // [Auditoría / Integridad] Sumatoria neta disponible para transacciones (compras/donaciones)
             const totalResult = await client.query(
                 'SELECT COALESCE(SUM(amount), 0) AS total FROM booster_blue_ledger WHERE user_id = $1',
                 [userId]
@@ -512,8 +512,15 @@ const UserController = {
             // Convertir el resultado a número flotante para consistencia de operaciones matemáticas
             const totalBoosterBlue = parseFloat(totalResult.rows[0].total) || 0;
 
-            // [Lógica de Negocio] Validar si el usuario forma parte activa del programa de impulsores
-            if (totalBoosterBlue <= 0) {
+            // [Auditoría] Sumatoria de ganancias acumuladas históricas (amount > 0) para cálculo de niveles y membresía de booster
+            const totalEarnedResult = await client.query(
+                'SELECT COALESCE(SUM(amount), 0) AS total_earned FROM booster_blue_ledger WHERE user_id = $1 AND amount > 0',
+                [userId]
+            );
+            const totalBoosterBlueEarned = parseFloat(totalEarnedResult.rows[0].total_earned) || 0;
+
+            // [Lógica de Negocio] Validar si el usuario forma parte activa basándose en sus ganancias históricas
+            if (totalBoosterBlueEarned <= 0) {
                 return res.json({
                     is_booster: false,
                     message: 'Aún no formas parte del programa de impulsores.'
@@ -563,10 +570,10 @@ const UserController = {
                 ),
                 // B) Configuración global de todos los niveles del sistema
                 client.query('SELECT * FROM booster_level_settings ORDER BY level ASC'),
-                // C) Calcular el nivel actual del usuario basado en el total acumulado de BLUE iou
+                // C) Calcular el nivel actual del usuario basado en el total acumulado de BLUE iou histórico (ganancias)
                 client.query(
                     'SELECT MAX(level) AS current_level FROM booster_level_settings WHERE min_blue_required <= $1',
-                    [totalBoosterBlue]
+                    [totalBoosterBlueEarned]
                 ),
                 // D) Contar la cantidad de tareas individuales completadas por el impulsor
                 client.query(
@@ -775,13 +782,21 @@ const UserController = {
 
             const user = userResult.rows[0];
 
+            // Sumatoria neta disponible para transacciones
             const totalResult = await client.query(
                 'SELECT COALESCE(SUM(amount), 0) AS total FROM booster_blue_ledger WHERE user_id = $1',
                 [user.id]
             );
             const totalBoosterBlue = parseFloat(totalResult.rows[0].total) || 0;
 
-            if (totalBoosterBlue <= 0) {
+            // Sumatoria de ganancias acumuladas históricas (amount > 0) para niveles y membresía de booster
+            const totalEarnedResult = await client.query(
+                'SELECT COALESCE(SUM(amount), 0) AS total_earned FROM booster_blue_ledger WHERE user_id = $1 AND amount > 0',
+                [user.id]
+            );
+            const totalBoosterBlueEarned = parseFloat(totalEarnedResult.rows[0].total_earned) || 0;
+
+            if (totalBoosterBlueEarned <= 0) {
                 return res.json({
                     is_booster: false,
                     message: 'Este usuario aún no forma parte del programa de impulsores.'
@@ -830,7 +845,7 @@ const UserController = {
                 client.query('SELECT * FROM booster_level_settings ORDER BY level ASC'),
                 client.query(
                     'SELECT MAX(level) AS current_level FROM booster_level_settings WHERE min_blue_required <= $1',
-                    [totalBoosterBlue]
+                    [totalBoosterBlueEarned]
                 ),
                 client.query(
                     `SELECT COUNT(*) AS tasks_completed
