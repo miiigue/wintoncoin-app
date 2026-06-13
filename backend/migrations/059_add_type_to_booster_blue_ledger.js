@@ -26,13 +26,10 @@ exports.up = async (client) => {
         ADD COLUMN IF NOT EXISTS type VARCHAR(50);
     `);
 
-    // 2. Desactivar todos los triggers de la tabla por seguridad.
-    // Esto asegura que si existe alguna validación heredada en la base de datos local o de producción,
-    // no bloquee la actualización administrativa de datos históricos ni dispare correcciones de saldo recursivas.
-    console.log('[MIGRATION 059] Seguridad: Desactivando triggers en booster_blue_ledger...');
-    await client.query(`
-        ALTER TABLE booster_blue_ledger DISABLE TRIGGER ALL;
-    `);
+    // Nota: Omitimos la desactivación global de triggers (DISABLE TRIGGER ALL) porque requiere
+    // privilegios de superusuario y falla en bases de datos en la nube administradas (como Render PostgreSQL)
+    // al intentar desactivar triggers del sistema que controlan claves foráneas (RI_ConstraintTrigger).
+    // Dado que booster_blue_ledger no posee triggers de usuario creados por nosotros, es seguro continuar sin desactivarlos.
 
     try {
         // 3. PASO DE RECONCILIACIÓN 1: Cruzar con booster_transactions mediante coincidencia de parámetros y fecha aproximada (15 segundos).
@@ -94,12 +91,7 @@ exports.up = async (client) => {
         console.log(`[MIGRATION 059] Reconciliación 4 completada (Residuales). Registros marcados: ${legacyResult.rowCount}`);
 
     } finally {
-        // 7. Reactivar triggers inmediatamente después de terminar el proceso de actualización.
-        // Esto se ejecuta siempre en el bloque finally para evitar que la tabla quede desprotegida ante excepciones.
-        console.log('[MIGRATION 059] Seguridad: Reactivando triggers en booster_blue_ledger...');
-        await client.query(`
-            ALTER TABLE booster_blue_ledger ENABLE TRIGGER ALL;
-        `);
+        // No se requirió habilitar triggers en este bloque debido a la compatibilidad con base de datos en la nube.
     }
 
     // 8. Endurecer el esquema aplicando las restricciones NOT NULL y el DEFAULT contable para futuras inserciones.
