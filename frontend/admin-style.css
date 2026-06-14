@@ -148,7 +148,8 @@
 /* --- Estilos para el Dashboard --- */
 .stats-container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    /* Incrementamos el ancho mínimo a 270px para dar más espacio horizontal a números largos de forma segura */
+    grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
     gap: 1.5rem;
     margin-top: 2rem;
 }
@@ -158,6 +159,16 @@
     padding: 1.5rem;
     border-radius: 12px;
     border: 1px solid var(--admin-border);
+    /* Habilitamos container queries para que los elementos hijos puedan responder al ancho físico de la tarjeta */
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 140px;
+    box-sizing: border-box;
+    /* Previene desbordamiento lateral de cualquier texto secundario */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .stat-card h4 {
@@ -168,9 +179,30 @@
 }
 
 .stat-card .stat-value {
-    font-size: 2.5rem;
+    /* Escala la fuente dinámicamente entre 1.4rem y 2.2rem según el ancho del contenedor de la tarjeta */
+    font-size: clamp(1.4rem, 11cqi, 2.2rem);
     font-weight: 600;
     color: var(--admin-text);
+    line-height: 1.1;
+    letter-spacing: -0.5px;
+    /* Control total de desbordamiento para números y hashes excepcionalmente largos */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-all;
+}
+
+/* --- Tarjetas Interactivas con Feedback Visual Premium --- */
+.interactive-card {
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
+                box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), 
+                border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.interactive-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+    border-color: var(--admin-primary) !important;
 }
 
 /* --- Estilos para los Interruptores de Configuración --- */

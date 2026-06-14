@@ -100,18 +100,49 @@ document.addEventListener('DOMContentLoaded', async () => {
         'blue_escrow_hours': 'Depósito BLUE (Escrow) — Horas',
         'blue_escrow_minutes': 'Depósito BLUE (Escrow) — Minutos',
         'platform_commission_percentage': 'Comisión de Plataforma (%)',
+        
+        // --- SISTEMA DE IMPULSORES (BOOSTERS) ---
+        // Activa el módulo y pagos de impulsores.
         'booster_system_enabled': 'Sistema de Impulsores',
+        // Habilita cobros periódicos dinámicos.
+        'booster_custom_frequency_enabled': 'Impulsores — Activar Intervalo de Pago Personalizado (Switch)',
+        // Campos de intervalo dinámico para pagos.
+        'booster_payment_frequency_days': 'Impulsores — Intervalo de Pago Personalizado (Días)',
+        'booster_payment_frequency_hours': 'Impulsores — Intervalo de Pago Personalizado (Horas)',
+        'booster_payment_frequency_minutes': 'Impulsores — Intervalo de Pago Personalizado (Minutos)',
+        
+        // --- SISTEMA DE REFERIDOS (REFERRALS) ---
         'referral_system_enabled': 'Sistema de Referidos',
         'referral_reward_amount': 'Recompensa por Referido (BLUE)',
         'referral_reward_after_expiry': 'Recompensa después de la Promo (BLUE)',
         'referral_codes_expiry_date': 'Vigencia de Códigos de Referido',
+        // Variables legacy (retrocompatibilidad)
+        'referral_bonus_amount': 'Recompensa por Referido Legacy (Monto BLUE)',
+        'referral_bonus_enabled': 'Recompensa por Referido Legacy (Switch Habilitado)',
+        
+        // --- BONO DE BIENVENIDA (WELCOME BONUS) ---
         'welcome_bonus_enabled': 'Bono de Bienvenida',
         'welcome_bonus_amount': 'Monto del Bono de Bienvenida (BLUE)',
+        
+        // --- MODAL DIARIO INTERSTICIAL & MODO PRE-LANZAMIENTO ---
+        'global_app_interstitial_enabled': 'General — Activar Modal Diario Intersticial',
+        'daily_modal_title': 'Modal Diario — Título Informativo',
+        'daily_modal_mon': 'Modal Diario — Mensaje de Lunes',
+        'daily_modal_tue': 'Modal Diario — Mensaje de Martes',
+        'daily_modal_wed': 'Modal Diario — Mensaje de Miércoles',
+        'daily_modal_thu': 'Modal Diario — Mensaje de Jueves',
+        'daily_modal_fri': 'Modal Diario — Mensaje de Viernes',
+        'daily_modal_sat': 'Modal Diario — Mensaje de Sábado',
+        'daily_modal_sun': 'Modal Diario — Mensaje de Domingo',
         'pre_launch_mode_enabled': 'Modo Pre-Lanzamiento',
+        
+        // --- PUBLICACIONES & TIPOS ---
         'allow_request_publications': 'Permitir Publicaciones de "Solicitud"',
         'allow_sell_publications': 'Permitir Publicaciones de "Venta"',
         'allow_donation_publications': 'Permitir Publicaciones de "Donación"',
         'allow_quick_sale_publications': 'Permitir Publicaciones de "Venta Rápida"',
+        
+        // --- P2P MODULE CONFIG ---
         'p2p_enabled': 'P2P — Habilitado',
         'p2p_price_min': 'P2P — Precio Mínimo (USD)',
         'p2p_price_max': 'P2P — Precio Máximo (USD)',
@@ -120,6 +151,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         'p2p_extension_minutes': 'P2P — Extensión (min)',
         'p2p_extension_limit': 'P2P — Límite de Extensiones',
         'p2p_cash_min_rating': 'P2P — Reputación Mínima para Efectivo',
+
+        // --- GOBERNANZA (WINTON-CONSENSUS) ---
+        'gov_quorum_percentage': 'Gobernanza — Quórum Requerido (%)',
+        'gov_timelock_hours': 'Gobernanza — Time-Lock (horas)',
+        'gov_request_expiry_hours': 'Gobernanza — Expiración de Solicitud (horas)',
+        'gov_reminder_threshold_hours': 'Gobernanza — Umbral de Recordatorio (horas)',
+        'gov_reminder_cooldown_hours': 'Gobernanza — Enfriamiento entre Recordatorios (horas)',
+        'gov_vote_reward_blue': 'Gobernanza — Recompensa por Voto (BLUE IOU)',
+
+        // --- MOTOR DE SCORING CONDUCTUAL (WTS) ---
+        'red_credit_base_limit': 'Scoring — Límite Base RED (Nuevos Usuarios)',
+        'red_credit_culture_quiz': 'Scoring — Bono por Cuestionario de Cultura (RED)',
+        'red_credit_referral': 'Scoring — Bono por Referido Activo (RED)',
+        'red_credit_monthly_activity': 'Scoring — Bono por Alta Actividad Mensual (>20) (RED)',
+        'red_credit_early_payment': 'Scoring — Bono por Pago Anticipado de Deuda (<5 días) (RED)',
+
+        // --- SMART CONTRACTS WEB3 (OPTIMISM SEPOLIA) ---
+        'web3_protocol_paused': 'Web3 — Protocolo Pausado (Emergencia)',
+        'web3_max_transaction_amount': 'Web3 — Límite Máximo por Transacción (BLUE)',
+        'web3_founders_wallet': 'Web3 — Billetera de Fundadores (Treasury)',
+        'web3_treasury_withdrawal': 'Web3 — Retiro de Excedentes del Treasury (BLUE)',
     };
     function settingLabel(key) { return SETTINGS_DISPLAY_MAP[key] || key; }
 

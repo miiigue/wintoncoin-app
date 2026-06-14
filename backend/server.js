@@ -27,6 +27,7 @@ const solidarioRoutes = require('./src/routes/solidarioRoutes');
 const recruitmentRoutes = require('./src/routes/recruitmentRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const createTransactionRouter = require('./src/routes/transactionRoutes');
+const { executeBoosterPayments } = require('./src/services/boosterService');
 
 // --- NUEVO: Gestión profesional de la clave secreta de JWT ---
 // Buscamos la clave secreta en las variables de entorno.
@@ -543,8 +544,8 @@ async function startServer() {
             }
         }, TOKEN_RELEASER_INTERVAL_MS);
 
-        // --- PROCESO MENSUAL DE PAGO A IMPULSORES ---
-        const BOOSTER_PAYMENT_INTERVAL_MS = 24 * 60 * 60 * 1000; // Revisar cada 24 horas
+        // --- PROCESO PERIÓDICO DE PAGO A IMPULSORES ---
+        const BOOSTER_PAYMENT_INTERVAL_MS = 60 * 1000; // Revisar cada 1 minuto (soporta intervalos personalizados)
         setInterval(async () => {
             await executeBoosterPayments();
         }, BOOSTER_PAYMENT_INTERVAL_MS);
@@ -874,132 +875,9 @@ module.exports = { app, pool };
 
 
 
-// --- NUEVA LÓGICA DE PAGOS A IMPULSORES ---
-// Esta función maneja los pagos mensuales a impulsores, priorizando niveles bajos primero como beneficio
-// (usuarios con menos acumulado reciben pagos antes para incentivar participación temprana).
-async function executeBoosterPayments() {
-    const today = new Date();
-    // El proceso se ejecuta el primer día de cada mes.
-    if (today.getDate() !== 1) {
-        // console.log('BOOSTER PAYMENTS: No es el primer día del mes, saltando ciclo.');
-        return;
-    }
-
-    console.log('BOOSTER PAYMENTS: Iniciando ciclo de pagos a impulsores...');
-    // Declaramos la variable del cliente de base de datos en el ámbito exterior para que sea accesible en try/catch/finally
-    let client;
-    try {
-        // Obtenemos la conexión del pool. Si falla la red (EHOSTUNREACH), se captura de forma segura en el catch
-        client = await pool.connect();
-
-        // Iniciamos la transacción SQL de manera segura
-        await client.query('BEGIN');
-
-        const settingsResult = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'booster_system_enabled'`);
-        if (settingsResult.rows[0]?.setting_value !== 'true') {
-            console.log('BOOSTER PAYMENTS: El sistema de impulsores está desactivado. Saltando ciclo.');
-            await client.query('ROLLBACK');
-            return;
-        }
-
-        // Determinar el mes de pago (el mes anterior)
-        const paymentMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        const paymentMonthString = `${paymentMonth.getFullYear()}-${(paymentMonth.getMonth() + 1).toString().padStart(2, '0')}`;
-
-        // Verificar si ya se realizó el pago para este mes
-        const lastPaymentResult = await client.query(`SELECT 1 FROM booster_payment_log WHERE to_char(payment_month, 'YYYY-MM') = $1 LIMIT 1`, [paymentMonthString]);
-        if (lastPaymentResult.rowCount > 0) {
-            console.log(`BOOSTER PAYMENTS: El pago para ${paymentMonthString} ya fue realizado. Saltando ciclo.`);
-            await client.query('ROLLBACK');
-            return;
-        }
-
-        // 1. Calcular las comisiones totales del mes anterior
-        const commissionResult = await client.query(
-            `SELECT SUM(commission_amount_blue) as total FROM platform_commission_log WHERE to_char(created_at, 'YYYY-MM') = $1`,
-            [paymentMonthString]
-        );
-        let fundsAvailable = parseFloat(commissionResult.rows[0].total) || 0;
-
-        if (fundsAvailable <= 0) {
-            console.log(`BOOSTER PAYMENTS: No hay fondos de comisiones disponibles para el mes ${paymentMonthString}.`);
-            await client.query('ROLLBACK');
-            return;
-        }
-
-        console.log(`BOOSTER PAYMENTS: Fondos disponibles para ${paymentMonthString}: ${fundsAvailable.toFixed(4)} BLUE.`);
-
-        // 2. Obtener todos los niveles y todos los impulsores
-        const levelsResult = await client.query('SELECT * FROM booster_level_settings ORDER BY level ASC');
-        const boostersResult = await client.query(`
-            SELECT u.id, u.username, u.booster_level, 
-                   (SELECT SUM(amount) FROM booster_blue_ledger WHERE user_id = u.id) as total_booster_blue
-            FROM users u WHERE u.is_booster = TRUE
-        `);
-
-        // 3. Iterar por cada nivel en orden de prioridad (bajos primero)
-        // Esto beneficia a niveles inferiores: se pagan completos si hay fondos, antes de pasar a superiores.
-        for (const level of levelsResult.rows) {
-            if (fundsAvailable <= 0) break;
-
-            const boostersInLevel = boostersResult.rows.filter(b => b.booster_level === level.level);
-            if (boostersInLevel.length === 0) continue;
-
-            const totalDebtForLevel = boostersInLevel.reduce((sum, b) => sum + parseFloat(b.total_booster_blue), 0);
-            if (totalDebtForLevel <= 0) continue;
-
-            console.log(`BOOSTER PAYMENTS: Procesando Nivel ${level.level}. Deuda total: ${totalDebtForLevel.toFixed(4)}. Fondos restantes: ${fundsAvailable.toFixed(4)}.`);
-
-            const paymentPercentage = Math.min(1.0, fundsAvailable / totalDebtForLevel);
-
-            // 4. Pagar a cada impulsor en el nivel
-            for (const booster of boostersInLevel) {
-                const amountToPay = parseFloat(booster.total_booster_blue) * paymentPercentage;
-                if (amountToPay > 0) {
-                    // Pagar al saldo de escrow del usuario usando Event Sourcing (FIX: Evitar bloqueo de trigger)
-                    await client.query("SELECT record_balance_event($1, 'deposit', 'escrow_blue', $2, NULL)", [booster.id, amountToPay]);
-
-                    // Registrar la transacción de pago
-                    const paymentDescription = `Recompensa de Impulsor (Nivel ${level.level}) para el mes de ${paymentMonth.toLocaleString('es', { month: 'long', year: 'numeric' })}`;
-                    await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'booster_reward', $2, $3)`, [booster.id, paymentDescription, amountToPay]);
-
-                    // Registrar en el log de pagos de impulsores
-                    await client.query(
-                        `INSERT INTO booster_payment_log (user_id, amount_paid, payment_month, booster_level_at_payment) VALUES ($1, $2, $3, $4)`,
-                        [booster.id, amountToPay, paymentMonth, level.level]
-                    );
-
-                    // Notificar al usuario
-                    const notificationMsg = `¡Felicidades! Has recibido ${amountToPay.toFixed(4)} BLUE (en depósito) como recompensa de Impulsor.`;
-                    await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [booster.username, notificationMsg]);
-                }
-            }
-
-            fundsAvailable -= totalDebtForLevel * paymentPercentage;
-        }
-
-        // Confirmamos la transacción tras procesar correctamente
-        await client.query('COMMIT');
-        console.log('BOOSTER PAYMENTS: Ciclo de pagos finalizado exitosamente.');
-
-    } catch (error) {
-        // Solo ejecutamos ROLLBACK si el cliente logró conectarse e iniciar la transacción
-        if (client) {
-            try {
-                await client.query('ROLLBACK');
-            } catch (rollbackError) {
-                console.error('BOOSTER PAYMENTS: Error al ejecutar ROLLBACK:', rollbackError.message);
-            }
-        }
-        // Registramos el error de forma auditable sin tumbar la aplicación
-        console.error('BOOSTER PAYMENTS: Error crítico durante el ciclo de pagos a impulsores.', error.message || error);
-    } finally {
-        // Liberamos el cliente de vuelta al pool si fue instanciado para prevenir fugas de conexiones
-        if (client) {
-            client.release();
-        }
-    }
-}
+// --- LÓGICA DE PAGOS A IMPULSORES ---
+// La lógica y el scheduler de pagos a impulsores han sido modularizados en src/services/boosterService.js
+// para soportar configuraciones dinámicas de intervalos de tiempo y mantener server.js limpio.
 
 
 

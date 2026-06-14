@@ -1,41 +1,254 @@
 /**
- * Servicio de Gestión de Boosters y Multiplicadores
- * ══════════════════════════════════════════════════════════════════════════
- * Centraliza la lógica económica del protocolo de compensación de
- * pre-lanzamiento de WintonCoin.
- *
- * Responsabilidades:
- *   1. Calcular el monto multiplicado para una fecha dada
- *   2. Gestionar las etapas de configuración (CRUD)
- *   3. Validar la integridad temporal (no solapamiento de fechas)
- *
- * Diseño:
- *   - Módulo Singleton: exporta una instancia única
- *   - Queries parametrizadas: prevención de SQL Injection
- *   - Fallback seguro: si no hay etapa activa, multiplier = 1.0
- *   - Reutilizable: diseñado para ser invocado desde cualquier servicio
- *     que necesite aplicar multiplicadores (gobernanza, referidos, etc.)
- * ══════════════════════════════════════════════════════════════════════════
+ * backend/src/services/boosterService.js
+ * 
+ * PROPÓSITO: Servicio modular para el control de la economía de impulsores (Boosters).
+ * Encapsula la lógica del ciclo de pagos, con soporte tanto para el cobro mensual clásico
+ * como para frecuencias personalizadas basadas en intervalos de tiempo (días, horas, minutos).
+ * 
+ * METODOLOGÍA DE INGENIERÍA: Transacciones atómicas, Append-Only Ledger, Inmutabilidad,
+ * Prevención de Nan, Control AML/KYC y Trazabilidad de Auditoría Bancaria.
  */
 
 'use strict';
 
 const pool = require('../config/db');
+const { logAuditEvent } = require('./auditService');
 
-// ─── Constantes de seguridad ─────────────────────────────────────────────
 // Límite superior de multiplicador como guardrail económico.
 // Previene errores humanos (ej: poner 99999 en vez de 9).
-// Ajustable según decisión de gobernanza del proyecto.
 const MAX_MULTIPLIER = 100;
 
 /**
+ * Ejecuta el ciclo de distribución de pagos de impulsores.
+ * Evalúa los parámetros de configuración y determina si corresponde realizar la distribución.
+ */
+async function executeBoosterPayments() {
+    let client;
+    try {
+        client = await pool.connect();
+        
+        // Iniciamos una transacción atómica para asegurar que todo el ciclo se aplique o se revierta por completo
+        await client.query('BEGIN');
+
+        // 1. Obtener los settings del sistema relacionados con impulsores
+        const settingsResult = await client.query(`
+            SELECT setting_key, setting_value FROM app_settings 
+            WHERE setting_key IN (
+                'booster_system_enabled', 
+                'booster_custom_frequency_enabled', 
+                'booster_payment_frequency_days', 
+                'booster_payment_frequency_hours', 
+                'booster_payment_frequency_minutes'
+            )
+        `);
+        
+        const settings = {};
+        settingsResult.rows.forEach(row => {
+            settings[row.setting_key] = row.setting_value;
+        });
+
+        // Si el sistema general de impulsores está desactivado, detenemos el flujo de inmediato
+        if (settings.booster_system_enabled !== 'true') {
+            await client.query('ROLLBACK');
+            return;
+        }
+
+        const customFreqEnabled = settings.booster_custom_frequency_enabled === 'true';
+        const today = new Date();
+        let paymentMonth;
+        let isEligible = false;
+
+        if (customFreqEnabled) {
+            // --- CÁCULO DE FRECUENCIA PERSONALIZADA (INTERVALO DE TIEMPO) ---
+            const freqDays = parseInt(settings.booster_payment_frequency_days, 10) || 0;
+            const freqHours = parseInt(settings.booster_payment_frequency_hours, 10) || 0;
+            const freqMinutes = parseInt(settings.booster_payment_frequency_minutes, 10) || 0;
+            
+            // Convertimos la frecuencia a milisegundos
+            const totalFreqMs = ((freqDays * 24 * 60) + (freqHours * 60) + freqMinutes) * 60 * 1000;
+
+            if (totalFreqMs <= 0) {
+                console.log('BOOSTER PAYMENTS: Frecuencia personalizada inválida (0 minutos). Saltando ciclo.');
+                await client.query('ROLLBACK');
+                return;
+            }
+
+            // Consultar cuándo fue el último pago de impulsores registrado en base de datos
+            const lastPaymentLogResult = await client.query(`
+                SELECT created_at FROM booster_payment_log 
+                ORDER BY created_at DESC LIMIT 1
+            `);
+
+            if (lastPaymentLogResult.rowCount > 0) {
+                const lastPaymentTime = new Date(lastPaymentLogResult.rows[0].created_at);
+                const timePassedMs = today.getTime() - lastPaymentTime.getTime();
+                
+                // Si el tiempo transcurrido es menor al intervalo configurado, saltamos el ciclo de pago
+                if (timePassedMs < totalFreqMs) {
+                    await client.query('ROLLBACK');
+                    return;
+                }
+            }
+            
+            // Si califica para el pago por frecuencia personalizada, la marca de mes es el día de hoy
+            isEligible = true;
+            paymentMonth = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            console.log(`BOOSTER PAYMENTS: Iniciando ciclo de pagos personalizado (Frecuencia: ${freqDays}d ${freqHours}h ${freqMinutes}min)...`);
+        } else {
+            // --- CICLO MENSUAL TRADICIONAL POR DEFECTO ---
+            // Solo se ejecuta el primer día de cada mes natural.
+            if (today.getDate() !== 1) {
+                await client.query('ROLLBACK');
+                return;
+            }
+
+            // Determinamos el mes de pago (el mes anterior)
+            paymentMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            const paymentMonthString = `${paymentMonth.getFullYear()}-${(paymentMonth.getMonth() + 1).toString().padStart(2, '0')}`;
+
+            // Verificar si ya se realizó el pago para este mes
+            const lastPaymentResult = await client.query(`
+                SELECT 1 FROM booster_payment_log 
+                WHERE to_char(payment_month, 'YYYY-MM') = $1 LIMIT 1
+            `, [paymentMonthString]);
+
+            if (lastPaymentResult.rowCount > 0) {
+                console.log(`BOOSTER PAYMENTS: El pago para ${paymentMonthString} ya fue realizado. Saltando ciclo.`);
+                await client.query('ROLLBACK');
+                return;
+            }
+
+            isEligible = true;
+            console.log(`BOOSTER PAYMENTS: Iniciando ciclo de pagos mensual para ${paymentMonthString}...`);
+        }
+
+        if (!isEligible) {
+            await client.query('ROLLBACK');
+            return;
+        }
+
+        const paymentMonthString = `${paymentMonth.getFullYear()}-${(paymentMonth.getMonth() + 1).toString().padStart(2, '0')}`;
+
+        // 2. Calcular las comisiones totales recaudadas para el periodo correspondiente
+        // Si es ciclo mensual, buscamos las del mes anterior. Si es frecuencia personalizada, tomamos todas las comisiones acumuladas del mes en curso.
+        const commissionResult = await client.query(
+            `SELECT SUM(commission_amount_blue) as total FROM platform_commission_log WHERE to_char(created_at, 'YYYY-MM') = $1`,
+            [paymentMonthString]
+        );
+        let fundsAvailable = parseFloat(commissionResult.rows[0].total) || 0;
+
+        // AUDITORÍA FINTECH: Registrar inicio del proceso de pagos en el libro de auditoría centralizado
+        await logAuditEvent(client, null, {
+            eventType: 'booster.monthly_payments_started',
+            actorUsername: 'system_cron',
+            metadata: {
+                paymentMonth: paymentMonthString,
+                fundsAvailable,
+                customFrequencyActive: customFreqEnabled
+            }
+        });
+
+        if (fundsAvailable <= 0) {
+            console.log(`BOOSTER PAYMENTS: No hay fondos de comisiones disponibles en el log para el mes/periodo ${paymentMonthString}.`);
+            await client.query('COMMIT'); // Hacemos commit del evento de auditoría
+            return;
+        }
+
+        console.log(`BOOSTER PAYMENTS: Fondos disponibles para distribución: ${fundsAvailable.toFixed(4)} BLUE.`);
+
+        // 3. Obtener niveles de impulsores y los impulsores activos
+        const levelsResult = await client.query('SELECT * FROM booster_level_settings ORDER BY level ASC');
+        const boostersResult = await client.query(`
+            SELECT u.id, u.username, u.booster_level, u.kyc_verified,
+                   COALESCE((SELECT SUM(amount) FROM booster_blue_ledger WHERE user_id = u.id), 0.0000) as total_booster_blue
+            FROM users u WHERE u.is_booster = TRUE
+        `);
+
+        // 4. Iterar por cada nivel en orden prioritario (niveles inferiores primero)
+        for (const level of levelsResult.rows) {
+            if (fundsAvailable <= 0) break;
+
+            // Filtrar impulsores calificados en el nivel actual (KYC verificado y saldo > 0)
+            const boostersInLevel = boostersResult.rows.filter(b => 
+                b.booster_level === level.level && 
+                parseFloat(b.total_booster_blue) > 0 &&
+                b.kyc_verified === true
+            );
+            if (boostersInLevel.length === 0) continue;
+
+            const totalDebtForLevel = boostersInLevel.reduce((sum, b) => sum + parseFloat(b.total_booster_blue), 0);
+            if (totalDebtForLevel <= 0) continue;
+
+            console.log(`BOOSTER PAYMENTS: Procesando Nivel ${level.level}. Deuda del nivel: ${totalDebtForLevel.toFixed(4)}. Fondos disponibles: ${fundsAvailable.toFixed(4)}.`);
+
+            const paymentPercentage = Math.min(1.0, fundsAvailable / totalDebtForLevel);
+
+            // 5. Liquidar comisiones para cada impulsor calificado
+            for (const booster of boostersInLevel) {
+                const amountToPay = parseFloat(booster.total_booster_blue) * paymentPercentage;
+                if (amountToPay > 0) {
+                    // Pagar al saldo en custodia (escrow) del usuario mediante Event Sourcing
+                    await client.query("SELECT record_balance_event($1, 'deposit', 'escrow_blue', $2, NULL)", [booster.id, amountToPay]);
+
+                    // Amortizar la deuda en el ledger restando el monto pagado (evita doble pago infinito)
+                    await client.query("SELECT record_booster_event($1, 'booster_payout_deduction', $2, NULL)", [booster.id, -amountToPay]);
+
+                    // Registrar la transacción formal de liquidación
+                    const paymentDescription = `Recompensa de Impulsor (Nivel ${level.level}) para el periodo ${paymentMonth.toLocaleString('es', { month: 'long', year: 'numeric' })}`;
+                    await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'booster_reward', $2, $3)`, [booster.id, paymentDescription, amountToPay]);
+
+                    // Insertar en la bitácora de control de pagos
+                    await client.query(
+                        `INSERT INTO booster_payment_log (user_id, amount_paid, payment_month, booster_level_at_payment) VALUES ($1, $2, $3, $4)`,
+                        [booster.id, amountToPay, paymentMonth, level.level]
+                    );
+
+                    console.log(`BOOSTER PAYMENTS: Pago procesado exitosamente para ${booster.username}: ${amountToPay.toFixed(4)} BLUE.`);
+                }
+            }
+
+            // Descontar la cantidad total distribuida del fondo disponible
+            fundsAvailable -= totalDebtForLevel * paymentPercentage;
+        }
+
+        const totalPaidOut = (parseFloat(commissionResult.rows[0].total) || 0) - fundsAvailable;
+
+        // AUDITORÍA FINTECH: Registrar la finalización exitosa del ciclo de pagos
+        await logAuditEvent(client, null, {
+            eventType: 'booster.monthly_payments_completed',
+            actorUsername: 'system_cron',
+            metadata: {
+                paymentMonth: paymentMonthString,
+                totalPaidOut,
+                customFrequencyActive: customFreqEnabled
+            }
+        });
+
+        // Persistimos de forma atómica en base de datos
+        await client.query('COMMIT');
+        console.log(`BOOSTER PAYMENTS: Ciclo finalizado con éxito. Total pagado: ${totalPaidOut.toFixed(4)} BLUE.`);
+
+    } catch (error) {
+        if (client) {
+            try {
+                await client.query('ROLLBACK');
+            } catch (rollbackError) {
+                console.error('BOOSTER PAYMENTS: Error al revertir transacción (ROLLBACK):', rollbackError);
+            }
+        }
+        console.error('BOOSTER PAYMENTS: Error crítico durante el ciclo de pagos de impulsores:', error);
+    } finally {
+        if (client) {
+            client.release();
+        }
+    }
+}
+
+/**
  * Calcula el monto multiplicado basado en una fecha específica.
- *
+ * 
  * Busca la etapa activa cuyo intervalo [start_date, end_date] contiene
- * la fecha proporcionada. Si múltiples etapas cubrieran la misma fecha
- * (situación que la validación de saveStage debe prevenir), se utiliza
- * la de mayor multiplicador (ORDER BY multiplier DESC) para garantizar
- * un resultado determinístico y favorable al impulsor.
+ * la fecha proporcionada. Si no hay etapa definida, el multiplicador es 1.0.
  *
  * @param {number|string} baseAmount - Monto base de la recompensa.
  * @param {Date|string}   date       - Fecha de la actividad (default: ahora).
@@ -53,7 +266,6 @@ async function calculateMultipliedAmount(baseAmount, date = new Date()) {
 
     try {
         // Buscamos la etapa activa para la fecha proporcionada
-        // ORDER BY multiplier DESC: si hay solapamiento (no debería), se usa el mayor
         const result = await pool.query(
             `SELECT name, multiplier
              FROM booster_config_stages
@@ -103,11 +315,11 @@ async function getAllStages() {
 
 /**
  * Actualiza o crea una etapa de configuración.
- *
+ * 
  * Validaciones de seguridad:
- *   1. start_date < end_date (también validado por CHECK en DB)
- *   2. multiplier > 0 (también validado por CHECK en DB)
- *   3. No solapamiento con otras etapas activas (validación de negocio)
+ *   1. start_date < end_date
+ *   2. multiplier > 0
+ *   3. No solapamiento con otras etapas activas
  *
  * @param {Object} stageData - Datos de la etapa.
  * @returns {Promise<Object>} Etapa guardada con todos sus campos.
@@ -143,8 +355,6 @@ async function saveStage(stageData) {
     }
 
     // --- Validación de no solapamiento con etapas activas ---
-    // Busca cualquier etapa activa cuyo rango [start, end] se intersecte
-    // con el nuevo rango [start_date, end_date], excluyendo la etapa actual si es edición.
     const activeFlag = is_active === undefined ? true : is_active;
     if (activeFlag) {
         const overlapQuery = `
@@ -201,4 +411,5 @@ module.exports = {
     calculateMultipliedAmount,
     getAllStages,
     saveStage,
+    executeBoosterPayments
 };

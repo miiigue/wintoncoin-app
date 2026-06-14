@@ -539,7 +539,18 @@ async function settingsCatalog(pool, req, res) {
             return res.status(403).json({ error: 'Solo los guardianes activos pueden ver el catálogo de configuraciones.' });
         }
 
-        const result = await pool.query('SELECT setting_key, setting_value FROM app_settings ORDER BY setting_key');
+        // 1. FILTRADO DEFENSIVO DE CONFIGURACIONES OPERACIONALES NO CRÍTICAS:
+        //    Excluimos de forma explícita en la consulta SQL los textos del modal informativo diario ('daily_modal_%')
+        //    y el switch del modal intersticial general ('global_app_interstitial_enabled').
+        //    Al no estar en el catálogo de Gobernanza, estas variables no podrán ser seleccionadas para crear propuestas
+        //    y los administradores continuarán modificándolas de manera ágil y directa desde su panel (bypass de gobernanza).
+        const result = await pool.query(
+            `SELECT setting_key, setting_value 
+             FROM app_settings 
+             WHERE setting_key NOT LIKE 'daily_modal_%' 
+               AND setting_key != 'global_app_interstitial_enabled'
+             ORDER BY setting_key`
+        );
 
         const catalog = result.rows.map(row => ({
             key: row.setting_key,

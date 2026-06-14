@@ -450,7 +450,7 @@ async function getDashboardStats(req, res) {
         const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
 
         // Ejecutar todas las consultas en paralelo para minimizar latencia
-        const [usersData, publicationsData, tokensData, platformWalletData, boosterFundsData, platformEscrow, platformInExecution, platformPendingPayment] = await Promise.all([
+        const [usersData, publicationsData, tokensData, platformWalletData, boosterFundsData, platformEscrow, platformInExecution, platformPendingPayment, eligibleBoosterFundsData] = await Promise.all([
             client.query('SELECT COUNT(*) AS total_users FROM users WHERE username != $1', [platformUsername]),
             client.query(`
                 SELECT COUNT(DISTINCT p.id) AS active_publications FROM publications p
@@ -490,7 +490,13 @@ async function getDashboardStats(req, res) {
                 JOIN users u ON p.author_id = u.id
                 WHERE u.username = $1
                   AND pa.status = 'completed'
-            `, [platformUsername])
+            `, [platformUsername]),
+            client.query(`
+                SELECT COALESCE(SUM(bbl.amount), 0.0000) AS eligible_booster_funds 
+                FROM booster_blue_ledger bbl 
+                JOIN users u ON bbl.user_id = u.id 
+                WHERE u.kyc_verified = TRUE
+            `)
         ]);
 
         const stats = {
@@ -501,6 +507,7 @@ async function getDashboardStats(req, res) {
             totalRed:                    parseFloat(tokensData.rows[0].total_red) || 0,
             platformCommissionBalance:   parseFloat(platformWalletData.rows[0]?.total_blue_commission_balance) || 0,
             totalBoosterFunds:           parseFloat(boosterFundsData.rows[0]?.total_booster_funds) || 0,
+            eligibleBoosterFunds:        parseFloat(eligibleBoosterFundsData.rows[0]?.eligible_booster_funds) || 0,
             totalPlatformEscrow:         parseFloat(platformEscrow.rows[0]?.total_platform_escrow) || 0,
             totalPlatformInExecution:    parseFloat(platformInExecution.rows[0]?.total_platform_in_execution) || 0,
             totalPlatformPendingPayment: parseFloat(platformPendingPayment.rows[0]?.total_platform_pending_payment) || 0
@@ -1363,15 +1370,49 @@ async function updateBoosterSettings(req, res) {
  */
 async function getBoosterStats(req, res) {
     try {
+        // Consulta principal para obtener estadísticas generales de impulsores
+        // Se calcula tanto el total como el monto apto legalmente (con KYC verificado)
         const statsQuery = `
             SELECT
                 (SELECT COUNT(*) FROM users WHERE is_booster = TRUE) as total_boosters,
+                (SELECT COUNT(*) FROM users WHERE is_booster = TRUE AND kyc_verified = TRUE) as eligible_boosters,
                 (SELECT SUM(amount) FROM booster_blue_ledger) as total_booster_blue_debt,
+                (SELECT SUM(bbl.amount) FROM booster_blue_ledger bbl JOIN users u ON bbl.user_id = u.id WHERE u.kyc_verified = TRUE) as eligible_booster_blue_debt,
                 (SELECT COUNT(*) FROM booster_payment_log) as total_payments_made,
                 (SELECT SUM(amount_paid) FROM booster_payment_log) as total_blue_paid_out
         `;
         const result = await pool.query(statsQuery);
-        res.json(result.rows[0]);
+        const statsData = result.rows[0];
+
+        // Consulta secundaria para obtener la deuda de comisiones agrupada por nivel de impulsor
+        // Se calcula la deuda total por nivel y la deuda elegible (usuarios con KYC aprobado)
+        const levelDebtQuery = `
+            SELECT 
+                u.booster_level,
+                COALESCE(SUM(bbl.amount), 0.0000) as total_level_debt,
+                COALESCE(SUM(CASE WHEN u.kyc_verified = TRUE THEN bbl.amount ELSE 0.0000 END), 0.0000) as eligible_level_debt
+            FROM users u
+            LEFT JOIN booster_blue_ledger bbl ON u.id = bbl.user_id
+            WHERE u.is_booster = TRUE AND u.booster_level BETWEEN 1 AND 5
+            GROUP BY u.booster_level
+        `;
+        const levelDebtResult = await pool.query(levelDebtQuery);
+        
+        // Inicializamos los mapas de deudas por nivel para garantizar que siempre viajen los 5 niveles al frontend
+        const debt_by_level = {};
+        for (let l = 1; l <= 5; l++) {
+            debt_by_level[l] = { total: 0, eligible: 0 };
+        }
+
+        levelDebtResult.rows.forEach(row => {
+            if (debt_by_level[row.booster_level]) {
+                debt_by_level[row.booster_level].total = parseFloat(row.total_level_debt) || 0;
+                debt_by_level[row.booster_level].eligible = parseFloat(row.eligible_level_debt) || 0;
+            }
+        });
+
+        statsData.debt_by_level = debt_by_level;
+        res.json(statsData);
     } catch (error) {
         console.error('[AdminController] Error al obtener estadísticas booster:', error);
         res.status(500).json({ message: 'Error interno del servidor.' });
@@ -1383,12 +1424,14 @@ async function getBoosterStats(req, res) {
  */
 async function getBoostersList(req, res) {
     try {
+        // Agregamos u.kyc_verified en la consulta para permitir al frontend pintar badges de cumplimiento
         const query = `
             SELECT 
                 u.id,
                 u.username,
                 u.is_booster,
                 u.booster_level,
+                u.kyc_verified,
                 (SELECT SUM(amount) FROM booster_blue_ledger WHERE user_id = u.id) as total_booster_blue
             FROM users u
             WHERE u.is_booster = TRUE
