@@ -464,7 +464,8 @@ async function getDashboardStats(req, res) {
                 FROM users
             `, [platformUsername]),
             client.query('SELECT total_blue_commission_balance FROM platform_wallet WHERE id = 1'),
-            client.query('SELECT SUM(amount) AS total_booster_funds FROM booster_blue_ledger'),
+            // Sumar únicamente los fondos de usuarios que son impulsores activos (is_booster = true)
+            client.query('SELECT SUM(bbl.amount) AS total_booster_funds FROM booster_blue_ledger bbl JOIN users u ON bbl.user_id = u.id WHERE u.is_booster = TRUE'),
             client.query(`
                 SELECT COALESCE(SUM(p.available_slots * p.blue_cost), 0) AS total_platform_escrow
                 FROM publications p
@@ -495,7 +496,7 @@ async function getDashboardStats(req, res) {
                 SELECT COALESCE(SUM(bbl.amount), 0.0000) AS eligible_booster_funds 
                 FROM booster_blue_ledger bbl 
                 JOIN users u ON bbl.user_id = u.id 
-                WHERE u.kyc_verified = TRUE
+                WHERE u.is_booster = TRUE AND u.kyc_verified = TRUE
             `)
         ]);
 
@@ -1376,10 +1377,12 @@ async function getBoosterStats(req, res) {
             SELECT
                 (SELECT COUNT(*) FROM users WHERE is_booster = TRUE) as total_boosters,
                 (SELECT COUNT(*) FROM users WHERE is_booster = TRUE AND kyc_verified = TRUE) as eligible_boosters,
-                (SELECT SUM(amount) FROM booster_blue_ledger) as total_booster_blue_debt,
-                (SELECT SUM(bbl.amount) FROM booster_blue_ledger bbl JOIN users u ON bbl.user_id = u.id WHERE u.kyc_verified = TRUE) as eligible_booster_blue_debt,
+                -- Filtrar por usuarios que son impulsores activos para mantener consistencia matemática con las tarjetas de nivel
+                (SELECT SUM(bbl.amount) FROM booster_blue_ledger bbl JOIN users u ON bbl.user_id = u.id WHERE u.is_booster = TRUE) as total_booster_blue_debt,
+                (SELECT SUM(bbl.amount) FROM booster_blue_ledger bbl JOIN users u ON bbl.user_id = u.id WHERE u.is_booster = TRUE AND u.kyc_verified = TRUE) as eligible_booster_blue_debt,
                 (SELECT COUNT(*) FROM booster_payment_log) as total_payments_made,
-                (SELECT SUM(amount_paid) FROM booster_payment_log) as total_blue_paid_out
+                (SELECT SUM(amount_paid) FROM booster_payment_log) as total_blue_paid_out,
+                (SELECT total_blue_commission_balance FROM platform_wallet WHERE id = 1) as platform_commission_balance
         `;
         const result = await pool.query(statsQuery);
         const statsData = result.rows[0];

@@ -475,14 +475,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         const targetTab = card.dataset.targetTab;
                         const level = card.dataset.level;
 
+                        // Si la tarjeta corresponde a un nivel específico de impulsor, configuramos
+                        // el filtro para listar únicamente los usuarios de dicho nivel.
                         if (level) {
                             activeBoosterLevelFilter = parseInt(level, 10); // Asignamos el filtro de nivel activo
                         } else {
                             activeBoosterLevelFilter = null; // Limpiamos el filtro si es una tarjeta general
                         }
 
+                        // Redirigir a la pestaña interna de la sección de impulsores (ej. Historial de Pagos)
+                        // o, en su defecto, a una sección externa del menú de administración (ej. Billetera / platform-wallet)
                         if (targetTab) {
                             showBoosterTab(targetTab);
+                        } else {
+                            const targetSection = card.dataset.targetSection;
+                            if (targetSection) {
+                                showSection(targetSection);
+                            }
                         }
                     }
                 });
@@ -1349,6 +1358,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     Apto KYC: <strong style="color: #10B981;">${formatBalance(stats.eligible_booster_blue_debt)} BLUE</strong>
                 </div>
             </div>
+            <div class="stat-card interactive-card" data-target-section="platform-wallet">
+                <h4>Comisiones Acumuladas</h4>
+                <p class="stat-value saldo-blue-text">${formatBalance(stats.platform_commission_balance || 0)}</p>
+                <div style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-top: 4px;">
+                    Saldo de comisiones disponible en caja
+                </div>
+            </div>
             <div class="stat-card interactive-card" data-target-tab="boosters-payments">
                 <h4>Total Pagado (BLUE)</h4>
                 <p class="stat-value saldo-blue-text">${formatBalance(stats.total_blue_paid_out)}</p>
@@ -1434,12 +1450,36 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderBoosterPayments(payments) {
         if (!elements.boostersPaymentsContainer) return;
 
+        // Calcular el total de lo que se ha pagado en el historial
+        const totalPaid = payments.reduce((acc, p) => acc + (parseFloat(p.amount_paid) || 0), 0);
+        const totalCount = payments.length;
+
+        const summaryHTML = `
+            <div class="booster-payments-summary-bar" style="display: flex; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                <div class="stat-card" style="flex: 1; min-width: 250px; border-left: 4px solid #10B981; margin-bottom: 0; padding: 16px; background: var(--admin-card-bg); border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <h4 style="margin: 0; font-size: 0.9rem; color: var(--admin-text-secondary); font-weight: 500;">Total de Recompensas Liquidadas</h4>
+                    <p class="stat-value saldo-blue-text" style="margin: 8px 0 4px; font-size: 1.8rem; font-weight: 700; color: #10B981;">+${formatBalance(totalPaid)}</p>
+                    <div style="font-size: 0.8rem; color: var(--admin-text-secondary);">
+                        Suma del historial mostrado
+                    </div>
+                </div>
+                <div class="stat-card" style="flex: 1; min-width: 250px; border-left: 4px solid #3B82F6; margin-bottom: 0; padding: 16px; background: var(--admin-card-bg); border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <h4 style="margin: 0; font-size: 0.9rem; color: var(--admin-text-secondary); font-weight: 500;">Transacciones de Pago</h4>
+                    <p class="stat-value" style="margin: 8px 0 4px; font-size: 1.8rem; font-weight: 700; color: #3B82F6;">${totalCount}</p>
+                    <div style="font-size: 0.8rem; color: var(--admin-text-secondary);">
+                        Número de liquidaciones individuales
+                    </div>
+                </div>
+            </div>
+        `;
+
         if (!payments || payments.length === 0) {
-            elements.boostersPaymentsContainer.innerHTML = '<p class="empty-message">No se han registrado pagos de impulsores aún.</p>';
+            elements.boostersPaymentsContainer.innerHTML = summaryHTML + '<p class="empty-message">No se han registrado pagos de impulsores aún.</p>';
             return;
         }
 
         const tableHTML = `
+            ${summaryHTML}
             <table class="admin-table">
                 <thead>
                     <tr>
