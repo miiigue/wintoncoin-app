@@ -108,8 +108,12 @@ describe('Booster Payments Budget Reconciliation Integration Tests', () => {
         await pool.query("UPDATE app_settings SET setting_value = '0' WHERE setting_key = 'booster_payment_frequency_hours'");
         await pool.query("UPDATE app_settings SET setting_value = '5' WHERE setting_key = 'booster_payment_frequency_minutes'");
 
+        // Desactivar temporalmente el trigger de inmutabilidad física para permitir la limpieza del test
+        await pool.query('ALTER TABLE booster_payment_log DISABLE TRIGGER ALL;');
         // Asegurar que no haya logs de pago recientes que bloqueen la frecuencia personalizada
         await pool.query('DELETE FROM booster_payment_log');
+        // Reactivar el trigger de inmutabilidad física inmediatamente para la ejecución real
+        await pool.query('ALTER TABLE booster_payment_log ENABLE TRIGGER ALL;');
 
         // B. Establecer el balance inicial de comisiones de la plataforma a un valor conocido
         const initialWalletTestBalance = 500.0000;
