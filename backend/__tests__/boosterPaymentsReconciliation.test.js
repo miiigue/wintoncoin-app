@@ -163,5 +163,33 @@ describe('Booster Payments Budget Reconciliation Integration Tests', () => {
         `, [testUserId]);
         expect(paymentLogRes.rowCount).toBe(1);
         expect(parseFloat(paymentLogRes.rows[0].amount_paid)).toBeCloseTo(rewardDebtAmount, 4);
+
+        // F. COMPROBACIÓN DE IDEMPOTENCIA POR VENTANA TEMPORAL (LOOKBACK WINDOW)
+        // 1. Añadimos nueva deuda de recompensa de prueba
+        const newRewardDebt = 100.0000;
+        await pool.query(`
+            INSERT INTO booster_blue_ledger (user_id, amount, type) 
+            VALUES ($1, $2, 'publication_reward')
+        `, [testUserId, newRewardDebt]);
+
+        // 2. Ejecutar de nuevo el ciclo de pagos de impulsores inmediatamente.
+        // Como el usuario ya cobró hace un momento (lo cual entra dentro de la ventana de exclusión temporal de 5 minutos),
+        // este nuevo ciclo debe excluirlo e ignorar esta nueva deuda temporalmente, protegiendo contra doble pago.
+        await executeBoosterPayments();
+
+        // 3. Verificar que la deuda de 100 BLUE sigue intacta en el ledger de este usuario (no fue amortizada)
+        const secondLedgerSumRes = await pool.query('SELECT SUM(amount) AS balance FROM booster_blue_ledger WHERE user_id = $1', [testUserId]);
+        const secondLedgerDebt = parseFloat(secondLedgerSumRes.rows[0].balance) || 0;
+        expect(secondLedgerDebt).toBeCloseTo(newRewardDebt, 4);
+
+        // 4. Verificar que no se incrementó su balance de custodia (escrow)
+        const secondUserBalanceRes = await pool.query('SELECT escrow_blue_balance FROM users WHERE id = $1', [testUserId]);
+        const secondEscrowBalance = parseFloat(secondUserBalanceRes.rows[0].escrow_blue_balance) || 0;
+        expect(secondEscrowBalance).toBeCloseTo(rewardDebtAmount, 4); // Debe seguir siendo el monto del primer pago
+
+        // 5. Verificar que el saldo de platform_wallet sigue siendo el mismo que tras el primer pago
+        const secondWalletVerifyRes = await pool.query('SELECT total_blue_commission_balance FROM platform_wallet WHERE id = 1');
+        const secondWalletBalance = parseFloat(secondWalletVerifyRes.rows[0].total_blue_commission_balance) || 0;
+        expect(secondWalletBalance).toBeCloseTo(expectedWalletBalance, 4);
     });
 });

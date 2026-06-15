@@ -23,15 +23,10 @@ const MAX_MULTIPLIER = 100;
  * Evalúa los parámetros de configuración y determina si corresponde realizar la distribución.
  */
 async function executeBoosterPayments() {
-    let client;
     try {
-        client = await pool.connect();
-        
-        // Iniciamos una transacción atómica para asegurar que todo el ciclo se aplique o se revierta por completo
-        await client.query('BEGIN');
-
-        // 1. Obtener los settings del sistema relacionados con impulsores
-        const settingsResult = await client.query(`
+        // 1. Obtener los settings del sistema relacionados con impulsores sin transacciones largas.
+        // Esto mantiene el pool libre y previene bloqueos innecesarios en lecturas iniciales.
+        const settingsResult = await pool.query(`
             SELECT setting_key, setting_value FROM app_settings 
             WHERE setting_key IN (
                 'booster_system_enabled', 
@@ -47,9 +42,8 @@ async function executeBoosterPayments() {
             settings[row.setting_key] = row.setting_value;
         });
 
-        // Si el sistema general de impulsores está desactivado, detenemos el flujo de inmediato
+        // Si el sistema general de impulsores está desactivado, salimos de inmediato
         if (settings.booster_system_enabled !== 'true') {
-            await client.query('ROLLBACK');
             return;
         }
 
@@ -57,6 +51,7 @@ async function executeBoosterPayments() {
         const today = new Date();
         let paymentMonth;
         let isEligible = false;
+        let totalFreqMs = 0;
 
         if (customFreqEnabled) {
             // --- CÁCULO DE FRECUENCIA PERSONALIZADA (INTERVALO DE TIEMPO) ---
@@ -65,16 +60,16 @@ async function executeBoosterPayments() {
             const freqMinutes = parseInt(settings.booster_payment_frequency_minutes, 10) || 0;
             
             // Convertimos la frecuencia a milisegundos
-            const totalFreqMs = ((freqDays * 24 * 60) + (freqHours * 60) + freqMinutes) * 60 * 1000;
+            totalFreqMs = ((freqDays * 24 * 60) + (freqHours * 60) + freqMinutes) * 60 * 1000;
 
             if (totalFreqMs <= 0) {
                 console.log('BOOSTER PAYMENTS: Frecuencia personalizada inválida (0 minutos). Saltando ciclo.');
-                await client.query('ROLLBACK');
                 return;
             }
 
-            // Consultar cuándo fue el último pago de impulsores registrado en base de datos
-            const lastPaymentLogResult = await client.query(`
+            // Consultar cuándo fue el último pago de impulsores registrado en base de datos.
+            // Operación de lectura rápida sobre el pool.
+            const lastPaymentLogResult = await pool.query(`
                 SELECT created_at FROM booster_payment_log 
                 ORDER BY created_at DESC LIMIT 1
             `);
@@ -85,7 +80,6 @@ async function executeBoosterPayments() {
                 
                 // Si el tiempo transcurrido es menor al intervalo configurado, saltamos el ciclo de pago
                 if (timePassedMs < totalFreqMs) {
-                    await client.query('ROLLBACK');
                     return;
                 }
             }
@@ -98,7 +92,6 @@ async function executeBoosterPayments() {
             // --- CICLO MENSUAL TRADICIONAL POR DEFECTO ---
             // Solo se ejecuta el primer día de cada mes natural.
             if (today.getDate() !== 1) {
-                await client.query('ROLLBACK');
                 return;
             }
 
@@ -106,15 +99,15 @@ async function executeBoosterPayments() {
             paymentMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
             const paymentMonthString = `${paymentMonth.getFullYear()}-${(paymentMonth.getMonth() + 1).toString().padStart(2, '0')}`;
 
-            // Verificar si ya se realizó el pago para este mes
-            const lastPaymentResult = await client.query(`
+            // Verificar si ya se realizó el pago para este mes.
+            // Operación rápida de sólo lectura.
+            const lastPaymentResult = await pool.query(`
                 SELECT 1 FROM booster_payment_log 
                 WHERE to_char(payment_month, 'YYYY-MM') = $1 LIMIT 1
             `, [paymentMonthString]);
 
             if (lastPaymentResult.rowCount > 0) {
                 console.log(`BOOSTER PAYMENTS: El pago para ${paymentMonthString} ya fue realizado. Saltando ciclo.`);
-                await client.query('ROLLBACK');
                 return;
             }
 
@@ -123,126 +116,254 @@ async function executeBoosterPayments() {
         }
 
         if (!isEligible) {
-            await client.query('ROLLBACK');
             return;
         }
 
         const paymentMonthString = `${paymentMonth.getFullYear()}-${(paymentMonth.getMonth() + 1).toString().padStart(2, '0')}`;
 
-        // 2. Obtener el balance real acumulado de comisiones en la billetera de la plataforma.
-        // Se descarta el filtro mensual estricto de platform_commission_log y se consulta el balance real
-        // consolidado de la plataforma (platform_wallet) para permitir pagar usando comisiones acumuladas históricas.
-        // Se aplica un bloqueo de base de datos 'FOR UPDATE' (bloqueo pesimista) para evitar que procesos
-        // concurrentes lee y gasten el mismo balance al mismo tiempo (Double Spend prevention).
-        const walletResult = await client.query(
-            `SELECT total_blue_commission_balance FROM platform_wallet WHERE id = 1 FOR UPDATE`
-        );
-        let fundsAvailable = parseFloat(walletResult.rows[0]?.total_blue_commission_balance) || 0;
-        const initialFunds = fundsAvailable; // Guardamos el fondo inicial para calcular el gasto exacto al final
+        // Obtener el balance inicial acumulado de la plataforma para fines de auditoría.
+        const initialWalletRes = await pool.query('SELECT total_blue_commission_balance FROM platform_wallet WHERE id = 1');
+        const initialWalletBalance = parseFloat(initialWalletRes.rows[0]?.total_blue_commission_balance) || 0;
 
         // AUDITORÍA FINTECH: Registrar inicio del proceso de pagos en el libro de auditoría centralizado.
-        // Garantiza la trazabilidad y la auditabilidad bancaria del ciclo.
-        await logAuditEvent(client, null, {
+        await logAuditEvent(pool, null, {
             eventType: 'booster.monthly_payments_started',
             actorUsername: 'system_cron',
             metadata: {
                 paymentMonth: paymentMonthString,
-                fundsAvailable,
+                fundsAvailable: initialWalletBalance,
                 customFrequencyActive: customFreqEnabled
             }
         });
 
-        // Verificación de disponibilidad de fondos en billetera.
-        // Si no hay saldo acumulado, el ciclo termina limpiamente para evitar deudas no colateralizadas.
-        if (fundsAvailable <= 0) {
+        if (initialWalletBalance <= 0) {
             console.log(`BOOSTER PAYMENTS: No hay fondos de comisiones disponibles en la billetera de la plataforma.`);
-            await client.query('COMMIT'); // Hacemos commit del evento de auditoría
             return;
         }
 
-        console.log(`BOOSTER PAYMENTS: Fondos disponibles para distribución: ${fundsAvailable.toFixed(4)} BLUE.`);
+        console.log(`BOOSTER PAYMENTS: Fondos disponibles para distribución: ${initialWalletBalance.toFixed(4)} BLUE.`);
 
-        // 3. Obtener niveles de impulsores y los impulsores activos
-        const levelsResult = await client.query('SELECT * FROM booster_level_settings ORDER BY level ASC');
-        const boostersResult = await client.query(`
-            SELECT u.id, u.username, u.booster_level, u.kyc_verified,
-                   COALESCE((SELECT SUM(amount) FROM booster_blue_ledger WHERE user_id = u.id), 0.0000) as total_booster_blue
-            FROM users u WHERE u.is_booster = TRUE
-        `);
+        // 3. Obtener niveles de impulsores ordenados por prioridad (niveles inferiores primero).
+        const levelsResult = await pool.query('SELECT * FROM booster_level_settings ORDER BY level ASC');
 
-        // 4. Iterar por cada nivel en orden prioritario (niveles inferiores primero)
+        // Configuración de procesamiento por lotes (Batching) para evitar OOM y bloqueos prolongados de BD.
+        const BATCH_SIZE = 500;
+
         for (const level of levelsResult.rows) {
-            if (fundsAvailable <= 0) break;
+            let initialFundsForLevel = 0;
+            let totalDebtForLevel = 0;
 
-            // Filtrar impulsores calificados en el nivel actual (KYC verificado y saldo > 0)
-            const boostersInLevel = boostersResult.rows.filter(b => 
-                b.booster_level === level.level && 
-                parseFloat(b.total_booster_blue) > 0 &&
-                b.kyc_verified === true
-            );
-            if (boostersInLevel.length === 0) continue;
+            // A. INICIAR TRANSACCIÓN DE PRESUPUESTO DEL NIVEL
+            // Consultamos los fondos líquidos reales y calculamos la deuda acumulada del nivel
+            // aplicando una ventana de exclusión temporal dinámica (idempotencia) según la frecuencia.
+            let client = await pool.connect();
+            try {
+                await client.query('BEGIN');
 
-            const totalDebtForLevel = boostersInLevel.reduce((sum, b) => sum + parseFloat(b.total_booster_blue), 0);
-            if (totalDebtForLevel <= 0) continue;
+                // Bloqueo pesimista FOR UPDATE en platform_wallet
+                const walletRes = await client.query('SELECT total_blue_commission_balance FROM platform_wallet WHERE id = 1 FOR UPDATE');
+                initialFundsForLevel = parseFloat(walletRes.rows[0]?.total_blue_commission_balance) || 0;
 
-            console.log(`BOOSTER PAYMENTS: Procesando Nivel ${level.level}. Deuda del nivel: ${totalDebtForLevel.toFixed(4)}. Fondos disponibles: ${fundsAvailable.toFixed(4)}.`);
-
-            const paymentPercentage = Math.min(1.0, fundsAvailable / totalDebtForLevel);
-
-            // 5. Liquidar comisiones para cada impulsor calificado
-            for (const booster of boostersInLevel) {
-                const amountToPay = parseFloat(booster.total_booster_blue) * paymentPercentage;
-                if (amountToPay > 0) {
-                    // Pagar al saldo en custodia (escrow) del usuario mediante Event Sourcing
-                    await client.query("SELECT record_balance_event($1, 'deposit', 'escrow_blue', $2, NULL)", [booster.id, amountToPay]);
-
-                    // Amortizar la deuda en el ledger restando el monto pagado (evita doble pago infinito)
-                    await client.query("SELECT record_booster_event($1, 'booster_payout_deduction', $2, NULL)", [booster.id, -amountToPay]);
-
-                    // Registrar la transacción formal de liquidación
-                    const paymentDescription = `Recompensa de Impulsor (Nivel ${level.level}) para el periodo ${paymentMonth.toLocaleString('es', { month: 'long', year: 'numeric' })}`;
-                    await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'booster_reward', $2, $3)`, [booster.id, paymentDescription, amountToPay]);
-
-                    // Insertar en la bitácora de control de pagos
-                    await client.query(
-                        `INSERT INTO booster_payment_log (user_id, amount_paid, payment_month, booster_level_at_payment) VALUES ($1, $2, $3, $4)`,
-                        [booster.id, amountToPay, paymentMonth, level.level]
-                    );
-
-                    // --- NUEVO: RECONCILIACIÓN DE LA BILLETERA DE LA PLATAFORMA ---
-                    // Se descuenta el monto pagado de la billetera central de la plataforma (platform_wallet).
-                    // Esto implementa contabilidad de partida doble: cada crédito al booster requiere un débito a la plataforma.
-                    // Evita la creación de tokens BLUE sin respaldo ("impresión de dinero") y asegura consistencia con el panel de administración.
-                    await client.query(
-                        `UPDATE platform_wallet 
-                         SET total_blue_commission_balance = total_blue_commission_balance - $1 
-                         WHERE id = 1`,
-                        [amountToPay]
-                    );
-
-                    // --- NUEVO: BITÁCORA DE CONTROL DE CAJA DE LA PLATAFORMA (AUDIT TRAIL) ---
-                    // Se inserta un egreso con monto negativo en platform_wallet_log, dejando registro auditable
-                    // e inmutable (ledger) de la salida de fondos y el beneficiario (related_username).
-                    const walletLogDesc = `Pago de recompensa a impulsor ${booster.username} (Nivel ${level.level}) para el periodo ${paymentMonthString}`;
-                    await client.query(
-                        `INSERT INTO platform_wallet_log (transaction_type, amount, related_username, description)
-                         VALUES ('booster_payout', $1, $2, $3)`,
-                        [-amountToPay, booster.username, walletLogDesc]
-                    );
-
-                    console.log(`BOOSTER PAYMENTS: Pago procesado exitosamente para ${booster.username}: ${amountToPay.toFixed(4)} BLUE.`);
+                if (initialFundsForLevel <= 0) {
+                    await client.query('COMMIT');
+                    continue; // Se agotó el saldo, saltar el resto de los niveles
                 }
+
+                // Calcular deuda agregada del nivel con ventana de exclusión temporal dinámica.
+                // Si la frecuencia es personalizada, excluimos a los usuarios pagados en el último intervalo de tiempo.
+                // Si es mensual, los excluimos del mes de pago calendario.
+                let debtRes;
+                if (customFreqEnabled) {
+                    const lookbackInterval = `${totalFreqMs / 1000} seconds`;
+                    debtRes = await client.query(`
+                        SELECT COALESCE(SUM(amount), 0.0000) as total_debt
+                        FROM booster_blue_ledger bbl
+                        JOIN users u ON bbl.user_id = u.id
+                        WHERE u.is_booster = TRUE
+                          AND u.booster_level = $1
+                          AND u.kyc_verified = TRUE
+                          AND NOT EXISTS (
+                              SELECT 1 FROM booster_payment_log bpl
+                              WHERE bpl.user_id = u.id
+                                AND bpl.created_at >= NOW() - $2::INTERVAL
+                          )
+                    `, [level.level, lookbackInterval]);
+                } else {
+                    debtRes = await client.query(`
+                        SELECT COALESCE(SUM(amount), 0.0000) as total_debt
+                        FROM booster_blue_ledger bbl
+                        JOIN users u ON bbl.user_id = u.id
+                        WHERE u.is_booster = TRUE
+                          AND u.booster_level = $1
+                          AND u.kyc_verified = TRUE
+                          AND NOT EXISTS (
+                              SELECT 1 FROM booster_payment_log bpl
+                              WHERE bpl.user_id = u.id
+                                AND to_char(bpl.payment_month, 'YYYY-MM') = $2
+                          )
+                    `, [level.level, paymentMonthString]);
+                }
+
+                totalDebtForLevel = parseFloat(debtRes.rows[0]?.total_debt) || 0;
+                await client.query('COMMIT');
+            } catch (err) {
+                await client.query('ROLLBACK');
+                console.error(`BOOSTER PAYMENTS: Error al calcular presupuesto de Nivel ${level.level}:`, err);
+                continue;
+            } finally {
+                client.release();
             }
 
-            // Descontar la cantidad total distribuida del fondo disponible
-            fundsAvailable -= totalDebtForLevel * paymentPercentage;
+            // Si el nivel no tiene deudas elegibles que pagar, saltamos al siguiente
+            if (totalDebtForLevel <= 0) {
+                console.log(`BOOSTER PAYMENTS: Nivel ${level.level} no tiene deudas de comisiones elegibles.`);
+                continue;
+            }
+
+            // Calcular porcentaje de cobertura equitativo del nivel (Standard Bancario).
+            // Todos los usuarios en un mismo nivel cobrarán exactamente el mismo porcentaje de su deuda en este ciclo.
+            const levelPaymentPercentage = Math.min(1.0, initialFundsForLevel / totalDebtForLevel);
+            console.log(`BOOSTER PAYMENTS: Nivel ${level.level} - Deuda: ${totalDebtForLevel.toFixed(4)}. Cobertura: ${(levelPaymentPercentage * 100).toFixed(2)}%`);
+
+            // B. PROCESAMIENTO DE USUARIOS POR LOTES (CURSOR PAGINATION)
+            let lastProcessedId = 0;
+            let hasMoreBoosters = true;
+
+            while (hasMoreBoosters) {
+                client = await pool.connect();
+                try {
+                    await client.query('BEGIN');
+
+                    // 1. Lock de balance para asegurar integridad concurrente
+                    const walletRes = await client.query('SELECT total_blue_commission_balance FROM platform_wallet WHERE id = 1 FOR UPDATE');
+                    let fundsAvailable = parseFloat(walletRes.rows[0]?.total_blue_commission_balance) || 0;
+
+                    if (fundsAvailable <= 0) {
+                        console.log(`BOOSTER PAYMENTS: Se agotó el saldo líquido de la plataforma. Deteniendo distribución.`);
+                        await client.query('COMMIT');
+                        hasMoreBoosters = false;
+                        break;
+                    }
+
+                    // 2. Query del lote actual usando paginación de ID (Cursor) y exclusión dinámica
+                    let boostersResult;
+                    if (customFreqEnabled) {
+                        const lookbackInterval = `${totalFreqMs / 1000} seconds`;
+                        boostersResult = await client.query(`
+                            SELECT u.id, u.username,
+                                   COALESCE((SELECT SUM(amount) FROM booster_blue_ledger WHERE user_id = u.id), 0.0000) as total_booster_blue
+                            FROM users u
+                            WHERE u.is_booster = TRUE
+                              AND u.booster_level = $1
+                              AND u.kyc_verified = TRUE
+                              AND u.id > $2
+                              AND NOT EXISTS (
+                                  SELECT 1 FROM booster_payment_log bpl
+                                  WHERE bpl.user_id = u.id
+                                    AND bpl.created_at >= NOW() - $3::INTERVAL
+                              )
+                            ORDER BY u.id ASC
+                            LIMIT $4
+                        `, [level.level, lastProcessedId, lookbackInterval, BATCH_SIZE]);
+                    } else {
+                        boostersResult = await client.query(`
+                            SELECT u.id, u.username,
+                                   COALESCE((SELECT SUM(amount) FROM booster_blue_ledger WHERE user_id = u.id), 0.0000) as total_booster_blue
+                            FROM users u
+                            WHERE u.is_booster = TRUE
+                              AND u.booster_level = $1
+                              AND u.kyc_verified = TRUE
+                              AND u.id > $2
+                              AND NOT EXISTS (
+                                  SELECT 1 FROM booster_payment_log bpl
+                                  WHERE bpl.user_id = u.id
+                                    AND to_char(bpl.payment_month, 'YYYY-MM') = $3
+                              )
+                            ORDER BY u.id ASC
+                            LIMIT $4
+                        `, [level.level, lastProcessedId, paymentMonthString, BATCH_SIZE]);
+                    }
+
+                    // Si el lote está vacío, terminamos este nivel
+                    if (boostersResult.rowCount === 0) {
+                        await client.query('COMMIT');
+                        hasMoreBoosters = false;
+                        break;
+                    }
+
+                    // 3. Procesar individualmente a los impulsores en el lote actual
+                    for (const booster of boostersResult.rows) {
+                        const userDebt = parseFloat(booster.total_booster_blue) || 0;
+                        if (userDebt <= 0) continue;
+
+                        let amountToPay = userDebt * levelPaymentPercentage;
+
+                        // Guardrail Contable Financiero: Nunca pagar más de lo que queda de saldo en la caja de comisiones
+                        amountToPay = Math.min(amountToPay, fundsAvailable);
+
+                        if (amountToPay > 0) {
+                            // Acreditar al saldo en custodia (escrow) del usuario mediante Event Sourcing
+                            await client.query("SELECT record_balance_event($1, 'deposit', 'escrow_blue', $2, NULL)", [booster.id, amountToPay]);
+
+                            // Amortizar la deuda en el ledger restando el monto pagado (evita doble pago infinito)
+                            await client.query("SELECT record_booster_event($1, 'booster_payout_deduction', $2, NULL)", [booster.id, -amountToPay]);
+
+                            // Registrar la transacción formal de liquidación
+                            const paymentDescription = `Recompensa de Impulsor (Nivel ${level.level}) para el periodo ${paymentMonth.toLocaleString('es', { month: 'long', year: 'numeric' })}`;
+                            await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'booster_reward', $2, $3)`, [booster.id, paymentDescription, amountToPay]);
+
+                            // Insertar en la bitácora de control de pagos
+                            await client.query(
+                                `INSERT INTO booster_payment_log (user_id, amount_paid, payment_month, booster_level_at_payment) VALUES ($1, $2, $3, $4)`,
+                                [booster.id, amountToPay, paymentMonth, level.level]
+                            );
+
+                            // --- RECONCILIACIÓN Y PARTIDA DOBLE DE LA BILLETERA DE LA PLATAFORMA ---
+                            // Se descuenta el monto pagado de la billetera central de la plataforma
+                            await client.query(
+                                `UPDATE platform_wallet 
+                                 SET total_blue_commission_balance = total_blue_commission_balance - $1 
+                                 WHERE id = 1`,
+                                [amountToPay]
+                            );
+
+                            // --- BITÁCORA DE CONTROL DE CAJA DE LA PLATAFORMA (AUDIT TRAIL) ---
+                            // Se inserta un egreso negativo en platform_wallet_log, dejando registro inmutable
+                            const walletLogDesc = `Pago de recompensa a impulsor ${booster.username} (Nivel ${level.level}) para el periodo ${paymentMonthString}`;
+                            await client.query(
+                                `INSERT INTO platform_wallet_log (transaction_type, amount, related_username, description)
+                                 VALUES ('booster_payout', $1, $2, $3)`,
+                                [-amountToPay, booster.username, walletLogDesc]
+                            );
+
+                            // Descontar del balance local del lote actual
+                            fundsAvailable -= amountToPay;
+
+                            console.log(`BOOSTER PAYMENTS: Lote procesó pago para ${booster.username}: ${amountToPay.toFixed(4)} BLUE.`);
+                        }
+                    }
+
+                    // 4. Actualizar el cursor de ID con el valor máximo procesado en el lote
+                    const maxIdInBatch = Math.max(...boostersResult.rows.map(b => b.id));
+                    lastProcessedId = maxIdInBatch;
+
+                    await client.query('COMMIT');
+                } catch (batchErr) {
+                    await client.query('ROLLBACK');
+                    console.error(`BOOSTER PAYMENTS: Error crítico al procesar lote en Nivel ${level.level} (lastProcessedId: ${lastProcessedId}):`, batchErr);
+                    hasMoreBoosters = false; // Detener flujo para evitar bucle infinito en fallos físicos
+                } finally {
+                    client.release();
+                }
+            }
         }
 
-        // Calcular el total pagado comparando el fondo inicial consolidado con el restante
-        const totalPaidOut = initialFunds - fundsAvailable;
+        // 4. Registrar la culminación del ciclo contable general leyendo el balance neto final de caja
+        const finalWalletRes = await pool.query('SELECT total_blue_commission_balance FROM platform_wallet WHERE id = 1');
+        const finalWalletBalance = parseFloat(finalWalletRes.rows[0]?.total_blue_commission_balance) || 0;
+        const totalPaidOut = initialWalletBalance - finalWalletBalance;
 
-        // AUDITORÍA FINTECH: Registrar la finalización exitosa del ciclo de pagos
-        await logAuditEvent(client, null, {
+        await logAuditEvent(pool, null, {
             eventType: 'booster.monthly_payments_completed',
             actorUsername: 'system_cron',
             metadata: {
@@ -251,24 +372,10 @@ async function executeBoosterPayments() {
                 customFrequencyActive: customFreqEnabled
             }
         });
-
-        // Persistimos de forma atómica en base de datos
-        await client.query('COMMIT');
         console.log(`BOOSTER PAYMENTS: Ciclo finalizado con éxito. Total pagado: ${totalPaidOut.toFixed(4)} BLUE.`);
 
     } catch (error) {
-        if (client) {
-            try {
-                await client.query('ROLLBACK');
-            } catch (rollbackError) {
-                console.error('BOOSTER PAYMENTS: Error al revertir transacción (ROLLBACK):', rollbackError);
-            }
-        }
-        console.error('BOOSTER PAYMENTS: Error crítico durante el ciclo de pagos de impulsores:', error);
-    } finally {
-        if (client) {
-            client.release();
-        }
+        console.error('BOOSTER PAYMENTS: Error crítico general en el ciclo de pagos:', error);
     }
 }
 
