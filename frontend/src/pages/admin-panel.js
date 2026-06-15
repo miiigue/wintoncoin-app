@@ -95,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
         boostersSettingsContainer: document.getElementById('boosters-settings-container'),
         boostersDashboardStats: document.getElementById('boosters-dashboard-stats'),
         boostersListContainer: document.getElementById('boosters-list-container'),
+        boostersPaymentsContainer: document.getElementById('boosters-payments-log-container'),
         boostersStagesContainer: document.getElementById('boosters-stages-container'),
         // --- NOTIFICACIONES ---
         notificationsSection: document.getElementById('notifications-section'),
@@ -611,6 +612,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadBoosterList();
                 break;
             case 'boosters-payments':
+                loadBoosterPayments();
                 break;
         }
     }
@@ -844,6 +846,17 @@ document.addEventListener('DOMContentLoaded', () => {
             renderBoosterList(boosters);
         } catch (error) {
             elements.boostersListContainer.innerHTML = `<p class="error-message">Error al cargar la lista de impulsores: ${escapeHtml(error.message)}</p>`;
+        }
+    }
+
+    async function loadBoosterPayments() {
+        if (!elements.boostersPaymentsContainer) return;
+        elements.boostersPaymentsContainer.innerHTML = '<div class="loading-spinner"></div>';
+        try {
+            const payments = await apiFetch('/api/admin/boosters/payments');
+            renderBoosterPayments(payments);
+        } catch (error) {
+            elements.boostersPaymentsContainer.innerHTML = `<p class="error-message">Error al cargar el historial de pagos: ${escapeHtml(error.message)}</p>`;
         }
     }
 
@@ -1416,6 +1429,47 @@ document.addEventListener('DOMContentLoaded', () => {
             </table>
         `;
         elements.boostersListContainer.innerHTML = tableHTML;
+    }
+
+    function renderBoosterPayments(payments) {
+        if (!elements.boostersPaymentsContainer) return;
+
+        if (!payments || payments.length === 0) {
+            elements.boostersPaymentsContainer.innerHTML = '<p class="empty-message">No se han registrado pagos de impulsores aún.</p>';
+            return;
+        }
+
+        const tableHTML = `
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th style="width: 200px;">Fecha de Pago</th>
+                        <th>Usuario</th>
+                        <th style="text-align: center; width: 150px;">Nivel de Pago</th>
+                        <th>Periodo Liquidado</th>
+                        <th style="text-align: right; width: 180px;">BLUE Pagado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${payments.map(payment => `
+                        <tr>
+                            <td>${new Date(payment.created_at).toLocaleString()}</td>
+                            <td class="username-cell">
+                                <a href="profile.html?user=${escapeHtml(payment.username)}" target="_blank">${escapeHtml(payment.username)}</a>
+                            </td>
+                            <td align="center">
+                                <span class="status-badge active" style="background-color: #3B82F6; font-size: 0.75rem; padding: 4px 8px; border-radius: 12px; font-weight: bold; color: white;">Nivel ${escapeHtml(payment.booster_level_at_payment)}</span>
+                            </td>
+                            <td>${new Date(payment.payment_month).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</td>
+                            <td class="saldo-blue-text" style="font-weight: bold; color: #10B981; text-align: right;">
+                                +${formatBalance(payment.amount_paid)}
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+        elements.boostersPaymentsContainer.innerHTML = tableHTML;
     }
 
     // --- Event Handlers ---

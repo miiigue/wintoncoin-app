@@ -1446,6 +1446,32 @@ async function getBoostersList(req, res) {
 }
 
 /**
+ * Obtiene el historial contable de pagos a impulsores (booster_payment_log).
+ */
+async function getBoosterPaymentsLog(req, res) {
+    try {
+        const query = `
+            SELECT 
+                bpl.id,
+                bpl.amount_paid,
+                bpl.payment_month,
+                bpl.booster_level_at_payment,
+                bpl.created_at,
+                u.username
+            FROM booster_payment_log bpl
+            JOIN users u ON bpl.user_id = u.id
+            ORDER BY bpl.created_at DESC
+            LIMIT 200
+        `;
+        const result = await pool.query(query);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('[AdminController] Error al obtener log de pagos de impulsores:', error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+}
+
+/**
  * Reconstruye el historial/ledger de boosters para un usuario específico.
  * Utiliza auditoría completa.
  */
@@ -2092,6 +2118,7 @@ module.exports = {
     updateBoosterSettings,
     getBoosterStats,
     getBoostersList,
+    getBoosterPaymentsLog,
     rebuildBoosterLedger,
     getGovernanceRewardStats,
     processGovernanceRewards,

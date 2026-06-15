@@ -24,6 +24,7 @@ router.get('/boosters/settings', verifyAdminToken, adminController.getBoosterSet
 router.post('/boosters/settings', verifyAdminToken, adminController.updateBoosterSettings);
 router.get('/boosters/stats', verifyAdminToken, adminController.getBoosterStats);
 router.get('/boosters/list', verifyAdminToken, adminController.getBoostersList);
+router.get('/boosters/payments', verifyAdminToken, adminController.getBoosterPaymentsLog);
 router.post('/boosters/rebuild-ledger/:username', verifyAdminToken, adminController.rebuildBoosterLedger);
 
 // Gestión de Etapas de Booster y Multiplicadores
