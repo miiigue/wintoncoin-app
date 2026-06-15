@@ -129,15 +129,19 @@ async function executeBoosterPayments() {
 
         const paymentMonthString = `${paymentMonth.getFullYear()}-${(paymentMonth.getMonth() + 1).toString().padStart(2, '0')}`;
 
-        // 2. Calcular las comisiones totales recaudadas para el periodo correspondiente
-        // Si es ciclo mensual, buscamos las del mes anterior. Si es frecuencia personalizada, tomamos todas las comisiones acumuladas del mes en curso.
-        const commissionResult = await client.query(
-            `SELECT SUM(commission_amount_blue) as total FROM platform_commission_log WHERE to_char(created_at, 'YYYY-MM') = $1`,
-            [paymentMonthString]
+        // 2. Obtener el balance real acumulado de comisiones en la billetera de la plataforma.
+        // Se descarta el filtro mensual estricto de platform_commission_log y se consulta el balance real
+        // consolidado de la plataforma (platform_wallet) para permitir pagar usando comisiones acumuladas históricas.
+        // Se aplica un bloqueo de base de datos 'FOR UPDATE' (bloqueo pesimista) para evitar que procesos
+        // concurrentes lee y gasten el mismo balance al mismo tiempo (Double Spend prevention).
+        const walletResult = await client.query(
+            `SELECT total_blue_commission_balance FROM platform_wallet WHERE id = 1 FOR UPDATE`
         );
-        let fundsAvailable = parseFloat(commissionResult.rows[0].total) || 0;
+        let fundsAvailable = parseFloat(walletResult.rows[0]?.total_blue_commission_balance) || 0;
+        const initialFunds = fundsAvailable; // Guardamos el fondo inicial para calcular el gasto exacto al final
 
-        // AUDITORÍA FINTECH: Registrar inicio del proceso de pagos en el libro de auditoría centralizado
+        // AUDITORÍA FINTECH: Registrar inicio del proceso de pagos en el libro de auditoría centralizado.
+        // Garantiza la trazabilidad y la auditabilidad bancaria del ciclo.
         await logAuditEvent(client, null, {
             eventType: 'booster.monthly_payments_started',
             actorUsername: 'system_cron',
@@ -148,8 +152,10 @@ async function executeBoosterPayments() {
             }
         });
 
+        // Verificación de disponibilidad de fondos en billetera.
+        // Si no hay saldo acumulado, el ciclo termina limpiamente para evitar deudas no colateralizadas.
         if (fundsAvailable <= 0) {
-            console.log(`BOOSTER PAYMENTS: No hay fondos de comisiones disponibles en el log para el mes/periodo ${paymentMonthString}.`);
+            console.log(`BOOSTER PAYMENTS: No hay fondos de comisiones disponibles en la billetera de la plataforma.`);
             await client.query('COMMIT'); // Hacemos commit del evento de auditoría
             return;
         }
@@ -203,6 +209,27 @@ async function executeBoosterPayments() {
                         [booster.id, amountToPay, paymentMonth, level.level]
                     );
 
+                    // --- NUEVO: RECONCILIACIÓN DE LA BILLETERA DE LA PLATAFORMA ---
+                    // Se descuenta el monto pagado de la billetera central de la plataforma (platform_wallet).
+                    // Esto implementa contabilidad de partida doble: cada crédito al booster requiere un débito a la plataforma.
+                    // Evita la creación de tokens BLUE sin respaldo ("impresión de dinero") y asegura consistencia con el panel de administración.
+                    await client.query(
+                        `UPDATE platform_wallet 
+                         SET total_blue_commission_balance = total_blue_commission_balance - $1 
+                         WHERE id = 1`,
+                        [amountToPay]
+                    );
+
+                    // --- NUEVO: BITÁCORA DE CONTROL DE CAJA DE LA PLATAFORMA (AUDIT TRAIL) ---
+                    // Se inserta un egreso con monto negativo en platform_wallet_log, dejando registro auditable
+                    // e inmutable (ledger) de la salida de fondos y el beneficiario (related_username).
+                    const walletLogDesc = `Pago de recompensa a impulsor ${booster.username} (Nivel ${level.level}) para el periodo ${paymentMonthString}`;
+                    await client.query(
+                        `INSERT INTO platform_wallet_log (transaction_type, amount, related_username, description)
+                         VALUES ('booster_payout', $1, $2, $3)`,
+                        [-amountToPay, booster.username, walletLogDesc]
+                    );
+
                     console.log(`BOOSTER PAYMENTS: Pago procesado exitosamente para ${booster.username}: ${amountToPay.toFixed(4)} BLUE.`);
                 }
             }
@@ -211,7 +238,8 @@ async function executeBoosterPayments() {
             fundsAvailable -= totalDebtForLevel * paymentPercentage;
         }
 
-        const totalPaidOut = (parseFloat(commissionResult.rows[0].total) || 0) - fundsAvailable;
+        // Calcular el total pagado comparando el fondo inicial consolidado con el restante
+        const totalPaidOut = initialFunds - fundsAvailable;
 
         // AUDITORÍA FINTECH: Registrar la finalización exitosa del ciclo de pagos
         await logAuditEvent(client, null, {

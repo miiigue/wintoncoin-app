@@ -888,6 +888,14 @@ async function initializeDatabase() {
             commission_amount_blue NUMERIC(19, 4) NOT NULL,
             created_at TIMESTAMPTZ DEFAULT NOW()
         );`,
+        `CREATE TABLE IF NOT EXISTS platform_wallet_log (
+            id SERIAL PRIMARY KEY,
+            transaction_type VARCHAR(50) NOT NULL, -- ej: 'burn', 'booster_payout'
+            amount NUMERIC(19, 4) NOT NULL,
+            related_username VARCHAR(255),
+            description TEXT,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );`,
         // --- NUEVA TABLA PARA EL SISTEMA DE REFERIDOS ---
         `CREATE TABLE IF NOT EXISTS referral_log (
             id SERIAL PRIMARY KEY,
