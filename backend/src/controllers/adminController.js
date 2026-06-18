@@ -264,7 +264,7 @@ async function getUsers(req, res) {
             SELECT
                 u.id, u.username, u.liquid_blue_balance, u.escrow_blue_balance,
                 u.red_balance, u.account_status as status, u.average_rating,
-                u.ratings_count, u.created_at, u.referral_code,
+                u.ratings_count, u.created_at, u.referral_code, u.web3_wallet_address,
                 COALESCE(SUM(bbl.amount), 0) as booster_blue_balance
             FROM users u
             LEFT JOIN booster_blue_ledger bbl ON u.id = bbl.user_id
@@ -281,7 +281,7 @@ async function getUsers(req, res) {
 
         sql += ` GROUP BY u.id, u.username, u.liquid_blue_balance, u.escrow_blue_balance,
                  u.red_balance, u.account_status, u.average_rating, u.ratings_count,
-                 u.created_at, u.referral_code
+                 u.created_at, u.referral_code, u.web3_wallet_address
                  ORDER BY u.created_at DESC`;
 
         const result = await pool.query(sql, params);
