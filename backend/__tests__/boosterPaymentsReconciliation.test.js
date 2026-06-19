@@ -26,6 +26,14 @@ describe('Booster Payments Budget Reconciliation Integration Tests', () => {
     const testEmail = `recon_${Date.now()}@wintoncoin.io`;
 
     beforeAll(async () => {
+        // Inicializar de forma autónoma la base de datos de pruebas (sandbox wintoncoin_test)
+        const { initializeDatabase } = require('../src/config/databaseInit');
+        const { runPendingMigrations } = require('../scripts/migrationRunner');
+        
+        console.log('[TEST SETUP] Inicializando tablas base y aplicando migraciones en wintoncoin_test...');
+        await initializeDatabase();
+        await runPendingMigrations();
+
         // 0. Asegurar la existencia de la tabla platform_wallet_log para el entorno de pruebas
         await pool.query(`
             CREATE TABLE IF NOT EXISTS platform_wallet_log (

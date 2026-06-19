@@ -834,7 +834,7 @@ ${publicationUrl}`;
                 });
                 showCustomAlert('¡Gracias por compartir!');
             } else {
-                await navigator.clipboard.writeText(textToShare);
+                await copyTextToClipboard(textToShare);
                 showCustomAlert('¡Mensaje para compartir copiado al portapapeles!');
             }
 

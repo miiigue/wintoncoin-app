@@ -1005,6 +1005,30 @@ async function initializeDatabase() {
             comment TEXT,
             created_at TIMESTAMPTZ DEFAULT NOW(),
             UNIQUE (order_id, rater_username)
+        );`,
+        `CREATE TABLE IF NOT EXISTS email_broadcasts (
+            id SERIAL PRIMARY KEY,
+            admin_id INTEGER NOT NULL REFERENCES users(id),
+            subject VARCHAR(255) NOT NULL,
+            title VARCHAR(255),
+            body TEXT NOT NULL,
+            target_group VARCHAR(50) NOT NULL, -- 'all', 'verified', 'booster', 'specific'
+            target_username VARCHAR(255),
+            total_recipients INTEGER DEFAULT 0,
+            sent_count INTEGER DEFAULT 0,
+            failed_count INTEGER DEFAULT 0,
+            status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'sending', 'completed', 'failed'
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            button_text VARCHAR(50),
+            button_url VARCHAR(255)
+        );`,
+        `CREATE TABLE IF NOT EXISTS email_broadcast_recipients (
+            id SERIAL PRIMARY KEY,
+            broadcast_id INTEGER REFERENCES email_broadcasts(id) ON DELETE CASCADE,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'sent', 'failed'
+            error_message TEXT,
+            sent_at TIMESTAMP WITH TIME ZONE
         );`
     ];
 

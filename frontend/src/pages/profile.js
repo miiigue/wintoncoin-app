@@ -73,7 +73,7 @@ function initializeProfilePage() {
         if (user.web3_wallet_address) {
             document.getElementById('copyWalletBtn').addEventListener('click', function() {
                 const fullAddress = this.dataset.address;
-                navigator.clipboard.writeText(fullAddress).then(() => {
+                copyTextToClipboard(fullAddress).then(() => {
                     const originalHTML = this.innerHTML;
                     this.innerHTML = '<span style="font-size:12px; font-weight:bold; color:#059669;">✓ Copiado</span>';
                     setTimeout(() => {

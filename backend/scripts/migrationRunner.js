@@ -7,19 +7,7 @@ const path = require('path');
 const { Pool } = require('pg');
 
 // CARGA DE CONFIGURACIÓN PROFESIONAL
-// Buscamos el archivo .env según el entorno si existe, pero no bloqueamos si no está
-const env = process.env.NODE_ENV || 'development';
-const pathEnvFile = `../../.env.${env}`;
-const envPath = path.resolve(__dirname, pathEnvFile);
-
-if (fs.existsSync(envPath)) {
-    require('dotenv').config({ path: envPath });
-    console.log(`[MIGRATIONS] ⚙️ Archivo de entorno cargado: ${pathEnvFile}`);
-} else {
-    // Intentamos cargar el .env genérico por si acaso
-    require('dotenv').config();
-    console.log(`[MIGRATIONS] ⚙️ Usando variables de entorno del sistema.`);
-}
+require('../config');
 
 if (!process.env.DATABASE_URL) {
     console.error(`[MIGRATIONS] ❌ FATAL: La variable DATABASE_URL no está definida en el entorno.`);
@@ -40,8 +28,11 @@ const MIGRATIONS_TABLE_SQL = `
 CREATE TABLE IF NOT EXISTS schema_migrations (
     id SERIAL PRIMARY KEY,
     migration_name VARCHAR(255) UNIQUE NOT NULL,
-    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(20) DEFAULT 'SUCCESS'
+    applied_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'SUCCESS',
+    applied_by TEXT,
+    environment TEXT,
+    checksum TEXT
 );
 `;
 
@@ -56,12 +47,14 @@ async function runPendingMigrations() {
         // 1. Asegurar que existe la tabla de control
         await client.query(MIGRATIONS_TABLE_SQL);
 
-        // 1.5 Auto-reparación: Si la tabla ya existía pero versión vieja senta 'status', agregarla.
+        // 1.5 Auto-reparación: Asegurar que existan todos los campos de auditoría requeridos por utilidades legacy.
         try {
             await client.query('ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT \'SUCCESS\'');
+            await client.query('ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS applied_by TEXT');
+            await client.query('ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS environment TEXT');
+            await client.query('ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS checksum TEXT');
         } catch (e) {
-            // Ignorar error si ya existe (aunque IF NOT EXISTS debería manejarlo en Postgres moderno)
-            console.log('[MIGRATIONS] Nota: Verificación de columna status completada.');
+            console.log('[MIGRATIONS] Nota: Verificación de columnas de auditoría completada.');
         }
 
         // 2. Leer archivos de migración disponibles
@@ -89,29 +82,119 @@ async function runPendingMigrations() {
 
         console.log(`[MIGRATIONS] 📦 Se encontraron ${pending.length} migraciones pendientes.`);
 
+        // --- CIBERSEGURIDAD Y COMPATIBILIDAD RETROACTIVA (SOC 2 / AUDITORÍA BANCARIA) ---
+        // Implementación de MockPool para retrocompatibilidad con migraciones legacy (001 a 049).
+        // Las migraciones legacy instancian su propio Pool de conexiones y corren consultas en IIFEs.
+        // Interceptamos pg.Pool de forma temporal antes de hacer require de cada migración legacy
+        // para canalizar todas las consultas por el cliente del runner y forzar ejecución secuencial transaccional.
+        const pg = require('pg');
+        const OriginalPool = pg.Pool;
+        const mockPoolInstances = [];
+
+        class MockPool {
+            constructor(config) {
+                this.config = config;
+                this.failed = false;
+                this.released = false;
+                this.ended = false;
+                mockPoolInstances.push(this);
+            }
+
+            async connect() {
+                const mockClient = {
+                    query: async (text, params) => {
+                        const upperText = typeof text === 'string' ? text.trim().toUpperCase() : '';
+                        // Evitamos anidación de transacciones porque el runner maneja BEGIN/COMMIT/ROLLBACK.
+                        if (upperText === 'BEGIN' || upperText === 'COMMIT' || upperText === 'ROLLBACK') {
+                            if (upperText === 'ROLLBACK') {
+                                this.failed = true;
+                            }
+                            return { rows: [] };
+                        }
+                        // Redirigir la consulta al cliente transaccional del runner
+                        return client.query(text, params);
+                    },
+                    release: () => {
+                        this.released = true;
+                        this._resolveFinished();
+                    }
+                };
+                return mockClient;
+            }
+
+            async end() {
+                this.ended = true;
+                this._resolveFinished();
+            }
+
+            _resolveFinished() {
+                if (this._onFinished) {
+                    this._onFinished();
+                }
+            }
+
+            awaitFinished() {
+                return new Promise((resolve, reject) => {
+                    if (this.released || this.ended) {
+                        if (this.failed) reject(new Error('La migración falló (se ejecutó ROLLBACK en el script legacy).'));
+                        else resolve();
+                        return;
+                    }
+                    this._onFinished = () => {
+                        if (this.failed) reject(new Error('La migración falló (se ejecutó ROLLBACK en el script legacy).'));
+                        else resolve();
+                    };
+                });
+            }
+        }
+
         // 4. Ejecutar pendientes con transacciones individuales
         for (const file of pending) {
             console.log(`[MIGRATIONS] ▶️  Aplicando: ${file}...`);
 
             const migrationPath = path.join(migrationsDir, file);
-            const migrationModule = require(migrationPath);
+            let migrationModule;
 
             try {
-                // Cada migración corre en su propia transacción para aislamiento
+                // Iniciamos la transacción para esta migración individual (grado bancario)
                 await client.query('BEGIN');
+
+                // Eliminar del caché de Node para obligar su ejecución si se requiere múltiples veces en el mismo proceso (ej: en tests)
+                delete require.cache[require.resolve(migrationPath)];
+
+                // Si la migración no es moderna (no exporta up), activamos el mockeo antes del require
+                pg.Pool = MockPool;
+                
+                try {
+                    migrationModule = require(migrationPath);
+                } finally {
+                    // Restauramos siempre el Pool original de inmediato para evitar efectos secundarios en otros módulos
+                    pg.Pool = OriginalPool;
+                }
 
                 // Ejecutar la función 'up' si existe (formato moderno)
                 if (typeof migrationModule.up === 'function') {
                     await migrationModule.up(client);
                 } else {
-                    // Si no exporta up(), asumimos que se auto-ejecuta al requerirlo
                     console.log(`[MIGRATIONS] ⚠️  ${file} no exporta up(). Se asume ejecución al importar.`);
+                    // Es una migración legacy. Obtenemos el MockPool instanciado durante el require
+                    const lastInstance = mockPoolInstances[mockPoolInstances.length - 1];
+                    if (lastInstance) {
+                        // Esperamos a que finalice la ejecución asíncrona secuencialmente
+                        await lastInstance.awaitFinished();
+                    } else {
+                        throw new Error(`No se pudo inicializar la conexión simulada para la migración legacy: ${file}`);
+                    }
                 }
 
-                // Registrar como exitosa DENTRO de la misma transacción
-                // Así si la migración falla, el registro NO se guarda (ROLLBACK)
+                // Registrar como exitosa DENTRO de la misma transacción para consistencia.
+                // Se utiliza ON CONFLICT para soportar las migraciones legacy que se auto-registran mediante _migration_utils.js
+                // previniendo colisiones de clave duplicada y preservando sus checksums/metadata de auditoría originales.
                 await client.query(
-                    'INSERT INTO schema_migrations (migration_name, status) VALUES ($1, $2)',
+                    `INSERT INTO schema_migrations (migration_name, status)
+                     VALUES ($1, $2)
+                     ON CONFLICT (migration_name) 
+                     DO UPDATE SET status = EXCLUDED.status`,
                     [file, 'SUCCESS']
                 );
 
@@ -119,10 +202,11 @@ async function runPendingMigrations() {
                 console.log(`[MIGRATIONS] ✅ ${file} completada y registrada.`);
 
             } catch (migrationError) {
-                // Si falla, revertimos TODO (la migración + el registro)
+                // Si falla cualquier consulta o el script legacy reporta un ROLLBACK,
+                // revertimos todo el lote de esta migración
                 await client.query('ROLLBACK');
                 console.error(`[MIGRATIONS] ❌ Falló la migración ${file}:`, migrationError.message);
-                throw migrationError; // Propagar para detener el servidor
+                throw migrationError; // Detener inicio del servidor por fallo de integridad
             }
         }
 

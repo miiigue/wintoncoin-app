@@ -1,4 +1,5 @@
-require('dotenv').config();
+// Requerir el configurador de entorno dinámico central del proyecto
+require('../../config');
 const { Pool } = require('pg');
 
 let useSsl = false;

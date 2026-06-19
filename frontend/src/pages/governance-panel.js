@@ -1182,7 +1182,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                         document.getElementById('bgCopyCodesBtn')?.addEventListener('click', () => {
                             if (codesCleared) return;
-                            navigator.clipboard.writeText(plainCodesRef)
+                            copyTextToClipboard(plainCodesRef)
                                 .then(() => showCustomAlert('Códigos copiados al portapapeles. Recuerda limpiar el clipboard después de guardarlos.'))
                                 .catch(() => showCustomAlert('No se pudieron copiar automáticamente. Cópialos manualmente.'));
                         });

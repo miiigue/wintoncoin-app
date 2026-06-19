@@ -1,6 +1,5 @@
 const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
 const crypto = require('crypto');
-require('dotenv').config();
 
 // Configuración AWS SES
 const isProduction = process.env.NODE_ENV === 'production';

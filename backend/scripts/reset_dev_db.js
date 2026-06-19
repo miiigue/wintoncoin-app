@@ -13,11 +13,7 @@
  * - Validación de URL: Asegura que la URL apunte a localhost/desarrollo.
  */
 
-const path = require('path');
-const env = process.env.NODE_ENV || 'development';
-// Buscar el archivo de variables de entorno en la carpeta raíz
-const envPath = path.resolve(__dirname, `../../.env.${env}`);
-require('dotenv').config({ path: envPath });
+require('../config');
 
 const { Pool } = require('pg');
 

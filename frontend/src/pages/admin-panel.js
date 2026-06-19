@@ -1343,6 +1343,39 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
 
+        let coverageHTML = '';
+        let hasCoverage = false;
+        if (stats.coverage_by_level && Array.isArray(stats.coverage_by_level)) {
+            stats.coverage_by_level.forEach(cov => {
+                // Según la regla de negocio: solo mostrar los niveles que tengan alcance (> 0%)
+                if (cov.percentage > 0) {
+                    hasCoverage = true;
+                    let color = '#3B82F6'; // Azul para cobertura parcial
+                    
+                    if (cov.percentage === 100) {
+                        color = '#10B981'; // Verde para cobertura total
+                    }
+                    
+                    coverageHTML += `
+                        <div style="margin-bottom: 12px;">
+                            <p class="stat-value" style="color: ${color};">${cov.percentage}%</p>
+                            <div style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-top: 4px;">
+                                Nivel ${cov.level}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+        }
+        
+        if (!hasCoverage) {
+            coverageHTML = `
+                <div style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-top: 10px; text-align: center; font-style: italic;">
+                    Comisiones insuficientes para proyectar canjes en este momento.
+                </div>
+            `;
+        }
+
         elements.boostersDashboardStats.innerHTML = `
             <div class="stat-card interactive-card" data-target-tab="boosters-list">
                 <h4>Impulsores Totales</h4>
@@ -1363,6 +1396,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 <p class="stat-value saldo-blue-text">${formatBalance(stats.platform_commission_balance || 0)}</p>
                 <div style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-top: 4px;">
                     Saldo de comisiones disponible en caja
+                </div>
+            </div>
+            <div class="stat-card interactive-card">
+                <h4>Proyección de Canje</h4>
+                <div style="margin-top: 8px;">
+                    ${coverageHTML}
                 </div>
             </div>
             <div class="stat-card interactive-card" data-target-tab="boosters-payments">
@@ -1963,6 +2002,38 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Render Functions ---
     function renderDashboard(stats) {
         if (!elements.dashboardContainer) return;
+        let coverageHTML = '';
+        let hasCoverage = false;
+        if (stats.coverage_by_level && Array.isArray(stats.coverage_by_level)) {
+            stats.coverage_by_level.forEach(cov => {
+                if (cov.percentage > 0) {
+                    hasCoverage = true;
+                    let color = '#3B82F6'; // Azul para cobertura parcial
+                    
+                    if (cov.percentage === 100) {
+                        color = '#10B981'; // Verde para cobertura total
+                    }
+                    
+                    coverageHTML += `
+                        <div style="margin-bottom: 12px;">
+                            <p class="stat-value" style="color: ${color};">${cov.percentage}%</p>
+                            <div style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-top: 4px;">
+                                Nivel ${cov.level}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+        }
+        
+        if (!hasCoverage) {
+            coverageHTML = `
+                <div style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-top: 10px; text-align: center; font-style: italic;">
+                    Comisiones insuficientes para proyectar canjes en este momento.
+                </div>
+            `;
+        }
+
         elements.dashboardContainer.innerHTML = `
             <div class="stat-card interactive-card" data-target-section="users">
                 <h4>Usuarios Totales</h4>
@@ -1983,6 +2054,12 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="stat-card interactive-card" data-target-section="platform-wallet">
                 <h4>Comisiones Acumuladas</h4>
                 <p class="stat-value saldo-blue-text">${formatBalance(stats.platformCommissionBalance)}</p>
+            </div>
+            <div class="stat-card interactive-card">
+                <h4>Proyección de Canje</h4>
+                <div style="margin-top: 8px;">
+                    ${coverageHTML}
+                </div>
             </div>
             
             <div class="stat-card interactive-card" style="border-left: 4px solid #8B5CF6;" data-target-section="platform-publications">
@@ -2865,7 +2942,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.usersTableContainer.querySelectorAll('.copy-wallet-btn-admin').forEach(btn => {
             btn.addEventListener('click', function() {
                 const fullAddress = this.dataset.address;
-                navigator.clipboard.writeText(fullAddress).then(() => {
+                copyTextToClipboard(fullAddress).then(() => {
                     const originalHTML = this.innerHTML;
                     this.innerHTML = '<span style="font-size:10px; font-weight:bold; color:#059669;">✓</span>';
                     setTimeout(() => {

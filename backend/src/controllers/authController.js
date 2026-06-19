@@ -386,7 +386,7 @@ exports.registerVerify = async (req, res) => {
                 await client.query('UPDATE users SET is_booster = true WHERE id = $1', [referrer.id]);
 
                 // VINCULACIÓN DE DATOS (FIX): Guardar la relación de referido en la tabla users y logs
-                await client.query('UPDATE users SET referred_by_id = $1 WHERE id = $2', [referrer.id, newUser.id]);
+                await client.query('UPDATE users SET referrer_id = $1 WHERE id = $2', [referrer.id, newUser.id]);
                 await client.query('INSERT INTO referral_log (referrer_user_id, referred_user_id) VALUES ($1, $2)', [referrer.id, newUser.id]);
 
                 await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_sent', $2, $3)`, [referrer.id, rewardAmount, `Bono por referir a ${newUser.username}`]);

@@ -1,6 +1,5 @@
-const path = require('path');
-// Cargar variables de entorno desde la carpeta raíz del backend
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+// Cargar variables de entorno de forma dinámica y centralizada
+require('../config');
 
 const pool = require('../src/config/db');
 const notificationService = require('../src/services/notificationService');

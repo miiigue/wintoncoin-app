@@ -565,7 +565,7 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.copyMyWalletBtn.addEventListener('click', function() {
                 const fullAddress = this.dataset.address;
                 if (!fullAddress) return;
-                navigator.clipboard.writeText(fullAddress).then(() => {
+                copyTextToClipboard(fullAddress).then(() => {
                     const originalHTML = this.innerHTML;
                     this.innerHTML = '<span style="font-size:12px; font-weight:bold; color:#059669;">✓ Copiado</span>';
                     setTimeout(() => {
@@ -2310,7 +2310,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         text: textToShare
                     });
                 } else {
-                    await navigator.clipboard.writeText(textToShare);
+                    await copyTextToClipboard(textToShare);
                     showCustomAlert('¡Mensaje de invitación copiado! Compártelo con tus amigos.');
                 }
             } else {

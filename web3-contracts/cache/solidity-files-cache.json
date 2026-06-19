@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "C:\\Users\\migue\\OneDrive\\Escritorio\\WINTONCOIN\\smart-contract\\web3-contracts\\contracts\\WintonProtocol.sol": {
-      "lastModificationDate": 1778267637608,
-      "contentHash": "125d59b39c42542589ef73390f9e346b",
+      "lastModificationDate": 1781820932623,
+      "contentHash": "f841254afae052e4c9d59988162289a6",
       "sourceName": "contracts/WintonProtocol.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -118,8 +118,8 @@
       ]
     },
     "C:\\Users\\migue\\OneDrive\\Escritorio\\WINTONCOIN\\smart-contract\\web3-contracts\\contracts\\BlueToken.sol": {
-      "lastModificationDate": 1778267615688,
-      "contentHash": "b8b6b6e2b64447b427770af579e3e861",
+      "lastModificationDate": 1781820932443,
+      "contentHash": "d46b76fb345cf1913b3659e1da958e2c",
       "sourceName": "contracts/BlueToken.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -311,8 +311,8 @@
       ]
     },
     "C:\\Users\\migue\\OneDrive\\Escritorio\\WINTONCOIN\\smart-contract\\web3-contracts\\contracts\\WintonTreasury.sol": {
-      "lastModificationDate": 1778267646851,
-      "contentHash": "13fd7a2d9cb27779ed4acdd181754200",
+      "lastModificationDate": 1781820932659,
+      "contentHash": "4487fd8e66e1a10b09e5dbf2f82f99d4",
       "sourceName": "contracts/WintonTreasury.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -539,8 +539,8 @@
       ]
     },
     "C:\\Users\\migue\\OneDrive\\Escritorio\\WINTONCOIN\\smart-contract\\web3-contracts\\contracts\\RedToken.sol": {
-      "lastModificationDate": 1778267628023,
-      "contentHash": "b22f9fb4855238ac0b962d1cde43fa8f",
+      "lastModificationDate": 1781820932562,
+      "contentHash": "19de93408f7fa5c26de8ac989d7c3624",
       "sourceName": "contracts/RedToken.sol",
       "solcConfig": {
         "version": "0.8.24",

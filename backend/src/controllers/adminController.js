@@ -450,7 +450,7 @@ async function getDashboardStats(req, res) {
         const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
 
         // Ejecutar todas las consultas en paralelo para minimizar latencia
-        const [usersData, publicationsData, tokensData, platformWalletData, boosterFundsData, platformEscrow, platformInExecution, platformPendingPayment, eligibleBoosterFundsData] = await Promise.all([
+        const [usersData, publicationsData, tokensData, platformWalletData, boosterFundsData, platformEscrow, platformInExecution, platformPendingPayment, eligibleBoosterFundsData, levelDebtResult] = await Promise.all([
             client.query('SELECT COUNT(*) AS total_users FROM users WHERE username != $1', [platformUsername]),
             client.query(`
                 SELECT COUNT(DISTINCT p.id) AS active_publications FROM publications p
@@ -497,8 +497,45 @@ async function getDashboardStats(req, res) {
                 FROM booster_blue_ledger bbl 
                 JOIN users u ON bbl.user_id = u.id 
                 WHERE u.is_booster = TRUE AND u.kyc_verified = TRUE
+            `),
+            client.query(`
+                SELECT 
+                    u.booster_level,
+                    COALESCE(SUM(CASE WHEN u.kyc_verified = TRUE THEN bbl.amount ELSE 0.0000 END), 0.0000) as eligible_level_debt
+                FROM users u
+                LEFT JOIN booster_blue_ledger bbl ON u.id = bbl.user_id
+                WHERE u.is_booster = TRUE AND u.booster_level BETWEEN 1 AND 5
+                GROUP BY u.booster_level
             `)
         ]);
+
+        let remainingCommission = parseFloat(platformWalletData.rows[0]?.total_blue_commission_balance) || 0;
+        const debt_by_level = {};
+        for (let l = 1; l <= 5; l++) debt_by_level[l] = 0;
+        
+        levelDebtResult.rows.forEach(row => {
+            debt_by_level[row.booster_level] = parseFloat(row.eligible_level_debt) || 0;
+        });
+
+        const coverage_by_level = [];
+        for (let l = 1; l <= 5; l++) {
+            const levelEligibleDebt = debt_by_level[l];
+            if (levelEligibleDebt > 0) {
+                let coveragePercentage = 0;
+                if (remainingCommission >= levelEligibleDebt) {
+                    coveragePercentage = 100;
+                    remainingCommission -= levelEligibleDebt;
+                } else if (remainingCommission > 0) {
+                    coveragePercentage = (remainingCommission / levelEligibleDebt) * 100;
+                    remainingCommission = 0;
+                }
+                coverage_by_level.push({
+                    level: l,
+                    percentage: parseFloat(coveragePercentage.toFixed(2)),
+                    debt: levelEligibleDebt
+                });
+            }
+        }
 
         const stats = {
             totalUsers:                  parseInt(usersData.rows[0].total_users, 10),
@@ -511,7 +548,8 @@ async function getDashboardStats(req, res) {
             eligibleBoosterFunds:        parseFloat(eligibleBoosterFundsData.rows[0]?.eligible_booster_funds) || 0,
             totalPlatformEscrow:         parseFloat(platformEscrow.rows[0]?.total_platform_escrow) || 0,
             totalPlatformInExecution:    parseFloat(platformInExecution.rows[0]?.total_platform_in_execution) || 0,
-            totalPlatformPendingPayment: parseFloat(platformPendingPayment.rows[0]?.total_platform_pending_payment) || 0
+            totalPlatformPendingPayment: parseFloat(platformPendingPayment.rows[0]?.total_platform_pending_payment) || 0,
+            coverage_by_level:           coverage_by_level
         };
 
         res.status(200).json(stats);
@@ -1414,7 +1452,35 @@ async function getBoosterStats(req, res) {
             }
         });
 
+        // Calcular la cobertura en cascada usando las comisiones actuales
+        let remainingCommission = parseFloat(statsData.platform_commission_balance) || 0;
+        const coverage_by_level = [];
+
+        for (let l = 1; l <= 5; l++) {
+            const levelEligibleDebt = debt_by_level[l].eligible;
+
+            // Solo nos interesan los niveles que realmente tienen deuda KYC
+            if (levelEligibleDebt > 0) {
+                let coveragePercentage = 0;
+                
+                if (remainingCommission >= levelEligibleDebt) {
+                    coveragePercentage = 100;
+                    remainingCommission -= levelEligibleDebt; // Restamos lo que ya cubrimos
+                } else if (remainingCommission > 0) {
+                    coveragePercentage = (remainingCommission / levelEligibleDebt) * 100;
+                    remainingCommission = 0; // Se acabaron las comisiones
+                }
+                
+                coverage_by_level.push({
+                    level: l,
+                    percentage: parseFloat(coveragePercentage.toFixed(2)),
+                    debt: levelEligibleDebt
+                });
+            }
+        }
+
         statsData.debt_by_level = debt_by_level;
+        statsData.coverage_by_level = coverage_by_level;
         res.json(statsData);
     } catch (error) {
         console.error('[AdminController] Error al obtener estadísticas booster:', error);

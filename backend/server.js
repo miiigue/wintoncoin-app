@@ -1,5 +1,5 @@
-// 0. Cargar variables de entorno
-require('dotenv').config();
+// 0. Cargar variables de entorno dinámicamente según el entorno
+require('./config');
 
 // 1. Importar las librerías necesarias
 const express = require('express');
@@ -9,7 +9,6 @@ const cookieParser = require('cookie-parser'); // NECESARIO PARA COOKIES
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const cron = require('node-cron');
-require('./config'); // Carga la configuración del entorno (development o production)
 const { initializeDatabase } = require('./src/config/databaseInit');
 const { processPendingBroadcasts } = require('./src/services/emailService');
 const { logAuditEvent, startAuditCleanupJob } = require('./src/services/auditService');
@@ -168,11 +167,16 @@ async function startServer() {
     try {
         await checkDbConnection();
 
-        // --- NUEVO: Ejecutar migraciones pendientes automáticamente ---
+        // --- SEGURIDAD Y AUDITABILIDAD DE BASE DE DATOS ---
+        // 1. Inicializar base de datos: Crea las tablas base del sistema (users, publications, etc.) en su estado inicial.
+        // Esto es un pre-requisito obligatorio para que las migraciones posteriores puedan realizar alteraciones (ALTER TABLE) de forma segura.
+        await initializeDatabase();
+
+        // 2. Ejecutar migraciones pendientes: Una vez aseguradas las tablas base, el Migration Runner aplica de forma secuencial
+        // e incremental las modificaciones de esquema (triggers de inmutabilidad, columnas adicionales, etc.)
         const { runPendingMigrations } = require('./scripts/migrationRunner');
         await runPendingMigrations();
 
-        await initializeDatabase();
         startAuditCleanupJob();
         console.log("Base de datos inicializada correctamente.");
 
