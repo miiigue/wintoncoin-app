@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 entry.target.classList.add('visible');
                 
                 // [OPTIMIZACIÓN PROFESIONAL] - Garbage Collection:
-                // Una vez que el elemento ya apreció, dejamos de observarlo para
+                // Una vez que el elemento ya apareció, dejamos de observarlo para
                 // liberar memoria RAM y ciclos de procesamiento.
                 observer.unobserve(entry.target);
             }
@@ -47,8 +47,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Seleccionamos todos los nodos del DOM que requieren la animación de entrada
+    // [CUMPLIMIENTO Y UX] - Agregamos la sección de integridad y cada nodo individual del timeline para que
+    // se animen de forma secuencial y fluida a medida que entran en la pantalla del usuario (Viewport).
     const animatedElements = document.querySelectorAll(
-        '.step-card, .trust-content, .token-card, .community-visual-section'
+        '.step-card, .trust-content, .token-card, .community-visual-section, .integrity-section, .timeline-item'
     );
 
     animatedElements.forEach(el => {
