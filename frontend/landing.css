@@ -378,7 +378,7 @@ h2 {
     top: 10%;
     right: 5%;
     border-top: 2px solid var(--accent-blue);
-    border-right: 2px solid rgba(59, 130, 246, 0.3);
+    /* [DISEÑO] Removido el borde de color del lado derecho para un look más limpio y minimalista */
     animation: levitateBlue 6s ease-in-out infinite;
 }
 
@@ -386,7 +386,7 @@ h2 {
     bottom: 10%;
     left: 5%;
     border-top: 2px solid var(--accent-red);
-    border-left: 2px solid rgba(239, 68, 68, 0.3);
+    /* [DISEÑO] Removido el borde de color del lado izquierdo para un look más limpio y minimalista */
     animation: levitateRed 6s ease-in-out infinite;
 }
 
@@ -3078,5 +3078,295 @@ footer {
         right: 20px;
         width: 45px;
         height: 45px;
+    }
+}
+
+/* ============================================================================ */
+/* [ESTILOS] SECCIÓN DE INTEGRIDAD Y TIMELINE DE SENDEROS PARALELOS EN ESPEJO   */
+/* Diseñado con alta fidelidad visual, aceleración GPU y adaptabilidad móvil   */
+/* ============================================================================ */
+
+/* Contenedor principal de la sección. Aplica espaciado y fondo radial sutil azul */
+.integrity-section {
+    padding: 100px 0; /* Relleno vertical estándar para separar secciones */
+    background: radial-gradient(circle at 30% 50%, rgba(59, 130, 246, 0.04), transparent 70%); /* Destello radial azul */
+    position: relative; /* Posicionamiento relativo para flujo de capas */
+    overflow: hidden; /* Oculta desbordamientos en animaciones */
+}
+
+/* Grilla principal de dos columnas (Información general a la izq. y Timeline a la der.) */
+.integrity-grid {
+    display: grid; /* Layout de tipo rejilla */
+    grid-template-columns: 1fr 1.2fr; /* Columna derecha de timeline ligeramente más ancha */
+    gap: 4rem; /* Separación de 64px entre columnas */
+    align-items: center; /* Alineación vertical centralizada */
+}
+
+/* Contenedor del contenido informativo (Izquierda) */
+.integrity-content {
+    display: flex; /* Layout flexible */
+    flex-direction: column; /* Dirección vertical */
+}
+
+/* Contenedor específico para la ilustración premium */
+.integrity-visual-container {
+    margin: 2rem 0; /* Separación vertical de 32px */
+    display: flex; /* Flexbox */
+    justify-content: flex-start; /* Alinea a la izquierda en escritorio */
+}
+
+/* Ajustes responsivos para tablets y pantallas medianas (Grid a 1 columna) */
+@media (max-width: 992px) {
+    .integrity-grid {
+        grid-template-columns: 1fr; /* Pasa a 1 columna vertical */
+        gap: 3rem; /* Reduce la separación a 48px */
+    }
+    
+    .integrity-visual-container {
+        justify-content: center; /* Centra la ilustración en tabletas y móviles */
+    }
+    
+    .integrity-visual-container img {
+        max-width: 350px; /* Limita el ancho de la ilustración en móviles */
+    }
+}
+
+/* Badge distintivo de la sección */
+.badge-trust {
+    display: inline-flex; /* Contenedor flexible en línea */
+    align-items: center; /* Centrado vertical de ícono y texto */
+    gap: 8px; /* Separación interna de 8px */
+    padding: 6px 12px; /* Relleno interno compacto */
+    background: rgba(59, 130, 246, 0.1); /* Fondo translúcido azul */
+    border: 1px solid rgba(59, 130, 246, 0.3); /* Borde cian/azul de seguridad */
+    border-radius: 20px; /* Bordes redondeados tipo cápsula */
+    color: var(--accent-blue); /* Texto azul de acento */
+    font-size: 0.85rem; /* Fuente compacta */
+    font-weight: 600; /* Texto semi-negrita */
+    margin-bottom: 1.5rem; /* Separación inferior */
+    letter-spacing: 1px; /* Espaciado entre letras */
+}
+
+/* Degradado de color para el título (Fusión de Azul Winton y cian de la marca) */
+.gradient-text-red-blue {
+    background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan)); /* Gradiente horizontal */
+    -webkit-background-clip: text; /* Recorte de fondo para WebKit */
+    background-clip: text; /* Recorte de fondo estándar */
+    -webkit-text-fill-color: transparent; /* Relleno de texto transparente en WebKit */
+}
+
+/* Párrafo destacado de la declaración de principios */
+.integrity-lead {
+    font-size: 1.2rem; /* Fuente grande para lectura premium */
+    color: var(--text-secondary); /* Color gris secundario */
+    margin-bottom: 2rem; /* Separación inferior */
+    line-height: 1.6; /* Interlineado */
+}
+
+/* Nota legal y de cumplimiento normativo (Estándares Internacionales, FinTech, AML/CFT) */
+.legal-compliance-note {
+    font-size: 0.8rem; /* Fuente pequeña para pie de página */
+    color: var(--text-secondary); /* Color secundario */
+    opacity: 0.75; /* Ligera transparencia */
+    line-height: 1.6; /* Interlineado cómodo */
+    border-top: 1px solid var(--glass-border); /* Separador superior glassmorphic */
+    padding-top: 1.25rem; /* Espaciado superior */
+}
+
+/* Columna que aloja la línea de tiempo */
+.integrity-timeline-column {
+    position: relative; /* Posicionamiento relativo para la línea central */
+    width: 100%; /* Ocupa el ancho completo */
+}
+
+/* Contenedor del Timeline */
+.integrity-timeline-container {
+    position: relative; /* Posición relativa para coordenadas absolutas de línea */
+    padding: 2rem 0; /* Relleno vertical de seguridad */
+}
+
+/* Línea vertical de neón divisoria de flujos */
+.timeline-central-line {
+    position: absolute; /* Posicionamiento flotante absoluto */
+    left: 50%; /* Ubicada exactamente en el centro horizontal */
+    top: 0; /* Inicia desde el borde superior */
+    bottom: 0; /* Se extiende hasta el borde inferior */
+    width: 2px; /* Ancho fino de 2px */
+    background: linear-gradient(to bottom, var(--accent-blue), var(--accent-cyan), var(--accent-red), var(--accent-purple)); /* Gradiente de color continuo */
+    transform: translateX(-50%); /* Ajuste de centrado exacto */
+    box-shadow: 0 0 12px rgba(6, 182, 212, 0.5); /* Brillo de neón exterior */
+    z-index: 1; /* Nivel de capa trasero */
+}
+
+/* Nodo individual de la línea de tiempo */
+.timeline-item {
+    position: relative; /* Posicionamiento relativo para colocar el dot absoluto */
+    width: 50%; /* Cada nodo ocupa el 50% de la grilla horizontal */
+    margin-bottom: 2.5rem; /* Separación de 40px entre nodos sucesivos */
+    z-index: 2; /* Capa intermedia por encima de la línea central */
+    display: flex; /* Layout flexible */
+    opacity: 0; /* Invisible al cargar (para animación del scroll observer) */
+    transform: translateY(30px); /* Desplazado hacia abajo para efecto de barrido */
+    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); /* Transición acelerada por hardware */
+}
+
+/* Clase inyectada por el IntersectionObserver al hacerse visible */
+.timeline-item.visible {
+    opacity: 1; /* Se hace visible */
+    transform: translateY(0); /* Retorna a su posición original */
+}
+
+/* Nodos que pertenecen al flujo honesto (Izquierda) */
+.timeline-item.left-flow {
+    left: 0; /* Alineado a la mitad izquierda */
+    justify-content: flex-end; /* Alinea su contenido hacia el centro */
+    padding-right: 2.5rem; /* Margen derecho respecto a la línea central */
+}
+
+/* Nodos que pertenecen al flujo de seguridad/advertencia (Derecha) */
+.timeline-item.right-flow {
+    left: 50%; /* Ubicado en la mitad derecha */
+    justify-content: flex-start; /* Alinea su contenido hacia la derecha */
+    padding-left: 2.5rem; /* Margen izquierdo respecto a la línea central */
+}
+
+/* Punto indicador de la línea de tiempo (Dot) */
+.timeline-dot {
+    position: absolute; /* Flotante absoluto sobre el timeline */
+    top: 24px; /* Alineado verticalmente con la cabecera de la tarjeta */
+    width: 16px; /* Ancho de 16px */
+    height: 16px; /* Alto de 16px */
+    border-radius: 50%; /* Forma circular exacta */
+    z-index: 3; /* Capa superior sobre la línea de fondo */
+    border: 3px solid var(--bg-dark); /* Borde oscuro para dar efecto de corte */
+}
+
+/* Punto indicador de flujo honesto (Cian) */
+.timeline-dot.dot-cyan {
+    background: var(--accent-cyan); /* Color de fondo cian */
+    box-shadow: 0 0 10px var(--accent-cyan); /* Brillo cian */
+}
+
+/* Punto indicador de flujo de exclusión (Rojo) */
+.timeline-dot.dot-red {
+    background: var(--accent-red); /* Color de fondo rojo */
+    box-shadow: 0 0 10px var(--accent-red); /* Brillo rojo */
+}
+
+/* Ubicación del dot para flujos de la izquierda */
+.left-flow .timeline-dot {
+    right: -8px; /* Centrado exactamente sobre la línea vertical central */
+}
+
+/* Ubicación del dot para flujos de la derecha */
+.right-flow .timeline-dot {
+    left: -8px; /* Centrado exactamente sobre la línea vertical central */
+}
+
+/* Caja contenedora del contenido del nodo (Glassmorphism de alta gama) */
+.timeline-content-box {
+    background: rgba(20, 20, 35, 0.4); /* Fondo translúcido muy sutil */
+    backdrop-filter: blur(15px); /* Desenfoque de cristal */
+    padding: 1.5rem; /* Relleno interno */
+    border-radius: 12px; /* Esquinas suavizadas */
+    border: 1px solid var(--glass-border); /* Borde fino semitransparente */
+    max-width: 340px; /* Ancho máximo para evitar cajas desproporcionadas */
+    width: 100%; /* Ocupa el ancho disponible */
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* Transición en hover */
+}
+
+/* Efecto hover interactivo sobre las cajas del timeline */
+.timeline-content-box:hover {
+    background: rgba(30, 35, 55, 0.6); /* Fondo ligeramente más brillante */
+    transform: scale(1.03); /* Micro-escalado de 3% para feedback táctil/visual */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); /* Sombra difusa profunda */
+}
+
+/* Contenido izquierdo alineado a la derecha para un efecto espejo simétrico */
+.left-flow .timeline-content-box {
+    text-align: right; /* Alineación del texto a la derecha */
+}
+
+/* Contenido derecho alineado a la izquierda */
+.right-flow .timeline-content-box {
+    text-align: left; /* Alineación a la izquierda */
+}
+
+/* Badge interno de los hitos del timeline */
+.timeline-badge {
+    display: inline-block; /* Bloque en línea */
+    font-size: 0.7rem; /* Fuente pequeña */
+    font-weight: 700; /* Texto en negrita */
+    padding: 3px 8px; /* Relleno compacto */
+    border-radius: 4px; /* Bordes redondeados */
+    margin-bottom: 0.75rem; /* Separación del título */
+    text-transform: uppercase; /* Mayúsculas */
+    letter-spacing: 0.5px; /* Espaciado entre letras */
+}
+
+/* Badges de bienvenida (Cian) */
+.badge-welcome {
+    background: rgba(6, 182, 212, 0.15); /* Fondo translúcido */
+    color: #22d3ee; /* Texto brillante */
+}
+
+/* Badges de restricción (Rojo) */
+.badge-restricted {
+    background: rgba(239, 68, 68, 0.15); /* Fondo translúcido */
+    color: #f87171; /* Texto brillante */
+}
+
+/* Títulos del timeline */
+.timeline-content-box h4 {
+    font-size: 1.15rem; /* Fuente de título */
+    font-weight: 700; /* Negrita */
+    margin-bottom: 0.5rem; /* Separación del párrafo */
+    color: var(--text-primary); /* Texto principal blanco */
+    font-family: var(--font-heading); /* Tipografía Outfit */
+}
+
+/* Párrafos del timeline */
+.timeline-content-box p {
+    font-size: 0.85rem; /* Fuente compacta de lectura */
+    color: var(--text-secondary); /* Color secundario gris */
+    line-height: 1.4; /* Interlineado */
+}
+
+/* ==========================================================================
+   MEDIA QUERIES DE TIMELINE (RESPONSIVE NATIVO 100% PARA MÓVILES)
+   Adapta el timeline central a un flujo lateral izquierdo para pantallas < 768px
+   ========================================================================== */
+@media (max-width: 768px) {
+    /* Oculta el párrafo introductorio y la nota de cumplimiento legal en móviles para reducir la altura de la página */
+    .integrity-lead,
+    .legal-compliance-note {
+        display: none; /* Oculta físicamente los elementos en pantallas móviles */
+    }
+
+    /* Desplaza la línea central de neón hacia el extremo izquierdo */
+    .timeline-central-line {
+        left: 20px; /* Ubicación a 20px del borde */
+        transform: none; /* Elimina traslación central */
+    }
+    
+    /* Modifica todos los nodos para que ocupen el 100% de la columna */
+    .timeline-item {
+        width: 100%; /* Ancho completo */
+        left: 0 !important; /* Fuerza la alineación al extremo izquierdo */
+        padding-left: 3.5rem !important; /* Deja espacio a la izquierda para la línea */
+        padding-right: 0 !important; /* Remueve paddings de escritorio */
+        justify-content: flex-start !important; /* Alinea su contenido a la izquierda */
+    }
+    
+    /* Coloca todos los puntos indicadores (Dots) sobre la línea izquierda */
+    .timeline-dot {
+        left: 12px !important; /* Centrado vertical sobre la línea a 20px */
+        right: auto !important; /* Elimina posicionamiento derecho */
+    }
+    
+    /* Transforma las cajas de contenido a una sola estructura consistente */
+    .timeline-content-box {
+        text-align: left !important; /* Todo texto alineado a la izquierda */
+        max-width: 100%; /* Sin límites de ancho en móvil */
     }
 }
