@@ -242,7 +242,7 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
 
         // Actualizar saldo RED del responsable (tutor si es menor, autor si no)
         // Usamos 'credit' para AUMENTAR el balance de deuda (RED)
-        await client.query(`SELECT record_balance_event($1, 'credit', 'red', $2, NULL)`, [debtResponsible.user_id, redForAuthor]);
+        await client.query(`SELECT record_balance_event($1::INTEGER, 'credit'::TEXT, 'red'::TEXT, $2::NUMERIC, NULL::JSONB)`, [debtResponsible.user_id, redForAuthor]);
         await client.query(`INSERT INTO red_token_debts (user_id, username, amount, due_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${debtInterval}')`, [debtResponsible.user_id, debtResponsible.username, redForAuthor]);
         console.log('[DEBUG] processRequestPayment: Deuda RED registrada');
 
@@ -268,7 +268,7 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         console.log('[DEBUG] processRequestPayment: Worker ID resuelto', workerId);
 
         // Usamos 'payment_received' para AUMENTAR el balance en escrow (BLUE)
-        await client.query(`SELECT record_balance_event($1, 'payment_received', 'escrow_blue', $2, NULL)`, [workerId, cost]);
+        await client.query(`SELECT record_balance_event($1::INTEGER, 'payment_received'::TEXT, 'escrow_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`, [workerId, cost]);
         await client.query(`INSERT INTO blue_token_escrows (user_id, username, amount, unlock_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${escrowInterval}')`, [workerId, workerUsername, cost]);
         console.log('[DEBUG] processRequestPayment: Escrow BLUE registrado');
 
@@ -280,7 +280,7 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
                 const platformId = platformResult.rows[0].id;
                 // La plataforma recibe la comisión directamente como BLUE líquido (no en escrow)
                 // Usamos 'payment_received' para AUMENTAR el balance líquido (BLUE)
-                await client.query(`SELECT record_balance_event($1, 'payment_received', 'liquid_blue', $2, NULL)`, [platformId, commissionAmount]);
+                await client.query(`SELECT record_balance_event($1::INTEGER, 'payment_received'::TEXT, 'liquid_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`, [platformId, commissionAmount]);
                 await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'commission_received', $2, $3, 0, $4)`, [platformId, `Comisión por: "${title}"`, commissionAmount, pubId]);
             }
         }
@@ -542,7 +542,7 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
 
         // Actualizar saldo RED del responsable (tutor si es menor, pagador si no)
         // Usamos 'credit' para AUMENTAR el balance de deuda (RED)
-        await client.query(`SELECT record_balance_event($1, 'credit', 'red', $2, NULL)`, [debtResponsible.user_id, redForPayer]);
+        await client.query(`SELECT record_balance_event($1::INTEGER, 'credit'::TEXT, 'red'::TEXT, $2::NUMERIC, NULL::JSONB)`, [debtResponsible.user_id, redForPayer]);
         await client.query(`INSERT INTO red_token_debts (user_id, username, amount, due_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${debtInterval}')`, [debtResponsible.user_id, debtResponsible.username, redForPayer]);
 
         // Si la deuda es del tutor (menor con tutor), notificar al tutor
@@ -561,7 +561,7 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         const recipientId = recipientResult.rows[0].id;
 
         // Usamos 'payment_received' para AUMENTAR el balance en escrow (BLUE)
-        await client.query(`SELECT record_balance_event($1, 'payment_received', 'escrow_blue', $2, NULL)`, [recipientId, cost]);
+        await client.query(`SELECT record_balance_event($1::INTEGER, 'payment_received'::TEXT, 'escrow_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`, [recipientId, cost]);
         await client.query(`INSERT INTO blue_token_escrows (user_id, username, amount, unlock_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${escrowInterval}')`, [recipientId, recipient, cost]);
 
         // Asignar comisión a la plataforma como tokens BLUE reales (cumple reglas económicas)
@@ -572,7 +572,7 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
                 const platformId = platformResult.rows[0].id;
                 // La plataforma recibe la comisión directamente como BLUE líquido (no en escrow)
                 // Usamos 'payment_received' para AUMENTAR el balance líquido (BLUE)
-                await client.query(`SELECT record_balance_event($1, 'payment_received', 'liquid_blue', $2, NULL)`, [platformId, commissionAmount]);
+                await client.query(`SELECT record_balance_event($1::INTEGER, 'payment_received'::TEXT, 'liquid_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`, [platformId, commissionAmount]);
                 await client.query(`INSERT INTO transactions (user_id, type, description, blue_change, red_change, related_publication_id) VALUES ($1, 'commission_received', $2, $3, 0, $4)`, [platformId, `Comisión por: "${title}"`, commissionAmount, pubId]);
             }
         }

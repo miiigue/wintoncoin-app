@@ -503,9 +503,9 @@ async function startServer() {
 
                     // 3. Actualizar saldos del usuario (Event Sourcing)
                     // Restar de Escrow (usamos 'withdrawal' que resta)
-                    await client.query(`SELECT record_balance_event($1, 'withdrawal', 'escrow_blue', $2, NULL)`, [user_id, amountToRelease]);
+                    await client.query(`SELECT record_balance_event($1::INTEGER, 'withdrawal'::TEXT, 'escrow_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`, [user_id, amountToRelease]);
                     // Sumar a Líquido (usamos 'deposit' que suma)
-                    await client.query(`SELECT record_balance_event($1, 'deposit', 'liquid_blue', $2, NULL)`, [user_id, amountToRelease]);
+                    await client.query(`SELECT record_balance_event($1::INTEGER, 'deposit'::TEXT, 'liquid_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`, [user_id, amountToRelease]);
 
                     // 4. Marcar los depósitos como liberados
                     await client.query(
@@ -797,11 +797,11 @@ cron.schedule('*/1 * * * *', async () => {
                     throw new Error('Vendedor no encontrado en expiracion P2P.');
                 }
                 await client.query(
-                    `SELECT record_balance_event($1, 'withdrawal', 'escrow_blue', $2, NULL)`,
+                    `SELECT record_balance_event($1::INTEGER, 'withdrawal'::TEXT, 'escrow_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`,
                     [sellerId, order.blue_amount]
                 );
                 await client.query(
-                    `SELECT record_balance_event($1, 'deposit', 'liquid_blue', $2, NULL)`,
+                    `SELECT record_balance_event($1::INTEGER, 'deposit'::TEXT, 'liquid_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`,
                     [sellerId, order.blue_amount]
                 );
                 await client.query(

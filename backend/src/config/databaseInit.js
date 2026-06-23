@@ -428,6 +428,7 @@ async function applyMigrations(client) {
             due_at TIMESTAMPTZ NOT NULL,
             is_settled BOOLEAN NOT NULL DEFAULT FALSE,
             is_penalized BOOLEAN NOT NULL DEFAULT FALSE,
+            settled_at TIMESTAMPTZ DEFAULT NULL,
             created_at TIMESTAMPTZ DEFAULT NOW()
         );`,
             `CREATE TABLE IF NOT EXISTS app_settings (
@@ -861,6 +862,7 @@ async function initializeDatabase() {
             due_at TIMESTAMPTZ NOT NULL,
             is_settled BOOLEAN NOT NULL DEFAULT FALSE,
             is_penalized BOOLEAN NOT NULL DEFAULT FALSE,
+            settled_at TIMESTAMPTZ DEFAULT NULL,
             created_at TIMESTAMPTZ DEFAULT NOW()
         );`,
         `CREATE TABLE IF NOT EXISTS app_settings (

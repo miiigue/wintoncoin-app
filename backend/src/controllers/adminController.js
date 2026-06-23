@@ -222,7 +222,12 @@ async function updateSetting(req, res) {
 
         // FINTECH GUARD: Validación de modo pre-launch
         if (key === 'pre_launch_mode_enabled' && value === 'false') {
-            // Aquí irían las validaciones de esquema (pre-condiciones de desactivación)
+            // "Go-Live Gate": Registrar el timestamp exacto en que se desactiva el pre-lanzamiento.
+            // Esto servirá como el momento "Génesis" para el inicio real de los pagos del Booster.
+            await pool.query(
+                `INSERT INTO app_settings (setting_key, setting_value) VALUES ('pre_launch_deactivated_at', NOW()::text)
+                 ON CONFLICT (setting_key) DO UPDATE SET setting_value = NOW()::text`
+            );
         }
 
         // Ejecutar la actualización

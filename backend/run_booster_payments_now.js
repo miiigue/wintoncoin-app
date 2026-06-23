@@ -151,7 +151,7 @@ async function executeManualBoosterPayments() {
                     console.log(`👉 Aplicando pago a ${booster.username}: ${amountToPay.toFixed(4)} BLUE.`);
                     
                     // Acreditar saldo en escrow (custodia) de manera inmutable
-                    await client.query("SELECT record_balance_event($1, 'deposit', 'escrow_blue', $2, NULL)", [booster.id, amountToPay]);
+                    await client.query("SELECT record_balance_event($1::INTEGER, 'deposit'::TEXT, 'escrow_blue'::TEXT, $2::NUMERIC, NULL::JSONB)", [booster.id, amountToPay]);
 
                     // Registrar débito en el ledger para amortizar la deuda acumulada
                     await client.query("SELECT record_booster_event($1, 'booster_payout_deduction', $2, NULL)", [booster.id, -amountToPay]);

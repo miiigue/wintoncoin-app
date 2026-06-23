@@ -33,7 +33,9 @@ async function executeBoosterPayments() {
                 'booster_custom_frequency_enabled', 
                 'booster_payment_frequency_days', 
                 'booster_payment_frequency_hours', 
-                'booster_payment_frequency_minutes'
+                'booster_payment_frequency_minutes',
+                'pre_launch_mode_enabled',
+                'pre_launch_deactivated_at'
             )
         `);
         
@@ -41,6 +43,11 @@ async function executeBoosterPayments() {
         settingsResult.rows.forEach(row => {
             settings[row.setting_key] = row.setting_value;
         });
+
+        // ── GO-LIVE GATE (Bloqueo en Pre-Lanzamiento) ──
+        if (settings.pre_launch_mode_enabled === 'true') {
+            return;
+        }
 
         // Si el sistema general de impulsores está desactivado, salimos de inmediato
         if (settings.booster_system_enabled !== 'true') {
@@ -80,6 +87,19 @@ async function executeBoosterPayments() {
                 
                 // Si el tiempo transcurrido es menor al intervalo configurado, saltamos el ciclo de pago
                 if (timePassedMs < totalFreqMs) {
+                    return;
+                }
+            } else {
+                // Cold Start Guard (Estándar Bancario): Si no hay pagos previos,
+                // usar el momento exacto en que se desactivó el pre-lanzamiento como "Génesis".
+                if (!settings.pre_launch_deactivated_at) {
+                    console.log('BOOSTER PAYMENTS: Sistema en cold start pero sin timestamp de Go-Live. Esperando inicialización...');
+                    return;
+                }
+                const genesisTime = new Date(settings.pre_launch_deactivated_at);
+                const timeSinceGenesis = today.getTime() - genesisTime.getTime();
+                
+                if (timeSinceGenesis < totalFreqMs) {
                     return;
                 }
             }
@@ -303,7 +323,7 @@ async function executeBoosterPayments() {
 
                         if (amountToPay > 0) {
                             // Acreditar al saldo en custodia (escrow) del usuario mediante Event Sourcing
-                            await client.query("SELECT record_balance_event($1, 'deposit', 'escrow_blue', $2, NULL)", [booster.id, amountToPay]);
+                            await client.query("SELECT record_balance_event($1::INTEGER, 'deposit'::TEXT, 'escrow_blue'::TEXT, $2::NUMERIC, NULL::JSONB)", [booster.id, amountToPay]);
 
                             // Amortizar la deuda en el ledger restando el monto pagado (evita doble pago infinito)
                             await client.query("SELECT record_booster_event($1, 'booster_payout_deduction', $2, NULL)", [booster.id, -amountToPay]);
