@@ -651,13 +651,18 @@ async function setKYCStatus(pool, req, res) {
         // ── PASO 3: Ejecutar la operación en la blockchain ─────────────
         const result = await Web3BridgeService.setUserKYC(walletAddress, kycStatus);
 
-        // --- RESPALDO RESILIENTE EN BASE DE DATOS (Fase Web3 / Demo) ---
-        // Si la operación blockchain tuvo éxito, o si estamos en entorno demo/local con errores de RPC,
-        // actualizamos la columna de caché kyc_verified en la base de datos para asegurar consistencia en la UI.
+        // --- ATOMICIDAD WEB2/WEB3 (Estándar FinTech) ---
+        // Si hay error en la blockchain, se RECHAZA la operación en la BD local.
+        // La Base de Datos no puede discrepar con el Ledger distribuido.
         let localSuccess = result.success;
-        if (!result.success && (process.env.NODE_ENV !== 'production' || !process.env.RELAYER_PRIVATE_KEY || result.error)) {
-            console.warn(`[GOV-CONTROLLER] Fallo on-chain al modificar KYC de ${username} (${result.error}), aplicando modo fallback en DB local...`);
+        
+        // Excepción ÚNICA para desarrollo local sin llaves (dry-run). 
+        // Si hay una llave configurada, el error blockchain es FATAL y no hay fallback.
+        if (!result.success && !process.env.RELAYER_PRIVATE_KEY && process.env.NODE_ENV !== 'production') {
+            console.warn(`[GOV-CONTROLLER] ⚠️ Operando en modo DRY-RUN (sin Relayer). Bypass de KYC solo para testing local.`);
             localSuccess = true;
+        } else if (!result.success) {
+            console.error(`[GOV-CONTROLLER] 🚨 Fallo crítico on-chain al modificar KYC de ${username}. Abortando sincronización de Base de Datos para evitar divergencia.`);
         }
 
         if (localSuccess) {
@@ -665,7 +670,7 @@ async function setKYCStatus(pool, req, res) {
                 `UPDATE users SET kyc_verified = $1 WHERE username = $2`,
                 [kycStatus, username.trim()]
             );
-            console.log(`[GOV-CONTROLLER] ✅ Caché local kyc_verified actualizada a ${kycStatus} para ${username}.`);
+            console.log(`[GOV-CONTROLLER] ✅ Estado KYC local actualizado a ${kycStatus} para ${username} en estricta sincronía con la blockchain.`);
         }
 
         // ── PASO 4: Registrar en audit_log SIEMPRE (éxito o fracaso) ───

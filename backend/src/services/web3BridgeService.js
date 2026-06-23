@@ -21,7 +21,7 @@
  * - Manejo de errores: Captura y loguea sin detener el servidor.
  */
 
-const { ethers } = require('ethers');
+const { ethers, NonceManager } = require('ethers');
 const pool = require('../config/db');
 
 // ============================================================================
@@ -48,8 +48,8 @@ class Web3BridgeService {
         // Crear el proveedor de conexión a la red Optimism Sepolia.
         this.provider = new ethers.JsonRpcProvider(RPC_URL);
 
-        // Crear la billetera del Relayer con la llave privada del .env.
-        this.wallet = RELAYER_PK ? new ethers.Wallet(RELAYER_PK, this.provider) : null;
+        // Envolver la billetera en un NonceManager para escalabilidad masiva (Soporta alta concurrencia sin colisiones de Nonce)
+        this.wallet = RELAYER_PK ? new NonceManager(new ethers.Wallet(RELAYER_PK, this.provider)) : null;
 
         // ABI mínima del WintonProtocol: solo las funciones que necesitamos llamar.
         this.protocolAbi = [
