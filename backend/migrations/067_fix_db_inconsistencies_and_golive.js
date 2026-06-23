@@ -84,23 +84,15 @@ exports.up = async (client) => {
         DO $$
         DECLARE
             v_pre_launch TEXT;
-            v_genesis TIMESTAMPTZ;
         BEGIN
             SELECT setting_value INTO v_pre_launch FROM app_settings WHERE setting_key = 'pre_launch_mode_enabled';
             
             IF v_pre_launch = 'false' THEN
                 -- Verificamos si ya existe el timestamp
                 IF NOT EXISTS (SELECT 1 FROM app_settings WHERE setting_key = 'pre_launch_deactivated_at') THEN
-                    -- Tomamos el created_at de platform_wallet como génesis heredado
-                    SELECT created_at INTO v_genesis FROM platform_wallet WHERE id = 1;
-                    
-                    IF v_genesis IS NOT NULL THEN
-                        INSERT INTO app_settings (setting_key, setting_value)
-                        VALUES ('pre_launch_deactivated_at', v_genesis::text);
-                    ELSE
-                        INSERT INTO app_settings (setting_key, setting_value)
-                        VALUES ('pre_launch_deactivated_at', NOW()::text);
-                    END IF;
+                    -- Como no hay registro previo, usamos NOW() como punto de partida seguro
+                    INSERT INTO app_settings (setting_key, setting_value)
+                    VALUES ('pre_launch_deactivated_at', NOW()::text);
                 END IF;
             END IF;
         END $$;
