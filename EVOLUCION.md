@@ -19,6 +19,18 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-22 — Refactorización de Background Jobs (Clean Architecture) y Escudos Económicos
+
+- **Contexto**: El archivo `server.js` se había convertido en un monolito que gestionaba la inicialización web y ejecutaba los procesos automatizados (Debt Collector, Token Releaser) en bucles internos. Además, se detectó que el `DEBT COLLECTOR` estaba penalizando injustamente a los usuarios por deudas en `RED` durante el modo de pre-lanzamiento, ya que estos no podían ganar `BLUE` real para saldarlas.
+- **Decisión de Ingeniería**:
+  1. **Modularización (Clean Architecture)**: Se extrajeron todos los procesos en segundo plano de `server.js` y se reubicaron en una nueva arquitectura dedicada bajo `src/workers/`. Se creó un `cronManager.js` como orquestador central, descargando al servidor web de la responsabilidad de manejar el estado de los *Intervals*.
+  2. **Go-Live Gate en DEBT COLLECTOR y TOKEN RELEASER**: Se inyectó estrictamente el bloqueo de `pre_launch_mode_enabled === 'true'` en los archivos `debtCollectorJob.js` y `tokenReleaserJob.js`. Estos motores financieros críticos quedan en pausa económica absoluta mientras la plataforma siga en desarrollo, previniendo penalizaciones injustas y filtraciones prematuras de liquidez.
+- **Impacto**: El `server.js` es ahora 200 líneas más ligero y mantenible. La arquitectura está lista para escalar los *Workers* a microservicios independientes si el tráfico lo requiere. El entorno de Pre-Lanzamiento está ahora financieramente sellado; los usuarios ya no serán marcados como morosos (`is_penalized`) por falta de tokens líquidos.
+- **Evidencia**:
+  - Gestor: [cronManager.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/workers/cronManager.js)
+  - Trabajos Extraídos: [debtCollectorJob.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/workers/debtCollectorJob.js), [tokenReleaserJob.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/workers/tokenReleaserJob.js)
+  - Limpieza del Monolito: [server.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/server.js)
+
 ### 2026-06-22 — Go-Live Gate, Cold Start Guard y Explicit Casting en Motor de Pagos
 
 - **Contexto**: El motor financiero presentaba múltiples fallas en producción. El pago a impulsores se ejecutaba inmediatamente al reiniciar el servidor ("Cold Start") ignorando las frecuencias programadas. Además, al estar el modo pre-lanzamiento activado, el motor de pagos estaba liquidando deudas virtuales (IOU) usando saldo real (`platform_wallet`) que había sido inyectado por la migración de reconciliación de comisiones históricas. Finalmente, existía una inconsistencia grave a nivel base de datos: el motor de base de datos PostgreSQL arrojaba el error `42725 function record_balance_event is not unique` porque existían múltiples firmas de la función debido a migraciones sobrepuestas, y el debt collector fallaba por una columna `settled_at` faltante.
