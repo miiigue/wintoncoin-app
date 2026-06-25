@@ -29,7 +29,8 @@ module.exports = {
     optimismSepolia: {
       url: process.env.ALCHEMY_API_URL || "",
       accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
-      chainId: 11155420
+      chainId: 11155420,
+      gas: 5000000
     }
   },
   etherscan: {

@@ -5,17 +5,17 @@ const { Pool } = require('pg');
 let useSsl = false;
 const dbUrl = process.env.DATABASE_URL || '';
 
-// 1. Si NO es producción (entorno local de desarrollo), NUNCA usar SSL.
-// 2. Si es una URL interna de Render (.internal), NUNCA usar SSL (viaja por red privada).
-// 3. Si es una URL externa pública (producción), FORZAR SSL obligatorio.
-if (process.env.NODE_ENV !== 'production') {
-    useSsl = false;
-} else if (dbUrl.includes('.internal')) {
+// 1. Si es una URL interna de Render (.internal), NUNCA usar SSL (viaja por red privada).
+// 2. Si es una URL local (localhost/127.0.0.1), NUNCA usar SSL.
+// 3. Si es una URL externa de Render (render.com), o entorno de Producción/Demo, FORZAR SSL obligatorio.
+if (dbUrl.includes('.internal')) {
     useSsl = false;
 } else if (dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1')) {
     useSsl = false;
-} else {
+} else if (dbUrl.includes('render.com') || process.env.NODE_ENV === 'production' || process.env.IS_DEMO_ENV === 'true') {
     useSsl = { rejectUnauthorized: false };
+} else {
+    useSsl = false;
 }
 
 const pool = new Pool({

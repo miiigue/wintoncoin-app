@@ -15,10 +15,22 @@ if (!process.env.DATABASE_URL) {
     // pero marcamos el error claramente.
 }
 
-// Configuración de conexión: SSL condicional según entorno (patrón estándar del proyecto)
+// Configuración de conexión: SSL condicional robusto según entorno
+const dbUrl = process.env.DATABASE_URL || '';
+let useSsl = false;
+if (dbUrl.includes('.internal')) {
+    useSsl = false;
+} else if (dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1')) {
+    useSsl = false;
+} else if (dbUrl.includes('render.com') || process.env.NODE_ENV === 'production' || process.env.IS_DEMO_ENV === 'true') {
+    useSsl = { rejectUnauthorized: false };
+} else {
+    useSsl = false;
+}
+
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    connectionString: dbUrl,
+    ssl: useSsl
 });
 
 /**

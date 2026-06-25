@@ -270,7 +270,10 @@ function initDonateButton(cause) {
             // Mostrar saldo en el modal
             document.getElementById('donorBalanceDisplay').textContent = formatBalance(balance);
 
-            // Verificar si el usuario tiene KYC (consultando su estado de autenticación)
+            // Verificar si el usuario tiene KYC Web3 aprobado
+            // NOTA: Se usa kyc_verified (migración 055) y NO is_verified (email OTP)
+            // porque el mecanismo Hold & Release del Trigger de BD (migración 056/068)
+            // evalúa kyc_verified para liberar donaciones retenidas
             const userRes = await fetch(`${API_URL}/api/auth/status`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -278,7 +281,7 @@ function initDonateButton(cause) {
             let isVerified = false;
             if (userRes.ok) {
                 const userData = await userRes.json();
-                isVerified = userData.is_verified === true;
+                isVerified = userData.kyc_verified === true;
             }
 
             // Mostrar/ocultar aviso de KYC
