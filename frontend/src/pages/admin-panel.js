@@ -995,6 +995,9 @@ document.addEventListener('DOMContentLoaded', () => {
             'red_credit_referral': { title: 'Scoring — Bono por Referido Activo (RED)', description: 'Aumento del límite por cada referido exitoso que utilice la plataforma.' },
             'red_credit_monthly_activity': { title: 'Scoring — Bono por Alta Actividad (RED)', description: 'Aumento del límite al superar 20 tareas en un mes calendario.' },
             'red_credit_early_payment': { title: 'Scoring — Bono por Pago Anticipado (RED)', description: 'Aumento del límite por pagar deudas en los primeros 5 días del ciclo.' },
+            // Winton Solidario (Causas Humanitarias y Reembolsos)
+            'donation_refund_enabled': { title: 'Reembolso Automático de Donaciones', description: 'Activa o desactiva el demonio que devuelve automáticamente las donaciones en espera (on_hold) si el donante no verifica su KYC Web3.' },
+            'donation_escrow_expiration_days': { title: 'Días de Retención de Donaciones', description: 'Cantidad de días que una donación permanece en espera antes de ser devuelta automáticamente al donante si este no completa su KYC.' }
         };
         return map[key] || { title: key, description: 'Sin descripción.' };
     }
@@ -1027,6 +1030,7 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.settingsContainer.innerHTML = generalSettings.map(s => {
                 if (s.setting_key.endsWith('_enabled') || s.setting_key.endsWith('registrations')) return getSettingHTML(s, 'switch');
                 if (s.setting_key === 'gov_vote_reward_blue') return getSettingHTML(s, 'number');
+                if (s.setting_key === 'donation_escrow_expiration_days') return getSettingHTML(s, 'integer');
                 if (s.setting_key.startsWith('gov_')) return getSettingHTML(s, 'integer');
                 if (s.setting_key.startsWith('p2p_')) return getSettingHTML(s, 'number');
                 if (s.setting_key.startsWith('red_credit_')) return getSettingHTML(s, 'number');
