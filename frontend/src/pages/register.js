@@ -30,6 +30,38 @@ function safeHide(el) {
     if (el) el.style.display = 'none';
 }
 
+/**
+ * Valida que una URL de retorno sea segura (misma origen, ruta relativa interna).
+ * Previene ataques de Open Redirect en cumplimiento con estándares FinTech y auditorías SOC 2.
+ * Acepta únicamente las páginas locales pre-autorizadas en la whitelist ALLOWED_PAGES.
+ * @param {string} raw - Parámetro returnTo recibido sin procesar
+ * @returns {string|null} URL segura o null en caso de detectar anomalía o dominio externo
+ */
+function _getSafeReturnTo(raw) {
+    if (!raw || typeof raw !== 'string') return null;
+
+    const value = raw;
+
+    // Bloquear explícitamente URLs absolutas o esquemas no seguros (evitar suplantación de dominio)
+    if (value.includes('://') || value.startsWith('//')) return null;
+    if (value.includes('javascript:') || value.includes('data:')) return null;
+
+    // Whitelist estricta de páginas seguras
+    const ALLOWED_PAGES = [
+        'governance-panel.html',
+        'contract_interaction.html',
+        'admin-panel.html',
+        'causa-solidaria.html',
+        'publication-detail.html'
+    ];
+
+    // Extraer únicamente el nombre del archivo de la ruta, ignorando parámetros query de momento
+    const pagePart = value.split('?')[0].replace(/^\//, '');
+    if (!ALLOWED_PAGES.includes(pagePart)) return null;
+
+    return value;
+}
+
 function clearRegisterClientState() {
     localStorage.removeItem('token');
     localStorage.removeItem('username');
@@ -561,6 +593,16 @@ async function initializeRegisterPage() {
     // Configurar campos de menor de edad
     setupMinorFields();
 
+    // OPTIMIZACIÓN DE ADQUISICIÓN: Si hay una redirección pendiente en la query string de la página,
+    // propagarla al enlace de login ("Iniciar Sesión") por si el usuario ya posee una cuenta activa.
+    const returnToParam = urlParams.get('returnTo');
+    if (returnToParam) {
+        const loginLink = document.querySelector('a.login-link-text');
+        if (loginLink) {
+            loginLink.href = `login.html?returnTo=${encodeURIComponent(returnToParam)}`;
+        }
+    }
+
     // Listener para cuando registros estén cerrados
     document.addEventListener('app-settings-loaded', () => {
         if (window.appSettings && !window.appSettings.allow_new_registrations) {
@@ -850,7 +892,10 @@ async function initializeRegisterPage() {
                     // Sincronizar suscripción push pendiente (si existe)
                     await syncPendingPushSubscription();
 
-                    window.location.href = 'contract_interaction.html';
+                    // REDIRECCIÓN DE RETORNO SEGURA: Validar que el parámetro returnTo cumpla
+                    // las directivas de seguridad para evitar redirecciones abiertas y redirigir.
+                    const returnTo = _getSafeReturnTo(urlParams.get('returnTo'));
+                    window.location.href = returnTo || 'contract_interaction.html';
                 } else {
                     showCustomAlert(`Error: ${result.message}`);
                 }

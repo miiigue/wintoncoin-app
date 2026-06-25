@@ -32,8 +32,16 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Initialization ---
-    if (!storedUsername) {
-        showCustomAlert('Debes iniciar sesión para ver esta página.', () => { window.location.href = 'index.html'; });
+    // SEGURIDAD Y ONBOARDING: Verificar si hay una sesión activa de forma integral (tanto token como nombre de usuario).
+    // Si falta alguno, tratamos al visitante como un invitado no registrado.
+    if (!storedUsername || !storedToken) {
+        // OPTIMIZACIÓN DE FLUJO: Capturar la página actual junto con el ID de la publicación en los query parameters
+        // para preservar la intención original de visualización del usuario.
+        const currentPath = 'publication-detail.html' + window.location.search;
+        
+        // REDIRECCIÓN DIRECTA: Llevar al usuario al formulario de registro pasándole la URL de retorno
+        // debidamente codificada para evitar problemas de escape de caracteres.
+        window.location.href = `register.html?returnTo=${encodeURIComponent(currentPath)}`;
         return;
     }
     if (!publicationId) {
@@ -819,22 +827,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const publicationUrl = window.location.href;
 
-            const textToShare = `Hola!
+            const baseText = `Hola!
 Te comparto esta publicacion,te puede ser util
 
 "${title}" por ${author}
-Puedes ver los detalles aquí:
-${publicationUrl}`;
+Puedes ver los detalles aquí:`;
 
             if (navigator.share) {
+                // OPTIMIZACIÓN WEB SHARE API: No incluimos la URL dentro de baseText para la llamada nativa,
+                // ya que la API del navegador la añadirá automáticamente de forma unificada.
                 await navigator.share({
                     title: `Tarea en WintonCoin: ${title}`,
-                    text: textToShare,
+                    text: baseText,
                     url: publicationUrl,
                 });
                 showCustomAlert('¡Gracias por compartir!');
             } else {
-                await copyTextToClipboard(textToShare);
+                // FALLBACK ESCRITORIO: Concatenar el texto descriptivo con la URL antes de copiar al portapapeles.
+                const fullText = `${baseText}\n${publicationUrl}`;
+                await copyTextToClipboard(fullText);
                 showCustomAlert('¡Mensaje para compartir copiado al portapapeles!');
             }
 

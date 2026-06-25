@@ -53,6 +53,24 @@ document.addEventListener('DOMContentLoaded', () => {
         return formattedString;
     }
 
+    // Función helper para formatear porcentajes con decimales significativos cuando es menor a 0.1% pero mayor a 0
+    function formatPercentage(raised, goal) {
+        if (!goal || goal <= 0) return '0.0';
+        if (raised <= 0) return '0.0';
+        
+        const pct = (raised / goal) * 100;
+        if (pct >= 0.1) {
+            return pct.toFixed(1);
+        }
+        
+        const pctStr = pct.toFixed(10);
+        const match = pctStr.match(/^0\.0*[1-9]/);
+        if (match) {
+            return match[0];
+        }
+        return pct.toFixed(6).replace(/\.?0+$/, '');
+    }
+
     // --- Configuration ---
     const API_URL = getApiUrl();
     const storedUsername = localStorage.getItem('username');
@@ -946,8 +964,56 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const publications = await response.json();
 
+            // Descargar causas humanitarias aprobadas (Winton Solidario) para mostrarlas en el marketplace general
+            let causes = [];
+            const token = localStorage.getItem('token');
+            if (token) {
+                try {
+                    const responseCauses = await fetch(`${API_URL}/api/humanitarian/causes/approved`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (responseCauses.ok) {
+                        const dataCauses = await responseCauses.json();
+                        if (dataCauses.success) {
+                            causes = dataCauses.causes || [];
+                        }
+                    }
+                } catch (err) {
+                    console.error('[Solidario] Error al obtener causas aprobadas para el marketplace:', err);
+                }
+            }
+
+            // Aplicar filtrado de ocultas locales mediante localStorage
+            const hiddenCausesKey = `hidden_causes_${storedUsername}`;
+            const hiddenCauseIds = JSON.parse(localStorage.getItem(hiddenCausesKey) || '[]');
+            
+            const filteredCauses = causes.filter(c => {
+                const isHidden = hiddenCauseIds.includes(c.id);
+                return currentFilter === 'hidden' ? isHidden : !isHidden;
+            });
+
+            // Mapear causas a objetos virtuales que sean compatibles con el feed de publicaciones
+            const mappedCauses = filteredCauses.map(cause => ({
+                id: `cause-${cause.id}`,
+                cause_id: cause.id,
+                title: cause.title,
+                description: cause.story,
+                goal_amount: cause.goal_amount,
+                current_amount: cause.current_amount,
+                amount_on_hold: cause.amount_on_hold,
+                created_at: cause.created_at,
+                author_username: cause.beneficiary_username,
+                category: 'donation', // Chip de filtrado 'Donaciones'
+                is_humanitarian_cause: true,
+                available_slots: 1,
+                blue_cost: 0
+            }));
+
+            // Combinar e inyectar causas mapeadas en el caché de publicaciones
+            publicationsCache = [...mappedCauses, ...publications];
+
             // Lógica UX de estado vacío diferenciado para una experiencia premium
-            if (publications.length === 0) {
+            if (publicationsCache.length === 0) {
                 if (currentFilter === 'hidden') {
                     // Estado vacío específico para la pestaña de publicaciones archivadas/ocultas
                     elements.publicationsList.innerHTML = `
@@ -974,7 +1040,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            publicationsCache = publications;
             // Invalidar caché de ratings al traer datos frescos del servidor
             userRatingsCache.clear();
             await renderPublicationsWithFilters();
@@ -1126,6 +1191,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Asigna prioridad según estado (menor número = mayor prioridad)
     function getPendingPriority(pub) {
+        // Prioridad máxima absoluta para causas humanitarias (flotan al inicio del feed)
+        if (pub.is_humanitarian_cause) return -1;
+
         const isAuthor = pub.author_username === storedUsername;
 
         // --- PRIORIDAD DEL AUTOR ---
@@ -1325,19 +1393,40 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isDonation) {
             const current = parseFloat(pub.current_amount || 0);
             const goal = parseFloat(pub.goal_amount || 0);
-            const percent = goal > 0 ? Math.min(100, Math.floor((current / goal) * 100)) : 0;
+            
+            if (pub.is_humanitarian_cause) {
+                const hold = parseFloat(pub.amount_on_hold || 0);
+                const totalRaised = current + hold;
+                const percentageReleased = goal > 0 ? Math.min((current / goal) * 100, 100) : 0;
+                const percentageOnHold = goal > 0 ? Math.min((hold / goal) * 100, 100 - percentageReleased) : 0;
 
-            progressHTML = `
-                <div class="donation-progress-container">
-                    <div class="donation-progress-labels">
-                        <span>${formatBalance(current)} BLUE recaudados</span>
-                        <span>${percent}%</span>
+                progressHTML = `
+                    <div class="donation-progress-container" style="margin-top: 10px;">
+                        <div class="donation-progress-labels" style="margin-bottom: 6px; font-size: 0.78rem; font-weight: normal; opacity: 0.85; display: flex; justify-content: space-between; align-items: center; letter-spacing: 0.3px;">
+                            <span><strong style="color: #ffffff; font-weight: 600; font-size: 0.82rem;">${formatBalance(totalRaised)}</strong> de <span style="opacity: 0.7; font-size: 0.8rem;">${formatBalance(goal)}</span> BLUE IOU</span>
+                            <span style="font-weight: 600; color: #f472b6;">${formatPercentage(totalRaised, goal)}%</span>
+                        </div>
+                        <div class="donation-progress-bar" style="display: flex; height: 8px; background: rgba(255,255,255,0.08); border-radius: 5px; overflow: hidden; position: relative;">
+                            <div class="donation-progress-fill" style="width: ${percentageReleased.toFixed(1)}%; height: 100%; background: linear-gradient(90deg, #ec4899, #db2777); border-radius: 0;"></div>
+                            <div class="donation-progress-fill-hold" style="width: ${percentageOnHold.toFixed(1)}%; height: 100%; background: repeating-linear-gradient(45deg, rgba(232, 62, 140, 0.4), rgba(232, 62, 140, 0.4) 10px, rgba(232, 62, 140, 0.6) 10px, rgba(232, 62, 140, 0.6) 20px);"></div>
+                        </div>
+                        ${hold > 0 ? `<div style="font-size: 10px; color: #f472b6; margin-top: 5px; font-weight: normal; opacity: 0.9;">${formatBalance(hold)} BLUE IOU en hold por verificación KYC</div>` : ''}
                     </div>
-                    <div class="donation-progress-bar">
-                        <div class="donation-progress-fill" style="width: ${percent}%"></div>
+                `;
+            } else {
+                const percent = goal > 0 ? Math.min(100, Math.floor((current / goal) * 100)) : 0;
+                progressHTML = `
+                    <div class="donation-progress-container">
+                        <div class="donation-progress-labels">
+                            <span>${formatBalance(current)} BLUE recaudados</span>
+                            <span>${percent}%</span>
+                        </div>
+                        <div class="donation-progress-bar">
+                            <div class="donation-progress-fill" style="width: ${percent}%"></div>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            }
         }
 
         // Determinamos si el feed activo está mostrando las publicaciones ocultas.
@@ -1345,29 +1434,54 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Estilo dinámico: Si el usuario visualiza las publicaciones ocultas, se renderiza
         // un botón para deshacer/restaurar (icono de retorno) en lugar de la X de cerrar.
-        const actionButtonHTML = isHiddenView
-            ? `
-            <button class="card-close-btn restore-btn" title="Restaurar publicación" onclick="event.preventDefault(); event.stopPropagation(); window.handleCardAction('unhide', ${pub.id})">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-                    <polyline points="3 3 3 8 8 8"></polyline>
-                </svg>
-            </button>
-            `
-            : `
-            <button class="card-close-btn" title="Ocultar publicación" onclick="event.preventDefault(); event.stopPropagation(); window.handleCardAction('hide', ${pub.id})">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-            </button>
-            `;
+        let actionButtonHTML = '';
+        if (pub.is_humanitarian_cause) {
+            actionButtonHTML = isHiddenView
+                ? `
+                <button class="card-close-btn restore-btn" title="Restaurar causa" onclick="event.preventDefault(); event.stopPropagation(); window.handleCauseAction('unhide', ${pub.cause_id})">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                        <polyline points="3 3 3 8 8 8"></polyline>
+                    </svg>
+                </button>
+                `
+                : `
+                <button class="card-close-btn" title="Ocultar causa" onclick="event.preventDefault(); event.stopPropagation(); window.handleCauseAction('hide', ${pub.cause_id})">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+                `;
+        } else {
+            actionButtonHTML = isHiddenView
+                ? `
+                <button class="card-close-btn restore-btn" title="Restaurar publicación" onclick="event.preventDefault(); event.stopPropagation(); window.handleCardAction('unhide', ${pub.id})">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                        <polyline points="3 3 3 8 8 8"></polyline>
+                    </svg>
+                </button>
+                `
+                : `
+                <button class="card-close-btn" title="Ocultar publicación" onclick="event.preventDefault(); event.stopPropagation(); window.handleCardAction('hide', ${pub.id})">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+                `;
+        }
 
         // Título de la tarjeta — XSS Prevention: escapar título del servidor
         const cardTitle = `<h3>${escapeHtml(pub.title)}</h3>`;
 
+        const detailUrl = pub.is_humanitarian_cause
+            ? `causa-solidaria.html?id=${pub.cause_id}`
+            : `publication-detail.html?id=${pub.id}`;
+
         return `
-            <a href="publication-detail.html?id=${pub.id}" class="publication-item-link">
+            <a href="${detailUrl}" class="publication-item-link">
                 <div class="publication-item ${expirationInfo.isExpired ? 'expired' : ''} ${isDonation ? 'donation-card' : ''}" data-id="${pub.id}" data-author="${safeAuthorAttr}">
                     
                     <div class="card-top-row ${statusMessageHTML ? 'has-status' : ''}">
@@ -1384,7 +1498,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     ${progressHTML}
 
-                    <p class="pub-description">${linkify(pub.description?.slice(0, 150) || '')}</p>
+                    ${pub.is_humanitarian_cause ? '' : `<p class="pub-description">${linkify(pub.description?.slice(0, 150) || '')}</p>`}
                     
 
 
@@ -1482,6 +1596,55 @@ document.addEventListener('DOMContentLoaded', () => {
             // Ejecutamos la petición de red persistente al backend
             await unhidePublication(id);
         }
+    };
+
+    // Acción directa de ocultar y restaurar (unhide) causas humanitarias (usando localStorage)
+    window.handleCauseAction = function (action, causeId) {
+        const hiddenCausesKey = `hidden_causes_${storedUsername}`;
+        let hiddenCauseIds = JSON.parse(localStorage.getItem(hiddenCausesKey) || '[]');
+
+        if (action === 'hide') {
+            // Animación optimista de salida de la causa
+            const item = document.querySelector(`.publication-item[data-id="cause-${causeId}"]`);
+            if (item) {
+                const cardLink = item.closest('.publication-item-link');
+                if (cardLink) {
+                    cardLink.style.transition = 'all 0.3s ease';
+                    cardLink.style.opacity = '0';
+                    cardLink.style.transform = 'scale(0.9)';
+                    setTimeout(() => {
+                        cardLink.style.display = 'none';
+                    }, 300);
+                }
+            }
+            if (!hiddenCauseIds.includes(causeId)) {
+                hiddenCauseIds.push(causeId);
+                localStorage.setItem(hiddenCausesKey, JSON.stringify(hiddenCauseIds));
+            }
+            showToast("Causa ocultada", "DESHACER", () => {
+                window.handleCauseAction('unhide', causeId);
+            });
+        } else if (action === 'unhide') {
+            // Animación optimista al restaurar causa
+            const item = document.querySelector(`.publication-item[data-id="cause-${causeId}"]`);
+            if (item) {
+                const cardLink = item.closest('.publication-item-link');
+                if (cardLink) {
+                    cardLink.style.transition = 'all 0.3s ease';
+                    cardLink.style.opacity = '0';
+                    cardLink.style.transform = 'scale(0.9)';
+                    setTimeout(() => {
+                        cardLink.remove();
+                    }, 300);
+                }
+            }
+            hiddenCauseIds = hiddenCauseIds.filter(id => id !== causeId);
+            localStorage.setItem(hiddenCausesKey, JSON.stringify(hiddenCauseIds));
+        }
+
+        setTimeout(() => {
+            fetchAndDisplayPublications();
+        }, 310);
     };
 
     async function hidePublication(id) {
@@ -2384,7 +2547,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- WINTON SOLIDARIO: Tarjeta resumen en el dashboard ---
     async function fetchSolidarioSummary() {
         const card = document.getElementById('solidarioDashboardCard');
-        if (!card) return;
 
         // Caché de 60 segundos para no sobrecargar la API
         const now = Date.now();
@@ -2402,7 +2564,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (!response.ok) {
-                card.style.display = 'none';
+                if (card) card.style.display = 'none';
                 if (historyMenuLink) {
                     historyMenuLink.style.display = 'block';
                     historyMenuLink.href = 'solicitud-solidaria.html';
@@ -2414,7 +2576,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Si no tiene causas, ocultar la tarjeta
             if (!data.success || !data.causes || data.causes.length === 0) {
-                card.style.display = 'none';
+                if (card) card.style.display = 'none';
                 if (historyMenuLink) {
                     historyMenuLink.style.display = 'block';
                     historyMenuLink.href = 'solicitud-solidaria.html';
@@ -2426,11 +2588,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const activeCause = data.causes.find(c => c.status === 'approved' || c.status === 'pending');
 
             if (activeCause) {
-                displaySolidarioCard(card, activeCause);
+                if (card) displaySolidarioCard(card, activeCause);
             } else {
                 // Si no hay activas, ocultamos la tarjeta principal del dashboard
                 // Y dependerá del menú lateral ver el historial
-                card.style.display = 'none';
+                if (card) card.style.display = 'none';
             }
 
             // ======= NUEVO: Lógica del Historial DESDE EL MENÚ =======
@@ -2579,12 +2741,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 shareBtn.onclick = (e) => {
                     e.stopPropagation(); // Evitar click en la tarjeta general
                     const url = `${window.location.origin}/causa-solidaria.html?id=${cause.id}`;
-                    const text = `💙 Apoya mi causa "${cause.title}" en WintonCoin.\n\nDona tus BLUE IOU y marca la diferencia:\n${url}`;
+                    // OPTIMIZACIÓN WEB SHARE API: Separar el texto base del enlace URL
+                    // para evitar que el navegador móvil (iOS/Android) concatene la URL dos veces.
+                    const baseText = `💙 Apoya mi causa "${cause.title}" en WintonCoin.\n\nDona tus BLUE IOU y marca la diferencia:`;
 
                     if (navigator.share) {
-                        navigator.share({ title: `Winton Solidario: ${cause.title}`, text, url }).catch(() => { });
+                        navigator.share({ title: `Winton Solidario: ${cause.title}`, text: baseText, url }).catch(() => { });
                     } else {
-                        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+                        // FALLBACK ESCRITORIO: Concatenar manualmente el texto base y el enlace para compartir por WhatsApp
+                        const fullText = `${baseText}\n${url}`;
+                        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(fullText)}`;
                         window.open(whatsappUrl, '_blank');
                     }
                 };

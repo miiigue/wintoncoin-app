@@ -33,10 +33,43 @@ import {
 // ============================================================================
 const API_URL = getApiUrl();
 
+// Función helper para formatear porcentajes con decimales significativos cuando es menor a 0.1% pero mayor a 0
+function formatPercentage(raised, goal) {
+    if (!goal || goal <= 0) return '0.0';
+    if (raised <= 0) return '0.0';
+    
+    const pct = (raised / goal) * 100;
+    if (pct >= 0.1) {
+        return pct.toFixed(1);
+    }
+    
+    const pctStr = pct.toFixed(10);
+    const match = pctStr.match(/^0\.0*[1-9]/);
+    if (match) {
+        return match[0];
+    }
+    return pct.toFixed(6).replace(/\.?0+$/, '');
+}
+
 // ============================================================================
 // INICIALIZACIÓN
 // ============================================================================
 document.addEventListener('DOMContentLoaded', async () => {
+    // AUDITORÍA Y CIBERSEGURIDAD: Verificar la existencia de una sesión de usuario activa (token JWT).
+    // Si no se encuentra un token válido en localStorage, consideramos al usuario como invitado/no registrado.
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+        // OPTIMIZACIÓN DE EMBUDO: Capturar la ruta relativa de la causa actual con sus parámetros (ej: causa-solidaria.html?id=12).
+        // Se hace de forma dinámica para asegurar que funcione independientemente de los IDs generados en base de datos.
+        const currentPath = 'causa-solidaria.html' + window.location.search;
+        
+        // REDIRECCIÓN DE ONBOARDING: Redirigir al usuario al formulario de registro (register.html),
+        // codificando el parámetro returnTo para evitar pérdidas de caracteres especiales o colisiones de queries.
+        window.location.href = `register.html?returnTo=${encodeURIComponent(currentPath)}`;
+        return;
+    }
+
     // Obtener el ID de la causa desde la URL
     const params = new URLSearchParams(window.location.search);
     const causeId = params.get('id');
@@ -195,7 +228,7 @@ function buildCauseHTML(cause, donations) {
             </div>
             
             <div class="solidario-progress-percentage-wrapper" style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                <span class="solidario-progress-percentage">${percentageTotal.toFixed(1)}% total recaudado</span>
+                <span class="solidario-progress-percentage">${formatPercentage(totalRaised, goalAmount)}% total recaudado</span>
             </div>
 
             <div class="solidario-breakdown" style="font-size: 0.8em; color: rgba(255,255,255,0.6); margin-top: 8px; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 4px;">
@@ -402,20 +435,23 @@ function initShareButton(cause) {
 
     shareBtn.addEventListener('click', () => {
         const url = window.location.href;
-        const text = `💙 Ayuda a ${cause.beneficiary_username || 'un usuario'} con su causa "${cause.title}" en WintonCoin.\n\nDona tus BLUE IOU y marca la diferencia:\n${url}`;
+        // OPTIMIZACIÓN WEB SHARE API: Separar el mensaje descriptivo base del enlace URL.
+        // Evita que navegadores como Chrome/Safari en iOS/Android dupliquen el enlace al concatenarlos automáticamente.
+        const baseText = `💙 Ayuda a ${cause.beneficiary_username || 'un usuario'} con su causa "${cause.title}" en WintonCoin.\n\nDona tus BLUE IOU y marca la diferencia:`;
 
-        // Intentar usar Web Share API (nativa en móviles)
+        // Intentar usar Web Share API (nativa en móviles y navegadores compatibles)
         if (navigator.share) {
             navigator.share({
                 title: `Winton Solidario: ${cause.title}`,
-                text: text,
+                text: baseText,
                 url: url
             }).catch(() => {
-                // Si el usuario cancela, no hacer nada (es comportamiento esperado)
+                // Si el usuario cancela, no hacer nada (es comportamiento esperado del usuario)
             });
         } else {
-            // Fallback: Abrir WhatsApp web para compartir
-            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+            // FALLBACK ESCRITORIO: Concatenar manualmente el texto base y la URL para compartir en WhatsApp Web
+            const fullText = `${baseText}\n${url}`;
+            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(fullText)}`;
             window.open(whatsappUrl, '_blank');
         }
     });
