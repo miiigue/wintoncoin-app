@@ -26,6 +26,7 @@
 
 const pool = require('../config/db');
 const { logAuditEvent } = require('./auditService');
+const { sendTransactionEmail } = require('./emailService');
 
 // ============================================================================
 // submitCause: Permite a un usuario postular una causa humanitaria
@@ -139,7 +140,7 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
         // PASO 1: Validar la causa (con bloqueo para prevenir race conditions)
         // =====================================================================
         const causeRes = await client.query(`
-            SELECT hc.*, u.id AS owner_id, u.username AS owner_username
+            SELECT hc.*, u.id AS owner_id, u.username AS owner_username, u.email AS owner_email
             FROM humanitarian_causes hc
             JOIN users u ON hc.user_id = u.id
             WHERE hc.id = $1
@@ -157,20 +158,30 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
             throw { status: 400, message: 'Esta causa no está aprobada para recibir donaciones.' };
         }
 
-        // Verificar que no se exceda la meta
+        // Verificar que no se exceda la meta (incluyendo donaciones pendientes on_hold)
+        // BLINDAJE AML: pending_amount evita que múltiples donantes sin KYC
+        // superen la meta de recaudación inyectando capital bajo estado on_hold
         const currentAmount = parseFloat(cause.current_amount) || 0;
+        const pendingAmount = parseFloat(cause.pending_amount) || 0;
         const goalAmount = parseFloat(cause.goal_amount) || 0;
-        if (goalAmount > 0 && currentAmount >= goalAmount) {
-            throw { status: 400, message: 'Esta causa ya alcanzó su meta de recaudación.' };
+        if (goalAmount > 0 && (currentAmount + pendingAmount) >= goalAmount) {
+            throw { status: 400, message: 'Esta causa ya alcanzó su meta de recaudación (incluyendo donaciones pendientes de verificación).' };
         }
 
-        // Ajustar monto si excedería la meta
+        // Ajustar monto si excedería la meta (considerando pending_amount)
         let donationAmount = parseFloat(amount);
         if (isNaN(donationAmount) || donationAmount <= 0) {
             throw { status: 400, message: 'El monto de donación debe ser positivo.' };
         }
-        if (goalAmount > 0 && (currentAmount + donationAmount) > goalAmount) {
-            donationAmount = goalAmount - currentAmount;
+        // Capacidad restante = meta - (liberado + pendiente)
+        // Esto previene el desborde cuando múltiples donantes sin KYC
+        // contribuyen simultáneamente a la misma causa
+        if (goalAmount > 0 && (currentAmount + pendingAmount + donationAmount) > goalAmount) {
+            donationAmount = goalAmount - currentAmount - pendingAmount;
+            // Si la capacidad restante es <= 0, rechazar
+            if (donationAmount <= 0) {
+                throw { status: 400, message: 'Esta causa ya alcanzó su meta de recaudación (incluyendo donaciones pendientes de verificación).' };
+            }
         }
 
         // Prevenir auto-donación (seguridad anti-fraude)
@@ -198,7 +209,7 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
         // PASO 3: Obtener datos del donante (username, kyc_verified)
         // =====================================================================
         const donorRes = await client.query(
-            'SELECT username, kyc_verified FROM users WHERE id = $1',
+            'SELECT username, email, kyc_verified FROM users WHERE id = $1',
             [donorId]
         );
         const donor = donorRes.rows[0];
@@ -207,9 +218,11 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
         // =====================================================================
         // PASO 4: Debitar saldo del donante (SIEMPRE se resta, es inmediato)
         // Usamos record_booster_event con monto negativo para restar
+        // Casting explícito ($1::INTEGER, $2::TEXT, etc.) para prevenir
+        // ambigüedades de tipo en PostgreSQL bajo estrés transaccional
         // =====================================================================
         await client.query(
-            'SELECT record_booster_event($1, $2, $3, $4)',
+            'SELECT record_booster_event($1::INTEGER, $2::TEXT, $3::NUMERIC, $4::INTEGER)',
             [donorId, 'humanitarian_donation_sent', -donationAmount, publicationId]
         );
 
@@ -234,9 +247,9 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
             // ─── DONANTE VERIFICADO: Liberación inmediata ───
             donationStatus = 'released';
 
-            // Acreditar al beneficiario
+            // Acreditar al beneficiario (casting explícito para seguridad PostgreSQL)
             await client.query(
-                'SELECT record_booster_event($1, $2, $3, $4)',
+                'SELECT record_booster_event($1::INTEGER, $2::TEXT, $3::NUMERIC, $4::INTEGER)',
                 [cause.owner_id, 'humanitarian_donation', donationAmount, publicationId]
             );
 
@@ -307,6 +320,13 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
             ]);
 
             userMessage = `Donación de ${donationAmount.toFixed(4)} BLUE IOU registrada. Se acreditará al beneficiario cuando completes la verificación de identidad.`;
+
+            // NUEVO: Incrementar pending_amount en la causa para prevenir
+            // desborde de meta con donaciones on_hold simultáneas (Blindaje AML)
+            await client.query(
+                'UPDATE humanitarian_causes SET pending_amount = pending_amount + $1 WHERE id = $2',
+                [donationAmount, causeId]
+            );
         }
 
         // =====================================================================
@@ -347,6 +367,16 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
         });
 
         await client.query('COMMIT');
+
+        // Disparar envío de correos electrónicos transaccionales de forma asíncrona y segura (no bloqueante)
+        if (donor.email) {
+            sendDonationSentEmail(donor.email, cause.owner_username, cause.title, donationAmount, !isVerified)
+                .catch(e => console.error('[SOLIDARIO CORREO] Error al disparar sendDonationSentEmail:', e.message));
+        }
+        if (cause.owner_email) {
+            sendDonationReceivedEmail(cause.owner_email, donor.username, cause.title, donationAmount, !isVerified)
+                .catch(e => console.error('[SOLIDARIO CORREO] Error al disparar sendDonationReceivedEmail:', e.message));
+        }
 
         return {
             success: true,
@@ -402,8 +432,160 @@ const getCauseDonations = async (causeId) => {
     };
 };
 
+// ============================================================================
+// HELPERS DE CORREOS TRANSACCIONALES PARA DONACIONES (SOC 2 & UX)
+// ============================================================================
+
+/**
+ * Envía un correo al donante informándole del estado de su donación (Hold o Liberada).
+ */
+const sendDonationSentEmail = async (donorEmail, recipientUsername, causeTitle, amount, isHold) => {
+    try {
+        const subject = isHold
+            ? 'Donación en espera de verificación — Winton Solidario'
+            : 'Recibo de Donación Acreditada — Winton Solidario';
+        const title = isHold
+            ? 'Donación en Espera (Custodia)'
+            : 'Donación Acreditada Exitosamente';
+        const message = isHold
+            ? `Tu donación de ${amount.toFixed(4)} BLUE IOU para la causa "${causeTitle}" de @${recipientUsername} está retenida temporalmente. Para que sea liberada y entregada, debes completar tu verificación KYC Web3 en la plataforma.`
+            : `Tu donación de ${amount.toFixed(4)} BLUE IOU ha sido transferida y acreditada directamente en la billetera de @${recipientUsername} para su causa "${causeTitle}". ¡Gracias por tu apoyo!`;
+
+        await sendTransactionEmail({
+            toEmail: donorEmail,
+            subject,
+            title,
+            message,
+            amount: `${amount.toFixed(4)} BLUE IOU`,
+            details: [
+                { label: 'Causa Humanitaria', value: causeTitle },
+                { label: 'Beneficiario', value: `@${recipientUsername}` },
+                { label: 'Estado de Custodia', value: isHold ? 'Retenido (Falta KYC)' : 'Acreditado Inmediato' },
+                { label: 'Fecha', value: new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' }) }
+            ]
+        });
+    } catch (err) {
+        console.error('[SOLIDARIO CORREO] Error al enviar correo de donación enviada:', err.message);
+    }
+};
+
+/**
+ * Envía un correo al beneficiario notificándole sobre una nueva donación recibida o en espera.
+ */
+const sendDonationReceivedEmail = async (recipientEmail, donorUsername, causeTitle, amount, isHold) => {
+    try {
+        const subject = isHold
+            ? 'Tienes una donación pendiente de verificación — Winton Solidario'
+            : '¡Has recibido una donación! — Winton Solidario';
+        const title = isHold
+            ? 'Donación Pendiente de KYC'
+            : 'Donación Recibida y Disponible';
+        const message = isHold
+            ? `@${donorUsername} ha donado ${amount.toFixed(4)} BLUE IOU a tu causa "${causeTitle}". Los fondos están retenidos temporalmente en custodia y se liberarán automáticamente a tu saldo tan pronto como el donante verifique su identidad KYC Web3.`
+            : `¡Buenas noticias! @${donorUsername} ha donado ${amount.toFixed(4)} BLUE IOU a tu causa "${causeTitle}". Los fondos ya han sido acreditados y están disponibles en tu cuenta.`;
+
+        await sendTransactionEmail({
+            toEmail: recipientEmail,
+            subject,
+            title,
+            message,
+            amount: `${amount.toFixed(4)} BLUE IOU`,
+            details: [
+                { label: 'Causa Humanitaria', value: causeTitle },
+                { label: 'Donante', value: `@${donorUsername}` },
+                { label: 'Estado de Fondos', value: isHold ? 'Pendiente de KYC del Donante' : 'Disponible en Saldo' },
+                { label: 'Fecha', value: new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' }) }
+            ]
+        });
+    } catch (err) {
+        console.error('[SOLIDARIO CORREO] Error al enviar correo de donación recibida:', err.message);
+    }
+};
+
+/**
+ * Procesa y envía correos electrónicos para las donaciones liberadas tras el cambio de KYC.
+ * Esta función es llamada de forma asíncrona por los controladores al actualizar kyc_verified a true.
+ */
+const processAndSendEmailsForReleasedDonations = async (donorId) => {
+    const client = await pool.connect();
+    try {
+        // Buscar donaciones liberadas en el último minuto para este donante
+        // status = 'released' y released_at reciente (últimos 2 minutos para margen de seguridad)
+        const releasedDonations = await client.query(`
+            SELECT hd.id, hd.amount, hd.released_at,
+                   hc.title AS cause_title,
+                   u_donor.username AS donor_username, u_donor.email AS donor_email,
+                   u_recipient.username AS recipient_username, u_recipient.email AS recipient_email
+            FROM humanitarian_donations hd
+            JOIN humanitarian_causes hc ON hd.cause_id = hc.id
+            JOIN users u_donor ON hd.donor_id = u_donor.id
+            JOIN users u_recipient ON hd.recipient_id = u_recipient.id
+            WHERE hd.donor_id = $1 
+              AND hd.status = 'released'
+              AND hd.released_at >= NOW() - INTERVAL '2 minutes'
+        `, [donorId]);
+
+        if (releasedDonations.rowCount === 0) {
+            return;
+        }
+
+        console.log(`[SOLIDARIO CORREO] Procesando envío de correos para ${releasedDonations.rowCount} donación(es) liberada(s) de usuario #${donorId}...`);
+
+        for (const donation of releasedDonations.rows) {
+            const amount = parseFloat(donation.amount);
+
+            // A. Correo al donante (Confirmación de acreditación tras KYC aprobado)
+            if (donation.donor_email) {
+                try {
+                    await sendTransactionEmail({
+                        toEmail: donation.donor_email,
+                        subject: 'Donación Liberada Exitosamente — Winton Solidario',
+                        title: 'Donación Liberada tras KYC',
+                        message: `¡Excelente! Dado que has verificado tu identidad con éxito, tu donación retenida de ${amount.toFixed(4)} BLUE IOU ha sido liberada y acreditada al beneficiario @${donation.recipient_username} para la causa "${donation.cause_title}". Gracias por hacer que la plataforma sea más segura.`,
+                        amount: `${amount.toFixed(4)} BLUE IOU`,
+                        details: [
+                            { label: 'Causa Humanitaria', value: donation.cause_title },
+                            { label: 'Beneficiario', value: `@${donation.recipient_username}` },
+                            { label: 'Estado', value: 'Liberado y Acreditado' },
+                            { label: 'Fecha de Liberación', value: donation.released_at.toLocaleString('es-CO', { timeZone: 'America/Bogota' }) }
+                        ]
+                    });
+                } catch (emailErr) {
+                    console.error(`[SOLIDARIO CORREO] Error al enviar correo de liberación al donante:`, emailErr.message);
+                }
+            }
+
+            // B. Correo al beneficiario (Confirmación de fondos disponibles)
+            if (donation.recipient_email) {
+                try {
+                    await sendTransactionEmail({
+                        toEmail: donation.recipient_email,
+                        subject: '¡Fondos Liberados en tu Causa! — Winton Solidario',
+                        title: 'Fondos Disponibles tras KYC',
+                        message: `¡Excelentes noticias! El donante @${donation.donor_username} ha completado su verificación KYC Web3. Su donación retenida de ${amount.toFixed(4)} BLUE IOU para tu causa "${donation.cause_title}" ha sido liberada de la custodia y ya está disponible en tu saldo.`,
+                        amount: `${amount.toFixed(4)} BLUE IOU`,
+                        details: [
+                            { label: 'Causa Humanitaria', value: donation.cause_title },
+                            { label: 'Donante', value: `@${donation.donor_username}` },
+                            { label: 'Estado de Fondos', value: 'Liberado a Saldo Disponible' },
+                            { label: 'Fecha de Liberación', value: donation.released_at.toLocaleString('es-CO', { timeZone: 'America/Bogota' }) }
+                        ]
+                    });
+                } catch (emailErr) {
+                    console.error(`[SOLIDARIO CORREO] Error al enviar correo de liberación al beneficiario:`, emailErr.message);
+                }
+            }
+        }
+    } catch (err) {
+        console.error('[SOLIDARIO CORREO] Error en processAndSendEmailsForReleasedDonations:', err.message);
+    } finally {
+        client.release();
+    }
+};
+
 module.exports = {
     submitCause,
     donateToCause,
-    getCauseDonations
+    getCauseDonations,
+    processAndSendEmailsForReleasedDonations
 };

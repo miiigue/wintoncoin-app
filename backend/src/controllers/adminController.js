@@ -946,6 +946,13 @@ async function getUserKycStatus(req, res) {
                 [kycResult.verified, userId]
             );
             console.log(`[ADMIN KYC-STATUS] ✅ Sincronización automática: DB actualizada de ${kycInDatabase} a ${kycResult.verified} para usuario #${userId}`);
+
+            // Si cambia a true, disparar el envío de correos de donaciones liberadas
+            if (kycResult.verified === true) {
+                const humanitarianService = require('../services/humanitarianService');
+                humanitarianService.processAndSendEmailsForReleasedDonations(userId)
+                    .catch(e => console.error(`[ADMIN KYC-STATUS] Error al procesar correos de liberación tras KYC para usuario #${userId}:`, e.message));
+            }
         }
 
         await logAuditEvent(pool, req, {

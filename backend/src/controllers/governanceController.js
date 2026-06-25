@@ -671,6 +671,13 @@ async function setKYCStatus(pool, req, res) {
                 [kycStatus, username.trim()]
             );
             console.log(`[GOV-CONTROLLER] ✅ Estado KYC local actualizado a ${kycStatus} para ${username} en estricta sincronía con la blockchain.`);
+
+            // Si cambia a true, disparar el envío de correos de donaciones liberadas
+            if (kycStatus === true) {
+                const humanitarianService = require('../services/humanitarianService');
+                humanitarianService.processAndSendEmailsForReleasedDonations(targetUser.id)
+                    .catch(e => console.error(`[GOV-CONTROLLER] Error al procesar correos de liberación tras KYC para usuario #${targetUser.id}:`, e.message));
+            }
         }
 
         // ── PASO 4: Registrar en audit_log SIEMPRE (éxito o fracaso) ───

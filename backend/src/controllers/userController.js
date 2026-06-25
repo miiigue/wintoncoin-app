@@ -208,6 +208,13 @@ const UserController = {
                             [isKycVerified, userId]
                         );
                         console.log(`[API BALANCE] ✅ Sincronización KYC: DB actualizada de ${dbKycStatus} a ${isKycVerified} para usuario #${userId}`);
+
+                        // Si cambia a true, disparar de forma segura el envío de correos de donaciones liberadas
+                        if (isKycVerified === true) {
+                            const humanitarianService = require('../services/humanitarianService');
+                            humanitarianService.processAndSendEmailsForReleasedDonations(userId)
+                                .catch(e => console.error(`[API BALANCE] Error al procesar correos de liberación tras KYC para usuario #${userId}:`, e.message));
+                        }
                     } catch (syncErr) {
                         console.error(`[API BALANCE] ⚠️ Error al sincronizar KYC en DB para usuario #${userId}:`, syncErr.message);
                     }
