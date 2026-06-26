@@ -190,6 +190,33 @@ function buildCauseHTML(cause, donations) {
         `;
     }
 
+    // [Seguridad / Redirección] Resolver enlace social para el creador (influencer)
+    // El índice 0 contiene el enlace de evidencia y los siguientes índices contienen las redes del creador.
+    // Si posee redes, enlazamos externamente abriendo en una pestaña nueva por seguridad (noopener).
+    // Si no posee redes, hacemos fallback a su perfil público interno en la misma pestaña.
+    let creatorLink = `profile.html?user=${encodeURIComponent(cause.creator_username)}`;
+    let creatorTarget = '';
+    if (cause.evidence_urls && Array.isArray(cause.evidence_urls) && cause.evidence_urls.length > 1) {
+        const firstSocial = cause.evidence_urls[1];
+        if (firstSocial && firstSocial.trim() !== '') {
+            creatorLink = firstSocial.trim();
+            creatorTarget = ' target="_blank" rel="noopener noreferrer"';
+        }
+    }
+
+    // [Seguridad / Redirección] Resolver enlace social para el beneficiario
+    // Se obtiene del campo beneficiary_socials (ingresado por el influencer), tomando el primer enlace.
+    // Si posee red/web, enlazamos externamente. Si no, hacemos fallback a su perfil público interno.
+    let beneficiaryLink = `profile.html?user=${encodeURIComponent(cause.beneficiary_username)}`;
+    let beneficiaryTarget = '';
+    if (cause.beneficiary_socials && cause.beneficiary_socials.trim() !== '') {
+        const socials = cause.beneficiary_socials.trim().split(/\s+/);
+        if (socials[0] && socials[0].trim() !== '') {
+            beneficiaryLink = socials[0].trim();
+            beneficiaryTarget = ' target="_blank" rel="noopener noreferrer"';
+        }
+    }
+
     return `
         <!-- HEADER: Navegación + Badge -->
         <div class="solidario-header">
@@ -205,8 +232,8 @@ function buildCauseHTML(cause, donations) {
         <div class="solidario-cause-card">
             <h1 class="solidario-cause-title" id="solidarioCauseTitle">${escapeHtml(cause.title)}</h1>
             <div class="solidario-cause-meta">
-                <span>👤 Creador: <strong><a href="profile.html?user=${encodeURIComponent(cause.creator_username)}" class="profile-link" style="color: #a5b4fc; text-decoration: underline;">${escapeHtml(cause.creator_username || 'Creador')}</a></strong></span>
-                ${cause.beneficiary_username && cause.beneficiary_username !== cause.creator_username ? `<span>💖 Beneficiario: <strong><a href="profile.html?user=${encodeURIComponent(cause.beneficiary_username)}" class="profile-link" style="color: #a5b4fc; text-decoration: underline;">@${escapeHtml(cause.beneficiary_username)}</a>${cause.foundation_name ? ` (${escapeHtml(cause.foundation_name)})` : ''}</strong></span>` : ''}
+                <span>👤 Creador: <strong><a href="${creatorLink}"${creatorTarget} class="profile-link" style="color: #a5b4fc; text-decoration: underline;">${escapeHtml(cause.creator_username || 'Creador')}</a></strong></span>
+                ${cause.beneficiary_username && cause.beneficiary_username !== cause.creator_username ? `<span>💖 Beneficiario: <strong><a href="${beneficiaryLink}"${beneficiaryTarget} class="profile-link" style="color: #a5b4fc; text-decoration: underline;">@${escapeHtml(cause.beneficiary_username)}</a>${cause.foundation_name ? ` (${escapeHtml(cause.foundation_name)})` : ''}</strong></span>` : ''}
                 <span>📅 ${createdDate}</span>
             </div>
             <div class="solidario-cause-story" id="solidarioCauseStory">${escapeHtml(cause.story)}</div>

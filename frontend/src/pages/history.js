@@ -51,12 +51,21 @@ function initializeHistoryPage() {
         }
 
         publications.forEach(pub => {
-            authoredById.set(String(pub.id), pub);
+            // [Seguridad / Control de ID] Evitar colisión de IDs guardando en el mapa
+            // únicamente aquellas publicaciones comerciales. Las causas no tienen participantes.
+            if (!pub.is_humanitarian) {
+                authoredById.set(String(pub.id), pub);
+            }
             const item = document.createElement('div');
             item.className = 'publication-item history-item';
             item.innerHTML = getAuthoredPublicationHTML(pub);
             elements.authoredList.appendChild(item);
-            fetchAndRenderParticipants(pub.id);
+            
+            // [Rendimiento / Lógica] Solo obtener participantes para tareas comerciales.
+            // Las causas humanitarias no poseen el flujo tradicional de participantes/trabajadores.
+            if (!pub.is_humanitarian) {
+                fetchAndRenderParticipants(pub.id);
+            }
         });
     }
 
@@ -96,6 +105,26 @@ function initializeHistoryPage() {
 
     function getAuthoredPublicationHTML(pub) {
         const badgesHTML = getPublicationBadgesHTML(pub, { view: 'authored' });
+        
+        // [Lógica / Presentación] Renderizado premium y específico para causas humanitarias
+        if (pub.is_humanitarian) {
+            return `
+                <h3><a href="causa-solidaria.html?id=${pub.id}" class="profile-link" style="color: #a5b4fc; text-decoration: underline; font-weight: bold;">${escapeHtml(pub.title)}</a></h3>
+                <div class="history-badges">${badgesHTML}</div>
+                <p class="pub-description">${linkify(pub.description || '')}</p>
+                <div class="humanitarian-progress-summary" style="margin-top: 12px; font-size: 0.85em; padding: 10px; border-radius: 8px; background: rgba(255,255,255,0.03); display: flex; flex-direction: column; gap: 4px; border: 1px solid rgba(255,255,255,0.08);">
+                    <div style="display:flex; justify-content:space-between;">
+                        <span>Meta de Recaudación:</span>
+                        <strong>${formatBalance(pub.blue_cost)} BLUE IOU</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span>Recaudado Disponible:</span>
+                        <strong style="color: #e83e8c;">${formatBalance(pub.current_amount || 0)} BLUE IOU</strong>
+                    </div>
+                </div>
+            `;
+        }
+
         return `
             <h3>${pub.title}</h3>
             <div class="history-badges">${badgesHTML}</div>
@@ -217,6 +246,19 @@ function initializeHistoryPage() {
 
     function getPublicationBadgesHTML(pub, { view }) {
         const badges = [];
+
+        // [Lógica / Presentación] Gestión de badges con diseño premium para causas solidarias
+        if (pub.is_humanitarian) {
+            const statusMap = {
+                'pending': '<span class="status-badge pending" style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24;">PENDIENTE</span>',
+                'approved': '<span class="status-badge active" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399;">ACTIVA</span>',
+                'rejected': '<span class="status-badge rejected" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171;">RECHAZADA</span>',
+                'completed': '<span class="status-badge completed" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.4); color: #60a5fa;">CULMINADA</span>'
+            };
+            badges.push(statusMap[pub.status] || `<span class="status-badge">${pub.status.toUpperCase()}</span>`);
+            return badges.join(' ');
+        }
+
         const isDeleted = !!pub.is_deleted || !!pub.deleted_at;
         const isExpired = !!pub.is_expired || (pub.expires_at && new Date(pub.expires_at) < new Date());
         const isCompletedPublication = !!pub.is_completed_publication;

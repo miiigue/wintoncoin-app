@@ -479,12 +479,43 @@ const UserController = {
                 ORDER BY p.created_at DESC
             `;
 
-            const [authoredResult, completedResult] = await Promise.all([
+            // [Auditoría] Query para obtener causas solidarias postuladas por el usuario actual.
+            // Esto permite que el historial del usuario incluya tanto tareas comerciales como causas humanitarias.
+            // Se mapean los campos equivalentes para mantener la compatibilidad con el frontend.
+            const causesSql = `
+                SELECT
+                    hc.id,
+                    hc.user_id AS author_id,
+                    hc.title,
+                    hc.story AS description, -- 'story' mapeado a 'description' para consistencia en UI
+                    hc.goal_amount AS blue_cost, -- 'goal_amount' mapeado a 'blue_cost' para el indicador financiero
+                    hc.current_amount,
+                    hc.status,
+                    hc.created_at,
+                    u.username AS author_username,
+                    TRUE AS is_humanitarian -- Flag explícito para diferenciar del flujo de tareas regulares
+                FROM humanitarian_causes hc
+                JOIN users u ON hc.user_id = u.id
+                WHERE hc.user_id = $1
+                ORDER BY hc.created_at DESC
+            `;
+
+            // [Auditoría / Trazabilidad] Ejecución concurrente optimizada mediante Promise.all
+            const [authoredResult, completedResult, causesResult] = await Promise.all([
                 pool.query(authoredSql, [userId]),
-                pool.query(completedSql, [username])
+                pool.query(completedSql, [username]),
+                pool.query(causesSql, [userId]) // Consultar causas del usuario
             ]);
 
-            res.status(200).json({ authored: authoredResult.rows, completed: completedResult.rows });
+            // [Optimización] Fusión segura en memoria de publicaciones y causas solidarias.
+            // Para las publicaciones comerciales se agrega 'is_humanitarian: false' explícitamente.
+            const combinedAuthored = [
+                ...authoredResult.rows.map(r => ({ ...r, is_humanitarian: false })),
+                ...causesResult.rows.map(r => ({ ...r, is_humanitarian: true }))
+            ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Ordenación descendente por fecha de creación
+
+            // [Auditoría] Responder con estado HTTP 200 y la información debidamente estructurada
+            res.status(200).json({ authored: combinedAuthored, completed: completedResult.rows });
         } catch (err) {
             console.error("Error al obtener historial (/api/me/history):", err.message);
             res.status(500).json({ message: "Error interno del servidor." });

@@ -25,6 +25,19 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 
 
+### 2026-06-26 — Enlaces Dinámicos a Redes Sociales en Detalle de Causas e Inclusión de Causas en el Historial del Usuario
+
+- **Contexto**: Se identificaron dos requerimientos operacionales y de usabilidad:
+  1. Los enlaces en los nombres del Creador (influencer) y del Beneficiario en la página de detalle de la causa solidaria (`causa-solidaria.html`) debían redirigir a sus respectivas redes sociales registradas si estaban disponibles, en lugar de apuntar siempre a sus perfiles públicos de la plataforma.
+  2. Las causas humanitarias creadas por los usuarios no aparecían en su listado del historial ("Mis Publicaciones" en `history.html`), dificultando el seguimiento del estado de sus solicitudes vigentes o completadas.
+- **Decisión de Ingeniería**:
+  - **Enlaces Dinámicos en Detalle de Causa (`causa-solidaria.js`)**: Se actualizó la función `buildCauseHTML` para extraer dinámicamente la primera red social del creador de `evidence_urls` (índice 1) y del beneficiario de la columna `beneficiary_socials`. Se implementó un fallback transparente hacia sus perfiles internos (`profile.html?user=...`) si no existen enlaces de redes sociales. Los enlaces externos se configuran para abrirse en una pestaña nueva (`target="_blank" rel="noopener noreferrer"`) garantizando la seguridad (anti-tabnabbing) y una UX óptima.
+  - **Inclusión en Historial de Creadores (`userController.js` y `history.js`)**: 
+    - En el backend (`getMyHistory`), se inyectó una consulta SQL paralela a la tabla `humanitarian_causes` mapeando `story` -> `description`, `goal_amount` -> `blue_cost`, `current_amount`, y `status` con un flag de control `is_humanitarian: true`. Los resultados de causas y publicaciones comerciales se fusionan en memoria y se ordenan por `created_at DESC` para su consumo ágil en una única llamada API.
+    - En el frontend, se adaptó `renderAuthoredPublications` para identificar el flag `is_humanitarian`. Si se detecta, se omite el guardado en el mapa de IDs comerciales para evitar colisiones y se previene la carga asíncrona inútil de participantes. Se renderiza un contenedor premium exclusivo con diseño contable (Meta vs Recaudado) y el título redirige a la vista pública de la causa (`causa-solidaria.html?id=${pub.id}`).
+- **Impacto**: Se logró una navegación directa integrada hacia la presencia social del influencer y del beneficiario, y se dotó al usuario de un panel de control e historial unificado premium, ordenado y seguro en su Dashboard de publicaciones, libre de colisiones y con visualización financiera adaptada.
+- **Archivos modificados**: `backend/src/controllers/userController.js`, `frontend/src/pages/causa-solidaria.js`, `frontend/src/pages/history.js`, `EVOLUCION.md`
+
 ### 2026-06-26 — Estilo de Formulario de Postulación, Redirección Interna de Éxito y Redes Sociales del Beneficiario (Migración 073)
 
 - **Contexto**: Se detectaron varios detalles de pulido y funcionalidad en el formulario de postulación solidaria (`solicitud-solidaria.html`):
