@@ -353,6 +353,29 @@ function initializeHistoryPage() {
     function setupTabSelector() {
         const tabButtons = document.querySelectorAll('.tab-button');
         const tabContents = document.querySelectorAll('.tab-content');
+        const tabsContainer = document.querySelector('.history-tabs');
+
+        // [UX / Desktop] Traducir scroll vertical a desplazamiento horizontal en la barra de pestañas.
+        // Se deshabilita el comportamiento pasivo (passive: false) para permitir que evt.preventDefault() funcione,
+        // y se normaliza el scroll del mouse (deltaMode) para evitar scroll extremadamente lento en Windows/Chrome.
+        if (tabsContainer) {
+            tabsContainer.addEventListener('wheel', (evt) => {
+                if (evt.deltaY === 0) return;
+                evt.preventDefault(); // Evitar desplazamiento vertical nativo de la página
+                
+                // Normalización de desplazamiento según el tipo de delta (píxeles, líneas o páginas)
+                let scrollAmount = 0;
+                if (evt.deltaMode === 1) { // Modo de desplazamiento por líneas (común en ratones estándar en Windows)
+                    scrollAmount = evt.deltaY * 33; // Multiplicar por una altura estimada de línea (33px)
+                } else if (evt.deltaMode === 2) { // Modo de desplazamiento por páginas completas
+                    scrollAmount = evt.deltaY * tabsContainer.clientWidth;
+                } else { // Modo de desplazamiento por píxeles directos
+                    scrollAmount = evt.deltaY;
+                }
+                
+                tabsContainer.scrollLeft += scrollAmount;
+            }, { passive: false });
+        }
 
         tabButtons.forEach(btn => {
             btn.addEventListener('click', () => {

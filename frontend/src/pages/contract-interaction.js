@@ -689,6 +689,27 @@ document.addEventListener('DOMContentLoaded', () => {
         // Listener para chips de filtro (event delegation en el contenedor)
         if (elements.publicationFilterChips) {
             elements.publicationFilterChips.addEventListener('click', handleFilterChipClick);
+            
+            // [UX / Desktop] Traducir scroll vertical de la rueda del mouse a desplazamiento horizontal
+            // para permitir navegación fluida en computadoras de escritorio sin pantalla táctil.
+            // Se deshabilita el comportamiento pasivo (passive: false) para permitir que evt.preventDefault() funcione,
+            // y se normaliza el scroll del mouse (deltaMode) para evitar scroll extremadamente lento en Windows/Chrome.
+            elements.publicationFilterChips.addEventListener('wheel', (evt) => {
+                if (evt.deltaY === 0) return;
+                evt.preventDefault(); // Detener el desplazamiento vertical nativo de la página
+                
+                // Normalización de desplazamiento según el tipo de delta (píxeles, líneas o páginas)
+                let scrollAmount = 0;
+                if (evt.deltaMode === 1) { // Modo de desplazamiento por líneas (común en ratones estándar en Windows)
+                    scrollAmount = evt.deltaY * 33; // Multiplicar por una altura estimada de línea (33px)
+                } else if (evt.deltaMode === 2) { // Modo de desplazamiento por páginas completas
+                    scrollAmount = evt.deltaY * elements.publicationFilterChips.clientWidth;
+                } else { // Modo de desplazamiento por píxeles directos
+                    scrollAmount = evt.deltaY;
+                }
+                
+                elements.publicationFilterChips.scrollLeft += scrollAmount;
+            }, { passive: false });
         }
 
         // Listener para el selector de ordenamiento

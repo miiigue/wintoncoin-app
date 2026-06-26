@@ -19,11 +19,14 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-26 — Optimización de Scroll Horizontal en Computadoras de Escritorio para Selectores de Filtro e Historial
 
-
-
-
-
+- **Contexto**: Al usar computadoras de escritorio (con mouse y rueda de desplazamiento tradicional), los usuarios no podían realizar desplazamientos laterales (scroll horizontal) en los chips selectores de categorías (Dashboard) ni en las pestañas del Historial. Esto se debía a que los navegadores modernos tratan por defecto los eventos `wheel` como pasivos (impidiendo `preventDefault()`) y a que los valores de `deltaY` en ratones con scroll por líneas en Windows son extremadamente bajos (1-3 píxeles), lo que impedía el desplazamiento horizontal perceptible.
+- **Decisión de Ingeniería**:
+  - **Deshabilitación de Comportamiento Pasivo (`{ passive: false }`)**: Se agregaron opciones explícitas `{ passive: false }` en las llamadas a `addEventListener('wheel', ...)` tanto en `contract-interaction.js` (para `.publication-filter-chips`) como en `history.js` (para `.history-tabs`). Esto asegura que `evt.preventDefault()` funcione correctamente y detenga el scroll vertical predeterminado de la página.
+  - **Normalización de Delta de Rueda (`evt.deltaMode`)**: Se implementó una normalización del desplazamiento multiplicando la cantidad de scroll por una altura de línea promedio (~33 píxeles) cuando el mouse está configurado en modo líneas (`deltaMode === 1`), y multiplicando por el ancho del cliente cuando está en modo páginas (`deltaMode === 2`), garantizando un comportamiento fluido y veloz independientemente del sistema operativo o hardware de mouse del usuario.
+- **Impacto**: Se restableció la usabilidad táctil-emulada para usuarios de escritorio, permitiendo una navegación lateral veloz y fluida en filtros de feed y pestañas sin requerir pantallas táctiles o trackpads específicos.
+- **Archivos modificados**: `frontend/src/pages/contract-interaction.js`, `frontend/src/pages/history.js`, `EVOLUCION.md`
 
 ### 2026-06-26 — Pestañas Responsivas de Historial y Sección de Donaciones Realizadas con Trazabilidad Contable
 
