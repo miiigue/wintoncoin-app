@@ -208,7 +208,6 @@ function buildCauseHTML(cause, donations) {
                 <span>👤 Creador: <strong><a href="profile.html?user=${encodeURIComponent(cause.creator_username)}" class="profile-link" style="color: #a5b4fc; text-decoration: underline;">${escapeHtml(cause.creator_username || 'Creador')}</a></strong></span>
                 ${cause.beneficiary_username && cause.beneficiary_username !== cause.creator_username ? `<span>💖 Beneficiario: <strong><a href="profile.html?user=${encodeURIComponent(cause.beneficiary_username)}" class="profile-link" style="color: #a5b4fc; text-decoration: underline;">@${escapeHtml(cause.beneficiary_username)}</a>${cause.foundation_name ? ` (${escapeHtml(cause.foundation_name)})` : ''}</strong></span>` : ''}
                 <span>📅 ${createdDate}</span>
-                <span style="display:inline-flex; align-items:center; gap:4px; color:#60a5fa; vertical-align:middle;">${heartIcon} ${countDonations} ${countDonations === 1 ? 'donación' : 'donaciones'}</span>
             </div>
             <div class="solidario-cause-story" id="solidarioCauseStory">${escapeHtml(cause.story)}</div>
         </div>
@@ -260,7 +259,7 @@ function buildCauseHTML(cause, donations) {
         <!-- LISTA DE DONACIONES -->
         <div class="solidario-donations-section" id="solidarioDonationsSection">
             <div class="solidario-donations-title" style="display:flex; align-items:center; gap:8px;">
-                <span style="color:#e83e8c;">${heartIcon}</span> Donaciones recibidas
+                <span style="color:#e83e8c;">${heartIcon}</span> ${countDonations} ${countDonations === 1 ? 'Donación recibida' : 'Donaciones recibidas'}
             </div>
             <div id="solidarioDonationsList">
                 <!-- Se llena dinámicamente -->
