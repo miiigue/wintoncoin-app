@@ -55,7 +55,7 @@ router.get('/check-referral/:code', async (req, res) => {
 // ==  Seguridad: Validación de URL, límites de longitud, sanitización           ==
 // =================================================================================
 router.post('/postulacion', authenticateToken, async (req, res) => {
-    const { username, titulo, historia, meta, evidencia_link, redes_sociales, beneficiary_referral_code, foundation_name } = req.body;
+    const { username, titulo, historia, meta, evidencia_link, redes_sociales, beneficiary_referral_code, foundation_name, beneficiary_socials } = req.body;
 
     // --- VALIDACIÓN DE COHERENCIA DE SEGURIDAD (ANTI-SPOOFING) ---
     // Impide que un usuario autenticado postule causas en nombre de otro usuario
@@ -87,6 +87,9 @@ router.post('/postulacion', authenticateToken, async (req, res) => {
     if (evidencia_link.length > 2048) {
         return res.status(400).json({ message: "El enlace de evidencia es demasiado largo." });
     }
+    if (beneficiary_socials && beneficiary_socials.length > 1000) {
+        return res.status(400).json({ message: "Los enlaces de redes sociales del beneficiario no pueden exceder 1000 caracteres." });
+    }
 
     // --- VALIDACIÓN 3: Monto numérico positivo, finito y controlado ---
     const goalAmount = parseFloat(meta);
@@ -114,6 +117,18 @@ router.post('/postulacion', authenticateToken, async (req, res) => {
                 return res.status(400).json({ message: "Todos los enlaces de redes sociales deben usar HTTPS." });
             }
             redesArray.push(link);
+        }
+
+        // Procesar redes sociales del beneficiario si las hay (separadas por espacio)
+        if (beneficiary_socials && beneficiary_socials.trim() !== '') {
+            const redesCrudasBeneficiary = beneficiary_socials.trim().split(/\s+/);
+            for (const link of redesCrudasBeneficiary) {
+                if (!link) continue;
+                const urlRedes = new URL(link);
+                if (urlRedes.protocol !== 'https:') {
+                    return res.status(400).json({ message: "Todos los enlaces de redes sociales del beneficiario deben usar HTTPS." });
+                }
+            }
         }
     } catch (e) {
         return res.status(400).json({ message: "Uno de los enlaces proporcionados no es válido. Asegúrate de incluir https://" });
@@ -150,13 +165,13 @@ router.post('/postulacion', authenticateToken, async (req, res) => {
             return res.status(400).json({ message: "Actualmente posees una causa en curso o en revisión. Debes culminarla antes de postular una nueva." });
         }
 
-        // 3. Insertar en la tabla humanitarian_causes (Migración 038 + 071 + 072)
+        // 3. Insertar en la tabla humanitarian_causes (Migración 038 + 071 + 072 + 073)
         const allUrls = [evidencia_link.trim(), ...redesArray];
         const evidenceUrls = JSON.stringify(allUrls);
         const insertSql = `
             INSERT INTO humanitarian_causes 
-            (user_id, title, story, goal_amount, evidence_urls, status, beneficiary_referral_code, foundation_name)
-            VALUES ($1, $2, $3, $4, $5::jsonb, 'pending', $6, $7)
+            (user_id, title, story, goal_amount, evidence_urls, status, beneficiary_referral_code, foundation_name, beneficiary_socials)
+            VALUES ($1, $2, $3, $4, $5::jsonb, 'pending', $6, $7, $8)
             RETURNING id, created_at
         `;
         const result = await pool.query(insertSql, [
@@ -166,7 +181,8 @@ router.post('/postulacion', authenticateToken, async (req, res) => {
             goalAmount,
             evidenceUrls,
             cleanRefCode,
-            foundation_name.trim()
+            foundation_name.trim(),
+            beneficiary_socials ? beneficiary_socials.trim() : null
         ]);
 
         // 4. Registrar en Auditoría (Estándar Bancario: Trazabilidad total)
@@ -179,7 +195,8 @@ router.post('/postulacion', authenticateToken, async (req, res) => {
                 title: titulo.trim(),
                 goal_amount: goalAmount,
                 beneficiary_referral_code: cleanRefCode,
-                foundation_name: foundation_name.trim()
+                foundation_name: foundation_name.trim(),
+                beneficiary_socials: beneficiary_socials ? beneficiary_socials.trim() : null
             }
         });
 

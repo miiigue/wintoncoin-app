@@ -25,6 +25,20 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 
 
+### 2026-06-26 — Estilo de Formulario de Postulación, Redirección Interna de Éxito y Redes Sociales del Beneficiario (Migración 073)
+
+- **Contexto**: Se detectaron varios detalles de pulido y funcionalidad en el formulario de postulación solidaria (`solicitud-solidaria.html`):
+  1. Al enviar el formulario de solicitud con éxito, el sistema redirigía al usuario a `index.html` (landing page), lo que daba la falsa impresión de haber sido expulsado de la aplicación (logout).
+  2. El campo "Enlace de Evidencia (Drive, Dropbox, Fotos iCloud)" sobresalía horizontalmente en dispositivos móviles y de escritorio en comparación con otros campos debido a un error de especificidad CSS en el cual `input[type="url"]` no coincidía con el selector específico de `style.css` y cargaba estilos de un bloque tag con `box-sizing: content-box`.
+  3. Faltaba la capacidad de registrar los enlaces a redes sociales del beneficiario de forma opcional para fines de auditoría del administrador.
+- **Decisión de Ingeniería**:
+  - **Base de Datos (Migración 073)**: Se creó la migración `073_add_beneficiary_socials_to_causes.js` para añadir la columna `beneficiary_socials` TEXT en la tabla `humanitarian_causes`.
+  - **Redirección de Sesión**: Se corrigió el submit del formulario en `solicitud-solidaria.html` para redirigir a `contract_interaction.html` (el Dashboard principal), manteniendo al usuario dentro de su sesión activa.
+  - **Alineación Visual de Inputs**: Se reestructuró el CSS en el bloque `<style>` de `solicitud-solidaria.html` agregando `* { box-sizing: border-box; }` y especificando `input[type="url"]` con las mismas propiedades de borde, padding, color y `border-radius: 8px` que los demás inputs, logrando una interfaz 100% homogénea y sin desbordes.
+  - **Enlaces del Beneficiario**: Se agregó el input `#beneficiarySocials` en el HTML de la postulación, se capturó en `formData.beneficiary_socials`, y se actualizó `solidarioRoutes.js` para recibir, validar el formato de URL HTTPS y la longitud de este campo, y persistirlo en la base de datos junto con el registro en la auditoría bancaria.
+- **Impacto**: Se optimizó la experiencia de usuario y el diseño visual móvil del formulario y se fortalecieron las herramientas de validación de causas humanitarias por parte de la administración.
+- **Archivos creados/modificados**: `backend/migrations/073_add_beneficiary_socials_to_causes.js`, `backend/src/routes/solidarioRoutes.js`, `frontend/solicitud-solidaria.html`, `EVOLUCION.md`
+
 ### 2026-06-26 — Corrección de Flujo de Acreditación y Hold/Release de Fondos en Donaciones (Beneficiario vs Creador)
 
 - **Contexto**: Se detectó una inconsistencia en el flujo contable de donaciones de BLUE IOU: cuando un usuario donaba a una causa humanitaria creada por `@test1` (influencer/creador) con `@test2` (organización) designado como beneficiario, los tokens liberados (tras validarse el KYC del donante) se acreditaban erróneamente en el balance de `@test1` en lugar de `@test2`. El sistema registraba al dueño de la causa como receptor directo de los fondos.

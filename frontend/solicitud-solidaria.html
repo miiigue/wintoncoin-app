@@ -79,16 +79,23 @@
             color: #94A3B8;
         }
 
-        input,
+        * {
+            box-sizing: border-box;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="url"],
         textarea {
             width: 100%;
-            padding: 1rem;
+            padding: 12px 15px;
             background: #ffffff !important;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            color: #333333 !important;
+            border: 1px solid #2a3b5c !important;
+            border-radius: 8px !important;
+            color: #111111 !important;
             font-size: 1rem;
             transition: all 0.3s;
+            box-sizing: border-box;
         }
 
         input::placeholder,
@@ -325,6 +332,11 @@
             </div>
 
             <div class="form-group">
+                <label for="beneficiarySocials">Enlaces a Redes Sociales del Beneficiario (Si los hay)</label>
+                <input type="text" id="beneficiarySocials" placeholder="Ej: https://instagram.com/fundacion https://tiktok.com/@fundacion (Separados por espacio, opcional)">
+            </div>
+
+            <div class="form-group">
                 <label for="titulo">Título de la Causa</label>
                 <input type="text" id="titulo" placeholder="Ej: Apoyo para tratamiento médico post-operatorio" required>
             </div>
@@ -332,7 +344,7 @@
             <div class="form-group">
                 <label for="historia">Tu Historia (Dignidad y Claridad)</label>
                 <textarea id="historia" rows="6"
-                    placeholder="Cuéntanos tu situación y cómo te ayudará el sistema de WintonCoin..."
+                    placeholder="Cuéntanos tu situation y cómo te ayudará el sistema de WintonCoin..."
                     required></textarea>
             </div>
 
@@ -342,7 +354,7 @@
             </div>
 
             <div class="form-group">
-                <label for="evidenciaLink">Enlace de Evidencia (Drive, Dropbox, Fotos iCloud)</label>
+                <label for="evidenciaLink">Enlaces de Evidencias (Drive, Dropbox, Fotos iCloud)</label>
                 <input type="url" id="evidenciaLink" placeholder="Pega aquí el enlace a tus documentos de respaldo"
                     required>
             </div>
@@ -556,7 +568,8 @@
                 historia: document.getElementById('historia').value.trim(),
                 meta: document.getElementById('meta').value.trim(),
                 evidencia_link: document.getElementById('evidenciaLink').value.trim(),
-                redes_sociales: document.getElementById('redesSociales').value.trim()
+                redes_sociales: document.getElementById('redesSociales').value.trim(),
+                beneficiary_socials: document.getElementById('beneficiarySocials').value.trim()
             };
 
             try {
@@ -574,7 +587,7 @@
 
                 if (response.ok) {
                     alert('✅ Postulación registrada exitosamente.\n\n📬 Recibirás una notificación en la app y en tu correo cuando nuestro equipo revise tu caso.\n\nPuedes ver el estado de tu solicitud en tu bandeja de notificaciones.');
-                    window.location.href = 'index.html';
+                    window.location.href = 'contract_interaction.html';
                 } else {
                     alert('❌ Error: ' + (result.message || 'No se pudo registrar la postulación.'));
                     btn.innerText = originalText;
