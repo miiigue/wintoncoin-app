@@ -19,6 +19,14 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-26 — Corrección de Permisos de Visualización Pública para Causas Culminadas/Completadas
+
+- **Contexto**: Cuando una causa humanitaria era culminada, su estado se actualizaba a `'completed'`. Esto generaba un error 403 Forbidden ("No tienes permiso para ver esta causa") para los usuarios normales al intentar ver los detalles de una causa terminada a la cual habían donado previamente desde su historial de donaciones, dado que el endpoint `/causes/:id` del backend solo consideraba de acceso público las causas en estado `'approved'`.
+- **Decisión de Ingeniería**:
+  - **Autorización Inclusiva en Rutas (`humanitarianUserRoutes.js`)**: Se modificó la validación del endpoint `GET /causes/:id` para permitir la visualización pública de causas cuyo estado sea `'approved'` o `'completed'`. Se mantiene el bloqueo de seguridad para las causas pendientes (`'pending'`) y rechazadas (`'rejected'`), que siguen siendo accesibles únicamente para sus creadores.
+- **Impacto**: Se garantizó la total transparencia y auditabilidad en el historial de donaciones, permitiendo que cualquier donante o usuario pueda revisar el estado y los detalles de causas ya culminadas/finalizadas, resolviendo un bloqueo de UX crítico.
+- **Archivos modificados**: `backend/src/routes/humanitarianUserRoutes.js`, `EVOLUCION.md`
+
 ### 2026-06-26 — Optimización de Scroll Horizontal en Computadoras de Escritorio para Selectores de Filtro e Historial
 
 - **Contexto**: Al usar computadoras de escritorio (con mouse y rueda de desplazamiento tradicional), los usuarios no podían realizar desplazamientos laterales (scroll horizontal) en los chips selectores de categorías (Dashboard) ni en las pestañas del Historial. Esto se debía a que los navegadores modernos tratan por defecto los eventos `wheel` como pasivos (impidiendo `preventDefault()`) y a que los valores de `deltaY` en ratones con scroll por líneas en Windows son extremadamente bajos (1-3 píxeles), lo que impedía el desplazamiento horizontal perceptible.

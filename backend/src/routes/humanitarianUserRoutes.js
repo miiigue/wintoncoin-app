@@ -149,10 +149,10 @@ router.get('/causes/:id', optionalAuthenticateToken, async (req, res) => {
 
         const cause = result.rows[0];
 
-        // Solo permitir ver causas aprobadas o propias
-        const isApproved = cause.status === 'approved';
+        // Solo permitir ver causas aprobadas, completadas o propias
+        const isPubliclyViewable = ['approved', 'completed'].includes(cause.status);
         const isOwner = req.user && cause.user_id === req.user.userId;
-        if (!isApproved && !isOwner) {
+        if (!isPubliclyViewable && !isOwner) {
             return res.status(403).json({ message: 'No tienes permiso para ver esta causa.' });
         }
 
