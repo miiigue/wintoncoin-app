@@ -158,12 +158,17 @@ function buildCauseHTML(cause, donations) {
     const percentageOnHold = goalAmount > 0 ? Math.min((totalOnHold / goalAmount) * 100, 100 - percentageReleased) : 0;
     const percentageTotal = percentageReleased + percentageOnHold;
 
-    // Formatear fecha de creación
-    const createdDate = new Date(cause.created_at).toLocaleDateString('es-ES', {
+    // Formatear fecha y hora de creación
+    const dateObj = new Date(cause.created_at);
+    const createdDate = dateObj.toLocaleDateString('es-ES', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
-    });
+    }) + ' a las ' + dateObj.toLocaleTimeString('es-ES', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    }) + ' hs';
 
     // Determinar si la causa alcanzó su meta o está culminada
     const isCompleted = cause.status === 'completed' || (goalAmount > 0 && totalRaised >= goalAmount);
@@ -201,9 +206,9 @@ function buildCauseHTML(cause, donations) {
             <h1 class="solidario-cause-title" id="solidarioCauseTitle">${escapeHtml(cause.title)}</h1>
             <div class="solidario-cause-meta">
                 <span>👤 Creador: <strong><a href="profile.html?user=${encodeURIComponent(cause.creator_username)}" class="profile-link" style="color: #a5b4fc; text-decoration: underline;">${escapeHtml(cause.creator_username || 'Creador')}</a></strong></span>
-                ${cause.beneficiary_username && cause.beneficiary_username !== cause.creator_username ? `<span>💖 Beneficiario: <strong>${cause.foundation_name ? `${escapeHtml(cause.foundation_name)} ` : ''}<a href="profile.html?user=${encodeURIComponent(cause.beneficiary_username)}" class="profile-link" style="color: #a5b4fc; text-decoration: underline;">(@${escapeHtml(cause.beneficiary_username)})</a></strong></span>` : ''}
+                ${cause.beneficiary_username && cause.beneficiary_username !== cause.creator_username ? `<span>💖 Beneficiario: <strong><a href="profile.html?user=${encodeURIComponent(cause.beneficiary_username)}" class="profile-link" style="color: #a5b4fc; text-decoration: underline;">@${escapeHtml(cause.beneficiary_username)}</a>${cause.foundation_name ? ` (${escapeHtml(cause.foundation_name)})` : ''}</strong></span>` : ''}
                 <span>📅 ${createdDate}</span>
-                <span style="display:flex; align-items:center; gap:4px; color:#60a5fa;">${heartIcon} ${countDonations} ${countDonations === 1 ? 'donación' : 'donaciones'}</span>
+                <span style="display:inline-flex; align-items:center; gap:4px; color:#60a5fa; vertical-align:middle;">${heartIcon} ${countDonations} ${countDonations === 1 ? 'donación' : 'donaciones'}</span>
             </div>
             <div class="solidario-cause-story" id="solidarioCauseStory">${escapeHtml(cause.story)}</div>
         </div>
