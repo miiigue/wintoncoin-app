@@ -32,18 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Initialization ---
-    // SEGURIDAD Y ONBOARDING: Verificar si hay una sesión activa de forma integral (tanto token como nombre de usuario).
-    // Si falta alguno, tratamos al visitante como un invitado no registrado.
-    if (!storedUsername || !storedToken) {
-        // OPTIMIZACIÓN DE FLUJO: Capturar la página actual junto con el ID de la publicación en los query parameters
-        // para preservar la intención original de visualización del usuario.
-        const currentPath = 'publication-detail.html' + window.location.search;
-        
-        // REDIRECCIÓN DIRECTA: Llevar al usuario al formulario de registro pasándole la URL de retorno
-        // debidamente codificada para evitar problemas de escape de caracteres.
-        window.location.href = `register.html?returnTo=${encodeURIComponent(currentPath)}`;
-        return;
-    }
     if (!publicationId) {
         showCustomAlert('No se ha especificado una publicación.', () => { window.location.href = 'contract_interaction.html'; });
         return;
@@ -56,7 +44,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!response.ok) return {};
                 return response.json();
             });
-            const publicationPromise = fetch(`${API_URL}/api/publications/${publicationId}?user=${storedUsername}`);
+
+            const userParam = storedUsername ? `?user=${storedUsername}` : '';
+            const publicationPromise = fetch(`${API_URL}/api/publications/${publicationId}${userParam}`);
 
             const [_, platformSettings, publicationResponse] = await Promise.all([settingsPromise, platformSettingsPromise, publicationPromise]);
 
@@ -66,6 +56,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const publication = await publicationResponse.json();
+
+            // --- REDIRECCIÓN DE ONBOARDING PARA INVITADOS ---
+            // Si el visitante es un invitado (no autenticado), procedemos de la siguiente manera:
+            if (!storedUsername || !storedToken) {
+                const currentPath = 'publication-detail.html' + window.location.search;
+                if (publication.category === 'donation') {
+                    // Campaña de Donación: Redirigir al registro inyectando el código de referido del beneficiario
+                    const refParam = publication.beneficiary_referral_code ? `&ref=${encodeURIComponent(publication.beneficiary_referral_code)}` : '';
+                    window.location.href = `register.html?returnTo=${encodeURIComponent(currentPath)}${refParam}`;
+                    return;
+                } else {
+                    // Otra publicación: Redirigir al registro estándar
+                    window.location.href = `register.html?returnTo=${encodeURIComponent(currentPath)}`;
+                    return;
+                }
+            }
 
             // --- NUEVO: Mostrar Modal Intersticial si es necesario ---
             if (publication.preflight_modal && !modalDismissed) {
@@ -134,6 +140,15 @@ document.addEventListener('DOMContentLoaded', () => {
             ? `<a href="profile.html?user=${encodeURIComponent(pub.author_username)}" class="profile-link">${safeAuthor}</a>`
             : safeAuthor;
 
+        let beneficiaryHTML = '';
+        if (isDonation && pub.beneficiary_username) {
+            const safeBeneficiary = escapeHtml(pub.beneficiary_username);
+            const beneficiaryLinkHTML = appSettings.public_profiles_enabled
+                ? `<a href="profile.html?user=${encodeURIComponent(pub.beneficiary_username)}" class="profile-link">@${safeBeneficiary}</a>`
+                : `@${safeBeneficiary}`;
+            beneficiaryHTML = `<div class="detail-beneficiary" style="margin-top: 8px; font-size: 0.95rem; color: #e83e8c;">🎁 Campaña a beneficio de: <strong>${beneficiaryLinkHTML}</strong></div>`;
+        }
+
         const expirationInfo = getExpirationStatusHTML(pub);
         const shareButtonHTML = `
             <button class="share-link-button" data-action="share" aria-label="Compartir publicación">
@@ -191,6 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="detail-date">el ${new Date(pub.created_at).toLocaleDateString()}</span>
                     ${expirationInfo.html}
                 </div>
+                ${beneficiaryHTML}
             </div>
 
             <div class="share-button-container">

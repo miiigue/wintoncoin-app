@@ -20,6 +20,23 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
 
+### 2026-06-26 — Flujo de Referidos por Publicación de Donación y Onboarding Directo de Beneficiarios (Migración 070)
+
+- **Contexto**: Se requería un flujo donde las publicaciones de donación compartidas actuaran como enlaces de referido a favor del beneficiario final (la organización), en lugar de beneficiar al influencer que creó la publicación o al usuario que compartió el enlace. Si un invitado abre el enlace de la campaña o causa, debe ser redirigido directamente al registro asociando de forma nativa e inalterable el código de referido del beneficiario para que este reciba las comisiones correspondientes utilizando la tarifa de recompensa activa de la plataforma.
+- **Decisión de Ingeniería**:
+  - **Migración 070** (`070_add_beneficiary_referral_code_to_publications.js`): Se creó una columna `beneficiary_referral_code` en la tabla `publications` para registrar de manera persistente a favor de quién se realiza la campaña de donación.
+  - **Controlador y Rutas Backend**:
+    - Se actualizó `publicationController.js` para que la creación de posts del tipo `'donation'` requiera y valide que el `beneficiaryReferralCode` corresponda a una cuenta activa registrada en base de datos.
+    - Se hizo opcional el parámetro de consulta `user` en `GET /api/publications/:id` para permitir lecturas públicas por parte de invitados.
+    - Se modificó `humanitarianUserRoutes.js` definiendo un middleware de autenticación opcional `optionalAuthenticateToken` para que los endpoints de lista y detalles de causas (`/causes/approved` y `/causes/:id`) puedan ser accedidos por invitados sin credenciales JWT. Se corrigieron posibles caídas del servidor al resguardar la comprobación de pertenencia mediante `req.user && cause.user_id === req.user.userId`.
+  - **Frontend y UX de Onboarding**:
+    - Se actualizó `publish.html` y `publish.js` para mostrar el campo del código del beneficiario únicamente al seleccionar la categoría "Campaña de Donación", validando su llenado antes de la publicación.
+    - En `publication-detail.js` y `causa-solidaria.js`, se removió la redirección forzada del listener inicial. En su lugar, si la carga de datos determina que el visitante es un invitado (`!storedToken` o `!storedUsername`), se calcula la URL segura de retorno y se le redirige inmediatamente a `register.html` inyectando el código de referido del beneficiario (`register.html?ref=CODIGO_BENEFICIARIO&returnTo=...`), el cual se procesará mediante el flujo estándar ya auditado para acreditación contable mutua.
+    - Si el usuario está autenticado, se renderiza de forma visual a beneficio de quién se realiza la campaña: *"🎁 Campaña a beneficio de: @beneficiary_username"*.
+- **Impacto**: Se garantizó la trazabilidad total y el cumplimiento rigso de normativas FinTech/SOC 2 al procesar el onboarding de invitados a través del flujo transaccional nativo de referidos. Se protegió el servidor contra errores fatales de nulidad ante accesos concurrentes de no-usuarios y se optimizó el crecimiento orgánico de la base de usuarios de la plataforma enfocando los incentivos financieros directamente en los beneficiarios de causas solidarias.
+- **Archivos creados**: `backend/migrations/070_add_beneficiary_referral_code_to_publications.js`
+- **Archivos modificados**: `backend/src/controllers/publicationController.js`, `backend/src/routes/humanitarianUserRoutes.js`, `frontend/src/pages/publish.js`, `frontend/src/pages/publication-detail.js`, `frontend/src/pages/causa-solidaria.js`
+
 ### 2026-06-25 — Onboarding Secuencial y Redirección Segura en Enlaces Compartidos de Donación y Marketplace
 
 - **Contexto**: Al compartir enlaces directos a causas solidarias (`causa-solidaria.html?id=XX`) o detalles de publicaciones del marketplace (`publication-detail.html?id=XX`), si el destinatario no era un usuario registrado con sesión activa, el sistema mostraba pantallas de error genéricas o le redirigía a la landing page perdiendo el contexto original. Se requería un flujo optimizado que guiara al visitante directamente al formulario de registro, preservara la URL de origen de manera persistente a través del flujo de login y registro, y le redirigiera de vuelta a la publicación original una vez completado el onboarding de forma segura. Asimismo, se detectó una duplicación en la URL del enlace compartido provocada porque la API de Web Share nativa de Android/iOS concatena de forma nativa los campos `text` y `url`.

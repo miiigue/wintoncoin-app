@@ -335,6 +335,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Show initial warning always
         showDonationWarningModal('initial');
 
+        // Mostrar campo del código de referido del beneficiario
+        const beneficiaryRefWrapper = document.getElementById('beneficiary-ref-wrapper');
+        if (beneficiaryRefWrapper) beneficiaryRefWrapper.style.display = 'block';
     } else {
         showCustomAlert('Tipo de publicación no válido.', () => { window.location.href = 'contract_interaction.html'; });
         return;
@@ -479,6 +482,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // ya que usamos goal_amount en el backend
             delete data.blueSell;
             delete data.blueCost;
+
+            if (!data.beneficiaryReferralCode || !data.beneficiaryReferralCode.trim()) {
+                showCustomAlert('Por favor, ingresa el código de referido del beneficiario.');
+                return;
+            }
+        } else {
+            delete data.beneficiaryReferralCode;
         }
 
         try {

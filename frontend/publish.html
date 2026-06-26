@@ -78,6 +78,13 @@
                     pattern="^[0-9]+([.,][0-9]{1,4})?$">
             </div>
 
+            <!-- CÓDIGO DE REFERIDO DEL BENEFICIARIO (Para campañas de donación) -->
+            <div id="beneficiary-ref-wrapper" style="display: none;">
+                <label for="beneficiaryReferralCode">Código de Referido del Beneficiario (Organización):</label>
+                <input type="text" id="beneficiaryReferralCode" name="beneficiaryReferralCode" placeholder="Ej: ORG123" autocomplete="off">
+                <small class="input-hint">El código de referido de la cuenta registrada que recibirá los fondos acumulados por esta campaña.</small>
+            </div>
+
             <div>
                 <label for="availableSlots">Disponible (cuántas personas pueden aceptar):</label>
                 <input type="number" id="availableSlots" name="availableSlots" min="1" value="1">

@@ -55,21 +55,6 @@ function formatPercentage(raised, goal) {
 // INICIALIZACIÓN
 // ============================================================================
 document.addEventListener('DOMContentLoaded', async () => {
-    // AUDITORÍA Y CIBERSEGURIDAD: Verificar la existencia de una sesión de usuario activa (token JWT).
-    // Si no se encuentra un token válido en localStorage, consideramos al usuario como invitado/no registrado.
-    const token = localStorage.getItem('token');
-    
-    if (!token) {
-        // OPTIMIZACIÓN DE EMBUDO: Capturar la ruta relativa de la causa actual con sus parámetros (ej: causa-solidaria.html?id=12).
-        // Se hace de forma dinámica para asegurar que funcione independientemente de los IDs generados en base de datos.
-        const currentPath = 'causa-solidaria.html' + window.location.search;
-        
-        // REDIRECCIÓN DE ONBOARDING: Redirigir al usuario al formulario de registro (register.html),
-        // codificando el parámetro returnTo para evitar pérdidas de caracteres especiales o colisiones de queries.
-        window.location.href = `register.html?returnTo=${encodeURIComponent(currentPath)}`;
-        return;
-    }
-
     // Obtener el ID de la causa desde la URL
     const params = new URLSearchParams(window.location.search);
     const causeId = params.get('id');
@@ -121,6 +106,17 @@ async function loadCauseData(causeId) {
 
         // Renderizar la causa
         const cause = data.cause;
+
+        // --- REDIRECCIÓN DE ONBOARDING PARA INVITADOS ---
+        // Si el usuario no está autenticado (no hay token), lo redirigimos al registro
+        // pre-llenando el código de referido del beneficiario de la causa.
+        if (!token) {
+            const currentPath = 'causa-solidaria.html' + window.location.search;
+            const refParam = cause.beneficiary_referral_code ? `&ref=${encodeURIComponent(cause.beneficiary_referral_code)}` : '';
+            window.location.href = `register.html?returnTo=${encodeURIComponent(currentPath)}${refParam}`;
+            return;
+        }
+
         const donations = data.donations || { donations: [], summary: {} };
 
         container.innerHTML = buildCauseHTML(cause, donations);
