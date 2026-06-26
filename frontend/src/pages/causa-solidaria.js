@@ -201,15 +201,9 @@ function buildCauseHTML(cause, donations) {
             <h1 class="solidario-cause-title" id="solidarioCauseTitle">${escapeHtml(cause.title)}</h1>
             <div class="solidario-cause-meta">
                 <span>👤 Creador: <strong><a href="profile.html?user=${encodeURIComponent(cause.creator_username)}" class="profile-link" style="color: #a5b4fc; text-decoration: underline;">${escapeHtml(cause.creator_username || 'Creador')}</a></strong></span>
-                ${cause.beneficiary_username && cause.beneficiary_username !== cause.creator_username ? `
-                    <span>🎁 Beneficiario: <strong>
-                        ${cause.foundation_name ? `${escapeHtml(cause.foundation_name)} (` : ''}
-                        <a href="profile.html?user=${encodeURIComponent(cause.beneficiary_username)}" class="profile-link" style="color: #a5b4fc; text-decoration: underline;">@${escapeHtml(cause.beneficiary_username)}</a>
-                        ${cause.foundation_name ? ')' : ''}
-                    </strong></span>
-                ` : ''}
+                ${cause.beneficiary_username && cause.beneficiary_username !== cause.creator_username ? `<span>💖 Beneficiario: <strong>${cause.foundation_name ? `${escapeHtml(cause.foundation_name)} ` : ''}<a href="profile.html?user=${encodeURIComponent(cause.beneficiary_username)}" class="profile-link" style="color: #a5b4fc; text-decoration: underline;">(@${escapeHtml(cause.beneficiary_username)})</a></strong></span>` : ''}
                 <span>📅 ${createdDate}</span>
-                <span style="display:flex; align-items:center; gap:4px; color:#e83e8c;">${heartIcon} ${countDonations} ${countDonations === 1 ? 'donación' : 'donaciones'}</span>
+                <span style="display:flex; align-items:center; gap:4px; color:#60a5fa;">${heartIcon} ${countDonations} ${countDonations === 1 ? 'donación' : 'donaciones'}</span>
             </div>
             <div class="solidario-cause-story" id="solidarioCauseStory">${escapeHtml(cause.story)}</div>
         </div>
