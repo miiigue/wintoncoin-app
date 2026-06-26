@@ -153,6 +153,30 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
 
         const cause = causeRes.rows[0];
 
+        // =====================================================================
+        // RESOLUCIÓN DEL BENEFICIARIO FINAL (Destinatario de los fondos)
+        // =====================================================================
+        // Por defecto, los fondos se dirigen al creador/dueño de la causa.
+        // Si existe un código de referido de beneficiario, consultamos la base de
+        // datos para resolver su ID, nombre de usuario y correo electrónico,
+        // garantizando el flujo e integridad contable (Event Sourcing / SOC 2).
+        let recipientId = cause.owner_id;
+        let recipientUsername = cause.owner_username;
+        let recipientEmail = cause.owner_email;
+
+        if (cause.beneficiary_referral_code) {
+            const beneficiaryRes = await client.query(
+                'SELECT id, username, email FROM users WHERE referral_code = $1',
+                [cause.beneficiary_referral_code]
+            );
+            if (beneficiaryRes.rows.length > 0) {
+                const beneficiary = beneficiaryRes.rows[0];
+                recipientId = beneficiary.id;
+                recipientUsername = beneficiary.username;
+                recipientEmail = beneficiary.email;
+            }
+        }
+
         // Solo se puede donar a causas aprobadas
         if (cause.status !== 'approved') {
             throw { status: 400, message: 'Esta causa no está aprobada para recibir donaciones.' };
@@ -185,14 +209,8 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
         }
 
         // Prevenir auto-donación del beneficiario final (seguridad anti-fraude)
-        if (cause.beneficiary_referral_code) {
-            const beneficiaryRes = await client.query(
-                'SELECT id FROM users WHERE referral_code = $1',
-                [cause.beneficiary_referral_code]
-            );
-            if (beneficiaryRes.rows.length > 0 && parseInt(donorId) === parseInt(beneficiaryRes.rows[0].id)) {
-                throw { status: 403, message: 'No puedes donar a una causa donde eres el beneficiario final.' };
-            }
+        if (parseInt(donorId) === parseInt(recipientId)) {
+            throw { status: 403, message: 'No puedes donar a una causa donde eres el beneficiario final.' };
         }
 
         // =====================================================================
@@ -253,10 +271,10 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
             // ─── DONANTE VERIFICADO: Liberación inmediata ───
             donationStatus = 'released';
 
-            // Acreditar al beneficiario (casting explícito para seguridad PostgreSQL)
+            // Acreditar al beneficiario final (casting explícito para seguridad PostgreSQL)
             await client.query(
                 'SELECT record_booster_event($1::INTEGER, $2::TEXT, $3::NUMERIC, $4::INTEGER)',
-                [cause.owner_id, 'humanitarian_donation', donationAmount, publicationId]
+                [recipientId, 'humanitarian_donation', donationAmount, publicationId]
             );
 
             // Historial del beneficiario
@@ -264,7 +282,7 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
                 INSERT INTO booster_transactions (user_id, type, amount, description, related_publication_id)
                 VALUES ($1, 'donation_received', $2, $3, $4)
             `, [
-                cause.owner_id,
+                recipientId,
                 donationAmount,
                 `Donación Solidaria recibida de @${donor.username} para: "${cause.title}"`,
                 publicationId
@@ -297,7 +315,7 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
                 INSERT INTO notifications (recipient_username, message)
                 VALUES ($1, $2)
             `, [
-                cause.owner_username,
+                recipientUsername,
                 `💙 @${donor.username} ha donado ${donationAmount.toFixed(4)} BLUE IOU a tu causa "${cause.title}". ¡Ya está en tu saldo!`
             ]);
 
@@ -312,7 +330,7 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
                 INSERT INTO notifications (recipient_username, message)
                 VALUES ($1, $2)
             `, [
-                cause.owner_username,
+                recipientUsername,
                 `⏳ @${donor.username} ha donado ${donationAmount.toFixed(4)} BLUE IOU a tu causa "${cause.title}". Pendiente: el donante debe verificar su identidad para que sea efectiva.`
             ]);
 
@@ -345,7 +363,7 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
         `, [
             causeId,
             donorId,
-            cause.owner_id,
+            recipientId,
             donationAmount,
             donationStatus,
             publicationId,
@@ -358,7 +376,7 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
         await logAuditEvent(client, req, {
             eventType: 'HUMANITARIAN_DONATION',
             actorUsername: donor.username,
-            targetUsername: cause.owner_username,
+            targetUsername: recipientUsername,
             category: 'HUMANITARIAN',
             metadata: {
                 cause_id: causeId,
@@ -376,11 +394,11 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
 
         // Disparar envío de correos electrónicos transaccionales de forma asíncrona y segura (no bloqueante)
         if (donor.email) {
-            sendDonationSentEmail(donor.email, cause.owner_username, cause.title, donationAmount, !isVerified)
+            sendDonationSentEmail(donor.email, recipientUsername, cause.title, donationAmount, !isVerified)
                 .catch(e => console.error('[SOLIDARIO CORREO] Error al disparar sendDonationSentEmail:', e.message));
         }
-        if (cause.owner_email) {
-            sendDonationReceivedEmail(cause.owner_email, donor.username, cause.title, donationAmount, !isVerified)
+        if (recipientEmail) {
+            sendDonationReceivedEmail(recipientEmail, donor.username, cause.title, donationAmount, !isVerified)
                 .catch(e => console.error('[SOLIDARIO CORREO] Error al disparar sendDonationReceivedEmail:', e.message));
         }
 

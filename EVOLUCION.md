@@ -25,6 +25,15 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 
 
+### 2026-06-26 — Corrección de Flujo de Acreditación y Hold/Release de Fondos en Donaciones (Beneficiario vs Creador)
+
+- **Contexto**: Se detectó una inconsistencia en el flujo contable de donaciones de BLUE IOU: cuando un usuario donaba a una causa humanitaria creada por `@test1` (influencer/creador) con `@test2` (organización) designado como beneficiario, los tokens liberados (tras validarse el KYC del donante) se acreditaban erróneamente en el balance de `@test1` en lugar de `@test2`. El sistema registraba al dueño de la causa como receptor directo de los fondos.
+- **Decisión de Ingeniería**:
+  - **Resolución en Punto de Entrada**: Se actualizó `humanitarianService.js` para buscar dinámicamente al beneficiario final mediante su `beneficiary_referral_code` al inicio del método `donateToCause`.
+  - **Acreditación e Inmutabilidad de Escrows**: Se redirigieron todos los eventos contables (`record_booster_event`), el historial transaccional (`booster_transactions`), las notificaciones in-app y el registro en la tabla de control `humanitarian_donations` (columna `recipient_id`) para apuntar al beneficiario real (`recipientId`).
+  - Esto garantiza que tanto las acreditaciones inmediatas como la liberación tardía a través del trigger de base de datos (`fn_release_humanitarian_donations`) depositen los tokens de forma segura en la cuenta correcta, cumpliendo estrictamente con la normativa SOC 2 y de transmisión de dinero FinTech.
+- **Impacto**: Se eliminó el bug de desvío de fondos a favor del creador, logrando una sincronización perfecta entre la visualización de la UI y los balances reales del ledger del booster de los beneficiarios.
+- **Archivos modificados**: `backend/src/services/humanitarianService.js`
 
 ### 2026-06-26 — Claridad en Roles, Introducción del Nombre de la Fundación, Permisos de Donación de Creadores y Refactorización del Feed en Winton Solidario (Migraciones 071 y 072)
 
