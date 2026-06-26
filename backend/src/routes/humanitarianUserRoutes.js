@@ -87,10 +87,11 @@ router.get('/causes/approved', optionalAuthenticateToken, async (req, res) => {
             SELECT 
                 hc.id, hc.title, hc.story, hc.goal_amount, hc.current_amount,
                 hc.evidence_urls, hc.created_at,
-                u.username AS beneficiary_username,
-                u.referral_code AS beneficiary_referral_code
+                COALESCE(b.username, u.username) AS beneficiary_username,
+                COALESCE(hc.beneficiary_referral_code, u.referral_code) AS beneficiary_referral_code
             FROM humanitarian_causes hc
             JOIN users u ON hc.user_id = u.id
+            LEFT JOIN users b ON hc.beneficiary_referral_code = b.referral_code
             WHERE hc.status = 'approved'
             ORDER BY hc.created_at DESC
         `);
@@ -132,10 +133,11 @@ router.get('/causes/:id', optionalAuthenticateToken, async (req, res) => {
         const result = await pool.query(`
             SELECT 
                 hc.*, 
-                u.username AS beneficiary_username,
-                u.referral_code AS beneficiary_referral_code
+                COALESCE(b.username, u.username) AS beneficiary_username,
+                COALESCE(hc.beneficiary_referral_code, u.referral_code) AS beneficiary_referral_code
             FROM humanitarian_causes hc
             JOIN users u ON hc.user_id = u.id
+            LEFT JOIN users b ON hc.beneficiary_referral_code = b.referral_code
             WHERE hc.id = $1
         `, [id]);
 

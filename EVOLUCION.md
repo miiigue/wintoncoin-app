@@ -20,6 +20,24 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
 
+
+### 2026-06-26 — Integración de Código de Referido del Beneficiario en Postulaciones Solidarias (Migración 071)
+
+- **Contexto**: El formulario de postulación solidaria (`solicitud-solidaria.html`) no permitía a los creadores de las causas (influencers o los mismos postulantes) designar de manera explícita el código de referido del beneficiario final (la organización o persona que recibirá las donaciones). Se requería agregar un campo de entrada para el código de referido en la postulación, validarlo en tiempo real contra el backend para garantizar que pertenezca a una cuenta registrada y activa, y persistirlo en la base de datos para asegurar la correcta acreditación de comisiones de referidos en las donaciones de Winton Solidario.
+- **Decisión de Ingeniería**:
+  - **Migración 071** (`071_add_beneficiary_referral_code_to_causes.js`): Se añadió la columna `beneficiary_referral_code` a la tabla `humanitarian_causes` para almacenar de forma persistente y auditable esta asociación de referidos.
+  - **Rutas y Controladores del Backend**:
+    - En `solidarioRoutes.js`, se añadió el endpoint `GET /api/solidario/check-referral/:code` para la validación asíncrona de códigos de referido desde el frontend.
+    - Se modificó el endpoint `POST /api/solidario/postulacion` para requerir, sanitizar, validar la existencia del beneficiario y guardar la columna `beneficiary_referral_code` en la base de datos, registrando el evento correspondiente en `audit_log` para fines de trazabilidad bancaria.
+    - En `humanitarianUserRoutes.js`, se actualizó la consulta de causas aprobadas y de detalle para realizar un `LEFT JOIN` con la tabla `users` a través de `beneficiary_referral_code`, permitiendo obtener el nombre de usuario del beneficiario y su código, con un fallback seguro `COALESCE` al creador original de la causa si el código de referido del beneficiario no está presente.
+  - **Frontend y UX**:
+    - Se actualizó `solicitud-solidaria.html` agregando un grupo de formulario `<div class="form-group">` con el input `#beneficiaryReferralCode` e indicaciones claras para el usuario.
+    - Se implementó validación en el evento `blur` del input que consulta `/api/solidario/check-referral/:code` en el backend para mostrar retroalimentación interactiva inmediata (éxito o error con el nombre de usuario asociado).
+    - Se bloqueó el envío del formulario si el código de referido ingresado es inválido o no existe en el sistema.
+- **Impacto**: Se completó la trazabilidad de referidos del beneficiario en Winton Solidario de extremo a extremo, cumpliendo con los estándares de cumplimiento FinTech y SOC 2. Los influencers pueden crear causas a favor de beneficiarios, y el sistema redirige automáticamente a los invitados que se registren a través de estas causas usando el código de referido correcto del beneficiario para su acreditación mutua de recompensas.
+- **Archivos creados**: `backend/migrations/071_add_beneficiary_referral_code_to_causes.js`
+- **Archivos modificados**: `backend/src/routes/solidarioRoutes.js`, `backend/src/routes/humanitarianUserRoutes.js`, `frontend/solicitud-solidaria.html`
+
 ### 2026-06-26 — Flujo de Referidos por Publicación de Donación y Onboarding Directo de Beneficiarios (Migración 070)
 
 - **Contexto**: Se requería un flujo donde las publicaciones de donación compartidas actuaran como enlaces de referido a favor del beneficiario final (la organización), en lugar de beneficiar al influencer que creó la publicación o al usuario que compartió el enlace. Si un invitado abre el enlace de la campaña o causa, debe ser redirigido directamente al registro asociando de forma nativa e inalterable el código de referido del beneficiario para que este reciba las comisiones correspondientes utilizando la tarifa de recompensa activa de la plataforma.
