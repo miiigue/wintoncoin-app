@@ -19,6 +19,14 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-26 — Ajuste de Copywriting en Modal de Campaña de Emergencia Terremoto Venezuela
+
+- **Contexto**: Se requería pulir y ajustar el tono de los textos del modal de emergencia de Venezuela (`contract_interaction.html`) para adaptarlo a las nuevas directrices de comunicación de la plataforma (mencionar dos terremotos devastadores, simplificar los textos aclarando la gratuidad de la donación de tokens BLUE IOU sin rodeos comerciales de referidos y asegurar que el 100% de las donaciones llegue a causas verificadas).
+- **Decisión de Ingeniería**:
+  - **Edición de Contenido HTML (`contract_interaction.html`)**: Se reemplazó el texto del primer párrafo para referir en plural a *"Dos terremotos devastadores"*. En el subtexto, se sustituyó *"Puedes marcar la diferencia hoy mismo"* por *"Si puedes ayudar desde donde estés"*, se removió la cláusula *"por tus referidos"* para limpiar el mensaje de incentivos indirectos y se reformuló el reclamo final a *"El 100% de las donaciones llega a causas verificadas"*.
+- **Impacto**: Se logró un mensaje de onboarding solidario más directo, transparente y enfocado en la acción de ayuda humanitaria genuina y directa.
+- **Archivos modificados**: `frontend/contract_interaction.html`, `EVOLUCION.md`
+
 ### 2026-06-26 — Corrección de Permisos de Visualización Pública para Causas Culminadas/Completadas
 
 - **Contexto**: Cuando una causa humanitaria era culminada, su estado se actualizaba a `'completed'`. Esto generaba un error 403 Forbidden ("No tienes permiso para ver esta causa") para los usuarios normales al intentar ver los detalles de una causa terminada a la cual habían donado previamente desde su historial de donaciones, dado que el endpoint `/causes/:id` del backend solo consideraba de acceso público las causas en estado `'approved'`.
