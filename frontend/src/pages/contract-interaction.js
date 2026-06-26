@@ -1179,7 +1179,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Genera el HTML de estrellas para una calificación
     function generateStarRating(rating, count) {
         if (count === 0) {
-            return '<span class="no-rating">Sin calificaciones</span>';
+            return '';
         }
 
         const fullStars = Math.floor(rating);

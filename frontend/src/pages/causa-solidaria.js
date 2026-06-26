@@ -204,7 +204,7 @@ function buildCauseHTML(cause, donations) {
                 ${cause.beneficiary_username && cause.beneficiary_username !== cause.creator_username ? `
                     <span>🎁 Beneficiario: <strong>
                         ${cause.foundation_name ? `${escapeHtml(cause.foundation_name)} (` : ''}
-                        <a href="profile.html?user=${encodeURIComponent(cause.beneficiary_username)}" class="profile-link" style="color: #f472b6; text-decoration: underline;">@${escapeHtml(cause.beneficiary_username)}</a>
+                        <a href="profile.html?user=${encodeURIComponent(cause.beneficiary_username)}" class="profile-link" style="color: #a5b4fc; text-decoration: underline;">@${escapeHtml(cause.beneficiary_username)}</a>
                         ${cause.foundation_name ? ')' : ''}
                     </strong></span>
                 ` : ''}
