@@ -24,6 +24,24 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 
 
+
+
+### 2026-06-26 — Claridad en Roles, Introducción del Nombre de la Fundación, Permisos de Donación de Creadores y Refactorización del Feed en Winton Solidario (Migraciones 071 y 072)
+
+- **Contexto**: En la visualización del marketplace y en el detalle de las causas solidarias, se requería una separación de roles estricta entre el creador/influencer original (p. ej., `test1`) y el beneficiario final (p. ej., `test2`). Anteriormente el sistema mostraba "Por: test2" de forma predeterminada y bloqueaba al creador para que no pudiera donar a su propia causa. Adicionalmente, se necesitaba que el creador pudiera ingresar un "Nombre de la Fundación" descriptivo libre para cada causa y mostrar enlaces a los perfiles públicos en la página de detalle, mientras que en el feed general se solicitó ocultar los enlaces de perfiles y eliminar el badge "Campaña Activa" para optimizar el espacio.
+- **Decisión de Ingeniería**:
+  - **Base de Datos (Migración 072)**:
+    - Se creó la columna `foundation_name` VARCHAR(255) en la tabla `humanitarian_causes` para registrar el nombre descriptivo de la entidad beneficiaria.
+  - **Flujo de Solicitud (`solicitud-solidaria.html` y `solidarioRoutes.js`)**:
+    - Se agregó el campo input de texto "Nombre de la Fundación" en el formulario de postulación y se modificó la ruta `/api/solidario/postulacion` para capturar, validar en longitud (<= 255 caracteres) y persistir este campo en la base de datos, además de registrarlo en `audit_log` para fines de trazabilidad bancaria.
+  - **Lógica de Autodonación en Backend (`humanitarianService.js`)**:
+    - Se removió la restricción que impedía al creador (`owner_id`) realizar donaciones a su causa (ya que él promueve la causa pero el dinero va directamente al beneficiario), y se mantuvo el bloqueo estricto solo para el beneficiario final asociado al código de referido.
+  - **Visualización en Frontend (`contract-interaction.js` y `causa-solidaria.js`)**:
+    - En el Dashboard (feed), se modificó el mapeo virtual para incluir `foundation_name`. La tarjeta ahora renderiza el autor y el beneficiario en formato de texto plano sin enlaces de la forma `Por: creador en beneficio de: Nombre de la Fundación @beneficiario` (sin paréntesis) para mantener un diseño limpio. Además, se ocultó la etiqueta `slots-info` ("Campaña Activa") en las publicaciones de tipo donación para maximizar el espacio en la interfaz.
+    - En el detalle de la causa, se actualizó la sección meta para incluir enlaces dinámicos a los perfiles del creador e influencer (`profile.html?user=...`) y se muestra el nombre de la fundación si está presente.
+- **Impacto**: Se logró un flujo de causas solidarias 100% coherente con la realidad del negocio FinTech: los influencers promueven causas a favor de fundaciones y pueden donar a ellas, mientras que la interfaz separa claramente los roles de manera profesional y optimizada para el espacio en pantalla.
+- **Archivos creados/modificados**: `backend/migrations/072_add_foundation_name_to_causes.js`, `backend/src/routes/solidarioRoutes.js`, `backend/src/routes/humanitarianUserRoutes.js`, `backend/src/services/humanitarianService.js`, `frontend/solicitud-solidaria.html`, `frontend/src/pages/contract-interaction.js`, `frontend/src/pages/causa-solidaria.js`, `EVOLUCION.md`
+
 ### 2026-06-26 — Refactorización de Seguridad Anti-Spoofing y Mitigación de Overflow en Postulaciones Solidarias
 
 - **Contexto**: Tras una auditoría exhaustiva del flujo de postulaciones solidarias, se detectó una vulnerabilidad de spoofing (suplantación de identidad) de nivel medio/alto: el endpoint de postulación `/api/solidario/postulacion` era público y permitía enviar causas en nombre de cualquier usuario registrado simplemente escribiendo su username. Asimismo, se identificó un riesgo de desbordamiento contable si un usuario inyectaba valores numéricos infinitos (`Infinity`) o excesivamente grandes en el campo `meta`.

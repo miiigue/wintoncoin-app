@@ -1089,7 +1089,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 current_amount: cause.current_amount,
                 amount_on_hold: cause.amount_on_hold,
                 created_at: cause.created_at,
-                author_username: cause.beneficiary_username,
+                author_username: cause.creator_username,
+                beneficiary_username: cause.beneficiary_username,
+                foundation_name: cause.foundation_name,
                 category: 'donation', // Chip de filtrado 'Donaciones'
                 is_humanitarian_cause: true,
                 available_slots: 1,
@@ -1471,9 +1473,27 @@ document.addEventListener('DOMContentLoaded', () => {
         // XSS Prevention: escapar username antes de insertar en HTML y atributos
         const safeAuthor = escapeHtml(pub.author_username);
         const safeAuthorAttr = escapeAttr(pub.author_username);
-        const authorNameHTML = window.appSettings?.public_profiles_enabled
-            ? `<a href="profile.html?user=${encodeURIComponent(pub.author_username)}" class="profile-link" onclick="event.stopPropagation()">${safeAuthor}</a>`
-            : safeAuthor;
+        let authorNameHTML = '';
+
+        if (pub.is_humanitarian_cause) {
+            // En el feed no hacen falta enlaces para causas humanitarias, solo texto plano
+            authorNameHTML = safeAuthor;
+            
+            if (pub.beneficiary_username && pub.beneficiary_username !== pub.author_username) {
+                const safeBeneficiary = escapeHtml(pub.beneficiary_username);
+                const safeFoundation = pub.foundation_name ? escapeHtml(pub.foundation_name) : '';
+                const beneficiaryText = safeFoundation 
+                    ? `${safeFoundation} @${safeBeneficiary}` 
+                    : `@${safeBeneficiary}`;
+                
+                authorNameHTML = `${authorNameHTML} <span style="font-weight: normal; opacity: 0.7; font-size: 0.85em;">en beneficio de: ${beneficiaryText}</span>`;
+            }
+        } else {
+            // Comportamiento normal con enlaces para tareas/ventas/etc.
+            authorNameHTML = window.appSettings?.public_profiles_enabled
+                ? `<a href="profile.html?user=${encodeURIComponent(pub.author_username)}" class="profile-link" onclick="event.stopPropagation()">${safeAuthor}</a>`
+                : safeAuthor;
+        }
 
         // Lógica de Barra de Progreso para Donaciones
         let progressHTML = '';
@@ -1595,7 +1615,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${ratingHTML}
                         </div>
                         <div class="pub-meta-right">
-                            <div class="slots-info ${slotsClass}">${slotsText}</div>
+                            ${isDonation ? '' : `<div class="slots-info ${slotsClass}">${slotsText}</div>`}
                             ${expirationInfo.html}
                         </div>
                     </div>

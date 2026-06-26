@@ -173,7 +173,7 @@ function buildCauseHTML(cause, donations) {
     const shareIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path></svg>`;
     // Identificar si el usuario actual es el autor para mostrar botón cancelar
     const storedUsername = localStorage.getItem('username');
-    const isOwner = cause.beneficiary_username === storedUsername;
+    const isOwner = cause.creator_username === storedUsername;
     const canCancel = isOwner && (cause.status === 'pending' || cause.status === 'approved');
 
     let badgeOrCancelBtn = '';
@@ -200,7 +200,14 @@ function buildCauseHTML(cause, donations) {
         <div class="solidario-cause-card">
             <h1 class="solidario-cause-title" id="solidarioCauseTitle">${escapeHtml(cause.title)}</h1>
             <div class="solidario-cause-meta">
-                <span>👤 ${escapeHtml(cause.beneficiary_username || 'Beneficiario')}</span>
+                <span>👤 Creador: <strong><a href="profile.html?user=${encodeURIComponent(cause.creator_username)}" class="profile-link" style="color: #a5b4fc; text-decoration: underline;">${escapeHtml(cause.creator_username || 'Creador')}</a></strong></span>
+                ${cause.beneficiary_username && cause.beneficiary_username !== cause.creator_username ? `
+                    <span>🎁 Beneficiario: <strong>
+                        ${cause.foundation_name ? `${escapeHtml(cause.foundation_name)} (` : ''}
+                        <a href="profile.html?user=${encodeURIComponent(cause.beneficiary_username)}" class="profile-link" style="color: #f472b6; text-decoration: underline;">@${escapeHtml(cause.beneficiary_username)}</a>
+                        ${cause.foundation_name ? ')' : ''}
+                    </strong></span>
+                ` : ''}
                 <span>📅 ${createdDate}</span>
                 <span style="display:flex; align-items:center; gap:4px; color:#e83e8c;">${heartIcon} ${countDonations} ${countDonations === 1 ? 'donación' : 'donaciones'}</span>
             </div>

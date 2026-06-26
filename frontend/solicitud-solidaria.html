@@ -308,6 +308,14 @@
             </div>
 
             <div class="form-group">
+                <label for="foundationName">Nombre de la Fundación o Beneficiario</label>
+                <input type="text" id="foundationName" placeholder="Ej: Fundación Ayuda Venezuela" required>
+                <small class="input-hint" style="color: #94A3B8; font-size: 0.85em; display: block; margin-top: 5px;">
+                    El nombre oficial o público de la entidad que se beneficiará de las donaciones.
+                </small>
+            </div>
+
+            <div class="form-group">
                 <label for="beneficiaryReferralCode">Código de Referido del Beneficiario (Organización)</label>
                 <input type="text" id="beneficiaryReferralCode" placeholder="Ej: ORG123" required>
                 <small class="input-hint" style="color: #94A3B8; font-size: 0.85em; display: block; margin-top: 5px;">
@@ -543,6 +551,7 @@
             const formData = {
                 username: usernameInput.value.trim(),
                 beneficiary_referral_code: beneficiaryRefInput.value.trim(),
+                foundation_name: document.getElementById('foundationName').value.trim(),
                 titulo: document.getElementById('titulo').value.trim(),
                 historia: document.getElementById('historia').value.trim(),
                 meta: document.getElementById('meta').value.trim(),

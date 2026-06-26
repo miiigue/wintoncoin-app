@@ -184,9 +184,15 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
             }
         }
 
-        // Prevenir auto-donación (seguridad anti-fraude)
-        if (parseInt(donorId) === parseInt(cause.owner_id)) {
-            throw { status: 403, message: 'No puedes donar a tu propia causa.' };
+        // Prevenir auto-donación del beneficiario final (seguridad anti-fraude)
+        if (cause.beneficiary_referral_code) {
+            const beneficiaryRes = await client.query(
+                'SELECT id FROM users WHERE referral_code = $1',
+                [cause.beneficiary_referral_code]
+            );
+            if (beneficiaryRes.rows.length > 0 && parseInt(donorId) === parseInt(beneficiaryRes.rows[0].id)) {
+                throw { status: 403, message: 'No puedes donar a una causa donde eres el beneficiario final.' };
+            }
         }
 
         // =====================================================================

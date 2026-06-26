@@ -55,7 +55,7 @@ router.get('/check-referral/:code', async (req, res) => {
 // ==  Seguridad: Validación de URL, límites de longitud, sanitización           ==
 // =================================================================================
 router.post('/postulacion', authenticateToken, async (req, res) => {
-    const { username, titulo, historia, meta, evidencia_link, redes_sociales, beneficiary_referral_code } = req.body;
+    const { username, titulo, historia, meta, evidencia_link, redes_sociales, beneficiary_referral_code, foundation_name } = req.body;
 
     // --- VALIDACIÓN DE COHERENCIA DE SEGURIDAD (ANTI-SPOOFING) ---
     // Impide que un usuario autenticado postule causas en nombre de otro usuario
@@ -64,8 +64,8 @@ router.post('/postulacion', authenticateToken, async (req, res) => {
     }
 
     // --- VALIDACIÓN 1: Campos obligatorios ---
-    if (!username || !titulo || !historia || !meta || !evidencia_link || !redes_sociales || !beneficiary_referral_code) {
-        return res.status(400).json({ message: "Todos los campos son obligatorios, incluyendo el código de referido del beneficiario." });
+    if (!username || !titulo || !historia || !meta || !evidencia_link || !redes_sociales || !beneficiary_referral_code || !foundation_name) {
+        return res.status(400).json({ message: "Todos los campos son obligatorios, incluyendo el nombre de la fundación y el código de referido del beneficiario." });
     }
 
     // --- VALIDACIÓN 2: Límites de longitud (Prevención de payload excesivo) ---
@@ -74,6 +74,9 @@ router.post('/postulacion', authenticateToken, async (req, res) => {
     }
     if (beneficiary_referral_code.length > 50) {
         return res.status(400).json({ message: "El código de referido es demasiado largo." });
+    }
+    if (foundation_name.length > 255) {
+        return res.status(400).json({ message: "El nombre de la fundación no puede exceder 255 caracteres." });
     }
     if (titulo.length > 255) {
         return res.status(400).json({ message: "El título no puede exceder 255 caracteres." });
@@ -147,13 +150,13 @@ router.post('/postulacion', authenticateToken, async (req, res) => {
             return res.status(400).json({ message: "Actualmente posees una causa en curso o en revisión. Debes culminarla antes de postular una nueva." });
         }
 
-        // 3. Insertar en la tabla humanitarian_causes (Migración 038 + 071)
+        // 3. Insertar en la tabla humanitarian_causes (Migración 038 + 071 + 072)
         const allUrls = [evidencia_link.trim(), ...redesArray];
         const evidenceUrls = JSON.stringify(allUrls);
         const insertSql = `
             INSERT INTO humanitarian_causes 
-            (user_id, title, story, goal_amount, evidence_urls, status, beneficiary_referral_code)
-            VALUES ($1, $2, $3, $4, $5::jsonb, 'pending', $6)
+            (user_id, title, story, goal_amount, evidence_urls, status, beneficiary_referral_code, foundation_name)
+            VALUES ($1, $2, $3, $4, $5::jsonb, 'pending', $6, $7)
             RETURNING id, created_at
         `;
         const result = await pool.query(insertSql, [
@@ -162,7 +165,8 @@ router.post('/postulacion', authenticateToken, async (req, res) => {
             historia.trim(),
             goalAmount,
             evidenceUrls,
-            cleanRefCode
+            cleanRefCode,
+            foundation_name.trim()
         ]);
 
         // 4. Registrar en Auditoría (Estándar Bancario: Trazabilidad total)
@@ -174,7 +178,8 @@ router.post('/postulacion', authenticateToken, async (req, res) => {
                 cause_id: result.rows[0].id,
                 title: titulo.trim(),
                 goal_amount: goalAmount,
-                beneficiary_referral_code: cleanRefCode
+                beneficiary_referral_code: cleanRefCode,
+                foundation_name: foundation_name.trim()
             }
         });
 
