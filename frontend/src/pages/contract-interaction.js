@@ -311,6 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeNotificationSettings();
     initSettingsInstallButton(); // Inicializar botón "Descargar App" en modal de Configuración
     setupWalletTabs(); // Configurar listeners
+    setupVenezuelaEmergencyCampaign(); // Campaña humanitaria Venezuela
 
     // SECUENCIA DE INICIO ORQUESTADA
     // 1. Notificaciones -> 2. Modal Global -> 3. Estado Billetera/Modal -> 4. Tour
@@ -525,6 +526,92 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (prelaunchAcceptBtn) {
             prelaunchAcceptBtn.addEventListener('click', hidePrelaunchModal);
+        }
+    }
+
+    /**
+     * Campaña Humanitaria de Emergencia (Terremoto en Venezuela) - Opción 3
+     * Muestra un modal detallado con la bandera de Venezuela y el edificio colapsado.
+     * Si se descarta, oculta el modal y muestra un banner de recordatorio persistente.
+     * Si se hace clic en donar, filtra las publicaciones por "donación" y hace scroll.
+     * Respeta la experiencia del usuario limitando la aparición de modals a 24 horas usando localStorage.
+     */
+    function setupVenezuelaEmergencyCampaign() {
+        const modal = document.getElementById('venezuelaEmergencyModal');
+        const banner = document.getElementById('venezuelaEmergencyBanner');
+        const donateBtn = document.getElementById('venezuelaEmergencyDonateBtn');
+        const closeBtn = document.getElementById('venezuelaEmergencyCloseBtn');
+        const bannerBtn = document.getElementById('emergencyBannerBtn');
+        const closeBannerBtn = document.getElementById('closeEmergencyBanner');
+
+        if (!modal || !banner) return;
+
+        const DAY_IN_MS = 24 * 60 * 60 * 1000;
+        const now = Date.now();
+        const dismissedTime = localStorage.getItem('venezuelaEmergencyDismissed');
+        const bannerDismissedTime = localStorage.getItem('venezuelaEmergencyBannerDismissed');
+
+        const isModalDismissed = dismissedTime && (now - parseInt(dismissedTime) < DAY_IN_MS);
+        const isBannerDismissed = bannerDismissedTime && (now - parseInt(bannerDismissedTime) < DAY_IN_MS);
+
+        // Función para aplicar filtro "donación" y hacer scroll al feed
+        function goToDonations() {
+            // Cerrar modal o banner
+            modal.style.display = 'none';
+            banner.style.display = 'none';
+
+            // Guardar que fue atendido/descartado por hoy
+            localStorage.setItem('venezuelaEmergencyDismissed', now.toString());
+
+            // Seleccionar filtro donación
+            const donationChip = document.querySelector('.filter-chip[data-filter="donation"]');
+            if (donationChip) {
+                // Simular el click para aplicar los filtros correctamente
+                donationChip.click();
+            }
+
+            // Scroll suave hacia la sección de publicaciones
+            const publicationsSection = document.querySelector('.publications-section');
+            if (publicationsSection) {
+                publicationsSection.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // Lógica de visualización
+        if (!isModalDismissed) {
+            // Mostrar modal
+            modal.style.display = 'flex';
+        } else if (!isBannerDismissed) {
+            // Mostrar banner
+            banner.style.display = 'block';
+        }
+
+        // Configurar listeners de eventos
+        if (donateBtn) {
+            donateBtn.addEventListener('click', goToDonations);
+        }
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                modal.style.display = 'none';
+                localStorage.setItem('venezuelaEmergencyDismissed', now.toString());
+                
+                // Mostrar el banner sutil como recordatorio secundario
+                if (!isBannerDismissed) {
+                    banner.style.display = 'block';
+                }
+            });
+        }
+
+        if (bannerBtn) {
+            bannerBtn.addEventListener('click', goToDonations);
+        }
+
+        if (closeBannerBtn) {
+            closeBannerBtn.addEventListener('click', () => {
+                banner.style.display = 'none';
+                localStorage.setItem('venezuelaEmergencyBannerDismissed', now.toString());
+            });
         }
     }
 

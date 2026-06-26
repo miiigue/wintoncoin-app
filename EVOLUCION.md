@@ -21,6 +21,26 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 
 
+
+### 2026-06-26 — Campaña Humanitaria de Emergencia por Terremoto en Venezuela (Opción 3: Modal + Banner)
+
+- **Contexto**: Debido a un terremoto catastrófico en Venezuela, se requería activar una campaña de concientización y donación humanitaria en la plataforma. La meta era incentivar a los usuarios activos a donar sus tokens BLUE IOU (que acumulan gratuitamente mediante el programa de referidos) a causas solidarias verificadas de forma inmediata al abrir la aplicación, sin comprometer la experiencia de usuario general ni resultar intrusivo en visitas subsecuentes.
+- **Decisión de Ingeniería**:
+  - **Diseño del Banner e Imagen de Fondo**:
+    - Se utilizó la herramienta de inteligencia artificial para generar una imagen dramática y profesional (`venezuela_earthquake_banner.png`) que combina una fotografía real de los daños del sismo con la bandera de Venezuela integrada con un blend de gradiente premium y sombreado cinematográfico oscuro.
+    - Se copió el recurso final a `frontend/public/assets/images/venezuela_earthquake_banner.png` para que sea servido directamente por el servidor estático (Vite publicDir).
+  - **Estructura e Interfaz Frontend (`contract_interaction.html`)**:
+    - Se inyectaron estilos CSS premium responsivos y con animaciones de entrada (`slideDown-emb`, `fadeIn-emb`, `scaleUp-emb`) para controlar el banner superior y el modal glassmorphic.
+    - Se implementó un banner superior sutil (`#venezuelaEmergencyBanner`) justo debajo del título del Dashboard.
+    - Se implementó un modal de pantalla completa (`#venezuelaEmergencyModal`) con la imagen de fondo generada, textos explicativos que aclaran el carácter gratuito de la donación de BLUE IOU acumulados, y botones interactivos.
+  - **Lógica de Control con Persistencia de Sesión (`contract-interaction.js`)**:
+    - Se codificó la función `setupVenezuelaEmergencyCampaign()` la cual comprueba si el modal o el banner ya han sido descartados por el usuario utilizando variables temporales en `localStorage` con expiración automática de 24 horas.
+    - Si el usuario descarta el modal emergente principal, el sistema oculta el modal e inmediatamente muestra la barra de banner superior sutil como recordatorio no bloqueante.
+    - Al hacer clic en "❤️ Ir a Donar" o "Ver Causas" (tanto en modal como en banner), el sistema cierra la interfaz de la campaña, simula un clic nativo en el chip de filtro de categoría `"donation"` del marketplace, y realiza un scroll suave (`scrollIntoView`) directo al feed de publicaciones para mostrar las causas solidarias activas de inmediato.
+- **Impacto**: Se implementó una campaña de onboarding solidario de alta conversión visual para emergencias reales, alineada con las mejores prácticas de UX/UI fintech (micro-animaciones, glassmorphism, coherencia estética en móvil y escritorio). Protege la usabilidad del marketplace al evitar popups recurrentes molestos mediante almacenamiento en navegador local y automatiza el filtrado directo para maximizar la tracción hacia las causas aprobadas.
+- **Archivos creados**: `frontend/public/assets/images/venezuela_earthquake_banner.png`
+- **Archivos modificados**: `frontend/contract_interaction.html`, `frontend/src/pages/contract-interaction.js`
+
 ### 2026-06-26 — Integración de Código de Referido del Beneficiario en Postulaciones Solidarias (Migración 071)
 
 - **Contexto**: El formulario de postulación solidaria (`solicitud-solidaria.html`) no permitía a los creadores de las causas (influencers o los mismos postulantes) designar de manera explícita el código de referido del beneficiario final (la organización o persona que recibirá las donaciones). Se requería agregar un campo de entrada para el código de referido en la postulación, validarlo en tiempo real contra el backend para garantizar que pertenezca a una cuenta registrada y activa, y persistirlo en la base de datos para asegurar la correcta acreditación de comisiones de referidos en las donaciones de Winton Solidario.
