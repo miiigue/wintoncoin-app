@@ -22,6 +22,24 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 
 
+
+
+### 2026-06-26 — Refactorización de Seguridad Anti-Spoofing y Mitigación de Overflow en Postulaciones Solidarias
+
+- **Contexto**: Tras una auditoría exhaustiva del flujo de postulaciones solidarias, se detectó una vulnerabilidad de spoofing (suplantación de identidad) de nivel medio/alto: el endpoint de postulación `/api/solidario/postulacion` era público y permitía enviar causas en nombre de cualquier usuario registrado simplemente escribiendo su username. Asimismo, se identificó un riesgo de desbordamiento contable si un usuario inyectaba valores numéricos infinitos (`Infinity`) o excesivamente grandes en el campo `meta`.
+- **Decisión de Ingeniería**:
+  - **Autenticación Obligatoria en Frontend (`solicitud-solidaria.html`)**:
+    - Se implementó una verificación temprana de sesión activa (JWT y username). Si no existe sesión, se redirige inmediatamente al usuario a la página de login.
+    - El campo de texto de nombre de usuario creador ahora se pre-rellena con el username de la sesión y se bloquea en modo `readOnly`, impidiendo la suplantación de cuentas.
+    - Se realiza una validación proactiva y automática de causas activas al cargar la página, inhabilitando los controles y notificando al usuario de inmediato si ya posee solicitudes en curso.
+    - Se incluyó la cabecera `Authorization: Bearer <token>` en el envío del formulario.
+  - **Seguridad en Backend (`solidarioRoutes.js`)**:
+    - Se aplicó el middleware `authenticateToken` al endpoint `POST /postulacion`.
+    - Se implementó la verificación de coherencia anti-spoofing: el servidor valida que el username contenido en la sesión autenticada coincida exactamente con el username del cuerpo de la petición.
+    - Se reforzó la validación del parámetro `meta` añadiendo la comprobación `isFinite(goalAmount)` para denegar montos infinitos y se estableció un límite máximo de contención de `100,000,000` de BLUE IOU.
+- **Impacto**: Se eliminó por completo el vector de ataque por suplantación de postulaciones y se blindó la base de datos contra overflows y números inválidos, cumpliendo con los estándares de control de acceso del nivel SOC 2 y de integridad de datos fintech.
+- **Archivos modificados**: `backend/src/routes/solidarioRoutes.js`, `frontend/solicitud-solidaria.html`
+
 ### 2026-06-26 — Campaña Humanitaria de Emergencia por Terremoto en Venezuela (Opción 3: Modal + Banner)
 
 - **Contexto**: Debido a un terremoto catastrófico en Venezuela, se requería activar una campaña de concientización y donación humanitaria en la plataforma. La meta era incentivar a los usuarios activos a donar sus tokens BLUE IOU (que acumulan gratuitamente mediante el programa de referidos) a causas solidarias verificadas de forma inmediata al abrir la aplicación, sin comprometer la experiencia de usuario general ni resultar intrusivo en visitas subsecuentes.

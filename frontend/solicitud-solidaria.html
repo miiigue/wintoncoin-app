@@ -381,11 +381,31 @@
         import { getApiUrl } from './src/modules/config.js';
         const API_URL = getApiUrl();
 
+        // --- VALIDACIÓN DE SESIÓN OBLIGATORIA (SEGURIDAD FINTECH) ---
+        const storedToken = localStorage.getItem('token');
+        const storedUsername = localStorage.getItem('username');
+
+        if (!storedToken || !storedUsername) {
+            alert('🔒 Acceso restringido: Debes iniciar sesión para postular una causa.');
+            window.location.href = 'login.html?returnTo=solicitud-solidaria.html';
+        }
+
         // Mostrar modal al cargar la página
         window.addEventListener('load', () => {
             setTimeout(() => {
                 document.getElementById('termsModal').classList.add('active');
             }, 300);
+
+            // Si está logueado, pre-rellenar el usuario y marcar como de solo lectura
+            if (storedUsername) {
+                usernameInput.value = storedUsername;
+                usernameInput.readOnly = true;
+                usernameInput.style.background = 'rgba(255, 255, 255, 0.05)';
+                usernameInput.style.color = '#94A3B8';
+                usernameInput.style.cursor = 'not-allowed';
+                // Validar de inmediato al cargar para advertir si ya tiene causas activas
+                validateUsername(storedUsername);
+            }
         });
 
         // Función para cerrar modal
@@ -436,9 +456,8 @@
             }
         });
 
-        // Lógica de validación de usuario REAL (Conexión con Backend)
-        usernameInput.addEventListener('blur', async () => {
-            const username = usernameInput.value.trim().toLowerCase();
+        // Lógica de validación del usuario (Centralizada en una función)
+        async function validateUsername(username) {
             if (username === '') {
                 validationMsg.innerHTML = '';
                 isUserValid = false;
@@ -454,13 +473,12 @@
                 const response = await fetch(`${API_URL}/api/check-username/${username}`);
                 const data = await response.json();
 
-                // Nota: El endpoint devuelve available: false si el usuario EXISTE (ya está en uso)
-                // Para nuestro propósito, si available es false, significa que el usuario está registrado.
+                // Nota: El endpoint devuelve available: false si el usuario EXISTE
                 if (data.available === false && !data.error) {
                     validationMsg.className = 'user-validation-msg user-success';
                     validationMsg.innerHTML = '✅ Usuario verificado en la base de datos.';
 
-                    // --- NUEVO Lógica: Verificar si ya tiene causas activas antes de dejarlo seguir ---
+                    // Verificar si ya tiene causas activas antes de dejarlo seguir
                     const activeCheckRes = await fetch(`${API_URL}/api/solidario/check-active/${username}`);
                     const activeCheckData = await activeCheckRes.json();
 
@@ -469,7 +487,7 @@
                         validationMsg.innerHTML = '⚠️ Atención: Tienes una causa activa o en revisión (' + activeCheckData.message + '). No puedes postular otra hasta que la actual sea cancelada o completada.';
                         isUserValid = false;
 
-                        // Disable submit button explicitly to ensure they understand
+                        // Deshabilitar botón de envío
                         const submitBtn = document.querySelector('.btn-submit');
                         if (submitBtn) {
                             submitBtn.style.opacity = '0.5';
@@ -494,6 +512,11 @@
                 validationMsg.innerHTML = '❌ Error de conexión con el servidor.';
                 isUserValid = false;
             }
+        }
+
+        // Lógica de validación de usuario al perder el foco (redundancia)
+        usernameInput.addEventListener('blur', () => {
+            validateUsername(usernameInput.value.trim().toLowerCase());
         });
 
         // Lógica para manejo del formulario
@@ -528,11 +551,12 @@
             };
 
             try {
-                // Envío al backend usando URL centralizada
+                // Envío al backend usando URL centralizada y cabecera de autenticación
                 const response = await fetch(`${API_URL}/api/solidario/postulacion`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${storedToken}`
                     },
                     body: JSON.stringify(formData)
                 });

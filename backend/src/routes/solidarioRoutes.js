@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { logAuditEvent } = require('../services/auditService');
+const { authenticateToken } = require('../middleware/authMiddleware');
 
 // =================================================================================
 // ==  ENDPOINT PARA VALIDAR CAUSAS ACTIVAS DE UN USUARIO (SOLIDARIO)           ==
@@ -53,8 +54,14 @@ router.get('/check-referral/:code', async (req, res) => {
 // ==  Usa la tabla humanitarian_causes creada por migración 038                 ==
 // ==  Seguridad: Validación de URL, límites de longitud, sanitización           ==
 // =================================================================================
-router.post('/postulacion', async (req, res) => {
+router.post('/postulacion', authenticateToken, async (req, res) => {
     const { username, titulo, historia, meta, evidencia_link, redes_sociales, beneficiary_referral_code } = req.body;
+
+    // --- VALIDACIÓN DE COHERENCIA DE SEGURIDAD (ANTI-SPOOFING) ---
+    // Impide que un usuario autenticado postule causas en nombre de otro usuario
+    if (!req.user || !req.user.username || req.user.username.toLowerCase() !== username.trim().toLowerCase()) {
+        return res.status(403).json({ message: "Acceso denegado: No puedes postular una causa en nombre de otro usuario." });
+    }
 
     // --- VALIDACIÓN 1: Campos obligatorios ---
     if (!username || !titulo || !historia || !meta || !evidencia_link || !redes_sociales || !beneficiary_referral_code) {
@@ -78,10 +85,13 @@ router.post('/postulacion', async (req, res) => {
         return res.status(400).json({ message: "El enlace de evidencia es demasiado largo." });
     }
 
-    // --- VALIDACIÓN 3: Monto numérico positivo ---
+    // --- VALIDACIÓN 3: Monto numérico positivo, finito y controlado ---
     const goalAmount = parseFloat(meta);
-    if (isNaN(goalAmount) || goalAmount <= 0) {
-        return res.status(400).json({ message: "La meta debe ser un número positivo." });
+    if (isNaN(goalAmount) || goalAmount <= 0 || !isFinite(goalAmount)) {
+        return res.status(400).json({ message: "La meta debe ser un número positivo y finito válido." });
+    }
+    if (goalAmount > 100000000) {
+        return res.status(400).json({ message: "La meta no puede exceder los 100,000,000 de BLUE IOU por seguridad y consistencia." });
     }
 
     // --- VALIDACIÓN 4: URL segura (solo HTTPS para proteger la integridad) ---
