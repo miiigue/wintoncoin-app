@@ -500,11 +500,31 @@ const UserController = {
                 ORDER BY hc.created_at DESC
             `;
 
+            // [Auditoría] Query para obtener el historial de donaciones realizadas por este usuario.
+            // Permite al usuario rastrear el estado contable de sus contribuciones solidarias (on_hold, released, refunded).
+            const donationsSql = `
+                SELECT
+                    hd.id AS donation_id,
+                    hd.amount,
+                    hd.status AS donation_status,
+                    hd.created_at AS donation_created_at,
+                    hc.id AS cause_id,
+                    hc.title AS cause_title,
+                    hc.status AS cause_status,
+                    u.username AS creator_username
+                FROM humanitarian_donations hd
+                JOIN humanitarian_causes hc ON hd.cause_id = hc.id
+                JOIN users u ON hc.user_id = u.id
+                WHERE hd.donor_id = $1
+                ORDER BY hd.created_at DESC
+            `;
+
             // [Auditoría / Trazabilidad] Ejecución concurrente optimizada mediante Promise.all
-            const [authoredResult, completedResult, causesResult] = await Promise.all([
+            const [authoredResult, completedResult, causesResult, donationsResult] = await Promise.all([
                 pool.query(authoredSql, [userId]),
                 pool.query(completedSql, [username]),
-                pool.query(causesSql, [userId]) // Consultar causas del usuario
+                pool.query(causesSql, [userId]), // Consultar causas del usuario
+                pool.query(donationsSql, [userId]) // [Auditoría] Consultar donaciones realizadas
             ]);
 
             // [Optimización] Fusión segura en memoria de publicaciones y causas solidarias.
@@ -515,7 +535,11 @@ const UserController = {
             ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Ordenación descendente por fecha de creación
 
             // [Auditoría] Responder con estado HTTP 200 y la información debidamente estructurada
-            res.status(200).json({ authored: combinedAuthored, completed: completedResult.rows });
+            res.status(200).json({ 
+                authored: combinedAuthored, 
+                completed: completedResult.rows,
+                donations: donationsResult.rows // Incluir donaciones realizadas
+            });
         } catch (err) {
             console.error("Error al obtener historial (/api/me/history):", err.message);
             res.status(500).json({ message: "Error interno del servidor." });

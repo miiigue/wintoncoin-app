@@ -25,6 +25,20 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 
 
+### 2026-06-26 — Pestañas Responsivas de Historial y Sección de Donaciones Realizadas con Trazabilidad Contable
+
+- **Contexto**: Para mejorar la experiencia de usuario y evitar el scroll vertical continuo (scrolling) en la página del Historial (`history.html`), se solicitó implementar un selector de pestañas dinámico. Asimismo, se requería una sección dedicada para las donaciones de BLUE IOU realizadas por el usuario, permitiendo el seguimiento de su estado contable independientemente de si la causa ha culminado o no.
+- **Decisión de Ingeniería**:
+  - **Estructura e Interactividad en Frontend (`history.html` y `history.js`)**:
+    - Se incorporó una barra de navegación con botones de pestañas `.history-tabs` y se agruparon las listas de "Mis Publicaciones", "Tareas Realizadas" y "Donaciones Realizadas" en contenedores `.tab-content` ocultos por defecto.
+    - Se inyectó CSS premium con transiciones suaves de opacidad y desplazamiento ascendente (`transform: translateY(8px)`) al cambiar de pestaña.
+    - Se implementó la función `setupTabSelector` controlando el estado `active` de los botones y paneles, usando `setTimeout` mínimo para disparar las animaciones tras forzar el reflujo de la página.
+  - **Trazabilidad y Estado de Donaciones (`userController.js` y `history.js`)**:
+    - En el backend (`getMyHistory`), se añadió una consulta SQL paralela a la tabla `humanitarian_donations` vinculándola con `humanitarian_causes` y `users` para capturar el monto de la donación, fecha, ID de la causa, título y estado de la causa, y el creador. Se retorna en la respuesta API como `donations`.
+    - En el frontend, se programó `renderDonations(donations)` y `getDonationHTML(d)`. La tarjeta muestra el título enlazado a la causa, y badges con estilos premium y translucidez para reflejar el estado contable de la donación (`on_hold` -> EN ESPERA POR KYC, `released` -> ACREDITADA, `refunded` -> REEMBOLSADA) y el estado de la causa (`approved` -> Causa Activa, `completed` -> Causa Culminada, etc.), garantizando una total audibilidad contable de cara a regulaciones FinTech y SOC 2.
+- **Impacto**: Se optimizó la usabilidad móvil y de escritorio de la página del Historial eliminando el scroll excesivo mediante un sistema de pestañas premium fluido, y se dotó al donante de un canal seguro y de alta fidelidad para auditar y seguir el destino de sus fondos aportados.
+- **Archivos modificados**: `backend/src/controllers/userController.js`, `frontend/history.html`, `frontend/src/pages/history.js`, `EVOLUCION.md`
+
 ### 2026-06-26 — Enlaces Dinámicos a Redes Sociales en Detalle de Causas e Inclusión de Causas en el Historial del Usuario
 
 - **Contexto**: Se identificaron dos requerimientos operacionales y de usabilidad:
