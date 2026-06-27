@@ -19,6 +19,15 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-27 — Adecuación Legal y Actualización del Plazo del Escrow Solidario a 150 Días (Migración 075)
+
+- **Contexto**: Se requería blindar legalmente a la plataforma frente a normativas financieras (SEC, Howey Test) y de transmisión de dinero, y adaptar el plazo de custodia de donaciones solidarias. Dado que la plataforma no cuenta temporalmente con un proveedor de KYC Web3 y para evitar que usuarios malintencionados eviten deliberadamente la verificación a corto plazo para recuperar sus fondos de forma rápida, se decidió ampliar el plazo de retención.
+- **Decisión de Ingeniería**:
+  - **Edición Legal (`terms.html` y `privacy.html`)**: Se incorporó un Acuerdo de Arbitraje Obligatorio, una Renuncia a Demanda Colectiva y cláusulas específicas que aclaran que WintonCoin no garantiza paridad fiat externa ni actúa como intermediario de valor en el motor P2P. Se declaró además la anonimización irreversible para el cumplimiento del Derecho al Olvido sobre el Ledger inmutable.
+  - **Ampliación del Escrow a 150 Días (`075_update_default_donation_escrow_expiration.js`)**: Se creó una migración que actualiza el valor de `donation_escrow_expiration_days` a `150` días en `app_settings`, adaptando tanto los términos de uso como el demonio de reembolso contable del backend.
+- **Impacto**: Se mitigan riesgos regulatorios de stablecoins y transmisión de dinero, se protege a la startup frente a litigios masivos, y se provee suficiente holgura operativa para integrar proveedores KYC en el futuro sin forzar reembolsos prematuros.
+- **Archivos modificados**: `frontend/terms.html`, `frontend/privacy.html`, `backend/migrations/075_update_default_donation_escrow_expiration.js`, `EVOLUCION.md`
+
 ### 2026-06-26 — Corrección de Regresión Crítica de Signos en el Procesamiento de Balances (Migración 074)
 
 - **Contexto**: Durante la simplificación de la función almacenada `record_balance_event` en la migración `067`, se eliminó la lógica de condicionales de signos basada en el tipo de evento. Esto causó que eventos del tipo `withdrawal`, `payment_sent`, `charge` y `penalty` que recibieran valores positivos incrementaran los balances en lugar de disminuirlos, rompiendo la coherencia contable y de balances en los procesos de liberación de escrows y operaciones P2P.

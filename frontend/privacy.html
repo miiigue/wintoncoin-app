@@ -426,6 +426,13 @@
 
             <h3>8.3. Datos Anonimizados</h3>
             <p>Después del período de retención, podemos conservar datos agregados y anonimizados para análisis estadísticos y mejora de servicios. Estos datos no pueden identificarte personalmente.</p>
+
+            <h3>8.4. Retención Especial en Libros Contables Inmutables (SOC 2 & AML)</h3>
+            <div class="info-box">
+                <strong>AVISO SOBRE INMUTABILIDAD CONTABLE:</strong> Para garantizar la integridad contable de partida doble requerida para auditorías financieras y prevención de delitos financieros (AML), los registros transaccionales almacenados en el libro mayor inmutable (tales como registros en <em>booster_blue_ledger</em> y <em>balance_events</em>) <strong>no pueden ser modificados ni eliminados físicamente</strong>, limitando la aplicación del Derecho al Olvido. 
+                <br>
+                En caso de que ejerza su derecho de supresión de datos, WintonCoin procederá a la **anonimización irreversible** de su identidad asociada a dichos registros, desvinculando de forma permanente su información personal (nombres, documentos y correos) de los hashes transaccionales históricos.
+            </div>
         </div>
 
         <!-- SECCIÓN 9: TRANSFERENCIAS INTERNACIONALES -->
@@ -572,6 +579,14 @@
 
             <h3>11.7. Menores de 13 Años</h3>
             <p>Los menores de 13 años no pueden utilizar la plataforma bajo ninguna circunstancia. Si descubrimos que hemos recopilado información de un menor de 13 años sin autorización adecuada, eliminaremos esa información inmediatamente.</p>
+
+            <h3>11.8. Almacenamiento Temporal de Fecha de Nacimiento y Validación OTP</h3>
+            <p>Conforme a las leyes de protección infantil (COPPA y GDPR), WintonCoin solicita la fecha de nacimiento durante el flujo de registro inicial de forma previa a la verificación de identidad. Esta información se procesa con el único fin de:</p>
+            <ul>
+                <li>Validar si el usuario es menor de edad y aplicar las restricciones financieras correspondientes de forma automática.</li>
+                <li>Bloquear el registro de menores de 13 años.</li>
+                <li>Asociar la validación y responsabilidad de la cuenta al tutor legal registrado.</li>
+            </ul>
         </div>
 
         <!-- SECCIÓN 12: COOKIES Y TECNOLOGÍAS DE SEGUIMIENTO -->
@@ -740,7 +755,7 @@
     <script>
         // Fecha de última actualización del contenido
         // IMPORTANTE: Actualizar esta fecha manualmente cuando se modifique el contenido del documento
-        const lastUpdateDate = new Date('2026-02-11'); // Formato: YYYY-MM-DD
+        const lastUpdateDate = new Date('2026-06-27'); // Formato: YYYY-MM-DD
         
         document.getElementById('lastUpdatedDate').textContent = lastUpdateDate.toLocaleDateString('es-ES', { 
             year: 'numeric', 

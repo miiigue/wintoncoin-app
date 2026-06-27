@@ -263,9 +263,16 @@
         <div class="terms-section">
             <h2>4. SISTEMA ECONÓMICO Y TOKENS</h2>
 
-            <h3>4.1. Naturaleza de los Tokens</h3>
-            <div class="highlight-box">
-                <strong>IMPORTANTE:</strong> Los tokens BLUE y RED son unidades de cuenta dentro del ecosistema WintonCoin. Durante la fase de pre-lanzamiento, estos tokens no tienen valor monetario real. Al lanzamiento oficial (fecha prevista: 14 de febrero de 2027, sujeta a cambios), se establecerá una paridad inicial donde 1 BLUE = 1 USD.
+            <h3>4.1. Naturaleza de los Tokens y Deslinde de Responsabilidad Financiera</h3>
+            <div class="warning-box">
+                <strong>DESLINDE FINANCIERO Y EXCLUSIÓN DE VALORES:</strong> Los tokens BLUE y RED son unidades de cuenta y herramientas de utilidad interna destinadas exclusivamente al intercambio de servicios y a la auditoría de reputación dentro del ecosistema WintonCoin. 
+                <br>
+                El Usuario reconoce y acepta que:
+                <ul>
+                    <li>Los tokens no constituyen moneda de curso legal, depósitos bancarios, valores negociables, acciones, participaciones ni ningún tipo de instrumento de inversión.</li>
+                    <li>Cualquier referencia a una paridad estimada de 1 BLUE = 1 USD al momento del lanzamiento es de carácter contable-utilitario para la valoración interna de tareas y no representa una promesa, garantía de rendimiento, stablecoin respaldada en fideicomiso o compromiso de redención de dinero fiat por parte de WintonCoin.</li>
+                    <li>WintonCoin no provee ni garantiza un mercado secundario de intercambio de tokens por divisas fiat.</li>
+                </ul>
             </div>
 
             <h3>4.2. Creación de Tokens</h3>
@@ -387,6 +394,15 @@
 
             <h3>6.6. Impuestos y Tributos</h3>
             <p>El Usuario es el único responsable de determinar, declarar y pagar cualquier impuesto aplicable a los ingresos, ganancias o tokens recibidos a través de la Plataforma según la legislación de su jurisdicción fiscal. WintonCoin no actúa como agente de retención fiscal salvo que sea requerido obligatoriamente por ley.</p>
+
+            <h3>6.7. Mecanismo de Escrow, P2P y Reembolso Contable Humanitario</h3>
+            <p>Para garantizar el cumplimiento de las normativas de Prevención de Lavado de Dinero (AML) y evitar la retención indefinida de fondos, WintonCoin aplica las siguientes reglas contables y de software:</p>
+            <ul>
+                <li><strong>Custodia Temporal de Donaciones (Hold):</strong> Las donaciones realizadas por donantes sin verificación de identidad KYC Web3 serán retenidas en estado temporal <em>on_hold</em>, deduciéndose del saldo del donante pero sin acreditarse al beneficiario de la causa.</li>
+                <li><strong>Plazo de Verificación y Reversión Automática:</strong> El donante dispondrá de un plazo de hasta **ciento cincuenta (150) días** calendario (o hasta el Lanzamiento Oficial de la Plataforma el 14 de febrero de 2027, lo que ocurra primero) para completar su verificación de identidad. Si el plazo expira sin que el donante complete la verificación de identidad, la donación en espera caducará y el motor contable de la plataforma ejecutará un reembolso (reversión) automático, restituyendo el saldo total al balance del donante. Esto evita que los usuarios evadan de forma intencionada la verificación en plazos cortos para auto-reembolsarse los fondos.</li>
+                <li><strong>Operaciones Peer-to-Peer (P2P):</strong> WintonCoin no actúa como intermediario financiero ni procesador de pagos fiat en las transacciones P2P. El servicio P2P provisto es una herramienta de software que facilita la coordinación directa entre usuarios. Todos los flujos de dinero fiat asociados ocurren de forma externa y privada fuera de la plataforma (off-platform), bajo el propio riesgo de los intervinientes. WintonCoin no garantiza la liquidez, seguridad de los medios de pago externos ni la existencia de contrapartes.</li>
+                <li><strong>Exclusión de Responsabilidad por Causa Expirada:</strong> El beneficiario de la causa acepta que no tendrá derecho a reclamar donaciones en estado <em>on_hold</em> que hayan sido revertidas al donante por falta de cumplimiento KYC.</li>
+            </ul>
         </div>
 
         <!-- SECCIÓN 7: SISTEMA DE REFERIDOS Y BONOS -->
@@ -555,6 +571,20 @@
             <p>Para cualquier pregunta sobre estos Términos, puedes contactarnos a través de los canales oficiales de comunicación de WintonCoin.</p>
         </div>
 
+        <!-- SECCIÓN 16: ACUERDO DE ARBITRAJE Y RENUNCIA A DEMANDA COLECTIVA -->
+        <div class="terms-section">
+            <h2>16. ACUERDO DE ARBITRAJE OBLIGATORIO Y RENUNCIA A DEMANDA COLECTIVA</h2>
+            <p><strong>POR FAVOR, LEA ESTA SECCIÓN DETALLADAMENTE. AFECTA SUS DERECHOS LEGALES, INCLUIDO SU DERECHO A PRESENTAR UNA DEMANDA ANTE LOS TRIBUNALES.</strong></p>
+            
+            <div class="warning-box">
+                <strong>ACUERDO DE ARBITRAJE BINDING:</strong> Cualquier controversia, disputa o reclamación que surja de o esté relacionada con estos Términos, el uso de la Plataforma, transacciones contables o tokens (incluyendo deudas RED y deudas de impulsores), se resolverá mediante arbitraje individual vinculante y final administrado por la Asociación Americana de Arbitraje (AAA) bajo sus Reglas de Arbitraje Comercial aplicables.
+            </div>
+            
+            <p><strong>Renuncia a Demandas Colectivas:</strong> El Usuario y WintonCoin aceptan que cualquier resolución de disputas se llevará a cabo únicamente de forma individual y no en una acción de representación colectiva, consolidada o de clase. El árbitro no podrá consolidar las reclamaciones de más de una persona ni presidir ningún tipo de procedimiento colectivo.</p>
+            
+            <p><strong>Derecho de Exclusión (Opt-Out):</strong> Usted tiene derecho a optar por no participar en este Acuerdo de Arbitraje y Renuncia a Demanda Colectiva enviando una notificación por escrito de su decisión al correo oficial de soporte de WintonCoin dentro de los treinta (30) días posteriores a la creación de su cuenta. Su notificación debe incluir su nombre completo y nombre de usuario registrado.</p>
+        </div>
+
         <div class="highlight-box" style="margin-top: 40px;">
             <p><strong>Al hacer clic en "Acepto" durante el registro, confirmas que:</strong></p>
             <ul>
@@ -572,7 +602,7 @@
     <script>
         // Fecha de última actualización del contenido
         // IMPORTANTE: Actualizar esta fecha manualmente cuando se modifique el contenido del documento
-        const lastUpdateDate = new Date('2026-02-11'); // Formato: YYYY-MM-DD
+        const lastUpdateDate = new Date('2026-06-27'); // Formato: YYYY-MM-DD
         
         document.getElementById('lastUpdatedDate').textContent = lastUpdateDate.toLocaleDateString('es-ES', { 
             year: 'numeric', 
