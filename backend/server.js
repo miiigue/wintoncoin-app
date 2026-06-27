@@ -1,5 +1,5 @@
-// 0. Cargar variables de entorno
-require('dotenv').config();
+// 0. Cargar variables de entorno dinámicamente según el entorno
+require('./config');
 
 // 1. Importar las librerías necesarias
 const express = require('express');
@@ -9,7 +9,6 @@ const cookieParser = require('cookie-parser'); // NECESARIO PARA COOKIES
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const cron = require('node-cron');
-require('./config'); // Carga la configuración del entorno (development o production)
 const { initializeDatabase } = require('./src/config/databaseInit');
 const { processPendingBroadcasts } = require('./src/services/emailService');
 const { logAuditEvent, startAuditCleanupJob } = require('./src/services/auditService');
@@ -27,6 +26,7 @@ const solidarioRoutes = require('./src/routes/solidarioRoutes');
 const recruitmentRoutes = require('./src/routes/recruitmentRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const createTransactionRouter = require('./src/routes/transactionRoutes');
+const { executeBoosterPayments } = require('./src/services/boosterService');
 
 // --- NUEVO: Gestión profesional de la clave secreta de JWT ---
 // Buscamos la clave secreta en las variables de entorno.
@@ -167,11 +167,16 @@ async function startServer() {
     try {
         await checkDbConnection();
 
-        // --- NUEVO: Ejecutar migraciones pendientes automáticamente ---
+        // --- SEGURIDAD Y AUDITABILIDAD DE BASE DE DATOS ---
+        // 1. Inicializar base de datos: Crea las tablas base del sistema (users, publications, etc.) en su estado inicial.
+        // Esto es un pre-requisito obligatorio para que las migraciones posteriores puedan realizar alteraciones (ALTER TABLE) de forma segura.
+        await initializeDatabase();
+
+        // 2. Ejecutar migraciones pendientes: Una vez aseguradas las tablas base, el Migration Runner aplica de forma secuencial
+        // e incremental las modificaciones de esquema (triggers de inmutabilidad, columnas adicionales, etc.)
         const { runPendingMigrations } = require('./scripts/migrationRunner');
         await runPendingMigrations();
 
-        await initializeDatabase();
         startAuditCleanupJob();
         console.log("Base de datos inicializada correctamente.");
 
@@ -369,199 +374,8 @@ async function startServer() {
 
         // --- Procesos en segundo plano ---
 
-        const DEBT_COLLECTOR_INTERVAL_MS = 3 * 60 * 1000; // 3 minutos
-        setInterval(async () => {
-            console.log('DEBT COLLECTOR: Iniciando ciclo de recolección de deudas vencidas...');
-            // Declaramos la variable del cliente de base de datos en el ámbito exterior para que sea accesible en try/catch/finally
-            let client;
-            try {
-                // Obtenemos la conexión del pool. Si falla la red (EHOSTUNREACH), se captura de forma segura en el catch
-                client = await pool.connect();
-
-                // Iniciamos la transacción SQL de manera segura
-                await client.query('BEGIN');
-
-                // Consultamos si el sistema de deudas está activado en las configuraciones de la aplicación
-                const settingsResult = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'debt_system_enabled'`);
-                const isDebtSystemEnabled = settingsResult.rows[0]?.setting_value === 'true';
-
-                if (!isDebtSystemEnabled) {
-                    console.log('DEBT COLLECTOR: El sistema de deudas está desactivado. Saltando ciclo.');
-                    await client.query('ROLLBACK');
-                    return;
-                }
-
-                // 1. Obtener todas las deudas vencidas, no saldadas y no penalizadas, agrupadas por usuario
-                const overdueDebtsResult = await client.query(`
-                    SELECT username, SUM(amount) as total_due
-                    FROM red_token_debts
-                    WHERE due_at <= NOW() AND is_settled = FALSE AND is_penalized = FALSE
-                    GROUP BY username
-                `);
-
-                if (overdueDebtsResult.rowCount === 0) {
-                    console.log('DEBT COLLECTOR: No se encontraron deudas vencidas para procesar.');
-                    await client.query('ROLLBACK');
-                    return;
-                }
-
-                console.log(`DEBT COLLECTOR: Se encontraron deudas vencidas para ${overdueDebtsResult.rowCount} usuario(s).`);
-
-                // 2. Procesar cada usuario con deudas vencidas
-                for (const userDebt of overdueDebtsResult.rows) {
-                    const { username, total_due } = userDebt;
-                    const amountToSettle = parseFloat(total_due);
-
-                    // La función executeBurn ya determina el máximo posible a quemar.
-                    // Le pasamos el total de la deuda y ella hará el resto.
-                    console.log(`DEBT COLLECTOR: Intentando saldar ${amountToSettle.toFixed(4)} RED para el usuario ${username}.`);
-                    const burnResult = await require('./src/services/financialCoreService').executeBurn(client, username, amountToSettle);
-
-                    if (burnResult.success && burnResult.actualAmountBurned > 0) {
-                        const notificationMessage = `Se realizó una quema automática de ${burnResult.actualAmountBurned.toFixed(4)} tokens para cubrir tu deuda vencida.`;
-                        await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [username, notificationMessage]);
-                        console.log(`DEBT COLLECTOR: Quema automática exitosa para ${username}. Cantidad: ${burnResult.actualAmountBurned.toFixed(4)}`);
-                    } else {
-                        console.log(`DEBT COLLECTOR: No se pudo realizar la quema automática para ${username}. Mensaje: ${burnResult.message}`);
-                    }
-
-                    // 3. Marcar las deudas restantes (si las hay) como penalizadas
-                    await client.query(
-                        `UPDATE red_token_debts SET is_penalized = TRUE WHERE username = $1 AND due_at <= NOW() AND is_settled = FALSE`,
-                        [username]
-                    );
-                }
-
-                // Confirmamos la transacción tras procesar correctamente
-                await client.query('COMMIT');
-                console.log('DEBT COLLECTOR: Ciclo de recolección finalizado exitosamente.');
-
-            } catch (error) {
-                // Solo ejecutamos ROLLBACK si el cliente logró conectarse e iniciar la transacción
-                if (client) {
-                    try {
-                        await client.query('ROLLBACK');
-                    } catch (rollbackError) {
-                        console.error('DEBT COLLECTOR: Error al ejecutar ROLLBACK:', rollbackError.message);
-                    }
-                }
-                // Registramos el error de forma auditable sin tumbar la aplicación
-                console.error('DEBT COLLECTOR: Error crítico durante el ciclo de recolección de deudas.', error.message || error);
-            } finally {
-                // Liberamos el cliente de vuelta al pool si fue instanciado para prevenir fugas de conexiones
-                if (client) {
-                    client.release();
-                }
-            }
-        }, DEBT_COLLECTOR_INTERVAL_MS);
-
-        const TOKEN_RELEASER_INTERVAL_MS = 1 * 60 * 1000; // 1 minuto
-        setInterval(async () => {
-            console.log('TOKEN RELEASER: Iniciando ciclo de liberación de tokens BLUE...');
-            // Declaramos la variable del cliente de base de datos en el ámbito exterior para que sea accesible en try/catch/finally
-            let client;
-            try {
-                // Obtenemos la conexión del pool. Si falla la red (EHOSTUNREACH), se captura de forma segura en el catch
-                client = await pool.connect();
-
-                // Iniciamos la transacción SQL de manera segura
-                await client.query('BEGIN');
-
-                // 1. Obtener todos los depósitos vencidos y no liberados, agrupados por usuario
-                const overdueEscrowsResult = await client.query(`
-                    SELECT 
-                        user_id,
-                        username, 
-                        SUM(amount) as total_to_release,
-                        array_agg(id) as escrow_ids
-                    FROM blue_token_escrows
-                    WHERE unlock_at <= NOW() AND is_released = FALSE
-                    GROUP BY user_id, username
-                `);
-
-                if (overdueEscrowsResult.rowCount === 0) {
-                    console.log('TOKEN RELEASER: No se encontraron tokens para liberar.');
-                    await client.query('ROLLBACK'); // No need to keep transaction open
-                    return;
-                }
-
-                console.log(`TOKEN RELEASER: Se encontraron depósitos para liberar para ${overdueEscrowsResult.rowCount} usuario(s).`);
-
-                // 2. Procesar cada usuario con depósitos a liberar
-                for (const userEscrow of overdueEscrowsResult.rows) {
-                    const { user_id, username, total_to_release, escrow_ids } = userEscrow;
-                    const amountToRelease = parseFloat(total_to_release);
-
-                    if (amountToRelease <= 0) continue;
-
-                    console.log(`TOKEN RELEASER: Liberando ${amountToRelease.toFixed(4)} BLUE para el usuario ${username}.`);
-
-                    // 3. Actualizar saldos del usuario (Event Sourcing)
-                    // Restar de Escrow (usamos 'withdrawal' que resta)
-                    await client.query(`SELECT record_balance_event($1, 'withdrawal', 'escrow_blue', $2, NULL)`, [user_id, amountToRelease]);
-                    // Sumar a Líquido (usamos 'deposit' que suma)
-                    await client.query(`SELECT record_balance_event($1, 'deposit', 'liquid_blue', $2, NULL)`, [user_id, amountToRelease]);
-
-                    // 4. Marcar los depósitos como liberados
-                    await client.query(
-                        `UPDATE blue_token_escrows SET is_released = TRUE WHERE id = ANY($1::int[])`,
-                        [escrow_ids]
-                    );
-
-                    // 5. Crear una transacción para el historial
-                    const releaseDesc = `Se han liberado ${amountToRelease.toFixed(4)} BLUE que estaban en depósito.`;
-                    await client.query(
-                        `INSERT INTO transactions (user_id, type, description, blue_change, red_change) VALUES ($1, 'escrow_release', $2, $3, 0)`,
-                        [user_id, releaseDesc, amountToRelease]
-                    );
-
-                    // 6. Enviar notificación al usuario
-                    const notificationMessage = `¡Buenas noticias! ${amountToRelease.toFixed(4)} BLUE de tu saldo pendiente ya están disponibles.`;
-                    await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [username, notificationMessage]);
-                }
-
-                // Confirmamos la transacción tras procesar correctamente
-                await client.query('COMMIT');
-                console.log('TOKEN RELEASER: Ciclo de liberación finalizado exitosamente.');
-
-            } catch (error) {
-                // Solo ejecutamos ROLLBACK si el cliente logró conectarse e iniciar la transacción
-                if (client) {
-                    try {
-                        await client.query('ROLLBACK');
-                    } catch (rollbackError) {
-                        console.error('TOKEN RELEASER: Error al ejecutar ROLLBACK:', rollbackError.message);
-                    }
-                }
-                // Registramos el error de forma auditable sin tumbar la aplicación
-                console.error('TOKEN RELEASER: Error crítico durante el ciclo de liberación de tokens.', error.message || error);
-            } finally {
-                // Liberamos el cliente de vuelta al pool si fue instanciado para prevenir fugas de conexiones
-                if (client) {
-                    client.release();
-                }
-            }
-        }, TOKEN_RELEASER_INTERVAL_MS);
-
-        // --- PROCESO MENSUAL DE PAGO A IMPULSORES ---
-        const BOOSTER_PAYMENT_INTERVAL_MS = 24 * 60 * 60 * 1000; // Revisar cada 24 horas
-        setInterval(async () => {
-            await executeBoosterPayments();
-        }, BOOSTER_PAYMENT_INTERVAL_MS);
-
-        // --- MAIL WORKER: PROCESAMIENTO DE DIFUSIONES (BATCHING) ---
-        const MAIL_WORKER_INTERVAL_MS = 30 * 1000; // Procesar cada 30 segundos
-        async function runMailWorker() {
-            try {
-                await processPendingBroadcasts(pool);
-            } catch (err) {
-                console.error("Error en Mail Worker:", err);
-            } finally {
-                setTimeout(runMailWorker, MAIL_WORKER_INTERVAL_MS);
-            }
-        }
-        runMailWorker(); // Iniciar inmediatamente
-
+        const startBackgroundJobs = require('./src/workers/cronManager');
+        startBackgroundJobs(pool);
         if (process.env.NODE_ENV !== 'test') {
             app.listen(PORT, '0.0.0.0', () => {
                 console.log(`Servidor corriendo en:`);
@@ -792,11 +606,11 @@ cron.schedule('*/1 * * * *', async () => {
                     throw new Error('Vendedor no encontrado en expiracion P2P.');
                 }
                 await client.query(
-                    `SELECT record_balance_event($1, 'withdrawal', 'escrow_blue', $2, NULL)`,
+                    `SELECT record_balance_event($1::INTEGER, 'withdrawal'::TEXT, 'escrow_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`,
                     [sellerId, order.blue_amount]
                 );
                 await client.query(
-                    `SELECT record_balance_event($1, 'deposit', 'liquid_blue', $2, NULL)`,
+                    `SELECT record_balance_event($1::INTEGER, 'deposit'::TEXT, 'liquid_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`,
                     [sellerId, order.blue_amount]
                 );
                 await client.query(
@@ -874,132 +688,9 @@ module.exports = { app, pool };
 
 
 
-// --- NUEVA LÓGICA DE PAGOS A IMPULSORES ---
-// Esta función maneja los pagos mensuales a impulsores, priorizando niveles bajos primero como beneficio
-// (usuarios con menos acumulado reciben pagos antes para incentivar participación temprana).
-async function executeBoosterPayments() {
-    const today = new Date();
-    // El proceso se ejecuta el primer día de cada mes.
-    if (today.getDate() !== 1) {
-        // console.log('BOOSTER PAYMENTS: No es el primer día del mes, saltando ciclo.');
-        return;
-    }
-
-    console.log('BOOSTER PAYMENTS: Iniciando ciclo de pagos a impulsores...');
-    // Declaramos la variable del cliente de base de datos en el ámbito exterior para que sea accesible en try/catch/finally
-    let client;
-    try {
-        // Obtenemos la conexión del pool. Si falla la red (EHOSTUNREACH), se captura de forma segura en el catch
-        client = await pool.connect();
-
-        // Iniciamos la transacción SQL de manera segura
-        await client.query('BEGIN');
-
-        const settingsResult = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'booster_system_enabled'`);
-        if (settingsResult.rows[0]?.setting_value !== 'true') {
-            console.log('BOOSTER PAYMENTS: El sistema de impulsores está desactivado. Saltando ciclo.');
-            await client.query('ROLLBACK');
-            return;
-        }
-
-        // Determinar el mes de pago (el mes anterior)
-        const paymentMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        const paymentMonthString = `${paymentMonth.getFullYear()}-${(paymentMonth.getMonth() + 1).toString().padStart(2, '0')}`;
-
-        // Verificar si ya se realizó el pago para este mes
-        const lastPaymentResult = await client.query(`SELECT 1 FROM booster_payment_log WHERE to_char(payment_month, 'YYYY-MM') = $1 LIMIT 1`, [paymentMonthString]);
-        if (lastPaymentResult.rowCount > 0) {
-            console.log(`BOOSTER PAYMENTS: El pago para ${paymentMonthString} ya fue realizado. Saltando ciclo.`);
-            await client.query('ROLLBACK');
-            return;
-        }
-
-        // 1. Calcular las comisiones totales del mes anterior
-        const commissionResult = await client.query(
-            `SELECT SUM(commission_amount_blue) as total FROM platform_commission_log WHERE to_char(created_at, 'YYYY-MM') = $1`,
-            [paymentMonthString]
-        );
-        let fundsAvailable = parseFloat(commissionResult.rows[0].total) || 0;
-
-        if (fundsAvailable <= 0) {
-            console.log(`BOOSTER PAYMENTS: No hay fondos de comisiones disponibles para el mes ${paymentMonthString}.`);
-            await client.query('ROLLBACK');
-            return;
-        }
-
-        console.log(`BOOSTER PAYMENTS: Fondos disponibles para ${paymentMonthString}: ${fundsAvailable.toFixed(4)} BLUE.`);
-
-        // 2. Obtener todos los niveles y todos los impulsores
-        const levelsResult = await client.query('SELECT * FROM booster_level_settings ORDER BY level ASC');
-        const boostersResult = await client.query(`
-            SELECT u.id, u.username, u.booster_level, 
-                   (SELECT SUM(amount) FROM booster_blue_ledger WHERE user_id = u.id) as total_booster_blue
-            FROM users u WHERE u.is_booster = TRUE
-        `);
-
-        // 3. Iterar por cada nivel en orden de prioridad (bajos primero)
-        // Esto beneficia a niveles inferiores: se pagan completos si hay fondos, antes de pasar a superiores.
-        for (const level of levelsResult.rows) {
-            if (fundsAvailable <= 0) break;
-
-            const boostersInLevel = boostersResult.rows.filter(b => b.booster_level === level.level);
-            if (boostersInLevel.length === 0) continue;
-
-            const totalDebtForLevel = boostersInLevel.reduce((sum, b) => sum + parseFloat(b.total_booster_blue), 0);
-            if (totalDebtForLevel <= 0) continue;
-
-            console.log(`BOOSTER PAYMENTS: Procesando Nivel ${level.level}. Deuda total: ${totalDebtForLevel.toFixed(4)}. Fondos restantes: ${fundsAvailable.toFixed(4)}.`);
-
-            const paymentPercentage = Math.min(1.0, fundsAvailable / totalDebtForLevel);
-
-            // 4. Pagar a cada impulsor en el nivel
-            for (const booster of boostersInLevel) {
-                const amountToPay = parseFloat(booster.total_booster_blue) * paymentPercentage;
-                if (amountToPay > 0) {
-                    // Pagar al saldo de escrow del usuario usando Event Sourcing (FIX: Evitar bloqueo de trigger)
-                    await client.query("SELECT record_balance_event($1, 'deposit', 'escrow_blue', $2, NULL)", [booster.id, amountToPay]);
-
-                    // Registrar la transacción de pago
-                    const paymentDescription = `Recompensa de Impulsor (Nivel ${level.level}) para el mes de ${paymentMonth.toLocaleString('es', { month: 'long', year: 'numeric' })}`;
-                    await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'booster_reward', $2, $3)`, [booster.id, paymentDescription, amountToPay]);
-
-                    // Registrar en el log de pagos de impulsores
-                    await client.query(
-                        `INSERT INTO booster_payment_log (user_id, amount_paid, payment_month, booster_level_at_payment) VALUES ($1, $2, $3, $4)`,
-                        [booster.id, amountToPay, paymentMonth, level.level]
-                    );
-
-                    // Notificar al usuario
-                    const notificationMsg = `¡Felicidades! Has recibido ${amountToPay.toFixed(4)} BLUE (en depósito) como recompensa de Impulsor.`;
-                    await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [booster.username, notificationMsg]);
-                }
-            }
-
-            fundsAvailable -= totalDebtForLevel * paymentPercentage;
-        }
-
-        // Confirmamos la transacción tras procesar correctamente
-        await client.query('COMMIT');
-        console.log('BOOSTER PAYMENTS: Ciclo de pagos finalizado exitosamente.');
-
-    } catch (error) {
-        // Solo ejecutamos ROLLBACK si el cliente logró conectarse e iniciar la transacción
-        if (client) {
-            try {
-                await client.query('ROLLBACK');
-            } catch (rollbackError) {
-                console.error('BOOSTER PAYMENTS: Error al ejecutar ROLLBACK:', rollbackError.message);
-            }
-        }
-        // Registramos el error de forma auditable sin tumbar la aplicación
-        console.error('BOOSTER PAYMENTS: Error crítico durante el ciclo de pagos a impulsores.', error.message || error);
-    } finally {
-        // Liberamos el cliente de vuelta al pool si fue instanciado para prevenir fugas de conexiones
-        if (client) {
-            client.release();
-        }
-    }
-}
+// --- LÓGICA DE PAGOS A IMPULSORES ---
+// La lógica y el scheduler de pagos a impulsores han sido modularizados en src/services/boosterService.js
+// para soportar configuraciones dinámicas de intervalos de tiempo y mantener server.js limpio.
 
 
 

@@ -14,7 +14,7 @@
  *   node scripts/publish_legal_document.js --type terms_and_conditions --file ../frontend/terms.html --dry-run
  */
 
-require('dotenv').config();
+require('../config');
 
 const fs = require('fs');
 const path = require('path');

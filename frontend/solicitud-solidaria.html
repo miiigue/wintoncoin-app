@@ -79,16 +79,23 @@
             color: #94A3B8;
         }
 
-        input,
+        * {
+            box-sizing: border-box;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="url"],
         textarea {
             width: 100%;
-            padding: 1rem;
+            padding: 12px 15px;
             background: #ffffff !important;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            color: #333333 !important;
+            border: 1px solid #2a3b5c !important;
+            border-radius: 8px !important;
+            color: #111111 !important;
             font-size: 1rem;
             transition: all 0.3s;
+            box-sizing: border-box;
         }
 
         input::placeholder,
@@ -308,6 +315,28 @@
             </div>
 
             <div class="form-group">
+                <label for="foundationName">Nombre de la Fundación o Beneficiario</label>
+                <input type="text" id="foundationName" placeholder="Ej: Fundación Ayuda Venezuela" required>
+                <small class="input-hint" style="color: #94A3B8; font-size: 0.85em; display: block; margin-top: 5px;">
+                    El nombre oficial o público de la entidad que se beneficiará de las donaciones.
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="beneficiaryReferralCode">Código de Referido del Beneficiario (Organización)</label>
+                <input type="text" id="beneficiaryReferralCode" placeholder="Ej: ORG123" required>
+                <small class="input-hint" style="color: #94A3B8; font-size: 0.85em; display: block; margin-top: 5px;">
+                    El código de referido de la cuenta registrada que recibirá los fondos de WintonCoin Solidario.
+                </small>
+                <div id="beneficiaryValidationMsg" class="user-validation-msg"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="beneficiarySocials">Enlaces a Redes Sociales del Beneficiario (Si los hay)</label>
+                <input type="text" id="beneficiarySocials" placeholder="Ej: https://instagram.com/fundacion https://tiktok.com/@fundacion (Separados por espacio, opcional)">
+            </div>
+
+            <div class="form-group">
                 <label for="titulo">Título de la Causa</label>
                 <input type="text" id="titulo" placeholder="Ej: Apoyo para tratamiento médico post-operatorio" required>
             </div>
@@ -315,7 +344,7 @@
             <div class="form-group">
                 <label for="historia">Tu Historia (Dignidad y Claridad)</label>
                 <textarea id="historia" rows="6"
-                    placeholder="Cuéntanos tu situación y cómo te ayudará el sistema de WintonCoin..."
+                    placeholder="Cuéntanos tu situation y cómo te ayudará el sistema de WintonCoin..."
                     required></textarea>
             </div>
 
@@ -325,7 +354,7 @@
             </div>
 
             <div class="form-group">
-                <label for="evidenciaLink">Enlace de Evidencia (Drive, Dropbox, Fotos iCloud)</label>
+                <label for="evidenciaLink">Enlaces de Evidencias (Drive, Dropbox, Fotos iCloud)</label>
                 <input type="url" id="evidenciaLink" placeholder="Pega aquí el enlace a tus documentos de respaldo"
                     required>
             </div>
@@ -372,11 +401,31 @@
         import { getApiUrl } from './src/modules/config.js';
         const API_URL = getApiUrl();
 
+        // --- VALIDACIÓN DE SESIÓN OBLIGATORIA (SEGURIDAD FINTECH) ---
+        const storedToken = localStorage.getItem('token');
+        const storedUsername = localStorage.getItem('username');
+
+        if (!storedToken || !storedUsername) {
+            alert('🔒 Acceso restringido: Debes iniciar sesión para postular una causa.');
+            window.location.href = 'login.html?returnTo=solicitud-solidaria.html';
+        }
+
         // Mostrar modal al cargar la página
         window.addEventListener('load', () => {
             setTimeout(() => {
                 document.getElementById('termsModal').classList.add('active');
             }, 300);
+
+            // Si está logueado, pre-rellenar el usuario y marcar como de solo lectura
+            if (storedUsername) {
+                usernameInput.value = storedUsername;
+                usernameInput.readOnly = true;
+                usernameInput.style.background = 'rgba(255, 255, 255, 0.05)';
+                usernameInput.style.color = '#94A3B8';
+                usernameInput.style.cursor = 'not-allowed';
+                // Validar de inmediato al cargar para advertir si ya tiene causas activas
+                validateUsername(storedUsername);
+            }
         });
 
         // Función para cerrar modal
@@ -388,9 +437,47 @@
         const validationMsg = document.getElementById('userValidationMsg');
         let isUserValid = false;
 
-        // Lógica de validación de usuario REAL (Conexión con Backend)
-        usernameInput.addEventListener('blur', async () => {
-            const username = usernameInput.value.trim().toLowerCase();
+        const beneficiaryRefInput = document.getElementById('beneficiaryReferralCode');
+        const beneficiaryValidationMsg = document.getElementById('beneficiaryValidationMsg');
+        let isBeneficiaryValid = false;
+
+        // Lógica de validación de CÓDIGO DE REFERIDO DEL BENEFICIARIO (Conexión con Backend)
+        beneficiaryRefInput.addEventListener('blur', async () => {
+            const code = beneficiaryRefInput.value.trim();
+            if (code === '') {
+                beneficiaryValidationMsg.innerHTML = '';
+                isBeneficiaryValid = false;
+                return;
+            }
+
+            beneficiaryValidationMsg.className = 'user-validation-msg user-success';
+            beneficiaryValidationMsg.innerHTML = 'Validando código de referido...';
+            beneficiaryValidationMsg.style.display = 'block';
+
+            try {
+                // Llamada a la API real del backend usando URL centralizada
+                const response = await fetch(`${API_URL}/api/solidario/check-referral/${encodeURIComponent(code)}`);
+                const data = await response.json();
+
+                if (data.exists === true) {
+                    beneficiaryValidationMsg.className = 'user-validation-msg user-success';
+                    beneficiaryValidationMsg.innerHTML = `✅ Código de referido válido (Pertenece a: @${data.username}).`;
+                    isBeneficiaryValid = true;
+                } else {
+                    beneficiaryValidationMsg.className = 'user-validation-msg user-error';
+                    beneficiaryValidationMsg.innerHTML = '⚠️ El código de referido no corresponde a ningún usuario registrado.';
+                    isBeneficiaryValid = false;
+                }
+            } catch (error) {
+                console.error('Error al validar código de referido:', error);
+                beneficiaryValidationMsg.className = 'user-validation-msg user-error';
+                beneficiaryValidationMsg.innerHTML = '❌ Error de conexión al validar código.';
+                isBeneficiaryValid = false;
+            }
+        });
+
+        // Lógica de validación del usuario (Centralizada en una función)
+        async function validateUsername(username) {
             if (username === '') {
                 validationMsg.innerHTML = '';
                 isUserValid = false;
@@ -406,13 +493,12 @@
                 const response = await fetch(`${API_URL}/api/check-username/${username}`);
                 const data = await response.json();
 
-                // Nota: El endpoint devuelve available: false si el usuario EXISTE (ya está en uso)
-                // Para nuestro propósito, si available es false, significa que el usuario está registrado.
+                // Nota: El endpoint devuelve available: false si el usuario EXISTE
                 if (data.available === false && !data.error) {
                     validationMsg.className = 'user-validation-msg user-success';
                     validationMsg.innerHTML = '✅ Usuario verificado en la base de datos.';
 
-                    // --- NUEVO Lógica: Verificar si ya tiene causas activas antes de dejarlo seguir ---
+                    // Verificar si ya tiene causas activas antes de dejarlo seguir
                     const activeCheckRes = await fetch(`${API_URL}/api/solidario/check-active/${username}`);
                     const activeCheckData = await activeCheckRes.json();
 
@@ -421,7 +507,7 @@
                         validationMsg.innerHTML = '⚠️ Atención: Tienes una causa activa o en revisión (' + activeCheckData.message + '). No puedes postular otra hasta que la actual sea cancelada o completada.';
                         isUserValid = false;
 
-                        // Disable submit button explicitly to ensure they understand
+                        // Deshabilitar botón de envío
                         const submitBtn = document.querySelector('.btn-submit');
                         if (submitBtn) {
                             submitBtn.style.opacity = '0.5';
@@ -446,6 +532,11 @@
                 validationMsg.innerHTML = '❌ Error de conexión con el servidor.';
                 isUserValid = false;
             }
+        }
+
+        // Lógica de validación de usuario al perder el foco (redundancia)
+        usernameInput.addEventListener('blur', () => {
+            validateUsername(usernameInput.value.trim().toLowerCase());
         });
 
         // Lógica para manejo del formulario
@@ -458,6 +549,12 @@
                 return;
             }
 
+            if (!isBeneficiaryValid) {
+                alert('Por favor, ingresa un código de referido de beneficiario válido.');
+                beneficiaryRefInput.focus();
+                return;
+            }
+
             const btn = e.target.querySelector('button');
             const originalText = btn.innerText;
             btn.innerText = 'Registrando en Auditoría...';
@@ -465,19 +562,23 @@
 
             const formData = {
                 username: usernameInput.value.trim(),
+                beneficiary_referral_code: beneficiaryRefInput.value.trim(),
+                foundation_name: document.getElementById('foundationName').value.trim(),
                 titulo: document.getElementById('titulo').value.trim(),
                 historia: document.getElementById('historia').value.trim(),
                 meta: document.getElementById('meta').value.trim(),
                 evidencia_link: document.getElementById('evidenciaLink').value.trim(),
-                redes_sociales: document.getElementById('redesSociales').value.trim()
+                redes_sociales: document.getElementById('redesSociales').value.trim(),
+                beneficiary_socials: document.getElementById('beneficiarySocials').value.trim()
             };
 
             try {
-                // Envío al backend usando URL centralizada
+                // Envío al backend usando URL centralizada y cabecera de autenticación
                 const response = await fetch(`${API_URL}/api/solidario/postulacion`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${storedToken}`
                     },
                     body: JSON.stringify(formData)
                 });
@@ -486,7 +587,7 @@
 
                 if (response.ok) {
                     alert('✅ Postulación registrada exitosamente.\n\n📬 Recibirás una notificación en la app y en tu correo cuando nuestro equipo revise tu caso.\n\nPuedes ver el estado de tu solicitud en tu bandeja de notificaciones.');
-                    window.location.href = 'index.html';
+                    window.location.href = 'contract_interaction.html';
                 } else {
                     alert('❌ Error: ' + (result.message || 'No se pudo registrar la postulación.'));
                     btn.innerText = originalText;

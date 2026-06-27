@@ -14,6 +14,7 @@ export * from './banner.js';
 export * from './linkify.js';
 export * from './password-toggle.js';
 export * from './sanitize.js';
+export * from './clipboard.js';
 
 // ============================================================================
 // COMPATIBILIDAD GLOBAL (window.*)
@@ -62,6 +63,7 @@ import {
 import { linkify } from './linkify.js';
 import { togglePasswordVisibility } from './password-toggle.js';
 import { escapeHtml, escapeAttr } from './sanitize.js';
+import { copyTextToClipboard } from './clipboard.js';
 
 // Solo ejecutar en el navegador (no en Node.js)
 if (typeof window !== 'undefined') {
@@ -86,6 +88,7 @@ if (typeof window !== 'undefined') {
     window.linkify = linkify;
     window.escapeHtml = escapeHtml;
     window.escapeAttr = escapeAttr;
+    window.copyTextToClipboard = copyTextToClipboard;
 
     // --- Tooltips ---
     window.initializeInfoTooltip = initializeInfoTooltip;

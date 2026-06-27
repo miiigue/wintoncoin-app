@@ -95,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
         boostersSettingsContainer: document.getElementById('boosters-settings-container'),
         boostersDashboardStats: document.getElementById('boosters-dashboard-stats'),
         boostersListContainer: document.getElementById('boosters-list-container'),
+        boostersPaymentsContainer: document.getElementById('boosters-payments-log-container'),
         boostersStagesContainer: document.getElementById('boosters-stages-container'),
         // --- NOTIFICACIONES ---
         notificationsSection: document.getElementById('notifications-section'),
@@ -143,6 +144,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Inicialización ---
     let platformPublicationsCache = [];
     let platformEditId = null;
+    // --- NUEVO: Variables de Estado del Programa de Impulsores (Booster level filter) ---
+    let activeBoosterLevelFilter = null;
+    let boosterListCache = [];
 
     // --- NUEVO: Estado Legal para Admin (Simplificado para gestión) ---
     let legalStatus = { requires_terms_acceptance: false };
@@ -183,6 +187,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 showSection(sectionId);
             });
         });
+
+        // Permitir que el usuario haga clic en cualquier tarjeta del Dashboard para navegar a su sección
+        if (elements.dashboardContainer) {
+            elements.dashboardContainer.addEventListener('click', (e) => {
+                const card = e.target.closest('.interactive-card');
+                if (card) {
+                    const targetSection = card.dataset.targetSection;
+                    if (targetSection) {
+                        showSection(targetSection);
+                    }
+                }
+            });
+        }
 
         if (elements.logoutBtn) {
             elements.logoutBtn.addEventListener('click', async (e) => {
@@ -437,9 +454,58 @@ document.addEventListener('DOMContentLoaded', () => {
             tabLinks.forEach(link => {
                 link.addEventListener('click', () => {
                     const tabId = link.dataset.tab;
+                    // Si el usuario da clic en la pestaña "Lista de Impulsores" directamente,
+                    // limpiamos el filtro por defecto para mostrar el listado completo
+                    if (tabId === 'boosters-list') {
+                        activeBoosterLevelFilter = null;
+                    }
                     showBoosterTab(tabId);
                 });
             });
+
+            // Delegamos el clic en el contenedor de estadísticas del dashboard de impulsores
+            // para interceptar los clics en los enlaces "impulsores" de cada nivel
+            // Delegamos el clic en el contenedor de estadísticas del dashboard de impulsores
+            // para interceptar los clics en las tarjetas interactivas completas
+            if (elements.boostersDashboardStats) {
+                elements.boostersDashboardStats.addEventListener('click', (e) => {
+                    const card = e.target.closest('.interactive-card');
+                    if (card) {
+                        e.preventDefault();
+                        const targetTab = card.dataset.targetTab;
+                        const level = card.dataset.level;
+
+                        // Si la tarjeta corresponde a un nivel específico de impulsor, configuramos
+                        // el filtro para listar únicamente los usuarios de dicho nivel.
+                        if (level) {
+                            activeBoosterLevelFilter = parseInt(level, 10); // Asignamos el filtro de nivel activo
+                        } else {
+                            activeBoosterLevelFilter = null; // Limpiamos el filtro si es una tarjeta general
+                        }
+
+                        // Redirigir a la pestaña interna de la sección de impulsores (ej. Historial de Pagos)
+                        // o, en su defecto, a una sección externa del menú de administración (ej. Billetera / platform-wallet)
+                        if (targetTab) {
+                            showBoosterTab(targetTab);
+                        } else {
+                            const targetSection = card.dataset.targetSection;
+                            if (targetSection) {
+                                showSection(targetSection);
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Configuramos el listener del botón para limpiar el filtro de nivel de booster
+            const clearFilterBtn = document.getElementById('clear-booster-filter-btn');
+            if (clearFilterBtn) {
+                clearFilterBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    activeBoosterLevelFilter = null;
+                    renderBoosterList(boosterListCache);
+                });
+            }
         }
 
         if (elements.notificationsSection) {
@@ -555,6 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadBoosterList();
                 break;
             case 'boosters-payments':
+                loadBoosterPayments();
                 break;
         }
     }
@@ -784,9 +851,21 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.boostersListContainer.innerHTML = '<div class="loading-spinner"></div>';
         try {
             const boosters = await apiFetch('/api/admin/boosters/list');
+            boosterListCache = boosters; // Cacheamos el listado completo cargado del servidor
             renderBoosterList(boosters);
         } catch (error) {
             elements.boostersListContainer.innerHTML = `<p class="error-message">Error al cargar la lista de impulsores: ${escapeHtml(error.message)}</p>`;
+        }
+    }
+
+    async function loadBoosterPayments() {
+        if (!elements.boostersPaymentsContainer) return;
+        elements.boostersPaymentsContainer.innerHTML = '<div class="loading-spinner"></div>';
+        try {
+            const payments = await apiFetch('/api/admin/boosters/payments');
+            renderBoosterPayments(payments);
+        } catch (error) {
+            elements.boostersPaymentsContainer.innerHTML = `<p class="error-message">Error al cargar el historial de pagos: ${escapeHtml(error.message)}</p>`;
         }
     }
 
@@ -879,6 +958,10 @@ document.addEventListener('DOMContentLoaded', () => {
             'debt_system_enabled': { title: 'Sistema de Deuda (Tokens RED)', description: 'Activa o desactiva la creación y gestión de deuda RED.' },
             'platform_commission_percentage': { title: 'Comisión de Plataforma (%)', description: 'Porcentaje de comisión para la plataforma (ej: 5 para 5%).' },
             'booster_system_enabled': { title: 'Sistema de Impulsores', description: 'Activa el sistema de Impulsores y su lógica de pagos mensuales.' },
+            'booster_custom_frequency_enabled': { title: 'Frecuencia de Pago Personalizada', description: 'Si se activa, el sistema realizará los pagos en el intervalo configurado abajo (días, horas, minutos) en lugar del ciclo mensual del primer día de cada mes.' },
+            'booster_payment_frequency_days': { title: 'Frecuencia Personalizada — Días', description: 'Número de días en el intervalo de pago personalizado de impulsores.' },
+            'booster_payment_frequency_hours': { title: 'Frecuencia Personalizada — Horas', description: 'Número de horas en el intervalo de pago personalizado de impulsores.' },
+            'booster_payment_frequency_minutes': { title: 'Frecuencia Personalizada — Minutos', description: 'Número de minutos en el intervalo de pago personalizado de impulsores.' },
             'referral_system_enabled': { title: 'Sistema de Referidos', description: 'Activa o desactiva el bono por registro con código de referido.' },
             'referral_reward_amount': { title: 'Recompensa por Referido (BLUE)', description: 'Cantidad de BLUE que ganan referente y referido.' },
             'referral_reward_after_expiry': { title: 'Recompensa después de la promo (BLUE)', description: 'Cantidad de BLUE que se otorgará una vez expire la promoción.' },
@@ -912,6 +995,9 @@ document.addEventListener('DOMContentLoaded', () => {
             'red_credit_referral': { title: 'Scoring — Bono por Referido Activo (RED)', description: 'Aumento del límite por cada referido exitoso que utilice la plataforma.' },
             'red_credit_monthly_activity': { title: 'Scoring — Bono por Alta Actividad (RED)', description: 'Aumento del límite al superar 20 tareas en un mes calendario.' },
             'red_credit_early_payment': { title: 'Scoring — Bono por Pago Anticipado (RED)', description: 'Aumento del límite por pagar deudas en los primeros 5 días del ciclo.' },
+            // Winton Solidario (Causas Humanitarias y Reembolsos)
+            'donation_refund_enabled': { title: 'Reembolso Automático de Donaciones', description: 'Activa o desactiva el demonio que devuelve automáticamente las donaciones en espera (on_hold) si el donante no verifica su KYC Web3.' },
+            'donation_escrow_expiration_days': { title: 'Días de Retención de Donaciones', description: 'Cantidad de días que una donación permanece en espera antes de ser devuelta automáticamente al donante si este no completa su KYC.' }
         };
         return map[key] || { title: key, description: 'Sin descripción.' };
     }
@@ -944,6 +1030,7 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.settingsContainer.innerHTML = generalSettings.map(s => {
                 if (s.setting_key.endsWith('_enabled') || s.setting_key.endsWith('registrations')) return getSettingHTML(s, 'switch');
                 if (s.setting_key === 'gov_vote_reward_blue') return getSettingHTML(s, 'number');
+                if (s.setting_key === 'donation_escrow_expiration_days') return getSettingHTML(s, 'integer');
                 if (s.setting_key.startsWith('gov_')) return getSettingHTML(s, 'integer');
                 if (s.setting_key.startsWith('p2p_')) return getSettingHTML(s, 'number');
                 if (s.setting_key.startsWith('red_credit_')) return getSettingHTML(s, 'number');
@@ -1101,6 +1188,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!container) return;
         container.innerHTML = '';
 
+        // 1. Switch principal para habilitar el sistema de impulsores general
         const systemEnabledSetting = appSettings.find(s => s.setting_key === 'booster_system_enabled');
         if (systemEnabledSetting) {
             const title = getSettingTitle(systemEnabledSetting.setting_key);
@@ -1124,8 +1212,59 @@ document.addEventListener('DOMContentLoaded', () => {
             container.innerHTML += itemHTML;
         }
 
+        // 2. Nueva configuración de frecuencia de pagos personalizada
+        const customFreqEnabledSetting = appSettings.find(s => s.setting_key === 'booster_custom_frequency_enabled');
+        const freqDaysSetting = appSettings.find(s => s.setting_key === 'booster_payment_frequency_days') || { setting_value: '0' };
+        const freqHoursSetting = appSettings.find(s => s.setting_key === 'booster_payment_frequency_hours') || { setting_value: '0' };
+        const freqMinutesSetting = appSettings.find(s => s.setting_key === 'booster_payment_frequency_minutes') || { setting_value: '5' };
+
+        if (customFreqEnabledSetting) {
+            const title = getSettingTitle(customFreqEnabledSetting.setting_key);
+            const safeKey = escapeHtml(customFreqEnabledSetting.setting_key);
+            const description = customFreqEnabledSetting.description || 'Habilita o desactiva la frecuencia de cobro personalizada.';
+
+            const customFreqHTML = `
+                <div class="setting-item">
+                    <div class="setting-item-info">
+                        <h4>${escapeHtml(title)}</h4>
+                        <p>${escapeHtml(description)}</p>
+                    </div>
+                    <div class="setting-item-control">
+                        <label class="switch">
+                            <input type="checkbox" data-key="${safeKey}" ${customFreqEnabledSetting.setting_value === 'true' ? 'checked' : ''}>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Grupo de campos numéricos para la frecuencia personalizada -->
+                <div class="setting-item" id="booster-custom-frequency-inputs" style="margin-top: 1rem; border-top: 1px dashed rgba(255,255,255,0.05); padding-top: 1rem;">
+                    <div class="setting-item-info">
+                        <h4>Intervalo de Pago Personalizado</h4>
+                        <p>Establece el intervalo de tiempo exacto para la distribución automática de comisiones.</p>
+                    </div>
+                    <div class="setting-item-control-group">
+                        <div class="numeric-group-item">
+                            <label for="setting-booster-days">Días</label>
+                            <input type="number" class="admin-numeric-input" id="setting-booster-days" data-key="booster_payment_frequency_days" value="${escapeHtml(freqDaysSetting.setting_value)}" min="0">
+                        </div>
+                        <div class="numeric-group-item">
+                            <label for="setting-booster-hours">Horas</label>
+                            <input type="number" class="admin-numeric-input" id="setting-booster-hours" data-key="booster_payment_frequency_hours" value="${escapeHtml(freqHoursSetting.setting_value)}" min="0" max="23">
+                        </div>
+                        <div class="numeric-group-item">
+                            <label for="setting-booster-minutes">Minutos</label>
+                            <input type="number" class="admin-numeric-input" id="setting-booster-minutes" data-key="booster_payment_frequency_minutes" value="${escapeHtml(freqMinutesSetting.setting_value)}" min="0" max="59">
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.innerHTML += customFreqHTML;
+        }
+
         container.innerHTML += '<hr class="admin-divider">';
 
+        // 3. Tabla para definir umbrales de niveles de impulsores
         const tableHTML = `
             <h2>Niveles de Impulsor</h2>
             <p>Define los umbrales de BLUE requeridos para alcanzar cada nivel.</p>
@@ -1154,40 +1293,169 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         container.innerHTML += tableHTML;
 
+        // Listener para los cambios en la tabla de niveles
         container.querySelectorAll('#booster-levels-table input, #booster-levels-table textarea').forEach(input => {
             input.addEventListener('change', handleBoosterLevelChange);
         });
 
-        const chk = container.querySelector('input[type="checkbox"]');
-        if (chk) chk.addEventListener('change', handleSettingChange);
+        // Registrar listeners para todos los switches y inputs numéricos del bloque de configuraciones de booster
+        container.querySelectorAll('input[type="checkbox"], input[type="number"]').forEach(input => {
+            if (!input.closest('#booster-levels-table')) {
+                input.addEventListener('change', handleSettingChange);
+                if (input.type === 'number') {
+                    input.addEventListener('keyup', (event) => {
+                        if (event.key === 'Enter') {
+                            handleSettingChange(event);
+                        }
+                    });
+                }
+            }
+        });
     }
 
     function renderBoosterDashboard(stats) {
         if (!elements.boostersDashboardStats) return;
+
+        // Mapeo de etiquetas y colores premium por nivel
+        const levelNames = {
+            1: 'Visionario (Nivel 1)',
+            2: 'Bronce (Nivel 2)',
+            3: 'Plata (Nivel 3)',
+            4: 'Oro (Nivel 4)',
+            5: 'Platino (Nivel 5)'
+        };
+
+        const levelColors = {
+            1: '#3B82F6', // Azul Visionario
+            2: '#b45309', // Ámbar Bronce
+            3: '#94a3b8', // Slate Plata
+            4: '#fbbf24', // Amarillo Oro
+            5: '#a78bfa'  // Púrpura Platino
+        };
+
+        let levelCardsHTML = '';
+        for (let lvl = 1; lvl <= 5; lvl++) {
+            const debt = (stats.debt_by_level && stats.debt_by_level[lvl]) || { total: 0, eligible: 0 };
+            levelCardsHTML += `
+                <div class="stat-card interactive-card" style="border-left: 4px solid ${levelColors[lvl]};" data-target-tab="boosters-list" data-level="${lvl}">
+                    <h4>${escapeHtml(levelNames[lvl])}</h4>
+                    <p class="stat-value saldo-blue-text">${formatBalance(debt.total)}</p>
+                    <div style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-top: 6px;">
+                        Apto KYC: <strong style="color: #10B981;">${formatBalance(debt.eligible)} BLUE</strong>
+                    </div>
+                </div>
+            `;
+        }
+
+        let coverageHTML = '';
+        let hasCoverage = false;
+        if (stats.coverage_by_level && Array.isArray(stats.coverage_by_level)) {
+            stats.coverage_by_level.forEach(cov => {
+                // Según la regla de negocio: solo mostrar los niveles que tengan alcance (> 0%)
+                if (cov.percentage > 0) {
+                    hasCoverage = true;
+                    let color = '#3B82F6'; // Azul para cobertura parcial
+                    
+                    if (cov.percentage === 100) {
+                        color = '#10B981'; // Verde para cobertura total
+                    }
+                    
+                    coverageHTML += `
+                        <div style="margin-bottom: 12px;">
+                            <p class="stat-value" style="color: ${color};">${cov.percentage}%</p>
+                            <div style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-top: 4px;">
+                                Nivel ${cov.level}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+        }
+        
+        if (!hasCoverage) {
+            coverageHTML = `
+                <div style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-top: 10px; text-align: center; font-style: italic;">
+                    Comisiones insuficientes para proyectar canjes en este momento.
+                </div>
+            `;
+        }
+
         elements.boostersDashboardStats.innerHTML = `
-            <div class="stat-card">
+            <div class="stat-card interactive-card" data-target-tab="boosters-list">
                 <h4>Impulsores Totales</h4>
                 <p class="stat-value">${escapeHtml(stats.total_boosters || 0)}</p>
+                <div style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-top: 4px;">
+                    Aptos KYC: <strong style="color: #10B981;">${escapeHtml(stats.eligible_boosters || 0)}</strong>
+                </div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card interactive-card" data-target-tab="boosters-list">
                 <h4>Deuda Total (BLUE de Impulsores)</h4>
                 <p class="stat-value saldo-blue-text">${formatBalance(stats.total_booster_blue_debt)}</p>
+                <div style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-top: 4px;">
+                    Apto KYC: <strong style="color: #10B981;">${formatBalance(stats.eligible_booster_blue_debt)} BLUE</strong>
+                </div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card interactive-card" data-target-section="platform-wallet">
+                <h4>Comisiones Acumuladas</h4>
+                <p class="stat-value saldo-blue-text">${formatBalance(stats.platform_commission_balance || 0)}</p>
+                <div style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-top: 4px;">
+                    Saldo de comisiones disponible en caja
+                </div>
+            </div>
+            <div class="stat-card interactive-card">
+                <h4>Proyección de Canje</h4>
+                <div style="margin-top: 8px;">
+                    ${coverageHTML}
+                </div>
+            </div>
+            <div class="stat-card interactive-card" data-target-tab="boosters-payments">
                 <h4>Total Pagado (BLUE)</h4>
                 <p class="stat-value saldo-blue-text">${formatBalance(stats.total_blue_paid_out)}</p>
+                <div style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-top: 4px;">
+                    Enviado a balance de custodia (Escrow)
+                </div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card interactive-card" data-target-tab="boosters-payments">
                 <h4>Pagos Mensuales Realizados</h4>
                 <p class="stat-value">${escapeHtml(stats.total_payments_made || 0)}</p>
+                <div style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-top: 4px;">
+                    Ciclos ejecutados por cron automático
+                </div>
             </div>
+            ${levelCardsHTML}
         `;
     }
 
     function renderBoosterList(boosters) {
         if (!elements.boostersListContainer) return;
-        if (!boosters || boosters.length === 0) {
-            elements.boostersListContainer.innerHTML = '<p class="empty-message">Aún no hay usuarios impulsores en la plataforma.</p>';
+
+        // Control de visibilidad del badge de filtro activo en la lista de impulsores
+        const filterBadgeContainer = document.getElementById('boosters-filter-badge-container');
+        const activeLevelNum = document.getElementById('active-filter-level-num');
+        
+        if (filterBadgeContainer && activeLevelNum) {
+            if (activeBoosterLevelFilter !== null) {
+                const levelNamesShort = {
+                    1: '1 (Visionario)',
+                    2: '2 (Bronce)',
+                    3: '3 (Plata)',
+                    4: '4 (Oro)',
+                    5: '5 (Platino)'
+                };
+                activeLevelNum.textContent = levelNamesShort[activeBoosterLevelFilter] || activeBoosterLevelFilter;
+                filterBadgeContainer.style.display = 'block';
+            } else {
+                filterBadgeContainer.style.display = 'none';
+            }
+        }
+
+        // Filtrar localmente en el cliente para máxima eficiencia, libre de inyección SQL
+        const filteredBoosters = activeBoosterLevelFilter
+            ? boosters.filter(b => Number(b.booster_level) === Number(activeBoosterLevelFilter))
+            : boosters;
+
+        if (!filteredBoosters || filteredBoosters.length === 0) {
+            elements.boostersListContainer.innerHTML = '<p class="empty-message">No se encontraron impulsores para este nivel en la plataforma.</p>';
             return;
         }
 
@@ -1197,16 +1465,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     <tr>
                         <th>Usuario</th>
                         <th>Nivel de Impulsor</th>
+                        <th style="text-align: center;">Estado KYC</th>
                         <th>Total BLUE de Impulsor</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${boosters.map(booster => `
+                    ${filteredBoosters.map(booster => `
                         <tr>
                             <td class="username-cell">
                                 <a href="profile.html?user=${escapeHtml(booster.username)}" target="_blank">${escapeHtml(booster.username)}</a>
                             </td>
                             <td align="center">${escapeHtml(booster.booster_level)}</td>
+                            <td align="center">
+                                ${booster.kyc_verified 
+                                    ? '<span class="status-badge active" style="background-color: #10B981; font-size: 0.75rem; padding: 4px 8px; border-radius: 12px; font-weight: bold; color: white;">Verificado</span>' 
+                                    : '<span class="status-badge" style="background-color: #EF4444; font-size: 0.75rem; padding: 4px 8px; border-radius: 12px; font-weight: bold; color: white;">No Verificado</span>'}
+                            </td>
                             <td class="saldo-blue-text">${formatBalance(booster.total_booster_blue)}</td>
                         </tr>
                     `).join('')}
@@ -1214,6 +1488,71 @@ document.addEventListener('DOMContentLoaded', () => {
             </table>
         `;
         elements.boostersListContainer.innerHTML = tableHTML;
+    }
+
+    function renderBoosterPayments(payments) {
+        if (!elements.boostersPaymentsContainer) return;
+
+        // Calcular el total de lo que se ha pagado en el historial
+        const totalPaid = payments.reduce((acc, p) => acc + (parseFloat(p.amount_paid) || 0), 0);
+        const totalCount = payments.length;
+
+        const summaryHTML = `
+            <div class="booster-payments-summary-bar" style="display: flex; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                <div class="stat-card" style="flex: 1; min-width: 250px; border-left: 4px solid #10B981; margin-bottom: 0; padding: 16px; background: var(--admin-card-bg); border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <h4 style="margin: 0; font-size: 0.9rem; color: var(--admin-text-secondary); font-weight: 500;">Total de Recompensas Liquidadas</h4>
+                    <p class="stat-value saldo-blue-text" style="margin: 8px 0 4px; font-size: 1.8rem; font-weight: 700; color: #10B981;">+${formatBalance(totalPaid)}</p>
+                    <div style="font-size: 0.8rem; color: var(--admin-text-secondary);">
+                        Suma del historial mostrado
+                    </div>
+                </div>
+                <div class="stat-card" style="flex: 1; min-width: 250px; border-left: 4px solid #3B82F6; margin-bottom: 0; padding: 16px; background: var(--admin-card-bg); border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <h4 style="margin: 0; font-size: 0.9rem; color: var(--admin-text-secondary); font-weight: 500;">Transacciones de Pago</h4>
+                    <p class="stat-value" style="margin: 8px 0 4px; font-size: 1.8rem; font-weight: 700; color: #3B82F6;">${totalCount}</p>
+                    <div style="font-size: 0.8rem; color: var(--admin-text-secondary);">
+                        Número de liquidaciones individuales
+                    </div>
+                </div>
+            </div>
+        `;
+
+        if (!payments || payments.length === 0) {
+            elements.boostersPaymentsContainer.innerHTML = summaryHTML + '<p class="empty-message">No se han registrado pagos de impulsores aún.</p>';
+            return;
+        }
+
+        const tableHTML = `
+            ${summaryHTML}
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th style="width: 200px;">Fecha de Pago</th>
+                        <th>Usuario</th>
+                        <th style="text-align: center; width: 150px;">Nivel de Pago</th>
+                        <th>Periodo Liquidado</th>
+                        <th style="text-align: right; width: 180px;">BLUE Pagado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${payments.map(payment => `
+                        <tr>
+                            <td>${new Date(payment.created_at).toLocaleString()}</td>
+                            <td class="username-cell">
+                                <a href="profile.html?user=${escapeHtml(payment.username)}" target="_blank">${escapeHtml(payment.username)}</a>
+                            </td>
+                            <td align="center">
+                                <span class="status-badge active" style="background-color: #3B82F6; font-size: 0.75rem; padding: 4px 8px; border-radius: 12px; font-weight: bold; color: white;">Nivel ${escapeHtml(payment.booster_level_at_payment)}</span>
+                            </td>
+                            <td>${new Date(payment.payment_month).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}</td>
+                            <td class="saldo-blue-text" style="font-weight: bold; color: #10B981; text-align: right;">
+                                +${formatBalance(payment.amount_paid)}
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+        elements.boostersPaymentsContainer.innerHTML = tableHTML;
     }
 
     // --- Event Handlers ---
@@ -1667,43 +2006,84 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Render Functions ---
     function renderDashboard(stats) {
         if (!elements.dashboardContainer) return;
+        let coverageHTML = '';
+        let hasCoverage = false;
+        if (stats.coverage_by_level && Array.isArray(stats.coverage_by_level)) {
+            stats.coverage_by_level.forEach(cov => {
+                if (cov.percentage > 0) {
+                    hasCoverage = true;
+                    let color = '#3B82F6'; // Azul para cobertura parcial
+                    
+                    if (cov.percentage === 100) {
+                        color = '#10B981'; // Verde para cobertura total
+                    }
+                    
+                    coverageHTML += `
+                        <div style="margin-bottom: 12px;">
+                            <p class="stat-value" style="color: ${color};">${cov.percentage}%</p>
+                            <div style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-top: 4px;">
+                                Nivel ${cov.level}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+        }
+        
+        if (!hasCoverage) {
+            coverageHTML = `
+                <div style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-top: 10px; text-align: center; font-style: italic;">
+                    Comisiones insuficientes para proyectar canjes en este momento.
+                </div>
+            `;
+        }
+
         elements.dashboardContainer.innerHTML = `
-            <div class="stat-card">
+            <div class="stat-card interactive-card" data-target-section="users">
                 <h4>Usuarios Totales</h4>
                 <p class="stat-value">${escapeHtml(stats.totalUsers || 0)}</p>
             </div>
-            <div class="stat-card">
+            <div class="stat-card interactive-card" data-target-section="publications">
                 <h4>Publicaciones Activas</h4>
                 <p class="stat-value">${escapeHtml(stats.activePublications || 0)}</p>
             </div>
-            <div class="stat-card">
+            <div class="stat-card interactive-card" data-target-section="platform-wallet">
                 <h4>BLUE en Circulación (Tokens Reales)</h4>
                 <p class="stat-value saldo-blue-text">${formatBalance(stats.totalBlue)}</p>
             </div>
-            <div class="stat-card">
+            <div class="stat-card interactive-card" data-target-section="platform-wallet">
                 <h4>RED en Circulación (Deuda Total)</h4>
                 <p class="stat-value saldo-red-text">${formatBalance(stats.totalRed)}</p>
             </div>
-            <div class="stat-card">
+            <div class="stat-card interactive-card" data-target-section="platform-wallet">
                 <h4>Comisiones Acumuladas</h4>
                 <p class="stat-value saldo-blue-text">${formatBalance(stats.platformCommissionBalance)}</p>
             </div>
+            <div class="stat-card interactive-card">
+                <h4>Proyección de Canje</h4>
+                <div style="margin-top: 8px;">
+                    ${coverageHTML}
+                </div>
+            </div>
             
-            <div class="stat-card" style="border-left: 4px solid #8B5CF6;">
+            <div class="stat-card interactive-card" style="border-left: 4px solid #8B5CF6;" data-target-section="platform-publications">
                 <h4>BLUE IOU Comprometidos (Tareas Plataforma)</h4>
                 <p class="stat-value" style="color: #8B5CF6;">${formatBalance(stats.totalPlatformEscrow || 0)}</p>
             </div>
-            <div class="stat-card" style="border-left: 4px solid #8B5CF6;">
+            <div class="stat-card interactive-card" style="border-left: 4px solid #8B5CF6;" data-target-section="platform-publications">
                 <h4>BLUE IOU en Ejecución (Fondos Asignados)</h4>
                 <p class="stat-value" style="color: #8B5CF6;">${formatBalance(stats.totalPlatformInExecution || 0)}</p>
             </div>
-            <div class="stat-card" style="border-left: 4px solid #8B5CF6;">
+            <div class="stat-card interactive-card" style="border-left: 4px solid #8B5CF6;" data-target-section="platform-publications">
                 <h4>BLUE IOU Pendientes de Pago (En Auditoría)</h4>
                 <p class="stat-value" style="color: #8B5CF6;">${formatBalance(stats.totalPlatformPendingPayment || 0)}</p>
             </div>
-            <div class="stat-card" style="border-left: 4px solid #8B5CF6;">
+            <div class="stat-card interactive-card" style="border-left: 4px solid #8B5CF6;" data-target-section="boosters">
                 <h4>BLUE IOU Entregados (Deuda Futura)</h4>
                 <p class="stat-value" style="color: #8B5CF6;">${formatBalance(stats.totalBoosterFunds || 0)}</p>
+                <div style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-top: 4px;">
+                    Apto KYC: <strong style="color: #10B981;">${formatBalance(stats.eligibleBoosterFunds || 0)} BLUE</strong>
+                </div>
             </div>
         `;
     }
@@ -2566,7 +2946,7 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.usersTableContainer.querySelectorAll('.copy-wallet-btn-admin').forEach(btn => {
             btn.addEventListener('click', function() {
                 const fullAddress = this.dataset.address;
-                navigator.clipboard.writeText(fullAddress).then(() => {
+                copyTextToClipboard(fullAddress).then(() => {
                     const originalHTML = this.innerHTML;
                     this.innerHTML = '<span style="font-size:10px; font-weight:bold; color:#059669;">✓</span>';
                     setTimeout(() => {

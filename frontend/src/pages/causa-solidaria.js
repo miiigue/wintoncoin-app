@@ -33,6 +33,24 @@ import {
 // ============================================================================
 const API_URL = getApiUrl();
 
+// Función helper para formatear porcentajes con decimales significativos cuando es menor a 0.1% pero mayor a 0
+function formatPercentage(raised, goal) {
+    if (!goal || goal <= 0) return '0.0';
+    if (raised <= 0) return '0.0';
+    
+    const pct = (raised / goal) * 100;
+    if (pct >= 0.1) {
+        return pct.toFixed(1);
+    }
+    
+    const pctStr = pct.toFixed(10);
+    const match = pctStr.match(/^0\.0*[1-9]/);
+    if (match) {
+        return match[0];
+    }
+    return pct.toFixed(6).replace(/\.?0+$/, '');
+}
+
 // ============================================================================
 // INICIALIZACIÓN
 // ============================================================================
@@ -88,6 +106,17 @@ async function loadCauseData(causeId) {
 
         // Renderizar la causa
         const cause = data.cause;
+
+        // --- REDIRECCIÓN DE ONBOARDING PARA INVITADOS ---
+        // Si el usuario no está autenticado (no hay token), lo redirigimos al registro
+        // pre-llenando el código de referido del beneficiario de la causa.
+        if (!token) {
+            const currentPath = 'causa-solidaria.html' + window.location.search;
+            const refParam = cause.beneficiary_referral_code ? `&ref=${encodeURIComponent(cause.beneficiary_referral_code)}` : '';
+            window.location.href = `register.html?returnTo=${encodeURIComponent(currentPath)}${refParam}`;
+            return;
+        }
+
         const donations = data.donations || { donations: [], summary: {} };
 
         container.innerHTML = buildCauseHTML(cause, donations);
@@ -129,12 +158,17 @@ function buildCauseHTML(cause, donations) {
     const percentageOnHold = goalAmount > 0 ? Math.min((totalOnHold / goalAmount) * 100, 100 - percentageReleased) : 0;
     const percentageTotal = percentageReleased + percentageOnHold;
 
-    // Formatear fecha de creación
-    const createdDate = new Date(cause.created_at).toLocaleDateString('es-ES', {
+    // Formatear fecha y hora de creación
+    const dateObj = new Date(cause.created_at);
+    const createdDate = dateObj.toLocaleDateString('es-ES', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
-    });
+    }) + ' a las ' + dateObj.toLocaleTimeString('es-ES', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    }) + ' hs';
 
     // Determinar si la causa alcanzó su meta o está culminada
     const isCompleted = cause.status === 'completed' || (goalAmount > 0 && totalRaised >= goalAmount);
@@ -144,7 +178,7 @@ function buildCauseHTML(cause, donations) {
     const shareIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 14 20 9 15 4"></polyline><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path></svg>`;
     // Identificar si el usuario actual es el autor para mostrar botón cancelar
     const storedUsername = localStorage.getItem('username');
-    const isOwner = cause.beneficiary_username === storedUsername;
+    const isOwner = cause.creator_username === storedUsername;
     const canCancel = isOwner && (cause.status === 'pending' || cause.status === 'approved');
 
     let badgeOrCancelBtn = '';
@@ -154,6 +188,33 @@ function buildCauseHTML(cause, donations) {
                 🛑 Cancelar y Cerrar Causa Actual
             </button>
         `;
+    }
+
+    // [Seguridad / Redirección] Resolver enlace social para el creador (influencer)
+    // El índice 0 contiene el enlace de evidencia y los siguientes índices contienen las redes del creador.
+    // Si posee redes, enlazamos externamente abriendo en una pestaña nueva por seguridad (noopener).
+    // Si no posee redes, hacemos fallback a su perfil público interno en la misma pestaña.
+    let creatorLink = `profile.html?user=${encodeURIComponent(cause.creator_username)}`;
+    let creatorTarget = '';
+    if (cause.evidence_urls && Array.isArray(cause.evidence_urls) && cause.evidence_urls.length > 1) {
+        const firstSocial = cause.evidence_urls[1];
+        if (firstSocial && firstSocial.trim() !== '') {
+            creatorLink = firstSocial.trim();
+            creatorTarget = ' target="_blank" rel="noopener noreferrer"';
+        }
+    }
+
+    // [Seguridad / Redirección] Resolver enlace social para el beneficiario
+    // Se obtiene del campo beneficiary_socials (ingresado por el influencer), tomando el primer enlace.
+    // Si posee red/web, enlazamos externamente. Si no, hacemos fallback a su perfil público interno.
+    let beneficiaryLink = `profile.html?user=${encodeURIComponent(cause.beneficiary_username)}`;
+    let beneficiaryTarget = '';
+    if (cause.beneficiary_socials && cause.beneficiary_socials.trim() !== '') {
+        const socials = cause.beneficiary_socials.trim().split(/\s+/);
+        if (socials[0] && socials[0].trim() !== '') {
+            beneficiaryLink = socials[0].trim();
+            beneficiaryTarget = ' target="_blank" rel="noopener noreferrer"';
+        }
     }
 
     return `
@@ -171,9 +232,9 @@ function buildCauseHTML(cause, donations) {
         <div class="solidario-cause-card">
             <h1 class="solidario-cause-title" id="solidarioCauseTitle">${escapeHtml(cause.title)}</h1>
             <div class="solidario-cause-meta">
-                <span>👤 ${escapeHtml(cause.beneficiary_username || 'Beneficiario')}</span>
+                <span>👤 Creador: <strong><a href="${creatorLink}"${creatorTarget} class="profile-link" style="color: #a5b4fc; text-decoration: underline;">${escapeHtml(cause.creator_username || 'Creador')}</a></strong></span>
+                ${cause.beneficiary_username && cause.beneficiary_username !== cause.creator_username ? `<span>💖 Beneficiario: <strong><a href="${beneficiaryLink}"${beneficiaryTarget} class="profile-link" style="color: #a5b4fc; text-decoration: underline;">@${escapeHtml(cause.beneficiary_username)}</a>${cause.foundation_name ? ` (${escapeHtml(cause.foundation_name)})` : ''}</strong></span>` : ''}
                 <span>📅 ${createdDate}</span>
-                <span style="display:flex; align-items:center; gap:4px; color:#e83e8c;">${heartIcon} ${countDonations} ${countDonations === 1 ? 'donación' : 'donaciones'}</span>
             </div>
             <div class="solidario-cause-story" id="solidarioCauseStory">${escapeHtml(cause.story)}</div>
         </div>
@@ -195,7 +256,7 @@ function buildCauseHTML(cause, donations) {
             </div>
             
             <div class="solidario-progress-percentage-wrapper" style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                <span class="solidario-progress-percentage">${percentageTotal.toFixed(1)}% total recaudado</span>
+                <span class="solidario-progress-percentage">${formatPercentage(totalRaised, goalAmount)}% total recaudado</span>
             </div>
 
             <div class="solidario-breakdown" style="font-size: 0.8em; color: rgba(255,255,255,0.6); margin-top: 8px; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 4px;">
@@ -225,7 +286,7 @@ function buildCauseHTML(cause, donations) {
         <!-- LISTA DE DONACIONES -->
         <div class="solidario-donations-section" id="solidarioDonationsSection">
             <div class="solidario-donations-title" style="display:flex; align-items:center; gap:8px;">
-                <span style="color:#e83e8c;">${heartIcon}</span> Donaciones recibidas
+                <span style="color:#e83e8c;">${heartIcon}</span> ${countDonations} ${countDonations === 1 ? 'Donación recibida' : 'Donaciones recibidas'}
             </div>
             <div id="solidarioDonationsList">
                 <!-- Se llena dinámicamente -->
@@ -270,7 +331,10 @@ function initDonateButton(cause) {
             // Mostrar saldo en el modal
             document.getElementById('donorBalanceDisplay').textContent = formatBalance(balance);
 
-            // Verificar si el usuario tiene KYC (consultando su estado de autenticación)
+            // Verificar si el usuario tiene KYC Web3 aprobado
+            // NOTA: Se usa kyc_verified (migración 055) y NO is_verified (email OTP)
+            // porque el mecanismo Hold & Release del Trigger de BD (migración 056/068)
+            // evalúa kyc_verified para liberar donaciones retenidas
             const userRes = await fetch(`${API_URL}/api/auth/status`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -278,7 +342,7 @@ function initDonateButton(cause) {
             let isVerified = false;
             if (userRes.ok) {
                 const userData = await userRes.json();
-                isVerified = userData.is_verified === true;
+                isVerified = userData.kyc_verified === true;
             }
 
             // Mostrar/ocultar aviso de KYC
@@ -399,20 +463,23 @@ function initShareButton(cause) {
 
     shareBtn.addEventListener('click', () => {
         const url = window.location.href;
-        const text = `💙 Ayuda a ${cause.beneficiary_username || 'un usuario'} con su causa "${cause.title}" en WintonCoin.\n\nDona tus BLUE IOU y marca la diferencia:\n${url}`;
+        // OPTIMIZACIÓN WEB SHARE API: Separar el mensaje descriptivo base del enlace URL.
+        // Evita que navegadores como Chrome/Safari en iOS/Android dupliquen el enlace al concatenarlos automáticamente.
+        const baseText = `💙 Ayuda a ${cause.beneficiary_username || 'un usuario'} con su causa "${cause.title}" en WintonCoin.\n\nDona tus BLUE IOU y marca la diferencia:`;
 
-        // Intentar usar Web Share API (nativa en móviles)
+        // Intentar usar Web Share API (nativa en móviles y navegadores compatibles)
         if (navigator.share) {
             navigator.share({
                 title: `Winton Solidario: ${cause.title}`,
-                text: text,
+                text: baseText,
                 url: url
             }).catch(() => {
-                // Si el usuario cancela, no hacer nada (es comportamiento esperado)
+                // Si el usuario cancela, no hacer nada (es comportamiento esperado del usuario)
             });
         } else {
-            // Fallback: Abrir WhatsApp web para compartir
-            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+            // FALLBACK ESCRITORIO: Concatenar manualmente el texto base y la URL para compartir en WhatsApp Web
+            const fullText = `${baseText}\n${url}`;
+            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(fullText)}`;
             window.open(whatsappUrl, '_blank');
         }
     });

@@ -386,7 +386,7 @@ exports.registerVerify = async (req, res) => {
                 await client.query('UPDATE users SET is_booster = true WHERE id = $1', [referrer.id]);
 
                 // VINCULACIÓN DE DATOS (FIX): Guardar la relación de referido en la tabla users y logs
-                await client.query('UPDATE users SET referred_by_id = $1 WHERE id = $2', [referrer.id, newUser.id]);
+                await client.query('UPDATE users SET referrer_id = $1 WHERE id = $2', [referrer.id, newUser.id]);
                 await client.query('INSERT INTO referral_log (referrer_user_id, referred_user_id) VALUES ($1, $2)', [referrer.id, newUser.id]);
 
                 await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_sent', $2, $3)`, [referrer.id, rewardAmount, `Bono por referir a ${newUser.username}`]);
@@ -879,8 +879,11 @@ exports.getAuthStatus = async (req, res) => {
         try {
             const client = await pool.connect();
             try {
+                // Consultar is_verified (email OTP) y kyc_verified (KYC Web3)
+                // kyc_verified es necesario para el mecanismo Hold & Release de
+                // Winton Solidario (migraciones 055, 056, 068)
                 const dbUser = await client.query(
-                    'SELECT is_verified, password_invalidate_before FROM users WHERE id = $1',
+                    'SELECT is_verified, kyc_verified, password_invalidate_before FROM users WHERE id = $1',
                     [user.userId]
                 );
                 if (dbUser.rows.length === 0) {
@@ -902,6 +905,7 @@ exports.getAuthStatus = async (req, res) => {
                 res.status(200).json({
                     isAuthenticated: true,
                     is_verified: row.is_verified,
+                    kyc_verified: row.kyc_verified, // NUEVO: KYC Web3 para Winton Solidario Hold & Release
                     username: user.username,
                     requires_terms_acceptance: legalStatus.requires_terms_acceptance,
                     pending_documents: legalStatus.pending_documents

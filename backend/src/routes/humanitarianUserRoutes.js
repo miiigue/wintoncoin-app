@@ -23,7 +23,156 @@ const { submitCause, donateToCause, getCauseDonations } = require('../services/h
 const pool = require('../config/db');
 
 // ============================================================================
-// TODAS LAS RUTAS REQUIEREN AUTENTICACIÓN DE USUARIO
+// MIDDLEWARE PARA AUTENTICACIÓN OPCIONAL (INVITADOS)
+// ============================================================================
+// Permite que usuarios invitados (sin token JWT) puedan ver causas y
+// publicaciones públicas, pero los identifica si están logueados para
+// verificar si son dueños de la causa.
+// ============================================================================
+const optionalAuthenticateToken = (req, res, next) => {
+    let token = req.cookies ? req.cookies.auth_token : null;
+
+    if (!token) {
+        const authHeader = req.headers['authorization'];
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.split(' ')[1];
+        }
+    }
+
+    if (!token) {
+        // No hay token, continuar de forma segura como invitado
+        return next();
+    }
+
+    const jwt = require('jsonwebtoken');
+    jwt.verify(token, process.env.JWT_SECRET, async (err, user) => {
+        if (err) {
+            // Token inválido o expirado, pero como es opcional, continuamos como invitado
+            return next();
+        }
+
+        try {
+            // Verificar si la sesión no fue invalidada por cambio de contraseña
+            const result = await pool.query(
+                'SELECT password_invalidate_before FROM users WHERE id = $1',
+                [user.userId]
+            );
+            if (result.rows.length > 0 && result.rows[0].password_invalidate_before) {
+                const invalidateBefore = new Date(result.rows[0].password_invalidate_before);
+                const tokenIssuedAt = new Date((user.iat || 0) * 1000);
+
+                if (tokenIssuedAt < invalidateBefore) {
+                    return next();
+                }
+            }
+        } catch (dbError) {
+            console.error('[AUTH OPTIONAL] Error al verificar invalidación de sesión:', dbError);
+        }
+
+        req.user = user;
+        next();
+    });
+};
+
+// ============================================================================
+// RUTAS DE CAUSAS ACCESIBLES POR INVITADOS (AUTENTICACIÓN OPCIONAL)
+// ============================================================================
+
+// ============================================================================
+// GET /api/humanitarian/causes/approved — Causas aprobadas (para el marketplace)
+// ============================================================================
+router.get('/causes/approved', optionalAuthenticateToken, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                hc.id, hc.title, hc.story, hc.goal_amount, hc.current_amount,
+                hc.evidence_urls, hc.created_at, hc.foundation_name,
+                u.username AS creator_username,
+                b.username AS beneficiary_username,
+                COALESCE(hc.beneficiary_referral_code, u.referral_code) AS beneficiary_referral_code
+            FROM humanitarian_causes hc
+            JOIN users u ON hc.user_id = u.id
+            LEFT JOIN users b ON hc.beneficiary_referral_code = b.referral_code
+            WHERE hc.status = 'approved'
+            ORDER BY hc.created_at DESC
+        `);
+
+        // Agregar información de donaciones en hold para cada causa
+        const causesWithDetails = [];
+        for (const cause of result.rows) {
+            const holdRes = await pool.query(`
+                SELECT COALESCE(SUM(amount), 0) AS total_on_hold
+                FROM humanitarian_donations
+                WHERE cause_id = $1 AND status = 'on_hold'
+            `, [cause.id]);
+
+            causesWithDetails.push({
+                ...cause,
+                amount_on_hold: parseFloat(holdRes.rows[0].total_on_hold)
+            });
+        }
+
+        res.json({ success: true, causes: causesWithDetails });
+    } catch (err) {
+        console.error('[SOLIDARIO] Error al obtener causas aprobadas:', err);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+});
+
+// ============================================================================
+// GET /api/humanitarian/causes/:id — Detalle de una causa específica
+// ============================================================================
+router.get('/causes/:id', optionalAuthenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Validar ID numérico (prevención de inyección)
+        if (isNaN(parseInt(id))) {
+            return res.status(400).json({ message: 'ID de causa inválido.' });
+        }
+
+        const result = await pool.query(`
+            SELECT 
+                hc.*, 
+                u.username AS creator_username,
+                b.username AS beneficiary_username,
+                COALESCE(hc.beneficiary_referral_code, u.referral_code) AS beneficiary_referral_code
+            FROM humanitarian_causes hc
+            JOIN users u ON hc.user_id = u.id
+            LEFT JOIN users b ON hc.beneficiary_referral_code = b.referral_code
+            WHERE hc.id = $1
+        `, [id]);
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: 'Causa no encontrada.' });
+        }
+
+        const cause = result.rows[0];
+
+        // Solo permitir ver causas aprobadas, completadas o propias
+        const isPubliclyViewable = ['approved', 'completed'].includes(cause.status);
+        const isOwner = req.user && cause.user_id === req.user.userId;
+        if (!isPubliclyViewable && !isOwner) {
+            return res.status(403).json({ message: 'No tienes permiso para ver esta causa.' });
+        }
+
+        // Obtener resumen de donaciones
+        const donationSummary = await getCauseDonations(parseInt(id));
+
+        res.json({
+            success: true,
+            cause,
+            donations: donationSummary
+        });
+
+    } catch (err) {
+        console.error('[SOLIDARIO] Error al obtener detalle de causa:', err);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+});
+
+// ============================================================================
+// TODAS LAS DEMÁS RUTAS REQUIEREN AUTENTICACIÓN DE USUARIO OBLIGATORIA
 // ============================================================================
 router.use(authenticateToken);
 
@@ -104,93 +253,6 @@ router.post('/causes/:id/cancel', async (req, res) => {
     } catch (err) {
         console.error('[SOLIDARIO] Error al cancelar causa:', err);
         res.status(500).json({ message: 'Error interno o de base de datos.' });
-    }
-});
-
-// Empty replacement to remove lines
-
-// ============================================================================
-// GET /api/humanitarian/causes/approved — Causas aprobadas (para el marketplace)
-// ============================================================================
-router.get('/causes/approved', async (req, res) => {
-    try {
-        const result = await pool.query(`
-            SELECT 
-                hc.id, hc.title, hc.story, hc.goal_amount, hc.current_amount,
-                hc.evidence_urls, hc.created_at,
-                u.username AS beneficiary_username
-            FROM humanitarian_causes hc
-            JOIN users u ON hc.user_id = u.id
-            WHERE hc.status = 'approved'
-            ORDER BY hc.created_at DESC
-        `);
-
-        // Agregar información de donaciones en hold para cada causa
-        const causesWithDetails = [];
-        for (const cause of result.rows) {
-            const holdRes = await pool.query(`
-                SELECT COALESCE(SUM(amount), 0) AS total_on_hold
-                FROM humanitarian_donations
-                WHERE cause_id = $1 AND status = 'on_hold'
-            `, [cause.id]);
-
-            causesWithDetails.push({
-                ...cause,
-                amount_on_hold: parseFloat(holdRes.rows[0].total_on_hold)
-            });
-        }
-
-        res.json({ success: true, causes: causesWithDetails });
-    } catch (err) {
-        console.error('[SOLIDARIO] Error al obtener causas aprobadas:', err);
-        res.status(500).json({ message: 'Error interno del servidor.' });
-    }
-});
-
-// ============================================================================
-// GET /api/humanitarian/causes/:id — Detalle de una causa específica
-// ============================================================================
-router.get('/causes/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        // Validar ID numérico (prevención de inyección)
-        if (isNaN(parseInt(id))) {
-            return res.status(400).json({ message: 'ID de causa inválido.' });
-        }
-
-        const result = await pool.query(`
-            SELECT 
-                hc.*, 
-                u.username AS beneficiary_username
-            FROM humanitarian_causes hc
-            JOIN users u ON hc.user_id = u.id
-            WHERE hc.id = $1
-        `, [id]);
-
-        if (result.rowCount === 0) {
-            return res.status(404).json({ message: 'Causa no encontrada.' });
-        }
-
-        const cause = result.rows[0];
-
-        // Solo permitir ver causas aprobadas o propias
-        if (cause.status !== 'approved' && cause.user_id !== req.user.userId) {
-            return res.status(403).json({ message: 'No tienes permiso para ver esta causa.' });
-        }
-
-        // Obtener resumen de donaciones
-        const donationSummary = await getCauseDonations(parseInt(id));
-
-        res.json({
-            success: true,
-            cause,
-            donations: donationSummary
-        });
-
-    } catch (err) {
-        console.error('[SOLIDARIO] Error al obtener detalle de causa:', err);
-        res.status(500).json({ message: 'Error interno del servidor.' });
     }
 });
 

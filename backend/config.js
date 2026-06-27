@@ -11,10 +11,12 @@ const envPath = path.resolve(__dirname, `../.env.${env}`);
 const result = require('dotenv').config({ path: envPath });
 
 if (result.error) {
-    // Solo muestra un error si el archivo que no se encuentra no es el de producción.
-    // Es común no tener un .env.production en el entorno de desarrollo local.
-    if (env !== 'production') {
-        console.warn(`Advertencia: No se pudo encontrar el archivo de entorno en ${envPath}. Asegúrate de que exista.`);
+    // Intentar cargar desde el archivo local de la carpeta backend (ej: backend/.env.demo.local)
+    const fallbackPath = path.resolve(__dirname, `./.env.${env}.local`);
+    const fallbackResult = require('dotenv').config({ path: fallbackPath });
+    
+    if (fallbackResult.error && env !== 'production') {
+        console.warn(`Advertencia: No se pudo encontrar el archivo de entorno en ${envPath} ni en ${fallbackPath}. Asegúrate de que exista.`);
     }
 }
 

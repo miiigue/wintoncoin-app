@@ -139,18 +139,21 @@ async function initializeEstadoCuenta() {
         elements.copyBtn.addEventListener('click', () => {
             // Verificación de seguridad: abortamos de inmediato si no hay billetera válida o si estamos en fase de pre-lanzamiento
             if(!isValidAddress || applyPreLaunchUI) return;
-            // Realizamos la escritura segura en el portapapeles del cliente usando la API del navegador
-            navigator.clipboard.writeText(address);
-            // Retroalimentación visual al usuario cambiando el texto temporalmente
-            elements.copyBtn.textContent = 'Copiado ✓';
-            elements.copyBtn.style.background = 'rgba(16, 185, 129, 0.4)';
-            elements.copyBtn.style.color = '#fff';
-            // Restauramos el estado del botón después de 2 segundos de manera asíncrona
-            setTimeout(() => {
-                elements.copyBtn.textContent = 'Copiar';
-                elements.copyBtn.style.background = '';
-                elements.copyBtn.style.color = '';
-            }, 2000);
+            // Realizamos la escritura segura en el portapapeles del cliente usando el helper unificado
+            copyTextToClipboard(address).then(() => {
+                // Retroalimentación visual al usuario cambiando el texto temporalmente
+                elements.copyBtn.textContent = 'Copiado ✓';
+                elements.copyBtn.style.background = 'rgba(16, 185, 129, 0.4)';
+                elements.copyBtn.style.color = '#fff';
+                // Restauramos el estado del botón después de 2 segundos de manera asíncrona
+                setTimeout(() => {
+                    elements.copyBtn.textContent = 'Copiar';
+                    elements.copyBtn.style.background = '';
+                    elements.copyBtn.style.color = '';
+                }, 2000);
+            }).catch(err => {
+                console.error('Error al copiar: ', err);
+            });
         });
 
         // 2. Liquidez BLUE

@@ -21,7 +21,7 @@
  * - Manejo de errores: Captura y loguea sin detener el servidor.
  */
 
-const { ethers } = require('ethers');
+const { ethers, NonceManager } = require('ethers');
 const pool = require('../config/db');
 
 // ============================================================================
@@ -48,8 +48,8 @@ class Web3BridgeService {
         // Crear el proveedor de conexión a la red Optimism Sepolia.
         this.provider = new ethers.JsonRpcProvider(RPC_URL);
 
-        // Crear la billetera del Relayer con la llave privada del .env.
-        this.wallet = RELAYER_PK ? new ethers.Wallet(RELAYER_PK, this.provider) : null;
+        // Envolver la billetera en un NonceManager para escalabilidad masiva (Soporta alta concurrencia sin colisiones de Nonce)
+        this.wallet = RELAYER_PK ? new NonceManager(new ethers.Wallet(RELAYER_PK, this.provider)) : null;
 
         // ABI mínima del WintonProtocol: solo las funciones que necesitamos llamar.
         this.protocolAbi = [
@@ -403,7 +403,8 @@ class Web3BridgeService {
 
             // Ejecutar la transacción on-chain: setKYCStatus(address, bool).
             console.log(`[WEB3 BRIDGE] 🔐 ${status ? 'Aprobando' : 'Revocando'} KYC para ${walletAddress}...`);
-            const tx = await protocol.setKYCStatus(walletAddress, status);
+            // Hardcoded gasLimit to bypass Ethers v6 estimateGas bug on OP Sepolia public RPC
+            const tx = await protocol.setKYCStatus(walletAddress, status, { gasLimit: 100000 });
 
             // Esperar confirmación en la blockchain (1 bloque mínimo).
             const txHash = await this._waitForConfirmation(tx, 'setKYCStatus');

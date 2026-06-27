@@ -335,11 +335,11 @@ exports.createOrder = async (req, res) => {
         }
 
         await client.query(
-            `SELECT record_balance_event($1, 'withdrawal', 'liquid_blue', $2, NULL)`,
+            `SELECT record_balance_event($1::INTEGER, 'withdrawal'::TEXT, 'liquid_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`,
             [sellerBalance.id, blueAmount]
         );
         await client.query(
-            `SELECT record_balance_event($1, 'deposit', 'escrow_blue', $2, NULL)`,
+            `SELECT record_balance_event($1::INTEGER, 'deposit'::TEXT, 'escrow_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`,
             [sellerBalance.id, blueAmount]
         );
         await logAuditEvent(client, req, {
@@ -503,11 +503,11 @@ exports.releaseOrder = async (req, res) => {
         }
 
         await client.query(
-            `SELECT record_balance_event($1, 'withdrawal', 'escrow_blue', $2, NULL)`,
+            `SELECT record_balance_event($1::INTEGER, 'withdrawal'::TEXT, 'escrow_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`,
             [sellerId, order.blue_amount]
         );
         await client.query(
-            `SELECT record_balance_event($1, 'deposit', 'liquid_blue', $2, NULL)`,
+            `SELECT record_balance_event($1::INTEGER, 'deposit'::TEXT, 'liquid_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`,
             [buyerId, order.blue_amount]
         );
         await logAuditEvent(client, req, {
@@ -595,11 +595,11 @@ exports.cancelOrder = async (req, res) => {
         }
 
         await client.query(
-            `SELECT record_balance_event($1, 'withdrawal', 'escrow_blue', $2, NULL)`,
+            `SELECT record_balance_event($1::INTEGER, 'withdrawal'::TEXT, 'escrow_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`,
             [sellerId, order.blue_amount]
         );
         await client.query(
-            `SELECT record_balance_event($1, 'deposit', 'liquid_blue', $2, NULL)`,
+            `SELECT record_balance_event($1::INTEGER, 'deposit'::TEXT, 'liquid_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`,
             [sellerId, order.blue_amount]
         );
         await logAuditEvent(client, req, {
@@ -848,11 +848,11 @@ exports.resolveDisputeAdmin = async (req, res) => {
                 throw { status: 404, message: 'Usuarios de la orden no encontrados.' };
             }
             await client.query(
-                `SELECT record_balance_event($1, 'withdrawal', 'escrow_blue', $2, NULL)`,
+                `SELECT record_balance_event($1::INTEGER, 'withdrawal'::TEXT, 'escrow_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`,
                 [sellerId, dispute.blue_amount]
             );
             await client.query(
-                `SELECT record_balance_event($1, 'deposit', 'liquid_blue', $2, NULL)`,
+                `SELECT record_balance_event($1::INTEGER, 'deposit'::TEXT, 'liquid_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`,
                 [buyerId, dispute.blue_amount]
             );
             await client.query(
@@ -869,11 +869,11 @@ exports.resolveDisputeAdmin = async (req, res) => {
                 throw { status: 404, message: 'Vendedor no encontrado.' };
             }
             await client.query(
-                `SELECT record_balance_event($1, 'withdrawal', 'escrow_blue', $2, NULL)`,
+                `SELECT record_balance_event($1::INTEGER, 'withdrawal'::TEXT, 'escrow_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`,
                 [sellerId, dispute.blue_amount]
             );
             await client.query(
-                `SELECT record_balance_event($1, 'deposit', 'liquid_blue', $2, NULL)`,
+                `SELECT record_balance_event($1::INTEGER, 'deposit'::TEXT, 'liquid_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`,
                 [sellerId, dispute.blue_amount]
             );
             await client.query(

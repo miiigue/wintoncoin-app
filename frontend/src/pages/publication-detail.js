@@ -32,10 +32,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Initialization ---
-    if (!storedUsername) {
-        showCustomAlert('Debes iniciar sesión para ver esta página.', () => { window.location.href = 'index.html'; });
-        return;
-    }
     if (!publicationId) {
         showCustomAlert('No se ha especificado una publicación.', () => { window.location.href = 'contract_interaction.html'; });
         return;
@@ -48,7 +44,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!response.ok) return {};
                 return response.json();
             });
-            const publicationPromise = fetch(`${API_URL}/api/publications/${publicationId}?user=${storedUsername}`);
+
+            const userParam = storedUsername ? `?user=${storedUsername}` : '';
+            const publicationPromise = fetch(`${API_URL}/api/publications/${publicationId}${userParam}`);
 
             const [_, platformSettings, publicationResponse] = await Promise.all([settingsPromise, platformSettingsPromise, publicationPromise]);
 
@@ -58,6 +56,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const publication = await publicationResponse.json();
+
+            // --- REDIRECCIÓN DE ONBOARDING PARA INVITADOS ---
+            // Si el visitante es un invitado (no autenticado), procedemos de la siguiente manera:
+            if (!storedUsername || !storedToken) {
+                const currentPath = 'publication-detail.html' + window.location.search;
+                if (publication.category === 'donation') {
+                    // Campaña de Donación: Redirigir al registro inyectando el código de referido del beneficiario
+                    const refParam = publication.beneficiary_referral_code ? `&ref=${encodeURIComponent(publication.beneficiary_referral_code)}` : '';
+                    window.location.href = `register.html?returnTo=${encodeURIComponent(currentPath)}${refParam}`;
+                    return;
+                } else {
+                    // Otra publicación: Redirigir al registro estándar
+                    window.location.href = `register.html?returnTo=${encodeURIComponent(currentPath)}`;
+                    return;
+                }
+            }
 
             // --- NUEVO: Mostrar Modal Intersticial si es necesario ---
             if (publication.preflight_modal && !modalDismissed) {
@@ -126,6 +140,15 @@ document.addEventListener('DOMContentLoaded', () => {
             ? `<a href="profile.html?user=${encodeURIComponent(pub.author_username)}" class="profile-link">${safeAuthor}</a>`
             : safeAuthor;
 
+        let beneficiaryHTML = '';
+        if (isDonation && pub.beneficiary_username) {
+            const safeBeneficiary = escapeHtml(pub.beneficiary_username);
+            const beneficiaryLinkHTML = appSettings.public_profiles_enabled
+                ? `<a href="profile.html?user=${encodeURIComponent(pub.beneficiary_username)}" class="profile-link">@${safeBeneficiary}</a>`
+                : `@${safeBeneficiary}`;
+            beneficiaryHTML = `<div class="detail-beneficiary" style="margin-top: 8px; font-size: 0.95rem; color: #e83e8c;">🎁 Campaña a beneficio de: <strong>${beneficiaryLinkHTML}</strong></div>`;
+        }
+
         const expirationInfo = getExpirationStatusHTML(pub);
         const shareButtonHTML = `
             <button class="share-link-button" data-action="share" aria-label="Compartir publicación">
@@ -183,6 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="detail-date">el ${new Date(pub.created_at).toLocaleDateString()}</span>
                     ${expirationInfo.html}
                 </div>
+                ${beneficiaryHTML}
             </div>
 
             <div class="share-button-container">
@@ -819,22 +843,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const publicationUrl = window.location.href;
 
-            const textToShare = `Hola!
+            const baseText = `Hola!
 Te comparto esta publicacion,te puede ser util
 
 "${title}" por ${author}
-Puedes ver los detalles aquí:
-${publicationUrl}`;
+Puedes ver los detalles aquí:`;
 
             if (navigator.share) {
+                // OPTIMIZACIÓN WEB SHARE API: No incluimos la URL dentro de baseText para la llamada nativa,
+                // ya que la API del navegador la añadirá automáticamente de forma unificada.
                 await navigator.share({
                     title: `Tarea en WintonCoin: ${title}`,
-                    text: textToShare,
+                    text: baseText,
                     url: publicationUrl,
                 });
                 showCustomAlert('¡Gracias por compartir!');
             } else {
-                await navigator.clipboard.writeText(textToShare);
+                // FALLBACK ESCRITORIO: Concatenar el texto descriptivo con la URL antes de copiar al portapapeles.
+                const fullText = `${baseText}\n${publicationUrl}`;
+                await copyTextToClipboard(fullText);
                 showCustomAlert('¡Mensaje para compartir copiado al portapapeles!');
             }
 

@@ -48,6 +48,270 @@
     
     <!-- Componente Premium Sidebar -->
     <script src="src/components/sidebar.js"></script>
+    
+    <!-- Estilos de Emergencia Terremoto Venezuela (Premium & Responsivo) -->
+    <style>
+        .emergency-banner {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(185, 28, 28, 0.95));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            margin: 15px auto 25px auto;
+            max-width: 1200px;
+            box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3);
+            animation: slideDown-emb 0.5s ease-out;
+            z-index: 10;
+            position: relative;
+        }
+
+        @keyframes slideDown-emb {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .emergency-banner-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .emergency-badge {
+            background: white;
+            color: #b91c1c;
+            font-weight: 800;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 50px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .emergency-text {
+            flex: 1;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: white;
+            min-width: 250px;
+        }
+
+        .emergency-banner-btn {
+            background: white;
+            color: #b91c1c;
+            border: none;
+            border-radius: 50px;
+            padding: 8px 20px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        .emergency-banner-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.25);
+            background: #f8fafc;
+        }
+
+        .emergency-banner-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 300;
+            cursor: pointer;
+            line-height: 1;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+            padding: 0 5px;
+        }
+
+        .emergency-banner-close:hover {
+            opacity: 1;
+        }
+
+        /* Modal Emergencia */
+        .venezuela-emergency-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100000;
+            animation: fadeIn-emb 0.4s ease;
+        }
+
+        @keyframes fadeIn-emb {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .venezuela-emergency-modal {
+            background: #0b0b14;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 24px;
+            max-width: 500px;
+            width: 90%;
+            overflow: hidden;
+            box-shadow: 0 25px 60px rgba(239, 68, 68, 0.15);
+            transform: scale(0.9);
+            animation: scaleUp-emb 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes scaleUp-emb {
+            to { transform: scale(1); }
+        }
+
+        .venezuela-emergency-banner-img {
+            height: 220px;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+
+        .venezuela-emergency-img-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, rgba(11, 11, 20, 0.1), rgba(11, 11, 20, 0.95));
+            display: flex;
+            align-items: flex-end;
+            padding: 1.5rem;
+        }
+
+        .venezuela-emergency-badge {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            font-weight: 800;
+            font-size: 0.7rem;
+            padding: 5px 12px;
+            border-radius: 50px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .venezuela-emergency-body {
+            padding: 2rem;
+        }
+
+        .venezuela-emergency-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 1rem;
+        }
+
+        .venezuela-emergency-text {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #e2e8f0;
+            margin-bottom: 1rem;
+        }
+
+        .venezuela-emergency-subtext {
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: #94a3b8;
+            margin-bottom: 1.8rem;
+        }
+
+        .venezuela-emergency-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .venezuela-emergency-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .venezuela-emergency-btn.confirm {
+            background: linear-gradient(135deg, #ef4444, #b91c1c);
+            border: none;
+            color: white;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+        }
+
+        .venezuela-emergency-btn.confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+        }
+
+        .venezuela-emergency-btn.secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+        }
+
+        .venezuela-emergency-btn.secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        /* Responsividad Móvil */
+        @media (max-width: 600px) {
+            .emergency-banner {
+                padding: 0.8rem 1rem;
+                margin: 10px auto 15px auto;
+            }
+            
+            .emergency-banner-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .emergency-text {
+                font-size: 0.85rem;
+                min-width: 100%;
+            }
+            
+            .emergency-banner-btn {
+                width: 100%;
+                text-align: center;
+            }
+
+            .venezuela-emergency-body {
+                padding: 1.5rem;
+            }
+
+            .venezuela-emergency-title {
+                font-size: 1.3rem;
+            }
+
+            .venezuela-emergency-text {
+                font-size: 0.85rem;
+            }
+
+            .venezuela-emergency-subtext {
+                font-size: 0.78rem;
+                margin-bottom: 1.2rem;
+            }
+            
+            .venezuela-emergency-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+        }
+    </style>
 </head>
 
 <body>
@@ -126,6 +390,17 @@
                 <h1 class="main-title">
                     <span class="logo-winton">Winton</span><span class="logo-coin">Coin</span>
                 </h1>
+            </div>
+        </div>
+
+        <!-- Banner de Emergencia Terremoto Venezuela (Persistente / Dismissible) -->
+        <div id="venezuelaEmergencyBanner" class="emergency-banner" style="display: none;">
+            <div class="emergency-banner-content">
+                <span class="emergency-badge">🚨 EMERGENCIA VENEZUELA</span>
+                <!-- OPTIMIZACIÓN DE COPYWRITING: Cambiado a plural para reflejar los dos sismos de la emergencia -->
+                <span class="emergency-text">Dos Terremotos en Venezuela. Dona tus BLUE IOU acumulados gratis para apoyar.</span>
+                <button id="emergencyBannerBtn" class="emergency-banner-btn">Ver Causas</button>
+                <button id="closeEmergencyBanner" class="emergency-banner-close" aria-label="Cerrar">&times;</button>
             </div>
         </div>
         <!-- =============================================================== -->
@@ -309,55 +584,7 @@
             </div><!-- /.referral-promo-card -->
         </div><!-- /.referral-motivation-section -->
 
-        <!-- =============================================================== -->
-        <!-- == TARJETA WINTON SOLIDARIO (Visible solo si tiene causa)     == -->
-        <!-- =============================================================== -->
-        <div id="solidarioDashboardCard" class="solidario-dashboard-card"
-            style="display: none; cursor: pointer; position: relative;">
-            <div class="solidario-card-header" style="justify-content: space-between;">
-                <div style="display: flex; align-items: center;">
-                    <span class="solidario-card-icon" style="color: #e83e8c;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-                            fill="currentColor" stroke="none">
-                            <path
-                                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                        </svg>
-                    </span>
-                    <span class="solidario-card-title" id="solidarioCardHeaderTitle" style="font-size: 0.9rem;">Winton
-                        Solidario</span>
-                </div>
-            </div>
-            <div class="solidario-card-body">
-                <div class="solidario-card-cause-title" id="solidarioCardCauseTitle">--</div>
-                <div class="solidario-card-progress">
-                    <div class="solidario-card-progress-bar" style="display: flex;">
-                        <div class="solidario-card-progress-fill" id="solidarioCardProgressFill"
-                            style="width: 0%; height: 100%; padding:0; margin:0;"></div>
-                        <div class="solidario-card-progress-fill-hold" id="solidarioCardProgressFillHold"
-                            style="width: 0%; height: 100%; padding:0; margin:0; background: repeating-linear-gradient(45deg, rgba(232, 62, 140, 0.4), rgba(232, 62, 140, 0.4) 10px, rgba(232, 62, 140, 0.6) 10px, rgba(232, 62, 140, 0.6) 20px);">
-                        </div>
-                    </div>
-                    <div class="solidario-card-progress-text">
-                        <span id="solidarioCardAmount" style="color: #ffffff; font-weight: 700;">0</span> / <span
-                            id="solidarioCardGoal">0</span> BLUE IOU
-                    </div>
-                </div>
-            </div>
-
-            <div class="solidario-history-link-container" id="solidarioHistoryLinkContainer"
-                style="display:none; text-align: center; margin-top: 12px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px;">
-                <a href="#" id="solidarioHistoryBtn"
-                    style="color: #94a3b8; font-size: 0.85rem; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; transition: color 0.3s;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 3v18h18" />
-                        <path d="M18 9l-5 5-4-4-4 4" />
-                        <path d="M14 15l4 4" />
-                    </svg>
-                    Ver historial de mis causas
-                </a>
-            </div>
-        </div>
+        <!-- La tarjeta de Winton Solidario (Causas Humanitarias) ha sido reubicada al feed general de publicaciones activas para mejorar visibilidad y consistencia del marketplace. -->
 
         <div class="publications-section">
 
@@ -758,7 +985,31 @@
     <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
 
+    <!-- Modal de Emergencia Terremoto Venezuela (Opción 3 - Blend Premium) -->
+    <div id="venezuelaEmergencyModal" class="venezuela-emergency-modal-overlay" style="display: none;">
+        <div class="venezuela-emergency-modal">
+            <div class="venezuela-emergency-banner-img" style="background-image: url('./assets/images/venezuela_earthquake_banner.png');">
+                <div class="venezuela-emergency-img-overlay">
+                    <span class="venezuela-emergency-badge">Campaña de Ayuda</span>
+                </div>
+            </div>
+            <div class="venezuela-emergency-body">
+                <!-- OPTIMIZACIÓN DE COPYWRITING: Título en plural que describe con precisión la campaña de dos terremotos -->
+                <h3 class="venezuela-emergency-title">SOS Venezuela: Dos Terremotos</h3>
+                <p class="venezuela-emergency-text">
+                    Dos terremotos devastadores han afectado a Venezuela. Familias enteras se encuentran damnificadas y necesitan alimentos, refugio y auxilio de forma urgente.
+                </p>
+                <p class="venezuela-emergency-subtext">
+                    Si puedes ayudar desde donde estés donando tus tokens <strong>BLUE IOU</strong> acumulados de forma totalmente gratuita. El 100% de las donaciones llega a causas verificadas.
+                </p>
+                <div class="venezuela-emergency-actions">
+                    <button class="venezuela-emergency-btn confirm" id="venezuelaEmergencyDonateBtn">❤️ Ir a Donar</button>
+                    <button class="venezuela-emergency-btn secondary" id="venezuelaEmergencyCloseBtn">Quizás más tarde</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
         </div> <!-- Cierre del dashboard-main-content -->
 </body>
-
 </html>

@@ -428,6 +428,7 @@ async function applyMigrations(client) {
             due_at TIMESTAMPTZ NOT NULL,
             is_settled BOOLEAN NOT NULL DEFAULT FALSE,
             is_penalized BOOLEAN NOT NULL DEFAULT FALSE,
+            settled_at TIMESTAMPTZ DEFAULT NULL,
             created_at TIMESTAMPTZ DEFAULT NOW()
         );`,
             `CREATE TABLE IF NOT EXISTS app_settings (
@@ -474,6 +475,7 @@ async function applyMigrations(client) {
             user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             amount NUMERIC(19, 4) NOT NULL,
             source_publication_id INTEGER REFERENCES publications(id) ON DELETE SET NULL,
+            type VARCHAR(50) NOT NULL DEFAULT 'legacy_entry',
             created_at TIMESTAMPTZ DEFAULT NOW()
         );`,
             `CREATE TABLE IF NOT EXISTS booster_payment_log (
@@ -860,6 +862,7 @@ async function initializeDatabase() {
             due_at TIMESTAMPTZ NOT NULL,
             is_settled BOOLEAN NOT NULL DEFAULT FALSE,
             is_penalized BOOLEAN NOT NULL DEFAULT FALSE,
+            settled_at TIMESTAMPTZ DEFAULT NULL,
             created_at TIMESTAMPTZ DEFAULT NOW()
         );`,
         `CREATE TABLE IF NOT EXISTS app_settings (
@@ -885,6 +888,14 @@ async function initializeDatabase() {
             related_publication_id INT NOT NULL,
             related_user_transaction_id INT, -- El ID de la transacción de usuario que generó esta comisión
             commission_amount_blue NUMERIC(19, 4) NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        );`,
+        `CREATE TABLE IF NOT EXISTS platform_wallet_log (
+            id SERIAL PRIMARY KEY,
+            transaction_type VARCHAR(50) NOT NULL, -- ej: 'burn', 'booster_payout'
+            amount NUMERIC(19, 4) NOT NULL,
+            related_username VARCHAR(255),
+            description TEXT,
             created_at TIMESTAMPTZ DEFAULT NOW()
         );`,
         // --- NUEVA TABLA PARA EL SISTEMA DE REFERIDOS ---
@@ -996,6 +1007,30 @@ async function initializeDatabase() {
             comment TEXT,
             created_at TIMESTAMPTZ DEFAULT NOW(),
             UNIQUE (order_id, rater_username)
+        );`,
+        `CREATE TABLE IF NOT EXISTS email_broadcasts (
+            id SERIAL PRIMARY KEY,
+            admin_id INTEGER NOT NULL REFERENCES users(id),
+            subject VARCHAR(255) NOT NULL,
+            title VARCHAR(255),
+            body TEXT NOT NULL,
+            target_group VARCHAR(50) NOT NULL, -- 'all', 'verified', 'booster', 'specific'
+            target_username VARCHAR(255),
+            total_recipients INTEGER DEFAULT 0,
+            sent_count INTEGER DEFAULT 0,
+            failed_count INTEGER DEFAULT 0,
+            status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'sending', 'completed', 'failed'
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            button_text VARCHAR(50),
+            button_url VARCHAR(255)
+        );`,
+        `CREATE TABLE IF NOT EXISTS email_broadcast_recipients (
+            id SERIAL PRIMARY KEY,
+            broadcast_id INTEGER REFERENCES email_broadcasts(id) ON DELETE CASCADE,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'sent', 'failed'
+            error_message TEXT,
+            sent_at TIMESTAMP WITH TIME ZONE
         );`
     ];
 
@@ -1208,8 +1243,10 @@ async function initializeDatabase() {
             LANGUAGE plpgsql
             AS $$
             BEGIN
-                INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id)
-                VALUES (p_user_id, p_amount, p_publication_id);
+                -- Modificado para insertar el parámetro p_type de forma nativa en la columna type
+                -- garantizando auditabilidad profunda y rastreo en el ledger.
+                INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id, type)
+                VALUES (p_user_id, p_amount, p_publication_id, p_type);
             END;
             $$;
         `);

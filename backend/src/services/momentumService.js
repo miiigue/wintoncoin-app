@@ -14,6 +14,9 @@
 
 'use strict';
 
+// Importamos helper centralizado para niveles de booster (garantiza consistencia contable)
+const { updateUserBoosterLevel } = require('./publicationService');
+
 // Jerarquía de tiers para comparaciones de nivel
 const TIER_HIERARCHY = {
     PENDIENTE: 0,
@@ -589,23 +592,10 @@ async function approveSubmission(client, submissionId, adminUserId, adminNote, b
     // 8. Marcar al usuario como booster si no lo es
     await client.query('UPDATE users SET is_booster = TRUE WHERE id = $1', [submission.user_id]);
 
-    // 9. Recalcular nivel de impulsor
-    // NOTA: copiamos la lógica de updateUserBoosterLevel() aquí porque
-    // esa función está definida dentro de startServer() en server.js y
-    // no es exportable. Es la misma lógica: sumamos booster_blue_ledger
-    // y buscamos el nivel máximo alcanzado.
-    const totalBlueResult = await client.query(
-        'SELECT SUM(amount) as total FROM booster_blue_ledger WHERE user_id = $1',
-        [submission.user_id]
-    );
-    const totalBoosterBlue = parseFloat(totalBlueResult.rows[0].total) || 0;
-
-    const levelResult = await client.query(
-        'SELECT MAX(level) as current_level FROM booster_level_settings WHERE min_blue_required <= $1',
-        [totalBoosterBlue]
-    );
-    const newLevel = levelResult.rows[0].current_level || 0;
-    await client.query('UPDATE users SET booster_level = $1 WHERE id = $2', [newLevel, submission.user_id]);
+    // 9. Recalcular nivel de impulsor de forma centralizada y atómica
+    // Importado desde publicationService para evitar código duplicado y mantener DRY.
+    // Esto garantiza que el nivel se recalcule basándose únicamente en ganancias acumuladas históricas.
+    await updateUserBoosterLevel(client, submission.user_id);
 
     // 10. Crear notificación in-app
     await client.query(

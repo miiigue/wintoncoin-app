@@ -14,13 +14,48 @@ const SETTINGS_DISPLAY_MAP = {
     'blue_escrow_hours': 'Duración del Depósito BLUE (Escrow) — Horas',
     'blue_escrow_minutes': 'Duración del Depósito BLUE (Escrow) — Minutos',
     'platform_commission_percentage': 'Comisión de Plataforma (%)',
+    // --- SISTEMA DE IMPULSORES (BOOSTERS) ---
+    // Controla si se activa la lógica de los impulsores y sus pagos.
     'booster_system_enabled': 'Sistema de Impulsores',
+    // Determina si se habilitan los pagos periódicos con tiempos personalizados.
+    'booster_custom_frequency_enabled': 'Impulsores — Activar Intervalo de Pago Personalizado (Switch)',
+    // Cantidad de días del intervalo personalizado de pagos de impulsores.
+    'booster_payment_frequency_days': 'Impulsores — Intervalo de Pago Personalizado (Días)',
+    // Cantidad de horas del intervalo personalizado de pagos de impulsores.
+    'booster_payment_frequency_hours': 'Impulsores — Intervalo de Pago Personalizado (Horas)',
+    // Cantidad de minutos del intervalo personalizado de pagos de impulsores.
+    'booster_payment_frequency_minutes': 'Impulsores — Intervalo de Pago Personalizado (Minutos)',
+    // --- SISTEMA DE REFERIDOS (REFERRALS) ---
+    // Indica si el sistema de referidos en general está activo.
     'referral_system_enabled': 'Sistema de Referidos',
+    // Monto estándar pagado en tokens BLUE al referente/referido.
     'referral_reward_amount': 'Recompensa por Referido (BLUE)',
+    // Monto alterno pagado después del vencimiento de la promoción de referidos.
     'referral_reward_after_expiry': 'Recompensa después de la Promo (BLUE)',
+    // Fecha en la que vence la promoción especial de recompensas por referidos.
     'referral_codes_expiry_date': 'Vigencia de Códigos de Referido',
+    // Parámetros heredados (Legacy) para soporte de retrocompatibilidad y auditoría.
+    'referral_bonus_amount': 'Recompensa por Referido Legacy (Monto BLUE)',
+    'referral_bonus_enabled': 'Recompensa por Referido Legacy (Switch Habilitado)',
+    // --- BONO DE BIENVENIDA (WELCOME BONUS) ---
+    // Indica si se paga un bono de bienvenida a cuentas nuevas.
     'welcome_bonus_enabled': 'Bono de Bienvenida',
+    // Monto inicial del bono de bienvenida para nuevos registros.
     'welcome_bonus_amount': 'Monto del Bono de Bienvenida (BLUE)',
+    // --- MODAL INTERSTICIAL & MODO PRE-LANZAMIENTO ---
+    // Habilita el modal diario de motivación e información en el Dashboard.
+    'global_app_interstitial_enabled': 'General — Activar Modal Diario Intersticial',
+    // Título dinámico para el modal de noticias diarias del Dashboard.
+    'daily_modal_title': 'Modal Diario — Título Informativo',
+    // Textos informativos de lunes a domingo para avisos operacionales.
+    'daily_modal_mon': 'Modal Diario — Mensaje de Lunes',
+    'daily_modal_tue': 'Modal Diario — Mensaje de Martes',
+    'daily_modal_wed': 'Modal Diario — Mensaje de Miércoles',
+    'daily_modal_thu': 'Modal Diario — Mensaje de Jueves',
+    'daily_modal_fri': 'Modal Diario — Mensaje de Viernes',
+    'daily_modal_sat': 'Modal Diario — Mensaje de Sábado',
+    'daily_modal_sun': 'Modal Diario — Mensaje de Domingo',
+    // Indica si el sistema está operando en pre-lanzamiento.
     'pre_launch_mode_enabled': 'Modo Pre-Lanzamiento',
     'allow_request_publications': 'Permitir Publicaciones de "Solicitud"',
     'allow_sell_publications': 'Permitir Publicaciones de "Venta"',

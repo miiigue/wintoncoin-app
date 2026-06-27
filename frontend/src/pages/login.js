@@ -86,10 +86,14 @@ function _getSafeReturnTo(raw) {
     if (value.includes('://') || value.startsWith('//')) return null;
     if (value.includes('javascript:') || value.includes('data:')) return null;
 
+    // SEGURIDAD FINTECH (SOC 2): Whitelist estricta de páginas internas permitidas para redirección segura
+    // previniendo cualquier ataque de redirección abierta (Open Redirect) hacia dominios externos maliciosos.
     const ALLOWED_PAGES = [
         'governance-panel.html',
         'contract_interaction.html',
         'admin-panel.html',
+        'causa-solidaria.html',
+        'publication-detail.html'
     ];
 
     const pagePart = value.split('?')[0].replace(/^\//, '');
@@ -180,6 +184,18 @@ function initializeLoginPage() {
     initializePolicyModal();
     initializeLoginForm();
     initPWAInstall(); // Inicializar botón de instalación PWA
+
+    // OPTIMIZACIÓN DE ADQUISICIÓN: Si existe returnTo en la URL, propagarlo al enlace de registro (Registrarse)
+    // para asegurar que si el usuario decide crearse una cuenta en lugar de ingresar con una existente,
+    // el contexto de redirección original no se pierda.
+    const urlParams = new URLSearchParams(window.location.search);
+    const returnTo = urlParams.get('returnTo');
+    if (returnTo) {
+        const registerLink = document.querySelector('a[href="register.html"], a.secondary-action-button');
+        if (registerLink) {
+            registerLink.href = `register.html?returnTo=${encodeURIComponent(returnTo)}`;
+        }
+    }
 }
 
 // Inicializar cuando el DOM esté listo

@@ -34,7 +34,8 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             duration_days, duration_hours, duration_minutes,
             allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours,
             repeatCooldownDays, repeatCooldownMinutes,
-            goalAmount // Nuevo campo recogido del frontend
+            goalAmount, // Nuevo campo recogido del frontend
+            beneficiaryReferralCode // CÓDIGO DE REFERIDO: Recibido en campañas de donación
         } = req.body;
 
         if (!title || !description || !authorUsername || (!blueCost && !blueSell && !goalAmount) || !publicationType) {
@@ -45,6 +46,22 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         try {
             // --- INICIO DE LA TRANSACCIÓN ---
             await client.query('BEGIN');
+
+            // --- VALIDACIÓN DE REFERIDO DE BENEFICIARIO PARA DONACIONES ---
+            // Asegurar que el código ingresado por el influencer pertenezca a un usuario registrado
+            // y activo antes de proceder con el guardado de la publicación.
+            let beneficiaryUser = null;
+            if (publicationType === 'donation') {
+                if (!beneficiaryReferralCode || !beneficiaryReferralCode.trim()) {
+                    throw { status: 400, message: "El código de referido del beneficiario es requerido para campañas de donación." };
+                }
+                const cleanRefCode = beneficiaryReferralCode.trim().toUpperCase();
+                const beneficiaryRes = await client.query('SELECT id, username FROM users WHERE referral_code = $1', [cleanRefCode]);
+                if (beneficiaryRes.rowCount === 0) {
+                    throw { status: 400, message: "El código de referido del beneficiario no es válido o no está registrado." };
+                }
+                beneficiaryUser = beneficiaryRes.rows[0];
+            }
 
             // 1. VERIFICAR PERMISOS DE PUBLICACIÓN Y CARGAR CONFIGURACIÓN ECONÓMICA
             // Se cargan tanto los permisos de tipo de publicación como los parámetros
@@ -228,9 +245,9 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             const sql = `
                         INSERT INTO publications
-                            (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, category, expires_at, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, show_preflight_modal, goal_amount)
+                            (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, category, expires_at, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, show_preflight_modal, goal_amount, beneficiary_referral_code)
                         VALUES
-                            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
                         RETURNING id
                     `;
             const result = await client.query(sql, [
@@ -247,7 +264,8 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 maxRepeat,
                 repeatCooldown,
                 !!req.body.show_preflight_modal,
-                goal
+                goal,
+                beneficiaryUser ? beneficiaryUser.referral_code : null
             ]);
 
             await logAuditEvent(client, req, {
@@ -1549,11 +1567,8 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
     // --- NUEVO: Endpoint para obtener los detalles completos de UNA SOLA publicación ---
     router.get('/api/publications/:id', async (req, res) => {
         const { id } = req.params;
-        const { user: requestingUser } = req.query; // Necesitamos saber quién está pidiendo la info
-
-        if (!requestingUser) {
-            return res.status(400).json({ message: "Se requiere el nombre de usuario que realiza la solicitud." });
-        }
+        // COMPATIBILIDAD DE INVITADOS: El usuario solicitante es opcional para permitir consultas públicas ( crawlers / SEO / onboarding )
+        const requestingUser = req.query.user || null;
 
         const client = await pool.connect();
         try {
@@ -1564,10 +1579,11 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 p.id, p.title, p.description, p.blue_cost, p.status, p.created_at, p.is_paused,
                 p.is_sell_post, p.available_slots, p.category, p.expires_at,
                 p.is_quick_sale, p.target_username, p.form_fields, p.show_preflight_modal,
-                p.goal_amount, p.current_amount,
+                p.goal_amount, p.current_amount, p.beneficiary_referral_code,
                 u.username as author_username,
                 u.average_rating as author_average_rating,
                 u.ratings_count as author_ratings_count,
+                b.username as beneficiary_username,
                 -- Obtenemos el estado de aceptación del usuario que está solicitando la página
                 (
                     SELECT pa_user.status 
@@ -1596,6 +1612,8 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 publications p
             JOIN
                 users u ON p.author_id = u.id
+            LEFT JOIN
+                users b ON p.beneficiary_referral_code = b.referral_code
             WHERE
                 p.id = $1;
         `;

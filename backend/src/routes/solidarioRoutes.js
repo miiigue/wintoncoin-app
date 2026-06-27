@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
 const { logAuditEvent } = require('../services/auditService');
+const { authenticateToken } = require('../middleware/authMiddleware');
 
 // =================================================================================
 // ==  ENDPOINT PARA VALIDAR CAUSAS ACTIVAS DE UN USUARIO (SOLIDARIO)           ==
@@ -32,21 +33,50 @@ router.get('/check-active/:username', async (req, res) => {
 });
 
 // =================================================================================
+// ==  ENDPOINT PARA VALIDAR CÓDIGO DE REFERIDO (SOLIDARIO)                       ==
+// =================================================================================
+router.get('/check-referral/:code', async (req, res) => {
+    const { code } = req.params;
+    try {
+        const result = await pool.query('SELECT username FROM users WHERE UPPER(referral_code) = UPPER($1)', [code.trim()]);
+        if (result.rowCount === 0) {
+            return res.json({ exists: false });
+        }
+        return res.json({ exists: true, username: result.rows[0].username });
+    } catch (err) {
+        console.error('Error checking referral code:', err.message);
+        return res.status(500).json({ error: 'Database error' });
+    }
+});
+
+// =================================================================================
 // ==  ENDPOINT DE POSTULACIÓN SOLIDARIA (CASOS HUMANITARIOS)                    ==
 // ==  Usa la tabla humanitarian_causes creada por migración 038                 ==
 // ==  Seguridad: Validación de URL, límites de longitud, sanitización           ==
 // =================================================================================
-router.post('/postulacion', async (req, res) => {
-    const { username, titulo, historia, meta, evidencia_link, redes_sociales } = req.body;
+router.post('/postulacion', authenticateToken, async (req, res) => {
+    const { username, titulo, historia, meta, evidencia_link, redes_sociales, beneficiary_referral_code, foundation_name, beneficiary_socials } = req.body;
+
+    // --- VALIDACIÓN DE COHERENCIA DE SEGURIDAD (ANTI-SPOOFING) ---
+    // Impide que un usuario autenticado postule causas en nombre de otro usuario
+    if (!req.user || !req.user.username || req.user.username.toLowerCase() !== username.trim().toLowerCase()) {
+        return res.status(403).json({ message: "Acceso denegado: No puedes postular una causa en nombre de otro usuario." });
+    }
 
     // --- VALIDACIÓN 1: Campos obligatorios ---
-    if (!username || !titulo || !historia || !meta || !evidencia_link || !redes_sociales) {
-        return res.status(400).json({ message: "Todos los campos son obligatorios, incluyendo tus redes sociales." });
+    if (!username || !titulo || !historia || !meta || !evidencia_link || !redes_sociales || !beneficiary_referral_code || !foundation_name) {
+        return res.status(400).json({ message: "Todos los campos son obligatorios, incluyendo el nombre de la fundación y el código de referido del beneficiario." });
     }
 
     // --- VALIDACIÓN 2: Límites de longitud (Prevención de payload excesivo) ---
     if (username.length > 50) {
         return res.status(400).json({ message: "El nombre de usuario es demasiado largo." });
+    }
+    if (beneficiary_referral_code.length > 50) {
+        return res.status(400).json({ message: "El código de referido es demasiado largo." });
+    }
+    if (foundation_name.length > 255) {
+        return res.status(400).json({ message: "El nombre de la fundación no puede exceder 255 caracteres." });
     }
     if (titulo.length > 255) {
         return res.status(400).json({ message: "El título no puede exceder 255 caracteres." });
@@ -57,11 +87,17 @@ router.post('/postulacion', async (req, res) => {
     if (evidencia_link.length > 2048) {
         return res.status(400).json({ message: "El enlace de evidencia es demasiado largo." });
     }
+    if (beneficiary_socials && beneficiary_socials.length > 1000) {
+        return res.status(400).json({ message: "Los enlaces de redes sociales del beneficiario no pueden exceder 1000 caracteres." });
+    }
 
-    // --- VALIDACIÓN 3: Monto numérico positivo ---
+    // --- VALIDACIÓN 3: Monto numérico positivo, finito y controlado ---
     const goalAmount = parseFloat(meta);
-    if (isNaN(goalAmount) || goalAmount <= 0) {
-        return res.status(400).json({ message: "La meta debe ser un número positivo." });
+    if (isNaN(goalAmount) || goalAmount <= 0 || !isFinite(goalAmount)) {
+        return res.status(400).json({ message: "La meta debe ser un número positivo y finito válido." });
+    }
+    if (goalAmount > 100000000) {
+        return res.status(400).json({ message: "La meta no puede exceder los 100,000,000 de BLUE IOU por seguridad y consistencia." });
     }
 
     // --- VALIDACIÓN 4: URL segura (solo HTTPS para proteger la integridad) ---
@@ -82,22 +118,44 @@ router.post('/postulacion', async (req, res) => {
             }
             redesArray.push(link);
         }
+
+        // Procesar redes sociales del beneficiario si las hay (separadas por espacio)
+        if (beneficiary_socials && beneficiary_socials.trim() !== '') {
+            const redesCrudasBeneficiary = beneficiary_socials.trim().split(/\s+/);
+            for (const link of redesCrudasBeneficiary) {
+                if (!link) continue;
+                const urlRedes = new URL(link);
+                if (urlRedes.protocol !== 'https:') {
+                    return res.status(400).json({ message: "Todos los enlaces de redes sociales del beneficiario deben usar HTTPS." });
+                }
+            }
+        }
     } catch (e) {
         return res.status(400).json({ message: "Uno de los enlaces proporcionados no es válido. Asegúrate de incluir https://" });
     }
 
     try {
-        // 1. Verificar que el usuario existe en la base de datos (Seguridad: doble verificación)
+        // 1. Verificar que el usuario creador existe en la base de datos
         const userResult = await pool.query(
             'SELECT id FROM users WHERE LOWER(username) = LOWER($1)',
             [username.trim()]
         );
         if (userResult.rowCount === 0) {
-            return res.status(404).json({ message: "El usuario no existe en el sistema." });
+            return res.status(404).json({ message: "El usuario creador no existe en el sistema." });
         }
         const userId = userResult.rows[0].id;
 
-        // --- NUEVO: Validar que el usuario no tenga otra causa activa ('pending' o 'approved') ---
+        // 2. Verificar que el beneficiario existe y obtener su código limpio
+        const cleanRefCode = beneficiary_referral_code.trim().toUpperCase();
+        const beneficiaryRes = await pool.query(
+            'SELECT id FROM users WHERE referral_code = $1',
+            [cleanRefCode]
+        );
+        if (beneficiaryRes.rowCount === 0) {
+            return res.status(400).json({ message: "El código de referido del beneficiario no es válido o no está registrado." });
+        }
+
+        // --- VALIDAR: Que el usuario no tenga otra causa activa ('pending' o 'approved') ---
         const activeCausesCheck = await pool.query(`
             SELECT id FROM humanitarian_causes 
             WHERE user_id = $1 AND status IN ('pending', 'approved')
@@ -107,13 +165,13 @@ router.post('/postulacion', async (req, res) => {
             return res.status(400).json({ message: "Actualmente posees una causa en curso o en revisión. Debes culminarla antes de postular una nueva." });
         }
 
-        // 2. Insertar en la tabla humanitarian_causes (Migración 038)
+        // 3. Insertar en la tabla humanitarian_causes (Migración 038 + 071 + 072 + 073)
         const allUrls = [evidencia_link.trim(), ...redesArray];
         const evidenceUrls = JSON.stringify(allUrls);
         const insertSql = `
             INSERT INTO humanitarian_causes 
-            (user_id, title, story, goal_amount, evidence_urls, status)
-            VALUES ($1, $2, $3, $4, $5::jsonb, 'pending')
+            (user_id, title, story, goal_amount, evidence_urls, status, beneficiary_referral_code, foundation_name, beneficiary_socials)
+            VALUES ($1, $2, $3, $4, $5::jsonb, 'pending', $6, $7, $8)
             RETURNING id, created_at
         `;
         const result = await pool.query(insertSql, [
@@ -121,10 +179,13 @@ router.post('/postulacion', async (req, res) => {
             titulo.trim(),
             historia.trim(),
             goalAmount,
-            evidenceUrls
+            evidenceUrls,
+            cleanRefCode,
+            foundation_name.trim(),
+            beneficiary_socials ? beneficiary_socials.trim() : null
         ]);
 
-        // 3. Registrar en Auditoría (Estándar Bancario: Trazabilidad total)
+        // 4. Registrar en Auditoría (Estándar Bancario: Trazabilidad total)
         await logAuditEvent(pool, req, {
             eventType: 'SOLIDARIO_POSTULACION',
             actorUsername: username.trim(),
@@ -132,11 +193,14 @@ router.post('/postulacion', async (req, res) => {
             metadata: {
                 cause_id: result.rows[0].id,
                 title: titulo.trim(),
-                goal_amount: goalAmount
+                goal_amount: goalAmount,
+                beneficiary_referral_code: cleanRefCode,
+                foundation_name: foundation_name.trim(),
+                beneficiary_socials: beneficiary_socials ? beneficiary_socials.trim() : null
             }
         });
 
-        // 4. Notificación in-app
+        // 5. Notificación in-app
         await pool.query(
             `INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`,
             [

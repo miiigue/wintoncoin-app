@@ -161,8 +161,8 @@
                     <div class="loading-spinner"></div>
                 </div>
 
-                <!-- Historial de Comisiones -->
-                <h2>Historial de Comisiones</h2>
+                <!-- Historial de Transacciones -->
+                <h2>Historial de Transacciones</h2>
                 <div id="platform-commission-log-container" class="table-container-admin">
                     <div class="loading-spinner"></div>
                 </div>
@@ -779,7 +779,6 @@
             <!-- Booster Management Section -->
             <section id="boosters-section" class="admin-section">
                 <h1>Impulsores</h1>
-                <p>Configura, monitorea y gestiona el programa de Impulsores de la plataforma.</p>
 
                 <div class="admin-tabs">
                     <button class="tab-link active" data-tab="boosters-dashboard">Dashboard</button>
@@ -790,8 +789,6 @@
                 </div>
 
                 <div id="boosters-dashboard-tab" class="tab-content active">
-                    <h2>Dashboard de Impulsores</h2>
-                    <p>Resumen del estado actual del programa.</p>
                     <div id="boosters-dashboard-stats" class="stats-container">
                         <div class="loading-spinner"></div>
                     </div>
@@ -817,6 +814,13 @@
                 <div id="boosters-list-tab" class="tab-content">
                     <h2>Lista de Impulsores</h2>
                     <p>Todos los usuarios que participan en el programa.</p>
+                    <!-- Contenedor del badge del filtro de nivel activo con diseño premium coherente -->
+                    <div id="boosters-filter-badge-container" style="margin-bottom: 15px; display: none;">
+                        <span class="filter-badge" style="background: rgba(10, 132, 255, 0.15); color: var(--admin-primary); padding: 6px 14px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(10, 132, 255, 0.3);">
+                            Filtrado por: Nivel <span id="active-filter-level-num" style="color: #fff;"></span>
+                            <button id="clear-booster-filter-btn" style="background: none; border: none; color: #ff453a; cursor: pointer; font-weight: 800; padding: 0 4px; font-size: 1.1rem; line-height: 1;" title="Limpiar filtro">✕</button>
+                        </span>
+                    </div>
                     <div id="boosters-list-container" class="table-container-admin">
                         <div class="loading-spinner"></div>
                     </div>

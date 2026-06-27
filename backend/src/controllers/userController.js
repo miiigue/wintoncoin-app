@@ -208,6 +208,13 @@ const UserController = {
                             [isKycVerified, userId]
                         );
                         console.log(`[API BALANCE] ✅ Sincronización KYC: DB actualizada de ${dbKycStatus} a ${isKycVerified} para usuario #${userId}`);
+
+                        // Si cambia a true, disparar de forma segura el envío de correos de donaciones liberadas
+                        if (isKycVerified === true) {
+                            const humanitarianService = require('../services/humanitarianService');
+                            humanitarianService.processAndSendEmailsForReleasedDonations(userId)
+                                .catch(e => console.error(`[API BALANCE] Error al procesar correos de liberación tras KYC para usuario #${userId}:`, e.message));
+                        }
                     } catch (syncErr) {
                         console.error(`[API BALANCE] ⚠️ Error al sincronizar KYC en DB para usuario #${userId}:`, syncErr.message);
                     }
@@ -472,12 +479,67 @@ const UserController = {
                 ORDER BY p.created_at DESC
             `;
 
-            const [authoredResult, completedResult] = await Promise.all([
+            // [Auditoría] Query para obtener causas solidarias postuladas por el usuario actual.
+            // Esto permite que el historial del usuario incluya tanto tareas comerciales como causas humanitarias.
+            // Se mapean los campos equivalentes para mantener la compatibilidad con el frontend.
+            const causesSql = `
+                SELECT
+                    hc.id,
+                    hc.user_id AS author_id,
+                    hc.title,
+                    hc.story AS description, -- 'story' mapeado a 'description' para consistencia en UI
+                    hc.goal_amount AS blue_cost, -- 'goal_amount' mapeado a 'blue_cost' para el indicador financiero
+                    hc.current_amount,
+                    hc.status,
+                    hc.created_at,
+                    u.username AS author_username,
+                    TRUE AS is_humanitarian -- Flag explícito para diferenciar del flujo de tareas regulares
+                FROM humanitarian_causes hc
+                JOIN users u ON hc.user_id = u.id
+                WHERE hc.user_id = $1
+                ORDER BY hc.created_at DESC
+            `;
+
+            // [Auditoría] Query para obtener el historial de donaciones realizadas por este usuario.
+            // Permite al usuario rastrear el estado contable de sus contribuciones solidarias (on_hold, released, refunded).
+            const donationsSql = `
+                SELECT
+                    hd.id AS donation_id,
+                    hd.amount,
+                    hd.status AS donation_status,
+                    hd.created_at AS donation_created_at,
+                    hc.id AS cause_id,
+                    hc.title AS cause_title,
+                    hc.status AS cause_status,
+                    u.username AS creator_username
+                FROM humanitarian_donations hd
+                JOIN humanitarian_causes hc ON hd.cause_id = hc.id
+                JOIN users u ON hc.user_id = u.id
+                WHERE hd.donor_id = $1
+                ORDER BY hd.created_at DESC
+            `;
+
+            // [Auditoría / Trazabilidad] Ejecución concurrente optimizada mediante Promise.all
+            const [authoredResult, completedResult, causesResult, donationsResult] = await Promise.all([
                 pool.query(authoredSql, [userId]),
-                pool.query(completedSql, [username])
+                pool.query(completedSql, [username]),
+                pool.query(causesSql, [userId]), // Consultar causas del usuario
+                pool.query(donationsSql, [userId]) // [Auditoría] Consultar donaciones realizadas
             ]);
 
-            res.status(200).json({ authored: authoredResult.rows, completed: completedResult.rows });
+            // [Optimización] Fusión segura en memoria de publicaciones y causas solidarias.
+            // Para las publicaciones comerciales se agrega 'is_humanitarian: false' explícitamente.
+            const combinedAuthored = [
+                ...authoredResult.rows.map(r => ({ ...r, is_humanitarian: false })),
+                ...causesResult.rows.map(r => ({ ...r, is_humanitarian: true }))
+            ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); // Ordenación descendente por fecha de creación
+
+            // [Auditoría] Responder con estado HTTP 200 y la información debidamente estructurada
+            res.status(200).json({ 
+                authored: combinedAuthored, 
+                completed: completedResult.rows,
+                donations: donationsResult.rows // Incluir donaciones realizadas
+            });
         } catch (err) {
             console.error("Error al obtener historial (/api/me/history):", err.message);
             res.status(500).json({ message: "Error interno del servidor." });
@@ -504,7 +566,7 @@ const UserController = {
         // [Rendimiento] Adquirir un cliente específico del pool de conexiones para transacciones concurrentes
         const client = await pool.connect();
         try {
-            // [Auditoría / Integridad] Sumatoria histórica consolidada del saldo BLUE IOU directamente de la fuente de verdad (Ledger)
+            // [Auditoría / Integridad] Sumatoria neta disponible para transacciones (compras/donaciones)
             const totalResult = await client.query(
                 'SELECT COALESCE(SUM(amount), 0) AS total FROM booster_blue_ledger WHERE user_id = $1',
                 [userId]
@@ -512,8 +574,15 @@ const UserController = {
             // Convertir el resultado a número flotante para consistencia de operaciones matemáticas
             const totalBoosterBlue = parseFloat(totalResult.rows[0].total) || 0;
 
-            // [Lógica de Negocio] Validar si el usuario forma parte activa del programa de impulsores
-            if (totalBoosterBlue <= 0) {
+            // [Auditoría] Sumatoria de ganancias acumuladas históricas (amount > 0) para cálculo de niveles y membresía de booster
+            const totalEarnedResult = await client.query(
+                'SELECT COALESCE(SUM(amount), 0) AS total_earned FROM booster_blue_ledger WHERE user_id = $1 AND amount > 0',
+                [userId]
+            );
+            const totalBoosterBlueEarned = parseFloat(totalEarnedResult.rows[0].total_earned) || 0;
+
+            // [Lógica de Negocio] Validar si el usuario forma parte activa basándose en sus ganancias históricas
+            if (totalBoosterBlueEarned <= 0) {
                 return res.json({
                     is_booster: false,
                     message: 'Aún no formas parte del programa de impulsores.'
@@ -563,10 +632,10 @@ const UserController = {
                 ),
                 // B) Configuración global de todos los niveles del sistema
                 client.query('SELECT * FROM booster_level_settings ORDER BY level ASC'),
-                // C) Calcular el nivel actual del usuario basado en el total acumulado de BLUE iou
+                // C) Calcular el nivel actual del usuario basado en el total acumulado de BLUE iou histórico (ganancias)
                 client.query(
                     'SELECT MAX(level) AS current_level FROM booster_level_settings WHERE min_blue_required <= $1',
-                    [totalBoosterBlue]
+                    [totalBoosterBlueEarned]
                 ),
                 // D) Contar la cantidad de tareas individuales completadas por el impulsor
                 client.query(
@@ -775,13 +844,21 @@ const UserController = {
 
             const user = userResult.rows[0];
 
+            // Sumatoria neta disponible para transacciones
             const totalResult = await client.query(
                 'SELECT COALESCE(SUM(amount), 0) AS total FROM booster_blue_ledger WHERE user_id = $1',
                 [user.id]
             );
             const totalBoosterBlue = parseFloat(totalResult.rows[0].total) || 0;
 
-            if (totalBoosterBlue <= 0) {
+            // Sumatoria de ganancias acumuladas históricas (amount > 0) para niveles y membresía de booster
+            const totalEarnedResult = await client.query(
+                'SELECT COALESCE(SUM(amount), 0) AS total_earned FROM booster_blue_ledger WHERE user_id = $1 AND amount > 0',
+                [user.id]
+            );
+            const totalBoosterBlueEarned = parseFloat(totalEarnedResult.rows[0].total_earned) || 0;
+
+            if (totalBoosterBlueEarned <= 0) {
                 return res.json({
                     is_booster: false,
                     message: 'Este usuario aún no forma parte del programa de impulsores.'
@@ -830,7 +907,7 @@ const UserController = {
                 client.query('SELECT * FROM booster_level_settings ORDER BY level ASC'),
                 client.query(
                     'SELECT MAX(level) AS current_level FROM booster_level_settings WHERE min_blue_required <= $1',
-                    [totalBoosterBlue]
+                    [totalBoosterBlueEarned]
                 ),
                 client.query(
                     `SELECT COUNT(*) AS tasks_completed

@@ -19,6 +19,22 @@ La tabla `publication_acceptances` utiliza `acceptor_username` (VARCHAR) como ll
 
 ---
 
+## 0.6. Refactorización de Llaves Foráneas en Deudas, Escrows y P2P (Deuda Técnica — Opción B.2)
+
+**Prioridad: Alta (Deuda Técnica)**
+
+**Problema Actual:**
+Múltiples tablas del dominio financiero y de intercambio peer-to-peer de la base de datos (tales como `red_token_debts`, `blue_token_escrows`, `p2p_offers`, `p2p_orders`, `p2p_disputes`, `p2p_ratings`) continúan vinculadas a la identidad de los usuarios a través del campo `username` (VARCHAR) en lugar de una referencia a su identificador de clave primaria inmutable `user_id` (INTEGER). 
+
+Esto contraviene los estándares de seguridad SOC 2, leyes FinTech y las mejores prácticas de auditoría bancaria. El uso de cadenas de texto mutables aumenta el costo de indexación y arriesga la consistencia relacional de la plataforma en producción en caso de que se implementen flujos de cambio de nombre de usuario o eliminación (Derecho al Olvido / GDPR).
+
+**Solución Propuesta:**
+1. **Mapeo y Backfill en base de datos**: Asegurar la integridad de claves foráneas `FOREIGN KEY` indexadas sobre `user_id`.
+2. **Refactorización del Backend**: Modificar todos los servicios financieros (`financialCoreService.js`), de publicaciones (`publicationService.js`), controladores de usuario (`userController.js`), panel de administración (`adminController.js`) y el controlador modular P2P (`p2pController.js`) para que las consultas y actualizaciones operen y filtren estrictamente por `user_id = $1` en lugar de `username = $1`.
+3. **Migración de Vistas del Frontend**: Sincronizar el envío de identificadores desde el cliente Web3 e interfaces administrativas.
+
+---
+
 ## 0. Blindar Configuraciones Críticas con RBAC + MFA
 
 **Prioridad: Urgente (primer paso)**
