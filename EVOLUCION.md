@@ -19,12 +19,20 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
-### 2026-06-26 — Ajuste de Copywriting en Modal de Campaña de Emergencia Terremoto Venezuela
+### 2026-06-26 — Corrección de Regresión Crítica de Signos en el Procesamiento de Balances (Migración 074)
+
+- **Contexto**: Durante la simplificación de la función almacenada `record_balance_event` en la migración `067`, se eliminó la lógica de condicionales de signos basada en el tipo de evento. Esto causó que eventos del tipo `withdrawal`, `payment_sent`, `charge` y `penalty` que recibieran valores positivos incrementaran los balances en lugar de disminuirlos, rompiendo la coherencia contable y de balances en los procesos de liberación de escrows y operaciones P2P.
+- **Decisión de Ingeniería**:
+  - **Nueva Migración SQL (`074_fix_record_balance_event_regression.js`)**: Se recreó la función almacenada `record_balance_event` en la base de datos PostgreSQL mediante un script idempotente transaccional que restituye la correcta inversión de signos. Mapea depósitos a valores positivos y retiros a negativos, almacenando el monto absoluto en el ledger inmutable `balance_events` para auditoría contable/Event Sourcing limpia.
+- **Impacto**: Se garantizó la integridad contable de partida doble en el ecosistema financiero local, erradicando un bug crítico de inflación y duplicación infinita de tokens en el cron de liberación y P2P. Las pruebas del backend Jest (`npm test`) se completaron exitosamente, confirmando la estabilidad del cambio.
+- **Archivos modificados**: [074_fix_record_balance_event_regression.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/074_fix_record_balance_event_regression.js), [EVOLUCION.md](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/EVOLUCION.md)
+
+### 2026-06-26 — Ajuste de Copywriting en Modal y Banner de Campaña de Emergencia Terremoto Venezuela
 
 - **Contexto**: Se requería pulir y ajustar el tono de los textos del modal de emergencia de Venezuela (`contract_interaction.html`) para adaptarlo a las nuevas directrices de comunicación de la plataforma (mencionar dos terremotos devastadores, simplificar los textos aclarando la gratuidad de la donación de tokens BLUE IOU sin rodeos comerciales de referidos y asegurar que el 100% de las donaciones llegue a causas verificadas).
 - **Decisión de Ingeniería**:
-  - **Edición de Contenido HTML (`contract_interaction.html`)**: Se reemplazó el texto del primer párrafo para referir en plural a *"Dos terremotos devastadores"*. En el subtexto, se sustituyó *"Puedes marcar la diferencia hoy mismo"* por *"Si puedes ayudar desde donde estés"*, se removió la cláusula *"por tus referidos"* para limpiar el mensaje de incentivos indirectos y se reformuló el reclamo final a *"El 100% de las donaciones llega a causas verificadas"*.
-- **Impacto**: Se logró un mensaje de onboarding solidario más directo, transparente y enfocado en la acción de ayuda humanitaria genuina y directa.
+  - **Edición de Contenido HTML (`contract_interaction.html`)**: Se reemplazó el texto del primer párrafo para referir en plural a *"Dos terremotos devastadores"*. En el subtexto, se sustituyó *"Puedes marcar la diferencia hoy mismo"* por *"Si puedes ayudar desde donde estés"*, se removió la cláusula *"por tus referidos"* para limpiar el mensaje de incentivos indirectos y se reformuló el reclamo final a *"El 100% de las donaciones llega a causas verificadas"*. Adicionalmente, se actualizaron el título del modal a *"SOS Venezuela: Dos Terremotos"* y el texto del banner superior a *"Dos Terremotos en Venezuela"*, corrigiendo la inconsistencia del singular original.
+- **Impacto**: Se logró un mensaje de onboarding solidario más directo, transparente y enfocado en la acción de ayuda humanitaria genuina, con copywriting consistente a nivel visual en toda la app.
 - **Archivos modificados**: `frontend/contract_interaction.html`, `EVOLUCION.md`
 
 ### 2026-06-26 — Corrección de Permisos de Visualización Pública para Causas Culminadas/Completadas
