@@ -19,14 +19,15 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
-### 2026-06-27 — Adecuación Legal y Actualización del Plazo del Escrow Solidario a 150 Días (Migración 075)
+### 2026-06-27 — Adecuación Legal y Actualización del Plazo del Escrow Solidario a 150 Días (Migraciones 075 y 076)
 
-- **Contexto**: Se requería blindar legalmente a la plataforma frente a normativas financieras (SEC, Howey Test) y de transmisión de dinero, y adaptar el plazo de custodia de donaciones solidarias. Dado que la plataforma no cuenta temporalmente con un proveedor de KYC Web3 y para evitar que usuarios malintencionados eviten deliberadamente la verificación a corto plazo para recuperar sus fondos de forma rápida, se decidió ampliar el plazo de retención.
+- **Contexto**: Se requería blindar legalmente a la plataforma frente a normativas financieras (SEC, Howey Test) y de transmisión de dinero, y adaptar el plazo de custodia de donaciones solidarias. Dado que la plataforma no cuenta temporalmente con un proveedor de KYC Web3 y para evitar que usuarios malintencionados eviten deliberadamente la verificación a corto plazo para recuperar sus fondos de forma rápida, se decidió ampliar el plazo de retención. Asimismo, se requería forzar la aceptación de los nuevos términos en producción/Render de forma totalmente automatizada.
 - **Decisión de Ingeniería**:
   - **Edición Legal (`terms.html` y `privacy.html`)**: Se incorporó un Acuerdo de Arbitraje Obligatorio, una Renuncia a Demanda Colectiva y cláusulas específicas que aclaran que WintonCoin no garantiza paridad fiat externa ni actúa como intermediario de valor en el motor P2P. Se declaró además la anonimización irreversible para el cumplimiento del Derecho al Olvido sobre el Ledger inmutable.
   - **Ampliación del Escrow a 150 Días (`075_update_default_donation_escrow_expiration.js`)**: Se creó una migración que actualiza el valor de `donation_escrow_expiration_days` a `150` días en `app_settings`, adaptando tanto los términos de uso como el demonio de reembolso contable del backend.
-- **Impacto**: Se mitigan riesgos regulatorios de stablecoins y transmisión de dinero, se protege a la startup frente a litigios masivos, y se provee suficiente holgura operativa para integrar proveedores KYC en el futuro sin forzar reembolsos prematuros.
-- **Archivos modificados**: `frontend/terms.html`, `frontend/privacy.html`, `backend/migrations/075_update_default_donation_escrow_expiration.js`, `EVOLUCION.md`
+  - **Publicación Automatizada en DB (`076_publish_updated_legal_documents.js`)**: Se creó una migración para leer los HTML de términos y privacidad en cada arranque, calcular su firma SHA-256 e insertarlos de forma activa en la base de datos como la versión `v1.0.1`, obligando automáticamente a todos los usuarios a la re-aceptación de forma transparente y sin procesos manuales en producción.
+- **Impacto**: Se mitigan riesgos regulatorios de stablecoins y transmisión de dinero, se protege a la startup frente a litigios masivos, y se provee suficiente holgura operativa para integrar proveedores KYC en el futuro sin forzar reembolsos prematuros, automatizando por completo el ciclo de publicación de TyC en la nube.
+- **Archivos modificados**: `frontend/terms.html`, `frontend/privacy.html`, `backend/migrations/075_update_default_donation_escrow_expiration.js`, `backend/migrations/076_publish_updated_legal_documents.js`, `EVOLUCION.md`
 
 ### 2026-06-26 — Corrección de Regresión Crítica de Signos en el Procesamiento de Balances (Migración 074)
 
