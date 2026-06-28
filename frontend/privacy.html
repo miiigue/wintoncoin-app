@@ -9,14 +9,22 @@
     <title>Política de Privacidad - WintonCoin</title>
     <link id="main-stylesheet" rel="stylesheet" href="style.css">
     <style>
+        * {
+            box-sizing: border-box;
+        }
         body {
             background-color: #1a1a2e;
             color: #ffffff;
+            display: block !important;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
         }
         .privacy-container {
+            width: 100%;
             max-width: 900px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 24px;
             line-height: 1.8;
             color: #ffffff;
             background-color: #1a1a2e;
@@ -122,16 +130,22 @@
             color: #6bb3ff;
             text-decoration: underline;
         }
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin: 20px 0;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin: 20px 0;
             color: #ffffff;
         }
         table th, table td {
             border: 1px solid #444;
             padding: 12px;
             text-align: left;
+            min-width: 120px;
         }
         table th {
             background-color: #2a2a3e;
@@ -179,9 +193,9 @@
 
             <h3>2.2. Información Financiera</h3>
             <ul>
-                <li><strong>Saldos de Tokens:</strong> Saldo BLUE disponible, saldo BLUE pendiente (escrow), saldo RED (deuda).</li>
+                <li><strong>Saldos de Tokens:</strong> Saldo BLUE disponible, saldo BLUE pendiente (escrow), saldo RED (compromiso de reciprocidad).</li>
                 <li><strong>Historial de Transacciones:</strong> Registro completo de todas las transacciones realizadas.</li>
-                <li><strong>Datos de Deudas:</strong> Información sobre deudas RED, fechas de vencimiento, estado de pago.</li>
+                <li><strong>Datos de Compromisos:</strong> Información sobre compromisos RED, plazos de vigencia y amortización.</li>
                 <li><strong>Perfil de Impulsor:</strong> Acumulaciones durante el modo pre-lanzamiento.</li>
                 <li><strong>Datos de Comisiones:</strong> Información sobre comisiones pagadas a la plataforma.</li>
             </ul>
@@ -211,7 +225,7 @@
                 <li>Crear y gestionar tu cuenta de usuario.</li>
                 <li>Procesar transacciones y pagos entre usuarios.</li>
                 <li>Gestionar el sistema económico de tokens BLUE y RED.</li>
-                <li>Procesar y gestionar deudas RED y su vencimiento.</li>
+                <li>Procesar y gestionar compromisos RED y sus plazos de vigencia.</li>
                 <li>Gestionar el Perfil de Impulsor durante el modo pre-lanzamiento.</li>
                 <li>Facilitar la comunicación entre usuarios.</li>
                 <li>Proporcionar soporte técnico y atención al cliente.</li>
@@ -225,19 +239,19 @@
                 <li>Proteger la seguridad de la plataforma y de los usuarios.</li>
             </ul>
 
-            <h3>3.3. Gestión de Deudas y Sistema de Quema</h3>
+            <h3>3.3. Gestión de Compromisos y Sistema de Amortización</h3>
             <ul>
-                <li>Gestionar el sistema de deudas RED y sus fechas de vencimiento.</li>
-                <li>Procesar la quema automática de tokens cuando una deuda vence.</li>
+                <li>Gestionar el sistema de compromisos RED y sus plazos de vigencia.</li>
+                <li>Procesar la amortización automática de tokens cuando un compromiso vence.</li>
                 <li>Publicar información en la Lista de Obligaciones Vencidas (LOVE) cuando corresponda.</li>
-                <li>Enviar notificaciones sobre deudas pendientes y próximas a vencer.</li>
+                <li>Enviar notificaciones sobre compromisos de reciprocidad pendientes y próximos a vencer.</li>
             </ul>
 
             <h3>3.4. Notificaciones y Comunicaciones</h3>
             <ul>
                 <li>Enviar notificaciones sobre transacciones, pagos y actividad de cuenta.</li>
-                <li>Enviar recordatorios sobre deudas RED pendientes y próximas a vencer.</li>
-                <li>Enviar publicidad y promociones relacionadas con la plataforma, especialmente cuando tengas deuda RED activa, para ayudarte a recibir pagos en BLUE y saldar tus obligaciones.</li>
+                <li>Enviar recordatorios sobre compromisos de reciprocidad RED pendientes y próximos a vencer.</li>
+                <li>Enviar publicidad y promociones relacionadas con la plataforma, especialmente cuando tengas compromisos RED activos, para ayudarte a recibir pagos en BLUE y amortizar tus obligaciones.</li>
                 <li>Enviar actualizaciones sobre cambios en términos, políticas o servicios.</li>
                 <li>Enviar información sobre el programa de impulsores y oportunidades de ganancia.</li>
             </ul>
@@ -309,26 +323,26 @@
             <h2>6. PUBLICACIÓN EN LOVE (LISTA DE OBLIGACIONES VENCIDAS)</h2>
             
             <div class="warning-box">
-                <strong>INFORMACIÓN PÚBLICA:</strong> En caso de deuda RED vencida no saldada, publicaremos información limitada en la Lista de Obligaciones Vencidas (LOVE), que es un registro público accesible por cualquier usuario de la plataforma.
+                <strong>INFORMACIÓN PÚBLICA:</strong> En caso de compromisos de reciprocidad RED vencidos y no amortizados, publicaremos información limitada en la Lista de Obligaciones Vencidas (LOVE), que es un registro público e informativo accesible por cualquier usuario de la plataforma.
             </div>
 
             <h3>6.1. Qué Información se Publica</h3>
-            <p>Cuando tienes una deuda RED vencida no saldada, publicamos únicamente:</p>
+            <p>Cuando tienes un compromiso de reciprocidad RED vencido y no amortizado, publicamos únicamente:</p>
             <ul>
                 <li><strong>Nombre de Usuario:</strong> Tu nombre de usuario público en la plataforma.</li>
-                <li><strong>Monto de Deuda Vencida:</strong> La cantidad total de deuda RED vencida no saldada.</li>
-                <li><strong>Fecha de Vencimiento:</strong> La fecha desde la cual la deuda está vencida.</li>
-                <li><strong>Número de Recurrencias:</strong> Cantidad de veces que has tenido deudas vencidas.</li>
+                <li><strong>Monto del Compromiso Vencido:</strong> La cantidad total de compromiso RED vencido y no amortizado.</li>
+                <li><strong>Fecha de Vencimiento:</strong> La fecha desde la cual el compromiso está vencido.</li>
+                <li><strong>Número de Recurrencias:</strong> Cantidad de veces que has tenido compromisos vencidos.</li>
             </ul>
             <p><strong>NO publicamos:</strong> Tu nombre real, dirección, correo electrónico, número de teléfono, información financiera detallada, ni ningún otro dato personal identificable fuera de tu nombre de usuario.</p>
 
             <h3>6.2. Cuándo se Publica</h3>
             <p>Tu información se publica en LOVE cuando:</p>
             <ul>
-                <li>Tienes una o más deudas RED vencidas (pasada su fecha de vencimiento).</li>
-                <li>No tienes suficientes tokens BLUE para cubrir la deuda vencida.</li>
-                <li>El sistema ha intentado quemar automáticamente tus tokens BLUE pero no fueron suficientes.</li>
-                <li>La deuda ha sido marcada como "penalizada".</li>
+                <li>Tienes uno o más compromisos RED vencidos (pasada su fecha de vigencia).</li>
+                <li>No tienes suficientes tokens BLUE para cubrir el compromiso vencido.</li>
+                <li>El sistema ha intentado amortizar automáticamente tus tokens BLUE pero no fueron suficientes.</li>
+                <li>El compromiso ha sido marcado como "pendiente por mora".</li>
             </ul>
 
             <h3>6.3. Acceso Público</h3>
@@ -336,16 +350,16 @@
             <ul>
                 <li>Accesible por cualquier usuario registrado en la plataforma.</li>
                 <li>Visible en una sección pública de la plataforma.</li>
-                <li>Actualizada automáticamente cuando se saldan deudas o se generan nuevas.</li>
+                <li>Actualizada automáticamente cuando se amortizan compromisos o se acumulan nuevos.</li>
             </ul>
 
             <h3>6.4. Cómo Remover tu Información</h3>
             <p>Tu información será removida automáticamente de LOVE cuando:</p>
             <ul>
-                <li>Saldes todas tus deudas RED vencidas.</li>
-                <li>Tengas suficientes tokens BLUE para cubrir todas las deudas vencidas (el sistema las quemará automáticamente).</li>
+                <li>Amortices todos tus compromisos RED vencidos.</li>
+                <li>Tengas suficientes tokens BLUE para cubrir todos los compromisos vencidos (el sistema los amortizará automáticamente).</li>
             </ul>
-            <p>La remoción es automática y ocurre inmediatamente después de saldar las deudas.</p>
+            <p>La remoción es automática y ocurre inmediatamente después de amortizar los compromisos.</p>
 
             <h3>6.5. Base Legal para la Publicación</h3>
             <p>La publicación en LOVE se basa en:</p>
@@ -410,7 +424,7 @@
                 <li><strong>Datos de Cuenta Activa:</strong> Mientras tu cuenta esté activa y durante 5 años después de su cierre. <strong>Las cuentas no verificadas (sin KYC) serán consideradas abandonadas y eliminadas tras 24 meses de inactividad, eliminándose los datos personales asociados tras dicho periodo.</strong></li>
                 <li><strong>Datos Financieros y Transaccionales:</strong> 7 años después de la última transacción, según requerimientos legales y contables.</li>
                 <li><strong>Datos de Verificación:</strong> Se eliminan inmediatamente después de la verificación exitosa, excepto registros de auditoría que se conservan por 2 años.</li>
-                <li><strong>Datos en LOVE:</strong> Se conservan mientras haya deuda vencida no saldada. Se eliminan automáticamente al saldar todas las deudas.</li>
+                <li><strong>Datos en LOVE:</strong> Se conservan mientras haya un compromiso de reciprocidad vencido y no amortizado. Se eliminan automáticamente al amortizarse todos los compromisos.</li>
                 <li><strong>Datos de Comunicaciones:</strong> Se conservan durante 2 años después de la última comunicación.</li>
                 <li><strong>Datos de Perfil de Impulsor:</strong> Se conservan durante el período de acumulación y 7 años después del último pago post-lanzamiento.</li>
             </ul>
@@ -426,6 +440,13 @@
 
             <h3>8.3. Datos Anonimizados</h3>
             <p>Después del período de retención, podemos conservar datos agregados y anonimizados para análisis estadísticos y mejora de servicios. Estos datos no pueden identificarte personalmente.</p>
+
+            <h3>8.4. Retención Especial en Libros Contables Inmutables (SOC 2 & AML)</h3>
+            <div class="info-box">
+                <strong>AVISO SOBRE INMUTABILIDAD CONTABLE:</strong> Para garantizar la integridad contable de partida doble requerida para auditorías financieras y prevención de delitos financieros (AML), los registros transaccionales almacenados en el libro mayor inmutable (tales como registros en <em>booster_blue_ledger</em> y <em>balance_events</em>) <strong>no pueden ser modificados ni eliminados físicamente</strong>, limitando la aplicación del Derecho al Olvido. 
+                <br>
+                En caso de que ejerza su derecho de supresión de datos, WintonCoin procederá a la **anonimización irreversible** de su identidad asociada a dichos registros, desvinculando de forma permanente su información personal (nombres, documentos y correos) de los hashes transaccionales históricos.
+            </div>
         </div>
 
         <!-- SECCIÓN 9: TRANSFERENCIAS INTERNACIONALES -->
@@ -458,7 +479,7 @@
             <ul>
                 <li>Datos de tu cuenta.</li>
                 <li>Historial de transacciones.</li>
-                <li>Información sobre deudas RED.</li>
+                <li>Información sobre compromisos de reciprocidad RED.</li>
                 <li>Datos del Perfil de Impulsor.</li>
                 <li>Registros de actividad.</li>
             </ul>
@@ -474,7 +495,7 @@
                 <li>Información necesaria para resolver disputas.</li>
             </ul>
             <div class="warning-box">
-                <strong>IMPORTANTE:</strong> Si solicitas la eliminación de tu cuenta mientras tienes deuda RED pendiente, tu información permanecerá en el sistema hasta saldar todas las deudas. Tu nombre de usuario puede seguir apareciendo en LOVE hasta que todas las deudas sean saldadas.
+                <strong>IMPORTANTE:</strong> Si solicitas la eliminación de tu cuenta mientras tienes compromisos RED pendientes de amortización, tu información permanecerá en el sistema hasta amortizar la totalidad de los mismos. Tu nombre de usuario puede seguir apareciendo en LOVE hasta que todos los compromisos sean amortizados.
             </div>
 
             <h3>10.4. Derecho de Portabilidad</h3>
@@ -486,7 +507,7 @@
                 <li>El tratamiento se basa en interés legítimo.</li>
                 <li>El tratamiento se realiza para marketing directo.</li>
             </ul>
-            <p>Sin embargo, algunas notificaciones críticas (como alertas de deuda) no pueden ser desactivadas.</p>
+            <p>Sin embargo, algunas notificaciones críticas (como alertas de compromisos vencidos) no pueden ser desactivadas.</p>
 
             <h3>10.6. Derecho de Limitación</h3>
             <p>Puedes solicitar la limitación del tratamiento de tu información en ciertas circunstancias, como cuando disputas la exactitud de los datos.</p>
@@ -521,7 +542,7 @@
                 <li><strong>Datos de Actividad:</strong> Publicaciones creadas, aceptaciones, calificaciones dadas y recibidas.</li>
                 <li><strong>Datos Financieros:</strong> Saldos BLUE, acumulaciones en Perfil de Impulsor.</li>
             </ul>
-            <p><strong>NO recopilamos ni tratamos:</strong> Información sobre deudas RED del menor, ya que estas se asignan al tutor responsable.</p>
+            <p><strong>NO recopilamos ni tratamos:</strong> Información sobre compromisos RED del menor, ya que estos se asignan al tutor responsable.</p>
 
             <h3>11.2. Consentimiento del Tutor</h3>
             <p>El tutor debe proporcionar consentimiento explícito para:</p>
@@ -529,7 +550,7 @@
                 <li>El tratamiento de datos personales del menor.</li>
                 <li>La recopilación y uso de información financiera del menor.</li>
                 <li>El compartir información necesaria para operaciones de la plataforma.</li>
-                <li>La publicación de información del tutor (no del menor) en caso de deuda RED asociada a la cuenta del menor.</li>
+                <li>La publicación de información del tutor (no del menor) en caso de compromiso RED asociado a la cuenta del menor.</li>
                 <li>El acceso del tutor a la información de transacciones y actividad del menor.</li>
             </ul>
             <p>Este consentimiento se obtiene durante el proceso de autorización de la cuenta del menor.</p>
@@ -548,7 +569,7 @@
             <h3>11.4. Protección Especial de Datos de Menores</h3>
             <p>Implementamos protecciones adicionales para menores:</p>
             <ul>
-                <li><strong>No Publicación en LOVE:</strong> Los menores nunca aparecerán en la Lista de Obligaciones Vencidas, incluso si hay deuda asociada a su cuenta.</li>
+                <li><strong>No Publicación en LOVE:</strong> Los menores nunca aparecerán en la Lista de Obligaciones Vencidas, incluso si hay un compromiso de reciprocidad RED asociado a su cuenta.</li>
                 <li><strong>Limitación de Datos Compartidos:</strong> Solo compartimos información mínima necesaria con terceros.</li>
                 <li><strong>Control Parental:</strong> El tutor tiene herramientas para supervisar y controlar el uso de la cuenta.</li>
                 <li><strong>Restricciones de Funcionalidad:</strong> Los menores tienen acceso limitado a ciertas funcionalidades que podrían generar riesgos.</li>
@@ -572,6 +593,14 @@
 
             <h3>11.7. Menores de 13 Años</h3>
             <p>Los menores de 13 años no pueden utilizar la plataforma bajo ninguna circunstancia. Si descubrimos que hemos recopilado información de un menor de 13 años sin autorización adecuada, eliminaremos esa información inmediatamente.</p>
+
+            <h3>11.8. Almacenamiento Temporal de Fecha de Nacimiento y Validación OTP</h3>
+            <p>Conforme a las leyes de protección infantil (COPPA y GDPR), WintonCoin solicita la fecha de nacimiento durante el flujo de registro inicial de forma previa a la verificación de identidad. Esta información se procesa con el único fin de:</p>
+            <ul>
+                <li>Validar si el usuario es menor de edad y aplicar las restricciones financieras correspondientes de forma automática.</li>
+                <li>Bloquear el registro de menores de 13 años.</li>
+                <li>Asociar la validación y responsabilidad de la cuenta al tutor legal registrado.</li>
+            </ul>
         </div>
 
         <!-- SECCIÓN 12: COOKIES Y TECNOLOGÍAS DE SEGUIMIENTO -->
@@ -583,32 +612,34 @@
             <p>Las cookies son pequeños archivos de texto que se almacenan en tu dispositivo cuando visitas nuestra plataforma. Nos ayudan a recordar tus preferencias y mejorar tu experiencia.</p>
 
             <h3>12.2. Tipos de Cookies que Utilizamos</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Tipo</th>
-                        <th>Propósito</th>
-                        <th>Duración</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>Cookies Esenciales</strong></td>
-                        <td>Necesarias para el funcionamiento básico de la plataforma (autenticación, seguridad)</td>
-                        <td>Sesión / Persistentes</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Cookies Funcionales</strong></td>
-                        <td>Mejoran la funcionalidad y personalización (preferencias de idioma, configuración)</td>
-                        <td>Persistentes (hasta 1 año)</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Cookies Analíticas</strong></td>
-                        <td>Nos ayudan a entender cómo los usuarios utilizan la plataforma (datos agregados y anónimos)</td>
-                        <td>Persistentes (hasta 2 años)</td>
-                    </tr>
-                </tbody>
-            </table>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Propósito</th>
+                            <th>Duración</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Cookies Esenciales</strong></td>
+                            <td>Necesarias para el funcionamiento básico de la plataforma (autenticación, seguridad)</td>
+                            <td>Sesión / Persistentes</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Cookies Funcionales</strong></td>
+                            <td>Mejoran la funcionalidad y personalización (preferencias de idioma, configuración)</td>
+                            <td>Persistentes (hasta 1 año)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Cookies Analíticas</strong></td>
+                            <td>Nos ayudan a entender cómo los usuarios utilizan la plataforma (datos agregados y anónimos)</td>
+                            <td>Persistentes (hasta 2 años)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
 
             <h3>12.3. Cómo Gestionar las Cookies</h3>
             <p>Puedes gestionar las cookies a través de:</p>
@@ -638,7 +669,7 @@
             <p>Estas notificaciones son esenciales para el funcionamiento seguro de la plataforma:</p>
             <ul>
                 <li><strong>Alertas de Seguridad:</strong> Notificaciones sobre actividad sospechosa o cambios en tu cuenta.</li>
-                <li><strong>Alertas de Deuda:</strong> Recordatorios sobre deudas RED pendientes y próximas a vencer.</li>
+                <li><strong>Alertas de Compromisos Pendientes:</strong> Recordatorios sobre compromisos de reciprocidad RED pendientes y próximos a vencer.</li>
                 <li><strong>Notificaciones de Transacciones Críticas:</strong> Confirmaciones de pagos importantes y transacciones significativas.</li>
                 <li><strong>Cambios en Términos y Políticas:</strong> Notificaciones sobre cambios importantes en términos o políticas.</li>
             </ul>
@@ -652,13 +683,13 @@
             </ul>
 
             <h3>13.3. Publicidad y Promociones</h3>
-            <p>Podemos enviarte publicidad y promociones relacionadas con la plataforma, especialmente cuando tengas deuda RED activa, para ayudarte a:</p>
+            <p>Podemos enviarte publicidad y promociones relacionadas con la plataforma, especialmente cuando tengas compromisos RED activos, para ayudarte a:</p>
             <ul>
                 <li>Recibir pagos en BLUE mediante publicaciones o servicios.</li>
-                <li>Saldar tus obligaciones de deuda RED.</li>
+                <li>Amortizar tus obligaciones de compromisos de reciprocidad RED.</li>
                 <li>Conocer oportunidades de ganancia en la plataforma.</li>
             </ul>
-            <p>Puedes gestionar tus preferencias de publicidad desde la configuración de tu cuenta, aunque algunas comunicaciones relacionadas con deuda pueden seguir siendo enviadas para tu protección.</p>
+            <p>Puedes gestionar tus preferencias de publicidad desde la configuración de tu cuenta, aunque algunas comunicaciones relacionadas con compromisos pueden seguir siendo enviadas para tu protección.</p>
 
             <h3>13.4. Cómo Darte de Baja</h3>
             <p>Puedes darte de baja de comunicaciones de marketing:</p>
@@ -667,7 +698,7 @@
                 <li>Ajustando tus preferencias en la configuración de tu cuenta.</li>
                 <li>Contactándonos directamente.</li>
             </ul>
-            <p>Ten en cuenta que darte de baja de comunicaciones de marketing no afecta las notificaciones obligatorias relacionadas con tu cuenta o deudas.</p>
+            <p>Ten en cuenta que darte de baja de comunicaciones de marketing no afecta las notificaciones obligatorias relacionadas con tu cuenta o compromisos.</p>
         </div>
 
         <!-- SECCIÓN 14: CAMBIOS A ESTA POLÍTICA -->
@@ -727,7 +758,7 @@
             <ul>
                 <li>Has leído y comprendido esta Política de Privacidad en su totalidad.</li>
                 <li>Aceptas el tratamiento de tu información personal según se describe en esta política.</li>
-                <li>Entiendes que tu nombre de usuario puede ser publicado en LOVE en caso de deuda vencida no saldada.</li>
+                <li>Entiendes que tu nombre de usuario puede ser publicado en LOVE en caso de compromisos de reciprocidad vencidos y no amortizados.</li>
                 <li>Consientes el tratamiento de datos de menores si eres tutor responsable de una cuenta de menor.</li>
                 <li>Aceptas recibir notificaciones y comunicaciones según se describe en esta política.</li>
             </ul>
@@ -740,7 +771,7 @@
     <script>
         // Fecha de última actualización del contenido
         // IMPORTANTE: Actualizar esta fecha manualmente cuando se modifique el contenido del documento
-        const lastUpdateDate = new Date('2026-02-11'); // Formato: YYYY-MM-DD
+        const lastUpdateDate = new Date('2026-06-27'); // Formato: YYYY-MM-DD
         
         document.getElementById('lastUpdatedDate').textContent = lastUpdateDate.toLocaleDateString('es-ES', { 
             year: 'numeric', 

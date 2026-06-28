@@ -238,11 +238,6 @@ export function showLegalAcceptanceModal(pendingDocs, onAccepted, onCancelled) {
         title.textContent = 'Aceptación Legal';
         modalContent.appendChild(title);
 
-        const intro = document.createElement('p');
-        intro.className = 'legal-intro-text';
-        intro.textContent = 'Para continuar operando de forma segura con WintonCoin, debes leer y aceptar los términos y condiciones vigentes:';
-        modalContent.appendChild(intro);
-
         const checklist = document.createElement('div');
         checklist.className = 'legal-checklist';
 
@@ -254,16 +249,21 @@ export function showLegalAcceptanceModal(pendingDocs, onAccepted, onCancelled) {
             let docTitle = 'Términos y Condiciones';
             let docUrl = 'terms.html';
 
-            if (doc.type === 'privacy') {
+            if (doc.type === 'privacy' || doc.type === 'privacy_policy') {
                 docTitle = 'Política de Privacidad';
                 docUrl = 'privacy.html';
-            } else if (doc.type === 'terms') {
+            } else if (doc.type === 'terms' || doc.type === 'terms_and_conditions') {
                 docTitle = 'Términos y Condiciones';
                 docUrl = 'terms.html';
             } else {
                 docTitle = doc.type.charAt(0).toUpperCase() + doc.type.slice(1);
                 docUrl = `${doc.type}.html`;
             }
+
+            // Evitar duplicación de la letra 'v' en la visualización de la versión
+            const displayVersion = String(doc.version || '').startsWith('v')
+                ? doc.version
+                : `v${doc.version}`;
 
             const checkboxId = `legal-chk-${index}`;
 
@@ -275,7 +275,7 @@ export function showLegalAcceptanceModal(pendingDocs, onAccepted, onCancelled) {
                 </label>
                 <span class="legal-label-text">
                     He leído y acepto la versión más reciente de la 
-                    <a href="${docUrl}" target="_blank" class="legal-link">${escapeHtml(docTitle)}</a> (v${escapeHtml(doc.version)})
+                    <a href="${docUrl}" target="_blank" class="legal-link">${escapeHtml(docTitle)}</a> (${escapeHtml(displayVersion)})
                 </span>
             `;
             checklist.appendChild(item);
