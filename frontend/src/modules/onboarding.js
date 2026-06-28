@@ -189,7 +189,7 @@ function startWalletTour() {
                 element: '.blue-section',
                 popover: {
                     title: '🔵 Saldo BLUE',
-                    description: 'Este es tu dinero disponible. Úsalo para pagar, comprar, ahorrar o eliminar tu deuda RED.',
+                    description: 'Este es tu dinero disponible. Úsalo para pagar, comprar, ahorrar o amortizar tu compromiso RED.',
                     side: "bottom",
                     align: 'start'
                 }
@@ -197,8 +197,8 @@ function startWalletTour() {
             {
                 element: '.red-section',
                 popover: {
-                    title: '🔴 Saldo RED (Deuda)',
-                    description: 'Es tu deuda pendiente. Recuerda quemarla con BLUE antes de su vencimiento.',
+                    title: '🔴 Saldo RED (Compromiso)',
+                    description: 'Es tu compromiso de reciprocidad pendiente. Recuerda amortizarlo con BLUE dentro de la vigencia del ciclo.',
                     side: "bottom",
                     align: 'start'
                 }
@@ -207,7 +207,7 @@ function startWalletTour() {
                 element: '#burnTriggerBtn',
                 popover: {
                     title: '🔥 Quemar Tokens',
-                    description: 'Si tienes deuda, toca este botón para abrir la ventana de pagos.',
+                    description: 'Si tienes un compromiso activo, toca este botón para abrir la ventana de amortización.',
                     side: "top",
                     align: 'center'
                 }
@@ -220,7 +220,7 @@ function startWalletTour() {
 }
 
 /**
- * Inicia el tour para Quemar Deuda (incluye abrir modal)
+ * Inicia el tour para Amortizar Compromiso (incluye abrir modal)
  */
 function startBurnTour() {
     if (!window.driver || !window.driver.js) return;
@@ -520,7 +520,7 @@ function startPublishTour() {
                 element: '#publicationTypeModal .modal-option-button.request',
                 popover: {
                     title: '🙋‍♂️ Solicitar Ayudante',
-                    description: 'Elige esta opción si necesitas contratar a alguien. <b>Pagarás con BLUE</b> (o generarás deuda RED si no tienes dinero).',
+                    description: 'Elige esta opción si necesitas contratar a alguien. <b>Pagarás con BLUE</b> (o generarás un compromiso RED si no tienes saldo suficiente).',
                     side: "top",
                     align: 'center'
                 }

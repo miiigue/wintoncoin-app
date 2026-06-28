@@ -54,7 +54,7 @@ function initializeLovePage() {
 
             row.innerHTML = `
                 <td data-label="Usuario">${debt.username}</td>
-                <td data-label="Deuda Vencida (RED)">${parseFloat(debt.total_overdue_amount).toFixed(4)}</td>
+                <td data-label="Compromiso Vencido (RED)">${parseFloat(debt.total_overdue_amount).toFixed(4)}</td>
                 <td data-label="Vencido Desde">${overdueDate}</td>
                 <td data-label="Reincidencias">${debt.recurrence_count}</td>
             `;

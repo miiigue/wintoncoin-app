@@ -92,10 +92,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         'allow_new_registrations': 'Permitir Nuevos Registros',
         'allow_new_publications': 'Permitir Nuevas Publicaciones',
         'public_profiles_enabled': 'Perfiles Públicos',
-        'debt_system_enabled': 'Sistema de Deuda (Tokens RED)',
-        'debt_cycle_days': 'Ciclo de Deuda RED — Días',
-        'debt_cycle_hours': 'Ciclo de Deuda RED — Horas',
-        'debt_cycle_minutes': 'Ciclo de Deuda RED — Minutos',
+        'debt_system_enabled': 'Sistema de Compromisos (Tokens RED)',
+        'debt_cycle_days': 'Ciclo de Compromiso RED — Días',
+        'debt_cycle_hours': 'Ciclo de Compromiso RED — Horas',
+        'debt_cycle_minutes': 'Ciclo de Compromiso RED — Minutos',
         'blue_escrow_days': 'Depósito BLUE (Escrow) — Días',
         'blue_escrow_hours': 'Depósito BLUE (Escrow) — Horas',
         'blue_escrow_minutes': 'Depósito BLUE (Escrow) — Minutos',
@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         'red_credit_culture_quiz': 'Scoring — Bono por Cuestionario de Cultura (RED)',
         'red_credit_referral': 'Scoring — Bono por Referido Activo (RED)',
         'red_credit_monthly_activity': 'Scoring — Bono por Alta Actividad Mensual (>20) (RED)',
-        'red_credit_early_payment': 'Scoring — Bono por Pago Anticipado de Deuda (<5 días) (RED)',
+        'red_credit_early_payment': 'Scoring — Bono por Amortización Anticipada (<5 días) (RED)',
 
         // --- SMART CONTRACTS WEB3 (OPTIMISM SEPOLIA) ---
         'web3_protocol_paused': 'Web3 — Protocolo Pausado (Emergencia)',
