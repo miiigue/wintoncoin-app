@@ -122,16 +122,22 @@
             color: #6bb3ff;
             text-decoration: underline;
         }
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin: 20px 0;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin: 20px 0;
             color: #ffffff;
         }
         table th, table td {
             border: 1px solid #444;
             padding: 12px;
             text-align: left;
+            min-width: 120px;
         }
         table th {
             background-color: #2a2a3e;
@@ -598,32 +604,34 @@
             <p>Las cookies son pequeños archivos de texto que se almacenan en tu dispositivo cuando visitas nuestra plataforma. Nos ayudan a recordar tus preferencias y mejorar tu experiencia.</p>
 
             <h3>12.2. Tipos de Cookies que Utilizamos</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Tipo</th>
-                        <th>Propósito</th>
-                        <th>Duración</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>Cookies Esenciales</strong></td>
-                        <td>Necesarias para el funcionamiento básico de la plataforma (autenticación, seguridad)</td>
-                        <td>Sesión / Persistentes</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Cookies Funcionales</strong></td>
-                        <td>Mejoran la funcionalidad y personalización (preferencias de idioma, configuración)</td>
-                        <td>Persistentes (hasta 1 año)</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Cookies Analíticas</strong></td>
-                        <td>Nos ayudan a entender cómo los usuarios utilizan la plataforma (datos agregados y anónimos)</td>
-                        <td>Persistentes (hasta 2 años)</td>
-                    </tr>
-                </tbody>
-            </table>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Propósito</th>
+                            <th>Duración</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Cookies Esenciales</strong></td>
+                            <td>Necesarias para el funcionamiento básico de la plataforma (autenticación, seguridad)</td>
+                            <td>Sesión / Persistentes</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Cookies Funcionales</strong></td>
+                            <td>Mejoran la funcionalidad y personalización (preferencias de idioma, configuración)</td>
+                            <td>Persistentes (hasta 1 año)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Cookies Analíticas</strong></td>
+                            <td>Nos ayudan a entender cómo los usuarios utilizan la plataforma (datos agregados y anónimos)</td>
+                            <td>Persistentes (hasta 2 años)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
 
             <h3>12.3. Cómo Gestionar las Cookies</h3>
             <p>Puedes gestionar las cookies a través de:</p>
