@@ -1655,7 +1655,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const confirmMsg = `¿Deseas donar ${amount} BLUE a ${authorUsername}?\n\nEsta acción generará una deuda RED equivalente en tu cuenta según el modelo económico de WintonCoin.`;
+        const confirmMsg = `¿Deseas donar ${amount} BLUE a ${authorUsername}?\n\nEsta acción generará un compromiso de reciprocidad RED equivalente en tu cuenta según el modelo económico de WintonCoin.`;
 
         showCustomConfirm(confirmMsg, async () => {
             try {
@@ -2320,7 +2320,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <hr class="burn-modal-divider">
                 <div class="balance-line">
-                    <span>Deuda</span>
+                    <span>Compromiso</span>
                     <span class="saldo-red-text">${formatBalance(redBalance)} RED</span>
                 </div>
                 ${penalizedDebtHTML}
@@ -2374,10 +2374,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Check if user has sufficient RED debt to burn
+        // Check if user has sufficient RED commitment to burn
         if (amount > redBalance) {
             const redBalanceText = redBalance.toFixed(4).replace('.', ',');
-            showCustomAlert('No tienes suficiente deuda RED para quemar esta cantidad. Solo puedes quemar hasta ' + redBalanceText + ' RED.');
+            showCustomAlert('No tienes suficiente compromiso RED para quemar esta cantidad. Solo puedes quemar hasta ' + redBalanceText + ' RED.');
             return;
         }
 

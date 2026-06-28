@@ -177,7 +177,7 @@ async function initializeEstadoCuenta() {
             elements.blueUnlockDate.style.color = '#94a3b8';
         }
 
-        // 3. Crédito y Deuda RED
+        // 3. Crédito y Compromiso RED
         const debt = parseFloat(data.red_balance) || 0;
         // Obtenemos el límite real calculado del usuario
         const creditLimit = data.credit_limit || 0;
@@ -214,7 +214,7 @@ async function initializeEstadoCuenta() {
                         color = amountBlue > 0 ? '#10B981' : '#f8fafc';
                     } else if (amountRed !== 0) {
                         displayAmount = `${amountRed > 0 ? '+' : ''}${formatBalance(amountRed)} RED`;
-                        color = amountRed > 0 ? '#ef4444' : '#10B981'; // Rojo si la deuda sube, verde si baja (pago)
+                        color = amountRed > 0 ? '#ef4444' : '#10B981'; // Rojo si el compromiso sube, verde si baja (amortización)
                     } else {
                         displayAmount = '-';
                     }
@@ -263,7 +263,7 @@ async function initializeEstadoCuenta() {
         // 6. Lógica de Modales de Smart Contract
         async function openSCModal(type) {
             // Mostrar modal con estado de carga
-            elements.scModalTitle.textContent = type === 'blue' ? 'WintonCoin BLUE Token' : 'WintonCoin RED (Deuda) Token';
+            elements.scModalTitle.textContent = type === 'blue' ? 'WintonCoin BLUE Token' : 'WintonCoin RED (Compromiso) Token';
             elements.scModalAddress.textContent = 'Cargando...';
             elements.scModalMinted.textContent = 'Consultando Blockchain...';
             elements.scModalExplorer.style.display = 'none';

@@ -265,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (commissionPercentage > 0) {
                     noticeContainer.innerHTML = `
                         <div class="commission-notice">
-                            <p>Nota: Al completarse, esta transacción generará una comisión del <strong>${commissionPercentage}%</strong> para la plataforma. La comisión se añade a la deuda RED del usuario que se beneficia del servicio/producto.</p>
+                            <p>Nota: Al completarse, esta transacción generará una comisión del <strong>${commissionPercentage}%</strong> para la plataforma. La comisión se añade al compromiso RED del usuario que se beneficia del servicio/producto.</p>
                         </div>
                     `;
                 }

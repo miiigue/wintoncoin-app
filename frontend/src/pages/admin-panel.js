@@ -955,7 +955,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const map = {
             'allow_new_registrations': { title: 'Permitir Nuevos Registros', description: 'Activa o desactiva esta característica para toda la plataforma.' },
             'public_profiles_enabled': { title: 'Perfiles Públicos', description: 'Permite que cualquiera vea los perfiles públicos de los usuarios.' },
-            'debt_system_enabled': { title: 'Sistema de Deuda (Tokens RED)', description: 'Activa o desactiva la creación y gestión de deuda RED.' },
+            'debt_system_enabled': { title: 'Sistema de Compromisos (Tokens RED)', description: 'Activa o desactiva la creación y gestión de compromisos RED.' },
             'platform_commission_percentage': { title: 'Comisión de Plataforma (%)', description: 'Porcentaje de comisión para la plataforma (ej: 5 para 5%).' },
             'booster_system_enabled': { title: 'Sistema de Impulsores', description: 'Activa el sistema de Impulsores y su lógica de pagos mensuales.' },
             'booster_custom_frequency_enabled': { title: 'Frecuencia de Pago Personalizada', description: 'Si se activa, el sistema realizará los pagos en el intervalo configurado abajo (días, horas, minutos) en lugar del ciclo mensual del primer día de cada mes.' },
@@ -994,7 +994,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'red_credit_culture_quiz': { title: 'Scoring — Bono por Cuestionario de Cultura (RED)', description: 'Aumento del límite por aprobar cuestionarios de la Winton Academy.' },
             'red_credit_referral': { title: 'Scoring — Bono por Referido Activo (RED)', description: 'Aumento del límite por cada referido exitoso que utilice la plataforma.' },
             'red_credit_monthly_activity': { title: 'Scoring — Bono por Alta Actividad (RED)', description: 'Aumento del límite al superar 20 tareas en un mes calendario.' },
-            'red_credit_early_payment': { title: 'Scoring — Bono por Pago Anticipado (RED)', description: 'Aumento del límite por pagar deudas en los primeros 5 días del ciclo.' },
+            'red_credit_early_payment': { title: 'Scoring — Bono por Amortización Anticipada (RED)', description: 'Aumento del límite por amortizar compromisos en los primeros 5 días del ciclo.' },
             // Winton Solidario (Causas Humanitarias y Reembolsos)
             'donation_refund_enabled': { title: 'Reembolso Automático de Donaciones', description: 'Activa o desactiva el demonio que devuelve automáticamente las donaciones en espera (on_hold) si el donante no verifica su KYC Web3.' },
             'donation_escrow_expiration_days': { title: 'Días de Retención de Donaciones', description: 'Cantidad de días que una donación permanece en espera antes de ser devuelta automáticamente al donante si este no completa su KYC.' }
@@ -1039,7 +1039,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }).join('');
 
             const timeSettingsGrouped = {
-                debt_cycle: { label: 'Duración del Ciclo de Deuda RED', description: 'Define el período de tiempo para esta funcionalidad.', settings: [] },
+                debt_cycle: { label: 'Duración del Ciclo de Compromiso RED', description: 'Define el período de tiempo para esta funcionalidad.', settings: [] },
                 blue_escrow: { label: 'Duración del Depósito BLUE (Escrow)', description: 'Define el período de tiempo para esta funcionalidad.', settings: [] }
             };
             timeSettingsRaw.forEach(setting => {
@@ -1389,7 +1389,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             </div>
             <div class="stat-card interactive-card" data-target-tab="boosters-list">
-                <h4>Deuda Total (BLUE de Impulsores)</h4>
+                <h4>Compromiso Total (BLUE de Impulsores)</h4>
                 <p class="stat-value saldo-blue-text">${formatBalance(stats.total_booster_blue_debt)}</p>
                 <div style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-top: 4px;">
                     Apto KYC: <strong style="color: #10B981;">${formatBalance(stats.eligible_booster_blue_debt)} BLUE</strong>
@@ -2052,7 +2052,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <p class="stat-value saldo-blue-text">${formatBalance(stats.totalBlue)}</p>
             </div>
             <div class="stat-card interactive-card" data-target-section="platform-wallet">
-                <h4>RED en Circulación (Deuda Total)</h4>
+                <h4>RED en Circulación (Compromiso Total)</h4>
                 <p class="stat-value saldo-red-text">${formatBalance(stats.totalRed)}</p>
             </div>
             <div class="stat-card interactive-card" data-target-section="platform-wallet">
@@ -2079,7 +2079,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <p class="stat-value" style="color: #8B5CF6;">${formatBalance(stats.totalPlatformPendingPayment || 0)}</p>
             </div>
             <div class="stat-card interactive-card" style="border-left: 4px solid #8B5CF6;" data-target-section="boosters">
-                <h4>BLUE IOU Entregados (Deuda Futura)</h4>
+                <h4>BLUE IOU Entregados (Compromiso Futuro)</h4>
                 <p class="stat-value" style="color: #8B5CF6;">${formatBalance(stats.totalBoosterFunds || 0)}</p>
                 <div style="font-size: 0.85rem; color: var(--admin-text-secondary); margin-top: 4px;">
                     Apto KYC: <strong style="color: #10B981;">${formatBalance(stats.eligibleBoosterFunds || 0)} BLUE</strong>
@@ -2091,7 +2091,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderDebtorsTable(debtors) {
         if (!elements.debtorsTableContainer) return;
         if (!debtors || debtors.length === 0) {
-            elements.debtorsTableContainer.innerHTML = '<p class="empty-message">No hay deudores con pagos vencidos actualmente.</p>';
+            elements.debtorsTableContainer.innerHTML = '<p class="empty-message">No hay usuarios con compromisos vencidos actualmente.</p>';
             return;
         }
 
@@ -2100,8 +2100,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <thead>
                     <tr>
                         <th>Usuario</th>
-                        <th>Deuda Vencida Total (RED)</th>
-                        <th>Nº de Deudas Vencidas</th>
+                        <th>Compromiso Vencido Total (RED)</th>
+                        <th>Nº de Compromisos Vencidos</th>
                     </tr>
                 </thead>
                 <tbody>

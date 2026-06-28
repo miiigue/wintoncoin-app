@@ -764,7 +764,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 const author = document.querySelector('.detail-meta strong').textContent.trim();
-                showCustomConfirm(`¿Deseas donar ${amount} BLUE a ${author}?\n\nRecuerda que esto generará deuda RED en tu cuenta.`, async () => {
+                showCustomConfirm(`¿Deseas donar ${amount} BLUE a ${author}?\n\nRecuerda que esto generará un compromiso de reciprocidad RED equivalente en tu cuenta.`, async () => {
                     await fetchFromServer(`/publications/${publicationId}/accept`, 'POST', {
                         acceptorUsername: storedUsername,
                         donationAmount: amount

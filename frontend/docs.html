@@ -695,7 +695,7 @@
                     <li><a href="#p2p-exchange"><span class="sub-item">4.2 Intercambio P2P</span></a></li>
                     <li><a href="#debt-burning"><span class="sub-item">4.3 Quema de Tokens</span></a></li>
                     <li><a href="#smart-contract-logic"><span class="sub-item">4.4 Lógica de Contrato</span></a></li>
-                    <li><a href="#debt-management">5. Gestión de Deuda y Riesgo</a></li>
+                    <li><a href="#debt-management">5. Gestión de Compromisos y Riesgo</a></li>
                     <li><a href="#proof-of-attention"><span class="sub-item">5.1 Publicidad & Pagos</span></a></li>
                     <li><a href="#reputation"><span class="sub-item">5.2 Garantías y Reputación</span></a></li>
                     <li><a href="#use-cases">6. Casos de Uso y Oportunidades</a></li>
@@ -723,7 +723,7 @@
                 <strong>Resumen Ejecutivo</strong><br><br>
                 WintonCoin introduce un paradigma de "Minería Real" donde la emisión de criptomoneda no depende de
                 algoritmos computacionales ni consumo energético, sino del esfuerzo humano tangible. Mediante un sistema
-                de doble token (BLUE como activo y RED como pasivo/deuda), el protocolo permite que cualquier persona
+                de doble token (BLUE como activo y RED como pasivo/compromiso), el protocolo permite que cualquier persona
                 emita su propia liquidez al momento de recibir ayuda, respaldada por su compromiso futuro. Este
                 mecanismo democrático y descentralizado busca resolver la falta de liquidez global, permitiendo
                 transacciones P2P instantáneas sin necesidad de dinero FIAT previo, creando una cadena infinita de
@@ -770,7 +770,7 @@
                 <ul>
                     <li><strong>El Solicitante (Usuario A):</strong> Necesita un servicio pero no tiene liquidez.</li>
                     <li><strong>El Colaborador (Usuario B):</strong> Realiza la tarea.</li>
-                    <li><strong>El Resultado:</strong> El sistema emite valor (BLUE) para el colaborador y deuda (RED)
+                    <li><strong>El Resultado:</strong> El sistema emite valor (BLUE) para el colaborador y compromiso (RED)
                         para el solicitante.</li>
                 </ul>
                 <p>
@@ -800,12 +800,12 @@
                         <tr>
                             <td><strong>Token BLUE</strong></td>
                             <td>Activo / Stablecoin</td>
-                            <td>Pago por servicio. Puede intercambiarse por USD o usarse para pagar deuda.</td>
+                             <td>Pago por servicio. Puede intercambiarse por USD o usarse para amortizar compromisos.</td>
                             <td>1 BLUE ≈ 1 USD</td>
                         </tr>
                         <tr>
                             <td><strong>Token RED</strong></td>
-                            <td>Pasivo / Deuda</td>
+                             <td>Pasivo / Compromiso</td>
                             <td>Registro de compromiso. No transferible. Se "quema" al pagar.</td>
                             <td>-1 USD (Nominal)</td>
                         </tr>
@@ -873,7 +873,7 @@
 
                 <h3 id="p2p-exchange">4.2 Mercado P2P (Compra y Venta)</h3>
                 <p>
-                    ¿Qué pasa si un usuario tiene deuda (RED) pero no tiene tiempo para trabajar y saldarla? O ¿qué pasa
+                    ¿Qué pasa si un usuario tiene un compromiso (RED) pero no tiene tiempo para trabajar y amortizarlo? O ¿qué pasa
                     si un trabajador tiene muchos BLUE y necesita dinero FIAT (Dólares/Euros)?
                 </p>
                 <p>
@@ -882,7 +882,7 @@
                 <ul>
                     <li><strong>Vender BLUE:</strong> Los "Impulsores" o trabajadores pueden vender sus tokens BLUE a
                         otros usuarios a cambio de dinero real (transferencia bancaria, efectivo, USDT).</li>
-                    <li><strong>Comprar BLUE:</strong> Los usuarios con deuda (RED) compran BLUE en el mercado para
+                    <li><strong>Comprar BLUE:</strong> Los usuarios con compromisos (RED) compran BLUE en el mercado para
                         poder "quemar" sus obligaciones y limpiar su reputación.</li>
                 </ul>
 
@@ -899,12 +899,12 @@
                             inmediatamente. Permanecen retenidos en un estado <strong>"Pendiente"</strong> durante el
                             mismo ciclo de 30 días, alineando los tiempos de cobro y pago.</li>
                         <li><strong>Compensación Prioritaria:</strong> Durante este lapso, estos fondos pendientes
-                            <strong>solo</strong> pueden utilizarse para "quemar" deuda propia (RED). Esto incentiva el
+                            <strong>solo</strong> pueden utilizarse para "quemar" (amortizar) el compromiso propio (RED). Esto incentiva el
                             saneamiento del balance personal antes que el lucro externo.
                         </li>
-                        <li><strong>Cobro Forzoso (Default):</strong> Si una deuda vence (>30 días), el sistema ejecuta
+                        <li><strong>Cobro Forzoso (Default):</strong> Si un compromiso expira en mora, el sistema ejecuta
                             un <strong>Sweep Protocol</strong> implacable: confisca y destruye cualquier saldo
-                            disponible (sea Líquido o Pendiente) hasta extinguir la totalidad del pasivo vencido.</li>
+                            disponible (sea Líquido o Pendiente) hasta extinguir la totalidad del compromiso vencido.</li>
                     </ul>
                 </div>
 
@@ -964,15 +964,14 @@
                     style="margin-top:0.5rem; display:block; text-align: center; color: #64748b; font-size: 0.85rem;">Tabla
                     1: Secuencia Lógica de Ejecución del Protocolo</span>
                 <p>
-                    <strong>Regla Económica Fundamental:</strong> La comisión de la plataforma (Fee) se carga siempre al
-                    solicitante como deuda adicional (token RED) y se emite simultáneamente como activo (token BLUE)
+                    solicitante como compromiso adicional (token RED) y se emite simultáneamente como activo (token BLUE)
                     para la tesorería del protocolo. Esto asegura que la plataforma también se financia con la propia
                     expansión de la red, sin restar liquidez al trabajador.
                 </p>
             </section>
 
             <section id="debt-management">
-                <h2>5. Gestión de Deuda y Tareas de Atención</h2>
+                <h2>5. Gestión de Compromisos y Tareas de Atención</h2>
                 <p>
                     Para garantizar la sostenibilidad, el sistema emplea múltiples mecanismos que aseguran que los
                     tokens RED sean eventualmente "quemados" (saldados).
@@ -984,7 +983,7 @@
                     validable.
                 </p>
                 <div class="note">
-                    Las marcas subvencionan la deuda (RED) de los usuarios a cambio de interacción verificada
+                    Las marcas subvencionan el compromiso (RED) de los usuarios a cambio de interacción verificada
                     (Viewability garantizada). El usuario "mina" solvencia consumiendo contenido publicitario
                     segmentado, generando un modelo publicitario donde el valor fluye directamente al espectador
                     (User-Centric Ad Model).
@@ -1050,7 +1049,7 @@
                 <h4>Financiación de Capital de Trabajo (Decentralized Factoring)</h4>
                 <p>
                     Las PyMEs suelen sufrir crisis de liquidez por los plazos de pago largos (cobran a 90 días pero
-                    deben pagar salarios hoy). El protocolo les permite emitir deuda (RED) respaldada por su facturación
+                    deben pagar salarios hoy). El protocolo les permite emitir compromisos (RED) respaldados por su facturación
                     futura para obtener liquidez operativa (BLUE) inmediata. Esto democratiza el "Factoring",
                     permitiendo que proveedores y empleados cobren al día sin que la empresa dependa de préstamos
                     bancarios con tasas abusivas.
@@ -1072,7 +1071,7 @@
                 <h4>2. Publicidad Dirigida (Ads)</h4>
                 <p>
                     Las empresas pagan en BLUE para que su publicidad sea vista obligatoriamente por usuarios que
-                    necesitan "quemar" deuda (Proof-of-Attention).
+                    necesitan "quemar" (amortizar) compromisos (Proof-of-Attention).
                 </p>
 
                 <h4>3. Servicios Premium (Suscripciones)</h4>
