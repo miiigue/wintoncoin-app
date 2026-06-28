@@ -57,7 +57,7 @@ async function debtCollectorJob(pool) {
             const burnResult = await require('../services/financialCoreService').executeBurn(client, username, amountToSettle);
 
             if (burnResult.success && burnResult.actualAmountBurned > 0) {
-                const notificationMessage = `Se realizó una quema automática de ${burnResult.actualAmountBurned.toFixed(4)} tokens para cubrir tu deuda vencida.`;
+                const notificationMessage = `Se realizó una quema automática de ${burnResult.actualAmountBurned.toFixed(4)} tokens para cubrir tu compromiso vencido.`;
                 await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [username, notificationMessage]);
                 console.log(`DEBT COLLECTOR: Quema automática exitosa para ${username}. Cantidad: ${burnResult.actualAmountBurned.toFixed(4)}`);
             } else {
