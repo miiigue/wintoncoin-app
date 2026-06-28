@@ -52,6 +52,24 @@ module.exports = {
 
         const versionToPublish = 'v1.0.1';
 
+        // 0. Eliminar dinámicamente cualquier trigger de inmutabilidad erróneamente aplicado a 'legal_documents'
+        console.log('[MIGRATION 076] Removiendo triggers de inmutabilidad en la tabla legal_documents...');
+        await client.query(`
+            DO $$
+            DECLARE
+                t RECORD;
+            BEGIN
+                FOR t IN 
+                    SELECT trigger_name, event_object_table 
+                    FROM information_schema.triggers 
+                    WHERE event_object_table = 'legal_documents'
+                LOOP
+                    EXECUTE format('DROP TRIGGER IF EXISTS %I ON %I CASCADE', t.trigger_name, t.event_object_table);
+                END LOOP;
+            END;
+            $$;
+        `);
+
         // 1. Desactivar documentos legales activos anteriores para forzar actualización
         await client.query(`
             UPDATE legal_documents
@@ -88,6 +106,23 @@ module.exports = {
 
     down: async (client) => {
         console.log('[MIGRATION 076] Revirtiendo publicación de versión v1.0.1...');
+
+        // 0. Eliminar cualquier trigger de inmutabilidad en la tabla legal_documents
+        await client.query(`
+            DO $$
+            DECLARE
+                t RECORD;
+            BEGIN
+                FOR t IN 
+                    SELECT trigger_name, event_object_table 
+                    FROM information_schema.triggers 
+                    WHERE event_object_table = 'legal_documents'
+                LOOP
+                    EXECUTE format('DROP TRIGGER IF EXISTS %I ON %I CASCADE', t.trigger_name, t.event_object_table);
+                END LOOP;
+            END;
+            $$;
+        `);
 
         // Desactivar versión v1.0.1
         await client.query(`
