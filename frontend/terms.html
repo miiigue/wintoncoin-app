@@ -151,12 +151,12 @@
             <h2>2. DEFINICIONES</h2>
             <p>Para los efectos de estos Términos, se entenderá por:</p>
             <ul>
-                <li><strong>BLUE:</strong> Token digital que representa un activo en el sistema. Los tokens BLUE pueden ser utilizados para realizar pagos, recibirse como pago por servicios, o quemarse para reducir deudas RED.</li>
+                <li><strong>BLUE:</strong> Token digital que representa un activo en el sistema. Los tokens BLUE pueden ser utilizados para realizar pagos, recibirse como pago por servicios, o quemarse para amortizar compromisos RED acumulados.</li>
                 <li><strong>BLUE IOU:</strong> Anotación contable interna que representa una obligación futura de pago de la Plataforma frente al Usuario, generada durante el modo pre-lanzamiento. El BLUE IOU <strong>no constituye</strong> token BLUE circulante, no es transferible libremente por el Usuario, no es exigible de forma inmediata, no devenga intereses y su liquidación está sujeta a las condiciones establecidas en estos Términos.</li>
-                <li><strong>RED:</strong> Token digital que representa una deuda en el sistema. Se crea cuando un Usuario realiza un pago a otro Usuario.</li>
-                <li><strong>Quema (Burn):</strong> Proceso mediante el cual se eliminan simultáneamente tokens BLUE y RED del sistema, reduciendo la deuda del Usuario.</li>
+                <li><strong>RED:</strong> Token digital que representa una métrica contable de reciprocidad u obligación de participación. No constituye una deuda financiera ni un pasivo crediticio legal; únicamente registra el compromiso acumulado de un Usuario de devolver valor, trabajos o servicios a la comunidad.</li>
+                <li><strong>Quema (Burn):</strong> Proceso mediante el cual se eliminan simultáneamente tokens BLUE y RED del sistema, reduciendo los compromisos de reciprocidad acumulados por el Usuario.</li>
                 <li><strong>Escrow:</strong> Período de espera durante el cual los tokens BLUE recibidos como pago permanecen bloqueados antes de estar disponibles para uso.</li>
-                <li><strong>LOVE (Lista de Obligaciones Vencidas):</strong> Registro público de Usuarios con deudas RED vencidas y no saldadas.</li>
+                <li><strong>LOVE (Lista de Obligaciones Vencidas):</strong> Registro público e informativo de Usuarios con obligaciones de reciprocidad RED vencidas y no amortizadas.</li>
                 <li><strong>Modo Pre-lanzamiento:</strong> Fase inicial de la Plataforma donde las transacciones o recompensas se registran en el perfil de impulsor en lugar de crear tokens circulantes.</li>
                 <li><strong>Perfil de Impulsor:</strong> Módulo contable separado donde se registran y acumulan BLUE IOU y otros saldos provisionales durante el modo pre-lanzamiento.</li>
             </ul>
@@ -188,7 +188,7 @@
             <ul>
                 <li>Violación de estos Términos y Condiciones.</li>
                 <li>Actividades fraudulentas o sospechosas.</li>
-                <li>Incumplimiento de obligaciones de pago (deudas RED vencidas).</li>
+                <li>Incumplimiento de obligaciones de retorno o participación (compromisos RED vencidos).</li>
                 <li>Comportamiento que pueda dañar la reputación o funcionamiento de la Plataforma.</li>
             </ul>
 
@@ -213,8 +213,8 @@
             <p>El tutor se compromete a:</p>
             <ul>
                 <li>Supervisar el uso de la cuenta del menor y velar por un uso responsable y adecuado.</li>
-                <li>Aceptar que cualquier deuda RED generada será su responsabilidad, no del menor.</li>
-                <li>Que su nombre de usuario puede aparecer en la Lista de Obligaciones Vencidas (LOVE) si hay deudas no saldadas asociadas a la cuenta del menor.</li>
+                <li>Aceptar que cualquier compromiso de reciprocidad RED acumulado por el menor será responsabilidad solidaria del tutor, no del menor.</li>
+                <li>Que su nombre de usuario puede aparecer en la Lista de Obligaciones Vencidas (LOVE) si hay compromisos no amortizados asociados a la cuenta del menor.</li>
                 <li>Que el menor NO aparecerá en LOVE bajo ninguna circunstancia.</li>
                 <li>Proporcionar información veraz y mantener actualizados sus datos de contacto.</li>
             </ul>
@@ -230,19 +230,19 @@
             </ul>
             <p><strong>Los menores NO pueden:</strong></p>
             <ul>
-                <li>Generar deuda RED directamente. Cualquier deuda será responsabilidad del tutor.</li>
-                <li>Aparecer en la Lista de Obligaciones Vencidas (LOVE). Si hay deuda, aparecerá el tutor.</li>
+                <li>Generar compromisos de reciprocidad RED directamente. Cualquier obligación de participación acumulada será responsabilidad solidaria del tutor.</li>
+                <li>Aparecer en la Lista de Obligaciones Vencidas (LOVE). Si hay compromisos vencidos en mora, aparecerá el tutor.</li>
                 <li>Realizar acciones que generen obligaciones financieras sin supervisión del tutor.</li>
             </ul>
 
-            <h4>3.5.4. Sistema de Deuda RED para Menores</h4>
-            <p>Cuando un menor realiza una acción que normalmente generaría deuda RED:</p>
+            <h4>3.5.4. Sistema de Compromisos RED para Menores</h4>
+            <p>Cuando un menor realiza una acción que normalmente generaría compromisos de reciprocidad RED:</p>
             <ul>
-                <li>La deuda RED se asigna automáticamente al tutor responsable.</li>
-                <li>El tutor recibe una notificación sobre la deuda generada.</li>
-                <li>El tutor es responsable de saldar la deuda antes de su vencimiento.</li>
-                <li>Si la deuda no se salda, el tutor (no el menor) aparecerá en la Lista de Obligaciones Vencidas (LOVE).</li>
-                <li>El menor puede usar sus tokens BLUE para ayudar a saldar la deuda, pero la responsabilidad legal permanece en el tutor.</li>
+                <li>El compromiso de reciprocidad RED se asigna automáticamente al tutor responsable.</li>
+                <li>El tutor recibe una notificación sobre el compromiso acumulado.</li>
+                <li>El tutor es responsable de amortizar el compromiso antes de su vencimiento.</li>
+                <li>Si el compromiso no se amortiza, el tutor (no el menor) aparecerá en la Lista de Obligaciones Vencidas (LOVE).</li>
+                <li>El menor puede usar sus tokens BLUE para ayudar a amortizar el compromiso, pero la responsabilidad legal permanece en el tutor.</li>
             </ul>
 
             <h4>3.5.5. Control Parental</h4>
@@ -256,7 +256,7 @@
             </ul>
 
             <h4>3.5.6. Mayoría de Edad</h4>
-            <p>Al cumplir 18 años, el menor puede solicitar la conversión de su cuenta a una cuenta de adulto, asumiendo plena responsabilidad legal y financiera de todas las actividades. El tutor dejará de ser responsable de las actividades futuras, pero permanecerá responsable de cualquier deuda RED pendiente generada antes de la mayoría de edad.</p>
+            <p>Al cumplir 18 años, el menor puede solicitar la conversión de su cuenta a una cuenta de adulto, asumiendo plena responsabilidad legal y financiera de todas las actividades. El tutor dejará de ser responsable de las actividades futuras, pero permanecerá responsable de cualquier compromiso de reciprocidad RED pendiente de amortización acumulado antes de la mayoría de edad.</p>
         </div>
 
         <!-- SECCIÓN 4: SISTEMA ECONÓMICO Y TOKENS -->
@@ -279,7 +279,7 @@
             <p>Los tokens BLUE y RED <strong>solo se crean</strong> cuando un Usuario realiza un pago o donación a otro Usuario. No existen tokens pre-minados ni asignaciones gratuitas. Por cada cantidad X de BLUE creada, se crea simultáneamente una cantidad idéntica X de RED.</p>
             <ul>
                 <li>El BLUE se entrega al receptor del pago (vendedor, trabajador, beneficiario).</li>
-                <li>El RED se asigna como deuda al emisor del pago.</li>
+                <li>El RED se asigna como un compromiso de reciprocidad al emisor del pago (registrando su obligación de retornar el servicio a la comunidad).</li>
                 <li>El balance inicial de todos los Usuarios es 0 BLUE y 0 RED.</li>
             </ul>
 
@@ -290,23 +290,23 @@
                 <li><strong>BLUE Pendiente (Escrow):</strong> Tokens recibidos como pago que están en período de espera antes de estar disponibles. Este período protege a ambas partes en las transacciones.</li>
             </ul>
 
-            <h3>4.4. Tokens RED (Deuda)</h3>
+            <h3>4.4. Tokens RED (Compromiso de Reciprocidad)</h3>
             <div class="warning-box">
-                <strong>ADVERTENCIA SOBRE DEUDAS:</strong> Los tokens RED representan deudas reales en el sistema. Toda deuda RED tiene una fecha de vencimiento. Si no quemas tu deuda antes del vencimiento, el sistema la quemará automáticamente usando tus tokens BLUE (primero disponibles, luego pendientes).
+                <strong>ADVERTENCIA SOBRE COMPROMISOS:</strong> Los tokens RED representan obligaciones de reciprocidad y participación dentro del ecosistema. Todo compromiso RED acumulado cuenta con un plazo de vigencia. Si no amortizas tu compromiso antes de su vencimiento, el sistema ejecutará una amortización automática usando tus tokens BLUE (primero disponibles, luego pendientes).
             </div>
-            <p>Si no tienes suficientes tokens BLUE para cubrir una deuda vencida:</p>
+            <p>Si no tienes suficientes tokens BLUE para cubrir un compromiso vencido:</p>
             <ul>
                 <li>Tu nombre de usuario será publicado en la Lista de Obligaciones Vencidas (LOVE), que es un registro público accesible por cualquier Usuario.</li>
-                <li>La deuda será marcada como "penalizada" y permanecerá en el sistema hasta ser saldada.</li>
-                <li>Tu cuenta puede ser suspendida hasta que saldes la deuda.</li>
+                <li>El compromiso será marcado como "pendiente por mora" y permanecerá en el sistema hasta ser amortizado.</li>
+                <li>Tu cuenta puede ver limitadas sus funciones de retiro o P2P hasta que amortices el compromiso.</li>
             </ul>
 
             <h3>4.5. Quema de Tokens</h3>
-            <p>Puedes quemar tokens voluntariamente para reducir tu deuda RED. La quema elimina simultáneamente una cantidad igual de BLUE y RED del sistema. El proceso de quema es irreversible.</p>
-            <p>El sistema utiliza un método FIFO (First In, First Out) para procesar deudas, quemando primero las deudas más antiguas.</p>
+            <p>Puedes quemar tokens voluntariamente para reducir tu compromiso RED acumulado. La quema (amortización) elimina simultáneamente una cantidad igual de BLUE y RED del sistema. El proceso de quema es irreversible.</p>
+            <p>El sistema utiliza un método FIFO (First In, First Out) para procesar compromisos, amortizando primero los compromisos más antiguos.</p>
 
             <h3>4.6. Ajustes de Parámetros Económicos</h3>
-            <p>WintonCoin se reserva el derecho de ajustar parámetros técnicos del sistema (incluyendo pero no limitado a: porcentajes de comisión, días de ciclo de deuda, periodos de escrow y límites de transacción) con el fin de preservar la estabilidad y salud de la economía. Dichos cambios serán efectivos tras su notificación o publicación en la Plataforma.</p>
+            <p>WintonCoin se reserva el derecho de ajustar parámetros técnicos del sistema (incluyendo pero no limitado a: porcentajes de comisión, días de ciclo de compromiso, periodos de escrow y límites de transacción) con el fin de preservar la estabilidad y salud de la economía. Dichos cambios serán efectivos tras su notificación o publicación en la Plataforma.</p>
         </div>
 
         <!-- SECCIÓN 5: MODO PRE-LANZAMIENTO -->
@@ -336,9 +336,9 @@
             <p>Los fondos acumulados en tu Perfil de Impulsor serán pagados mensualmente después del lanzamiento oficial:</p>
             <ul>
                 <li>El pago se basa en las comisiones que la plataforma recauda cada mes.</li>
-                <li>Se calcula un porcentaje de pago mensual basado en las comisiones disponibles vs. la deuda total con impulsores.</li>
+                <li>Se calcula un porcentaje de pago mensual basado en las comisiones disponibles vs. las obligaciones totales de liquidación acumuladas con los impulsores.</li>
                 <li>Los pagos se realizan con prioridad a los niveles más bajos primero, como beneficio para incentivar participación temprana.</li>
-                <li>Este proceso se repite mensualmente hasta saldar toda la deuda acumulada.</li>
+                <li>Este proceso se repite mensualmente hasta amortizar todo el saldo de liquidación acumulado.</li>
                 <li><strong>Ningún BLUE IOU se liquidará sin respaldo de comisiones reales acumuladas por la plataforma durante el mes en curso.</strong></li>
             </ul>
 
@@ -365,7 +365,7 @@
             <p>Al completar una transacción:</p>
             <ul>
                 <li>El receptor recibe BLUE en escrow (período de espera).</li>
-                <li>El pagador recibe RED (deuda) con fecha de vencimiento.</li>
+                <li>El pagador recibe RED (compromiso de reciprocidad) con fecha de vencimiento.</li>
                 <li>La plataforma cobra una comisión porcentual (solo en modo normal, no en pre-lanzamiento).</li>
                 <li>Se registra la transacción en el historial de ambos Usuarios.</li>
             </ul>
@@ -464,7 +464,7 @@
             <h3>8.2. Cumplimiento de Obligaciones</h3>
             <p>El Usuario es responsable de:</p>
             <ul>
-                <li>Cumplir con todas las obligaciones de pago (deudas RED) antes de su vencimiento.</li>
+                <li>Cumplir con todas las obligaciones de retorno y reciprocidad (compromisos RED) antes de su vencimiento.</li>
                 <li>Entender completamente el funcionamiento del sistema económico antes de realizar transacciones.</li>
                 <li>Verificar la identidad y reputación de otros Usuarios antes de realizar transacciones.</li>
                 <li>Resolver disputas de manera civilizada y conforme a los procedimientos establecidos por la Plataforma.</li>
@@ -523,14 +523,14 @@
             <p>Al utilizar la Plataforma, aceptas recibir notificaciones relacionadas con tu cuenta, incluyendo pero no limitado a:</p>
             <ul>
                 <li>Notificaciones sobre transacciones y pagos.</li>
-                <li>Recordatorios sobre deudas RED pendientes y próximas a vencer.</li>
-                <li>Publicidad y promociones relacionadas con la Plataforma, especialmente cuando tengas deuda RED activa, para ayudarte a recibir pagos en BLUE y saldar tus obligaciones.</li>
+                <li>Recordatorios sobre compromisos de reciprocidad RED pendientes y próximos a vencer.</li>
+                <li>Publicidad y promociones relacionadas con la Plataforma, especialmente cuando tengas compromisos RED acumulados activos, para ayudarte a recibir pagos en BLUE y amortizar tus obligaciones.</li>
                 <li>Actualizaciones sobre el estado de tu cuenta y el sistema.</li>
             </ul>
-            <p>Puedes gestionar tus preferencias de notificaciones desde la configuración de tu cuenta, aunque algunas notificaciones críticas (como alertas de deuda) no pueden ser desactivadas.</p>
+            <p>Puedes gestionar tus preferencias de notificaciones desde la configuración de tu cuenta, aunque algunas notificaciones críticas (como alertas de compromisos pendientes) no pueden ser desactivadas.</p>
             
             <div class="warning-box">
-                <strong>PUBLICACIÓN DE INFORMACIÓN:</strong> En caso de deuda vencida no saldada, tu nombre de usuario será publicado en la Lista de Obligaciones Vencidas (LOVE), que es un registro público accesible por cualquier Usuario de la Plataforma.
+                <strong>PUBLICACIÓN DE INFORMACIÓN:</strong> En caso de compromisos de reciprocidad vencidos y no amortizados, tu nombre de usuario será publicado en la Lista de Obligaciones Vencidas (LOVE), que es un registro público e informativo accesible por cualquier Usuario de la Plataforma.
             </div>
         </div>
 
@@ -544,7 +544,7 @@
         <div class="terms-section">
             <h2>13. TERMINACIÓN</h2>
             <p>WintonCoin se reserva el derecho de suspender o terminar tu acceso a la Plataforma en cualquier momento, con o sin causa, con o sin previo aviso, por cualquier motivo, incluyendo pero no limitado a violación de estos Términos.</p>
-            <p>En caso de terminación, permanecerás responsable de todas las obligaciones pendientes, incluyendo deudas RED no saldadas.</p>
+            <p>En caso de terminación, permanecerás responsable de todas las obligaciones de reciprocidad pendientes, incluyendo compromisos RED no amortizados.</p>
         </div>
 
         <!-- SECCIÓN 14: LEY APLICABLE Y JURISDICCIÓN -->
@@ -577,7 +577,7 @@
             <p><strong>POR FAVOR, LEA ESTA SECCIÓN DETALLADAMENTE. AFECTA SUS DERECHOS LEGALES, INCLUIDO SU DERECHO A PRESENTAR UNA DEMANDA ANTE LOS TRIBUNALES.</strong></p>
             
             <div class="warning-box">
-                <strong>ACUERDO DE ARBITRAJE BINDING:</strong> Cualquier controversia, disputa o reclamación que surja de o esté relacionada con estos Términos, el uso de la Plataforma, transacciones contables o tokens (incluyendo deudas RED y deudas de impulsores), se resolverá mediante arbitraje individual vinculante y final administrado por la Asociación Americana de Arbitraje (AAA) bajo sus Reglas de Arbitraje Comercial aplicables.
+                <strong>ACUERDO DE ARBITRAJE BINDING:</strong> Cualquier controversia, disputa o reclamación que surja de o esté relacionada con estos Términos, el uso de la Plataforma, transacciones contables o tokens (incluyendo compromisos RED y obligaciones de liquidación de impulsores), se resolverá mediante arbitraje individual vinculante y final administrado por la Asociación Americana de Arbitraje (AAA) bajo sus Reglas de Arbitraje Comercial aplicables.
             </div>
             
             <p><strong>Renuncia a Demandas Colectivas:</strong> El Usuario y WintonCoin aceptan que cualquier resolución de disputas se llevará a cabo únicamente de forma individual y no en una acción de representación colectiva, consolidada o de clase. El árbitro no podrá consolidar las reclamaciones de más de una persona ni presidir ningún tipo de procedimiento colectivo.</p>
@@ -592,7 +592,7 @@
                 <li>Aceptas estar legalmente vinculado por estos Términos.</li>
                 <li>Entiendes el funcionamiento del sistema económico de WintonCoin, incluyendo las reglas de pre-lanzamiento.</li>
                 <li>Reconoces los riesgos asociados con el uso de la Plataforma.</li>
-                <li>Aceptas que tu nombre de usuario puede ser publicado públicamente en caso de deuda vencida no saldada.</li>
+                <li>Aceptas que tu nombre de usuario puede ser publicado públicamente en caso de compromisos de reciprocidad vencidos y no amortizados.</li>
             </ul>
         </div>
 
