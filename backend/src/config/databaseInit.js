@@ -1393,13 +1393,16 @@ async function initializeDatabase() {
             // No lanzamos error fatal, intentamos seguir
         }
 
+        // --- AUDIT COMPLIANCE 2026-06-28: Redefinición y alineación de los 5 Niveles de Carrera
+        // Se configuran los nombres y mínimos exactos presentados en el Panel de Administración.
+        // Las descripciones son un tributo a Sir Nicholas Winton y su obra humanitaria.
         const boosterLevels = [
-            // Nivel, Nombre, BLUE Mínimo, Descripción
-            [1, 'Impulsor Inicial', 0, 'El primer paso en tu viaje como impulsor.'],
-            [2, 'Impulsor Bronce', 1001, 'Has demostrado un compromiso constante.'],
-            [3, 'Impulsor Plata', 10001, 'Un pilar importante en la comunidad.'],
-            [4, 'Impulsor Oro', 50001, 'Una fuerza motriz para el crecimiento de la plataforma.'],
-            [5, 'Impulsor Platino', 100001, 'Reconocido como un Socio Estratégico clave.']
+            // [Nivel, Nombre de Nivel, BLUE Mínimo Requerido, Descripción Temática]
+            [1, 'Impulsor Visionario', 0, '"La lucidez de ver lo que otros ignoran." Al igual que Nicholas Winton presintió el cambio antes que nadie, tú has detectado el potencial de WintonCoin mientras el mundo sigue dormido.'],
+            [2, 'Impulsor Pionero', 5001, '"El coraje de romper la inercia." Winton no esperó permiso; organizó trenes y actuó. Tú has hecho lo mismo: has dejado de ser espectador para "subirte al tren".'],
+            [3, 'Impulsor Guardian', 25001, '"La voluntad de ser protector." Winton se involucró hasta el fondo para salvar vidas. Tú haces lo mismo con tu futuro: aquí conviertes tus buenos deseos en acciones.'],
+            [4, 'Impulsor Salvador', 200001, '"El poder de transformar realidades." Winton logró lo imposible y garantizó una nueva vida para 669 niños. Tú has alcanzado esa eficacia: has "salvado" tu economía personal.'],
+            [5, 'Impulsor Legado Infinito', 1000000, '"La huella que trasciende el tiempo." La obra silenciosa de Winton generó miles de descendientes. Tú has llegado a la cima: Eres una leyenda viva.']
         ];
 
         for (const level of boosterLevels) {
