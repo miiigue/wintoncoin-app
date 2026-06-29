@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <li><a href="/momentum-landing.html" class="nav-link"><span class="icon">⚡</span> Winton Momentum</a></li>
                     <li><a href="/love.html" class="nav-link"><span class="icon">💖</span> Página L.O.V.</a></li>
                     <li><a href="/documentation.html" class="nav-link"><span class="icon">📄</span> Documentación</a></li>
-                    <li><a href="https://www.wintoncoin.com" target="_blank" class="nav-link"><span class="icon">🌐</span> Ir al Sitio Web</a></li>
+                    <li><a href="/" target="_blank" class="nav-link"><span class="icon">🌐</span> Ir al Sitio Web</a></li>
                     <li><a href="/profile.html" class="nav-link"><span class="icon">⚙️</span> Configuración</a></li>
                 </ul>
             </nav>

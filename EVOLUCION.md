@@ -19,6 +19,14 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-29 — Conversión de Enlaces a Rutas Relativas para Entornos de Desarrollo Local
+
+- **Contexto**: Durante el desarrollo y pruebas locales, el enlace "Ir al Sitio Web" de la barra lateral (`sidebar.js`), el menú desplegable (`contract_interaction.html`), el portal de inicio de sesión (`login.html`), registro (`register.html`) y los flujos de códigos de referido (`register.js`) apuntaban directamente al dominio de producción en vivo (`https://www.wintoncoin.com`). Al hacer clic en ellos, los desarrolladores y el administrador eran desviados fuera del servidor de desarrollo local, rompiendo el flujo de QA.
+- **Decisión de Ingeniería**:
+  - **Uso de Rutas Relativas (`/`)**: Se modificaron todos los hipervínculos con referencias duras a producción por rutas relativas `/`. Dado que `/` apunta dinámicamente a la raíz del host actual, en `localhost:4173` redirigirá al index local, y en producción redirigirá automáticamente a la landing oficial.
+- **Impacto**: Se resolvió la experiencia de depuración local, permitiendo pruebas integrales de navegación 100% confinadas en el host de desarrollo o en entornos aislados de previsualización sin saltos inesperados a producción.
+- **Archivos modificados**: `smart-contract/frontend/src/components/sidebar.js`, `smart-contract/frontend/contract_interaction.html`, `smart-contract/frontend/login.html`, `smart-contract/frontend/register.html`, `smart-contract/frontend/src/pages/register.js`, `Programa boosters/evolucion.md`, `Programa boosters/CHANGELOG.md`, `smart-contract/EVOLUCION.md`.
+
 ### 2026-06-29 — Sincronización de Niveles de Impulsores y Fecha de Entrada en Vigencia del Halving
 
 - **Contexto**: Para consolidar los cinco niveles promocionales en los ejemplos de liquidación cascada del subproyecto boosters, se requería expandir los ítems del Nivel 3 para incorporar a los niveles 4 y 5. Asimismo, bajo recomendación de auditoría legal FinTech, se necesitaba establecer la fecha de entrada en vigencia explícita (**29 de junio de 2026**) en las cláusulas de no retroactividad y políticas anti-fraude en boosters y términos principales (`terms.html`), impidiendo vacíos legales y reclamos de usuarios por retroactividad.
