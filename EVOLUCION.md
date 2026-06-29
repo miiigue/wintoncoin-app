@@ -19,6 +19,15 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-29 — Rediseño del Widget de Referidos a Tarjetas Responsivas y Sincronización de Términos al Pie de Boosters
+
+- **Contexto**: Tras la primera revisión en teléfonos móviles, el widget lineal de referidos se desbordaba y dificultaba la lectura en pantallas pequeñas. Se necesitaba convertir las etapas en una cuadrícula responsiva estéticamente similar a la del plan de carrera (`.levels-grid` y `.level-card`). Adicionalmente, se detectó que los términos de pre-lanzamiento al pie de la landing page de boosters (`index.html` sección `#terminos-riesgos`) mantenían los textos antiguos duplicados (100 millones de pool y referidos sin tramos), requiriendo su inmediata unificación legal con la subpágina `legal.html`.
+- **Decisión de Ingeniería**:
+  - **Rediseño del Widget en `index.html`**: Se acortaron los textos y se reemplazó el contenedor por tres tarjetas `.level-card` con estilos inline que forzaron su alineación vertical/centrada y anularon desbordamientos laterales, integrando perfectamente el "Halving Activo".
+  * **Sincronización Legal al Pie en `index.html`**: Se modificaron las cláusulas `#terminos-riesgos` actualizando el límite del pool a 200 Millones de BLUE IOU, describiendo la reserva solidaria para Venezuela y detallando la regla por tramos no retroactiva para consistencia regulatoria absoluta.
+- **Impacto**: Se resolvió la experiencia móvil del widget de referidos (obteniendo un layout responsivo e integrado visualmente al diseño de niveles) y se blindó legalmente la landing page estática frente a reclamos de retroactividad o incongruencias contractuales entre páginas de un mismo dominio.
+- **Archivos modificados**: `Programa boosters/index.html`, `Programa boosters/evolucion.md`, `Programa boosters/CHANGELOG.md`, `smart-contract/EVOLUCION.md`.
+
 ### 2026-06-29 — Expansión del Pool de Boosters a 200M, Referidos por Tramos y Reserva de Acción Humanitaria
 
 - **Contexto**: Para permitir que el programa de adquisición de usuarios del protocolo escale de forma segura a más de 1 millón de registros sin comprometer el balance general (tokenomics) ni violar los límites de emisión, se amplió el pool total de incentivos de boosters de 100M a 200M de BLUE IOU. Se requería estructurar el programa de invitaciones en un esquema decreciente por tramos (200 / 100 / 75 BLUE) para evitar riesgos de descapitalización (cliff effect). Adicionalmente, por motivos de cumplimiento y auditoría, se debían formalizar en los términos legales de la plataforma la no retroactividad de las tasas para proteger a los usuarios existentes, y constituir una reserva especial de impacto social para la asistencia humanitaria de emergencia en Venezuela que evite que el protocolo sea calificado como un fideicomiso de caridad no registrado (Charitable Trust).
