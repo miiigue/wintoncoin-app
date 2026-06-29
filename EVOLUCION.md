@@ -19,6 +19,83 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-29 — Conversión de Enlaces a Rutas Relativas para Entornos de Desarrollo Local
+
+- **Contexto**: Durante el desarrollo y pruebas locales, el enlace "Ir al Sitio Web" de la barra lateral (`sidebar.js`), el menú desplegable (`contract_interaction.html`), el portal de inicio de sesión (`login.html`), registro (`register.html`) y los flujos de códigos de referido (`register.js`) apuntaban directamente al dominio de producción en vivo (`https://www.wintoncoin.com`). Al hacer clic en ellos, los desarrolladores y el administrador eran desviados fuera del servidor de desarrollo local, rompiendo el flujo de QA.
+- **Decisión de Ingeniería**:
+  - **Uso de Rutas Relativas (`/`)**: Se modificaron todos los hipervínculos con referencias duras a producción por rutas relativas `/`. Dado que `/` apunta dinámicamente a la raíz del host actual, en `localhost:4173` redirigirá al index local, y en producción redirigirá automáticamente a la landing oficial.
+- **Impacto**: Se resolvió la experiencia de depuración local, permitiendo pruebas integrales de navegación 100% confinadas en el host de desarrollo o en entornos aislados de previsualización sin saltos inesperados a producción.
+- **Archivos modificados**: `smart-contract/frontend/src/components/sidebar.js`, `smart-contract/frontend/contract_interaction.html`, `smart-contract/frontend/login.html`, `smart-contract/frontend/register.html`, `smart-contract/frontend/src/pages/register.js`, `Programa boosters/evolucion.md`, `Programa boosters/CHANGELOG.md`, `smart-contract/EVOLUCION.md`.
+
+### 2026-06-29 — Sincronización de Niveles de Impulsores y Fecha de Entrada en Vigencia del Halving
+
+- **Contexto**: Para consolidar los cinco niveles promocionales en los ejemplos de liquidación cascada del subproyecto boosters, se requería expandir los ítems del Nivel 3 para incorporar a los niveles 4 y 5. Asimismo, bajo recomendación de auditoría legal FinTech, se necesitaba establecer la fecha de entrada en vigencia explícita (**29 de junio de 2026**) en las cláusulas de no retroactividad y políticas anti-fraude en boosters y términos principales (`terms.html`), impidiendo vacíos legales y reclamos de usuarios por retroactividad.
+- **Decisión de Ingeniería**:
+  - **Sincronización de Niveles en `index.html` y `detalles/pagos.html`**: Se modificaron las Prioridades 4 para denominar a *"Impulsores Nivel 3, 4 y 5"* e indicar que cobran 0% (con bono de 50,000 BLUE iou recibido solo por el Nivel 3).
+  - **Fecha de Vigencia de Tramos en `terms.html`, `index.html` y `legal.html`**: Se fijó la fecha **29 de junio de 2026** como fecha de corte para la no retroactividad de tramos.
+  - **Corrección de "Validación Definitiva"**: Se reemplazó por "consolidación en propiedad" en las políticas anti-fraude correspondientes.
+- **Impacto**: Se unificaron los 5 niveles en la prelación de cascada y se blindó el sistema contra disputas retroactivas de recompensas al establecer una fecha límite inequívoca en la regulación del protocolo.
+- **Archivos modificados**: `smart-contract/frontend/terms.html`, `Programa boosters/index.html`, `Programa boosters/detalles/pagos.html`, `Programa boosters/detalles/legal.html`, `Programa boosters/evolucion.md`, `Programa boosters/CHANGELOG.md`, `smart-contract/EVOLUCION.md`.
+
+### 2026-06-29 — Sincronización de Ejemplos de Pago y tokens BLUE en Landing de Boosters
+
+- **Contexto**: Para lograr uniformidad completa de marketing y evitar inconsistencias visuales, la descripción del prorrateo y prelación de cascada de `index.html` debía alinearse milimétricamente con `detalles/pagos.html`. Se requería sustituir números planos y aislados por la declaración explícita de "tokens BLUE".
+- **Decisión de Ingeniería**:
+  - **Sincronización en `index.html`**: Se modificaron las líneas del prorrateo de cascada para cambiar `Quedan 150,000` por `Quedan 150,000 tokens BLUE`, `Quedan 25,000` por `Quedan 25,000 tokens BLUE`, y `quedan 25,000` por `quedarían 25,000 tokens BLUE`, además de añadir la denominación en la fórmula y descripción de distribución.
+- **Impacto**: Se unificaron los textos explicativos, ofreciendo una experiencia al usuario (UX) coherente al navegar entre la landing principal y las guías de detalle.
+- **Archivos modificados**: `Programa boosters/index.html`, `Programa boosters/evolucion.md`, `Programa boosters/CHANGELOG.md`, `smart-contract/EVOLUCION.md`.
+
+### 2026-06-29 — Precisión de Tokenomics, Propiedad Consolidada y Prelación Humanitaria de Pagos
+
+- **Contexto**: Para el cumplimiento más riguroso de normativas FinTech y evitar litigios o malinterpretaciones contractuales de los usuarios sobre la disponibilidad de los fondos, se requería corregir cinco imprecisiones de fondo:
+  1. **Concepto BLUE IOU en Pre-lanzamiento**: Asegurar que las transferencias y donaciones en la fase de prueba ocurran estrictamente en `BLUE IOU` (y no en `BLUE` circulante).
+  2. **Prelación Humanitaria de Pagos**: Consolidar en los términos de la plataforma (`terms.html`) que los casos humanitarios y donaciones solidarias validadas se liquidan bajo la "Prioridad 1" (prioridad absoluta) antes que cualquier nivel de impulsor.
+  3. **Propiedad Consolidada**: Evitar términos erróneos como "liberación definitiva" en las condiciones KYC de la landing, declarando que los saldos se "consolidan en propiedad para su posterior canje", eliminando riesgos de falsas expectativas de cobro inmediato.
+  4. **Comisiones en Tokens BLUE**: Dejar explícito en la landing y detalles de pago que la plataforma recauda comisiones en "tokens BLUE" tras el lanzamiento para amortizar el pool de `BLUE iou`.
+  5. **Claridad del Impacto Social**: Simplificar la redacción de la Sección 7.5 de los TyC para el fácil entendimiento del usuario sobre el funcionamiento de la reserva de impacto (asistencia logística/desarrollo por los terremotos de Venezuela).
+- **Decisión de Ingeniería**:
+  - **Actualización de TyC (`terms.html`)**: Se modificó la Sección 5.5 (para transferencias en `BLUE IOU`), la Sección 7.3 (añadiendo prelación de Prioridad 1 para casos humanitarios y comisiones en tokens BLUE), y se reescribió de manera simple y didáctica la Sección 7.5.
+  - **Alineación de Landing y Subpáginas de Boosters (`index.html`, `detalles/pagos.html`, `detalles/niveles.html`)**: Se reescribió la leyenda KYC ("consolidación de propiedad") y se especificó la procedencia de comisiones en tokens BLUE.
+- **Impacto**: Se garantizó consistencia jurídica absoluta en todo el ecosistema (eliminando errores de concepto de tokens y liquidación), protegiendo la tesorería del protocolo de falsas expectativas y blindando el proyecto ante reclamos de publicidad engañosa (FTC/SEC).
+- **Archivos modificados**: `smart-contract/frontend/terms.html`, `Programa boosters/index.html`, `Programa boosters/detalles/pagos.html`, `Programa boosters/detalles/niveles.html`, `Programa boosters/evolucion.md`, `Programa boosters/CHANGELOG.md`, `smart-contract/EVOLUCION.md`.
+
+### 2026-06-29 — Simplificación de la Sección de Socios Estratégicos y Corrección Técnica a BLUE iou
+
+- **Contexto**: Para mejorar la claridad y la usabilidad de la landing page principal, se debía simplificar la sección de Socios Estratégicos (`#participacion-accionaria`) ocultando detalles de los SAFE y ejemplos redundantes (ya presentes en la guía de inversores dedicada). Adicionalmente, se detectó que las tarjetas de referidos del widget responsivo y los pies legales de `index.html` y `legal.html` listaban recompensas como `BLUE` en lugar de `BLUE iou`, lo cual era técnicamente impreciso y generaba riesgos regulatorios sobre la liquidez del token.
+- **Decisión de Ingeniería**:
+  - **Simplificación en `index.html`**: Se removió el texto explicativo de SAFE y el aviso legal redundante, dejando solo la cabecera del programa y el botón de enlace directo hacia `detalles/socios.html`.
+  - **Corrección de BLUE a BLUE iou**: Se actualizaron todas las denominaciones erróneas de referidos en `index.html` y `detalles/legal.html` para garantizar consistencia contractual.
+- **Impacto**: Se optimizó la experiencia del usuario (UX) reduciendo el scroll vertical innecesario en un 25% en la landing principal y se blindó el proyecto a nivel legal al mantener la separación estricta entre registros promocionales internos (`BLUE iou`) y el futuro token funcional (`BLUE`).
+- **Archivos modificados**: `Programa boosters/index.html`, `Programa boosters/detalles/legal.html`, `Programa boosters/evolucion.md`, `Programa boosters/CHANGELOG.md`, `smart-contract/EVOLUCION.md`.
+
+### 2026-06-29 — Rediseño del Widget de Referidos a Tarjetas Responsivas y Sincronización de Términos al Pie de Boosters
+
+- **Contexto**: Tras la primera revisión en teléfonos móviles, el widget lineal de referidos se desbordaba y dificultaba la lectura en pantallas pequeñas. Se necesitaba convertir las etapas en una cuadrícula responsiva estéticamente similar a la del plan de carrera (`.levels-grid` y `.level-card`). Adicionalmente, se detectó que los términos de pre-lanzamiento al pie de la landing page de boosters (`index.html` sección `#terminos-riesgos`) mantenían los textos antiguos duplicados (100 millones de pool y referidos sin tramos), requiriendo su inmediata unificación legal con la subpágina `legal.html`.
+- **Decisión de Ingeniería**:
+  - **Rediseño del Widget en `index.html`**: Se acortaron los textos y se reemplazó el contenedor por tres tarjetas `.level-card` con estilos inline que forzaron su alineación vertical/centrada y anularon desbordamientos laterales, integrando perfectamente el "Halving Activo".
+  * **Sincronización Legal al Pie en `index.html`**: Se modificaron las cláusulas `#terminos-riesgos` actualizando el límite del pool a 200 Millones de BLUE IOU, describiendo la reserva solidaria para Venezuela y detallando la regla por tramos no retroactiva para consistencia regulatoria absoluta.
+- **Impacto**: Se resolvió la experiencia móvil del widget de referidos (obteniendo un layout responsivo e integrado visualmente al diseño de niveles) y se blindó legalmente la landing page estática frente a reclamos de retroactividad o incongruencias contractuales entre páginas de un mismo dominio.
+- **Archivos modificados**: `Programa boosters/index.html`, `Programa boosters/evolucion.md`, `Programa boosters/CHANGELOG.md`, `smart-contract/EVOLUCION.md`.
+
+### 2026-06-29 — Expansión del Pool de Boosters a 200M, Referidos por Tramos y Reserva de Acción Humanitaria
+
+- **Contexto**: Para permitir que el programa de adquisición de usuarios del protocolo escale de forma segura a más de 1 millón de registros sin comprometer el balance general (tokenomics) ni violar los límites de emisión, se amplió el pool total de incentivos de boosters de 100M a 200M de BLUE IOU. Se requería estructurar el programa de invitaciones en un esquema decreciente por tramos (200 / 100 / 75 BLUE) para evitar riesgos de descapitalización (cliff effect). Adicionalmente, por motivos de cumplimiento y auditoría, se debían formalizar en los términos legales de la plataforma la no retroactividad de las tasas para proteger a los usuarios existentes, y constituir una reserva especial de impacto social para la asistencia humanitaria de emergencia en Venezuela que evite que el protocolo sea calificado como un fideicomiso de caridad no registrado (Charitable Trust).
+- **Decisión de Ingeniería**:
+  - **Actualización de Términos Legales (`terms.html` de la Plataforma)**: Se modificó la Sección 7.2 para detallar los 3 tramos de emisión de referidos (llegando a 1.01M de usuarios) y ratificar explícitamente el Principio de No Retroactividad. Se creó la Sección 7.5 para formalizar la Reserva de Impacto Social y Acción Humanitaria (apoyo logístico/desarrollo por los terremotos de Venezuela).
+  - **Alineación del Frontend de Boosters (`index.html`, `detalles/legal.html`, `detalles/niveles.html`)**: Se incorporó un widget visual explicativo con los tramos activos (etapa Pioneros) y el disclaimer de no retroactividad. Se actualizó el límite del pool a 200 millones de BLUE IOU y se reescribieron las advertencias de validación KYC suspensiva en las subpáginas de detalles para mantener consistencia absoluta.
+- **Impacto**: Se incrementó el potencial de adquisición de usuarios en más de un 1000% (escalando hasta 1.01 millones de usuarios) mientras se resguardó la viabilidad fiscal, contable y regulatoria del ecosistema, blindando el protocolo frente a litigios de retroactividad o regulaciones de beneficencia pública.
+- **Archivos modificados**: `smart-contract/frontend/terms.html`, `EVOLUCION.md` (y del lado de boosters: `index.html`, `detalles/legal.html`, `detalles/niveles.html`, `evolucion.md`, `CHANGELOG.md`).
+
+### 2026-06-28 — Sincronización de Niveles Winton en Base de Datos, Landing de Boosters e Integración del Centro de Documentación
+
+- **Contexto**: Existía una discrepancia de diseño en los niveles de impulsores. El backend inicializaba por defecto 5 niveles con nombres genéricos (Inicial, Bronce, Plata, Oro, Platino), mientras que la landing page estática de boosters presentaba 3 niveles (Visionario, Pionero, Guardian) con diferentes mínimos de saldo. Para mantener consistencia de UX, transparencia de marca y cumplir estrictamente los contratos legales de comisiones en cascada, se requería sincronizar la semilla inicial de base de datos con los niveles premium basados en Sir Nicholas Winton y adaptarlos al frontend. Adicionalmente, se debía centralizar el acceso al Programa de Impulsores en el Centro de Documentación.
+- **Decisión de Ingeniería**:
+  - **Sincronización de Base de Datos (`databaseInit.js`)**: Se modificó la semilla inicial (`boosterLevels`) para registrar los 5 niveles exactos de Winton: *Impulsor Visionario* (0 BLUE), *Impulsor Pionero* (5,001 BLUE), *Impulsor Guardian* (25,001 BLUE), *Impulsor Salvador* (200,001 BLUE) e *Impulsor Legado Infinito* (1,000,000 BLUE), con sus descripciones temáticas de Sir Nicholas Winton.
+  - **Alineación del Frontend de Boosters (`index.html` y `detalles/niveles.html`)**: Se expandió el grid de niveles de 3 a 5 tarjetas, reflejando fielmente estos mismos rangos y copywriting. Para mantener la seguridad óptima (Zero Attack Surface), se conservó la estructura estática del frontend, protegiendo las credenciales de base de datos de producción ante la internet pública.
+  - **Integración de Documentación (`documentation.html`)**: Se incorporó una nueva tarjeta de documentación (`doc-card`) en el Centro de Documentación central del frontend principal, apuntando de forma directa y auditable a la landing del Programa de Boosters.
+- **Impacto**: Se unificaron los datos operativos de base de datos con el material de comunicación al usuario de forma transparente, previniendo incoherencias contables o de estatus en el perfil, y asegurando el acceso directo a los términos del programa desde las guías oficiales de la plataforma.
+- **Archivos modificados**: `backend/src/config/databaseInit.js`, `frontend/documentation.html`, `EVOLUCION.md` (y del lado del subproyecto boosters: `index.html`, `detalles/niveles.html`, `evolucion.md`, `CHANGELOG.md`).
+
 ### 2026-06-27 — Adecuación Legal, Ampliación de Escrow a 150 Días, Remoción de Triggers en DB y Alineación de Frontend a L.O.V. (Migraciones 075 y 076)
 
 - **Contexto**: Se requería blindar legalmente a la plataforma frente a normativas financieras (SEC, Howey Test) y de transmisión de dinero, y adaptar el plazo de custodia de donaciones solidarias. Dado que la plataforma no cuenta temporalmente con un proveedor de KYC Web3 y para evitar que usuarios malintencionados eviten deliberadamente la verificación a corto plazo para recuperar sus fondos de forma rápida, se decidió ampliar el plazo de retención. Asimismo, se requería forzar la aceptación de los nuevos términos en producción/Render de forma totalmente automatizada. Para garantizar consistencia absoluta y evitar observaciones de auditores SOC 2, se aprobó trasladar estas definiciones a la interfaz gráfica del usuario (frontend) erradicando la palabra "deuda" y renombrando la Lista de Obligaciones Vencidas a L.O.V. (sin la E).

@@ -678,7 +678,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             if (buyer.is_minor && (!buyer.tutor_user_id || buyer.account_status === 'pending_tutor')) {
                 await client.query('ROLLBACK');
                 return res.status(403).json({
-                    message: "Por ser menor de edad, necesitas la autorización de un tutor para realizar pagos que generen deuda RED. Por favor, agrega un tutor a tu cuenta primero.",
+                    message: "Por ser menor de edad, necesitas la autorización de un tutor para realizar pagos que generen compromisos RED. Por favor, agrega un tutor a tu cuenta primero.",
                     requires_tutor: true,
                     is_minor: true
                 });
@@ -1038,7 +1038,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             // Restricción para menores en ventas (Generación de deuda)
             if (pub.category === 'sell' && acceptor.is_minor && (!acceptor.tutor_user_id || acceptor.account_status === 'pending_tutor')) {
-                throw { status: 403, message: "Como menor sin tutor asignado, no puedes aceptar publicaciones que generen deuda RED." };
+                throw { status: 403, message: "Como menor sin tutor asignado, no puedes aceptar publicaciones que generen compromisos RED." };
             }
 
             // Descontar cupo

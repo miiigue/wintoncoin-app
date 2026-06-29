@@ -250,7 +250,7 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         if (debtResponsible.is_tutor) {
             await client.query(
                 `INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`,
-                [debtResponsible.username, `Se ha generado una deuda RED de ${redForAuthor.toFixed(4)} asociada a la cuenta del menor ${debtResponsible.minor_username} por la tarea "${acceptance.title}". Tú eres responsable de esta deuda como tutor.`]
+                [debtResponsible.username, `Se ha generado un compromiso RED de ${redForAuthor.toFixed(4)} asociado a la cuenta del menor ${debtResponsible.minor_username} por la tarea "${acceptance.title}". Tú eres responsable de este compromiso como tutor.`]
             );
         }
 
@@ -549,7 +549,7 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         if (debtResponsible.is_tutor) {
             await client.query(
                 `INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`,
-                [debtResponsible.username, `Se ha generado una deuda RED de ${redForPayer.toFixed(4)} asociada a la cuenta del menor ${debtResponsible.minor_username} por "${acceptance.title}". Tú eres responsable de esta deuda como tutor.`]
+                [debtResponsible.username, `Se ha generado un compromiso RED de ${redForPayer.toFixed(4)} asociado a la cuenta del menor ${debtResponsible.minor_username} por "${acceptance.title}". Tú eres responsable de este compromiso como tutor.`]
             );
         }
 

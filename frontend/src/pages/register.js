@@ -381,7 +381,7 @@ function setupModals() {
     // Event listeners para modal de referido
     if (getReferralCodeBtn) {
         getReferralCodeBtn.addEventListener('click', () => {
-            window.open('https://www.wintoncoin.com', '_blank', 'noopener,noreferrer');
+            window.open('/', '_blank', 'noopener,noreferrer');
             closeReferralModal();
         });
     }

@@ -732,7 +732,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const debtors = await apiFetch(`/api/admin/debtors`);
             renderDebtorsTable(debtors);
         } catch (error) {
-            elements.debtorsTableContainer.innerHTML = `<p class="error-message">Error al cargar los deudores: ${escapeHtml(error.message)}</p>`;
+            elements.debtorsTableContainer.innerHTML = `<p class="error-message">Error al cargar los compromisos vencidos: ${escapeHtml(error.message)}</p>`;
         }
     }
 
