@@ -424,11 +424,18 @@
                 <li><strong>Naturaleza del Saldo:</strong> El Usuario entiende y acepta que este saldo representa una expectativa de pago futura y no un activo líquido inmediato. Su conversión a tokens BLUE reales (circulantes) está sujeta al mecanismo de liquidación descrito en la sección 7.3.</li>
             </ul>
 
-            <h3>7.2. Recompensas por Referido</h3>
-            <p>Cuando un Usuario utiliza el sistema de referidos, se generan recompensas bajo las siguientes reglas:</p>
+            <h3>7.2. Recompensas por Referido y Tramos de Emisión</h3>
+            <p>Cuando un Usuario utiliza el sistema de referidos a partir del lanzamiento de esta actualización, se generan recompensas dinámicas por tramos acumulados de registros:</p>
             <ul>
-                <li><strong>Acumulación:</strong> Las recompensas se acumulan en el Perfil de Impulsor de ambos usuarios (referente y referido).</li>
-                <li><strong>Condición de Pago:</strong> Estas recompensas acumuladas NO son exigibles inmediatamente tras el lanzamiento oficial. Su pago se realizará de manera diferida y proporcional a través del <strong>Fondo de Comisiones de la Plataforma</strong>.</li>
+                <li><strong>Estructura por Tramos (Halving Activo):</strong> Las recompensas para el referente y el referido se calculan según el tramo vigente al momento de la validación del KYC del referido:
+                    <ul>
+                        <li><strong>Tramo 1 (Pioneros):</strong> 200 BLUE IOU para cada uno para los primeros 10,000 usuarios registrados en el sistema.</li>
+                        <li><strong>Tramo 2 (Crecimiento):</strong> 100 BLUE IOU para cada uno para los siguientes 300,000 usuarios registrados (hasta 310,000 acumulados).</li>
+                        <li><strong>Tramo 3 (Adopción Masiva):</strong> 75 BLUE IOU para cada uno para los siguientes 700,000 usuarios registrados (hasta 1,010,000 acumulados).</li>
+                    </ul>
+                </li>
+                <li><strong>Principio de No Retroactividad:</strong> Esta estructura de tramos aplica exclusivamente a los nuevos registros de referidos a partir de la entrada en vigencia de estos Términos. Los usuarios registrados con anterioridad a esta fecha mantienen sus saldos promocionales acumulados bajo los montos asignados en su momento de registro original, los cuales se respetan íntegramente.</li>
+                <li><strong>Condición de Pago:</strong> Estas recompensas acumuladas NO son exigibles inmediatamente. Su pago se realizará de manera diferida y proporcional a través del <strong>Fondo de Comisiones de la Plataforma</strong> de conformidad con las reglas del Programa de Impulsores.</li>
             </ul>
 
             <h3>7.3. Mecanismo de Liquidación y Pagos (Programa de Impulsores)</h3>
@@ -451,6 +458,13 @@
                 <li><strong>Anulación Automática por Incumplimiento o Riesgo:</strong> WintonCoin podrá anular total o parcialmente recompensas provisionales cuando: (i) el referido no complete KYC dentro del plazo operativo definido por la Plataforma; (ii) exista evidencia de cuentas falsas, duplicadas, colusión, auto-referidos, suplantación, uso indebido de dispositivo/red o cualquier patrón fraudulento; (iii) el referido o referente sea suspendido por incumplimiento normativo.</li>
                 <li><strong>Reserva de Verificación y Auditoría:</strong> WintonCoin podrá solicitar información adicional para validar legitimidad de la relación de referido y conservará registros técnicos y de auditoría (incluyendo trazabilidad de eventos) para fines de prevención de fraude, cumplimiento legal y defensa ante controversias.</li>
                 <li><strong>Reglas de Pre-lanzamiento:</strong> Durante esta fase, aunque la recompensa figure en el Perfil de Impulsor, su eventual pago continúa condicionado a las reglas de liquidación del Programa de Impulsores y al cumplimiento de los requisitos de verificación y cumplimiento aplicables.</li>
+            </ul>
+
+            <h3>7.5. Reserva de Impacto Social y Acción Humanitaria</h3>
+            <p>El pool general de incentivos contempla una asignación específica para causas solidarias:</p>
+            <ul>
+                <li><strong>Fondo de Impacto y Apoyo ante Siniestros:</strong> Se establece una reserva especial dentro del pool de incentivos de boosters destinada a recompensar tareas de desarrollo, logística, traducción y coordinación digital vinculadas a desastres naturales o emergencias humanitarias (como el apoyo a los afectados por los terremotos en Venezuela).</li>
+                <li><strong>Naturaleza de los Incentivos:</strong> Las asignaciones de esta reserva representan incentivos promocionales en BLUE IOU por servicios y tareas comunitarias efectivamente completadas y validadas, y en ningún caso constituyen donaciones financieras directas de efectivo por parte de la Plataforma.</li>
             </ul>
         </div>
 
