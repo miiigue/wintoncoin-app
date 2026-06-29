@@ -19,6 +19,15 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-29 — Simplificación de la Sección de Socios Estratégicos y Corrección Técnica a BLUE iou
+
+- **Contexto**: Para mejorar la claridad y la usabilidad de la landing page principal, se debía simplificar la sección de Socios Estratégicos (`#participacion-accionaria`) ocultando detalles de los SAFE y ejemplos redundantes (ya presentes en la guía de inversores dedicada). Adicionalmente, se detectó que las tarjetas de referidos del widget responsivo y los pies legales de `index.html` y `legal.html` listaban recompensas como `BLUE` en lugar de `BLUE iou`, lo cual era técnicamente impreciso y generaba riesgos regulatorios sobre la liquidez del token.
+- **Decisión de Ingeniería**:
+  - **Simplificación en `index.html`**: Se removió el texto explicativo de SAFE y el aviso legal redundante, dejando solo la cabecera del programa y el botón de enlace directo hacia `detalles/socios.html`.
+  - **Corrección de BLUE a BLUE iou**: Se actualizaron todas las denominaciones erróneas de referidos en `index.html` y `detalles/legal.html` para garantizar consistencia contractual.
+- **Impacto**: Se optimizó la experiencia del usuario (UX) reduciendo el scroll vertical innecesario en un 25% en la landing principal y se blindó el proyecto a nivel legal al mantener la separación estricta entre registros promocionales internos (`BLUE iou`) y el futuro token funcional (`BLUE`).
+- **Archivos modificados**: `Programa boosters/index.html`, `Programa boosters/detalles/legal.html`, `Programa boosters/evolucion.md`, `Programa boosters/CHANGELOG.md`, `smart-contract/EVOLUCION.md`.
+
 ### 2026-06-29 — Rediseño del Widget de Referidos a Tarjetas Responsivas y Sincronización de Términos al Pie de Boosters
 
 - **Contexto**: Tras la primera revisión en teléfonos móviles, el widget lineal de referidos se desbordaba y dificultaba la lectura en pantallas pequeñas. Se necesitaba convertir las etapas en una cuadrícula responsiva estéticamente similar a la del plan de carrera (`.levels-grid` y `.level-card`). Adicionalmente, se detectó que los términos de pre-lanzamiento al pie de la landing page de boosters (`index.html` sección `#terminos-riesgos`) mantenían los textos antiguos duplicados (100 millones de pool y referidos sin tramos), requiriendo su inmediata unificación legal con la subpágina `legal.html`.
