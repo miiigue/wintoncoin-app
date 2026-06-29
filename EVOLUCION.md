@@ -19,6 +19,14 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-29 — Sincronización de Ejemplos de Pago y tokens BLUE en Landing de Boosters
+
+- **Contexto**: Para lograr uniformidad completa de marketing y evitar inconsistencias visuales, la descripción del prorrateo y prelación de cascada de `index.html` debía alinearse milimétricamente con `detalles/pagos.html`. Se requería sustituir números planos y aislados por la declaración explícita de "tokens BLUE".
+- **Decisión de Ingeniería**:
+  - **Sincronización en `index.html`**: Se modificaron las líneas del prorrateo de cascada para cambiar `Quedan 150,000` por `Quedan 150,000 tokens BLUE`, `Quedan 25,000` por `Quedan 25,000 tokens BLUE`, y `quedan 25,000` por `quedarían 25,000 tokens BLUE`, además de añadir la denominación en la fórmula y descripción de distribución.
+- **Impacto**: Se unificaron los textos explicativos, ofreciendo una experiencia al usuario (UX) coherente al navegar entre la landing principal y las guías de detalle.
+- **Archivos modificados**: `Programa boosters/index.html`, `Programa boosters/evolucion.md`, `Programa boosters/CHANGELOG.md`, `smart-contract/EVOLUCION.md`.
+
 ### 2026-06-29 — Precisión de Tokenomics, Propiedad Consolidada y Prelación Humanitaria de Pagos
 
 - **Contexto**: Para el cumplimiento más riguroso de normativas FinTech y evitar litigios o malinterpretaciones contractuales de los usuarios sobre la disponibilidad de los fondos, se requería corregir cinco imprecisiones de fondo:
