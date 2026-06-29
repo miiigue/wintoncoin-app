@@ -19,6 +19,20 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-29 — Precisión de Tokenomics, Propiedad Consolidada y Prelación Humanitaria de Pagos
+
+- **Contexto**: Para el cumplimiento más riguroso de normativas FinTech y evitar litigios o malinterpretaciones contractuales de los usuarios sobre la disponibilidad de los fondos, se requería corregir cinco imprecisiones de fondo:
+  1. **Concepto BLUE IOU en Pre-lanzamiento**: Asegurar que las transferencias y donaciones en la fase de prueba ocurran estrictamente en `BLUE IOU` (y no en `BLUE` circulante).
+  2. **Prelación Humanitaria de Pagos**: Consolidar en los términos de la plataforma (`terms.html`) que los casos humanitarios y donaciones solidarias validadas se liquidan bajo la "Prioridad 1" (prioridad absoluta) antes que cualquier nivel de impulsor.
+  3. **Propiedad Consolidada**: Evitar términos erróneos como "liberación definitiva" en las condiciones KYC de la landing, declarando que los saldos se "consolidan en propiedad para su posterior canje", eliminando riesgos de falsas expectativas de cobro inmediato.
+  4. **Comisiones en Tokens BLUE**: Dejar explícito en la landing y detalles de pago que la plataforma recauda comisiones en "tokens BLUE" tras el lanzamiento para amortizar el pool de `BLUE iou`.
+  5. **Claridad del Impacto Social**: Simplificar la redacción de la Sección 7.5 de los TyC para el fácil entendimiento del usuario sobre el funcionamiento de la reserva de impacto (asistencia logística/desarrollo por los terremotos de Venezuela).
+- **Decisión de Ingeniería**:
+  - **Actualización de TyC (`terms.html`)**: Se modificó la Sección 5.5 (para transferencias en `BLUE IOU`), la Sección 7.3 (añadiendo prelación de Prioridad 1 para casos humanitarios y comisiones en tokens BLUE), y se reescribió de manera simple y didáctica la Sección 7.5.
+  - **Alineación de Landing y Subpáginas de Boosters (`index.html`, `detalles/pagos.html`, `detalles/niveles.html`)**: Se reescribió la leyenda KYC ("consolidación de propiedad") y se especificó la procedencia de comisiones en tokens BLUE.
+- **Impacto**: Se garantizó consistencia jurídica absoluta en todo el ecosistema (eliminando errores de concepto de tokens y liquidación), protegiendo la tesorería del protocolo de falsas expectativas y blindando el proyecto ante reclamos de publicidad engañosa (FTC/SEC).
+- **Archivos modificados**: `smart-contract/frontend/terms.html`, `Programa boosters/index.html`, `Programa boosters/detalles/pagos.html`, `Programa boosters/detalles/niveles.html`, `Programa boosters/evolucion.md`, `Programa boosters/CHANGELOG.md`, `smart-contract/EVOLUCION.md`.
+
 ### 2026-06-29 — Simplificación de la Sección de Socios Estratégicos y Corrección Técnica a BLUE iou
 
 - **Contexto**: Para mejorar la claridad y la usabilidad de la landing page principal, se debía simplificar la sección de Socios Estratégicos (`#participacion-accionaria`) ocultando detalles de los SAFE y ejemplos redundantes (ya presentes en la guía de inversores dedicada). Adicionalmente, se detectó que las tarjetas de referidos del widget responsivo y los pies legales de `index.html` y `legal.html` listaban recompensas como `BLUE` en lugar de `BLUE iou`, lo cual era técnicamente impreciso y generaba riesgos regulatorios sobre la liquidez del token.
