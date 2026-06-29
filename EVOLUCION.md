@@ -19,6 +19,16 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-29 — Sincronización de Niveles de Impulsores y Fecha de Entrada en Vigencia del Halving
+
+- **Contexto**: Para consolidar los cinco niveles promocionales en los ejemplos de liquidación cascada del subproyecto boosters, se requería expandir los ítems del Nivel 3 para incorporar a los niveles 4 y 5. Asimismo, bajo recomendación de auditoría legal FinTech, se necesitaba establecer la fecha de entrada en vigencia explícita (**29 de junio de 2026**) en las cláusulas de no retroactividad y políticas anti-fraude en boosters y términos principales (`terms.html`), impidiendo vacíos legales y reclamos de usuarios por retroactividad.
+- **Decisión de Ingeniería**:
+  - **Sincronización de Niveles en `index.html` y `detalles/pagos.html`**: Se modificaron las Prioridades 4 para denominar a *"Impulsores Nivel 3, 4 y 5"* e indicar que cobran 0% (con bono de 50,000 BLUE iou recibido solo por el Nivel 3).
+  - **Fecha de Vigencia de Tramos en `terms.html`, `index.html` y `legal.html`**: Se fijó la fecha **29 de junio de 2026** como fecha de corte para la no retroactividad de tramos.
+  - **Corrección de "Validación Definitiva"**: Se reemplazó por "consolidación en propiedad" en las políticas anti-fraude correspondientes.
+- **Impacto**: Se unificaron los 5 niveles en la prelación de cascada y se blindó el sistema contra disputas retroactivas de recompensas al establecer una fecha límite inequívoca en la regulación del protocolo.
+- **Archivos modificados**: `smart-contract/frontend/terms.html`, `Programa boosters/index.html`, `Programa boosters/detalles/pagos.html`, `Programa boosters/detalles/legal.html`, `Programa boosters/evolucion.md`, `Programa boosters/CHANGELOG.md`, `smart-contract/EVOLUCION.md`.
+
 ### 2026-06-29 — Sincronización de Ejemplos de Pago y tokens BLUE en Landing de Boosters
 
 - **Contexto**: Para lograr uniformidad completa de marketing y evitar inconsistencias visuales, la descripción del prorrateo y prelación de cascada de `index.html` debía alinearse milimétricamente con `detalles/pagos.html`. Se requería sustituir números planos y aislados por la declaración explícita de "tokens BLUE".
