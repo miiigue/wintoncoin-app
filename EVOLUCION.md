@@ -19,7 +19,21 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-29 — Restricción de Donaciones a No Firmantes, Prohibición de Donaciones Cruzadas y Bloqueo de Publicación en Pre-lanzamiento
+
+- **Contexto**: Para el cumplimiento legal estricto y blindaje anti-fraude en Winton Solidario, se requería:
+  1. Impedir que los usuarios que no han firmado los TyC vigentes (v1.0.2) realicen donaciones, postulen causas o cancelen las mismas.
+  2. Evitar que un creador o beneficiario de una causa activa ('pending' o 'approved') pueda realizar donaciones a otras causas (mitigación de carruseles de donación de autolavado/fraude).
+  3. Desactivar en el dashboard las opciones de "Solicitar un Ayudante" y "Venta" en modo pre-lanzamiento para usuarios normales para evitar confusiones de UX.
+- **Decisión de Ingeniería**:
+  - **Middleware Legal en Rutas Públicas de Solidario**: Se integró `requireAcceptedLegalForAuthenticatedUser()` en `humanitarianUserRoutes.js` para obligar al usuario a firmar los TyC en todas las transacciones de Solidario.
+  - **Validación de Causa Activa del Donante**: Se añadió una consulta SQL en `humanitarianService.js` (`donateToCause`) para verificar si el donante figura como creador o beneficiario en una causa activa ('pending', 'approved'), lanzando un error 403.
+  - **Inhabilitación Segura en Dashboard**: Se actualizó `contract-interaction.js` (`checkPublicationPermissions`) para aplicar la clase `.disabled` y cursor no permitido a las opciones prohibidas durante pre-lanzamiento para usuarios normales. Para robustez, se clonan y reemplazan los nodos para remover listeners de clic previos de forma permanente.
+- **Impacto**: Se fortaleció la protección jurídica de la plataforma contra el uso de fondos RED sin firma legal activa y contra dinámicas de fraude y lavado por donaciones circulares.
+- **Archivos modificados**: `smart-contract/backend/src/routes/humanitarianUserRoutes.js`, `smart-contract/backend/src/services/humanitarianService.js`, `smart-contract/frontend/src/pages/contract-interaction.js`, `smart-contract/EVOLUCION.md`.
+
 ### 2026-06-29 — Validación de Enlaces de Evidencias/Redes y Auditoría de Cadenas de Referidos en Winton Solidario (Migración 077)
+
 
 - **Contexto**: Para prevenir intentos de fraude y cargas de enlaces maliciosos o no aptos en el módulo Winton Solidario (donaciones humanitarias), se requería restringir los enlaces de evidencia únicamente a nubes de almacenamiento seguro y los enlaces de redes sociales a plataformas específicas. Adicionalmente, el panel administrativo de confianza necesitaba una forma de auditar y verificar el código de referido utilizado por el solicitante durante su registro antes de aprobar la causa, mitigando esquemas de fraude masivo.
 - **Decisión de Ingeniería**:
