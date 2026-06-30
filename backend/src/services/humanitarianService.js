@@ -154,20 +154,26 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
         const cause = causeRes.rows[0];
 
         // =====================================================================
-        // VALIDACIÓN: El donante no puede ser beneficiario ni creador de ninguna causa activa
+        // VALIDACIÓN: El donante no puede ser el beneficiario de ninguna causa activa
         // =====================================================================
-        // Si el donante es el beneficiario (o creador) de una causa con estado 'pending' o 'approved',
-        // bloqueamos la donación por motivos de auditoría contable y prevención de fraude.
+        // Si el donante es el beneficiario real (el que recibe los fondos) de una causa activa 
+        // ('pending' o 'approved'), bloqueamos la donación para prevenir auto-donaciones y fraudes.
+        // Nota: Los creadores de causas (ej: influencers) que NO sean los beneficiarios finales de los fondos
+        // sí pueden donar para apoyar la causa que promovieron.
         const activeBeneficiaryCheck = await client.query(`
             SELECT id FROM humanitarian_causes 
-            WHERE (user_id = $1 OR beneficiary_referral_code = (SELECT referral_code FROM users WHERE id = $1))
-              AND status IN ('pending', 'approved')
+            WHERE (
+                (beneficiary_referral_code = (SELECT referral_code FROM users WHERE id = $1))
+                OR 
+                (beneficiary_referral_code IS NULL AND user_id = $1)
+            )
+            AND status IN ('pending', 'approved')
         `, [donorId]);
 
         if (activeBeneficiaryCheck.rowCount > 0) {
             throw { 
                 status: 403, 
-                message: 'Los beneficiarios o creadores de causas activas o en revisión en Winton Solidario no pueden realizar donaciones a otras causas.' 
+                message: 'Los beneficiarios directos de causas activas o en revisión en Winton Solidario no pueden realizar donaciones.' 
             };
         }
 

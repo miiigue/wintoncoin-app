@@ -3832,86 +3832,121 @@ document.addEventListener('DOMContentLoaded', () => {
             const cause = data.cause;
             const date = new Date(cause.created_at).toLocaleString('es-ES');
 
-            // Renderizar evidencia (array de URLs)
-            let evidenceHtml = '<em>Sin evidencia</em>';
+            // Procesar y separar evidencias de redes del creador
+            let cloudEvidenceLink = '<em>Sin enlace de evidencia</em>';
+            let creatorSocialsHtml = '<span style="color: #64748B; font-style: italic;">Sin redes registradas</span>';
+
             if (cause.evidence_urls && Array.isArray(cause.evidence_urls) && cause.evidence_urls.length > 0) {
-                evidenceHtml = cause.evidence_urls.map((url, i) =>
-                    `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="color: #3B82F6; text-decoration: underline; display: block; margin-bottom: 4px;">📎 Evidencia ${i + 1}</a>`
-                ).join('');
+                const evidenceLink = cause.evidence_urls[0];
+                if (evidenceLink) {
+                    cloudEvidenceLink = `<a href="${escapeHtml(evidenceLink)}" target="_blank" rel="noopener noreferrer" style="color: #3B82F6; text-decoration: underline; font-weight: bold; font-size: 0.95rem;">📂 Abrir Carpeta de Evidencia en la Nube (Google Drive/Dropbox/etc.)</a>`;
+                }
+
+                const creatorSocials = cause.evidence_urls.slice(1);
+                if (creatorSocials.length > 0) {
+                    creatorSocialsHtml = creatorSocials.map(url =>
+                        `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="color: #3B82F6; text-decoration: underline; margin-right: 15px; font-size: 0.85rem;">🔗 ${escapeHtml(url)}</a>`
+                    ).join('');
+                }
             }
+
+            const userRegDate = cause.user_registered_at ? new Date(cause.user_registered_at).toLocaleDateString('es-ES') : 'N/A';
 
             elements.humanitarianModalTitle.textContent = `Causa #${cause.id}: ${cause.title}`;
             elements.humanitarianModalBody.innerHTML = `
-                <div style="display: grid; gap: 12px;">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                        <div>
-                            <strong style="color: #94A3B8;">Usuario:</strong>
-                            <p style="margin: 4px 0;">${escapeHtml(cause.username)}</p>
-                        </div>
-                        <div>
-                            <strong style="color: #94A3B8;">Email:</strong>
-                            <p style="margin: 4px 0;">${escapeHtml(cause.email || 'N/A')}</p>
-                        </div>
-                        <div>
-                            <strong style="color: #94A3B8;">Meta BLUE IOU:</strong>
-                            <p style="margin: 4px 0; font-weight: 700; color: #3B82F6;">${Number(cause.goal_amount).toLocaleString('es-ES')} BLUE</p>
-                        </div>
-                        <div>
-                            <strong style="color: #94A3B8;">Recaudado:</strong>
-                            <p style="margin: 4px 0; font-weight: 700; color: #10B981;">${Number(cause.current_amount).toLocaleString('es-ES')} BLUE</p>
-                        </div>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-top: 1px solid rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.05); padding: 10px 0;">
-                        <div>
-                            <strong style="color: #94A3B8;">Registro (Sponsor):</strong>
-                            <p style="margin: 4px 0;">
-                                ${cause.referrer_referral_code 
-                                    ? `<span style="color: #10B981; font-weight: bold;">${escapeHtml(cause.referrer_referral_code)}</span> (de @${escapeHtml(cause.referrer_username)})`
-                                    : '<span style="color: #64748B; font-style: italic;">Registro Directo (Sin Referido)</span>'}
-                            </p>
-                        </div>
-                        <div>
-                            <strong style="color: #94A3B8;">Destinatario de Fondos:</strong>
-                            <p style="margin: 4px 0;">
-                                <strong style="color: #F472B6;">${escapeHtml(cause.foundation_name)}</strong> 
-                                (Código: <span style="color: #3B82F6; font-weight: bold;">${escapeHtml(cause.beneficiary_referral_code)}</span>)
-                            </p>
-                        </div>
-                    </div>
-
-                    ${cause.beneficiary_socials ? `
-                        <div>
-                            <strong style="color: #94A3B8;">Redes del Beneficiario:</strong>
-                            <div style="margin-top: 4px;">
-                                ${cause.beneficiary_socials.trim().split(/\s+/).map(url => `
-                                    <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="color: #F472B6; text-decoration: underline; margin-right: 15px; font-size: 0.85rem;">🔗 ${escapeHtml(url)}</a>
-                                `).join('')}
+                <div style="display: grid; gap: 16px;">
+                    <!-- BLOQUE 1: DATOS DEL SOLICITANTE (CREADOR) -->
+                    <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);">
+                        <h4 style="margin: 0 0 10px 0; color: #3B82F6; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">🧑‍💻 Información del Solicitante (Creador)</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.9rem;">
+                            <div>
+                                <strong style="color: #94A3B8;">Usuario:</strong>
+                                <p style="margin: 4px 0; font-weight: bold; color: white;">@${escapeHtml(cause.username)}</p>
+                            </div>
+                            <div>
+                                <strong style="color: #94A3B8;">Email:</strong>
+                                <p style="margin: 4px 0; color: white;">${escapeHtml(cause.email || 'N/A')}</p>
+                            </div>
+                            <div>
+                                <strong style="color: #94A3B8;">Fecha de Registro:</strong>
+                                <p style="margin: 4px 0; color: white;">📅 ${userRegDate}</p>
+                            </div>
+                            <div>
+                                <strong style="color: #94A3B8;">Patrocinador (Sponsor):</strong>
+                                <p style="margin: 4px 0; color: white;">
+                                    ${cause.referrer_referral_code 
+                                        ? `<span style="color: #10B981; font-weight: bold;">${escapeHtml(cause.referrer_referral_code)}</span> (@${escapeHtml(cause.referrer_username)})`
+                                        : '<span style="color: #64748B; font-style: italic;">Ninguno (Registro Directo)</span>'}
+                                </p>
                             </div>
                         </div>
-                    ` : ''}
-
-                    <div>
-                        <strong style="color: #94A3B8;">Historia:</strong>
-                        <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; margin-top: 6px; max-height: 200px; overflow-y: auto; line-height: 1.6;">
-                            ${escapeHtml(cause.story)}
+                        <div style="margin-top: 10px; font-size: 0.9rem;">
+                            <strong style="color: #94A3B8; display: block; margin-bottom: 4px;">Redes Sociales del Creador:</strong>
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                ${creatorSocialsHtml}
+                            </div>
                         </div>
                     </div>
 
-                    <div>
-                        <strong style="color: #94A3B8;">Evidencia:</strong>
-                        <div style="margin-top: 6px;">${evidenceHtml}</div>
+                    <!-- BLOQUE 2: DETALLES DE LA CAUSA Y RECAUDACIÓN -->
+                    <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);">
+                        <h4 style="margin: 0 0 10px 0; color: #10B981; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">📋 Detalles del Caso y Recaudación</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.9rem; margin-bottom: 10px;">
+                            <div>
+                                <strong style="color: #94A3B8;">Meta BLUE IOU:</strong>
+                                <p style="margin: 4px 0; font-weight: 700; color: #3B82F6; font-size: 1.1rem;">${Number(cause.goal_amount).toLocaleString('es-ES')} BLUE</p>
+                            </div>
+                            <div>
+                                <strong style="color: #94A3B8;">Recaudado:</strong>
+                                <p style="margin: 4px 0; font-weight: 700; color: #10B981; font-size: 1.1rem;">${Number(cause.current_amount).toLocaleString('es-ES')} BLUE</p>
+                            </div>
+                        </div>
+                        <div style="font-size: 0.9rem; margin-bottom: 10px;">
+                            <strong style="color: #94A3B8;">Historia:</strong>
+                            <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; margin-top: 6px; max-height: 150px; overflow-y: auto; line-height: 1.6; color: #E2E8F0; font-size: 0.88rem; border: 1px solid rgba(255,255,255,0.05);">
+                                ${escapeHtml(cause.story)}
+                            </div>
+                        </div>
+                        <div style="font-size: 0.9rem;">
+                            <strong style="color: #94A3B8; display: block; margin-bottom: 4px;">Evidencia Soportada (Nube):</strong>
+                            <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                                ${cloudEvidenceLink}
+                            </div>
+                        </div>
                     </div>
 
-                    <div style="display: flex; gap: 20px; font-size: 0.85rem; color: #64748B;">
-                        <span>📅 Registrada: ${date}</span>
-                        <span>🔖 Estado: <strong>${cause.status}</strong></span>
+                    <!-- BLOQUE 3: DATOS DEL BENEFICIARIO FINAL (DESTINATARIO DE LOS FONDOS) -->
+                    <div style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);">
+                        <h4 style="margin: 0 0 10px 0; color: #F472B6; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">💝 Destinatario Final (Beneficiario)</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.9rem;">
+                            <div>
+                                <strong style="color: #94A3B8;">Fundación / Nombre:</strong>
+                                <p style="margin: 4px 0; font-weight: bold; color: #F472B6;">${escapeHtml(cause.foundation_name)}</p>
+                            </div>
+                            <div>
+                                <strong style="color: #94A3B8;">Código de Referido Beneficiario:</strong>
+                                <p style="margin: 4px 0; font-weight: bold; color: #3B82F6;">${escapeHtml(cause.beneficiary_referral_code)}</p>
+                            </div>
+                        </div>
+                        <div style="margin-top: 10px; font-size: 0.9rem;">
+                            <strong style="color: #94A3B8; display: block; margin-bottom: 4px;">Redes Sociales del Beneficiario:</strong>
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                ${cause.beneficiary_socials ? cause.beneficiary_socials.trim().split(/\s+/).map(url => `
+                                    <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="color: #F472B6; text-decoration: underline; margin-right: 15px; font-size: 0.85rem;">🔗 ${escapeHtml(url)}</a>
+                                `).join('') : '<span style="color: #64748B; font-style: italic;">Sin redes registradas</span>'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 20px; font-size: 0.8rem; color: #64748B; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
+                        <span>📅 Postulación Recibida: ${date}</span>
+                        <span>🔖 Estado Actual: <strong style="color: #F59E0B; text-transform: uppercase;">${cause.status}</strong></span>
                     </div>
 
                     ${cause.admin_notes ? `
-                        <div style="background: rgba(239,68,68,0.1); padding: 12px; border-radius: 8px; border-left: 3px solid #EF4444;">
+                        <div style="background: rgba(239,68,68,0.05); padding: 12px; border-radius: 8px; border-left: 3px solid #EF4444; border: 1px solid rgba(239,68,68,0.1); font-size: 0.88rem;">
                             <strong style="color: #EF4444;">Notas del Admin:</strong>
-                            <p style="margin: 4px 0;">${escapeHtml(cause.admin_notes)}</p>
+                            <p style="margin: 4px 0; color: #E2E8F0;">${escapeHtml(cause.admin_notes)}</p>
                         </div>
                     ` : ''}
                 </div>
