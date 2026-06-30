@@ -425,11 +425,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const sellOption = modal.querySelector('.modal-option-button.sell');
         const donationOption = modal.querySelector('.modal-option-button.donation');
 
+        // Determinar si el usuario actual es la cuenta oficial de la plataforma
+        const currentUser = (localStorage.getItem('username') || '').toLowerCase();
+        const platformUser = (settings.platform_username || 'wintoncoin').toLowerCase();
+        const isPlatform = currentUser === platformUser || currentUser === 'plataforma';
+
+        // En pre-lanzamiento, las publicaciones de tipo request y sell están deshabilitadas para usuarios normales.
+        const allowRequest = settings.pre_launch_mode_enabled ? isPlatform : settings.allow_request_publications;
+        const allowSell = settings.pre_launch_mode_enabled ? isPlatform : settings.allow_sell_publications;
+        const allowDonation = settings.allow_donation_publications;
+
         const toggleOption = (element, isEnabled, type) => {
             if (!element) return;
             element.classList.toggle('disabled', !isEnabled);
             if (!isEnabled) {
                 element.style.cursor = 'not-allowed';
+                const newElement = element.cloneNode(true);
+                element.parentNode.replaceChild(newElement, element);
+                newElement.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
             } else {
                 element.style.cursor = 'pointer';
                 const newElement = element.cloneNode(true);
@@ -447,14 +463,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        toggleOption(requestOption, settings.allow_request_publications, 'request');
-        toggleOption(sellOption, settings.allow_sell_publications, 'sell');
-        toggleOption(donationOption, settings.allow_donation_publications, 'donation');
+        toggleOption(requestOption, allowRequest, 'request');
+        toggleOption(sellOption, allowSell, 'sell');
+        toggleOption(donationOption, allowDonation, 'donation');
 
         // Quick sale button
         const quickSaleBtn = document.getElementById('openQuickSaleModalBtn');
         if (quickSaleBtn) {
-            quickSaleBtn.style.display = settings.allow_quick_sale_publications === false ? 'none' : 'inline-flex';
+            quickSaleBtn.style.display = (settings.allow_quick_sale_publications === false || (settings.pre_launch_mode_enabled && !isPlatform)) ? 'none' : 'inline-flex';
         }
     }
 

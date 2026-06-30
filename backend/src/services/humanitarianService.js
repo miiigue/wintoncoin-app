@@ -154,6 +154,24 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
         const cause = causeRes.rows[0];
 
         // =====================================================================
+        // VALIDACIÓN: El donante no puede ser beneficiario ni creador de ninguna causa activa
+        // =====================================================================
+        // Si el donante es el beneficiario (o creador) de una causa con estado 'pending' o 'approved',
+        // bloqueamos la donación por motivos de auditoría contable y prevención de fraude.
+        const activeBeneficiaryCheck = await client.query(`
+            SELECT id FROM humanitarian_causes 
+            WHERE (user_id = $1 OR beneficiary_referral_code = (SELECT referral_code FROM users WHERE id = $1))
+              AND status IN ('pending', 'approved')
+        `, [donorId]);
+
+        if (activeBeneficiaryCheck.rowCount > 0) {
+            throw { 
+                status: 403, 
+                message: 'Los beneficiarios o creadores de causas activas o en revisión en Winton Solidario no pueden realizar donaciones a otras causas.' 
+            };
+        }
+
+        // =====================================================================
         // RESOLUCIÓN DEL BENEFICIARIO FINAL (Destinatario de los fondos)
         // =====================================================================
         // Por defecto, los fondos se dirigen al creador/dueño de la causa.
