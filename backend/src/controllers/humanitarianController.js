@@ -125,9 +125,12 @@ const getCauseDetail = async (req, res) => {
                 hc.*,
                 u.username,
                 u.email,
-                u.created_at AS user_registered_at
+                u.created_at AS user_registered_at,
+                ref.username AS referrer_username,
+                ref.referral_code AS referrer_referral_code
             FROM humanitarian_causes hc
             JOIN users u ON hc.user_id = u.id
+            LEFT JOIN users ref ON u.referrer_id = ref.id
             WHERE hc.id = $1
         `;
         const result = await pool.query(sql, [id]);

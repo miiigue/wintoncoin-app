@@ -3862,6 +3862,35 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
 
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-top: 1px solid rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.05); padding: 10px 0;">
+                        <div>
+                            <strong style="color: #94A3B8;">Registro (Sponsor):</strong>
+                            <p style="margin: 4px 0;">
+                                ${cause.referrer_referral_code 
+                                    ? `<span style="color: #10B981; font-weight: bold;">${escapeHtml(cause.referrer_referral_code)}</span> (de @${escapeHtml(cause.referrer_username)})`
+                                    : '<span style="color: #64748B; font-style: italic;">Registro Directo (Sin Referido)</span>'}
+                            </p>
+                        </div>
+                        <div>
+                            <strong style="color: #94A3B8;">Destinatario de Fondos:</strong>
+                            <p style="margin: 4px 0;">
+                                <strong style="color: #F472B6;">${escapeHtml(cause.foundation_name)}</strong> 
+                                (Código: <span style="color: #3B82F6; font-weight: bold;">${escapeHtml(cause.beneficiary_referral_code)}</span>)
+                            </p>
+                        </div>
+                    </div>
+
+                    ${cause.beneficiary_socials ? `
+                        <div>
+                            <strong style="color: #94A3B8;">Redes del Beneficiario:</strong>
+                            <div style="margin-top: 4px;">
+                                ${cause.beneficiary_socials.trim().split(/\s+/).map(url => `
+                                    <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="color: #F472B6; text-decoration: underline; margin-right: 15px; font-size: 0.85rem;">🔗 ${escapeHtml(url)}</a>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+
                     <div>
                         <strong style="color: #94A3B8;">Historia:</strong>
                         <div style="background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; margin-top: 6px; max-height: 200px; overflow-y: auto; line-height: 1.6;">
