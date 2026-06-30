@@ -87,6 +87,17 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 throw { status: 403, message: `La creación de publicaciones de tipo "${publicationType}" está desactivada temporalmente.` };
             }
 
+            // === SEGURIDAD Y CONTROL DE PRE-LANZAMIENTO ===
+            // En modo de pre-lanzamiento, únicamente la cuenta oficial de la plataforma 
+            // está autorizada a crear publicaciones de tipo 'request' o 'sell'.
+            if (settings.pre_launch_mode_enabled === 'true' && publicationType !== 'donation') {
+                const platformUser = (settings.platform_username || 'wintoncoin').toLowerCase();
+                const currentActor = authorUsername.toLowerCase();
+                if (currentActor !== platformUser && currentActor !== 'plataforma') {
+                    throw { status: 403, message: "La creación de publicaciones generales está restringida durante la fase de pre-lanzamiento." };
+                }
+            }
+
             const isSellPost = publicationType === 'sell' || publicationType === 'donation';
 
             // Lógica de costo: 
