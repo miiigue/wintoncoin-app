@@ -566,13 +566,12 @@ const UserController = {
         // [Rendimiento] Adquirir un cliente específico del pool de conexiones para transacciones concurrentes
         const client = await pool.connect();
         try {
-            // [Auditoría / Integridad] Sumatoria neta disponible para transacciones (compras/donaciones)
-            const totalResult = await client.query(
-                'SELECT COALESCE(SUM(amount), 0) AS total FROM booster_blue_ledger WHERE user_id = $1',
-                [userId]
-            );
-            // Convertir el resultado a número flotante para consistencia de operaciones matemáticas
-            const totalBoosterBlue = parseFloat(totalResult.rows[0].total) || 0;
+            // [Auditoría / Integridad] Sumatorias de saldos total, elegible y pendiente (Core Financiero)
+            const FinancialCoreService = require('../services/financialCoreService');
+            const balanceInfo = await FinancialCoreService.getUserEligibleBalance(client, userId);
+            const totalBoosterBlue = balanceInfo.totalBalance;
+            const eligibleBoosterBlue = balanceInfo.eligibleBalance;
+            const pendingBoosterBlue = balanceInfo.unverifiedReferralBalance;
 
             // [Auditoría] Sumatoria de ganancias acumuladas históricas (amount > 0) para cálculo de niveles y membresía de booster
             const totalEarnedResult = await client.query(
@@ -667,6 +666,8 @@ const UserController = {
                 username: username,
                 booster_level: currentLevel,
                 total_booster_blue: totalBoosterBlue,
+                eligible_booster_blue: eligibleBoosterBlue,
+                pending_booster_blue: pendingBoosterBlue,
                 current_level_info: currentLevelInfo,
                 next_level_info: nextLevelInfo,
                 booster_tasks_completed_count: tasksCompleted,
@@ -844,12 +845,12 @@ const UserController = {
 
             const user = userResult.rows[0];
 
-            // Sumatoria neta disponible para transacciones
-            const totalResult = await client.query(
-                'SELECT COALESCE(SUM(amount), 0) AS total FROM booster_blue_ledger WHERE user_id = $1',
-                [user.id]
-            );
-            const totalBoosterBlue = parseFloat(totalResult.rows[0].total) || 0;
+            // Sumatorias de saldos total, elegible y pendiente (Core Financiero)
+            const FinancialCoreService = require('../services/financialCoreService');
+            const balanceInfo = await FinancialCoreService.getUserEligibleBalance(client, user.id);
+            const totalBoosterBlue = balanceInfo.totalBalance;
+            const eligibleBoosterBlue = balanceInfo.eligibleBalance;
+            const pendingBoosterBlue = balanceInfo.unverifiedReferralBalance;
 
             // Sumatoria de ganancias acumuladas históricas (amount > 0) para niveles y membresía de booster
             const totalEarnedResult = await client.query(
@@ -932,6 +933,8 @@ const UserController = {
                 username: user.username,
                 booster_level: currentLevel,
                 total_booster_blue: totalBoosterBlue,
+                eligible_booster_blue: eligibleBoosterBlue,
+                pending_booster_blue: pendingBoosterBlue,
                 current_level_info: currentLevelInfo,
                 next_level_info: nextLevelInfo,
                 booster_tasks_completed_count: tasksCompleted,

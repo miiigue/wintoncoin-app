@@ -119,6 +119,49 @@ const FinancialCoreService = {
             message: `Quema de tokens ejecutada con éxito. Total quemado: ${actualAmountToBurn.toFixed(2)} BLUE/RED.`,
             actualAmountBurned: actualAmountToBurn 
         };
+    },
+
+    /**
+     * Calcula el saldo elegible (disponible) de un usuario impulsor,
+     * restando de su saldo total los bonos de referidos cuyos invitados
+     * no posean KYC aprobado (kyc_verified = true).
+     * @param {Object} client - Conexión de base de datos activa (transacción)
+     * @param {Number} userId - ID del usuario impulsor
+     * @returns {Object} { totalBalance, unverifiedReferralBalance, eligibleBalance }
+     */
+    getUserEligibleBalance: async (client, userId) => {
+        const dbClient = client || pool;
+
+        // 1. Obtener el saldo acumulado en el ledger (BLUE IOU)
+        const totalResult = await dbClient.query(
+            'SELECT COALESCE(SUM(amount), 0) AS total FROM booster_blue_ledger WHERE user_id = $1',
+            [userId]
+        );
+        const totalBalance = parseFloat(totalResult.rows[0].total) || 0;
+
+        // 2. Obtener la suma de bonos por referidos no verificados (referidos con kyc_verified = false)
+        // Se hace un JOIN temporal exacto entre booster_blue_ledger y referral_log en un rango de 10s
+        const unverifiedResult = await dbClient.query(`
+            SELECT COALESCE(SUM(bbl.amount), 0) AS unverified_total
+            FROM booster_blue_ledger bbl
+            JOIN referral_log rl ON bbl.user_id = rl.referrer_user_id
+              AND bbl.type = 'referral_reward'
+              AND bbl.amount > 0
+              AND ABS(EXTRACT(EPOCH FROM (bbl.created_at - rl.created_at))) < 10
+            JOIN users u ON rl.referred_user_id = u.id
+            WHERE bbl.user_id = $1
+              AND COALESCE(u.kyc_verified, false) = false
+        `, [userId]);
+        const unverifiedReferralBalance = parseFloat(unverifiedResult.rows[0].unverified_total) || 0;
+
+        // 3. Saldo elegible es la diferencia (no permitiendo saldo disponible menor a 0 por margen de seguridad)
+        const eligibleBalance = Math.max(0, totalBalance - unverifiedReferralBalance);
+
+        return {
+            totalBalance,
+            unverifiedReferralBalance,
+            eligibleBalance
+        };
     }
 };
 

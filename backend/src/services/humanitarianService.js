@@ -232,18 +232,17 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
         }
 
         // =====================================================================
-        // PASO 2: Verificar saldo del donante (Event Sourcing — SUM del ledger)
+        // PASO 2: Verificar saldo elegible del donante (Core Financiero — KYC referidos)
         // =====================================================================
-        const balanceRes = await client.query(
-            'SELECT COALESCE(SUM(amount), 0) AS total FROM booster_blue_ledger WHERE user_id = $1',
-            [donorId]
-        );
-        const donorBalance = parseFloat(balanceRes.rows[0].total);
+        const FinancialCoreService = require('./financialCoreService');
+        const balanceInfo = await FinancialCoreService.getUserEligibleBalance(client, donorId);
+        const donorBalance = balanceInfo.totalBalance;
+        const eligibleBalance = balanceInfo.eligibleBalance;
 
-        if (donorBalance < donationAmount) {
+        if (eligibleBalance < donationAmount) {
             throw {
                 status: 400,
-                message: `Saldo insuficiente. Tienes ${donorBalance.toFixed(4)} BLUE IOU disponibles.`
+                message: `Saldo elegible insuficiente. Tienes ${eligibleBalance.toFixed(4)} BLUE IOU disponibles para transaccionar (excluyendo bonos de referidos sin KYC aprobados).`
             };
         }
 

@@ -19,6 +19,18 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-30 — Restricción de Saldo por KYC de Referidos en Donaciones, Marketplace y Motor de Pagos de Impulsores (Saldo Elegible)
+
+- **Contexto**: Para mitigar el riesgo de abuso y fraude mediante *referral farming* (bots de invitación masiva) durante la fase de pre-lanzamiento, se requería impedir que un influencer verificado (con KYC aprobado) pudiera gastar, donar o retirar comisiones acumuladas provenientes de invitaciones a seguidores que aún no aprueban su propio KYC.
+- **Decisión de Ingeniería**:
+  - **Servicio Core Financiero (`financialCoreService.js`)**: Se introdujo la función helper `getUserEligibleBalance` que calcula de forma atómica en SQL el Saldo Total, el Saldo Retenido por KYC de referidos pendientes, y el Saldo Disponible Elegible (restando de forma exacta en una ventana temporal de 10s los bonos del ledger emparejados con la bitácora de invitaciones de usuarios sin KYC verificado).
+  - **Winton Solidario (`humanitarianService.js`)**: Se actualizó `donateToCause` para validar y bloquear cualquier donación que exceda el Saldo Disponible Elegible del donante.
+  - **Marketplace (`publicationService.js`)**: Se integró la misma validación en el procesamiento de transacciones comerciales (compras y aceptación de ofertas) bajo el modo de pre-lanzamiento.
+  - **Motor de Pagos Automáticos (`boosterService.js`)**: Se modificaron las consultas de cálculo de presupuesto de comisiones (`totalDebtForLevel`) y la selección de lote de cobros individuales (`boostersResult`) para liquidar comisiones únicamente sobre el Saldo Disponible Elegible de los impulsores.
+  - **Visualización en Perfil (`userController.js` y `booster-profile.js`)**: Se ampliaron los endpoints de API y el script del frontend para pintar tres tarjetas independientes en la rejilla de estadísticas: Total Acumulado, Saldo Disponible (KYC) y Saldo Pendiente (Referidos sin KYC), con tooltips explicativos interactivos.
+- **Impacto**: Se blindó la economía y tesorería del protocolo contra el drenado malicioso por cuentas fantasma en pre-lanzamiento, asegurando que todos los saldos transaccionables estén auditados e incondicionalmente vinculados a identidades verificadas (KYC/AML), mientras se mantiene la transparencia completa para el usuario impulsor.
+- **Archivos modificados**: `smart-contract/backend/src/services/financialCoreService.js`, `smart-contract/backend/src/services/humanitarianService.js`, `smart-contract/backend/src/services/publicationService.js`, `smart-contract/backend/src/services/boosterService.js`, `smart-contract/backend/src/controllers/userController.js`, `smart-contract/frontend/src/pages/booster-profile.js`, `smart-contract/EVOLUCION.md`.
+
 ### 2026-06-29 — Restricción de Donaciones a No Firmantes, Prohibición de Donaciones Cruzadas y Bloqueo de Publicación en Pre-lanzamiento
 
 - **Contexto**: Para el cumplimiento legal estricto y blindaje anti-fraude en Winton Solidario, se requería:

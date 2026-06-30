@@ -485,11 +485,13 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         const recipientResult = await client.query('SELECT id FROM users WHERE username = $1', [recipient]);
         const recipientId = recipientResult.rows[0].id;
 
-        const payerBalanceResult = await client.query('SELECT SUM(amount) as total FROM booster_blue_ledger WHERE user_id = $1', [payerId]);
-        const payerBalance = parseFloat(payerBalanceResult.rows[0].total) || 0;
+        const FinancialCoreService = require('./financialCoreService');
+        const balanceInfo = await FinancialCoreService.getUserEligibleBalance(client, payerId);
+        const payerBalance = balanceInfo.totalBalance;
+        const eligibleBalance = balanceInfo.eligibleBalance;
 
-        if (payerBalance < cost) {
-            throw { status: 400, message: 'Saldo insuficiente en tu perfil de impulsor para esta acción.' };
+        if (eligibleBalance < cost) {
+            throw { status: 400, message: `Saldo elegible insuficiente en tu perfil de impulsor. Dispones de ${eligibleBalance.toFixed(4)} BLUE para transaccionar (excluyendo bonos por referidos sin KYC aprobados).` };
         }
 
         await client.query('SELECT record_booster_event($1, \'payment_sent\', $2, $3)', [payerId, -cost, pubId]);
