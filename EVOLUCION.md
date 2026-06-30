@@ -19,7 +19,18 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-29 — Validación de Enlaces de Evidencias/Redes y Auditoría de Cadenas de Referidos en Winton Solidario (Migración 077)
+
+- **Contexto**: Para prevenir intentos de fraude y cargas de enlaces maliciosos o no aptos en el módulo Winton Solidario (donaciones humanitarias), se requería restringir los enlaces de evidencia únicamente a nubes de almacenamiento seguro y los enlaces de redes sociales a plataformas específicas. Adicionalmente, el panel administrativo de confianza necesitaba una forma de auditar y verificar el código de referido utilizado por el solicitante durante su registro antes de aprobar la causa, mitigando esquemas de fraude masivo.
+- **Decisión de Ingeniería**:
+  - **Filtros de Almacenamiento Seguro y Redes Sociales**: Se actualizaron `solicitud-solidaria.html` y su validación JS con expresiones regulares que restringen el enlace de evidencia a nubes autorizadas (Google Drive, Google Photos, Dropbox, Samsung Cloud, OneDrive, iCloud, Box o Mega) y los de redes a plataformas clave (Instagram, Facebook, TikTok, Twitter/X).
+  - **Extracción de Cadena de Referidos y Render en Modal**: Se reestructuró la query en `humanitarianController.js` para realizar un `LEFT JOIN` a los usuarios patrocinadores y recuperar el código e identidad del referidor del solicitante. Esto se acopló al modal de revisión en `admin-panel.js` para mostrar visualmente el código de registro (Sponsor) y del beneficiario.
+  - **Publicación Criptográfica v1.0.2 (Migración 077)**: Se creó `077_publish_v102_legal_documents.js` en el backend para forzar la re-aceptación obligatoria de los términos con fecha del 29 de junio de 2026 a todos los usuarios de la base de datos tras el despliegue del servidor.
+- **Impacto**: Se estableció un sistema estricto de control de fraudes y spam en la postulación de causas solidarias, y se blindó el protocolo forzando la firma legal v1.0.2 a nivel de base de datos para cumplimiento normativo (SOC 2, KYC).
+- **Archivos modificados**: `smart-contract/backend/src/controllers/humanitarianController.js`, `smart-contract/frontend/src/pages/admin-panel.js`, `smart-contract/frontend/solicitud-solidaria.html`, `smart-contract/backend/migrations/077_publish_v102_legal_documents.js`, `smart-contract/frontend/terms.html`, `smart-contract/EVOLUCION.md`.
+
 ### 2026-06-29 — Conversión de Enlaces a Rutas Relativas para Entornos de Desarrollo Local
+
 
 - **Contexto**: Durante el desarrollo y pruebas locales, el enlace "Ir al Sitio Web" de la barra lateral (`sidebar.js`), el menú desplegable (`contract_interaction.html`), el portal de inicio de sesión (`login.html`), registro (`register.html`) y los flujos de códigos de referido (`register.js`) apuntaban directamente al dominio de producción en vivo (`https://www.wintoncoin.com`). Al hacer clic en ellos, los desarrolladores y el administrador eran desviados fuera del servidor de desarrollo local, rompiendo el flujo de QA.
 - **Decisión de Ingeniería**:
