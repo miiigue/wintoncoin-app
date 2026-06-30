@@ -32,7 +32,7 @@ export function getApiUrl() {
     }
 
     // Entorno de DEMO
-    if (hostname.startsWith('demo.')) {
+    if (hostname.startsWith('demo.') || hostname.includes('demo.')) {
         return 'https://wintoncoin-backend-demo.onrender.com';
     }
 
