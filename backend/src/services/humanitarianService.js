@@ -162,7 +162,8 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
             SELECT id FROM humanitarian_causes 
             WHERE (user_id = $1 OR beneficiary_referral_code = (SELECT referral_code FROM users WHERE id = $1))
               AND status IN ('pending', 'approved')
-        `, [donorId]);
+              AND id != $2
+        `, [donorId, causeId]);
 
         if (activeBeneficiaryCheck.rowCount > 0) {
             throw { 
