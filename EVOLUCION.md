@@ -19,7 +19,17 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-29 — Habilitación de Donaciones a Creadores No-Beneficiarios y Ampliación de Vista de Auditoría Admin
+
+- **Contexto**: Para no desincentivar el apoyo de promotores e influencers a causas humanitarias de terceros, se requería flexibilizar la regla de donaciones, permitiendo al creador/postulador donar a causas donde él no sea el receptor directo de los fondos. Además, se requería rediseñar el modal de aprobación de Winton Solidario para que el administrador cuente con el 100% de la información del formulario para mitigar riesgos de fraude (SOC 2, KYC).
+- **Decisión de Ingeniería**:
+  - **Refinamiento Contable de Beneficiario**: Se reestructuró la query en `humanitarianService.js` (`donateToCause`) para evaluar únicamente si el donante es el beneficiario receptor directo de la causa (ya sea por su código de referido o por ser creador sin código alterno).
+  - **Estructuración en 3 Bloques del Modal Admin**: Se modificó `admin-panel.js` para extraer y clasificar los datos de la postulación en tres bloques visuales premium: Solicitante (con fecha de registro y sponsor), Detalles de la Causa (con enlace de soporte en la nube separado) y Destinatario Final (nombre y redes del beneficiario).
+- **Impacto**: Se habilitó a influencers a donar sus recompensas a causas que patrocinan y se dotó a los administradores de un layout de auditoría completo y profesional, reduciendo el riesgo de phishing o estafas.
+- **Archivos modificados**: `smart-contract/backend/src/services/humanitarianService.js`, `smart-contract/frontend/src/pages/admin-panel.js`, `smart-contract/EVOLUCION.md`.
+
 ### 2026-06-29 — Restricción de Donaciones a No Firmantes, Prohibición de Donaciones Cruzadas y Bloqueo de Publicación en Pre-lanzamiento
+
 
 - **Contexto**: Para el cumplimiento legal estricto y blindaje anti-fraude en Winton Solidario, se requería:
   1. Impedir que los usuarios que no han firmado los TyC vigentes (v1.0.2) realicen donaciones, postulen causas o cancelen las mismas.
