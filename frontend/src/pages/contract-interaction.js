@@ -2539,7 +2539,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Imagen de Fondo (Full Background) y Overlay Oscuro
                     if (bgOverlayElement && data.referral_campaign_image_url) {
-                        bgOverlayElement.style.backgroundImage = `url('${data.referral_campaign_image_url}')`;
+                        bgOverlayElement.style.backgroundImage = `url('${API_URL}${data.referral_campaign_image_url}')`;
                         bgOverlayElement.style.display = 'block';
                         
                         // Quitar el color de fondo por defecto de la tarjeta para dejar ver la imagen
