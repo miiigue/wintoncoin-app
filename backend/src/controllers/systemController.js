@@ -86,7 +86,10 @@ const SystemController = {
                 'referral_codes_expiry_date',
                 'referral_custom_share_code',
                 'referral_custom_share_code_enabled',
-                'referral_share_message_template'
+                'referral_share_message_template',
+                'referral_card_title',
+                'referral_card_button_text',
+                'referral_campaign_image_url'
             ];
             
             const result = await pool.query(
@@ -129,7 +132,10 @@ const SystemController = {
                 referral_codes_expiry_date: settings['referral_codes_expiry_date'] || null,
                 referral_custom_share_code: settings['referral_custom_share_code'] || 'WINTON',
                 referral_custom_share_code_enabled: settings['referral_custom_share_code_enabled'] === 'true',
-                referral_share_message_template: settings['referral_share_message_template'] || ''
+                referral_share_message_template: settings['referral_share_message_template'] || '',
+                referral_card_title: settings['referral_card_title'] || '🔥 CAMPAÑA ESPECIAL',
+                referral_card_button_text: settings['referral_card_button_text'] || '📢 COMPARTIR INVITACIÓN',
+                referral_campaign_image_url: settings['referral_campaign_image_url'] || ''
             });
         } catch (error) {
             console.error("Error al obtener configuración de referidos:", error);

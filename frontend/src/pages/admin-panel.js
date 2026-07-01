@@ -1205,6 +1205,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const customCodeSetting = messageSettings.find(s => s.setting_key === 'referral_custom_share_code') || { setting_value: '' };
         const customCodeEnabledSetting = messageSettings.find(s => s.setting_key === 'referral_custom_share_code_enabled') || { setting_value: 'false' };
         const templateSetting = messageSettings.find(s => s.setting_key === 'referral_share_message_template') || { setting_value: '' };
+        const cardTitleSetting = messageSettings.find(s => s.setting_key === 'referral_card_title') || { setting_value: '🔥 CAMPAÑA ESPECIAL' };
+        const cardBtnSetting = messageSettings.find(s => s.setting_key === 'referral_card_button_text') || { setting_value: '📢 COMPARTIR INVITACIÓN' };
+        const cardImgSetting = messageSettings.find(s => s.setting_key === 'referral_campaign_image_url') || { setting_value: '' };
 
         container.innerHTML = `
             <div class="setting-item">
@@ -1242,6 +1245,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <textarea id="setting-referral_share_message_template" data-key="referral_share_message_template" style="width: 100%; min-height: 120px; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; font-family: inherit; font-size: 0.9rem; resize: vertical; box-sizing: border-box;">${escapeHtml(templateSetting.setting_value)}</textarea>
             </div>
+
+            <hr class="admin-divider" style="margin: 2rem 0; opacity: 0.2;">
+            <h3 style="margin-top: 0;">Diseño de la Tarjeta en la App (Modo Campaña)</h3>
+            <p style="margin-bottom: 1.5rem;">Estos textos e imagen reemplazarán la tarjeta de referidos normal en los teléfonos de los usuarios cuando el "Código Especial" (arriba) esté activo.</p>
+
+            <div class="setting-item">
+                <div class="setting-item-info">
+                    <h4>Imagen de Fondo (Banner)</h4>
+                    <p>Imagen premium que cubrirá la tarjeta (ej. Terremoto en Venezuela). Solo JPG, PNG, WebP (Máx 2MB).</p>
+                </div>
+                <div class="setting-item-control" style="flex-direction: column; align-items: flex-end; gap: 0.5rem;">
+                    ${cardImgSetting.setting_value ? `<img src="${escapeHtml(cardImgSetting.setting_value)}" alt="Campaña actual" style="max-width: 250px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2);">` : '<span style="font-size:0.85rem; color:#aaa;">Sin imagen</span>'}
+                    <input type="file" id="campaign-image-upload" accept="image/jpeg, image/png, image/webp" style="max-width: 250px; font-size: 0.85rem;">
+                    <div id="campaign-upload-status" style="font-size: 0.8rem;"></div>
+                    <input type="hidden" id="setting-referral_campaign_image_url" data-key="referral_campaign_image_url" value="${escapeHtml(cardImgSetting.setting_value)}">
+                </div>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-item-info">
+                    <h4>Título de la Tarjeta</h4>
+                    <p>Reemplaza "CUPOS DISPONIBLES".</p>
+                </div>
+                <div class="setting-item-control">
+                    <input type="text" class="admin-text-input" id="setting-referral_card_title" data-key="referral_card_title" value="${escapeHtml(cardTitleSetting.setting_value)}" style="padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #fff; width: 100%; max-width: 250px;">
+                </div>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-item-info">
+                    <h4>Texto del Botón</h4>
+                    <p>Reemplaza "COMPARTIR MI CÓDIGO".</p>
+                </div>
+                <div class="setting-item-control">
+                    <input type="text" class="admin-text-input" id="setting-referral_card_button_text" data-key="referral_card_button_text" value="${escapeHtml(cardBtnSetting.setting_value)}" style="padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #fff; width: 100%; max-width: 250px;">
+                </div>
+            </div>
         `;
 
         // Añadir listeners para guardar cambios de forma inmediata
@@ -1261,6 +1301,51 @@ document.addEventListener('DOMContentLoaded', () => {
         const textarea = container.querySelector('textarea');
         if (textarea) {
             textarea.addEventListener('change', handleSettingChange);
+        }
+
+        // Lógica de subida de imagen AJAX para la campaña
+        const uploadInput = container.querySelector('#campaign-image-upload');
+        if (uploadInput) {
+            uploadInput.addEventListener('change', async (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const statusDiv = container.querySelector('#campaign-upload-status');
+                statusDiv.innerHTML = '<span style="color: #f1c40f;">Subiendo imagen...</span>';
+
+                const formData = new FormData();
+                formData.append('image', file);
+
+                try {
+                    const token = localStorage.getItem('token');
+                    const res = await fetch('/api/upload/campaign-image', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: formData
+                    });
+
+                    const data = await res.json();
+                    
+                    if (data.success) {
+                        statusDiv.innerHTML = '<span style="color: #2ecc71;">¡Imagen subida! Guardando configuración...</span>';
+                        // Actualizar el valor del input hidden para desencadenar el guardado de settings
+                        const hiddenInput = container.querySelector('#setting-referral_campaign_image_url');
+                        hiddenInput.value = data.url;
+                        
+                        // Reutilizar handleSettingChange simulando el evento
+                        await handleSettingChange({ target: hiddenInput });
+                        
+                        // Refrescar la UI para mostrar la imagen renderizada
+                        setTimeout(() => loadReferralMessageSettings(), 1000);
+                    } else {
+                        statusDiv.innerHTML = `<span style="color: #e74c3c;">Error: ${data.message}</span>`;
+                    }
+                } catch (err) {
+                    statusDiv.innerHTML = `<span style="color: #e74c3c;">Error de conexión.</span>`;
+                }
+            });
         }
     }
 

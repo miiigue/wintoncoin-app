@@ -2505,6 +2505,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 2. Actualizar cupos restantes en la tarjeta
                 const slotsElement = document.getElementById('referralRemainingSlots');
                 const labelElement = document.getElementById('promoSlotsLabel');
+                const btnTextElement = document.getElementById('referralCardBtnText');
+                const bgOverlayElement = document.getElementById('campaignBgOverlay');
+                const noticeElement = document.getElementById('campaignCodeNotice');
+                const cardElement = document.getElementById('shareReferralCard');
                 
                 if (slotsElement && typeof data.referral_remaining_slots !== 'undefined') {
                     const remainingSlots = parseInt(data.referral_remaining_slots, 10);
@@ -2514,6 +2518,52 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (labelElement) labelElement.textContent = 'CUPOS AGOTADOS:';
                         slotsElement.classList.add('hot'); // Resaltar en rojo si no hay cupos
                     }
+                }
+
+                // 3. Transformación Visual: Modo Campaña (Fondo Completo con Overlay)
+                const isCampaignActive = data.referral_custom_share_code_enabled === true;
+                
+                if (isCampaignActive) {
+                    // Título de la tarjeta
+                    if (labelElement && data.referral_card_title) {
+                        labelElement.textContent = data.referral_card_title;
+                        labelElement.style.color = '#fff';
+                        labelElement.style.fontWeight = '700';
+                        labelElement.style.fontSize = '1.1rem';
+                    }
+                    
+                    // Texto del Botón
+                    if (btnTextElement && data.referral_card_button_text) {
+                        btnTextElement.textContent = data.referral_card_button_text;
+                    }
+                    
+                    // Imagen de Fondo (Full Background) y Overlay Oscuro
+                    if (bgOverlayElement && data.referral_campaign_image_url) {
+                        bgOverlayElement.style.backgroundImage = `url('${data.referral_campaign_image_url}')`;
+                        bgOverlayElement.style.display = 'block';
+                        
+                        // Quitar el color de fondo por defecto de la tarjeta para dejar ver la imagen
+                        if (cardElement) {
+                            cardElement.style.backgroundColor = 'transparent';
+                            cardElement.style.border = '1px solid rgba(255,255,255,0.1)';
+                        }
+                    }
+                    
+                    // Notificación pequeña en el fondo
+                    if (noticeElement && data.referral_custom_share_code) {
+                        noticeElement.textContent = `Código de campaña: ${data.referral_custom_share_code}`;
+                        noticeElement.style.display = 'block';
+                    }
+                } else {
+                    // Modo Normal (Revertir cambios si la campaña está apagada)
+                    if (labelElement) {
+                        labelElement.textContent = 'CUPOS DISPONIBLES:';
+                        labelElement.style = ''; // Limpiar estilos en línea
+                    }
+                    if (btnTextElement) btnTextElement.textContent = 'Compartir mi código';
+                    if (bgOverlayElement) bgOverlayElement.style.display = 'none';
+                    if (noticeElement) noticeElement.style.display = 'none';
+                    if (cardElement) cardElement.style = ''; // Limpiar backgroundColor transparente
                 }
             }
         } catch (error) {

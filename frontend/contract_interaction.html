@@ -540,47 +540,56 @@
         <!-- =============================================================== -->
 
         <div class="referral-motivation-section">
-            <div class="referral-promo-card" id="shareReferralCard">
-
-                <!-- Sección: Cupos restantes de la promoción -->
-                <div class="promo-timer-container">
-                    <span class="promo-timer-label" id="promoSlotsLabel">CUPOS DISPONIBLES:</span>
-                    <div class="promo-timer-display">
-                        <div class="timer-unit">
-                            <span id="referralRemainingSlots">--</span>
-                            <small>usuarios</small>
-                        </div>
-                    </div>
+            <div class="referral-promo-card" id="shareReferralCard" style="position: relative; overflow: hidden;">
+                <!-- Overlay dinámico de campaña (Oculto por defecto) -->
+                <div class="campaign-bg-overlay" id="campaignBgOverlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: cover; background-position: center; z-index: 1;">
+                    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(15,23,42,0.3) 0%, rgba(15,23,42,0.95) 100%);"></div>
                 </div>
 
-                <!-- Sección: Recompensa actual centrada -->
-                <div class="promo-reward-info">
-                    <div class="reward-main-centered">
-                        <div class="reward-group">
-                            <span class="reward-label">Bono por referir hoy</span>
-                            <div class="reward-value gold-premium">
-                                <span id="referralAmount">1000</span> <small>BLUE IOU</small>
+                <!-- Contenido de la tarjeta (Z-index superior para estar sobre el overlay) -->
+                <div style="position: relative; z-index: 2;">
+                    <!-- Sección: Cupos restantes de la promoción -->
+                    <div class="promo-timer-container">
+                        <span class="promo-timer-label" id="promoSlotsLabel">CUPOS DISPONIBLES:</span>
+                        <div class="promo-timer-display">
+                            <div class="timer-unit">
+                                <span id="referralRemainingSlots">--</span>
+                                <small>usuarios</small>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Sección: Botón de compartir (CTA principal) -->
-                <button class="referral-share-button">
-                    <div class="button-content">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                            fill="none" stroke="currentColor" stroke-width="2.5"
-                            stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="18" cy="5" r="3"></circle>
-                            <circle cx="6" cy="12" r="3"></circle>
-                            <circle cx="18" cy="19" r="3"></circle>
-                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-                        </svg>
-                        <span>Compartir mi código</span>
+                    <!-- Sección: Recompensa actual centrada -->
+                    <div class="promo-reward-info">
+                        <div class="reward-main-centered">
+                            <div class="reward-group">
+                                <span class="reward-label">Bono por referir hoy</span>
+                                <div class="reward-value gold-premium">
+                                    <span id="referralAmount">1000</span> <small>BLUE IOU</small>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </button>
 
+                    <!-- Sección: Botón de compartir (CTA principal) -->
+                    <button class="referral-share-button">
+                        <div class="button-content">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2.5"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="18" cy="5" r="3"></circle>
+                                <circle cx="6" cy="12" r="3"></circle>
+                                <circle cx="18" cy="19" r="3"></circle>
+                                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                            </svg>
+                            <span id="referralCardBtnText">Compartir mi código</span>
+                        </div>
+                    </button>
+                    
+                    <!-- Pequeño texto de campaña (Oculto por defecto) -->
+                    <div id="campaignCodeNotice" style="display: none; text-align: center; margin-top: 10px; font-size: 0.8rem; color: rgba(255,255,255,0.7);"></div>
+                </div>
             </div><!-- /.referral-promo-card -->
         </div><!-- /.referral-motivation-section -->
 

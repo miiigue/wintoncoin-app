@@ -209,7 +209,10 @@ async function updateSetting(req, res) {
                                      key === 'global_app_interstitial_enabled' ||
                                      key === 'referral_custom_share_code' ||
                                      key === 'referral_custom_share_code_enabled' ||
-                                     key === 'referral_share_message_template';
+                                     key === 'referral_share_message_template' ||
+                                     key === 'referral_card_title' ||
+                                     key === 'referral_card_button_text' ||
+                                     key === 'referral_campaign_image_url';
 
         // 2. Verificar el estado del sistema de gobernanza (si existen guardianes activos registrados).
         const isGovActive = await _checkGovernanceActive();

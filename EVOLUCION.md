@@ -19,6 +19,16 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-01 — Sistema de Campañas Dinámicas, Tarjeta WYSIWYG y Modularización Fintech
+
+- **Contexto**: Se requería una forma visual, ágil y de alto impacto para promocionar causas humanitarias (ej. Terremoto en Venezuela) reemplazando la tarjeta estándar de "Invitar Amigos" por una tarjeta publicitaria dinámica (imagen de fondo premium y textos de "Call to Action" personalizados) que no dependiera del engorroso sistema de votación del DAO.
+- **Decisión de Ingeniería (Modularidad & Seguridad)**:
+  - **API Gateway Interno (`src/routes/index.js`)**: Se introdujo el patrón de enrutamiento centralizado para romper la tendencia de engordar el monolito en `server.js`. De ahora en adelante, `server.js` queda limpio y los módulos se agregan jerárquicamente a este nuevo índice maestro.
+  - **Motor de Subida Blindado (`uploadRoutes.js`)**: Se extrajo la lógica de subida de imágenes a un micro-módulo. Cuenta con 4 capas de seguridad de grado bancario: 1) Zero Trust (solo tokens de Admin válidos); 2) Whitelisting estricto de MIME types (JPG, PNG, WebP); 3) Límite de estrangulamiento (Max 2MB) contra ataques DDoS o Storage Exhaustion; 4) Sanitización algorítmica de nombres de archivo (Anti-Path Traversal).
+  - **Bypass de Gobernanza**: En `adminController.js`, se excluyeron las variables estéticas (`referral_card_title`, `referral_card_button_text`, `referral_campaign_image_url`) del proceso DAO, permitiendo agilidad de marketing sin sacrificar la seguridad sobre las variables económicas del sistema.
+  - **Transformación Visual**: La tarjeta del dashboard frontend ahora lee el switch `referral_custom_share_code_enabled`. Al encenderse, pinta la imagen detrás, inyecta un overlay oscuro del 95% para hacer legibles los textos y reescribe el Call To Action al instante.
+- **Impacto**: Crea un puente entre el equipo de diseño/marketing y los usuarios, permitiendo reaccionar a crisis humanitarias en tiempo real. Fija un nuevo estándar arquitectónico dentro del código fuente para extraer ordenadamente el resto del monolito de `server.js`.
+
 ### 2026-07-01 — Protección Anti-Spam y Precisión Decimal de 4 Dígitos en Causas Solidarias
 
 - **Contexto**: Se identificaron dos vulnerabilidades potenciales en el sistema de recaudación: 1) Riesgo de congestión de red (spam) por bots enviando micro-donaciones (ej. 0.0001 BLUE IOU). 2) Pérdida de precisión matemática en la sumatoria total mostrada en la interfaz debido a que las columnas de la base de datos truncaban los valores a 2 decimales, omitiendo las fracciones menores.
