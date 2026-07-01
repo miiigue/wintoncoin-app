@@ -80,10 +80,8 @@ const SystemController = {
     // =========================================================================
     getReferralSettings: async (req, res) => {
         try {
-            // Obtenemos todas las configuraciones relevantes de una vez
+            // 1. Obtenemos las configuraciones relevantes
             const keys = [
-                'referral_reward_amount',
-                'referral_bonus_amount',
                 'referral_reward_after_expiry',
                 'referral_codes_expiry_date'
             ];
@@ -92,14 +90,31 @@ const SystemController = {
                 'SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1)',
                 [keys]
             );
-
+ 
             const settings = {};
             result.rows.forEach(row => {
                 settings[row.setting_key] = row.setting_value;
             });
-
-            // Lógica de compatibilidad/fallback
-            const rewardAmount = settings['referral_reward_amount'] || settings['referral_bonus_amount'] || '0.00';
+ 
+            // 2. Contar usuarios registrados para determinar el tramo activo
+            const countRes = await pool.query('SELECT COUNT(*) as count FROM users');
+            const totalUsers = parseInt(countRes.rows[0].count, 10);
+ 
+            // 3. Obtener el monto del tramo activo
+            const tierRes = await pool.query(`
+                SELECT reward_amount 
+                FROM referral_reward_tiers 
+                WHERE max_users_limit >= $1 
+                ORDER BY tier_number ASC 
+                LIMIT 1
+            `, [totalUsers]);
+ 
+            let rewardAmount = '0.00';
+            if (tierRes.rowCount > 0) {
+                rewardAmount = parseFloat(tierRes.rows[0].reward_amount).toFixed(2);
+            } else {
+                rewardAmount = parseFloat(settings['referral_reward_after_expiry'] || '0.00').toFixed(2);
+            }
             
             res.status(200).json({
                 referral_reward_amount: rewardAmount,

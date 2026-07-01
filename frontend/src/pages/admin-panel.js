@@ -1157,7 +1157,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderReferralSettings(allSettings) {
-        const referralKeys = ['referral_system_enabled', 'referral_reward_amount', 'referral_reward_after_expiry', 'referral_codes_expiry_date', 'welcome_bonus_enabled', 'welcome_bonus_amount'];
+        const referralKeys = ['referral_system_enabled', 'referral_reward_after_expiry', 'referral_codes_expiry_date', 'welcome_bonus_enabled', 'welcome_bonus_amount'];
         const referralSettings = allSettings.filter(s => referralKeys.includes(s.setting_key));
 
         const container = document.getElementById('referrals-settings-container');
