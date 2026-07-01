@@ -19,6 +19,15 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-01 — Transparencia de Autoría en Recibos de Donación Solidaria
+
+- **Contexto**: Para mejorar la experiencia de usuario y la transparencia en las donaciones de "Winton Solidario", se requería informar al donante quién fue el creador real de la publicación a la cual aportó, ya que el creador de la publicación puede ser distinto al beneficiario final de los fondos (ej. alguien publica en nombre de una fundación).
+- **Decisión de Ingeniería**:
+  - **Motor de Correos Transaccionales (`humanitarianService.js`)**: Se modificó la firma del helper `sendDonationSentEmail` para aceptar el nombre de usuario del creador (`creatorUsername`). En la construcción del cuerpo del correo, se añadió un nuevo campo al arreglo de detalles `[ { label: 'Creador de la Causa', value: '@' + creatorUsername } ]`.
+  - **Invocación Dinámica**: En la función principal `donateToCause`, al despachar el correo asíncrono, ahora se extrae y se inyecta la propiedad `cause.owner_username` obtenida directamente de la consulta central de la causa.
+- **Impacto**: Aumenta la claridad contable y previene confusiones (customer support) brindando recibos con desglose completo sobre la titularidad y destino del capital en donaciones de terceros.
+- **Archivos modificados**: `smart-contract/backend/src/services/humanitarianService.js`, `smart-contract/EVOLUCION.md`.
+
 ### 2026-07-01 — Plantilla de Mensaje de Referido Personalizable, Código Global de Invitaciones y Visualización de Cupos (FOMO)
 
 - **Contexto**: Para mejorar las herramientas de marketing viral de la plataforma sin requerir modificaciones constantes de código ni redespliegues de la interfaz de usuario, se solicitó:

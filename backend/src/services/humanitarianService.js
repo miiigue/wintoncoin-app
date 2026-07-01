@@ -412,7 +412,7 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
 
         // Disparar envío de correos electrónicos transaccionales de forma asíncrona y segura (no bloqueante)
         if (donor.email) {
-            sendDonationSentEmail(donor.email, recipientUsername, cause.title, donationAmount, !isVerified)
+            sendDonationSentEmail(donor.email, recipientUsername, cause.title, donationAmount, !isVerified, cause.owner_username)
                 .catch(e => console.error('[SOLIDARIO CORREO] Error al disparar sendDonationSentEmail:', e.message));
         }
         if (recipientEmail) {
@@ -481,7 +481,7 @@ const getCauseDonations = async (causeId) => {
 /**
  * Envía un correo al donante informándole del estado de su donación (Hold o Liberada).
  */
-const sendDonationSentEmail = async (donorEmail, recipientUsername, causeTitle, amount, isHold) => {
+const sendDonationSentEmail = async (donorEmail, recipientUsername, causeTitle, amount, isHold, creatorUsername) => {
     try {
         const subject = isHold
             ? 'Donación en espera de verificación — Winton Solidario'
@@ -501,6 +501,7 @@ const sendDonationSentEmail = async (donorEmail, recipientUsername, causeTitle, 
             amount: `${amount.toFixed(4)} BLUE IOU`,
             details: [
                 { label: 'Causa Humanitaria', value: causeTitle },
+                { label: 'Creador de la Causa', value: `@${creatorUsername}` },
                 { label: 'Beneficiario', value: `@${recipientUsername}` },
                 { label: 'Estado de Custodia', value: isHold ? 'Retenido (Falta KYC)' : 'Acreditado Inmediato' },
                 { label: 'Fecha', value: new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' }) }
