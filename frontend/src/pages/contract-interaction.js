@@ -2505,6 +2505,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 2. Actualizar cupos restantes en la tarjeta
                 const slotsElement = document.getElementById('referralRemainingSlots');
                 const labelElement = document.getElementById('promoSlotsLabel');
+                const subtitleElement = document.getElementById('referralCardSubtitle');
                 const btnTextElement = document.getElementById('referralCardBtnText');
                 const bgOverlayElement = document.getElementById('campaignBgOverlay');
                 const noticeElement = document.getElementById('campaignCodeNotice');
@@ -2531,6 +2532,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         labelElement.style.fontWeight = '700';
                         labelElement.style.fontSize = '1.1rem';
                     }
+
+                    // Subtítulo de la tarjeta
+                    if (subtitleElement && data.referral_card_subtitle) {
+                        subtitleElement.textContent = data.referral_card_subtitle;
+                    }
                     
                     // Texto del Botón
                     if (btnTextElement && data.referral_card_button_text) {
@@ -2539,7 +2545,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Imagen de Fondo (Full Background) y Overlay Oscuro
                     if (bgOverlayElement && data.referral_campaign_image_url) {
-                        bgOverlayElement.style.backgroundImage = `url('${API_URL}${data.referral_campaign_image_url}')`;
+                        let imageUrl = data.referral_campaign_image_url;
+                        // Si la imagen en BD no tiene el prefijo /api, lo añadimos para compatibilidad
+                        if (!imageUrl.startsWith('/api') && imageUrl.startsWith('/uploads')) {
+                            imageUrl = '/api' + imageUrl;
+                        }
+                        bgOverlayElement.style.backgroundImage = `url('${API_URL}${imageUrl}')`;
                         bgOverlayElement.style.display = 'block';
                         
                         // Quitar el color de fondo por defecto de la tarjeta para dejar ver la imagen
@@ -2559,6 +2570,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (labelElement) {
                         labelElement.textContent = 'CUPOS DISPONIBLES:';
                         labelElement.style = ''; // Limpiar estilos en línea
+                    }
+                    if (subtitleElement) {
+                        subtitleElement.textContent = 'Bono por referir hoy';
                     }
                     if (btnTextElement) btnTextElement.textContent = 'Compartir mi código';
                     if (bgOverlayElement) bgOverlayElement.style.display = 'none';

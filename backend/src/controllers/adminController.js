@@ -212,7 +212,8 @@ async function updateSetting(req, res) {
                                      key === 'referral_share_message_template' ||
                                      key === 'referral_card_title' ||
                                      key === 'referral_card_button_text' ||
-                                     key === 'referral_campaign_image_url';
+                                     key === 'referral_campaign_image_url' ||
+                                     key === 'referral_card_subtitle';
 
         // 2. Verificar el estado del sistema de gobernanza (si existen guardianes activos registrados).
         const isGovActive = await _checkGovernanceActive();

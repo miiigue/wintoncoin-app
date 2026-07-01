@@ -15,10 +15,8 @@ exports.uploadCampaignImage = async (req, res) => {
             });
         }
 
-        // Construir la ruta relativa pública
-        // En Express, asumiendo que la carpeta public es servida en la raíz, 
-        // la ruta será accesible desde el frontend web
-        const publicUrl = '/uploads/campaigns/' + req.file.filename;
+        // Construir la ruta relativa pública (integrado bajo el prefijo /api del router central)
+        const publicUrl = '/api/uploads/campaigns/' + req.file.filename;
 
         // Opcional: Podríamos guardar la URL automáticamente en app_settings aquí mismo,
         // pero por modularidad y previsibilidad, es mejor que el frontend reciba la URL 

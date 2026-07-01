@@ -1208,7 +1208,8 @@ document.addEventListener('DOMContentLoaded', () => {
             'referral_share_message_template',
             'referral_card_title',
             'referral_card_button_text',
-            'referral_campaign_image_url'
+            'referral_campaign_image_url',
+            'referral_card_subtitle'
         ];
         const messageSettings = allSettings.filter(s => messageKeys.includes(s.setting_key));
 
@@ -1221,6 +1222,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const cardTitleSetting = messageSettings.find(s => s.setting_key === 'referral_card_title') || { setting_value: '🔥 CAMPAÑA ESPECIAL' };
         const cardBtnSetting = messageSettings.find(s => s.setting_key === 'referral_card_button_text') || { setting_value: '📢 COMPARTIR INVITACIÓN' };
         const cardImgSetting = messageSettings.find(s => s.setting_key === 'referral_campaign_image_url') || { setting_value: '' };
+        const cardSubtitleSetting = messageSettings.find(s => s.setting_key === 'referral_card_subtitle') || { setting_value: 'Bono por referir hoy' };
 
         container.innerHTML = `
             <div class="setting-item">
@@ -1283,6 +1285,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="setting-item-control">
                     <input type="text" class="admin-text-input" id="setting-referral_card_title" data-key="referral_card_title" value="${escapeHtml(cardTitleSetting.setting_value)}" style="padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #fff; width: 100%; max-width: 250px;">
+                </div>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-item-info">
+                    <h4>Subtítulo de Recompensa</h4>
+                    <p>Reemplaza "Bono por referir hoy".</p>
+                </div>
+                <div class="setting-item-control">
+                    <input type="text" class="admin-text-input" id="setting-referral_card_subtitle" data-key="referral_card_subtitle" value="${escapeHtml(cardSubtitleSetting.setting_value)}" style="padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #fff; width: 100%; max-width: 250px;">
                 </div>
             </div>
 

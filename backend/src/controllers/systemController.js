@@ -89,7 +89,8 @@ const SystemController = {
                 'referral_share_message_template',
                 'referral_card_title',
                 'referral_card_button_text',
-                'referral_campaign_image_url'
+                'referral_campaign_image_url',
+                'referral_card_subtitle'
             ];
             
             const result = await pool.query(
@@ -135,7 +136,8 @@ const SystemController = {
                 referral_share_message_template: settings['referral_share_message_template'] || '',
                 referral_card_title: settings['referral_card_title'] || '🔥 CAMPAÑA ESPECIAL',
                 referral_card_button_text: settings['referral_card_button_text'] || '📢 COMPARTIR INVITACIÓN',
-                referral_campaign_image_url: settings['referral_campaign_image_url'] || ''
+                referral_campaign_image_url: settings['referral_campaign_image_url'] || '',
+                referral_card_subtitle: settings['referral_card_subtitle'] || 'Bono por referir hoy'
             });
         } catch (error) {
             console.error("Error al obtener configuración de referidos:", error);
