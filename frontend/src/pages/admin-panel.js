@@ -635,6 +635,12 @@ document.addEventListener('DOMContentLoaded', () => {
             credentials: 'include'
         };
 
+        // Si el body es un FormData (subida de archivos), eliminamos el Content-Type 
+        // para que el navegador configure automáticamente multipart/form-data junto con el boundary
+        if (options.body instanceof FormData) {
+            delete defaultOptions.headers['Content-Type'];
+        }
+
         if (options.headers) {
             defaultOptions.headers = { ...defaultOptions.headers, ...options.headers };
             delete options.headers;
@@ -1324,16 +1330,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 formData.append('image', file);
 
                 try {
-                    const token = localStorage.getItem('token');
-                    const res = await fetch('/api/upload/campaign-image', {
+                    // Usar apiFetch en lugar de fetch nativo para enviar credenciales (cookies) 
+                    // y formatear el multipart/form-data con boundary automáticamente
+                    const data = await apiFetch('/api/upload/campaign-image', {
                         method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        },
                         body: formData
                     });
-
-                    const data = await res.json();
                     
                     if (data.success) {
                         statusDiv.innerHTML = '<span style="color: #2ecc71;">¡Imagen subida! Guardando configuración...</span>';
@@ -1350,7 +1352,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         statusDiv.innerHTML = `<span style="color: #e74c3c;">Error: ${data.message}</span>`;
                     }
                 } catch (err) {
-                    statusDiv.innerHTML = `<span style="color: #e74c3c;">Error de conexión.</span>`;
+                    statusDiv.innerHTML = `<span style="color: #e74c3c;">Error: ${err.message || 'Error de conexión.'}</span>`;
                 }
             });
         }
