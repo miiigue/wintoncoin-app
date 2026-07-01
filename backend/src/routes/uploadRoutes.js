@@ -3,7 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const uploadController = require('../controllers/uploadController');
-const { verifyToken, verifyAdmin } = require('../middlewares/authMiddleware');
+const { authenticateAdmin } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
@@ -70,8 +70,7 @@ const multerErrorHandler = (err, req, res, next) => {
 
 router.post(
     '/campaign-image', 
-    verifyToken, 
-    verifyAdmin, 
+    authenticateAdmin,  
     upload.single('image'), 
     multerErrorHandler,
     uploadController.uploadCampaignImage
