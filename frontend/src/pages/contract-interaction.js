@@ -2536,6 +2536,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Subtítulo de la tarjeta
                     if (subtitleElement && data.referral_card_subtitle) {
                         subtitleElement.textContent = data.referral_card_subtitle;
+                        subtitleElement.style.color = 'rgba(255, 255, 255, 0.95)';
+                        subtitleElement.style.textShadow = '0 1px 4px rgba(0, 0, 0, 0.8)';
+                        subtitleElement.style.fontWeight = '700';
                     }
                     
                     // Texto del Botón
@@ -2573,6 +2576,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     if (subtitleElement) {
                         subtitleElement.textContent = 'Bono por referir hoy';
+                        subtitleElement.style = ''; // Restaurar estilos por defecto de CSS
                     }
                     if (btnTextElement) btnTextElement.textContent = 'Compartir mi código';
                     if (bgOverlayElement) bgOverlayElement.style.display = 'none';
