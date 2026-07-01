@@ -1196,7 +1196,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderReferralMessageSettings(allSettings) {
-        const messageKeys = ['referral_custom_share_code', 'referral_custom_share_code_enabled', 'referral_share_message_template'];
+        const messageKeys = [
+            'referral_custom_share_code', 
+            'referral_custom_share_code_enabled', 
+            'referral_share_message_template',
+            'referral_card_title',
+            'referral_card_button_text',
+            'referral_campaign_image_url'
+        ];
         const messageSettings = allSettings.filter(s => messageKeys.includes(s.setting_key));
 
         const container = elements.referralsMessageContainer;
@@ -1932,7 +1939,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
             }
-        } else if (control.type === 'text' || isTextarea) {
+        } else if (control.type === 'text' || control.type === 'hidden' || isTextarea) {
             value = control.value;
         } else {
             return;
