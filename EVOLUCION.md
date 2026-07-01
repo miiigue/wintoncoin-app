@@ -19,6 +19,20 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-06-30 — Sistema de Halving Dinámico de Referidos Configurable (Tramos y Tope de Pool de 200M)
+
+- **Contexto**: Para el cumplimiento de las políticas económicas vigentes del protocolo, se requería estructurar las recompensas por referidos (tanto para el referente como para el referido) en un esquema dinámico de tramos (*halving dinámico*) basado en el volumen acumulado de usuarios registrados en el sistema, en lugar de un monto fijo lineal. Asimismo, se requería garantizar un tope financiero máximo de emisión promocional de **200,000,000 BLUE IOU** y habilitar la expiración total de los bonos (monto a 0) una vez superado el límite del último tramo (1,010,000 usuarios).
+- **Decisión de Ingeniería**:
+  - **Base de Datos (`referral_reward_tiers`)**: Se creó y sembró mediante la migración `078_create_referral_reward_tiers.js` una tabla relacional para almacenar dinámicamente los tramos de halving (Tramo 1: 0 a 10k $\rightarrow$ 200 BLUE, Tramo 2: 10k a 310k $\rightarrow$ 100 BLUE, Tramo 3: 310k a 1.01M $\rightarrow$ 75 BLUE). Se estableció `referral_reward_after_expiry` en `0` en la tabla `app_settings` para apagar automáticamente las recompensas al finalizar la campaña.
+  - **Backend de Configuración (`adminController.js`)**: Se implementaron los endpoints `GET /api/admin/referrals/tiers` y `POST /api/admin/referrals/tiers`. Este último aplica una validación matemática estricta para asegurar que la sumatoria proyectada del costo de todos los tramos multiplicada por 2 (por el pago dual a referente y referido) no exceda el límite de 200 millones de BLUE IOU. Se integró además la protección por gobernanza de los Guardianes (`_checkGovernanceActive`) y auditoría SOC 2 (`logAuditEvent`).
+  - **Cálculo de Recompensa al Registrarse (`authController.js`)**: Se actualizó el flujo de registro de nuevos usuarios para que el backend realice un conteo en tiempo real (`SELECT COUNT(*) FROM users`) y determine la recompensa del tramo correspondiente de forma dinámica e inmutable en SQL.
+  - **Frontend Administrativo (`admin-panel.html` y `admin-panel.js`)**: Se implementó una tabla responsiva en la pestaña de Referidos para visualizar y editar los tramos en tiempo real. Cuenta con:
+    1. Una barra de progreso que indica la cantidad de BLUE IOU comprometidos contra el pool de 200 millones.
+    2. Resaltado visual en verde del tramo activo según el conteo de usuarios.
+    3. Intercepción y advertencia de gobernanza si el sistema de Guardianes está habilitado.
+- **Impacto**: Se descentralizó y dinamizó la lógica de emisión por invitación del token de la plataforma, proporcionando total control a los administradores sobre los tramos promocionales, mientras se eliminaron riesgos de hiperinflación y vacíos de cumplimiento regulatorio (SOC 2, Delaware startup compliance).
+- **Archivos modificados**: `smart-contract/backend/migrations/078_create_referral_reward_tiers.js`, `smart-contract/backend/src/routes/adminRoutes.js`, `smart-contract/backend/src/controllers/adminController.js`, `smart-contract/backend/src/controllers/authController.js`, `smart-contract/frontend/admin-panel.html`, `smart-contract/frontend/src/pages/admin-panel.js`, `smart-contract/EVOLUCION.md`.
+
 ### 2026-06-30 — Restricción de Saldo por KYC de Referidos en Donaciones, Marketplace y Motor de Pagos de Impulsores (Saldo Elegible)
 
 - **Contexto**: Para mitigar el riesgo de abuso y fraude mediante *referral farming* (bots de invitación masiva) durante la fase de pre-lanzamiento, se requería impedir que un influencer verificado (con KYC aprobado) pudiera gastar, donar o retirar comisiones acumuladas provenientes de invitaciones a seguidores que aún no aprueban su propio KYC.

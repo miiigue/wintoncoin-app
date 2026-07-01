@@ -2221,6 +2221,8 @@ module.exports = {
     deleteInvitation,
     getAdminUsers,
     updateAdminStatus,
+    getReferralTiers,
+    updateReferralTiers,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2928,4 +2930,115 @@ async function updateAdminStatus(req, res) {
         client.release();
     }
 }
+
+/**
+ * Obtiene la lista de tramos de recompensa por referidos.
+ */
+async function getReferralTiers(req, res) {
+    try {
+        const query = `
+            SELECT id, tier_number, label, max_users_limit, reward_amount
+            FROM referral_reward_tiers
+            ORDER BY tier_number ASC
+        `;
+        const result = await pool.query(query);
+        
+        const countRes = await pool.query('SELECT COUNT(*) as count FROM users');
+        const totalUsers = parseInt(countRes.rows[0].count, 10);
+        
+        res.json({
+            tiers: result.rows,
+            totalUsers
+        });
+    } catch (error) {
+        console.error('[AdminController] Error al obtener tramos de referidos:', error);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+}
+
+/**
+ * Actualiza los tramos de recompensa por referidos.
+ * Valida el techo del pool de 200 millones antes de guardar.
+ * Valida gobernanza antes de guardar directo.
+ */
+async function updateReferralTiers(req, res) {
+    const { tiers } = req.body;
+    if (!Array.isArray(tiers) || tiers.length === 0) {
+        return res.status(400).json({ message: 'Se requiere un listado de tramos válido.' });
+    }
+
+    // 1. Validar el techo del pool de 200 millones
+    let projectedTotal = 0;
+    for (const t of tiers) {
+        const reward = parseFloat(t.reward_amount);
+        const limit = parseInt(t.max_users_limit, 10);
+        const tierNum = parseInt(t.tier_number, 10);
+
+        if (isNaN(reward) || reward < 0 || isNaN(limit) || limit <= 0 || isNaN(tierNum)) {
+            return res.status(400).json({ message: 'Valores de tramos inválidos. Todos los montos y límites deben ser numéricos positivos.' });
+        }
+        
+        let prevLimit = 0;
+        if (t.tier_number > 1) {
+            const prevTier = tiers.find(pt => parseInt(pt.tier_number, 10) === t.tier_number - 1);
+            if (prevTier) {
+                prevLimit = parseInt(prevTier.max_users_limit, 10);
+            }
+        }
+        const usersInTier = Math.max(0, limit - prevLimit);
+        projectedTotal += (usersInTier * reward * 2);
+    }
+
+    if (projectedTotal > 200000000) {
+        return res.status(400).json({
+            message: `Error de Viabilidad Financiera: La recompensa total proyectada (${projectedTotal.toLocaleString('es-ES')} BLUE) excede el pool promocional destinado de 200.000.000 BLUE.`
+        });
+    }
+
+    // 2. Control de Gobernanza (WebAuthn / Guardianes)
+    const isGovActive = await _checkGovernanceActive();
+    if (isGovActive) {
+        return res.status(403).json({
+            message: 'El sistema de Gobernanza está activo. Las modificaciones en los tramos globales de referidos deben ser propuestas a través del Panel de Gobernanza.',
+            governance_required: true
+        });
+    }
+
+    // 3. Guardar cambios en la base de datos bajo transacción
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        for (const t of tiers) {
+            await client.query(`
+                INSERT INTO referral_reward_tiers (tier_number, label, max_users_limit, reward_amount)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (tier_number)
+                DO UPDATE SET
+                    label = EXCLUDED.label,
+                    max_users_limit = EXCLUDED.max_users_limit,
+                    reward_amount = EXCLUDED.reward_amount,
+                    updated_at = NOW();
+            `, [parseInt(t.tier_number, 10), t.label, parseInt(t.max_users_limit, 10), parseFloat(t.reward_amount)]);
+        }
+
+        // Registrar auditoría de grado bancario (SOC 2)
+        await logAuditEvent(client, req, {
+            eventType: 'admin.referral_tiers.updated',
+            actorUsername: req.user.username,
+            category: 'admin',
+            metadata: { tiers_configured: tiers, projected_total_emitted: projectedTotal }
+        });
+
+        await client.query('COMMIT');
+        res.json({ message: 'Tramos de recompensas de referidos actualizados con éxito.' });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[ADMIN] Error al actualizar tramos de referidos:', error);
+        res.status(500).json({ message: 'Error interno del servidor al actualizar los tramos.' });
+    } finally {
+        client.release();
+    }
+}
+
 

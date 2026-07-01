@@ -307,6 +307,7 @@ exports.registerVerify = async (req, res) => {
         // --- 3. [LÓGICA REINTEGRADA] Aplicar bonos de bienvenida y referidos ---
         const settingKeys = [
             'referral_system_enabled', 'referral_reward_amount',
+            'referral_reward_after_expiry',
             'welcome_bonus_enabled', 'welcome_bonus_amount',
             'pre_launch_mode_enabled', 'referral_codes_expiry_date'
         ];
@@ -377,9 +378,28 @@ exports.registerVerify = async (req, res) => {
             }
         }
 
-        // Lógica de Recompensa por Referido (solo en modo pre-lanzamiento)
         if (preLaunchMode && referrer) {
-            const rewardAmount = parseFloat(settings.referral_reward_amount) || 0;
+            // Contar el total de usuarios actuales registrados para determinar el tramo
+            const userCountRes = await client.query('SELECT COUNT(*) as count FROM users');
+            const totalUsers = parseInt(userCountRes.rows[0].count, 10);
+
+            // Consultar el tramo de recompensa activo
+            const tierRes = await client.query(`
+                SELECT reward_amount 
+                FROM referral_reward_tiers 
+                WHERE max_users_limit >= $1 
+                ORDER BY tier_number ASC 
+                LIMIT 1
+            `, [totalUsers]);
+
+            let rewardAmount = 0;
+            if (tierRes.rowCount > 0) {
+                rewardAmount = parseFloat(tierRes.rows[0].reward_amount) || 0;
+            } else {
+                // Fallback a la recompensa después de la promo (0 BLUE IOU)
+                rewardAmount = parseFloat(settings.referral_reward_after_expiry) || 0;
+            }
+
             if (rewardAmount > 0) {
                 // Recompensa para el referente: Registra en booster_blue_ledger (cumple reglas económicas)
                 await client.query("SELECT record_booster_event($1, 'referral_reward', $2, NULL)", [referrer.id, rewardAmount]);
