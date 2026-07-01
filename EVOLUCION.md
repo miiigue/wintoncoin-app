@@ -19,6 +19,16 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-01 — Protección Anti-Spam y Precisión Decimal de 4 Dígitos en Causas Solidarias
+
+- **Contexto**: Se identificaron dos vulnerabilidades potenciales en el sistema de recaudación: 1) Riesgo de congestión de red (spam) por bots enviando micro-donaciones (ej. 0.0001 BLUE IOU). 2) Pérdida de precisión matemática en la sumatoria total mostrada en la interfaz debido a que las columnas de la base de datos truncaban los valores a 2 decimales, omitiendo las fracciones menores.
+- **Decisión de Ingeniería**:
+  - **Validación Fintech (`humanitarianService.js`)**: Se integró una regla dura que exige un mínimo de `1 BLUE IOU` por donación. Adicionalmente, el monto ingresado ahora se formatea estrictamente a 4 decimales (`toFixed(4)`) antes de su procesamiento para blindar contra vulnerabilidades de desbordes de coma flotante.
+  - **Corrección de Precisión (Migración `080_fix_humanitarian_amounts_decimals.js`)**: Se alteró dinámicamente el tipo de dato de las columnas `goal_amount` y `current_amount` en `humanitarian_causes` de `DECIMAL(18, 2)` a `DECIMAL(18, 4)`.
+  - **Re-hidratación de Datos**: Dentro de la misma migración `080`, se añadió una directiva de re-cálculo para actualizar `current_amount` consultando la sumatoria matemática exacta (con 4 decimales) desde el ledger inmutable de `humanitarian_donations`, recuperando el saldo perdido en el frontend.
+- **Impacto**: Fortalece el sistema contra congestión maliciosa y asegura que la exactitud de los aportes empaten a la perfección con la visualización contable en el panel frontal del usuario, alineado a los estándares de precisión bancaria.
+- **Archivos modificados**: `smart-contract/backend/src/services/humanitarianService.js`, `smart-contract/backend/migrations/080_fix_humanitarian_amounts_decimals.js`, `smart-contract/EVOLUCION.md`.
+
 ### 2026-07-01 — Transparencia de Autoría en Recibos de Donación Solidaria
 
 - **Contexto**: Para mejorar la experiencia de usuario y la transparencia en las donaciones de "Winton Solidario", se requería informar al donante quién fue el creador real de la publicación a la cual aportó, ya que el creador de la publicación puede ser distinto al beneficiario final de los fondos (ej. alguien publica en nombre de una fundación).

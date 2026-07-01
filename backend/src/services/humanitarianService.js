@@ -212,10 +212,12 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
         }
 
         // Ajustar monto si excedería la meta (considerando pending_amount)
-        let donationAmount = parseFloat(amount);
-        if (isNaN(donationAmount) || donationAmount <= 0) {
-            throw { status: 400, message: 'El monto de donación debe ser positivo.' };
+        // BLINDAJE FINTECH: Asegurar que el monto ingresado se acota estrictamente a 4 decimales
+        let rawAmount = parseFloat(amount);
+        if (isNaN(rawAmount) || rawAmount < 1) {
+            throw { status: 400, message: 'El monto mínimo de donación es de 1 BLUE IOU para prevenir saturación de la red.' };
         }
+        let donationAmount = parseFloat(rawAmount.toFixed(4));
         // Capacidad restante = meta - (liberado + pendiente)
         // Esto previene el desborde cuando múltiples donantes sin KYC
         // contribuyen simultáneamente a la misma causa
