@@ -205,7 +205,11 @@ async function updateSetting(req, res) {
         // 1. Evaluar si la clave corresponde a configuraciones operativas / informativas de notificaciones:
         //    - Claves que comienzan con 'daily_modal_' (Textos del modal informativo por día).
         //    - Clave exacta 'global_app_interstitial_enabled' (Interruptor para habilitar/deshabilitar el modal de anuncios).
-        const isNonCriticalSetting = key.startsWith('daily_modal_') || key === 'global_app_interstitial_enabled';
+        const isNonCriticalSetting = key.startsWith('daily_modal_') || 
+                                     key === 'global_app_interstitial_enabled' ||
+                                     key === 'referral_custom_share_code' ||
+                                     key === 'referral_custom_share_code_enabled' ||
+                                     key === 'referral_share_message_template';
 
         // 2. Verificar el estado del sistema de gobernanza (si existen guardianes activos registrados).
         const isGovActive = await _checkGovernanceActive();

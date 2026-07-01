@@ -19,6 +19,29 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-01 — Plantilla de Mensaje de Referido Personalizable, Código Global de Invitaciones y Visualización de Cupos (FOMO)
+
+- **Contexto**: Para mejorar las herramientas de marketing viral de la plataforma sin requerir modificaciones constantes de código ni redespliegues de la interfaz de usuario, se solicitó:
+  1. Habilitar la personalización del mensaje publicitario que los usuarios comparten por WhatsApp o copian al portapapeles.
+  2. Implementar la posibilidad de que los administradores definan un "Código de Referido Especial/Global" y activen un switch para forzar su uso al compartir en redes sociales, en lugar del código personal del usuario.
+  3. Evitar el uso de una cuenta regresiva estática y sustituirla en el panel de interacción por un indicador premium de cupos restantes en tiempo real del tramo vigente, forzando la visualización dinámica del valor real del bono para evitar publicidad engañosa.
+  4. Garantizar que estas configuraciones operativas de mensajería no requieran la aprobación de los Guardianes de Gobernanza.
+- **Decisión de Ingeniería**:
+  - **Base de Datos (Migración `079_add_referral_message_settings.js`)**: Se crearon y sembraron en la tabla `app_settings` tres nuevas configuraciones: `referral_custom_share_code` ('WINTON'), `referral_custom_share_code_enabled` ('false') y `referral_share_message_template` (con placeholders dinámicos `{code}`, `{reward}`, `{link}`).
+  - **Exención de Gobernanza (`adminController.js`)**: Se modificó `updateSetting` para añadir las tres nuevas llaves al filtro de `isNonCriticalSetting`, permitiendo la edición instantánea de los copys y códigos administrativos sin requerir firmas de quórum de gobernanza.
+  - **Lógica de Configuración y Mensaje (`systemController.js` y `contract-interaction.js`)**:
+    - Se modificó la API de `/api/referral-settings` para incluir los tres nuevos parámetros en la respuesta del frontend.
+    - Se actualizó la función `shareReferralCode()` del frontend público para resolver en paralelo la información de referidos del usuario y los settings de la app, permitiendo compilar dinámicamente la plantilla reemplazando `{code}` (personal o custom), `{reward}` y `{link}`.
+  - **Indicador de Cupos en Tarjeta (`contract_interaction.html` y `contract-interaction.js`)**:
+    - Reemplazamos la cuenta regresiva temporal (`Expira en:`) por el contenedor dinámico `CUPOS DISPONIBLES: [cupos] usuarios` en HTML.
+    - Actualizamos la inicialización en JS para consultar el tramo activo, restar el total de usuarios registrados y pintar la cantidad formateada con separador de miles. Se añade un estado de `"CUPOS AGOTADOS:"` resaltado en rojo si los cupos llegan a cero.
+  - **Panel Administrativo (`admin-panel.html` y `admin-panel.js`)**:
+    - Agregamos la pestaña "Mensaje de Referido (WhatsApp / Redes)" en la sección de Administración de Referidos.
+    - Creamos el renderizador `renderReferralMessageSettings` para inyectar los controles del Switch, el Input del código global y el Textarea de la plantilla con autoguardado asíncrono en blur.
+    - Extendimos `handleSettingChange` para soportar de forma nativa inputs de tipo `text` y elementos `textarea`.
+- **Impacto**: Se descentralizó el contenido de mercadeo de referidos de la plataforma, proporcionando total autonomía operacional al equipo administrativo de la startup para ajustar campañas, emojis y códigos globales sin intervenciones de desarrollo, mientras se potenció la conversión viral (Growth Hacking) mediante la escasez explícita de cupos (FOMO) en el dashboard público del usuario.
+- **Archivos modificados**: `smart-contract/backend/migrations/079_add_referral_message_settings.js`, `smart-contract/backend/src/controllers/adminController.js`, `smart-contract/backend/src/controllers/systemController.js`, `smart-contract/frontend/admin-panel.html`, `smart-contract/frontend/contract_interaction.html`, `smart-contract/frontend/src/pages/admin-panel.js`, `smart-contract/frontend/src/pages/contract-interaction.js`, `smart-contract/EVOLUCION.md`.
+
 ### 2026-06-30 — Sistema de Halving Dinámico de Referidos Configurable (Tramos y Tope de Pool de 200M)
 
 - **Contexto**: Para el cumplimiento de las políticas económicas vigentes del protocolo, se requería estructurar las recompensas por referidos (tanto para el referente como para el referido) en un esquema dinámico de tramos (*halving dinámico*) basado en el volumen acumulado de usuarios registrados en el sistema, en lugar de un monto fijo lineal. Asimismo, se requería garantizar un tope financiero máximo de emisión promocional de **200,000,000 BLUE IOU** y habilitar la expiración total de los bonos (monto a 0) una vez superado el límite del último tramo (1,010,000 usuarios).

@@ -2490,76 +2490,30 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Referral Settings & Share ---
     let promoInterval;
 
-    function startReferralPromoCountdown(expiryDateStr) {
-        if (!expiryDateStr) return;
-        
-        // Formatear para asegurar compatibilidad total (YYYY-MM-DDT23:59:59)
-        let formattedDateStr = expiryDateStr.includes('T') ? expiryDateStr : `${expiryDateStr}T23:59:59`;
-        const expiryDate = new Date(formattedDateStr);
-        
-        if (isNaN(expiryDate.getTime())) {
-            console.error("Fecha de expiración inválida:", expiryDateStr);
-            return;
-        }
-
-        const daysEl = document.getElementById('timer-days');
-        const hoursEl = document.getElementById('timer-hours');
-        const minsEl = document.getElementById('timer-mins');
-        const secsEl = document.getElementById('timer-secs');
-
-        if (!daysEl || !hoursEl || !minsEl || !secsEl) return;
-
-        if (promoInterval) clearInterval(promoInterval);
-
-        function updateTimer() {
-            const now = new Date();
-            const diff = expiryDate - now;
-
-            if (diff <= 0) {
-                clearInterval(promoInterval);
-                daysEl.textContent = '00';
-                hoursEl.textContent = '00';
-                minsEl.textContent = '00';
-                secsEl.textContent = '00';
-                return;
-            }
-
-            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const secs = Math.floor((diff % (1000 * 60)) / 1000);
-
-            daysEl.textContent = days.toString().padStart(2, '0');
-            hoursEl.textContent = hours.toString().padStart(2, '0');
-            minsEl.textContent = mins.toString().padStart(2, '0');
-            secsEl.textContent = secs.toString().padStart(2, '0');
-
-            // Efecto "Hot" si queda menos de 3 días
-            if (diff < (3 * 24 * 60 * 60 * 1000)) {
-                [daysEl, hoursEl, minsEl, secsEl].forEach(el => el.classList.add('hot'));
-            }
-        }
-
-        updateTimer();
-        promoInterval = setInterval(updateTimer, 1000);
-    }
-
     async function loadReferralSettings() {
         try {
             const response = await fetch(`${API_URL}/api/referral-settings`);
             if (response.ok) {
                 const data = await response.json();
                 
-                // Actualizar monto en la tarjeta
+                // 1. Actualizar monto en la tarjeta
                 const amountElement = document.getElementById('referralAmount');
-                
                 if (amountElement && data.referral_reward_amount) {
-                    amountElement.textContent = parseInt(data.referral_reward_amount);
+                    amountElement.textContent = parseInt(data.referral_reward_amount, 10);
                 }
 
-                // Iniciar el cronómetro si hay fecha
-                if (data.referral_codes_expiry_date) {
-                    startReferralPromoCountdown(data.referral_codes_expiry_date);
+                // 2. Actualizar cupos restantes en la tarjeta
+                const slotsElement = document.getElementById('referralRemainingSlots');
+                const labelElement = document.getElementById('promoSlotsLabel');
+                
+                if (slotsElement && typeof data.referral_remaining_slots !== 'undefined') {
+                    const remainingSlots = parseInt(data.referral_remaining_slots, 10);
+                    slotsElement.textContent = remainingSlots.toLocaleString('es-ES');
+                    
+                    if (remainingSlots <= 0) {
+                        if (labelElement) labelElement.textContent = 'CUPOS AGOTADOS:';
+                        slotsElement.classList.add('hot'); // Resaltar en rojo si no hay cupos
+                    }
                 }
             }
         } catch (error) {
@@ -2575,41 +2529,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const [referralResponse, expiryResponse] = await Promise.all([
+            const [referralResponse, settingsResponse] = await Promise.all([
                 fetch(`${API_URL}/api/users/${username}/referral-info`),
-                fetch(`${API_URL}/api/referral-expiry-date`)
+                fetch(`${API_URL}/api/referral-settings`)
             ]);
 
-            if (referralResponse.ok) {
-                const data = await referralResponse.json();
-                const referralCode = data.referral_code;
-                const rewardAmount = document.getElementById('referralAmount')?.textContent || '1000';
-                const registrationUrl = `${window.location.origin}/register.html?ref=${referralCode}`;
+            if (referralResponse.ok && settingsResponse.ok) {
+                const referralData = await referralResponse.json();
+                const settingsData = await settingsResponse.json();
 
-                let expiryText = '';
-                if (expiryResponse.ok) {
-                    try {
-                        const expiryData = await expiryResponse.json();
-                        if (expiryData.expiry_date) {
-                            const expiryDate = new Date(expiryData.expiry_date);
-                            if (!isNaN(expiryDate.getTime())) {
-                                const formattedDate = expiryDate.toLocaleDateString('es-ES', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric'
-                                });
-                                expiryText = ` (válido hasta el ${formattedDate})`;
-                            }
-                        }
-                    } catch (error) {
-                        console.warn('Error al formatear fecha de vigencia:', error);
-                    }
-                }
+                // 1. Determinar qué código y enlace compartir
+                const userCode = referralData.referral_code;
+                const customCode = settingsData.referral_custom_share_code || 'WINTON';
+                const useCustomCode = settingsData.referral_custom_share_code_enabled === true;
 
-                const textToShare = `Registrate en WintonCoin con mi codigo de referido y ambos ganamos ${rewardAmount} BLUE IOU${expiryText}\n\n` +
-                    `${referralCode}\n\n` +
-                    `Recuerda que Tú ganas ${rewardAmount} BLUE IOU por cada amigo que invites!\n\n` +
-                    `Regístrate aquí: ${registrationUrl}`;
+                const codeToShare = useCustomCode ? customCode : userCode;
+                const rewardAmount = parseInt(settingsData.referral_reward_amount, 10) || 0;
+                const registrationUrl = `${window.location.origin}/register.html?ref=${codeToShare}`;
+
+                // 2. Obtener la plantilla de mensaje personalizada
+                let template = settingsData.referral_share_message_template || 
+                    `¡Hola! Únete a WintonCoin usando mi código {code} y ambos ganaremos {reward} BLUE IOU de bienvenida.\n\n👉 Regístrate gratis aquí: {link}`;
+
+                // 3. Reemplazar placeholders en la plantilla
+                const textToShare = template
+                    .replace(/{code}/g, codeToShare)
+                    .replace(/{reward}/g, rewardAmount)
+                    .replace(/{link}/g, registrationUrl);
 
                 if (navigator.share) {
                     await navigator.share({

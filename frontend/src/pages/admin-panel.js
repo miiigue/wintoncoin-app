@@ -91,6 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
         referralsSettingsContainer: document.getElementById('referrals-settings-container'),
         referralsLogContainer: document.getElementById('referrals-log-container'),
         referralsTiersContainer: document.getElementById('referrals-tiers-container'),
+        referralsMessageContainer: document.getElementById('referrals-message-container'),
         // --- IMPULSORES ---
         boosterSection: document.getElementById('boosters-section'),
         boostersSettingsContainer: document.getElementById('boosters-settings-container'),
@@ -817,9 +818,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadReferralsData() {
-        if (!elements.referralsSettingsContainer || !elements.referralsLogContainer || !elements.referralsTiersContainer) return;
+        if (!elements.referralsSettingsContainer || !elements.referralsLogContainer || !elements.referralsTiersContainer || !elements.referralsMessageContainer) return;
         elements.referralsSettingsContainer.innerHTML = '<div class="loading-spinner"></div>';
         elements.referralsTiersContainer.innerHTML = '<div class="loading-spinner"></div>';
+        elements.referralsMessageContainer.innerHTML = '<div class="loading-spinner"></div>';
         elements.referralsLogContainer.innerHTML = '<div class="loading-spinner"></div>';
 
         try {
@@ -830,12 +832,14 @@ document.addEventListener('DOMContentLoaded', () => {
             ]);
 
             renderReferralSettings(settings);
+            renderReferralMessageSettings(settings);
             renderReferralTiers(tiersData);
             renderReferralLog(log);
 
         } catch (error) {
             elements.referralsSettingsContainer.innerHTML = `<p class="error-message">Error al cargar la configuración de referidos: ${escapeHtml(error.message)}</p>`;
             elements.referralsTiersContainer.innerHTML = `<p class="error-message">Error al cargar los tramos de referidos: ${escapeHtml(error.message)}</p>`;
+            elements.referralsMessageContainer.innerHTML = `<p class="error-message">Error al cargar la configuración del mensaje: ${escapeHtml(error.message)}</p>`;
             elements.referralsLogContainer.innerHTML = `<p class="error-message">Error al cargar el log de referidos: ${escapeHtml(error.message)}</p>`;
         }
     }
@@ -971,6 +975,9 @@ document.addEventListener('DOMContentLoaded', () => {
             'referral_reward_amount': { title: 'Recompensa por Referido (BLUE)', description: 'Cantidad de BLUE que ganan referente y referido.' },
             'referral_reward_after_expiry': { title: 'Recompensa después de la promo (BLUE)', description: 'Cantidad de BLUE que se otorgará una vez expire la promoción.' },
             'referral_codes_expiry_date': { title: 'Vigencia hasta', description: 'Fecha de expiración de los códigos de referido (formato: YYYY-MM-DD).' },
+            'referral_custom_share_code': { title: 'Código de Referido Especial', description: 'Código global para compartir en redes sociales en lugar del código personal.' },
+            'referral_custom_share_code_enabled': { title: 'Habilitar Código Especial', description: 'Si está activo (ON), los usuarios compartirán el código especial anterior. Si está apagado (OFF), compartirán su propio código personal.' },
+            'referral_share_message_template': { title: 'Plantilla del Mensaje para Compartir', description: 'Mensaje publicitario que se copiará al compartir. Soporta {code}, {reward} y {link} como placeholders.' },
             'welcome_bonus_enabled': { title: 'Bono de Bienvenida', description: 'Activa o desactiva el bono al registrarse sin código.' },
             'welcome_bonus_amount': { title: 'Monto del Bono de Bienvenida (BLUE)', description: 'Cantidad de BLUE que se otorga sin código de referido.' },
             'pre_launch_mode_enabled': { title: 'Modo Pre-Lanzamiento', description: 'Todas las ganancias van al Perfil de Impulsor, no se crea RED.' },
@@ -1185,6 +1192,75 @@ document.addEventListener('DOMContentLoaded', () => {
             container.querySelectorAll('input[type="date"]').forEach(input => {
                 input.addEventListener('change', handleSettingChange);
             });
+        }
+    }
+
+    function renderReferralMessageSettings(allSettings) {
+        const messageKeys = ['referral_custom_share_code', 'referral_custom_share_code_enabled', 'referral_share_message_template'];
+        const messageSettings = allSettings.filter(s => messageKeys.includes(s.setting_key));
+
+        const container = elements.referralsMessageContainer;
+        if (!container) return;
+
+        const customCodeSetting = messageSettings.find(s => s.setting_key === 'referral_custom_share_code') || { setting_value: '' };
+        const customCodeEnabledSetting = messageSettings.find(s => s.setting_key === 'referral_custom_share_code_enabled') || { setting_value: 'false' };
+        const templateSetting = messageSettings.find(s => s.setting_key === 'referral_share_message_template') || { setting_value: '' };
+
+        container.innerHTML = `
+            <div class="setting-item">
+                <div class="setting-item-info">
+                    <h4>Habilitar Código Especial</h4>
+                    <p>Si está activo (ON), los usuarios compartirán el código especial de abajo. Si está apagado (OFF), compartirán su propio código personal.</p>
+                </div>
+                <div class="setting-item-control">
+                    <label class="switch">
+                        <input type="checkbox" id="setting-referral_custom_share_code_enabled" data-key="referral_custom_share_code_enabled" ${customCodeEnabledSetting.setting_value === 'true' ? 'checked' : ''}>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-item-info">
+                    <h4>Código de Referido Especial</h4>
+                    <p>Código global para compartir en redes sociales en lugar del código personal.</p>
+                </div>
+                <div class="setting-item-control">
+                    <input type="text" class="admin-text-input" id="setting-referral_custom_share_code" data-key="referral_custom_share_code" value="${escapeHtml(customCodeSetting.setting_value)}" style="padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #fff; width: 100%; max-width: 250px;">
+                </div>
+            </div>
+
+            <div class="setting-item" style="flex-direction: column; align-items: stretch; gap: 0.5rem;">
+                <div class="setting-item-info" style="margin-bottom: 0.5rem;">
+                    <h4>Plantilla del Mensaje para Compartir</h4>
+                    <p>Mensaje publicitario que se copiará al compartir. Soporta los siguientes placeholders dinámicos:</p>
+                    <p style="margin-top: 0.25rem; font-family: monospace; color: #f1c40f; font-size: 0.8rem;">
+                        {code} &rarr; Código de referido a compartir (personal o especial)<br>
+                        {reward} &rarr; Monto de recompensa del tramo activo<br>
+                        {link} &rarr; Enlace de registro con el código inyectado
+                    </p>
+                </div>
+                <textarea id="setting-referral_share_message_template" data-key="referral_share_message_template" style="width: 100%; min-height: 120px; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; font-family: inherit; font-size: 0.9rem; resize: vertical; box-sizing: border-box;">${escapeHtml(templateSetting.setting_value)}</textarea>
+            </div>
+        `;
+
+        // Añadir listeners para guardar cambios de forma inmediata
+        container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', handleSettingChange);
+        });
+
+        container.querySelectorAll('input[type="text"]').forEach(input => {
+            input.addEventListener('change', handleSettingChange);
+            input.addEventListener('keyup', (event) => {
+                if (event.key === 'Enter') {
+                    handleSettingChange(event);
+                }
+            });
+        });
+
+        const textarea = container.querySelector('textarea');
+        if (textarea) {
+            textarea.addEventListener('change', handleSettingChange);
         }
     }
 
@@ -1755,6 +1831,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const key = control.dataset.key;
         let value;
 
+        const isTextarea = control.tagName.toLowerCase() === 'textarea';
+
         if (control.type === 'checkbox') {
             value = control.checked.toString();
         } else if (control.type === 'number') {
@@ -1769,11 +1847,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
             }
+        } else if (control.type === 'text' || isTextarea) {
+            value = control.value;
         } else {
             return;
         }
 
-        if (control.type === 'number' || control.type === 'date') {
+        if (control.type === 'number' || control.type === 'date' || control.type === 'text' || isTextarea) {
             clearTimeout(settingChangeTimeout);
             settingChangeTimeout = setTimeout(() => {
                 updateSetting(key, value);

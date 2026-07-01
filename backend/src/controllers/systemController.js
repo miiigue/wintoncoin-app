@@ -83,7 +83,10 @@ const SystemController = {
             // 1. Obtenemos las configuraciones relevantes
             const keys = [
                 'referral_reward_after_expiry',
-                'referral_codes_expiry_date'
+                'referral_codes_expiry_date',
+                'referral_custom_share_code',
+                'referral_custom_share_code_enabled',
+                'referral_share_message_template'
             ];
             
             const result = await pool.query(
@@ -102,7 +105,7 @@ const SystemController = {
  
             // 3. Obtener el monto del tramo activo
             const tierRes = await pool.query(`
-                SELECT reward_amount 
+                SELECT max_users_limit, reward_amount 
                 FROM referral_reward_tiers 
                 WHERE max_users_limit >= $1 
                 ORDER BY tier_number ASC 
@@ -110,16 +113,23 @@ const SystemController = {
             `, [totalUsers]);
  
             let rewardAmount = '0.00';
+            let remainingSlots = 0;
             if (tierRes.rowCount > 0) {
                 rewardAmount = parseFloat(tierRes.rows[0].reward_amount).toFixed(2);
+                remainingSlots = Math.max(0, parseInt(tierRes.rows[0].max_users_limit, 10) - totalUsers);
             } else {
                 rewardAmount = parseFloat(settings['referral_reward_after_expiry'] || '0.00').toFixed(2);
+                remainingSlots = 0;
             }
             
             res.status(200).json({
                 referral_reward_amount: rewardAmount,
+                referral_remaining_slots: remainingSlots,
                 referral_reward_after_expiry: settings['referral_reward_after_expiry'] || '0.00',
-                referral_codes_expiry_date: settings['referral_codes_expiry_date'] || null
+                referral_codes_expiry_date: settings['referral_codes_expiry_date'] || null,
+                referral_custom_share_code: settings['referral_custom_share_code'] || 'WINTON',
+                referral_custom_share_code_enabled: settings['referral_custom_share_code_enabled'] === 'true',
+                referral_share_message_template: settings['referral_share_message_template'] || ''
             });
         } catch (error) {
             console.error("Error al obtener configuración de referidos:", error);
