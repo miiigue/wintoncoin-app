@@ -4457,6 +4457,7 @@ body.love-page {
     background: linear-gradient(90deg, transparent, rgba(147, 197, 253, 0.2), transparent);
     animation: azureShine 5s ease-in-out infinite;
     pointer-events: none;
+    z-index: 3; /* Renderizar brillo por encima de la imagen de fondo y textos */
 }
 
 @keyframes azureShine {
@@ -4513,17 +4514,11 @@ body.love-page {
     to { opacity: 0.8; text-shadow: 0 0 18px rgba(255, 77, 77, 0.9); }
 }
 
-.timer-unit-label {
+.timer-unit small {
     font-size: 0.7rem;
     color: rgba(255, 255, 255, 0.4);
     font-weight: 700;
     text-transform: lowercase;
-    transition: all 0.3s ease;
-}
-
-.timer-side-text {
-    font-family: 'Inter', sans-serif;
-    transition: all 0.3s ease;
 }
 
 .promo-reward-info {

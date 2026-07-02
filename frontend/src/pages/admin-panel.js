@@ -1265,16 +1265,21 @@ document.addEventListener('DOMContentLoaded', () => {
             <h3 style="margin-top: 0;">Diseño de la Tarjeta en la App (Modo Campaña)</h3>
             <p style="margin-bottom: 1.5rem;">Estos textos e imagen reemplazarán la tarjeta de referidos normal en los teléfonos de los usuarios cuando el "Código Especial" (arriba) esté activo.</p>
 
-            <div class="setting-item">
+            <div class="setting-item" style="align-items: flex-start;">
                 <div class="setting-item-info">
                     <h4>Imagen de Fondo (Banner)</h4>
-                    <p>Imagen premium que cubrirá la tarjeta (ej. Terremoto en Venezuela). Solo JPG, PNG, WebP (Máx 2MB).</p>
+                    <p>Imagen premium que cubrirá la tarjeta (ej. Terremoto en Venezuela). Puedes subir un archivo o pegar una URL persistente (ej: de Imgur/PostImage) para que nunca se borre al reiniciar el contenedor.</p>
                 </div>
-                <div class="setting-item-control" style="flex-direction: column; align-items: flex-end; gap: 0.5rem;">
-                    ${cardImgSetting.setting_value ? `<img src="${escapeHtml(cardImgSetting.setting_value)}" alt="Campaña actual" style="max-width: 250px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2);">` : '<span style="font-size:0.85rem; color:#aaa;">Sin imagen</span>'}
-                    <input type="file" id="campaign-image-upload" accept="image/jpeg, image/png, image/webp" style="max-width: 250px; font-size: 0.85rem;">
-                    <div id="campaign-upload-status" style="font-size: 0.8rem;"></div>
-                    <input type="hidden" id="setting-referral_campaign_image_url" data-key="referral_campaign_image_url" value="${escapeHtml(cardImgSetting.setting_value)}">
+                <div class="setting-item-control" style="flex-direction: column; align-items: flex-end; gap: 0.5rem; width: 100%; max-width: 250px;">
+                    ${cardImgSetting.setting_value ? `<img src="${escapeHtml(cardImgSetting.setting_value.startsWith('http') ? cardImgSetting.setting_value : API_URL + cardImgSetting.setting_value)}" alt="Campaña actual" style="max-width: 250px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2);">` : '<span style="font-size:0.85rem; color:#aaa;">Sin imagen</span>'}
+                    
+                    <!-- Subida local -->
+                    <input type="file" id="campaign-image-upload" accept="image/jpeg, image/png, image/webp" style="width: 100%; font-size: 0.85rem;">
+                    <div id="campaign-upload-status" style="font-size: 0.8rem; width: 100%; text-align: right;"></div>
+                    
+                    <!-- Entrada de URL directa para persistencia -->
+                    <p style="margin: 0.5rem 0 0; font-size: 0.75rem; color: #aaa; text-align: right; width: 100%;">O pegar URL de imagen externa:</p>
+                    <input type="text" class="admin-text-input" id="setting-referral_campaign_image_url" data-key="referral_campaign_image_url" value="${escapeHtml(cardImgSetting.setting_value)}" placeholder="https://ejemplo.com/imagen.jpg" style="padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #fff; width: 100%; box-sizing: border-box;">
                 </div>
             </div>
 
