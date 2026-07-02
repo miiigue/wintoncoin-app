@@ -4513,11 +4513,17 @@ body.love-page {
     to { opacity: 0.8; text-shadow: 0 0 18px rgba(255, 77, 77, 0.9); }
 }
 
-.timer-unit small {
+.timer-unit-label {
     font-size: 0.7rem;
     color: rgba(255, 255, 255, 0.4);
     font-weight: 700;
     text-transform: lowercase;
+    transition: all 0.3s ease;
+}
+
+.timer-side-text {
+    font-family: 'Inter', sans-serif;
+    transition: all 0.3s ease;
 }
 
 .promo-reward-info {

@@ -2510,6 +2510,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const bgOverlayElement = document.getElementById('campaignBgOverlay');
                 const noticeElement = document.getElementById('campaignCodeNotice');
                 const cardElement = document.getElementById('shareReferralCard');
+                const preSlotsElement = document.getElementById('referralPreSlots');
+                const remainingLabelElement = document.getElementById('referralRemainingLabel');
                 
                 if (slotsElement && typeof data.referral_remaining_slots !== 'undefined') {
                     const remainingSlots = parseInt(data.referral_remaining_slots, 10);
@@ -2525,15 +2527,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isCampaignActive = data.referral_custom_share_code_enabled === true;
                 
                 if (isCampaignActive) {
-                    // Título de la tarjeta
-                    if (labelElement && data.referral_card_title) {
-                        labelElement.textContent = data.referral_card_title;
-                        labelElement.style.color = '#fff';
-                        labelElement.style.fontWeight = '700';
-                        labelElement.style.fontSize = '1.1rem';
+                    // Ocultar título superior "CUPOS DISPONIBLES:"
+                    if (labelElement) {
+                        labelElement.style.display = 'none';
                     }
 
-                    // Subtítulo de la tarjeta
+                    // Mostrar "Quedan" al lado izquierdo con el mismo tamaño y estilo de .reward-label
+                    if (preSlotsElement) {
+                        preSlotsElement.style.display = 'inline';
+                        preSlotsElement.style.fontSize = '0.5rem';
+                        preSlotsElement.style.color = 'rgba(255, 255, 255, 0.95)';
+                        preSlotsElement.style.textTransform = 'uppercase';
+                        preSlotsElement.style.fontWeight = '700';
+                        preSlotsElement.style.letterSpacing = '1.2px';
+                        preSlotsElement.style.textShadow = '0 1px 4px rgba(0, 0, 0, 0.8)';
+                    }
+
+                    // Mostrar "cupos" al lado derecho con el mismo tamaño y estilo de .reward-label
+                    if (remainingLabelElement) {
+                        remainingLabelElement.textContent = 'cupos';
+                        remainingLabelElement.style.fontSize = '0.5rem';
+                        remainingLabelElement.style.color = 'rgba(255, 255, 255, 0.95)';
+                        remainingLabelElement.style.textTransform = 'uppercase';
+                        remainingLabelElement.style.fontWeight = '700';
+                        remainingLabelElement.style.letterSpacing = '1.2px';
+                        remainingLabelElement.style.textShadow = '0 1px 4px rgba(0, 0, 0, 0.8)';
+                    }
+
+                    // Subtítulo de la tarjeta (Ej: "AL SUSCRIBIRSE SE DONAN")
                     if (subtitleElement && data.referral_card_subtitle) {
                         subtitleElement.textContent = data.referral_card_subtitle;
                         subtitleElement.style.color = 'rgba(255, 255, 255, 0.95)';
@@ -2563,16 +2584,24 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                     
-                    // Notificación pequeña en el fondo
+                    // Notificación pequeña en el fondo ("Código a enviar:")
                     if (noticeElement && data.referral_custom_share_code) {
-                        noticeElement.textContent = `Código de campaña: ${data.referral_custom_share_code}`;
+                        noticeElement.textContent = `Código a enviar: ${data.referral_custom_share_code}`;
                         noticeElement.style.display = 'block';
                     }
                 } else {
                     // Modo Normal (Revertir cambios si la campaña está apagada)
                     if (labelElement) {
                         labelElement.textContent = 'CUPOS DISPONIBLES:';
+                        labelElement.style.display = 'inline';
                         labelElement.style = ''; // Limpiar estilos en línea
+                    }
+                    if (preSlotsElement) {
+                        preSlotsElement.style.display = 'none';
+                    }
+                    if (remainingLabelElement) {
+                        remainingLabelElement.textContent = 'usuarios';
+                        remainingLabelElement.style = ''; // Restaurar estilos por defecto de CSS
                     }
                     if (subtitleElement) {
                         subtitleElement.textContent = 'Bono por referir hoy';
