@@ -384,10 +384,14 @@ exports.registerVerify = async (req, res) => {
             const totalUsers = parseInt(userCountRes.rows[0].count, 10);
 
             // Consultar el tramo de recompensa activo
+            // IMMEDIATE PHASE ROLLOVER: Se usa '>' (estricto) — cuando totalUsers
+            // alcanza el max_users_limit del tramo, salta al siguiente.
+            // Esto garantiza que el monto acreditado coincida exactamente con
+            // lo que el usuario ve en la tarjeta del dashboard (audit trail).
             const tierRes = await client.query(`
                 SELECT reward_amount 
                 FROM referral_reward_tiers 
-                WHERE max_users_limit >= $1 
+                WHERE max_users_limit > $1 
                 ORDER BY tier_number ASC 
                 LIMIT 1
             `, [totalUsers]);

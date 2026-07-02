@@ -19,6 +19,18 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-02 — Immediate Phase Rollover: Transición Automática de Tramos de Referidos
+
+- **Problema Detectado**: Cuando un tramo de referidos se completaba (ej: 10 usuarios registrados con límite de 10), el dashboard mostraba "Quedan 0 cupos" con el monto del tramo anterior (200 BLUE) en lugar de saltar automáticamente al siguiente tramo (100 BLUE). Esto confundía al usuario y mostraba información financiera incorrecta.
+- **Causa Raíz**: La consulta SQL usaba `WHERE max_users_limit >= totalUsers`. Cuando `totalUsers = max_users_limit`, la query devolvía el tramo recién completado con 0 cupos restantes en lugar del siguiente tramo disponible.
+- **Decisión de Ingeniería**: Se cambió el operador de `>=` a `>` (estricto) en dos archivos críticos:
+  - `systemController.js` → `getReferralSettings()`: Query que alimenta la tarjeta del dashboard (lo que ve el usuario).
+  - `authController.js` → Registro de nuevos usuarios: Query que determina cuánto se acredita al referente (lo que se paga).
+  - Ambos deben usar el mismo operador para garantizar consistencia audit-trail: **lo que se muestra = lo que se paga**.
+- **Frontend**: Se actualizó `contract-interaction.js` para que `remaining_slots = 0` solo oculte la sección de cupos cuando **todos los tramos** están agotados (reward = 0), no cuando simplemente se completa una fase.
+- **Patrón**: "Immediate Phase Rollover" — estándar en plataformas de crowdfunding (Kickstarter), exchanges (Binance ICO tiers) y pre-ventas (Stripe).
+- **Archivos modificados**: `systemController.js`, `authController.js`, `contract-interaction.js`
+
 ### 2026-07-02 — Corrección Crítica de Seguridad Financiera: Two-Gate KYC Freeze (FATF / AML)
 
 - **Problema Detectado**: Un usuario sin KYC aprobado (`kyc_verified = false` en BD) podía ver su saldo total del `booster_blue_ledger` como "Saldo Disponible (KYC)" en el perfil de impulsor. Esto ocurría porque `financialCoreService.getUserEligibleBalance` solo evaluaba si los **referidos** del usuario tenían KYC, pero nunca verificaba si el **propio titular** tenía KYC aprobado.

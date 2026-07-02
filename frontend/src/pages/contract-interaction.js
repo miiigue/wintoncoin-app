@@ -2513,11 +2513,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (slotsElement && typeof data.referral_remaining_slots !== 'undefined') {
                     const remainingSlots = parseInt(data.referral_remaining_slots, 10);
-                    slotsElement.textContent = remainingSlots.toLocaleString('es-ES');
                     
-                    if (remainingSlots <= 0) {
-                        if (labelElement) labelElement.textContent = 'CUPOS AGOTADOS:';
-                        slotsElement.classList.add('hot'); // Resaltar en rojo si no hay cupos
+                    // IMMEDIATE PHASE ROLLOVER (Frontend):
+                    // Con el fix del backend (operador '>'), remaining_slots = 0 SOLO
+                    // ocurre cuando TODOS los tramos se han agotado (no hay más fases).
+                    // En ese caso, ocultamos la sección de cupos para evitar confusión.
+                    // Si hay cupos, se muestra normalmente con el monto del tramo activo.
+                    if (remainingSlots <= 0 && parseFloat(data.referral_reward_amount) <= 0) {
+                        // Todos los tramos agotados: ocultar la sección de conteo de cupos
+                        const promoContainer = document.querySelector('.promo-timer-container');
+                        if (promoContainer) promoContainer.style.display = 'none';
+                    } else {
+                        // Tramo activo: mostrar cupos restantes normalmente
+                        slotsElement.textContent = remainingSlots.toLocaleString('es-ES');
                     }
                 }
 

@@ -108,10 +108,16 @@ const SystemController = {
             const totalUsers = parseInt(countRes.rows[0].count, 10);
  
             // 3. Obtener el monto del tramo activo
+            // IMMEDIATE PHASE ROLLOVER: Se usa '>' (estricto) en lugar de '>='
+            // para que cuando totalUsers == max_users_limit del tramo actual,
+            // la query salte al SIGUIENTE tramo inmediatamente.
+            // Esto evita mostrar "0 cupos" con el monto del tramo anterior,
+            // lo cual desorientaría al usuario (UX) y violaría la transparencia
+            // informativa requerida por regulaciones FinTech (Truth in Advertising).
             const tierRes = await pool.query(`
                 SELECT max_users_limit, reward_amount 
                 FROM referral_reward_tiers 
-                WHERE max_users_limit >= $1 
+                WHERE max_users_limit > $1 
                 ORDER BY tier_number ASC 
                 LIMIT 1
             `, [totalUsers]);
