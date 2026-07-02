@@ -21,6 +21,7 @@ const router = express.Router();
 const { authenticateToken } = require('../middleware/authMiddleware');
 const { submitCause, donateToCause, getCauseDonations } = require('../services/humanitarianService');
 const pool = require('../config/db');
+const { requireAcceptedLegalForAuthenticatedUser } = require('../middleware/legalAcceptanceMiddleware');
 
 // ============================================================================
 // MIDDLEWARE PARA AUTENTICACIÓN OPCIONAL (INVITADOS)
@@ -175,6 +176,7 @@ router.get('/causes/:id', optionalAuthenticateToken, async (req, res) => {
 // TODAS LAS DEMÁS RUTAS REQUIEREN AUTENTICACIÓN DE USUARIO OBLIGATORIA
 // ============================================================================
 router.use(authenticateToken);
+router.use(requireAcceptedLegalForAuthenticatedUser());
 
 // ============================================================================
 // POST /api/humanitarian/causes — Postular una causa humanitaria

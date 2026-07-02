@@ -154,6 +154,25 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
         const cause = causeRes.rows[0];
 
         // =====================================================================
+        // VALIDACIÓN: El donante no puede ser beneficiario ni creador de ninguna causa activa
+        // =====================================================================
+        // Si el donante es el beneficiario (o creador) de una causa con estado 'pending' o 'approved',
+        // bloqueamos la donación por motivos de auditoría contable y prevención de fraude.
+        const activeBeneficiaryCheck = await client.query(`
+            SELECT id FROM humanitarian_causes 
+            WHERE (user_id = $1 OR beneficiary_referral_code = (SELECT referral_code FROM users WHERE id = $1))
+              AND status IN ('pending', 'approved')
+              AND id != $2
+        `, [donorId, causeId]);
+
+        if (activeBeneficiaryCheck.rowCount > 0) {
+            throw { 
+                status: 403, 
+                message: 'Los beneficiarios o creadores de causas activas o en revisión en Winton Solidario no pueden realizar donaciones a otras causas.' 
+            };
+        }
+
+        // =====================================================================
         // RESOLUCIÓN DEL BENEFICIARIO FINAL (Destinatario de los fondos)
         // =====================================================================
         // Por defecto, los fondos se dirigen al creador/dueño de la causa.
@@ -193,10 +212,12 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
         }
 
         // Ajustar monto si excedería la meta (considerando pending_amount)
-        let donationAmount = parseFloat(amount);
-        if (isNaN(donationAmount) || donationAmount <= 0) {
-            throw { status: 400, message: 'El monto de donación debe ser positivo.' };
+        // BLINDAJE FINTECH: Asegurar que el monto ingresado se acota estrictamente a 4 decimales
+        let rawAmount = parseFloat(amount);
+        if (isNaN(rawAmount) || rawAmount < 1) {
+            throw { status: 400, message: 'El monto mínimo de donación es de 1 BLUE IOU para prevenir saturación de la red.' };
         }
+        let donationAmount = parseFloat(rawAmount.toFixed(4));
         // Capacidad restante = meta - (liberado + pendiente)
         // Esto previene el desborde cuando múltiples donantes sin KYC
         // contribuyen simultáneamente a la misma causa
@@ -214,18 +235,17 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
         }
 
         // =====================================================================
-        // PASO 2: Verificar saldo del donante (Event Sourcing — SUM del ledger)
+        // PASO 2: Verificar saldo elegible del donante (Core Financiero — KYC referidos)
         // =====================================================================
-        const balanceRes = await client.query(
-            'SELECT COALESCE(SUM(amount), 0) AS total FROM booster_blue_ledger WHERE user_id = $1',
-            [donorId]
-        );
-        const donorBalance = parseFloat(balanceRes.rows[0].total);
+        const FinancialCoreService = require('./financialCoreService');
+        const balanceInfo = await FinancialCoreService.getUserEligibleBalance(client, donorId);
+        const donorBalance = balanceInfo.totalBalance;
+        const eligibleBalance = balanceInfo.eligibleBalance;
 
-        if (donorBalance < donationAmount) {
+        if (eligibleBalance < donationAmount) {
             throw {
                 status: 400,
-                message: `Saldo insuficiente. Tienes ${donorBalance.toFixed(4)} BLUE IOU disponibles.`
+                message: `Saldo elegible insuficiente. Tienes ${eligibleBalance.toFixed(4)} BLUE IOU disponibles para transaccionar (excluyendo bonos de referidos sin KYC aprobados).`
             };
         }
 
@@ -394,7 +414,7 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
 
         // Disparar envío de correos electrónicos transaccionales de forma asíncrona y segura (no bloqueante)
         if (donor.email) {
-            sendDonationSentEmail(donor.email, recipientUsername, cause.title, donationAmount, !isVerified)
+            sendDonationSentEmail(donor.email, recipientUsername, cause.title, donationAmount, !isVerified, cause.owner_username)
                 .catch(e => console.error('[SOLIDARIO CORREO] Error al disparar sendDonationSentEmail:', e.message));
         }
         if (recipientEmail) {
@@ -463,7 +483,7 @@ const getCauseDonations = async (causeId) => {
 /**
  * Envía un correo al donante informándole del estado de su donación (Hold o Liberada).
  */
-const sendDonationSentEmail = async (donorEmail, recipientUsername, causeTitle, amount, isHold) => {
+const sendDonationSentEmail = async (donorEmail, recipientUsername, causeTitle, amount, isHold, creatorUsername) => {
     try {
         const subject = isHold
             ? 'Donación en espera de verificación — Winton Solidario'
@@ -483,6 +503,7 @@ const sendDonationSentEmail = async (donorEmail, recipientUsername, causeTitle, 
             amount: `${amount.toFixed(4)} BLUE IOU`,
             details: [
                 { label: 'Causa Humanitaria', value: causeTitle },
+                { label: 'Creador de la Causa', value: `@${creatorUsername}` },
                 { label: 'Beneficiario', value: `@${recipientUsername}` },
                 { label: 'Estado de Custodia', value: isHold ? 'Retenido (Falta KYC)' : 'Acreditado Inmediato' },
                 { label: 'Fecha', value: new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' }) }

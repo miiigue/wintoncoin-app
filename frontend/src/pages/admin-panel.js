@@ -90,6 +90,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- REFERIDOS ---
         referralsSettingsContainer: document.getElementById('referrals-settings-container'),
         referralsLogContainer: document.getElementById('referrals-log-container'),
+        referralsTiersContainer: document.getElementById('referrals-tiers-container'),
+        referralsMessageContainer: document.getElementById('referrals-message-container'),
         // --- IMPULSORES ---
         boosterSection: document.getElementById('boosters-section'),
         boostersSettingsContainer: document.getElementById('boosters-settings-container'),
@@ -633,6 +635,12 @@ document.addEventListener('DOMContentLoaded', () => {
             credentials: 'include'
         };
 
+        // Si el body es un FormData (subida de archivos), eliminamos el Content-Type 
+        // para que el navegador configure automáticamente multipart/form-data junto con el boundary
+        if (options.body instanceof FormData) {
+            delete defaultOptions.headers['Content-Type'];
+        }
+
         if (options.headers) {
             defaultOptions.headers = { ...defaultOptions.headers, ...options.headers };
             delete options.headers;
@@ -816,21 +824,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadReferralsData() {
-        if (!elements.referralsSettingsContainer || !elements.referralsLogContainer) return;
+        if (!elements.referralsSettingsContainer || !elements.referralsLogContainer || !elements.referralsTiersContainer || !elements.referralsMessageContainer) return;
         elements.referralsSettingsContainer.innerHTML = '<div class="loading-spinner"></div>';
+        elements.referralsTiersContainer.innerHTML = '<div class="loading-spinner"></div>';
+        elements.referralsMessageContainer.innerHTML = '<div class="loading-spinner"></div>';
         elements.referralsLogContainer.innerHTML = '<div class="loading-spinner"></div>';
 
         try {
-            const [settings, log] = await Promise.all([
+            const [settings, log, tiersData] = await Promise.all([
                 apiFetch('/api/admin/settings'),
-                apiFetch('/api/admin/referrals/log')
+                apiFetch('/api/admin/referrals/log'),
+                apiFetch('/api/admin/referrals/tiers')
             ]);
 
             renderReferralSettings(settings);
+            renderReferralMessageSettings(settings);
+            renderReferralTiers(tiersData);
             renderReferralLog(log);
 
         } catch (error) {
             elements.referralsSettingsContainer.innerHTML = `<p class="error-message">Error al cargar la configuración de referidos: ${escapeHtml(error.message)}</p>`;
+            elements.referralsTiersContainer.innerHTML = `<p class="error-message">Error al cargar los tramos de referidos: ${escapeHtml(error.message)}</p>`;
+            elements.referralsMessageContainer.innerHTML = `<p class="error-message">Error al cargar la configuración del mensaje: ${escapeHtml(error.message)}</p>`;
             elements.referralsLogContainer.innerHTML = `<p class="error-message">Error al cargar el log de referidos: ${escapeHtml(error.message)}</p>`;
         }
     }
@@ -966,6 +981,9 @@ document.addEventListener('DOMContentLoaded', () => {
             'referral_reward_amount': { title: 'Recompensa por Referido (BLUE)', description: 'Cantidad de BLUE que ganan referente y referido.' },
             'referral_reward_after_expiry': { title: 'Recompensa después de la promo (BLUE)', description: 'Cantidad de BLUE que se otorgará una vez expire la promoción.' },
             'referral_codes_expiry_date': { title: 'Vigencia hasta', description: 'Fecha de expiración de los códigos de referido (formato: YYYY-MM-DD).' },
+            'referral_custom_share_code': { title: 'Código de Referido Especial', description: 'Código global para compartir en redes sociales en lugar del código personal.' },
+            'referral_custom_share_code_enabled': { title: 'Habilitar Código Especial', description: 'Si está activo (ON), los usuarios compartirán el código especial anterior. Si está apagado (OFF), compartirán su propio código personal.' },
+            'referral_share_message_template': { title: 'Plantilla del Mensaje para Compartir', description: 'Mensaje publicitario que se copiará al compartir. Soporta {code}, {reward} y {link} como placeholders.' },
             'welcome_bonus_enabled': { title: 'Bono de Bienvenida', description: 'Activa o desactiva el bono al registrarse sin código.' },
             'welcome_bonus_amount': { title: 'Monto del Bono de Bienvenida (BLUE)', description: 'Cantidad de BLUE que se otorga sin código de referido.' },
             'pre_launch_mode_enabled': { title: 'Modo Pre-Lanzamiento', description: 'Todas las ganancias van al Perfil de Impulsor, no se crea RED.' },
@@ -1152,7 +1170,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderReferralSettings(allSettings) {
-        const referralKeys = ['referral_system_enabled', 'referral_reward_amount', 'referral_reward_after_expiry', 'referral_codes_expiry_date', 'welcome_bonus_enabled', 'welcome_bonus_amount'];
+        const referralKeys = ['referral_system_enabled', 'referral_reward_after_expiry', 'referral_codes_expiry_date', 'welcome_bonus_enabled', 'welcome_bonus_amount'];
         const referralSettings = allSettings.filter(s => referralKeys.includes(s.setting_key));
 
         const container = document.getElementById('referrals-settings-container');
@@ -1180,6 +1198,365 @@ document.addEventListener('DOMContentLoaded', () => {
             container.querySelectorAll('input[type="date"]').forEach(input => {
                 input.addEventListener('change', handleSettingChange);
             });
+        }
+    }
+
+    function renderReferralMessageSettings(allSettings) {
+        const messageKeys = [
+            'referral_custom_share_code', 
+            'referral_custom_share_code_enabled', 
+            'referral_share_message_template',
+            'referral_card_title',
+            'referral_card_button_text',
+            'referral_campaign_image_url',
+            'referral_card_subtitle'
+        ];
+        const messageSettings = allSettings.filter(s => messageKeys.includes(s.setting_key));
+
+        const container = elements.referralsMessageContainer;
+        if (!container) return;
+
+        const customCodeSetting = messageSettings.find(s => s.setting_key === 'referral_custom_share_code') || { setting_value: '' };
+        const customCodeEnabledSetting = messageSettings.find(s => s.setting_key === 'referral_custom_share_code_enabled') || { setting_value: 'false' };
+        const templateSetting = messageSettings.find(s => s.setting_key === 'referral_share_message_template') || { setting_value: '' };
+        const cardTitleSetting = messageSettings.find(s => s.setting_key === 'referral_card_title') || { setting_value: '🔥 CAMPAÑA ESPECIAL' };
+        const cardBtnSetting = messageSettings.find(s => s.setting_key === 'referral_card_button_text') || { setting_value: '📢 COMPARTIR INVITACIÓN' };
+        const cardImgSetting = messageSettings.find(s => s.setting_key === 'referral_campaign_image_url') || { setting_value: '' };
+        const cardSubtitleSetting = messageSettings.find(s => s.setting_key === 'referral_card_subtitle') || { setting_value: 'Bono por referir hoy' };
+
+        container.innerHTML = `
+            <div class="setting-item">
+                <div class="setting-item-info">
+                    <h4>Habilitar Código Especial</h4>
+                    <p>Si está activo (ON), los usuarios compartirán el código especial de abajo. Si está apagado (OFF), compartirán su propio código personal.</p>
+                </div>
+                <div class="setting-item-control">
+                    <label class="switch">
+                        <input type="checkbox" id="setting-referral_custom_share_code_enabled" data-key="referral_custom_share_code_enabled" ${customCodeEnabledSetting.setting_value === 'true' ? 'checked' : ''}>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-item-info">
+                    <h4>Código de Referido Especial</h4>
+                    <p>Código global para compartir en redes sociales en lugar del código personal.</p>
+                </div>
+                <div class="setting-item-control">
+                    <input type="text" class="admin-text-input" id="setting-referral_custom_share_code" data-key="referral_custom_share_code" value="${escapeHtml(customCodeSetting.setting_value)}" style="padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #fff; width: 100%; max-width: 250px;">
+                </div>
+            </div>
+
+            <div class="setting-item" style="flex-direction: column; align-items: stretch; gap: 0.5rem;">
+                <div class="setting-item-info" style="margin-bottom: 0.5rem;">
+                    <h4>Plantilla del Mensaje para Compartir</h4>
+                    <p>Mensaje publicitario que se copiará al compartir. Soporta los siguientes placeholders dinámicos:</p>
+                    <p style="margin-top: 0.25rem; font-family: monospace; color: #f1c40f; font-size: 0.8rem;">
+                        {code} &rarr; Código de referido a compartir (personal o especial)<br>
+                        {reward} &rarr; Monto de recompensa del tramo activo<br>
+                        {link} &rarr; Enlace de registro con el código inyectado
+                    </p>
+                </div>
+                <textarea id="setting-referral_share_message_template" data-key="referral_share_message_template" style="width: 100%; min-height: 120px; padding: 0.75rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; font-family: inherit; font-size: 0.9rem; resize: vertical; box-sizing: border-box;">${escapeHtml(templateSetting.setting_value)}</textarea>
+            </div>
+
+            <hr class="admin-divider" style="margin: 2rem 0; opacity: 0.2;">
+            <h3 style="margin-top: 0;">Diseño de la Tarjeta en la App (Modo Campaña)</h3>
+            <p style="margin-bottom: 1.5rem;">Estos textos e imagen reemplazarán la tarjeta de referidos normal en los teléfonos de los usuarios cuando el "Código Especial" (arriba) esté activo.</p>
+
+            <div class="setting-item" style="align-items: flex-start;">
+                <div class="setting-item-info">
+                    <h4>Imagen de Fondo (Banner)</h4>
+                    <p>Imagen premium que cubrirá la tarjeta (ej. Terremoto en Venezuela). Puedes subir un archivo o pegar una URL persistente (ej: de Imgur/PostImage) para que nunca se borre al reiniciar el contenedor.</p>
+                </div>
+                <div class="setting-item-control" style="flex-direction: column; align-items: flex-end; gap: 0.5rem; width: 100%; max-width: 250px;">
+                    ${cardImgSetting.setting_value ? `<img src="${escapeHtml(cardImgSetting.setting_value.startsWith('http') ? cardImgSetting.setting_value : API_URL + cardImgSetting.setting_value)}" alt="Campaña actual" style="max-width: 250px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2);">` : '<span style="font-size:0.85rem; color:#aaa;">Sin imagen</span>'}
+                    
+                    <!-- Subida local -->
+                    <input type="file" id="campaign-image-upload" accept="image/jpeg, image/png, image/webp" style="width: 100%; font-size: 0.85rem;">
+                    <div id="campaign-upload-status" style="font-size: 0.8rem; width: 100%; text-align: right;"></div>
+                    
+                    <!-- Entrada de URL directa para persistencia -->
+                    <p style="margin: 0.5rem 0 0; font-size: 0.75rem; color: #aaa; text-align: right; width: 100%;">O pegar URL de imagen externa:</p>
+                    <input type="text" class="admin-text-input" id="setting-referral_campaign_image_url" data-key="referral_campaign_image_url" value="${escapeHtml(cardImgSetting.setting_value)}" placeholder="https://ejemplo.com/imagen.jpg" style="padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #fff; width: 100%; box-sizing: border-box;">
+                </div>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-item-info">
+                    <h4>Título de la Tarjeta</h4>
+                    <p>Reemplaza "CUPOS DISPONIBLES".</p>
+                </div>
+                <div class="setting-item-control">
+                    <input type="text" class="admin-text-input" id="setting-referral_card_title" data-key="referral_card_title" value="${escapeHtml(cardTitleSetting.setting_value)}" style="padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #fff; width: 100%; max-width: 250px;">
+                </div>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-item-info">
+                    <h4>Subtítulo de Recompensa</h4>
+                    <p>Reemplaza "Bono por referir hoy".</p>
+                </div>
+                <div class="setting-item-control">
+                    <input type="text" class="admin-text-input" id="setting-referral_card_subtitle" data-key="referral_card_subtitle" value="${escapeHtml(cardSubtitleSetting.setting_value)}" style="padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #fff; width: 100%; max-width: 250px;">
+                </div>
+            </div>
+
+            <div class="setting-item">
+                <div class="setting-item-info">
+                    <h4>Texto del Botón</h4>
+                    <p>Reemplaza "COMPARTIR MI CÓDIGO".</p>
+                </div>
+                <div class="setting-item-control">
+                    <input type="text" class="admin-text-input" id="setting-referral_card_button_text" data-key="referral_card_button_text" value="${escapeHtml(cardBtnSetting.setting_value)}" style="padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #fff; width: 100%; max-width: 250px;">
+                </div>
+            </div>
+        `;
+
+        // Añadir listeners para guardar cambios de forma inmediata
+        container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', handleSettingChange);
+        });
+
+        container.querySelectorAll('input[type="text"]').forEach(input => {
+            input.addEventListener('change', handleSettingChange);
+            input.addEventListener('keyup', (event) => {
+                if (event.key === 'Enter') {
+                    handleSettingChange(event);
+                }
+            });
+        });
+
+        const textarea = container.querySelector('textarea');
+        if (textarea) {
+            textarea.addEventListener('change', handleSettingChange);
+        }
+
+        // Lógica de subida de imagen AJAX para la campaña
+        const uploadInput = container.querySelector('#campaign-image-upload');
+        if (uploadInput) {
+            uploadInput.addEventListener('change', async (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const statusDiv = container.querySelector('#campaign-upload-status');
+                statusDiv.innerHTML = '<span style="color: #f1c40f;">Subiendo imagen...</span>';
+
+                const formData = new FormData();
+                formData.append('image', file);
+
+                try {
+                    // Usar apiFetch en lugar de fetch nativo para enviar credenciales (cookies) 
+                    // y formatear el multipart/form-data con boundary automáticamente
+                    const data = await apiFetch('/api/upload/campaign-image', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (data.success) {
+                        statusDiv.innerHTML = '<span style="color: #2ecc71;">¡Imagen subida! Guardando configuración...</span>';
+                        // Actualizar el valor del input hidden para desencadenar el guardado de settings
+                        const hiddenInput = container.querySelector('#setting-referral_campaign_image_url');
+                        hiddenInput.value = data.url;
+                        
+                        // Reutilizar handleSettingChange simulando el evento
+                        await handleSettingChange({ target: hiddenInput });
+                        
+                        // Refrescar la UI para mostrar la imagen renderizada
+                        setTimeout(() => loadReferralMessageSettings(), 1000);
+                    } else {
+                        statusDiv.innerHTML = `<span style="color: #e74c3c;">Error: ${data.message}</span>`;
+                    }
+                } catch (err) {
+                    statusDiv.innerHTML = `<span style="color: #e74c3c;">Error: ${err.message || 'Error de conexión.'}</span>`;
+                }
+            });
+        }
+    }
+
+    function renderReferralTiers(data) {
+        const container = elements.referralsTiersContainer;
+        if (!container) return;
+
+        const tiers = data.tiers;
+        const totalUsers = data.totalUsers;
+
+        let projectedTotal = 0;
+        tiers.forEach(t => {
+            const reward = parseFloat(t.reward_amount);
+            const limit = parseInt(t.max_users_limit, 10);
+            
+            let prevLimit = 0;
+            if (t.tier_number > 1) {
+                const prevTier = tiers.find(pt => parseInt(pt.tier_number, 10) === t.tier_number - 1);
+                if (prevTier) {
+                    prevLimit = parseInt(prevTier.max_users_limit, 10);
+                }
+            }
+            const usersInTier = Math.max(0, limit - prevLimit);
+            projectedTotal += (usersInTier * reward * 2);
+        });
+
+        let html = `
+            <div class="admin-card" style="border-left: 4px solid var(--admin-primary); margin-bottom: 1.5rem; background: #1c1c1e; padding: 20px; border-radius: 12px;">
+                <h3 style="margin-top: 0; color: #fff;">Estado del Pool Promocional</h3>
+                <div style="margin: 10px 0;">
+                    <div style="display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 5px; color: #fff;">
+                        <span>BLUE comprometido en tramos:</span>
+                        <span>${projectedTotal.toLocaleString('es-ES')} / 200.000.000 BLUE</span>
+                    </div>
+                    <div style="background: rgba(255, 255, 255, 0.1); border-radius: 10px; height: 10px; overflow: hidden; width: 100%;">
+                        <div style="background: ${projectedTotal > 200000000 ? '#ff453a' : 'var(--admin-primary)'}; width: ${Math.min(100, (projectedTotal / 200000000) * 100)}%; height: 100%; transition: width 0.3s ease;"></div>
+                    </div>
+                    <small style="color: #8e8e93; display: block; margin-top: 8px; font-size: 0.85rem;">
+                        Actualmente hay <strong style="color: #fff;">${totalUsers.toLocaleString('es-ES')}</strong> usuarios registrados en la plataforma.
+                    </small>
+                </div>
+            </div>
+
+            <table class="admin-table" style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                <thead>
+                    <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                        <th style="text-align: left; padding: 12px;">Tramo</th>
+                        <th style="text-align: left; padding: 12px;">Límite de Usuarios (Límite Superior)</th>
+                        <th style="text-align: left; padding: 12px;">Recompensa Referente y Referido (BLUE IOU)</th>
+                        <th style="text-align: left; padding: 12px;">Emisión Máxima del Tramo</th>
+                        <th style="text-align: left; padding: 12px;">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        tiers.forEach(t => {
+            const reward = parseFloat(t.reward_amount);
+            const limit = parseInt(t.max_users_limit, 10);
+            
+            let prevLimit = 0;
+            if (t.tier_number > 1) {
+                const prevTier = tiers.find(pt => parseInt(pt.tier_number, 10) === t.tier_number - 1);
+                if (prevTier) {
+                    prevLimit = parseInt(prevTier.max_users_limit, 10);
+                }
+            }
+            const usersInTier = Math.max(0, limit - prevLimit);
+            const maxTierEmission = usersInTier * reward * 2;
+
+            const isActive = totalUsers >= prevLimit && totalUsers < limit;
+            const statusBadge = isActive ? 
+                '<span class="badge badge-success" style="font-weight:700; background: rgba(52, 199, 89, 0.2); color: #30d158; padding: 4px 8px; border-radius: 4px;">[ACTIVO HOY]</span>' : 
+                (totalUsers >= limit ? '<span class="badge badge-secondary" style="opacity:0.6; background: rgba(255,255,255,0.1); color: #fff; padding: 4px 8px; border-radius: 4px;">Completado</span>' : '<span class="badge badge-secondary" style="opacity:0.6; background: rgba(255,255,255,0.05); color: #8e8e93; padding: 4px 8px; border-radius: 4px;">Próximo</span>');
+
+            const activeRowStyle = isActive ? 'style="background: rgba(10, 132, 255, 0.08); border-left: 3px solid var(--admin-primary);"' : '';
+
+            html += `
+                <tr ${activeRowStyle} style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                    <td style="padding: 12px;"><strong>${escapeHtml(t.label)}</strong></td>
+                    <td style="padding: 12px;">
+                        <input type="number" class="admin-numeric-input tier-limit-input" 
+                            data-tier-id="${t.id}" data-tier-number="${t.tier_number}" 
+                            value="${limit}" style="width: 100%; max-width: 180px; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: #1c1c1e; color: #fff;" min="1" required>
+                    </td>
+                    <td style="padding: 12px;">
+                        <input type="number" class="admin-numeric-input tier-reward-input" 
+                            data-tier-id="${t.id}" data-tier-number="${t.tier_number}" 
+                            value="${reward.toFixed(2)}" style="width: 100%; max-width: 150px; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: #1c1c1e; color: #fff;" min="0" step="0.01" required>
+                    </td>
+                    <td style="padding: 12px; font-weight: 500; color: #ff9f0a;">
+                        ${maxTierEmission.toLocaleString('es-ES')} BLUE
+                    </td>
+                    <td style="padding: 12px;">${statusBadge}</td>
+                </tr>
+            `;
+        });
+
+        html += `
+                </tbody>
+            </table>
+            
+            <div style="margin-top: 15px; display: flex; justify-content: flex-end;">
+                <button id="save-referrals-tiers-btn" class="action-button-admin publish" style="background: var(--admin-primary); color: #fff; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                    Guardar Configuración de Tramos
+                </button>
+            </div>
+        `;
+
+        container.innerHTML = html;
+
+        const saveBtn = document.getElementById('save-referrals-tiers-btn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', handleSaveReferralTiers);
+        }
+    }
+
+    async function handleSaveReferralTiers() {
+        const limitInputs = document.querySelectorAll('.tier-limit-input');
+        const rewardInputs = document.querySelectorAll('.tier-reward-input');
+        
+        const tiers = [];
+        
+        for (let i = 0; i < limitInputs.length; i++) {
+            const id = parseInt(limitInputs[i].dataset.tierId, 10);
+            const tierNumber = parseInt(limitInputs[i].dataset.tierNumber, 10);
+            const limit = parseInt(limitInputs[i].value, 10);
+            const reward = parseFloat(rewardInputs[i].value);
+            
+            if (isNaN(limit) || limit <= 0 || isNaN(reward) || reward < 0) {
+                showCustomAlert('Todos los límites y recompensas deben ser números positivos.');
+                return;
+            }
+            
+            tiers.push({
+                id,
+                tier_number: tierNumber,
+                label: tierNumber === 1 ? 'Tramo 1 (Primeros 10k)' : (tierNumber === 2 ? 'Tramo 2 (Siguientes 300k)' : 'Tramo 3 (Siguientes 700k)'),
+                max_users_limit: limit,
+                reward_amount: reward
+            });
+        }
+        
+        for (let i = 1; i < tiers.length; i++) {
+            if (tiers[i].max_users_limit <= tiers[i - 1].max_users_limit) {
+                showCustomAlert(`El límite del Tramo ${tiers[i].tier_number} (${tiers[i].max_users_limit}) debe ser mayor que el del Tramo ${tiers[i - 1].tier_number} (${tiers[i - 1].max_users_limit}).`);
+                return;
+            }
+        }
+        
+        let projectedTotal = 0;
+        for (let i = 0; i < tiers.length; i++) {
+            const reward = tiers[i].reward_amount;
+            const limit = tiers[i].max_users_limit;
+            const prevLimit = i > 0 ? tiers[i - 1].max_users_limit : 0;
+            projectedTotal += ((limit - prevLimit) * reward * 2);
+        }
+        
+        if (projectedTotal > 200000000) {
+            showCustomAlert(`Error de Viabilidad Financiera: La recompensa total proyectada (${projectedTotal.toLocaleString('es-ES')} BLUE) excede el pool promocional de 200.000.000 BLUE.`);
+            return;
+        }
+        
+        try {
+            const saveBtn = document.getElementById('save-referrals-tiers-btn');
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.innerText = 'Guardando...';
+            }
+            
+            const response = await apiFetch('/api/admin/referrals/tiers', {
+                method: 'POST',
+                body: JSON.stringify({ tiers })
+            });
+            
+            showCustomAlert(response.message || 'Configuración de tramos guardada exitosamente.');
+            loadReferralsData();
+        } catch (error) {
+            console.error('Error al guardar tramos:', error);
+            showCustomAlert(error.message || 'Error al guardar la configuración de tramos.');
+            const saveBtn = document.getElementById('save-referrals-tiers-btn');
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerText = 'Guardar Configuración de Tramos';
+            }
         }
     }
 
@@ -1565,6 +1942,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const key = control.dataset.key;
         let value;
 
+        const isTextarea = control.tagName.toLowerCase() === 'textarea';
+
         if (control.type === 'checkbox') {
             value = control.checked.toString();
         } else if (control.type === 'number') {
@@ -1579,11 +1958,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
             }
+        } else if (control.type === 'text' || control.type === 'hidden' || isTextarea) {
+            value = control.value;
         } else {
             return;
         }
 
-        if (control.type === 'number' || control.type === 'date') {
+        if (control.type === 'number' || control.type === 'date' || control.type === 'text' || isTextarea) {
             clearTimeout(settingChangeTimeout);
             settingChangeTimeout = setTimeout(() => {
                 updateSetting(key, value);
@@ -3861,6 +4242,35 @@ document.addEventListener('DOMContentLoaded', () => {
                             <p style="margin: 4px 0; font-weight: 700; color: #10B981;">${Number(cause.current_amount).toLocaleString('es-ES')} BLUE</p>
                         </div>
                     </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-top: 1px solid rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.05); padding: 10px 0;">
+                        <div>
+                            <strong style="color: #94A3B8;">Registro (Sponsor):</strong>
+                            <p style="margin: 4px 0;">
+                                ${cause.referrer_referral_code 
+                                    ? `<span style="color: #10B981; font-weight: bold;">${escapeHtml(cause.referrer_referral_code)}</span> (de @${escapeHtml(cause.referrer_username)})`
+                                    : '<span style="color: #64748B; font-style: italic;">Registro Directo (Sin Referido)</span>'}
+                            </p>
+                        </div>
+                        <div>
+                            <strong style="color: #94A3B8;">Destinatario de Fondos:</strong>
+                            <p style="margin: 4px 0;">
+                                <strong style="color: #F472B6;">${escapeHtml(cause.foundation_name)}</strong> 
+                                (Código: <span style="color: #3B82F6; font-weight: bold;">${escapeHtml(cause.beneficiary_referral_code)}</span>)
+                            </p>
+                        </div>
+                    </div>
+
+                    ${cause.beneficiary_socials ? `
+                        <div>
+                            <strong style="color: #94A3B8;">Redes del Beneficiario:</strong>
+                            <div style="margin-top: 4px;">
+                                ${cause.beneficiary_socials.trim().split(/\s+/).map(url => `
+                                    <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="color: #F472B6; text-decoration: underline; margin-right: 15px; font-size: 0.85rem;">🔗 ${escapeHtml(url)}</a>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
 
                     <div>
                         <strong style="color: #94A3B8;">Historia:</strong>

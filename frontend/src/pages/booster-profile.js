@@ -58,9 +58,9 @@ function initializeBoosterProfilePage() {
             return;
         }
 
-        const { current_level_info, next_level_info, all_levels, total_booster_blue, booster_tasks_completed_count, transactions } = data;
+        const { current_level_info, next_level_info, all_levels, total_booster_blue, eligible_booster_blue, pending_booster_blue, booster_tasks_completed_count, transactions } = data;
         const headerHTML = getHeaderHTML(current_level_info);
-        const cardsHTML = getAllCardsHTML(data, total_booster_blue, booster_tasks_completed_count || 0);
+        const cardsHTML = getAllCardsHTML(data, total_booster_blue, eligible_booster_blue || 0, pending_booster_blue || 0, booster_tasks_completed_count || 0);
         const progressHTML = getProgressHTML(total_booster_blue, current_level_info, next_level_info, all_levels);
         const historyHTML = getHistoryHTML(transactions);
 
@@ -98,9 +98,11 @@ function initializeBoosterProfilePage() {
         `;
     }
 
-    function getAllCardsHTML(data, totalBlue, totalTasks) {
+    function getAllCardsHTML(data, totalBlue, eligibleBlue, pendingBlue, totalTasks) {
         const cards = [
             getTotalBlueCardHTML(totalBlue),
+            getAvailableBlueCardHTML(eligibleBlue),
+            getPendingBlueCardHTML(pendingBlue),
             getDailyGoalCardHTML(data),
             getRankingCardHTML(data),
             getFriendsRankingCardHTML(data),
@@ -117,9 +119,37 @@ function initializeBoosterProfilePage() {
                     <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-total-blue">Total BLUE iou Acumulado</span>
                 </div>
                 <div id="tooltip-total-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
-                    <p>BLUE iou ganados por completar tareas de plataforma y referidos.</p>
+                    <p>BLUE iou acumulados totales en tu perfil de impulsor.</p>
                 </div>
                 <div class="ranking-position booster-total-highlight">${formatBalance(totalBlue)} BLUE iou</div>
+            </div>
+        `;
+    }
+
+    function getAvailableBlueCardHTML(eligibleBlue) {
+        return `
+            <div class="booster-stat-block booster-summary-card">
+                <div class="ranking-title">
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-available-blue" style="color: #10B981; font-weight: bold;">Saldo Disponible (KYC)</span>
+                </div>
+                <div id="tooltip-available-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
+                    <p>BLUE iou líquidos que puedes donar, gastar o cobrar inmediatamente. Requiere que tú y tus referidos tengan KYC aprobado.</p>
+                </div>
+                <div class="ranking-position booster-total-highlight" style="color: #10B981;">${formatBalance(eligibleBlue)} BLUE iou</div>
+            </div>
+        `;
+    }
+
+    function getPendingBlueCardHTML(pendingBlue) {
+        return `
+            <div class="booster-stat-block booster-summary-card">
+                <div class="ranking-title">
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-pending-blue" style="color: #F59E0B; font-weight: bold;">Saldo Pendiente (KYC)</span>
+                </div>
+                <div id="tooltip-pending-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
+                    <p>BLUE iou acumulados por referidos que se desbloquearán y pasarán a disponible cuando ellos aprueben su KYC Web3.</p>
+                </div>
+                <div class="ranking-position" style="color: #F59E0B; font-weight: bold;">${formatBalance(pendingBlue)} BLUE iou</div>
             </div>
         `;
     }
@@ -360,6 +390,8 @@ function initializeBoosterProfilePage() {
         const tooltips = [
             { trigger: '[data-tooltip-id="tooltip-booster-level"]', tooltip: '#tooltip-booster-level' },
             { trigger: '[data-tooltip-id="tooltip-total-blue"]', tooltip: '#tooltip-total-blue' },
+            { trigger: '[data-tooltip-id="tooltip-available-blue"]', tooltip: '#tooltip-available-blue' },
+            { trigger: '[data-tooltip-id="tooltip-pending-blue"]', tooltip: '#tooltip-pending-blue' },
             { trigger: '[data-tooltip-id="tooltip-daily-goal"]', tooltip: '#tooltip-daily-goal' },
             { trigger: '[data-tooltip-id="tooltip-ranking"]', tooltip: '#tooltip-ranking' },
             { trigger: '[data-tooltip-id="tooltip-friends-ranking"]', tooltip: '#tooltip-friends-ranking' },

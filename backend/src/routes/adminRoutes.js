@@ -52,6 +52,8 @@ router.get('/platform-wallet/log', verifyAdminToken, adminController.getPlatform
 
 // Log de Referidos
 router.get('/referrals/log', verifyAdminToken, adminController.getReferralsLog);
+router.get('/referrals/tiers', verifyAdminToken, adminController.getReferralTiers);
+router.post('/referrals/tiers', verifyAdminToken, adminController.updateReferralTiers);
 
 // Publicaciones de Plataforma
 router.post('/platform/create-publication', verifyAdminToken, adminController.createPlatformPublication);

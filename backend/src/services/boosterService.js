@@ -196,31 +196,61 @@ async function executeBoosterPayments() {
                 if (customFreqEnabled) {
                     const lookbackInterval = `${totalFreqMs / 1000} seconds`;
                     debtRes = await client.query(`
-                        SELECT COALESCE(SUM(amount), 0.0000) as total_debt
-                        FROM booster_blue_ledger bbl
-                        JOIN users u ON bbl.user_id = u.id
-                        WHERE u.is_booster = TRUE
-                          AND u.booster_level = $1
-                          AND u.kyc_verified = TRUE
-                          AND NOT EXISTS (
-                              SELECT 1 FROM booster_payment_log bpl
-                              WHERE bpl.user_id = u.id
-                                AND bpl.created_at >= NOW() - $2::INTERVAL
-                          )
+                        SELECT COALESCE(SUM(eligible_balances.eligible_debt), 0.0000) AS total_debt
+                        FROM (
+                            SELECT u.id,
+                                   COALESCE(SUM(bbl.amount), 0.0000) - COALESCE((
+                                       SELECT SUM(bbl2.amount)
+                                       FROM booster_blue_ledger bbl2
+                                       JOIN referral_log rl ON bbl2.user_id = rl.referrer_user_id
+                                         AND bbl2.type = 'referral_reward'
+                                         AND bbl2.amount > 0
+                                         AND ABS(EXTRACT(EPOCH FROM (bbl2.created_at - rl.created_at))) < 10
+                                       JOIN users u_ref ON rl.referred_user_id = u_ref.id
+                                       WHERE bbl2.user_id = u.id
+                                         AND COALESCE(u_ref.kyc_verified, false) = false
+                                   ), 0.0000) AS eligible_debt
+                            FROM users u
+                            LEFT JOIN booster_blue_ledger bbl ON u.id = bbl.user_id
+                            WHERE u.is_booster = TRUE
+                              AND u.booster_level = $1
+                              AND u.kyc_verified = TRUE
+                              AND NOT EXISTS (
+                                  SELECT 1 FROM booster_payment_log bpl
+                                  WHERE bpl.user_id = u.id
+                                    AND bpl.created_at >= NOW() - $2::INTERVAL
+                              )
+                            GROUP BY u.id
+                        ) eligible_balances
                     `, [level.level, lookbackInterval]);
                 } else {
                     debtRes = await client.query(`
-                        SELECT COALESCE(SUM(amount), 0.0000) as total_debt
-                        FROM booster_blue_ledger bbl
-                        JOIN users u ON bbl.user_id = u.id
-                        WHERE u.is_booster = TRUE
-                          AND u.booster_level = $1
-                          AND u.kyc_verified = TRUE
-                          AND NOT EXISTS (
-                              SELECT 1 FROM booster_payment_log bpl
-                              WHERE bpl.user_id = u.id
-                                AND to_char(bpl.payment_month, 'YYYY-MM') = $2
-                          )
+                        SELECT COALESCE(SUM(eligible_balances.eligible_debt), 0.0000) AS total_debt
+                        FROM (
+                            SELECT u.id,
+                                   COALESCE(SUM(bbl.amount), 0.0000) - COALESCE((
+                                       SELECT SUM(bbl2.amount)
+                                       FROM booster_blue_ledger bbl2
+                                       JOIN referral_log rl ON bbl2.user_id = rl.referrer_user_id
+                                         AND bbl2.type = 'referral_reward'
+                                         AND bbl2.amount > 0
+                                         AND ABS(EXTRACT(EPOCH FROM (bbl2.created_at - rl.created_at))) < 10
+                                       JOIN users u_ref ON rl.referred_user_id = u_ref.id
+                                       WHERE bbl2.user_id = u.id
+                                         AND COALESCE(u_ref.kyc_verified, false) = false
+                                   ), 0.0000) AS eligible_debt
+                            FROM users u
+                            LEFT JOIN booster_blue_ledger bbl ON u.id = bbl.user_id
+                            WHERE u.is_booster = TRUE
+                              AND u.booster_level = $1
+                              AND u.kyc_verified = TRUE
+                              AND NOT EXISTS (
+                                  SELECT 1 FROM booster_payment_log bpl
+                                  WHERE bpl.user_id = u.id
+                                    AND to_char(bpl.payment_month, 'YYYY-MM') = $2
+                              )
+                            GROUP BY u.id
+                        ) eligible_balances
                     `, [level.level, paymentMonthString]);
                 }
 
@@ -271,7 +301,17 @@ async function executeBoosterPayments() {
                         const lookbackInterval = `${totalFreqMs / 1000} seconds`;
                         boostersResult = await client.query(`
                             SELECT u.id, u.username,
-                                   COALESCE((SELECT SUM(amount) FROM booster_blue_ledger WHERE user_id = u.id), 0.0000) as total_booster_blue
+                                   COALESCE((SELECT SUM(amount) FROM booster_blue_ledger WHERE user_id = u.id), 0.0000) - COALESCE((
+                                       SELECT SUM(bbl2.amount)
+                                       FROM booster_blue_ledger bbl2
+                                       JOIN referral_log rl ON bbl2.user_id = rl.referrer_user_id
+                                         AND bbl2.type = 'referral_reward'
+                                         AND bbl2.amount > 0
+                                         AND ABS(EXTRACT(EPOCH FROM (bbl2.created_at - rl.created_at))) < 10
+                                       JOIN users u_ref ON rl.referred_user_id = u_ref.id
+                                       WHERE bbl2.user_id = u.id
+                                         AND COALESCE(u_ref.kyc_verified, false) = false
+                                   ), 0.0000) as total_booster_blue
                             FROM users u
                             WHERE u.is_booster = TRUE
                               AND u.booster_level = $1
@@ -288,7 +328,17 @@ async function executeBoosterPayments() {
                     } else {
                         boostersResult = await client.query(`
                             SELECT u.id, u.username,
-                                   COALESCE((SELECT SUM(amount) FROM booster_blue_ledger WHERE user_id = u.id), 0.0000) as total_booster_blue
+                                   COALESCE((SELECT SUM(amount) FROM booster_blue_ledger WHERE user_id = u.id), 0.0000) - COALESCE((
+                                       SELECT SUM(bbl2.amount)
+                                       FROM booster_blue_ledger bbl2
+                                       JOIN referral_log rl ON bbl2.user_id = rl.referrer_user_id
+                                         AND bbl2.type = 'referral_reward'
+                                         AND bbl2.amount > 0
+                                         AND ABS(EXTRACT(EPOCH FROM (bbl2.created_at - rl.created_at))) < 10
+                                       JOIN users u_ref ON rl.referred_user_id = u_ref.id
+                                       WHERE bbl2.user_id = u.id
+                                         AND COALESCE(u_ref.kyc_verified, false) = false
+                                   ), 0.0000) as total_booster_blue
                             FROM users u
                             WHERE u.is_booster = TRUE
                               AND u.booster_level = $1

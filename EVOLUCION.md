@@ -19,7 +19,135 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-02 — Immediate Phase Rollover: Transición Automática de Tramos de Referidos
+
+- **Problema Detectado**: Cuando un tramo de referidos se completaba (ej: 10 usuarios registrados con límite de 10), el dashboard mostraba "Quedan 0 cupos" con el monto del tramo anterior (200 BLUE) en lugar de saltar automáticamente al siguiente tramo (100 BLUE). Esto confundía al usuario y mostraba información financiera incorrecta.
+- **Causa Raíz**: La consulta SQL usaba `WHERE max_users_limit >= totalUsers`. Cuando `totalUsers = max_users_limit`, la query devolvía el tramo recién completado con 0 cupos restantes en lugar del siguiente tramo disponible.
+- **Decisión de Ingeniería**: Se cambió el operador de `>=` a `>` (estricto) en dos archivos críticos:
+  - `systemController.js` → `getReferralSettings()`: Query que alimenta la tarjeta del dashboard (lo que ve el usuario).
+  - `authController.js` → Registro de nuevos usuarios: Query que determina cuánto se acredita al referente (lo que se paga).
+  - Ambos deben usar el mismo operador para garantizar consistencia audit-trail: **lo que se muestra = lo que se paga**.
+- **Frontend**: Se actualizó `contract-interaction.js` para que `remaining_slots = 0` solo oculte la sección de cupos cuando **todos los tramos** están agotados (reward = 0), no cuando simplemente se completa una fase.
+- **Patrón**: "Immediate Phase Rollover" — estándar en plataformas de crowdfunding (Kickstarter), exchanges (Binance ICO tiers) y pre-ventas (Stripe).
+- **Archivos modificados**: `systemController.js`, `authController.js`, `contract-interaction.js`
+
+### 2026-07-02 — Corrección Crítica de Seguridad Financiera: Two-Gate KYC Freeze (FATF / AML)
+
+- **Problema Detectado**: Un usuario sin KYC aprobado (`kyc_verified = false` en BD) podía ver su saldo total del `booster_blue_ledger` como "Saldo Disponible (KYC)" en el perfil de impulsor. Esto ocurría porque `financialCoreService.getUserEligibleBalance` solo evaluaba si los **referidos** del usuario tenían KYC, pero nunca verificaba si el **propio titular** tenía KYC aprobado.
+- **Impacto del Bug**: Violación del principio de "Freeze on Unverified" obligatorio en regulaciones AML (Anti-Money Laundering). Un usuario no verificado podía percibir fondos "disponibles" que en realidad deberían estar congelados hasta su verificación de identidad.
+- **Decisión de Ingeniería**: Se implementó el patrón **Two-Gate KYC Freeze**, estándar en plataformas FinTech reguladas (Binance, Coinbase, Stripe Connect):
+  - **Gate 1 (Titular)**: Se verifica primero si el propio usuario tiene `kyc_verified = true`. Si no → retorno temprano con `eligibleBalance = 0` y `unverifiedReferralBalance = totalBalance` (todo congelado). Fundamento: FATF Recommendation 10, AMLD5 (UE), FinCEN (US), ISO 27001 (Principio de Menor Privilegio).
+  - **Gate 2 (Referidos)**: Solo se ejecuta si el Gate 1 pasa. Descuenta del saldo elegible los bonos de referidos cuyos invitados aún no tienen KYC aprobado. Esto previene el uso de referidos ficticios para lavar fondos (AML).
+  - `COALESCE(kyc_verified, false)` en todas las consultas: previene que un valor `NULL` sea interpretado como "verificado".
+  - `Math.max(0, eligibleBalance)` como salvaguarda financiera final: impide saldo disponible negativo por cualquier bug de datos.
+- **Archivo modificado**: `backend/src/services/financialCoreService.js` → función `getUserEligibleBalance`
+- **Commit**: `(ver hash en git log)`
+- **Impacto**: Cumplimiento regulatorio FinTech de nivel bancario. El saldo disponible ahora refleja exactamente la realidad: 0 para usuarios sin KYC, y total menos bonos de referidos no verificados para usuarios con KYC.
+
+### 2026-07-01 — Sistema de Campañas Dinámicas, Tarjeta WYSIWYG y Modularización Fintech
+
+- **Contexto**: Se requería una forma visual, ágil y de alto impacto para promocionar causas humanitarias (ej. Terremoto en Venezuela) reemplazando la tarjeta estándar de "Invitar Amigos" por una tarjeta publicitaria dinámica (imagen de fondo premium y textos de "Call to Action" personalizados) que no dependiera del engorroso sistema de votación del DAO.
+- **Decisión de Ingeniería (Modularidad & Seguridad)**:
+  - **API Gateway Interno (`src/routes/index.js`)**: Se introdujo el patrón de enrutamiento centralizado para romper la tendencia de engordar el monolito en `server.js`. De ahora en adelante, `server.js` queda limpio y los módulos se agregan jerárquicamente a este nuevo índice maestro.
+  - **Motor de Subida Blindado (`uploadRoutes.js`)**: Se extrajo la lógica de subida de imágenes a un micro-módulo. Cuenta con 4 capas de seguridad de grado bancario: 1) Zero Trust (solo tokens de Admin válidos); 2) Whitelisting estricto de MIME types (JPG, PNG, WebP); 3) Límite de estrangulamiento (Max 2MB) contra ataques DDoS o Storage Exhaustion; 4) Sanitización algorítmica de nombres de archivo (Anti-Path Traversal).
+  - **Bypass de Gobernanza**: En `adminController.js`, se excluyeron las variables estéticas (`referral_card_title`, `referral_card_button_text`, `referral_campaign_image_url`) del proceso DAO, permitiendo agilidad de marketing sin sacrificar la seguridad sobre las variables económicas del sistema.
+  - **Transformación Visual**: La tarjeta del dashboard frontend ahora lee el switch `referral_custom_share_code_enabled`. Al encenderse, pinta la imagen detrás, inyecta un overlay oscuro del 95% para hacer legibles los textos y reescribe el Call To Action al instante.
+- **Impacto**: Crea un puente entre el equipo de diseño/marketing y los usuarios, permitiendo reaccionar a crisis humanitarias en tiempo real. Fija un nuevo estándar arquitectónico dentro del código fuente para extraer ordenadamente el resto del monolito de `server.js`.
+
+### 2026-07-01 — Protección Anti-Spam y Precisión Decimal de 4 Dígitos en Causas Solidarias
+
+- **Contexto**: Se identificaron dos vulnerabilidades potenciales en el sistema de recaudación: 1) Riesgo de congestión de red (spam) por bots enviando micro-donaciones (ej. 0.0001 BLUE IOU). 2) Pérdida de precisión matemática en la sumatoria total mostrada en la interfaz debido a que las columnas de la base de datos truncaban los valores a 2 decimales, omitiendo las fracciones menores.
+- **Decisión de Ingeniería**:
+  - **Validación Fintech (`humanitarianService.js`)**: Se integró una regla dura que exige un mínimo de `1 BLUE IOU` por donación. Adicionalmente, el monto ingresado ahora se formatea estrictamente a 4 decimales (`toFixed(4)`) antes de su procesamiento para blindar contra vulnerabilidades de desbordes de coma flotante.
+  - **Corrección de Precisión (Migración `080_fix_humanitarian_amounts_decimals.js`)**: Se alteró dinámicamente el tipo de dato de las columnas `goal_amount` y `current_amount` en `humanitarian_causes` de `DECIMAL(18, 2)` a `DECIMAL(18, 4)`.
+  - **Re-hidratación de Datos**: Dentro de la misma migración `080`, se añadió una directiva de re-cálculo para actualizar `current_amount` consultando la sumatoria matemática exacta (con 4 decimales) desde el ledger inmutable de `humanitarian_donations`, recuperando el saldo perdido en el frontend.
+- **Impacto**: Fortalece el sistema contra congestión maliciosa y asegura que la exactitud de los aportes empaten a la perfección con la visualización contable en el panel frontal del usuario, alineado a los estándares de precisión bancaria.
+- **Archivos modificados**: `smart-contract/backend/src/services/humanitarianService.js`, `smart-contract/backend/migrations/080_fix_humanitarian_amounts_decimals.js`, `smart-contract/EVOLUCION.md`.
+
+### 2026-07-01 — Transparencia de Autoría en Recibos de Donación Solidaria
+
+- **Contexto**: Para mejorar la experiencia de usuario y la transparencia en las donaciones de "Winton Solidario", se requería informar al donante quién fue el creador real de la publicación a la cual aportó, ya que el creador de la publicación puede ser distinto al beneficiario final de los fondos (ej. alguien publica en nombre de una fundación).
+- **Decisión de Ingeniería**:
+  - **Motor de Correos Transaccionales (`humanitarianService.js`)**: Se modificó la firma del helper `sendDonationSentEmail` para aceptar el nombre de usuario del creador (`creatorUsername`). En la construcción del cuerpo del correo, se añadió un nuevo campo al arreglo de detalles `[ { label: 'Creador de la Causa', value: '@' + creatorUsername } ]`.
+  - **Invocación Dinámica**: En la función principal `donateToCause`, al despachar el correo asíncrono, ahora se extrae y se inyecta la propiedad `cause.owner_username` obtenida directamente de la consulta central de la causa.
+- **Impacto**: Aumenta la claridad contable y previene confusiones (customer support) brindando recibos con desglose completo sobre la titularidad y destino del capital en donaciones de terceros.
+- **Archivos modificados**: `smart-contract/backend/src/services/humanitarianService.js`, `smart-contract/EVOLUCION.md`.
+
+### 2026-07-01 — Plantilla de Mensaje de Referido Personalizable, Código Global de Invitaciones y Visualización de Cupos (FOMO)
+
+- **Contexto**: Para mejorar las herramientas de marketing viral de la plataforma sin requerir modificaciones constantes de código ni redespliegues de la interfaz de usuario, se solicitó:
+  1. Habilitar la personalización del mensaje publicitario que los usuarios comparten por WhatsApp o copian al portapapeles.
+  2. Implementar la posibilidad de que los administradores definan un "Código de Referido Especial/Global" y activen un switch para forzar su uso al compartir en redes sociales, en lugar del código personal del usuario.
+  3. Evitar el uso de una cuenta regresiva estática y sustituirla en el panel de interacción por un indicador premium de cupos restantes en tiempo real del tramo vigente, forzando la visualización dinámica del valor real del bono para evitar publicidad engañosa.
+  4. Garantizar que estas configuraciones operativas de mensajería no requieran la aprobación de los Guardianes de Gobernanza.
+- **Decisión de Ingeniería**:
+  - **Base de Datos (Migración `079_add_referral_message_settings.js`)**: Se crearon y sembraron en la tabla `app_settings` tres nuevas configuraciones: `referral_custom_share_code` ('WINTON'), `referral_custom_share_code_enabled` ('false') y `referral_share_message_template` (con placeholders dinámicos `{code}`, `{reward}`, `{link}`).
+  - **Exención de Gobernanza (`adminController.js`)**: Se modificó `updateSetting` para añadir las tres nuevas llaves al filtro de `isNonCriticalSetting`, permitiendo la edición instantánea de los copys y códigos administrativos sin requerir firmas de quórum de gobernanza.
+  - **Lógica de Configuración y Mensaje (`systemController.js` y `contract-interaction.js`)**:
+    - Se modificó la API de `/api/referral-settings` para incluir los tres nuevos parámetros en la respuesta del frontend.
+    - Se actualizó la función `shareReferralCode()` del frontend público para resolver en paralelo la información de referidos del usuario y los settings de la app, permitiendo compilar dinámicamente la plantilla reemplazando `{code}` (personal o custom), `{reward}` y `{link}`.
+  - **Indicador de Cupos en Tarjeta (`contract_interaction.html` y `contract-interaction.js`)**:
+    - Reemplazamos la cuenta regresiva temporal (`Expira en:`) por el contenedor dinámico `CUPOS DISPONIBLES: [cupos] usuarios` en HTML.
+    - Actualizamos la inicialización en JS para consultar el tramo activo, restar el total de usuarios registrados y pintar la cantidad formateada con separador de miles. Se añade un estado de `"CUPOS AGOTADOS:"` resaltado en rojo si los cupos llegan a cero.
+  - **Panel Administrativo (`admin-panel.html` y `admin-panel.js`)**:
+    - Agregamos la pestaña "Mensaje de Referido (WhatsApp / Redes)" en la sección de Administración de Referidos.
+    - Creamos el renderizador `renderReferralMessageSettings` para inyectar los controles del Switch, el Input del código global y el Textarea de la plantilla con autoguardado asíncrono en blur.
+    - Extendimos `handleSettingChange` para soportar de forma nativa inputs de tipo `text` y elementos `textarea`.
+- **Impacto**: Se descentralizó el contenido de mercadeo de referidos de la plataforma, proporcionando total autonomía operacional al equipo administrativo de la startup para ajustar campañas, emojis y códigos globales sin intervenciones de desarrollo, mientras se potenció la conversión viral (Growth Hacking) mediante la escasez explícita de cupos (FOMO) en el dashboard público del usuario.
+- **Archivos modificados**: `smart-contract/backend/migrations/079_add_referral_message_settings.js`, `smart-contract/backend/src/controllers/adminController.js`, `smart-contract/backend/src/controllers/systemController.js`, `smart-contract/frontend/admin-panel.html`, `smart-contract/frontend/contract_interaction.html`, `smart-contract/frontend/src/pages/admin-panel.js`, `smart-contract/frontend/src/pages/contract-interaction.js`, `smart-contract/EVOLUCION.md`.
+
+### 2026-06-30 — Sistema de Halving Dinámico de Referidos Configurable (Tramos y Tope de Pool de 200M)
+
+- **Contexto**: Para el cumplimiento de las políticas económicas vigentes del protocolo, se requería estructurar las recompensas por referidos (tanto para el referente como para el referido) en un esquema dinámico de tramos (*halving dinámico*) basado en el volumen acumulado de usuarios registrados en el sistema, en lugar de un monto fijo lineal. Asimismo, se requería garantizar un tope financiero máximo de emisión promocional de **200,000,000 BLUE IOU** y habilitar la expiración total de los bonos (monto a 0) una vez superado el límite del último tramo (1,010,000 usuarios).
+- **Decisión de Ingeniería**:
+  - **Base de Datos (`referral_reward_tiers`)**: Se creó y sembró mediante la migración `078_create_referral_reward_tiers.js` una tabla relacional para almacenar dinámicamente los tramos de halving (Tramo 1: 0 a 10k $\rightarrow$ 200 BLUE, Tramo 2: 10k a 310k $\rightarrow$ 100 BLUE, Tramo 3: 310k a 1.01M $\rightarrow$ 75 BLUE). Se estableció `referral_reward_after_expiry` en `0` en la tabla `app_settings` para apagar automáticamente las recompensas al finalizar la campaña.
+  - **Backend de Configuración (`adminController.js`)**: Se implementaron los endpoints `GET /api/admin/referrals/tiers` y `POST /api/admin/referrals/tiers`. Este último aplica una validación matemática estricta para asegurar que la sumatoria proyectada del costo de todos los tramos multiplicada por 2 (por el pago dual a referente y referido) no exceda el límite de 200 millones de BLUE IOU. Se integró además la protección por gobernanza de los Guardianes (`_checkGovernanceActive`) y auditoría SOC 2 (`logAuditEvent`).
+  - **Cálculo de Recompensa al Registrarse (`authController.js`)**: Se actualizó el flujo de registro de nuevos usuarios para que el backend realice un conteo en tiempo real (`SELECT COUNT(*) FROM users`) y determine la recompensa del tramo correspondiente de forma dinámica e inmutable en SQL.
+  - **Frontend Administrativo (`admin-panel.html` y `admin-panel.js`)**: Se implementó una tabla responsiva en la pestaña de Referidos para visualizar y editar los tramos en tiempo real. Cuenta con:
+    1. Una barra de progreso que indica la cantidad de BLUE IOU comprometidos contra el pool de 200 millones.
+    2. Resaltado visual en verde del tramo activo según el conteo de usuarios.
+    3. Intercepción y advertencia de gobernanza si el sistema de Guardianes está habilitado.
+- **Impacto**: Se descentralizó y dinamizó la lógica de emisión por invitación del token de la plataforma, proporcionando total control a los administradores sobre los tramos promocionales, mientras se eliminaron riesgos de hiperinflación y vacíos de cumplimiento regulatorio (SOC 2, Delaware startup compliance).
+- **Archivos modificados**: `smart-contract/backend/migrations/078_create_referral_reward_tiers.js`, `smart-contract/backend/src/routes/adminRoutes.js`, `smart-contract/backend/src/controllers/adminController.js`, `smart-contract/backend/src/controllers/authController.js`, `smart-contract/frontend/admin-panel.html`, `smart-contract/frontend/src/pages/admin-panel.js`, `smart-contract/EVOLUCION.md`.
+
+### 2026-06-30 — Restricción de Saldo por KYC de Referidos en Donaciones, Marketplace y Motor de Pagos de Impulsores (Saldo Elegible)
+
+- **Contexto**: Para mitigar el riesgo de abuso y fraude mediante *referral farming* (bots de invitación masiva) durante la fase de pre-lanzamiento, se requería impedir que un influencer verificado (con KYC aprobado) pudiera gastar, donar o retirar comisiones acumuladas provenientes de invitaciones a seguidores que aún no aprueban su propio KYC.
+- **Decisión de Ingeniería**:
+  - **Servicio Core Financiero (`financialCoreService.js`)**: Se introdujo la función helper `getUserEligibleBalance` que calcula de forma atómica en SQL el Saldo Total, el Saldo Retenido por KYC de referidos pendientes, y el Saldo Disponible Elegible (restando de forma exacta en una ventana temporal de 10s los bonos del ledger emparejados con la bitácora de invitaciones de usuarios sin KYC verificado).
+  - **Winton Solidario (`humanitarianService.js`)**: Se actualizó `donateToCause` para validar y bloquear cualquier donación que exceda el Saldo Disponible Elegible del donante. Asimismo, se modificó la validación de prevención de donaciones cruzadas (`activeBeneficiaryCheck`) para excluir la causa de donación actual mediante `id != causeId`. Esto permite que el creador de una causa pueda donarle a la misma si el beneficiario final es un tercero (por ejemplo, una fundación), mientras se mantiene el bloqueo de auto-donación y el veto de donaciones a otras causas.
+  - **Marketplace (`publicationService.js`)**: Se integró la misma validación en el procesamiento de transacciones comerciales (compras y aceptación de ofertas) bajo el modo de pre-lanzamiento.
+  - **Motor de Pagos Automáticos (`boosterService.js`)**: Se modificaron las consultas de cálculo de presupuesto de comisiones (`totalDebtForLevel`) y la selección de lote de cobros individuales (`boostersResult`) para liquidar comisiones únicamente sobre el Saldo Disponible Elegible de los impulsores.
+  - **Visualización en Perfil (`userController.js` y `booster-profile.js`)**: Se ampliaron los endpoints de API y el script del frontend para pintar tres tarjetas independientes en la rejilla de estadísticas: Total Acumulado, Saldo Disponible (KYC) y Saldo Pendiente (Referidos sin KYC), con tooltips explicativos interactivos.
+- **Impacto**: Se blindó la economía y tesorería del protocolo contra el drenado malicioso por cuentas fantasma en pre-lanzamiento, asegurando que todos los saldos transaccionables estén auditados e incondicionalmente vinculados a identidades verificadas (KYC/AML), mientras se mantiene la transparencia completa para el usuario impulsor.
+- **Archivos modificados**: `smart-contract/backend/src/services/financialCoreService.js`, `smart-contract/backend/src/services/humanitarianService.js`, `smart-contract/backend/src/services/publicationService.js`, `smart-contract/backend/src/services/boosterService.js`, `smart-contract/backend/src/controllers/userController.js`, `smart-contract/frontend/src/pages/booster-profile.js`, `smart-contract/EVOLUCION.md`.
+
+### 2026-06-29 — Restricción de Donaciones a No Firmantes, Prohibición de Donaciones Cruzadas y Bloqueo de Publicación en Pre-lanzamiento
+
+- **Contexto**: Para el cumplimiento legal estricto y blindaje anti-fraude en Winton Solidario, se requería:
+  1. Impedir que los usuarios que no han firmado los TyC vigentes (v1.0.2) realicen donaciones, postulen causas o cancelen las mismas.
+  2. Evitar que un creador o beneficiario de una causa activa ('pending' o 'approved') pueda realizar donaciones a otras causas (mitigación de carruseles de donación de autolavado/fraude).
+  3. Desactivar en el dashboard las opciones de "Solicitar un Ayudante" y "Venta" en modo pre-lanzamiento para usuarios normales para evitar confusiones de UX.
+- **Decisión de Ingeniería**:
+  - **Middleware Legal en Rutas Públicas de Solidario**: Se integró `requireAcceptedLegalForAuthenticatedUser()` en `humanitarianUserRoutes.js` para obligar al usuario a firmar los TyC en todas las transacciones de Solidario.
+  - **Validación de Causa Activa del Donante**: Se añadió una consulta SQL en `humanitarianService.js` (`donateToCause`) para verificar si el donante figura como creador o beneficiario en una causa activa ('pending', 'approved'), lanzando un error 403.
+  - **Inhabilitación Segura en Dashboard**: Se actualizó `contract-interaction.js` (`checkPublicationPermissions`) para aplicar la clase `.disabled` y cursor no permitido a las opciones prohibidas durante pre-lanzamiento para usuarios normales. Para robustez, se clonan y reemplazan los nodos para remover listeners de clic previos de forma permanente.
+- **Impacto**: Se fortaleció la protección jurídica de la plataforma contra el uso de fondos RED sin firma legal activa y contra dinámicas de fraude y lavado por donaciones circulares.
+- **Archivos modificados**: `smart-contract/backend/src/routes/humanitarianUserRoutes.js`, `smart-contract/backend/src/services/humanitarianService.js`, `smart-contract/frontend/src/pages/contract-interaction.js`, `smart-contract/EVOLUCION.md`.
+
+### 2026-06-29 — Validación de Enlaces de Evidencias/Redes y Auditoría de Cadenas de Referidos en Winton Solidario (Migración 077)
+
+
+- **Contexto**: Para prevenir intentos de fraude y cargas de enlaces maliciosos o no aptos en el módulo Winton Solidario (donaciones humanitarias), se requería restringir los enlaces de evidencia únicamente a nubes de almacenamiento seguro y los enlaces de redes sociales a plataformas específicas. Adicionalmente, el panel administrativo de confianza necesitaba una forma de auditar y verificar el código de referido utilizado por el solicitante durante su registro antes de aprobar la causa, mitigando esquemas de fraude masivo.
+- **Decisión de Ingeniería**:
+  - **Filtros de Almacenamiento Seguro y Redes Sociales**: Se actualizaron `solicitud-solidaria.html` y su validación JS con expresiones regulares que restringen el enlace de evidencia a nubes autorizadas (Google Drive, Google Photos, Dropbox, Samsung Cloud, OneDrive, iCloud, Box o Mega) y los de redes a plataformas clave (Instagram, Facebook, TikTok, Twitter/X).
+  - **Extracción de Cadena de Referidos y Render en Modal**: Se reestructuró la query en `humanitarianController.js` para realizar un `LEFT JOIN` a los usuarios patrocinadores y recuperar el código e identidad del referidor del solicitante. Esto se acopló al modal de revisión en `admin-panel.js` para mostrar visualmente el código de registro (Sponsor) y del beneficiario.
+  - **Publicación Criptográfica v1.0.2 (Migración 077)**: Se creó `077_publish_v102_legal_documents.js` en el backend para forzar la re-aceptación obligatoria de los términos con fecha del 29 de junio de 2026 a todos los usuarios de la base de datos tras el despliegue del servidor.
+- **Impacto**: Se estableció un sistema estricto de control de fraudes y spam en la postulación de causas solidarias, y se blindó el protocolo forzando la firma legal v1.0.2 a nivel de base de datos para cumplimiento normativo (SOC 2, KYC).
+- **Archivos modificados**: `smart-contract/backend/src/controllers/humanitarianController.js`, `smart-contract/frontend/src/pages/admin-panel.js`, `smart-contract/frontend/solicitud-solidaria.html`, `smart-contract/backend/migrations/077_publish_v102_legal_documents.js`, `smart-contract/frontend/terms.html`, `smart-contract/EVOLUCION.md`.
+
 ### 2026-06-29 — Conversión de Enlaces a Rutas Relativas para Entornos de Desarrollo Local
+
 
 - **Contexto**: Durante el desarrollo y pruebas locales, el enlace "Ir al Sitio Web" de la barra lateral (`sidebar.js`), el menú desplegable (`contract_interaction.html`), el portal de inicio de sesión (`login.html`), registro (`register.html`) y los flujos de códigos de referido (`register.js`) apuntaban directamente al dominio de producción en vivo (`https://www.wintoncoin.com`). Al hacer clic en ellos, los desarrolladores y el administrador eran desviados fuera del servidor de desarrollo local, rompiendo el flujo de QA.
 - **Decisión de Ingeniería**:

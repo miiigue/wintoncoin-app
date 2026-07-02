@@ -4457,6 +4457,7 @@ body.love-page {
     background: linear-gradient(90deg, transparent, rgba(147, 197, 253, 0.2), transparent);
     animation: azureShine 5s ease-in-out infinite;
     pointer-events: none;
+    z-index: 3; /* Renderizar brillo por encima de la imagen de fondo y textos */
 }
 
 @keyframes azureShine {

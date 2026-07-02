@@ -25,6 +25,7 @@ const validationRoutes = require('./src/routes/validationRoutes');
 const solidarioRoutes = require('./src/routes/solidarioRoutes');
 const recruitmentRoutes = require('./src/routes/recruitmentRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
+const masterApiRouter = require('./src/routes/index'); // ENRUTADOR MAESTRO MODULAR
 const createTransactionRouter = require('./src/routes/transactionRoutes');
 const { executeBoosterPayments } = require('./src/services/boosterService');
 
@@ -140,6 +141,7 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser()); // CRÍTICO: Parsea las cookies de las peticiones
 app.use(express.static(path.join(__dirname, '../frontend')));
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads'))); // Habilitar acceso a imágenes subidas
 
 // 4. Conectar a la Base de Datos PostgreSQL
 // 4. Conectar a la Base de Datos PostgreSQL -> MOVIDO a src/config/db.js
@@ -186,6 +188,7 @@ async function startServer() {
         app.use('/api/recruitment', recruitmentRoutes); // <<< ALTA PRIORIDAD
         app.use('/api/solidario', solidarioRoutes); // Registrar rutas de Winton Solidario
         app.use('/api/admin', adminRoutes); // <<< NUEVAS RUTAS MODULARES ADMIN
+        app.use('/api', masterApiRouter); // <<< RUTA CENTRALIZADA MODULAR
 
         // Registrar rutas de Publicaciones
         // Para publicaciones: permitir actor autenticado (autor) o administrador.

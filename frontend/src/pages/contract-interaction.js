@@ -425,11 +425,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const sellOption = modal.querySelector('.modal-option-button.sell');
         const donationOption = modal.querySelector('.modal-option-button.donation');
 
+        // Determinar si el usuario actual es la cuenta oficial de la plataforma
+        const currentUser = (localStorage.getItem('username') || '').toLowerCase();
+        const platformUser = (settings.platform_username || 'wintoncoin').toLowerCase();
+        const isPlatform = currentUser === platformUser || currentUser === 'plataforma';
+
+        // En pre-lanzamiento, las publicaciones de tipo request y sell están deshabilitadas para usuarios normales.
+        const allowRequest = settings.pre_launch_mode_enabled ? isPlatform : settings.allow_request_publications;
+        const allowSell = settings.pre_launch_mode_enabled ? isPlatform : settings.allow_sell_publications;
+        const allowDonation = settings.allow_donation_publications;
+
         const toggleOption = (element, isEnabled, type) => {
             if (!element) return;
             element.classList.toggle('disabled', !isEnabled);
             if (!isEnabled) {
                 element.style.cursor = 'not-allowed';
+                const newElement = element.cloneNode(true);
+                element.parentNode.replaceChild(newElement, element);
+                newElement.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
             } else {
                 element.style.cursor = 'pointer';
                 const newElement = element.cloneNode(true);
@@ -447,14 +463,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        toggleOption(requestOption, settings.allow_request_publications, 'request');
-        toggleOption(sellOption, settings.allow_sell_publications, 'sell');
-        toggleOption(donationOption, settings.allow_donation_publications, 'donation');
+        toggleOption(requestOption, allowRequest, 'request');
+        toggleOption(sellOption, allowSell, 'sell');
+        toggleOption(donationOption, allowDonation, 'donation');
 
         // Quick sale button
         const quickSaleBtn = document.getElementById('openQuickSaleModalBtn');
         if (quickSaleBtn) {
-            quickSaleBtn.style.display = settings.allow_quick_sale_publications === false ? 'none' : 'inline-flex';
+            quickSaleBtn.style.display = (settings.allow_quick_sale_publications === false || (settings.pre_launch_mode_enabled && !isPlatform)) ? 'none' : 'inline-flex';
         }
     }
 
@@ -2474,76 +2490,130 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Referral Settings & Share ---
     let promoInterval;
 
-    function startReferralPromoCountdown(expiryDateStr) {
-        if (!expiryDateStr) return;
-        
-        // Formatear para asegurar compatibilidad total (YYYY-MM-DDT23:59:59)
-        let formattedDateStr = expiryDateStr.includes('T') ? expiryDateStr : `${expiryDateStr}T23:59:59`;
-        const expiryDate = new Date(formattedDateStr);
-        
-        if (isNaN(expiryDate.getTime())) {
-            console.error("Fecha de expiración inválida:", expiryDateStr);
-            return;
-        }
-
-        const daysEl = document.getElementById('timer-days');
-        const hoursEl = document.getElementById('timer-hours');
-        const minsEl = document.getElementById('timer-mins');
-        const secsEl = document.getElementById('timer-secs');
-
-        if (!daysEl || !hoursEl || !minsEl || !secsEl) return;
-
-        if (promoInterval) clearInterval(promoInterval);
-
-        function updateTimer() {
-            const now = new Date();
-            const diff = expiryDate - now;
-
-            if (diff <= 0) {
-                clearInterval(promoInterval);
-                daysEl.textContent = '00';
-                hoursEl.textContent = '00';
-                minsEl.textContent = '00';
-                secsEl.textContent = '00';
-                return;
-            }
-
-            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const secs = Math.floor((diff % (1000 * 60)) / 1000);
-
-            daysEl.textContent = days.toString().padStart(2, '0');
-            hoursEl.textContent = hours.toString().padStart(2, '0');
-            minsEl.textContent = mins.toString().padStart(2, '0');
-            secsEl.textContent = secs.toString().padStart(2, '0');
-
-            // Efecto "Hot" si queda menos de 3 días
-            if (diff < (3 * 24 * 60 * 60 * 1000)) {
-                [daysEl, hoursEl, minsEl, secsEl].forEach(el => el.classList.add('hot'));
-            }
-        }
-
-        updateTimer();
-        promoInterval = setInterval(updateTimer, 1000);
-    }
-
     async function loadReferralSettings() {
         try {
             const response = await fetch(`${API_URL}/api/referral-settings`);
             if (response.ok) {
                 const data = await response.json();
                 
-                // Actualizar monto en la tarjeta
+                // 1. Actualizar monto en la tarjeta
                 const amountElement = document.getElementById('referralAmount');
-                
                 if (amountElement && data.referral_reward_amount) {
-                    amountElement.textContent = parseInt(data.referral_reward_amount);
+                    amountElement.textContent = parseInt(data.referral_reward_amount, 10);
                 }
 
-                // Iniciar el cronómetro si hay fecha
-                if (data.referral_codes_expiry_date) {
-                    startReferralPromoCountdown(data.referral_codes_expiry_date);
+                // 2. Actualizar cupos restantes en la tarjeta
+                const slotsElement = document.getElementById('referralRemainingSlots');
+                const labelElement = document.getElementById('promoSlotsLabel');
+                const subtitleElement = document.getElementById('referralCardSubtitle');
+                const btnTextElement = document.getElementById('referralCardBtnText');
+                const bgOverlayElement = document.getElementById('campaignBgOverlay');
+                const noticeElement = document.getElementById('campaignCodeNotice');
+                const cardElement = document.getElementById('shareReferralCard');
+                
+                if (slotsElement && typeof data.referral_remaining_slots !== 'undefined') {
+                    const remainingSlots = parseInt(data.referral_remaining_slots, 10);
+                    
+                    // IMMEDIATE PHASE ROLLOVER (Frontend):
+                    // Con el fix del backend (operador '>'), remaining_slots = 0 SOLO
+                    // ocurre cuando TODOS los tramos se han agotado (no hay más fases).
+                    // En ese caso, ocultamos la sección de cupos para evitar confusión.
+                    // Si hay cupos, se muestra normalmente con el monto del tramo activo.
+                    if (remainingSlots <= 0 && parseFloat(data.referral_reward_amount) <= 0) {
+                        // Todos los tramos agotados: ocultar la sección de conteo de cupos
+                        const promoContainer = document.querySelector('.promo-timer-container');
+                        if (promoContainer) promoContainer.style.display = 'none';
+                    } else {
+                        // Tramo activo: mostrar cupos restantes normalmente
+                        slotsElement.textContent = remainingSlots.toLocaleString('es-ES');
+                    }
+                }
+
+                // 3. Transformación Visual: Modo Campaña (Fondo Completo con Overlay)
+                const isCampaignActive = data.referral_custom_share_code_enabled === true;
+                
+                if (isCampaignActive) {
+                    // Título de la tarjeta
+                    if (labelElement && data.referral_card_title) {
+                        labelElement.textContent = data.referral_card_title;
+                        labelElement.style.color = '#fff';
+                        labelElement.style.fontWeight = '700';
+                        labelElement.style.fontSize = '1.1rem';
+                    }
+
+                    // Subtítulo de la tarjeta
+                    if (subtitleElement && data.referral_card_subtitle) {
+                        subtitleElement.textContent = data.referral_card_subtitle;
+                        subtitleElement.style.color = 'rgba(255, 255, 255, 0.95)';
+                        subtitleElement.style.textShadow = '0 1px 4px rgba(0, 0, 0, 0.8)';
+                        subtitleElement.style.fontWeight = '700';
+                    }
+
+                    // Iluminar "Quedan" y "cupos" con el mismo color del subtítulo
+                    const prefixEl = document.getElementById('promoSlotsPrefix');
+                    const suffixEl = document.getElementById('referralRemainingLabel');
+                    if (prefixEl) {
+                        prefixEl.style.color = 'rgba(255, 255, 255, 0.95)';
+                        prefixEl.style.textShadow = '0 1px 4px rgba(0, 0, 0, 0.8)';
+                    }
+                    if (suffixEl) {
+                        suffixEl.style.color = 'rgba(255, 255, 255, 0.95)';
+                        suffixEl.style.textShadow = '0 1px 4px rgba(0, 0, 0, 0.8)';
+                    }
+                    
+                    // Texto del Botón
+                    if (btnTextElement && data.referral_card_button_text) {
+                        btnTextElement.textContent = data.referral_card_button_text;
+                    }
+                    
+                    // Imagen de Fondo (Full Background) y Overlay Oscuro
+                    if (bgOverlayElement && data.referral_campaign_image_url) {
+                        let imageUrl = data.referral_campaign_image_url;
+                        
+                        // Si la URL es externa (Imgur, etc.), se inyecta directamente.
+                        // Si es local, le anteponemos el API_URL del backend.
+                        if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://') || imageUrl.startsWith('//')) {
+                            bgOverlayElement.style.backgroundImage = `url('${imageUrl}')`;
+                        } else {
+                            // Compatibilidad de prefijo local /api
+                            if (!imageUrl.startsWith('/api') && imageUrl.startsWith('/uploads')) {
+                                imageUrl = '/api' + imageUrl;
+                            }
+                            bgOverlayElement.style.backgroundImage = `url('${API_URL}${imageUrl}')`;
+                        }
+                        bgOverlayElement.style.display = 'block';
+                        
+                        // Quitar el color de fondo por defecto de la tarjeta para dejar ver la imagen
+                        if (cardElement) {
+                            cardElement.style.backgroundColor = 'transparent';
+                            cardElement.style.border = '1px solid rgba(255,255,255,0.1)';
+                        }
+                    }
+                    
+                    // Notificación pequeña en el fondo (Código a enviar)
+                    if (noticeElement && data.referral_custom_share_code) {
+                        noticeElement.textContent = `Código a enviar: ${data.referral_custom_share_code}`;
+                        noticeElement.style.display = 'block';
+                    }
+                } else {
+                    // Modo Normal (Revertir cambios si la campaña está apagada)
+                    if (labelElement) {
+                        labelElement.textContent = 'CUPOS DISPONIBLES:';
+                        labelElement.style = ''; // Limpiar estilos en línea
+                    }
+                    if (subtitleElement) {
+                        subtitleElement.textContent = 'Bono por referir hoy';
+                        subtitleElement.style = ''; // Restaurar estilos por defecto de CSS
+                    }
+                    const prefixEl = document.getElementById('promoSlotsPrefix');
+                    const suffixEl = document.getElementById('referralRemainingLabel');
+                    if (prefixEl) prefixEl.style = '';
+                    if (suffixEl) suffixEl.style = '';
+                    
+                    if (btnTextElement) btnTextElement.textContent = 'Compartir mi código';
+                    if (bgOverlayElement) bgOverlayElement.style.display = 'none';
+                    if (noticeElement) noticeElement.style.display = 'none';
+                    if (cardElement) cardElement.style = ''; // Limpiar backgroundColor transparente
                 }
             }
         } catch (error) {
@@ -2559,41 +2629,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const [referralResponse, expiryResponse] = await Promise.all([
+            const [referralResponse, settingsResponse] = await Promise.all([
                 fetch(`${API_URL}/api/users/${username}/referral-info`),
-                fetch(`${API_URL}/api/referral-expiry-date`)
+                fetch(`${API_URL}/api/referral-settings`)
             ]);
 
-            if (referralResponse.ok) {
-                const data = await referralResponse.json();
-                const referralCode = data.referral_code;
-                const rewardAmount = document.getElementById('referralAmount')?.textContent || '1000';
-                const registrationUrl = `${window.location.origin}/register.html?ref=${referralCode}`;
+            if (referralResponse.ok && settingsResponse.ok) {
+                const referralData = await referralResponse.json();
+                const settingsData = await settingsResponse.json();
 
-                let expiryText = '';
-                if (expiryResponse.ok) {
-                    try {
-                        const expiryData = await expiryResponse.json();
-                        if (expiryData.expiry_date) {
-                            const expiryDate = new Date(expiryData.expiry_date);
-                            if (!isNaN(expiryDate.getTime())) {
-                                const formattedDate = expiryDate.toLocaleDateString('es-ES', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric'
-                                });
-                                expiryText = ` (válido hasta el ${formattedDate})`;
-                            }
-                        }
-                    } catch (error) {
-                        console.warn('Error al formatear fecha de vigencia:', error);
-                    }
-                }
+                // 1. Determinar qué código y enlace compartir
+                const userCode = referralData.referral_code;
+                const customCode = settingsData.referral_custom_share_code || 'WINTON';
+                const useCustomCode = settingsData.referral_custom_share_code_enabled === true;
 
-                const textToShare = `Registrate en WintonCoin con mi codigo de referido y ambos ganamos ${rewardAmount} BLUE IOU${expiryText}\n\n` +
-                    `${referralCode}\n\n` +
-                    `Recuerda que Tú ganas ${rewardAmount} BLUE IOU por cada amigo que invites!\n\n` +
-                    `Regístrate aquí: ${registrationUrl}`;
+                const codeToShare = useCustomCode ? customCode : userCode;
+                const rewardAmount = parseInt(settingsData.referral_reward_amount, 10) || 0;
+                const registrationUrl = `${window.location.origin}/register.html?ref=${codeToShare}`;
+
+                // 2. Obtener la plantilla de mensaje personalizada
+                let template = settingsData.referral_share_message_template || 
+                    `¡Hola! Únete a WintonCoin usando mi código {code} y ambos ganaremos {reward} BLUE IOU de bienvenida.\n\n👉 Regístrate gratis aquí: {link}`;
+
+                // 3. Reemplazar placeholders en la plantilla
+                const textToShare = template
+                    .replace(/{code}/g, codeToShare)
+                    .replace(/{reward}/g, rewardAmount)
+                    .replace(/{link}/g, registrationUrl);
 
                 if (navigator.share) {
                     await navigator.share({

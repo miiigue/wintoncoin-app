@@ -334,6 +334,9 @@
             <div class="form-group">
                 <label for="beneficiarySocials">Enlaces a Redes Sociales del Beneficiario (Si los hay)</label>
                 <input type="text" id="beneficiarySocials" placeholder="Ej: https://instagram.com/fundacion https://tiktok.com/@fundacion (Separados por espacio, opcional)">
+                <small class="input-hint" style="color: #94A3B8; font-size: 0.85em; display: block; margin-top: 5px;">
+                    Si se incluyen, solo se permiten enlaces de redes sociales autorizadas: <strong>Instagram, Facebook, TikTok, Twitter o X</strong>.
+                </small>
             </div>
 
             <div class="form-group">
@@ -354,16 +357,22 @@
             </div>
 
             <div class="form-group">
-                <label for="evidenciaLink">Enlaces de Evidencias (Drive, Dropbox, Fotos iCloud)</label>
-                <input type="url" id="evidenciaLink" placeholder="Pega aquí el enlace a tus documentos de respaldo"
+                <label for="evidenciaLink">Enlaces de Evidencias (Nubes Autorizadas)</label>
+                <input type="url" id="evidenciaLink" placeholder="Ej: https://drive.google.com/... o https://dropbox.com/..."
                     required>
+                <small class="input-hint" style="color: #94A3B8; font-size: 0.85em; display: block; margin-top: 5px;">
+                    Solo se permiten nubes oficiales de almacenamiento seguro: <strong>Google Drive, Google Photos, Dropbox, Samsung Cloud, OneDrive, iCloud, Box o Mega</strong>.
+                </small>
             </div>
 
             <div class="form-group">
                 <label for="redesSociales">Enlaces a tus Redes Sociales (Para Verificación)</label>
                 <input type="text" id="redesSociales"
-                    placeholder="Ej: https://instagram.com/juan https://tiktok.com/@juan (Separados por espacio)"
+                    placeholder="Ej: https://instagram.com/usuario https://tiktok.com/@usuario (Separados por espacio)"
                     required>
+                <small class="input-hint" style="color: #94A3B8; font-size: 0.85em; display: block; margin-top: 5px;">
+                    Solo se permiten enlaces de redes sociales autorizadas: <strong>Instagram, Facebook, TikTok, Twitter o X</strong> (separa múltiples enlaces con un espacio).
+                </small>
             </div>
 
             <button type="submit" class="btn-submit">Enviar para Auditoría</button>
@@ -553,6 +562,46 @@
                 alert('Por favor, ingresa un código de referido de beneficiario válido.');
                 beneficiaryRefInput.focus();
                 return;
+            }
+
+            const evidenciaLink = document.getElementById('evidenciaLink').value.trim();
+            const redesSociales = document.getElementById('redesSociales').value.trim();
+            const beneficiarySocials = document.getElementById('beneficiarySocials').value.trim();
+
+            // 1. Validar Nubes Autorizadas
+            const allowedCloudsRegex = /^(https?:\/\/)?(www\.)?(drive\.google\.com|photos\.google\.com|photos\.app\.goo\.gl|dropbox\.com|db\.tt|samsungcloud\.com|onedrive\.live\.com|1drv\.ms|icloud\.com|box\.com|mega\.nz|mega\.co\.nz)(\/|$)/i;
+            if (!allowedCloudsRegex.test(evidenciaLink)) {
+                alert('⚠️ Enlace de evidencia no permitido.\n\nSolo se admiten enlaces procedentes de: Google Drive, Google Photos, Dropbox, Samsung Cloud, OneDrive, iCloud, Box o Mega.');
+                document.getElementById('evidenciaLink').focus();
+                return;
+            }
+
+            // 2. Validar Redes Sociales Propias (Requerido)
+            const allowedSocialsRegex = /^(https?:\/\/)?(www\.)?(instagram\.com|facebook\.com|fb\.com|tiktok\.com|twitter\.com|x\.com)(\/|$)/i;
+            const redesList = redesSociales.split(/\s+/).filter(Boolean);
+            if (redesList.length === 0) {
+                alert('⚠️ Debes ingresar al menos un enlace a tus redes sociales.');
+                document.getElementById('redesSociales').focus();
+                return;
+            }
+            for (const url of redesList) {
+                if (!allowedSocialsRegex.test(url)) {
+                    alert(`⚠️ Enlace de red social no permitido: "${url}"\n\nSolo se permiten cuentas de Instagram, Facebook, TikTok, Twitter o X.`);
+                    document.getElementById('redesSociales').focus();
+                    return;
+                }
+            }
+
+            // 3. Validar Redes del Beneficiario (Opcional)
+            if (beneficiarySocials) {
+                const benRedesList = beneficiarySocials.split(/\s+/).filter(Boolean);
+                for (const url of benRedesList) {
+                    if (!allowedSocialsRegex.test(url)) {
+                        alert(`⚠️ Enlace de red social del beneficiario no permitido: "${url}"\n\nSolo se permiten cuentas de Instagram, Facebook, TikTok, Twitter o X.`);
+                        document.getElementById('beneficiarySocials').focus();
+                        return;
+                    }
+                }
             }
 
             const btn = e.target.querySelector('button');
