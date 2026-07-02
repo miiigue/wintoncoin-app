@@ -19,6 +19,19 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-02 — Corrección Crítica de Seguridad Financiera: Two-Gate KYC Freeze (FATF / AML)
+
+- **Problema Detectado**: Un usuario sin KYC aprobado (`kyc_verified = false` en BD) podía ver su saldo total del `booster_blue_ledger` como "Saldo Disponible (KYC)" en el perfil de impulsor. Esto ocurría porque `financialCoreService.getUserEligibleBalance` solo evaluaba si los **referidos** del usuario tenían KYC, pero nunca verificaba si el **propio titular** tenía KYC aprobado.
+- **Impacto del Bug**: Violación del principio de "Freeze on Unverified" obligatorio en regulaciones AML (Anti-Money Laundering). Un usuario no verificado podía percibir fondos "disponibles" que en realidad deberían estar congelados hasta su verificación de identidad.
+- **Decisión de Ingeniería**: Se implementó el patrón **Two-Gate KYC Freeze**, estándar en plataformas FinTech reguladas (Binance, Coinbase, Stripe Connect):
+  - **Gate 1 (Titular)**: Se verifica primero si el propio usuario tiene `kyc_verified = true`. Si no → retorno temprano con `eligibleBalance = 0` y `unverifiedReferralBalance = totalBalance` (todo congelado). Fundamento: FATF Recommendation 10, AMLD5 (UE), FinCEN (US), ISO 27001 (Principio de Menor Privilegio).
+  - **Gate 2 (Referidos)**: Solo se ejecuta si el Gate 1 pasa. Descuenta del saldo elegible los bonos de referidos cuyos invitados aún no tienen KYC aprobado. Esto previene el uso de referidos ficticios para lavar fondos (AML).
+  - `COALESCE(kyc_verified, false)` en todas las consultas: previene que un valor `NULL` sea interpretado como "verificado".
+  - `Math.max(0, eligibleBalance)` como salvaguarda financiera final: impide saldo disponible negativo por cualquier bug de datos.
+- **Archivo modificado**: `backend/src/services/financialCoreService.js` → función `getUserEligibleBalance`
+- **Commit**: `(ver hash en git log)`
+- **Impacto**: Cumplimiento regulatorio FinTech de nivel bancario. El saldo disponible ahora refleja exactamente la realidad: 0 para usuarios sin KYC, y total menos bonos de referidos no verificados para usuarios con KYC.
+
 ### 2026-07-01 — Sistema de Campañas Dinámicas, Tarjeta WYSIWYG y Modularización Fintech
 
 - **Contexto**: Se requería una forma visual, ágil y de alto impacto para promocionar causas humanitarias (ej. Terremoto en Venezuela) reemplazando la tarjeta estándar de "Invitar Amigos" por una tarjeta publicitaria dinámica (imagen de fondo premium y textos de "Call to Action" personalizados) que no dependiera del engorroso sistema de votación del DAO.
