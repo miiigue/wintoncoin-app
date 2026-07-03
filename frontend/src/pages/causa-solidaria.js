@@ -326,7 +326,9 @@ function initDonateButton(cause) {
             }
 
             const profileData = await profileRes.json();
-            const balance = parseFloat(profileData.total_booster_blue) || 0;
+            // LÓGICA FINTECH: Usar base_eligible_booster_blue (saldo seguro: bono bienvenida + tareas)
+            // en lugar de total_booster_blue para donar. Esto impide comprometer referidos sin KYC.
+            const balance = parseFloat(profileData.base_eligible_booster_blue !== undefined ? profileData.base_eligible_booster_blue : profileData.total_booster_blue) || 0;
 
             // Mostrar saldo en el modal
             document.getElementById('donorBalanceDisplay').textContent = formatBalance(balance);

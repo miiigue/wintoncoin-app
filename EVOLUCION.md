@@ -19,6 +19,19 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+
+### 2026-07-03 — Escrow de Donaciones y Segmentación de Saldo Seguro (AML/Growth)
+
+- **Contexto**: Un usuario recién registrado sin KYC no podía realizar donaciones a causas solidarias (incluyendo su propio bono de bienvenida y tareas completadas) debido a que el bloqueo estricto del "Two-Gate KYC Freeze" fijaba su saldo disponible en 0.
+- **Decisión de Ingeniería (Coexistencia AML/UX)**:
+  - **Saldos Granulares (`financialCoreService.js`)**: Se introdujo el concepto de `baseEligibleBalance` = `totalBalance - unverifiedReferralBalance`. Este saldo representa el valor lícito y confirmado del propio usuario (bienvenida, tareas y referidos verificados).
+  - **Límite de Escrow (`humanitarianService.js`)**: Se actualizó la verificación de fondos para donaciones de `eligibleBalance` a `baseEligibleBalance`. Esto permite a los usuarios sin KYC realizar donaciones.
+  - **Control de Transmisión**: Dado que el donante no tiene KYC, la donación se procesa en estado `on_hold` (escrow / fideicomiso) mediante la lógica nativa del sistema. El dinero se retira inmediatamente del ledger del donante pero **no llega al beneficiario** hasta que el donante complete el KYC, previniendo lavado de dinero (AML).
+  - **Coherencia Visual (`userController.js` y `causa-solidaria.js`)**:
+    - `userController.js` expone `base_eligible_booster_blue` y ajusta `pending_booster_blue` para reflejar el total cuando no hay KYC.
+    - El modal de donación en frontend ahora lee `base_eligible_booster_blue` para mostrar de forma exacta y transparente el saldo seguro disponible para donaciones (evitando falsos positivos).
+- **Impacto**: Aumenta la conversión de registros a KYC (Growth) permitiendo la interacción inmediata con el sistema de donaciones bajo un esquema de fideicomiso ciberseguro y legalmente sólido.
+
 ### 2026-07-02 — Immediate Phase Rollover: Transición Automática de Tramos de Referidos
 
 - **Problema Detectado**: Cuando un tramo de referidos se completaba (ej: 10 usuarios registrados con límite de 10), el dashboard mostraba "Quedan 0 cupos" con el monto del tramo anterior (200 BLUE) en lugar de saltar automáticamente al siguiente tramo (100 BLUE). Esto confundía al usuario y mostraba información financiera incorrecta.

@@ -235,17 +235,23 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
         }
 
         // =====================================================================
-        // PASO 2: Verificar saldo elegible del donante (Core Financiero — KYC referidos)
+        // PASO 2: Verificar saldo seguro (baseEligibleBalance) del donante
+        // ─────────────────────────────────────────────────────────────────────
+        // Para transacciones de donación, permitimos usar fondos del usuario
+        // que sean seguros (bono de bienvenida + tareas realizadas).
+        // Si el usuario no tiene KYC, la donación quedará retenida (on_hold)
+        // pero se permite registrarla. Sin embargo, no permitimos comprometer
+        // bonos de referidos sin KYC (unverifiedReferralBalance) en ningún caso.
         // =====================================================================
         const FinancialCoreService = require('./financialCoreService');
         const balanceInfo = await FinancialCoreService.getUserEligibleBalance(client, donorId);
         const donorBalance = balanceInfo.totalBalance;
-        const eligibleBalance = balanceInfo.eligibleBalance;
+        const baseEligibleBalance = balanceInfo.baseEligibleBalance;
 
-        if (eligibleBalance < donationAmount) {
+        if (baseEligibleBalance < donationAmount) {
             throw {
                 status: 400,
-                message: `Saldo elegible insuficiente. Tienes ${eligibleBalance.toFixed(4)} BLUE IOU disponibles para transaccionar (excluyendo bonos de referidos sin KYC aprobados).`
+                message: `Saldo elegible para transaccionar insuficiente. Tienes ${baseEligibleBalance.toFixed(4)} BLUE IOU seguros disponibles (excluyendo bonos de referidos sin KYC aprobado).`
             };
         }
 

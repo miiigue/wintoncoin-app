@@ -165,28 +165,12 @@ const FinancialCoreService = {
         );
         const totalBalance = parseFloat(totalResult.rows[0].total) || 0;
 
-        // Evaluar resultado del Gate 1
+        // Evaluar resultado del Gate 1 (KYC del dueño)
         const ownerHasKyc = ownerKycResult.rows[0]?.kyc_verified === true;
 
-        if (!ownerHasKyc) {
-            // ─────────────────────────────────────────────────────────────────
-            // FREEZE TOTAL: El titular no tiene KYC aprobado.
-            // → Todo el saldo es "pendiente" (unverifiedReferralBalance = total)
-            // → Saldo elegible (disponible) = 0
-            // ─────────────────────────────────────────────────────────────────
-            // AUDITORÍA: Este retorno temprano es intencionado, documentado y
-            // reproducible. No es un error: es la política regulatoria de KYC.
-            // ─────────────────────────────────────────────────────────────────
-            return {
-                totalBalance,
-                unverifiedReferralBalance: totalBalance, // Todo congelado
-                eligibleBalance: 0                        // Nada disponible
-            };
-        }
-
         // =====================================================================
-        // GATE 2 (REFERIDOS): El titular tiene KYC. Ahora verificar si los
-        // referidos cuyos bonos generó también tienen KYC aprobado.
+        // GATE 2 (REFERIDOS): Obtener montos bloqueados por falta de KYC
+        // de los referidos (Gate 2).
         // ─────────────────────────────────────────────────────────────────────
         // FUNDAMENTO: Un bono de referido solo se "libera" si tanto el referidor
         // (Gate 1) como el referido (Gate 2) tienen identidad verificada.
@@ -218,17 +202,28 @@ const FinancialCoreService = {
         const unverifiedReferralBalance = parseFloat(unverifiedResult.rows[0].unverified_total) || 0;
 
         // ─────────────────────────────────────────────────────────────────────
-        // CÁLCULO FINAL DE SALDO ELEGIBLE
-        // Math.max(0, ...) es una salvaguarda de seguridad financiera que impide
-        // que un bug de datos genere un saldo negativo disponible (que podría
-        // interpretarse como crédito no autorizado).
+        // CÁLCULO DE SALDOS (FINTECH & BANCARIO)
         // ─────────────────────────────────────────────────────────────────────
-        const eligibleBalance = Math.max(0, totalBalance - unverifiedReferralBalance);
+        // 1. baseEligibleBalance: Saldo seguro acumulado por el propio usuario 
+        //    (bono de bienvenida, tareas realizadas y referidos verificados).
+        //    Excluye estrictamente los referidos pendientes de KYC.
+        //    Math.max(0, ...) actúa como salvaguarda contra saldos negativos.
+        // ─────────────────────────────────────────────────────────────────────
+        const baseEligibleBalance = Math.max(0, totalBalance - unverifiedReferralBalance);
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 2. eligibleBalance: Saldo líquido/retirable de inmediato en el sistema.
+        //    Si el propio titular (ownerHasKyc) no tiene KYC, su liquidez es 0.
+        //    Esto cumple con la restricción de retiro AML (no outbound transfers).
+        // ─────────────────────────────────────────────────────────────────────
+        const eligibleBalance = ownerHasKyc ? baseEligibleBalance : 0;
 
         return {
             totalBalance,
             unverifiedReferralBalance,
-            eligibleBalance
+            eligibleBalance,
+            baseEligibleBalance,
+            ownerHasKyc
         };
     }
 };
