@@ -129,6 +129,9 @@ async function loadCauseData(causeId) {
 
     } catch (err) {
         console.error('[SOLIDARIO] Error al cargar causa:', err);
+        
+        // Esconder el spinner de carga para revelar el mensaje de error
+        if (loading) loading.style.display = 'none';
 
         // Si el error es de autenticación, redirigir al login
         if (err.message && (err.message.includes('401') || err.message.includes('Acceso denegado') || err.message.includes('Token'))) {
