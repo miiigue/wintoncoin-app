@@ -1,10 +1,10 @@
-// backend/migrations/082_enforce_ledger_referral_lineage.js
+// backend/migrations/083_enforce_ledger_referral_lineage.js
 
 exports.up = async (client) => {
-    console.log('[MIGRATION 082] Iniciando migración de Data Lineage para Referidos (AML)...');
+    console.log('[MIGRATION 083] Iniciando migración de Data Lineage para Referidos (AML)...');
 
     // 1. Agregar columna reference_user_id a booster_blue_ledger si no existe
-    console.log('[MIGRATION 082] DDL: Añadiendo columna reference_user_id a booster_blue_ledger...');
+    console.log('[MIGRATION 083] DDL: Añadiendo columna reference_user_id a booster_blue_ledger...');
     await client.query(`
         ALTER TABLE booster_blue_ledger 
         ADD COLUMN IF NOT EXISTS reference_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
@@ -12,7 +12,7 @@ exports.up = async (client) => {
 
     // 2. Recrear la función SQL record_booster_event para aceptar el quinto parámetro (reference_user_id)
     // Se añade un valor por defecto (NULL) para mantener retrocompatibilidad con inserciones que usen 4 parámetros temporales.
-    console.log('[MIGRATION 082] DDL: Actualizando función record_booster_event para incluir reference_user_id...');
+    console.log('[MIGRATION 083] DDL: Actualizando función record_booster_event para incluir reference_user_id...');
     await client.query(`
         CREATE OR REPLACE FUNCTION record_booster_event(
             p_user_id INTEGER,
@@ -33,7 +33,7 @@ exports.up = async (client) => {
 
     // 3. Data Forensics (DML): Vincular los registros antiguos de referral_reward a sus referidos
     // Basado en el campo description de la tabla transactions que tiene la huella: "Recompensa (perfil impulsor) por referir a [username]"
-    console.log('[MIGRATION 082] DML: Ejecutando auditoría forense para reconstruir historial de referidos...');
+    console.log('[MIGRATION 083] DML: Ejecutando auditoría forense para reconstruir historial de referidos...');
     
     const result = await client.query(`
         WITH target_transactions AS (
@@ -68,12 +68,12 @@ exports.up = async (client) => {
           AND ABS(EXTRACT(EPOCH FROM (bbl.created_at - mu.created_at))) < 60;
     `);
 
-    console.log(\`[MIGRATION 082] ✅ DML: Se vincularon exitosamente \${result.rowCount} registros históricos de referidos.\`);
-    console.log('[MIGRATION 082] Migración de Data Lineage completada.');
+    console.log(`[MIGRATION 083] ✅ DML: Se vincularon exitosamente ${result.rowCount} registros históricos de referidos.`);
+    console.log('[MIGRATION 083] Migración de Data Lineage completada.');
 };
 
 exports.down = async (client) => {
-    console.log('[MIGRATION 082] Revirtiendo cambios de Data Lineage...');
+    console.log('[MIGRATION 083] Revirtiendo cambios de Data Lineage...');
     
     // Restaurar función anterior (4 parámetros)
     await client.query(`
@@ -96,5 +96,5 @@ exports.down = async (client) => {
     // Eliminar columna (opcional, aunque en sistemas de auditoría es mejor no eliminar datos. Se comenta por seguridad)
     // await client.query('ALTER TABLE booster_blue_ledger DROP COLUMN IF EXISTS reference_user_id;');
     
-    console.log('[MIGRATION 082] Reversión completada. (Columna reference_user_id conservada por seguridad)');
+    console.log('[MIGRATION 083] Reversión completada. (Columna reference_user_id conservada por seguridad)');
 };
