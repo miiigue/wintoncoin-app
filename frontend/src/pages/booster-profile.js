@@ -147,7 +147,7 @@ function initializeBoosterProfilePage() {
 
     function getPendingBlueCardHTML(pendingBlue) {
         return `
-            <div class="booster-stat-block booster-summary-card">
+            <div class="booster-stat-block booster-summary-card" style="position: relative;">
                 <div class="ranking-title">
                     <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-pending-blue" style="color: #F59E0B; font-weight: bold;">BLUE IOU de referidos sin KYC</span>
                 </div>
@@ -155,6 +155,9 @@ function initializeBoosterProfilePage() {
                     <p>BLUE iou generados por tus referidos que se encuentran retenidos temporalmente hasta que ellos aprueben su verificación KYC.</p>
                 </div>
                 <div class="ranking-position" style="color: #F59E0B; font-weight: bold;">${formatBalance(pendingBlue)} ${currencyUnitSpan}</div>
+                <div style="text-align: right; margin-top: 6px;">
+                    <a href="referrals.html" style="font-size: 0.8rem; color: #F59E0B; text-decoration: none; font-weight: 600; opacity: 0.95;">Ver Referidos →</a>
+                </div>
             </div>
         `;
     }
@@ -411,6 +414,7 @@ function initializeBoosterProfilePage() {
             { trigger: '[data-tooltip-id="tooltip-total-blue"]', tooltip: '#tooltip-total-blue' },
             { trigger: '[data-tooltip-id="tooltip-available-blue"]', tooltip: '#tooltip-available-blue' },
             { trigger: '[data-tooltip-id="tooltip-pending-blue"]', tooltip: '#tooltip-pending-blue' },
+            { trigger: '[data-tooltip-id="tooltip-spendable-blue"]', tooltip: '#tooltip-spendable-blue' },
             { trigger: '[data-tooltip-id="tooltip-daily-goal"]', tooltip: '#tooltip-daily-goal' },
             { trigger: '[data-tooltip-id="tooltip-ranking"]', tooltip: '#tooltip-ranking' },
             { trigger: '[data-tooltip-id="tooltip-friends-ranking"]', tooltip: '#tooltip-friends-ranking' },

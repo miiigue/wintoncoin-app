@@ -571,10 +571,9 @@ const UserController = {
             const balanceInfo = await FinancialCoreService.getUserEligibleBalance(client, userId);
             const totalBoosterBlue = balanceInfo.totalBalance;
             const eligibleBoosterBlue = balanceInfo.eligibleBalance;
-            // Si el titular no tiene KYC aprobado, el total de su saldo se reporta
-            // como pendiente para el frontend. De lo contrario, solo se reportan
-            // los referidos sin KYC.
-            const pendingBoosterBlue = balanceInfo.ownerHasKyc ? balanceInfo.unverifiedReferralBalance : totalBoosterBlue;
+            // LÓGICA COHERENTE: Mostrar únicamente el saldo que proviene de referidos sin KYC,
+            // independientemente de si el titular tiene o no KYC.
+            const pendingBoosterBlue = balanceInfo.unverifiedReferralBalance;
 
             // [Auditoría] Sumatoria de ganancias acumuladas históricas (amount > 0) para cálculo de niveles y membresía de booster
             const totalEarnedResult = await client.query(
@@ -854,10 +853,9 @@ const UserController = {
             const balanceInfo = await FinancialCoreService.getUserEligibleBalance(client, user.id);
             const totalBoosterBlue = balanceInfo.totalBalance;
             const eligibleBoosterBlue = balanceInfo.eligibleBalance;
-            // Si el titular no tiene KYC aprobado, el total de su saldo se reporta
-            // como pendiente para el frontend. De lo contrario, solo se reportan
-            // los referidos sin KYC.
-            const pendingBoosterBlue = balanceInfo.ownerHasKyc ? balanceInfo.unverifiedReferralBalance : totalBoosterBlue;
+            // LÓGICA COHERENTE: Mostrar únicamente el saldo que proviene de referidos sin KYC,
+            // independientemente de si el titular tiene o no KYC.
+            const pendingBoosterBlue = balanceInfo.unverifiedReferralBalance;
 
             // Sumatoria de ganancias acumuladas históricas (amount > 0) para niveles y membresía de booster
             const totalEarnedResult = await client.query(
