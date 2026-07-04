@@ -22,13 +22,15 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ### 2026-07-03 — Escrow de Donaciones y Segmentación de Saldo Seguro (AML/Growth)
 
-- **Contexto**: Un usuario recién registrado sin KYC no podía realizar donaciones a causas solidarias (incluyendo su propio bono de bienvenida y tareas completadas) debido a que el bloqueo estricto del "Two-Gate KYC Freeze" fijaba su saldo disponible en 0.
+- **Contexto**: Un usuario recién registrado sin KYC no podía realizar donaciones a causas solidarias (incluyendo su propio bono de bienvenida y tareas completadas) debido a que el bloqueo estricto del "Two-Gate KYC Freeze" fijaba su saldo disponible en 0. Asimismo, las etiquetas y tooltips requerían una terminología más precisa y alineada con los conceptos de la plataforma.
 - **Decisión de Ingeniería (Coexistencia AML/UX)**:
   - **Saldos Granulares (`financialCoreService.js`)**: Se introdujo el concepto de `baseEligibleBalance` = `totalBalance - unverifiedReferralBalance`. Este saldo representa el valor lícito y confirmado del propio usuario (bienvenida, tareas y referidos verificados).
   - **Límite de Escrow (`humanitarianService.js`)**: Se actualizó la verificación de fondos para donaciones de `eligibleBalance` a `baseEligibleBalance`. Esto permite a los usuarios sin KYC realizar donaciones.
   - **Control de Transmisión**: Dado que el donante no tiene KYC, la donación se procesa en estado `on_hold` (escrow / fideicomiso) mediante la lógica nativa del sistema. El dinero se retira inmediatamente del ledger del donante pero **no llega al beneficiario** hasta que el donante complete el KYC, previniendo lavado de dinero (AML).
-  - **Coherencia Visual (`userController.js` y `causa-solidaria.js`)**:
-    - `userController.js` expone `base_eligible_booster_blue` y ajusta `pending_booster_blue` para reflejar el total cuando no hay KYC.
+  - **Coherencia Visual y Rediseño de Etiquetas (`userController.js` y `booster-profile.js`)**:
+    - Cambiamos "Saldo Disponible (KYC)" por **"Habilitado para Canje (KYC)"** con su tooltip explicativo sobre la conversión oficial a tokens BLUE en el lanzamiento.
+    - Cambiamos "Saldo Pendiente (KYC)" por **"BLUE IOU de referidos sin KYC"** para dejar claro que son fondos retenidos de terceros sin verificación de identidad.
+    - Personalizamos la nueva tarjeta **"Disponible para Donaciones"** pintándola con el color oficial de donaciones (`#e83e8c` rosa) y su tooltip explicando el flujo de hold para usuarios no verificados.
     - El modal de donación en frontend ahora lee `base_eligible_booster_blue` para mostrar de forma exacta y transparente el saldo seguro disponible para donaciones (evitando falsos positivos).
 - **Impacto**: Aumenta la conversión de registros a KYC (Growth) permitiendo la interacción inmediata con el sistema de donaciones bajo un esquema de fideicomiso ciberseguro y legalmente sólido.
 
