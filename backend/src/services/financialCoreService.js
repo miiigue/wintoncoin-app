@@ -176,22 +176,17 @@ const FinancialCoreService = {
         // (Gate 1) como el referido (Gate 2) tienen identidad verificada.
         // Esto previene que se usen referidos ficticios para lavar fondos (AML).
         // ─────────────────────────────────────────────────────────────────────
-        // TÉCNICA: JOIN temporal con ventana de ±10 segundos entre el momento
-        // en que se registró el referral_log y la entrada del ledger, para
-        // correlacionar ambos eventos sin una FK explícita entre tablas.
+        // TÉCNICA: Data Lineage (Fase AML). Se une el ledger directamente con el
+        // usuario referido a través de reference_user_id, garantizando trazabilidad
+        // perfecta e infalible, sin heurísticas temporales.
         // =====================================================================
         const unverifiedResult = await dbClient.query(`
             SELECT COALESCE(SUM(bbl.amount), 0) AS unverified_total
             FROM booster_blue_ledger bbl
-            JOIN referral_log rl
-              -- Correlación temporal segura: el bono de referido debe haberse
-              -- registrado dentro de ±10s del evento de referido original.
-              ON bbl.user_id = rl.referrer_user_id
-             AND bbl.type = 'referral_reward'          -- Solo bonos de tipo referido
-             AND bbl.amount > 0                        -- Solo entradas positivas (ganancias)
-             AND ABS(EXTRACT(EPOCH FROM (bbl.created_at - rl.created_at))) < 10
-            JOIN users u ON rl.referred_user_id = u.id
+            JOIN users u ON bbl.reference_user_id = u.id
             WHERE bbl.user_id = $1
+              AND bbl.type = 'referral_reward'          -- Solo bonos de tipo referido
+              AND bbl.amount > 0                        -- Solo entradas positivas (ganancias)
               -- GATE 2: Sólo descuentar los referidos que AÚN NO tienen KYC.
               -- COALESCE(kyc_verified, false) trata NULL como false (sin KYC),
               -- previniendo que un campo NULL sea interpretado como "verificado".
