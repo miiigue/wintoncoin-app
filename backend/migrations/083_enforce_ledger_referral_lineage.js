@@ -35,6 +35,9 @@ exports.up = async (client) => {
     // Basado en el campo description de la tabla transactions que tiene la huella: "Recompensa (perfil impulsor) por referir a [username]"
     console.log('[MIGRATION 083] DML: Ejecutando auditoría forense para reconstruir historial de referidos...');
     
+    // Desactivar temporalmente el trigger de inmutabilidad para permitir la auditoría forense
+    await client.query('ALTER TABLE booster_blue_ledger DISABLE TRIGGER trg_prevent_mutation_booster_blue_ledger;');
+
     const result = await client.query(`
         WITH target_transactions AS (
             -- Extraemos el username del texto descriptivo de las transacciones
@@ -67,6 +70,9 @@ exports.up = async (client) => {
           AND bbl.reference_user_id IS NULL
           AND ABS(EXTRACT(EPOCH FROM (bbl.created_at - mu.created_at))) < 60;
     `);
+
+    // Reactivar el blindaje de inmutabilidad inmediatamente después de la corrección
+    await client.query('ALTER TABLE booster_blue_ledger ENABLE TRIGGER trg_prevent_mutation_booster_blue_ledger;');
 
     console.log(`[MIGRATION 083] ✅ DML: Se vincularon exitosamente ${result.rowCount} registros históricos de referidos.`);
     console.log('[MIGRATION 083] Migración de Data Lineage completada.');
