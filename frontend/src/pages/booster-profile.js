@@ -103,6 +103,8 @@ function initializeBoosterProfilePage() {
             getTotalBlueCardHTML(totalBlue),
             getAvailableBlueCardHTML(eligibleBlue),
             getPendingBlueCardHTML(pendingBlue),
+            // NUEVA CARD FINTECH: Mostrar saldo seguro disponible para donaciones (welcome bonus + tasks)
+            getDonationSpendableBlueCardHTML(data.base_eligible_booster_blue || 0),
             getDailyGoalCardHTML(data),
             getRankingCardHTML(data),
             getFriendsRankingCardHTML(data),
@@ -111,6 +113,9 @@ function initializeBoosterProfilePage() {
         if (cards.length === 0) return '';
         return `<div class="booster-stats booster-stats-blocks booster-summary-cards">${cards.join('')}</div>`;
     }
+
+    // Estilo común para la unidad de moneda (BLUE IOU) más pequeña
+    const currencyUnitSpan = `<span style="font-size: 0.95rem; font-weight: 500; opacity: 0.85; margin-left: 4px; display: inline-block; vertical-align: middle;">BLUE IOU</span>`;
 
     function getTotalBlueCardHTML(totalBlue) {
         return `
@@ -121,7 +126,7 @@ function initializeBoosterProfilePage() {
                 <div id="tooltip-total-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
                     <p>BLUE iou acumulados totales en tu perfil de impulsor.</p>
                 </div>
-                <div class="ranking-position booster-total-highlight">${formatBalance(totalBlue)} BLUE iou</div>
+                <div class="ranking-position booster-total-highlight">${formatBalance(totalBlue)} ${currencyUnitSpan}</div>
             </div>
         `;
     }
@@ -130,26 +135,43 @@ function initializeBoosterProfilePage() {
         return `
             <div class="booster-stat-block booster-summary-card">
                 <div class="ranking-title">
-                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-available-blue" style="color: #10B981; font-weight: bold;">Saldo Disponible (KYC)</span>
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-available-blue" style="color: #10B981; font-weight: bold;">Habilitado para Canje (KYC)</span>
                 </div>
                 <div id="tooltip-available-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
-                    <p>BLUE iou líquidos que puedes donar, gastar o cobrar inmediatamente. Requiere que tú y tus referidos tengan KYC aprobado.</p>
+                    <p>BLUE iou habilitados para canjear por tokens BLUE a partir del lanzamiento oficial. Requiere KYC aprobado tuyo y de tus referidos.</p>
                 </div>
-                <div class="ranking-position booster-total-highlight" style="color: #10B981;">${formatBalance(eligibleBlue)} BLUE iou</div>
+                <div class="ranking-position booster-total-highlight" style="color: #10B981;">${formatBalance(eligibleBlue)} ${currencyUnitSpan}</div>
             </div>
         `;
     }
 
     function getPendingBlueCardHTML(pendingBlue) {
         return `
-            <div class="booster-stat-block booster-summary-card">
+            <div class="booster-stat-block booster-summary-card" style="position: relative;">
                 <div class="ranking-title">
-                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-pending-blue" style="color: #F59E0B; font-weight: bold;">Saldo Pendiente (KYC)</span>
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-pending-blue" style="color: #F59E0B; font-weight: bold;">BLUE IOU de referidos sin KYC</span>
                 </div>
                 <div id="tooltip-pending-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
-                    <p>BLUE iou acumulados por referidos que se desbloquearán y pasarán a disponible cuando ellos aprueben su KYC Web3.</p>
+                    <p>BLUE iou generados por tus referidos que se encuentran retenidos temporalmente hasta que ellos aprueben su verificación KYC.</p>
                 </div>
-                <div class="ranking-position" style="color: #F59E0B; font-weight: bold;">${formatBalance(pendingBlue)} BLUE iou</div>
+                <div class="ranking-position" style="color: #F59E0B; font-weight: bold;">${formatBalance(pendingBlue)} ${currencyUnitSpan}</div>
+                <div style="text-align: right; margin-top: 6px;">
+                    <a href="referrals.html" style="font-size: 0.8rem; color: #F59E0B; text-decoration: none; font-weight: 600; opacity: 0.95;">Ver Referidos →</a>
+                </div>
+            </div>
+        `;
+    }
+
+    function getDonationSpendableBlueCardHTML(spendableBlue) {
+        return `
+            <div class="booster-stat-block booster-summary-card">
+                <div class="ranking-title">
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-spendable-blue" style="color: #e83e8c; font-weight: bold;">Disponible para Donaciones</span>
+                </div>
+                <div id="tooltip-spendable-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
+                    <p>BLUE IOU recibios por registrarte y tareas realizadas que puedes donar de inmediato. Si no tienes KYC, la donación queda en espera.</p>
+                </div>
+                <div class="ranking-position" style="color: #e83e8c; font-weight: bold;">${formatBalance(spendableBlue)} ${currencyUnitSpan}</div>
             </div>
         `;
     }
@@ -392,6 +414,7 @@ function initializeBoosterProfilePage() {
             { trigger: '[data-tooltip-id="tooltip-total-blue"]', tooltip: '#tooltip-total-blue' },
             { trigger: '[data-tooltip-id="tooltip-available-blue"]', tooltip: '#tooltip-available-blue' },
             { trigger: '[data-tooltip-id="tooltip-pending-blue"]', tooltip: '#tooltip-pending-blue' },
+            { trigger: '[data-tooltip-id="tooltip-spendable-blue"]', tooltip: '#tooltip-spendable-blue' },
             { trigger: '[data-tooltip-id="tooltip-daily-goal"]', tooltip: '#tooltip-daily-goal' },
             { trigger: '[data-tooltip-id="tooltip-ranking"]', tooltip: '#tooltip-ranking' },
             { trigger: '[data-tooltip-id="tooltip-friends-ranking"]', tooltip: '#tooltip-friends-ranking' },

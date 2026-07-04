@@ -129,6 +129,9 @@ async function loadCauseData(causeId) {
 
     } catch (err) {
         console.error('[SOLIDARIO] Error al cargar causa:', err);
+        
+        // Esconder el spinner de carga para revelar el mensaje de error
+        if (loading) loading.style.display = 'none';
 
         // Si el error es de autenticación, redirigir al login
         if (err.message && (err.message.includes('401') || err.message.includes('Acceso denegado') || err.message.includes('Token'))) {
@@ -326,7 +329,9 @@ function initDonateButton(cause) {
             }
 
             const profileData = await profileRes.json();
-            const balance = parseFloat(profileData.total_booster_blue) || 0;
+            // LÓGICA FINTECH: Usar base_eligible_booster_blue (saldo seguro: bono bienvenida + tareas)
+            // en lugar de total_booster_blue para donar. Esto impide comprometer referidos sin KYC.
+            const balance = parseFloat(profileData.base_eligible_booster_blue !== undefined ? profileData.base_eligible_booster_blue : profileData.total_booster_blue) || 0;
 
             // Mostrar saldo en el modal
             document.getElementById('donorBalanceDisplay').textContent = formatBalance(balance);

@@ -571,6 +571,8 @@ const UserController = {
             const balanceInfo = await FinancialCoreService.getUserEligibleBalance(client, userId);
             const totalBoosterBlue = balanceInfo.totalBalance;
             const eligibleBoosterBlue = balanceInfo.eligibleBalance;
+            // LÓGICA COHERENTE: Mostrar únicamente el saldo que proviene de referidos sin KYC,
+            // independientemente de si el titular tiene o no KYC.
             const pendingBoosterBlue = balanceInfo.unverifiedReferralBalance;
 
             // [Auditoría] Sumatoria de ganancias acumuladas históricas (amount > 0) para cálculo de niveles y membresía de booster
@@ -668,6 +670,7 @@ const UserController = {
                 total_booster_blue: totalBoosterBlue,
                 eligible_booster_blue: eligibleBoosterBlue,
                 pending_booster_blue: pendingBoosterBlue,
+                base_eligible_booster_blue: balanceInfo.baseEligibleBalance,
                 current_level_info: currentLevelInfo,
                 next_level_info: nextLevelInfo,
                 booster_tasks_completed_count: tasksCompleted,
@@ -850,6 +853,8 @@ const UserController = {
             const balanceInfo = await FinancialCoreService.getUserEligibleBalance(client, user.id);
             const totalBoosterBlue = balanceInfo.totalBalance;
             const eligibleBoosterBlue = balanceInfo.eligibleBalance;
+            // LÓGICA COHERENTE: Mostrar únicamente el saldo que proviene de referidos sin KYC,
+            // independientemente de si el titular tiene o no KYC.
             const pendingBoosterBlue = balanceInfo.unverifiedReferralBalance;
 
             // Sumatoria de ganancias acumuladas históricas (amount > 0) para niveles y membresía de booster
@@ -935,6 +940,7 @@ const UserController = {
                 total_booster_blue: totalBoosterBlue,
                 eligible_booster_blue: eligibleBoosterBlue,
                 pending_booster_blue: pendingBoosterBlue,
+                base_eligible_booster_blue: balanceInfo.baseEligibleBalance,
                 current_level_info: currentLevelInfo,
                 next_level_info: nextLevelInfo,
                 booster_tasks_completed_count: tasksCompleted,
