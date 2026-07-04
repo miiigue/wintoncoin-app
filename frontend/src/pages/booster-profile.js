@@ -138,7 +138,7 @@ function initializeBoosterProfilePage() {
                     <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-available-blue" style="color: #10B981; font-weight: bold;">Habilitado para Canje (KYC)</span>
                 </div>
                 <div id="tooltip-available-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
-                    <p>BLUE iou líquidos habilitados para canjear por tokens BLUE reales en el lanzamiento oficial. Requiere KYC aprobado tuyo y de tus referidos.</p>
+                    <p>BLUE iou habilitados para canjear por tokens BLUE a partir del lanzamiento oficial. Requiere KYC aprobado tuyo y de tus referidos.</p>
                 </div>
                 <div class="ranking-position booster-total-highlight" style="color: #10B981;">${formatBalance(eligibleBlue)} ${currencyUnitSpan}</div>
             </div>
@@ -169,7 +169,7 @@ function initializeBoosterProfilePage() {
                     <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-spendable-blue" style="color: #e83e8c; font-weight: bold;">Disponible para Donaciones</span>
                 </div>
                 <div id="tooltip-spendable-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
-                    <p>BLUE iou seguros (bienvenida y tareas realizadas) que puedes donar de inmediato. Si no tienes KYC, la donación queda en espera.</p>
+                    <p>BLUE IOU recibios por registrarte y tareas realizadas que puedes donar de inmediato. Si no tienes KYC, la donación queda en espera.</p>
                 </div>
                 <div class="ranking-position" style="color: #e83e8c; font-weight: bold;">${formatBalance(spendableBlue)} ${currencyUnitSpan}</div>
             </div>
