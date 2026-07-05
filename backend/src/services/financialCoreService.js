@@ -185,7 +185,7 @@ const FinancialCoreService = {
             FROM booster_blue_ledger bbl
             JOIN users u ON bbl.reference_user_id = u.id
             WHERE bbl.user_id = $1
-              AND bbl.type = 'referral_reward'          -- Solo bonos de tipo referido
+              AND bbl.type IN ('referral_reward', 'referral_bonus_sent') -- Solo bonos de tipo referido
               AND bbl.amount > 0                        -- Solo entradas positivas (ganancias)
               -- GATE 2: Sólo descuentar los referidos que AÚN NO tienen KYC.
               -- COALESCE(kyc_verified, false) trata NULL como false (sin KYC),
