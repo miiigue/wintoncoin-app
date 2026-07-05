@@ -406,7 +406,8 @@ exports.registerVerify = async (req, res) => {
 
             if (rewardAmount > 0) {
                 // Recompensa para el referente: Registra en booster_blue_ledger (cumple reglas económicas)
-                await client.query("SELECT record_booster_event($1, 'referral_reward', $2, NULL)", [referrer.id, rewardAmount]);
+                // Se envía newUser.id como reference_user_id para Data Lineage
+                await client.query("SELECT record_booster_event($1, 'referral_reward', $2, NULL, $3)", [referrer.id, rewardAmount, newUser.id]);
                 await client.query('UPDATE users SET is_booster = true WHERE id = $1', [referrer.id]);
 
                 // VINCULACIÓN DE DATOS (FIX): Guardar la relación de referido en la tabla users y logs
@@ -426,7 +427,8 @@ exports.registerVerify = async (req, res) => {
                 }, 'TRANSACTIONAL');
 
                 // Recompensa para el nuevo usuario: Registra en booster_blue_ledger (cumple reglas económicas)
-                await client.query('SELECT record_booster_event($1, \'referral_reward\', $2, NULL)', [newUser.id, rewardAmount]);
+                // Se envía referrer.id como reference_user_id para Data Lineage
+                await client.query("SELECT record_booster_event($1, 'referral_reward', $2, NULL, $3)", [newUser.id, rewardAmount, referrer.id]);
                 await client.query('UPDATE users SET is_booster = true WHERE id = $1', [newUser.id]);
                 await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_received', $2, $3)`, [newUser.id, rewardAmount, `Bono por usar el código de ${referrer.username}`]);
                 await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [newUser.id, `Recompensa (perfil impulsor) por usar el código de ${referrer.username}`, rewardAmount]);
