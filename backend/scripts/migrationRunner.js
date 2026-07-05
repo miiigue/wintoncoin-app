@@ -81,6 +81,28 @@ async function runPendingMigrations() {
             .filter(f => f.endsWith('.js') && !f.startsWith('_')) // Solo .js y no utilidades
             .sort(); // Orden alfabético estricto (001, 002...)
 
+        // 2.5 Reconciliación Forense de Estado (Self-Healing) para la migración 083
+        // Si 083 figura registrada pero la columna reference_user_id no existe en booster_blue_ledger,
+        // significa que el servidor crashó y se guardó la migración a pesar de haber hecho ROLLBACK del DDL.
+        // En ese caso, removemos el registro para permitir la re-ejecución limpia.
+        try {
+            const selfHealingRes = await client.query(`
+                DELETE FROM schema_migrations 
+                WHERE migration_name = '083_enforce_ledger_referral_lineage.js'
+                  AND NOT EXISTS (
+                      SELECT 1 
+                      FROM information_schema.columns 
+                      WHERE table_name = 'booster_blue_ledger' 
+                        AND column_name = 'reference_user_id'
+                  )
+            `);
+            if (selfHealingRes.rowCount > 0) {
+                console.log('[MIGRATIONS] 🛠️  Reconciliación de estado: Se detectó estado fantasma en la migración 083. Registro eliminado para permitir re-ejecución.');
+            }
+        } catch (healErr) {
+            console.warn('[MIGRATIONS] ⚠️ Falló intento de reconciliación automática de la migración 083:', healErr.message);
+        }
+
         // 3. Verificar cuáles faltan
         const { rows: appliedRows } = await client.query('SELECT migration_name FROM schema_migrations');
         const appliedMigrations = new Set(appliedRows.map(r => r.migration_name));
