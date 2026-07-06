@@ -13,7 +13,7 @@
 // Autenticación: admin_token (cookie httpOnly) — gestionado por el backend
 // ============================================================================
 
-import { getApiUrl } from '../modules/config.js';
+import { getApiUrl, showCustomConfirm } from '../modules/index.js';
 
 const API_URL = getApiUrl();
 
@@ -475,29 +475,32 @@ async function createCampaign() {
 /**
  * Pausar o Reactivar una campaña de forma profesional.
  */
-async function toggleCampaignStatus(campaignId, currentlyActive) {
+function toggleCampaignStatus(campaignId, currentlyActive) {
     const actionLabel = currentlyActive ? 'pausar' : 'reactivar';
     const newStatus = !currentlyActive;
 
-    if (!confirm(`¿Estás seguro de que deseas ${actionLabel} esta campaña?`)) return;
+    showCustomConfirm(
+        `¿Estás seguro de que deseas ${actionLabel} esta campaña?`,
+        async () => {
+            try {
+                const response = await adminFetch(`/api/momentum/admin/campaigns/${campaignId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_active: newStatus })
+                });
 
-    try {
-        const response = await adminFetch(`/api/momentum/admin/campaigns/${campaignId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ is_active: newStatus })
-        });
-
-        if (response.ok) {
-            showToast(`Campaña ${newStatus ? 'reactivada' : 'pausada'} correctamente.`, 'success');
-            await loadCampaigns();
-        } else {
-            const result = await response.json();
-            showToast(result.message || `Error al ${actionLabel}.`, 'error');
+                if (response.ok) {
+                    showToast(`Campaña ${newStatus ? 'reactivada' : 'pausada'} correctamente.`, 'success');
+                    await loadCampaigns();
+                } else {
+                    const result = await response.json();
+                    showToast(result.message || `Error al ${actionLabel}.`, 'error');
+                }
+            } catch (error) {
+                showToast('Error de conexión.', 'error');
+            }
         }
-    } catch (error) {
-        showToast('Error de conexión.', 'error');
-    }
+    );
 }
 
 // ============================================================================
@@ -606,7 +609,7 @@ async function approveSubmission(submissionId) {
 /**
  * Rechaza una entrega. Requiere nota de administrador obligatoriamente.
  */
-async function rejectSubmission(submissionId) {
+function rejectSubmission(submissionId) {
     const noteInput = document.querySelector(`.mma-note-input[data-id="${submissionId}"]`);
     const admin_note = noteInput?.value?.trim();
 
@@ -619,33 +622,36 @@ async function rejectSubmission(submissionId) {
         return;
     }
 
-    if (!confirm('¿Rechazar esta entrega? Esta acción es irreversible.')) return;
+    showCustomConfirm(
+        '¿Rechazar esta entrega? Esta acción es irreversible.',
+        async () => {
+            try {
+                const response = await adminFetch(`/api/momentum/admin/submissions/${submissionId}/reject`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ admin_note })
+                });
 
-    try {
-        const response = await adminFetch(`/api/momentum/admin/submissions/${submissionId}/reject`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ admin_note })
-        });
+                const result = await response.json();
 
-        const result = await response.json();
-
-        if (response.ok) {
-            showToast('❌ Entrega rechazada.', 'info');
-            // Remover la tarjeta con animación
-            const card = document.getElementById(`mma-verify-${submissionId}`);
-            if (card) {
-                card.style.opacity = '0';
-                card.style.transform = 'translateX(-100px)';
-                card.style.transition = 'all 0.4s ease';
-                setTimeout(() => card.remove(), 400);
+                if (response.ok) {
+                    showToast('❌ Entrega rechazada.', 'info');
+                    // Remover la tarjeta con animación
+                    const card = document.getElementById(`mma-verify-${submissionId}`);
+                    if (card) {
+                        card.style.opacity = '0';
+                        card.style.transform = 'translateX(-100px)';
+                        card.style.transition = 'all 0.4s ease';
+                        setTimeout(() => card.remove(), 400);
+                    }
+                } else {
+                    showToast(result.message || 'Error al rechazar.', 'error');
+                }
+            } catch (error) {
+                showToast('Error de conexión.', 'error');
             }
-        } else {
-            showToast(result.message || 'Error al rechazar.', 'error');
         }
-    } catch (error) {
-        showToast('Error de conexión.', 'error');
-    }
+    );
 }
 
 // ============================================================================

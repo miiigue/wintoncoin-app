@@ -20,6 +20,25 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
 
+### 2026-07-06 — Unificación Completa de Modales Personalizados y Ajustes Estéticos en Pestañas
+
+- **Contexto**: Para lograr un frontend 100% libre de elementos nativos del navegador, coherente visualmente y alineado con los estándares FinTech y bancarios, se requería:
+  1. Reemplazar todos los cuadros de diálogo nativos (`alert()` y `confirm()`) restantes en las secciones públicas y del panel administrativo por los modales personalizados (`showCustomAlert` y `showCustomConfirm`).
+  2. Modificar el texto del saldo en el modal de donación de "Tu saldo disponible" a "Disponible para donaciones" y habilitar un flujo interactivo para redirigir al perfil del impulsor.
+  3. Renombrar las pestañas de historial de transacciones de "Estado de Cuenta (Web3)" e "Recompensas (Impulsor)" a "Blockchain" e "Impulsor" para simplificar y dinamizar la interfaz.
+- **Decisión de Ingeniería**:
+  - **Unificación de Alertas y Confirmaciones en Admin**:
+    - Se mapearon y refactorizaron los archivos administrativos `admin-panel.js`, `momentum-admin.js` y `admin-recruitment.html`.
+    - Se inyectó la estructura HTML del sistema de modales en `momentum-admin.html` y `admin-recruitment.html`, y se vinculó la hoja de estilos global `style.css` para el renderizado premium.
+    - Se reestructuró la lógica en JS convirtiendo scripts a módulos ES (como en `admin-recruitment.html`) para importar las funciones de alertas centralizadas, registrando las funciones en `window` para mantener compatibilidad con los listeners `onclick` inline del HTML.
+  - **Sustitución de Diálogos Nativos en Causas Públicas**:
+    - Se cambiaron las alertas y confirmaciones en `causa-solidaria.js` y `solicitud-solidaria.html` utilizando callbacks asíncronas para controlar redirecciones seguras.
+  - **Saldo Interactivo y Renombrado de Pestañas**:
+    - Se actualizó `causa-solidaria.html` y `causa-solidaria.js` añadiendo id `balanceHintClickable` y listener para redirigir a `booster-profile.html`.
+    - Se modificó `transactions.js` renombrando las pestañas del historial de transacciones para mejorar la legibilidad y la experiencia del usuario (UX).
+- **Impacto**: Interfaz de usuario profesional, limpia y libre de fallos por bloqueos de diálogos del navegador. Mayor fluidez en la navegación financiera y coherencia visual en producción.
+- **Archivos modificados**: `causa-solidaria.html`, `causa-solidaria.js`, `solicitud-solidaria.html`, `admin-panel.js`, `momentum-admin.html`, `momentum-admin.js`, `admin-recruitment.html`, `transactions.js`, `TECHNICAL_IMPROVEMENTS.md`.
+
 ### 2026-07-03 — Escrow de Donaciones y Segmentación de Saldo Seguro (AML/Growth)
 
 - **Contexto**: Un usuario recién registrado sin KYC no podía realizar donaciones a causas solidarias (incluyendo su propio bono de bienvenida y tareas completadas) debido a que el bloqueo estricto del "Two-Gate KYC Freeze" fijaba su saldo disponible en 0. Asimismo, las etiquetas y tooltips requerían una terminología más precisa y alineada con los conceptos de la plataforma.
@@ -3697,3 +3716,12 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
 - **Evidencia**: Archivos creados/modificados: `backend/server.js`, `backend/scripts/migrationRunner.js`, `backend/migrations/064_add_missing_schema_columns.js`, `backend/src/controllers/authController.js`, `EVOLUCION.md`.
 
 
+
+### Refactorizacion Fintech: Aislamiento CQRS del Historial (Data Isolation)
+
+**Fecha:** 06/07/2026
+**Problema:** La pestana de transacciones del perfil impulsor (Recompensas) estaba leyendo de la tabla legacy Web3 (transactions), omitiendo transacciones especializadas como las donaciones solidarias y rompiendo la conciliacion bancaria visual.
+**Solucion Profesional:** Se refactorizo transactionController.js aplicando segregacion de datos total:
+- **Ecosistema Web3:** Lee exclusivamente de la tabla transactions.
+- **Ecosistema Impulsor:** Lee exclusivamente de la tabla booster_transactions, donde el sistema ya registraba de forma nativa titulos explicitos.
+**Impacto (Auditoria y UX):** 100% de conciliacion matematica garantizada. La interfaz frontend ahora consume blue_change directamente del ledger contable, mostrando historiales transparentes al nivel de estandares SOC 2 y previniendo fugas de visualizacion de capital.

@@ -227,24 +227,21 @@
         </main>
     </div>
 
-    <script>
+    <!-- Modal de Alerta Personalizado -->
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+
+    <script type="module">
         // ============================================================
         // LÓGICA DEL PANEL DE RECLUTAMIENTO ADMIN
         // ============================================================
 
-        // Resolución de URL del Backend API (misma lógica que config.js)
-        function getApiUrl() {
-            const hostname = window.location.hostname;
-            const isFileProtocol = window.location.protocol === 'file:';
-            const isPrivateIp = /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
-            const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || isPrivateIp || isFileProtocol;
-            if (isFileProtocol) return 'http://localhost:3000';
-            if (isLocal) return `http://${hostname}:3000`;
-            if (hostname.startsWith('demo.') || hostname.includes('demo.')) {
-                return 'https://wintoncoin-backend-demo.onrender.com';
-            }
-            return 'https://wintoncoin-backend.onrender.com';
-        }
+        import { getApiUrl, showCustomAlert } from './src/modules/index.js';
 
         const API_URL = getApiUrl();
 
@@ -402,10 +399,10 @@
                 if (data.success) {
                     loadProposals(); // Recargar tabla
                 } else {
-                    alert('Error: ' + data.message);
+                    showCustomAlert('Error: ' + data.message);
                 }
             } catch (error) {
-                alert('Error de conexión: ' + error.message);
+                showCustomAlert('Error de conexión: ' + error.message);
             }
         }
 
@@ -413,6 +410,10 @@
         function downloadCV(filename) {
             window.open(`${API_URL}/api/recruitment/admin/download/${filename}`, '_blank');
         }
+
+        // Registrar funciones en window para que onclick del HTML las acceda
+        window.updateStatus = updateStatus;
+        window.downloadCV = downloadCV;
 
         // Sanitización XSS
         function escapeHtml(text) {

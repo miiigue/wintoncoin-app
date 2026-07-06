@@ -27,8 +27,8 @@ function initializeTransactionsPage() {
     tabsContainer.style.marginBottom = '20px';
     
     tabsContainer.innerHTML = `
-        <button id="tab-web3" class="btn ${currentType === 'web3' ? 'btn-primary' : 'btn-secondary'}" style="flex: 1; padding: 10px;">Estado de Cuenta (Web3)</button>
-        <button id="tab-marketing" class="btn ${currentType === 'marketing' ? 'btn-primary' : 'btn-secondary'}" style="flex: 1; padding: 10px;">Recompensas (Impulsor)</button>
+        <button id="tab-web3" class="btn ${currentType === 'web3' ? 'btn-primary' : 'btn-secondary'}" style="flex: 1; padding: 10px;">Blockchain</button>
+        <button id="tab-marketing" class="btn ${currentType === 'marketing' ? 'btn-primary' : 'btn-secondary'}" style="flex: 1; padding: 10px;">Impulsor</button>
     `;
     
     elements.tableContainer.parentNode.insertBefore(tabsContainer, elements.tableContainer);
