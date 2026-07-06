@@ -35,7 +35,23 @@ Esto contraviene los estándares de seguridad SOC 2, leyes FinTech y las mejores
 
 ---
 
-## 0. Blindar Configuraciones Críticas con RBAC + MFA
+## 0.7. Desacoplamiento de Inicialización de Base de Datos del Ciclo de Arranque (Deuda Técnica / SOC 2)
+
+**Prioridad: Alta (Arquitectura y SOC 2)**
+
+**Problema Actual:**
+El archivo `server.js` invoca `await initializeDatabase();` (en `databaseInit.js`) en cada inicio del servidor. Esto causa dos problemas críticos de escala de producción y seguridad:
+1. **Riesgo de Condiciones de Carrera (DDL Locks):** Si se levantan múltiples instancias del backend simultáneamente (balanceo de carga), todas intentarán competir para recrear funciones y alterar tablas al mismo tiempo, lo que puede causar caídas inmediatas del servidor.
+2. **Ambivalencia de Firmas (Regresiones en Caliente):** Si una migración en caliente modifica o elimina una función base (como ocurrió con la sobrecarga de la función `record_booster_event` en la migración 083/085), reiniciar el servidor hace que `databaseInit.js` la vuelva a recrear con su firma antigua obsoleta. Como el Migration Runner no re-ejecuta migraciones ya marcadas como exitosas, la base de datos queda en un estado inconsistente y duplicado (causando errores del tipo `function is not unique`).
+
+**Solución Propuesta:**
+1. **Desacoplamiento del Arranque:** Eliminar la invocación de `initializeDatabase()` de `server.js`.
+2. **Pre-Despliegue (Release Phase):** Mover la lógica de `databaseInit.js` al script de migraciones iniciales (`001`) o a un comando de pre-despliegue (`npm run migrate`) que se ejecute en el pipeline de CI/CD (Render/AWS) antes de levantar los servidores.
+3. **Consistencia de Ledger:** Asegurar que cualquier cambio en las firmas de funciones de base de datos se maneje estrictamente a través de migraciones inmutables de base de datos, evitando scripts reactivos de inicialización.
+
+---
+
+## 1. Blindar Configuraciones Críticas con RBAC + MFA
 
 **Prioridad: Urgente (primer paso)**
 
