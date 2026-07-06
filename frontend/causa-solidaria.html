@@ -541,7 +541,7 @@
     <div class="solidario-donate-modal-overlay" id="donateModalOverlay">
         <div class="solidario-donate-modal">
             <h3>💙 Donar BLUE IOU</h3>
-            <p class="balance-hint">Tu saldo disponible: <strong id="donorBalanceDisplay">0.0000</strong> BLUE IOU</p>
+            <p class="balance-hint" id="balanceHintClickable" style="cursor: pointer; text-decoration: underline; transition: opacity 0.2s;" title="Ver tarjeta de disponibles para donaciones en tu perfil de impulsor">Disponible para donaciones: <strong id="donorBalanceDisplay">0.0000</strong> BLUE IOU</p>
 
             <div class="solidario-donate-input-group">
                 <input type="text" inputmode="decimal" id="donateAmountInput" placeholder="0.0000" autocomplete="off">
@@ -567,6 +567,18 @@
             <span class="close-button alert-close-button">&times;</span>
             <p id="customAlertMessage"></p>
             <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación Personalizado -->
+    <div id="customConfirmModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button confirm-close-button">&times;</span>
+            <p id="customConfirmMessage"></p>
+            <div class="confirm-buttons">
+                <button class="action-button cancel-button">Cancelar</button>
+                <button class="action-button confirm-button">Confirmar</button>
+            </div>
         </div>
     </div>
 

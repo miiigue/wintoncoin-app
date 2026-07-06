@@ -35,7 +35,23 @@ Esto contraviene los estándares de seguridad SOC 2, leyes FinTech y las mejores
 
 ---
 
-## 0. Blindar Configuraciones Críticas con RBAC + MFA
+## 0.7. Desacoplamiento de Inicialización de Base de Datos del Ciclo de Arranque (Deuda Técnica / SOC 2)
+
+**Prioridad: Alta (Arquitectura y SOC 2)**
+
+**Problema Actual:**
+El archivo `server.js` invoca `await initializeDatabase();` (en `databaseInit.js`) en cada inicio del servidor. Esto causa dos problemas críticos de escala de producción y seguridad:
+1. **Riesgo de Condiciones de Carrera (DDL Locks):** Si se levantan múltiples instancias del backend simultáneamente (balanceo de carga), todas intentarán competir para recrear funciones y alterar tablas al mismo tiempo, lo que puede causar caídas inmediatas del servidor.
+2. **Ambivalencia de Firmas (Regresiones en Caliente):** Si una migración en caliente modifica o elimina una función base (como ocurrió con la sobrecarga de la función `record_booster_event` en la migración 083/085), reiniciar el servidor hace que `databaseInit.js` la vuelva a recrear con su firma antigua obsoleta. Como el Migration Runner no re-ejecuta migraciones ya marcadas como exitosas, la base de datos queda en un estado inconsistente y duplicado (causando errores del tipo `function is not unique`).
+
+**Solución Propuesta:**
+1. **Desacoplamiento del Arranque:** Eliminar la invocación de `initializeDatabase()` de `server.js`.
+2. **Pre-Despliegue (Release Phase):** Mover la lógica de `databaseInit.js` al script de migraciones iniciales (`001`) o a un comando de pre-despliegue (`npm run migrate`) que se ejecute en el pipeline de CI/CD (Render/AWS) antes de levantar los servidores.
+3. **Consistencia de Ledger:** Asegurar que cualquier cambio en las firmas de funciones de base de datos se maneje estrictamente a través de migraciones inmutables de base de datos, evitando scripts reactivos de inicialización.
+
+---
+
+## 1. Blindar Configuraciones Críticas con RBAC + MFA
 
 **Prioridad: Urgente (primer paso)**
 
@@ -253,3 +269,38 @@ Estas mejoras **no son obligatorias para que el sistema funcione hoy**, pero son
 - **Audit log más fuerte**: añadir campos de `success/fail`, `error_code`, `reason` (sin datos sensibles) y/o envío a SIEM (Splunk/Elastic/Datadog) para centralizar monitoreo.
 - **Log tamper-evident / WORM**: para auditorías estrictas, diseñar un esquema de inmutabilidad (hash encadenado) o almacenamiento WORM externo.
 - **Dominio propio para API**: migrar a `api.wintoncoin.com` para reducir dependencia de third-party cookies y permitir `SameSite` más estricto.
+
+---
+
+## 10. Refactorizar y Modularizar el Frontend (KISS & DRY)
+
+**Prioridad: Media**
+
+**Problema Actual:**
+- El archivo `register.js` tiene casi 1000 líneas de código y tiene múltiples responsabilidades (orquestación visual del Wizard, validación asíncrona de campos, cálculo de edad, gestión de modales). Esto viola el principio KISS y hace el código monolítico y difícil de testear.
+- La función de seguridad `_getSafeReturnTo` está duplicada exactamente en `login.js` y `register.js` (violando el principio DRY).
+
+**Solución Propuesta:**
+1. Extraer la validación de redirección segura (`_getSafeReturnTo`) a un archivo centralizado `src/modules/security.js`.
+2. Modularizar `register.js` moviendo la lógica de control del Wizard a `src/modules/wizardController.js` y las validaciones a `src/modules/validators.js`.
+
+**Beneficios:**
+- Código más mantenible, desacoplado y legible.
+- Reutilización de lógica de seguridad centralizada.
+
+---
+
+## 11. Endurecer el Almacenamiento de Sesiones (Seguridad de Cookies HttpOnly)
+
+**Prioridad: Alta (Seguridad)**
+
+**Problema Actual:**
+- El JWT (token de sesión) se almacena en `localStorage` del cliente. Si la aplicación sufre alguna vulnerabilidad de XSS (Cross-Site Scripting), un script malicioso de un tercero podría leer el token y robar la sesión del usuario.
+
+**Solución Propuesta:**
+- Configurar el backend para enviar el JWT en una cookie con los atributos `HttpOnly`, `Secure` y `SameSite=Strict`.
+- El frontend ya no necesitará guardar ni enviar el token en la cabecera `Authorization` de forma manual; el navegador se encargará de enviarlo automáticamente y de forma protegida en cada petición HTTP al mismo dominio.
+
+**Beneficios:**
+- Protección total del token de sesión contra robos vía XSS.
+- Alineación con los estándares FinTech y SOC 2 de máxima seguridad de datos de usuario.

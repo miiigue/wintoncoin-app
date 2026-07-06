@@ -405,9 +405,28 @@
         </div>
     </div>
 
+    <!-- Modales de Alerta y Confirmación Personalizados -->
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+    <div id="customConfirmModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button confirm-close-button">&times;</span>
+            <p id="customConfirmMessage"></p>
+            <div class="confirm-buttons">
+                <button class="action-button cancel-button">Cancelar</button>
+                <button class="action-button confirm-button">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
-        // Importar configuración centralizada del API (resuelve URL según entorno)
-        import { getApiUrl } from './src/modules/config.js';
+        // Importar configuración y alertas centralizadas
+        import { getApiUrl, showCustomAlert } from './src/modules/index.js';
         const API_URL = getApiUrl();
 
         // --- VALIDACIÓN DE SESIÓN OBLIGATORIA (SEGURIDAD FINTECH) ---
@@ -415,8 +434,9 @@
         const storedUsername = localStorage.getItem('username');
 
         if (!storedToken || !storedUsername) {
-            alert('🔒 Acceso restringido: Debes iniciar sesión para postular una causa.');
-            window.location.href = 'login.html?returnTo=solicitud-solidaria.html';
+            showCustomAlert('🔒 Acceso restringido: Debes iniciar sesión para postular una causa.', () => {
+                window.location.href = 'login.html?returnTo=solicitud-solidaria.html';
+            });
         }
 
         // Mostrar modal al cargar la página
@@ -553,14 +573,16 @@
             e.preventDefault();
 
             if (!isUserValid) {
-                alert('Por favor, ingresa un nombre de usuario registrado y válido.');
-                usernameInput.focus();
+                showCustomAlert('Por favor, ingresa un nombre de usuario registrado y válido.', () => {
+                    usernameInput.focus();
+                });
                 return;
             }
 
             if (!isBeneficiaryValid) {
-                alert('Por favor, ingresa un código de referido de beneficiario válido.');
-                beneficiaryRefInput.focus();
+                showCustomAlert('Por favor, ingresa un código de referido de beneficiario válido.', () => {
+                    beneficiaryRefInput.focus();
+                });
                 return;
             }
 
@@ -571,8 +593,9 @@
             // 1. Validar Nubes Autorizadas
             const allowedCloudsRegex = /^(https?:\/\/)?(www\.)?(drive\.google\.com|photos\.google\.com|photos\.app\.goo\.gl|dropbox\.com|db\.tt|samsungcloud\.com|onedrive\.live\.com|1drv\.ms|icloud\.com|box\.com|mega\.nz|mega\.co\.nz)(\/|$)/i;
             if (!allowedCloudsRegex.test(evidenciaLink)) {
-                alert('⚠️ Enlace de evidencia no permitido.\n\nSolo se admiten enlaces procedentes de: Google Drive, Google Photos, Dropbox, Samsung Cloud, OneDrive, iCloud, Box o Mega.');
-                document.getElementById('evidenciaLink').focus();
+                showCustomAlert('⚠️ Enlace de evidencia no permitido.\n\nSolo se admiten enlaces procedentes de: Google Drive, Google Photos, Dropbox, Samsung Cloud, OneDrive, iCloud, Box o Mega.', () => {
+                    document.getElementById('evidenciaLink').focus();
+                });
                 return;
             }
 
@@ -580,14 +603,16 @@
             const allowedSocialsRegex = /^(https?:\/\/)?(www\.)?(instagram\.com|facebook\.com|fb\.com|tiktok\.com|twitter\.com|x\.com)(\/|$)/i;
             const redesList = redesSociales.split(/\s+/).filter(Boolean);
             if (redesList.length === 0) {
-                alert('⚠️ Debes ingresar al menos un enlace a tus redes sociales.');
-                document.getElementById('redesSociales').focus();
+                showCustomAlert('⚠️ Debes ingresar al menos un enlace a tus redes sociales.', () => {
+                    document.getElementById('redesSociales').focus();
+                });
                 return;
             }
             for (const url of redesList) {
                 if (!allowedSocialsRegex.test(url)) {
-                    alert(`⚠️ Enlace de red social no permitido: "${url}"\n\nSolo se permiten cuentas de Instagram, Facebook, TikTok, Twitter o X.`);
-                    document.getElementById('redesSociales').focus();
+                    showCustomAlert(`⚠️ Enlace de red social no permitido: "${url}"\n\nSolo se permiten cuentas de Instagram, Facebook, TikTok, Twitter o X.`, () => {
+                        document.getElementById('redesSociales').focus();
+                    });
                     return;
                 }
             }
@@ -597,8 +622,9 @@
                 const benRedesList = beneficiarySocials.split(/\s+/).filter(Boolean);
                 for (const url of benRedesList) {
                     if (!allowedSocialsRegex.test(url)) {
-                        alert(`⚠️ Enlace de red social del beneficiario no permitido: "${url}"\n\nSolo se permiten cuentas de Instagram, Facebook, TikTok, Twitter o X.`);
-                        document.getElementById('beneficiarySocials').focus();
+                        showCustomAlert(`⚠️ Enlace de red social del beneficiario no permitido: "${url}"\n\nSolo se permiten cuentas de Instagram, Facebook, TikTok, Twitter o X.`, () => {
+                            document.getElementById('beneficiarySocials').focus();
+                        });
                         return;
                     }
                 }
@@ -635,16 +661,17 @@
                 const result = await response.json();
 
                 if (response.ok) {
-                    alert('✅ Postulación registrada exitosamente.\n\n📬 Recibirás una notificación en la app y en tu correo cuando nuestro equipo revise tu caso.\n\nPuedes ver el estado de tu solicitud en tu bandeja de notificaciones.');
-                    window.location.href = 'contract_interaction.html';
+                    showCustomAlert('✅ Postulación registrada exitosamente.\n\n📬 Recibirás una notificación en la app y en tu correo cuando nuestro equipo revise tu caso.\n\nPuedes ver el estado de tu solicitud en tu bandeja de notificaciones.', () => {
+                        window.location.href = 'contract_interaction.html';
+                    });
                 } else {
-                    alert('❌ Error: ' + (result.message || 'No se pudo registrar la postulación.'));
+                    showCustomAlert('❌ Error: ' + (result.message || 'No se pudo registrar la postulación.'));
                     btn.innerText = originalText;
                     btn.disabled = false;
                 }
             } catch (error) {
                 console.error('Error al enviar postulación:', error);
-                alert('❌ Error de conexión con el servidor.');
+                showCustomAlert('❌ Error de conexión con el servidor.');
                 btn.innerText = originalText;
                 btn.disabled = false;
             }

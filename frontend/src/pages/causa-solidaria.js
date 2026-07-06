@@ -25,6 +25,7 @@
 import {
     getApiUrl,
     showCustomAlert,
+    showCustomConfirm,
     handleSessionExpired
 } from '../modules/index.js';
 
@@ -55,6 +56,14 @@ function formatPercentage(raised, goal) {
 // INICIALIZACIÓN
 // ============================================================================
 document.addEventListener('DOMContentLoaded', async () => {
+    // Redirección al hacer clic en "Disponible para donaciones:"
+    const balanceHint = document.getElementById('balanceHintClickable');
+    if (balanceHint) {
+        balanceHint.addEventListener('click', () => {
+            window.location.href = 'booster-profile.html';
+        });
+    }
+
     // Obtener el ID de la causa desde la URL
     const params = new URLSearchParams(window.location.search);
     const causeId = params.get('id');
@@ -497,35 +506,39 @@ function initCancelButton(cause) {
     const cancelBtn = document.getElementById('solidarioDetailCancelBtn');
     if (!cancelBtn) return;
 
-    cancelBtn.addEventListener('click', async (e) => {
+    cancelBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
 
-        if (confirm('¿Estás seguro de que deseas cancelar y cerrar esta causa? Si lo haces, ya no podrás recibir más donaciones en esta y quedará marcada como culminada.')) {
-            cancelBtn.disabled = true;
-            cancelBtn.textContent = 'Cancelando...';
-            try {
-                const token = localStorage.getItem('token');
-                const res = await fetch(`${API_URL}/api/humanitarian/causes/${cause.id}/cancel`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const result = await res.json();
-                if (res.ok) {
-                    alert(result.message || 'Causa cancelada exitosamente.');
-                    window.location.reload();
-                } else {
-                    alert(result.message || 'Error al cancelar la causa.');
+        showCustomConfirm(
+            '¿Estás seguro de que deseas cancelar y cerrar esta causa? Si lo haces, ya no podrás recibir más donaciones en esta y quedará marcada como culminada.',
+            async () => {
+                cancelBtn.disabled = true;
+                cancelBtn.textContent = 'Cancelando...';
+                try {
+                    const token = localStorage.getItem('token');
+                    const res = await fetch(`${API_URL}/api/humanitarian/causes/${cause.id}/cancel`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const result = await res.json();
+                    if (res.ok) {
+                        showCustomAlert(result.message || 'Causa cancelada exitosamente.', () => {
+                            window.location.reload();
+                        });
+                    } else {
+                        showCustomAlert(result.message || 'Error al cancelar la causa.');
+                        cancelBtn.disabled = false;
+                        cancelBtn.textContent = '🛑 Cancelar y Cerrar Causa Actual';
+                    }
+                } catch (err) {
+                    console.error('Error canceling cause:', err);
+                    showCustomAlert('Error de red al intentar cancelar.');
                     cancelBtn.disabled = false;
                     cancelBtn.textContent = '🛑 Cancelar y Cerrar Causa Actual';
                 }
-            } catch (err) {
-                console.error('Error canceling cause:', err);
-                alert('Error de red al intentar cancelar.');
-                cancelBtn.disabled = false;
-                cancelBtn.textContent = '🛑 Cancelar y Cerrar Causa Actual';
             }
-        }
+        );
     });
 }
 

@@ -38,22 +38,37 @@ const getMyTransactions = async (req, res) => {
     // 2. Definición del query SQL parametrizado según el filtro.
     const filterType = req.query.type || 'web3'; // Por defecto Web3 para mantener seguridad
     
-    let typeCondition = '';
+    let sql = '';
+    
     if (filterType === 'marketing') {
-        typeCondition = "t.type IN ('referral_bonus', 'welcome_bonus', 'gov_vote_reward')";
+        // [Aislamiento de Datos / CQRS] - El perfil Impulsor lee exclusivamente de booster_transactions
+        // Garantizamos Conciliación Bancaria mostrando todos los eventos del ledger BLUE IOU
+        sql = `
+            SELECT 
+                bt.id,
+                bt.type,
+                bt.amount AS blue_change,
+                0 AS red_change,
+                bt.description,
+                bt.created_at,
+                u.username
+            FROM booster_transactions bt
+            JOIN users u ON bt.user_id = u.id
+            WHERE bt.user_id = $1
+            ORDER BY bt.created_at DESC
+        `;
     } else {
-        // web3
-        typeCondition = "t.type IN ('payment_sent', 'payment_received', 'commission_received', 'burn', 'escrow_release', 'booster_reward')";
+        // web3 - Aislamiento de Ecosistema: Web3 lee exclusivamente de transactions
+        const typeCondition = "t.type IN ('payment_sent', 'payment_received', 'commission_received', 'burn', 'escrow_release', 'booster_reward')";
+        sql = `
+            SELECT t.*, u.username
+            FROM transactions t
+            JOIN users u ON t.user_id = u.id
+            WHERE t.user_id = $1
+              AND ${typeCondition}
+            ORDER BY t.created_at DESC
+        `;
     }
-
-    const sql = `
-        SELECT t.*, u.username
-        FROM transactions t
-        JOIN users u ON t.user_id = u.id
-        WHERE t.user_id = $1
-          AND ${typeCondition}
-        ORDER BY t.created_at DESC
-    `;
 
     try {
         // 3. Ejecución de la consulta utilizando preparación de sentencias seguras
@@ -87,21 +102,35 @@ const getUserTransactionsLegacy = async (req, res) => {
     // 2. Consulta parametrizada unificando los criterios de filtrado
     const filterType = req.query.type || 'web3';
     
-    let typeCondition = '';
+    let sql = '';
+    
     if (filterType === 'marketing') {
-        typeCondition = "t.type IN ('referral_bonus', 'welcome_bonus', 'gov_vote_reward')";
+        // [Aislamiento de Datos / CQRS] - El perfil Impulsor lee exclusivamente de booster_transactions
+        sql = `
+            SELECT 
+                bt.id,
+                bt.type,
+                bt.amount AS blue_change,
+                0 AS red_change,
+                bt.description,
+                bt.created_at,
+                u.username
+            FROM booster_transactions bt
+            JOIN users u ON bt.user_id = u.id
+            WHERE u.username = $1
+            ORDER BY bt.created_at DESC
+        `;
     } else {
-        typeCondition = "t.type IN ('payment_sent', 'payment_received', 'commission_received', 'burn', 'escrow_release', 'booster_reward')";
+        const typeCondition = "t.type IN ('payment_sent', 'payment_received', 'commission_received', 'burn', 'escrow_release', 'booster_reward')";
+        sql = `
+            SELECT t.*, u.username 
+            FROM transactions t 
+            JOIN users u ON t.user_id = u.id 
+            WHERE u.username = $1 
+              AND ${typeCondition}
+            ORDER BY t.created_at DESC
+        `;
     }
-
-    const sql = `
-        SELECT t.*, u.username 
-        FROM transactions t 
-        JOIN users u ON t.user_id = u.id 
-        WHERE u.username = $1 
-          AND ${typeCondition}
-        ORDER BY t.created_at DESC
-    `;
 
     try {
         const result = await pool.query(sql, [username]);

@@ -4448,46 +4448,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (elements.govRewardsProcessBtn) {
-        elements.govRewardsProcessBtn.addEventListener('click', async () => {
+        elements.govRewardsProcessBtn.addEventListener('click', () => {
             if (elements.govRewardsProcessBtn.disabled) return;
 
-            const confirmed = confirm(
+            showCustomConfirm(
                 '¿Estás seguro de procesar los pagos pendientes?\n\n' +
                 'Esta acción acreditará BLUE IOU a cada guardián según la tasa configurada. ' +
-                'Se enviará un correo consolidado a cada guardián afectado.'
+                'Se enviará un correo consolidado a cada guardián afectado.',
+                async () => {
+                    elements.govRewardsProcessBtn.disabled = true;
+                    elements.govRewardsProcessBtn.textContent = 'Procesando...';
+                    elements.govRewardsResult.style.display = 'none';
+
+                    try {
+                        const result = await apiFetch('/api/admin/governance/process-rewards', {
+                            method: 'POST',
+                        });
+                        elements.govRewardsResult.style.display = 'block';
+                        elements.govRewardsResult.innerHTML = `
+                            <div class="admin-card" style="border-left: 4px solid #059669; background: #F0FDF4;">
+                                <h4 style="color: #059669; margin: 0 0 0.5rem;">Procesamiento completado</h4>
+                                <p><strong>Votos procesados:</strong> ${Number(result.totalProcessed)}</p>
+                                <p><strong>Omitidos:</strong> ${Number(result.totalSkipped)}</p>
+                                <p><strong>Tasa aplicada:</strong> ${Number(result.rateUsed).toFixed(2)} BLUE IOU</p>
+                                <p><strong>Guardianes notificados:</strong> ${Number(result.guardiansAffected)}</p>
+                            </div>
+                        `;
+                        loadGovRewardsSection();
+                    } catch (error) {
+                        elements.govRewardsResult.style.display = 'block';
+                        elements.govRewardsResult.innerHTML = `
+                            <div class="admin-card" style="border-left: 4px solid #DC2626; background: #FEF2F2;">
+                                <h4 style="color: #DC2626; margin: 0 0 0.5rem;">Error en el procesamiento</h4>
+                                <p>${escapeHtml(error.message)}</p>
+                            </div>
+                        `;
+                        elements.govRewardsProcessBtn.disabled = false;
+                        elements.govRewardsProcessBtn.textContent = 'Procesar Pagos Pendientes';
+                    }
+                }
             );
-            if (!confirmed) return;
-
-            elements.govRewardsProcessBtn.disabled = true;
-            elements.govRewardsProcessBtn.textContent = 'Procesando...';
-            elements.govRewardsResult.style.display = 'none';
-
-            try {
-                const result = await apiFetch('/api/admin/governance/process-rewards', {
-                    method: 'POST',
-                });
-                elements.govRewardsResult.style.display = 'block';
-                elements.govRewardsResult.innerHTML = `
-                    <div class="admin-card" style="border-left: 4px solid #059669; background: #F0FDF4;">
-                        <h4 style="color: #059669; margin: 0 0 0.5rem;">Procesamiento completado</h4>
-                        <p><strong>Votos procesados:</strong> ${Number(result.totalProcessed)}</p>
-                        <p><strong>Omitidos:</strong> ${Number(result.totalSkipped)}</p>
-                        <p><strong>Tasa aplicada:</strong> ${Number(result.rateUsed).toFixed(2)} BLUE IOU</p>
-                        <p><strong>Guardianes notificados:</strong> ${Number(result.guardiansAffected)}</p>
-                    </div>
-                `;
-                loadGovRewardsSection();
-            } catch (error) {
-                elements.govRewardsResult.style.display = 'block';
-                elements.govRewardsResult.innerHTML = `
-                    <div class="admin-card" style="border-left: 4px solid #DC2626; background: #FEF2F2;">
-                        <h4 style="color: #DC2626; margin: 0 0 0.5rem;">Error en el procesamiento</h4>
-                        <p>${escapeHtml(error.message)}</p>
-                    </div>
-                `;
-                elements.govRewardsProcessBtn.disabled = false;
-                elements.govRewardsProcessBtn.textContent = 'Procesar Pagos Pendientes';
-            }
         });
     }
 
@@ -4610,63 +4610,63 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (elements.govExportBtn) {
-        elements.govExportBtn.addEventListener('click', async () => {
+        elements.govExportBtn.addEventListener('click', () => {
             if (elements.govExportBtn.disabled) return;
 
-            const confirmed = confirm(
+            showCustomConfirm(
                 '¿Exportar los votos de gobernanza no exportados?\n\n' +
-                'Se generará un archivo JSON firmado y los votos se marcarán como exportados.'
-            );
-            if (!confirmed) return;
+                'Se generará un archivo JSON firmado y los votos se marcarán como exportados.',
+                async () => {
+                    elements.govExportBtn.disabled = true;
+                    elements.govExportBtn.textContent = 'Exportando...';
+                    if (elements.govExportResult) elements.govExportResult.style.display = 'none';
 
-            elements.govExportBtn.disabled = true;
-            elements.govExportBtn.textContent = 'Exportando...';
-            if (elements.govExportResult) elements.govExportResult.style.display = 'none';
+                    try {
+                        const response = await apiFetch('/api/admin/governance/demo-export', { method: 'POST' });
 
-            try {
-                const response = await apiFetch('/api/admin/governance/demo-export', { method: 'POST' });
+                        if (!response.data) {
+                            elements.govExportResult.style.display = 'block';
+                            elements.govExportResult.innerHTML =
+                                '<p style="color: #667085;">No hay votos pendientes de exportar.</p>';
+                            return;
+                        }
 
-                if (!response.data) {
-                    elements.govExportResult.style.display = 'block';
-                    elements.govExportResult.innerHTML =
-                        '<p style="color: #667085;">No hay votos pendientes de exportar.</p>';
-                    return;
+                        const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
+                        const url  = URL.createObjectURL(blob);
+                        const a    = document.createElement('a');
+                        const date = new Date().toISOString().split('T')[0];
+                        a.href     = url;
+                        a.download = `gov-rewards-export-${date}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+
+                        elements.govExportResult.style.display = 'block';
+                        elements.govExportResult.innerHTML = `
+                            <div class="admin-card" style="border-left: 4px solid #059669; background: #F0FDF4;">
+                                <h4 style="color: #059669; margin: 0 0 0.5rem;">Exportación completada</h4>
+                                <p><strong>Votos exportados:</strong> ${Number(response.data.summary.total_votes)}</p>
+                                <p><strong>Guardianes:</strong> ${Number(response.data.summary.total_guardians)}</p>
+                                <p style="color: #667085; font-size: 0.875rem; margin-top: 0.5rem;">
+                                    El archivo se descargó automáticamente. Súbelo en el panel de admin de producción.
+                                </p>
+                            </div>`;
+                        loadDemoExportStats();
+                    } catch (error) {
+                        elements.govExportResult.style.display = 'block';
+                        elements.govExportResult.innerHTML = `
+                            <div class="admin-card" style="border-left: 4px solid #DC2626; background: #FEF2F2;">
+                                <h4 style="color: #DC2626; margin: 0 0 0.5rem;">Error en la exportación</h4>
+                                <p>${escapeHtml(error.message)}</p>
+                            </div>`;
+                        elements.govExportBtn.disabled = false;
+                        elements.govExportBtn.textContent = 'Exportar Reporte';
+                        elements.govExportBtn.style.background = '#3B82F6';
+                        elements.govExportBtn.style.cursor = 'pointer';
+                    }
                 }
-
-                const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
-                const url  = URL.createObjectURL(blob);
-                const a    = document.createElement('a');
-                const date = new Date().toISOString().split('T')[0];
-                a.href     = url;
-                a.download = `gov-rewards-export-${date}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-
-                elements.govExportResult.style.display = 'block';
-                elements.govExportResult.innerHTML = `
-                    <div class="admin-card" style="border-left: 4px solid #059669; background: #F0FDF4;">
-                        <h4 style="color: #059669; margin: 0 0 0.5rem;">Exportación completada</h4>
-                        <p><strong>Votos exportados:</strong> ${Number(response.data.summary.total_votes)}</p>
-                        <p><strong>Guardianes:</strong> ${Number(response.data.summary.total_guardians)}</p>
-                        <p style="color: #667085; font-size: 0.875rem; margin-top: 0.5rem;">
-                            El archivo se descargó automáticamente. Súbelo en el panel de admin de producción.
-                        </p>
-                    </div>`;
-                loadDemoExportStats();
-            } catch (error) {
-                elements.govExportResult.style.display = 'block';
-                elements.govExportResult.innerHTML = `
-                    <div class="admin-card" style="border-left: 4px solid #DC2626; background: #FEF2F2;">
-                        <h4 style="color: #DC2626; margin: 0 0 0.5rem;">Error en la exportación</h4>
-                        <p>${escapeHtml(error.message)}</p>
-                    </div>`;
-                elements.govExportBtn.disabled = false;
-                elements.govExportBtn.textContent = 'Exportar Reporte';
-                elements.govExportBtn.style.background = '#3B82F6';
-                elements.govExportBtn.style.cursor = 'pointer';
-            }
+            );
         });
     }
 
@@ -4905,96 +4905,96 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (elements.govImportProcessBtn) {
-        elements.govImportProcessBtn.addEventListener('click', async () => {
+        elements.govImportProcessBtn.addEventListener('click', () => {
             if (!pendingImportFileData) {
                 showCustomAlert('No hay archivo validado. Valida primero.');
                 return;
             }
 
-            const confirmed = confirm(
+            showCustomConfirm(
                 '¿Estás seguro de procesar esta importación?\n\n' +
                 'Se acreditarán BLUE IOU REALES en las cuentas de producción de los guardianes. ' +
                 'Se enviará un correo de confirmación a cada guardián afectado.\n\n' +
-                'Esta acción no se puede deshacer.'
-            );
-            if (!confirmed) return;
+                'Esta acción no se puede deshacer.',
+                async () => {
+                    elements.govImportProcessBtn.disabled = true;
+                    elements.govImportProcessBtn.textContent = 'Procesando...';
+                    if (elements.govImportResult) elements.govImportResult.style.display = 'none';
 
-            elements.govImportProcessBtn.disabled = true;
-            elements.govImportProcessBtn.textContent = 'Procesando...';
-            if (elements.govImportResult) elements.govImportResult.style.display = 'none';
+                    try {
+                        // Se envía el multiplicador visto en la preview: si cambió la etapa
+                        // booster antes del procesamiento, el backend responde 409 y la UI
+                        // fuerza a re-validar el archivo (evita pagar con una tasa distinta
+                        // de la que el admin autorizó visualmente).
+                        const result = await apiFetch('/api/admin/governance/demo-import-process', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                fileData:           pendingImportFileData,
+                                expectedMultiplier: pendingExpectedMultiplier,
+                            }),
+                        });
 
-            try {
-                // Se envía el multiplicador visto en la preview: si cambió la etapa
-                // booster antes del procesamiento, el backend responde 409 y la UI
-                // fuerza a re-validar el archivo (evita pagar con una tasa distinta
-                // de la que el admin autorizó visualmente).
-                const result = await apiFetch('/api/admin/governance/demo-import-process', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        fileData:           pendingImportFileData,
-                        expectedMultiplier: pendingExpectedMultiplier,
-                    }),
-                });
+                        pendingImportFileData        = null;
+                        pendingExpectedMultiplier    = null;
+                        // Restaurar estado del botón ANTES de ocultarlo: si en el
+                        // futuro se vuelve a mostrar (por re-validación de otro archivo),
+                        // debe aparecer habilitado y con su texto original.
+                        elements.govImportProcessBtn.disabled    = false;
+                        elements.govImportProcessBtn.textContent = 'Confirmar y Procesar Pagos';
+                        elements.govImportProcessBtn.style.display = 'none';
 
-                pendingImportFileData        = null;
-                pendingExpectedMultiplier    = null;
-                // Restaurar estado del botón ANTES de ocultarlo: si en el
-                // futuro se vuelve a mostrar (por re-validación de otro archivo),
-                // debe aparecer habilitado y con su texto original.
-                elements.govImportProcessBtn.disabled    = false;
-                elements.govImportProcessBtn.textContent = 'Confirmar y Procesar Pagos';
-                elements.govImportProcessBtn.style.display = 'none';
+                        // Resumen visible: incluye multiplicador/etapa y tasa final por voto.
+                        const appliedMultiplier = Number(result.multiplier ?? 1);
+                        const appliedStage      = result.stageName || 'Sin etapa activa';
+                        const appliedFinalRate  = Number(result.finalRatePerVote ?? (Number(result.rateUsed || 0) * appliedMultiplier));
 
-                // Resumen visible: incluye multiplicador/etapa y tasa final por voto.
-                const appliedMultiplier = Number(result.multiplier ?? 1);
-                const appliedStage      = result.stageName || 'Sin etapa activa';
-                const appliedFinalRate  = Number(result.finalRatePerVote ?? (Number(result.rateUsed || 0) * appliedMultiplier));
+                        elements.govImportResult.style.display = 'block';
+                        elements.govImportResult.innerHTML = `
+                            <div class="admin-card" style="border-left: 4px solid #059669; background: #F0FDF4;">
+                                <h4 style="color: #059669; margin: 0 0 0.5rem;">Importación completada</h4>
+                                <p><strong>Votos procesados:</strong> ${Number(result.totalProcessed)}</p>
+                                <p><strong>Omitidos:</strong> ${Number(result.totalSkipped)}</p>
+                                <p><strong>Tasa base aplicada:</strong> ${Number(result.rateUsed).toFixed(2)} BLUE IOU</p>
+                                <p><strong>Multiplicador aplicado:</strong> x${appliedMultiplier}
+                                    <span style="color: #6B7280;">(${escapeHtml(appliedStage)})</span>
+                                </p>
+                                <p><strong>Tasa final por voto:</strong> ${appliedFinalRate.toFixed(2)} BLUE IOU</p>
+                                <p><strong>Guardianes notificados:</strong> ${Number(result.guardiansAffected)}</p>
+                            </div>`;
 
-                elements.govImportResult.style.display = 'block';
-                elements.govImportResult.innerHTML = `
-                    <div class="admin-card" style="border-left: 4px solid #059669; background: #F0FDF4;">
-                        <h4 style="color: #059669; margin: 0 0 0.5rem;">Importación completada</h4>
-                        <p><strong>Votos procesados:</strong> ${Number(result.totalProcessed)}</p>
-                        <p><strong>Omitidos:</strong> ${Number(result.totalSkipped)}</p>
-                        <p><strong>Tasa base aplicada:</strong> ${Number(result.rateUsed).toFixed(2)} BLUE IOU</p>
-                        <p><strong>Multiplicador aplicado:</strong> x${appliedMultiplier}
-                            <span style="color: #6B7280;">(${escapeHtml(appliedStage)})</span>
-                        </p>
-                        <p><strong>Tasa final por voto:</strong> ${appliedFinalRate.toFixed(2)} BLUE IOU</p>
-                        <p><strong>Guardianes notificados:</strong> ${Number(result.guardiansAffected)}</p>
-                    </div>`;
+                        loadGovRewardsSection();
+                    } catch (error) {
+                        // Detecta el candado de multiplicador (código negociado con el backend)
+                        // para dar un mensaje útil y forzar re-validación del archivo.
+                        const isMultChanged =
+                            error && (error.code === 'MULTIPLIER_CHANGED' ||
+                                      (typeof error.message === 'string' && error.message.includes('etapa booster cambió')));
 
-                loadGovRewardsSection();
-            } catch (error) {
-                // Detecta el candado de multiplicador (código negociado con el backend)
-                // para dar un mensaje útil y forzar re-validación del archivo.
-                const isMultChanged =
-                    error && (error.code === 'MULTIPLIER_CHANGED' ||
-                              (typeof error.message === 'string' && error.message.includes('etapa booster cambió')));
+                        elements.govImportResult.style.display = 'block';
+                        elements.govImportResult.innerHTML = `
+                            <div class="admin-card" style="border-left: 4px solid ${isMultChanged ? '#D97706' : '#DC2626'};
+                                 background: ${isMultChanged ? '#FFFBEB' : '#FEF2F2'};">
+                                <h4 style="color: ${isMultChanged ? '#B45309' : '#DC2626'}; margin: 0 0 0.5rem;">
+                                    ${isMultChanged ? 'Etapa booster cambió — revalidar' : 'Error en la importación'}
+                                </h4>
+                                <p>${escapeHtml(error.message || 'Error desconocido')}</p>
+                                ${isMultChanged
+                                    ? '<p style="color: #78350F;">Vuelve a pulsar <strong>Validar Archivo</strong> para ver la nueva tasa y autorizar el pago con el multiplicador vigente.</p>'
+                                    : ''}
+                            </div>`;
 
-                elements.govImportResult.style.display = 'block';
-                elements.govImportResult.innerHTML = `
-                    <div class="admin-card" style="border-left: 4px solid ${isMultChanged ? '#D97706' : '#DC2626'};
-                         background: ${isMultChanged ? '#FFFBEB' : '#FEF2F2'};">
-                        <h4 style="color: ${isMultChanged ? '#B45309' : '#DC2626'}; margin: 0 0 0.5rem;">
-                            ${isMultChanged ? 'Etapa booster cambió — revalidar' : 'Error en la importación'}
-                        </h4>
-                        <p>${escapeHtml(error.message || 'Error desconocido')}</p>
-                        ${isMultChanged
-                            ? '<p style="color: #78350F;">Vuelve a pulsar <strong>Validar Archivo</strong> para ver la nueva tasa y autorizar el pago con el multiplicador vigente.</p>'
-                            : ''}
-                    </div>`;
+                        if (isMultChanged) {
+                            // Se invalida el estado: obligamos al admin a re-validar.
+                            pendingImportFileData      = null;
+                            pendingExpectedMultiplier  = null;
+                            elements.govImportProcessBtn.style.display = 'none';
+                        }
 
-                if (isMultChanged) {
-                    // Se invalida el estado: obligamos al admin a re-validar.
-                    pendingImportFileData      = null;
-                    pendingExpectedMultiplier  = null;
-                    elements.govImportProcessBtn.style.display = 'none';
+                        elements.govImportProcessBtn.disabled = false;
+                        elements.govImportProcessBtn.textContent = 'Confirmar y Procesar Pagos';
+                    }
                 }
-
-                elements.govImportProcessBtn.disabled = false;
-                elements.govImportProcessBtn.textContent = 'Confirmar y Procesar Pagos';
-            }
+            );
         });
     }
 
@@ -5373,32 +5373,34 @@ document.addEventListener('DOMContentLoaded', () => {
             // Se asegura de asociar el listener una sola vez por contenedor usando dataset.
             if (!container.dataset.listenerRegistered) {
                 container.dataset.listenerRegistered = 'true';
-                container.addEventListener('click', async (e) => {
+                container.addEventListener('click', (e) => {
                     const btn = e.target.closest('.btn-revoke-invite');
                     if (btn) {
                         const email = btn.dataset.email;
                         if (!email) return;
                         
-                        const confirmRevoke = confirm(`¿Estás seguro de que deseas revocar y anular permanentemente la invitación para ${email}? Esta acción es irreversible.`);
-                        if (!confirmRevoke) return;
-                        
-                        try {
-                            btn.disabled = true;
-                            const originalText = btn.innerText;
-                            btn.innerText = "Revocando...";
-                            
-                            const result = await apiFetch('/api/admin/invitations', {
-                                method: 'DELETE',
-                                body: JSON.stringify({ email })
-                            });
-                            
-                            showCustomAlert(result.message || `Invitación de ${email} revocada con éxito.`);
-                            loadInvitationsList();
-                        } catch (err) {
-                            showCustomAlert(err.message || "Error al revocar la invitación.");
-                            btn.disabled = false;
-                            btn.innerText = "Revocar";
-                        }
+                        showCustomConfirm(
+                            `¿Estás seguro de que deseas revocar y anular permanentemente la invitación para ${email}? Esta acción es irreversible.`,
+                            async () => {
+                                try {
+                                    btn.disabled = true;
+                                    const originalText = btn.innerText;
+                                    btn.innerText = "Revocando...";
+                                    
+                                    const result = await apiFetch('/api/admin/invitations', {
+                                        method: 'DELETE',
+                                        body: JSON.stringify({ email })
+                                    });
+                                    
+                                    showCustomAlert(result.message || `Invitación de ${email} revocada con éxito.`);
+                                    loadInvitationsList();
+                                } catch (err) {
+                                    showCustomAlert(err.message || "Error al revocar la invitación.");
+                                    btn.disabled = false;
+                                    btn.innerText = "Revocar";
+                                }
+                            }
+                        );
                     }
                 });
             }
@@ -5500,7 +5502,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Event listener único para suspender/activar usando event delegation
             if (!container.dataset.listenerRegistered) {
                 container.dataset.listenerRegistered = 'true';
-                container.addEventListener('click', async (e) => {
+                container.addEventListener('click', (e) => {
                     const btn = e.target.closest('.btn-toggle-admin-status');
                     if (btn) {
                         const adminId = btn.dataset.id;
@@ -5510,25 +5512,27 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (!adminId || !targetStatus) return;
                         
                         const actionWord = targetStatus === 'suspended' ? 'SUSPENDER' : 'ACTIVAR';
-                        const confirmAction = confirm(`¿Estás seguro de que deseas ${actionWord} al administrador "${username}"?`);
-                        if (!confirmAction) return;
-                        
-                        try {
-                            btn.disabled = true;
-                            btn.innerText = targetStatus === 'suspended' ? "Suspendiendo..." : "Activando...";
-                            
-                            const result = await apiFetch(`/api/admin/team/${adminId}/status`, {
-                                method: 'POST',
-                                body: JSON.stringify({ status: targetStatus })
-                            });
-                            
-                            showCustomAlert(result.message || `Estado de ${username} actualizado con éxito.`);
-                            loadActiveAdminsList();
-                        } catch (err) {
-                            showCustomAlert(err.message || "Error al actualizar el estado del administrador.");
-                            btn.disabled = false;
-                            btn.innerText = targetStatus === 'suspended' ? "Suspender" : "Activar";
-                        }
+                        showCustomConfirm(
+                            `¿Estás seguro de que deseas ${actionWord} al administrador "${username}"?`,
+                            async () => {
+                                try {
+                                    btn.disabled = true;
+                                    btn.innerText = targetStatus === 'suspended' ? "Suspendiendo..." : "Activando...";
+                                    
+                                    const result = await apiFetch(`/api/admin/team/${adminId}/status`, {
+                                        method: 'POST',
+                                        body: JSON.stringify({ status: targetStatus })
+                                    });
+                                    
+                                    showCustomAlert(result.message || `Estado de ${username} actualizado con éxito.`);
+                                    loadActiveAdminsList();
+                                } catch (err) {
+                                    showCustomAlert(err.message || "Error al actualizar el estado del administrador.");
+                                    btn.disabled = false;
+                                    btn.innerText = targetStatus === 'suspended' ? "Suspender" : "Activar";
+                                }
+                            }
+                        );
                     }
                 });
             }

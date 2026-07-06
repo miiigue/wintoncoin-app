@@ -1223,10 +1223,16 @@ async function initializeDatabase() {
             END $$;
         `);
 
+        // Asegurar que las columnas del ledger existen antes de crear la función
+        // Esto previene fallas al inicializar bases de datos desde cero
+        await client.query(`ALTER TABLE booster_blue_ledger ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'legacy_entry';`);
+        await client.query(`ALTER TABLE booster_blue_ledger ADD COLUMN IF NOT EXISTS reference_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;`);
+
         // Ahora sí, ya sin dependencias, podemos eliminar/recrear funciones con seguridad.
         // Usamos CASCADE para cubrir objetos legacy desconocidos (y luego recreamos lo necesario).
         await client.query(`DROP FUNCTION IF EXISTS sync_booster_legacy_insert() CASCADE;`);
         await client.query(`DROP FUNCTION IF EXISTS record_booster_event(integer,text,numeric,integer) CASCADE;`);
+        await client.query(`DROP FUNCTION IF EXISTS record_booster_event(integer,text,numeric,integer,integer) CASCADE;`);
 
         // Nota: NO recreamos sync_booster_legacy_insert como trigger porque tu DB tiene
         // prevent_manual_balance_update y bloquearía UPDATE users.booster_blue_balance.
@@ -1237,16 +1243,17 @@ async function initializeDatabase() {
                 p_user_id INTEGER,
                 p_type TEXT,
                 p_amount NUMERIC,
-                p_publication_id INTEGER
+                p_publication_id INTEGER DEFAULT NULL,
+                p_reference_user_id INTEGER DEFAULT NULL
             )
             RETURNS VOID
             LANGUAGE plpgsql
             AS $$
             BEGIN
-                -- Modificado para insertar el parámetro p_type de forma nativa en la columna type
-                -- garantizando auditabilidad profunda y rastreo en el ledger.
-                INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id, type)
-                VALUES (p_user_id, p_amount, p_publication_id, p_type);
+                -- Modificado para insertar el parámetro p_type y reference_user_id de forma nativa
+                -- garantizando auditabilidad profunda y rastreo en el ledger (Data Lineage).
+                INSERT INTO booster_blue_ledger (user_id, amount, source_publication_id, type, reference_user_id)
+                VALUES (p_user_id, p_amount, p_publication_id, p_type, p_reference_user_id);
             END;
             $$;
         `);

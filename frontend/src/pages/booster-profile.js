@@ -84,11 +84,15 @@ function initializeBoosterProfilePage() {
 
     function getHeaderHTML(levelInfo) {
         const levelDescription = levelInfo?.description || 'Acumula más BLUE iou para subir de nivel.';
+        const capitalizedUsername = profileUsername 
+            ? profileUsername.charAt(0).toUpperCase() + profileUsername.slice(1)
+            : 'Impulsor';
         return `
             <div class="booster-header">
-                <h1>${levelInfo ? levelInfo.name : 'Impulsor'}</h1>
-                <span class="level-badge info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-booster-level">Nivel ${levelInfo ? levelInfo.level : '?'}</span>
-                <div class="booster-value-display" style="margin-top: 12px; font-weight: 600; font-size: 0.95rem; letter-spacing: 0.5px;">
+                <h1 class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-booster-level">
+                    ${escapeHtml(capitalizedUsername)}, eres nivel ${levelInfo ? levelInfo.level : '?'} <i class="info-icon" style="font-size: 1.1rem; font-style: normal; opacity: 0.8; margin-left: 5px; vertical-align: middle;">ⓘ</i>
+                </h1>
+                <div class="booster-value-display" style="margin-top: 6px; font-weight: 600; font-size: 0.85rem; letter-spacing: 0.5px;">
                     <span class="shimmer-text">1 BLUE iou = 1 BLUE = 1 USD</span>
                 </div>
                 <div id="tooltip-booster-level" class="info-tooltip" role="tooltip" aria-hidden="true">
@@ -121,7 +125,7 @@ function initializeBoosterProfilePage() {
         return `
             <div class="booster-stat-block booster-summary-card">
                 <div class="ranking-title">
-                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-total-blue">Total BLUE iou Acumulado</span>
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-total-blue">Total BLUE iou Acumulado <i class="info-icon" style="font-size: 0.85rem; font-style: normal; opacity: 0.7; margin-left: 4px;">ⓘ</i></span>
                 </div>
                 <div id="tooltip-total-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
                     <p>BLUE iou acumulados totales en tu perfil de impulsor.</p>
@@ -135,7 +139,7 @@ function initializeBoosterProfilePage() {
         return `
             <div class="booster-stat-block booster-summary-card">
                 <div class="ranking-title">
-                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-available-blue" style="color: #10B981; font-weight: bold;">Habilitado para Canje (KYC)</span>
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-available-blue" style="color: #10B981; font-weight: bold;">Habilitado para Canje (KYC) <i class="info-icon" style="font-size: 0.85rem; font-style: normal; opacity: 0.7; margin-left: 4px; color: #10B981;">ⓘ</i></span>
                 </div>
                 <div id="tooltip-available-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
                     <p>BLUE iou habilitados para canjear por tokens BLUE a partir del lanzamiento oficial. Requiere KYC aprobado tuyo y de tus referidos.</p>
@@ -149,7 +153,7 @@ function initializeBoosterProfilePage() {
         return `
             <div class="booster-stat-block booster-summary-card" style="position: relative;">
                 <div class="ranking-title">
-                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-pending-blue" style="color: #F59E0B; font-weight: bold;">BLUE IOU de referidos sin KYC</span>
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-pending-blue" style="color: #F59E0B; font-weight: bold;">BLUE IOU de referidos sin KYC <i class="info-icon" style="font-size: 0.85rem; font-style: normal; opacity: 0.7; margin-left: 4px; color: #F59E0B;">ⓘ</i></span>
                 </div>
                 <div id="tooltip-pending-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
                     <p>BLUE iou generados por tus referidos que se encuentran retenidos temporalmente hasta que ellos aprueben su verificación KYC.</p>
@@ -166,7 +170,7 @@ function initializeBoosterProfilePage() {
         return `
             <div class="booster-stat-block booster-summary-card">
                 <div class="ranking-title">
-                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-spendable-blue" style="color: #e83e8c; font-weight: bold;">Disponible para Donaciones</span>
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-spendable-blue" style="color: #e83e8c; font-weight: bold;">Disponible para Donaciones <i class="info-icon" style="font-size: 0.85rem; font-style: normal; opacity: 0.7; margin-left: 4px; color: #e83e8c;">ⓘ</i></span>
                 </div>
                 <div id="tooltip-spendable-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
                     <p>BLUE IOU recibios por registrarte y tareas realizadas que puedes donar de inmediato. Si no tienes KYC, la donación queda en espera.</p>
@@ -183,7 +187,7 @@ function initializeBoosterProfilePage() {
         return `
             <div class="booster-stat-block booster-summary-card booster-ranking">
                 <div class="ranking-title">
-                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-ranking">Ranking Mundial</span>
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-ranking">Ranking Mundial <i class="info-icon" style="font-size: 0.85rem; font-style: normal; opacity: 0.7; margin-left: 4px;">ⓘ</i></span>
                 </div>
                 <div id="tooltip-ranking" class="info-tooltip" role="tooltip" aria-hidden="true">
                     <p>Tu posición entre todos los impulsores activos de la plataforma.</p>
@@ -201,7 +205,7 @@ function initializeBoosterProfilePage() {
         return `
             <div class="booster-stat-block booster-summary-card booster-ranking">
                 <div class="ranking-title">
-                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-friends-ranking">Ranking entre amigos</span>
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-friends-ranking">Ranking entre amigos <i class="info-icon" style="font-size: 0.85rem; font-style: normal; opacity: 0.7; margin-left: 4px;">ⓘ</i></span>
                 </div>
                 <div id="tooltip-friends-ranking" class="info-tooltip" role="tooltip" aria-hidden="true">
                     <p>Tu posición frente a las personas que invitaste con tu código de referido.</p>
@@ -221,7 +225,7 @@ function initializeBoosterProfilePage() {
         return `
             <div class="booster-stat-block booster-summary-card booster-daily-goal">
                 <div class="ranking-title">
-                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-daily-goal">Meta diaria (hoy vs ayer)</span>
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-daily-goal">Meta diaria (hoy vs ayer) <i class="info-icon" style="font-size: 0.85rem; font-style: normal; opacity: 0.7; margin-left: 4px;">ⓘ</i></span>
                 </div>
                 <div id="tooltip-daily-goal" class="info-tooltip" role="tooltip" aria-hidden="true">
                     <p>Compara tus ganancias de hoy vs ayer. Supéralas diariamente para mejorar tu ranking.</p>
@@ -238,7 +242,7 @@ function initializeBoosterProfilePage() {
         return `
             <div class="booster-stat-block booster-summary-card">
                 <div class="ranking-title">
-                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-tasks">Tareas de Impulsor Completadas</span>
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-tasks">Tareas de Impulsor Completadas <i class="info-icon" style="font-size: 0.85rem; font-style: normal; opacity: 0.7; margin-left: 4px;">ⓘ</i></span>
                 </div>
                 <div id="tooltip-tasks" class="info-tooltip" role="tooltip" aria-hidden="true">
                     <p>Cantidad de tareas de plataforma que has completado como impulsor.</p>
@@ -331,7 +335,7 @@ function initializeBoosterProfilePage() {
         if (!transactions || transactions.length === 0) {
             return `
                 <div class="history-section">
-                    <h2 class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-history">Historial de Ganancias</h2>
+                    <h2 class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-history">Historial de Ganancias <i class="info-icon" style="font-size: 1rem; font-style: normal; opacity: 0.7; margin-left: 4px; vertical-align: middle;">ⓘ</i></h2>
                     <div id="tooltip-history" class="info-tooltip" role="tooltip" aria-hidden="true">
                         <p>Registro detallado de tus ganancias como impulsor.</p>
                     </div>
@@ -358,7 +362,7 @@ function initializeBoosterProfilePage() {
 
         return `
             <div class="history-section">
-                <h2 class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-history">Historial de Ganancias</h2>
+                <h2 class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-history">Historial de Ganancias <i class="info-icon" style="font-size: 1rem; font-style: normal; opacity: 0.7; margin-left: 4px; vertical-align: middle;">ⓘ</i></h2>
                 <div id="tooltip-history" class="info-tooltip" role="tooltip" aria-hidden="true">
                     <p>Registro detallado de tus ganancias como impulsor.</p>
                 </div>
