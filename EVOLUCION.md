@@ -28,6 +28,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   3. Renombrar las pestañas de historial de transacciones de "Estado de Cuenta (Web3)" e "Recompensas (Impulsor)" a "Blockchain" e "Impulsor" para simplificar y dinamizar la interfaz.
   4. Rediseñar la cabecera del perfil de impulsor para que sea más pequeña y muestre la frase "[Nombre], eres nivel [X]", de forma que se optimice el espacio en pantallas móviles.
   5. Agregar un icono informativo (`ⓘ`) al lado de todos los títulos de tarjetas y secciones que posean tooltips interactivos para indicar al usuario de forma intuitiva que al tocarlos se despliega ayuda.
+  6. Optimización en Compartir: Se silenciaron los mensajes de error falsos positivos al cancelar la ventana nativa de compartir (controlando el `AbortError` de la Web Share API) para evitar diálogos de error molestos e innecesarios.
 - **Decisión de Ingeniería**:
   - **Unificación de Alertas y Confirmaciones en Admin**:
     - Se mapearon y refactorizaron los archivos administrativos `admin-panel.js`, `momentum-admin.js` y `admin-recruitment.html`.
@@ -42,8 +43,10 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
     - Se rediseñó la función `getHeaderHTML` en `booster-profile.js` para capitalizar el nombre del usuario y mostrar `"Nombre, eres nivel X"` de forma directa, eliminando el badge antiguo e inyectando un icono `ⓘ` informativo al final de la frase.
     - Se modificó `booster-style.css` disminuyendo los paddings y márgenes del `.booster-header` y reduciendo el tamaño del `h1` de `2.5rem` a `1.6rem` para pantallas más pequeñas.
     - Se inyectó el icono `ⓘ` en las funciones de marcado de todas las tarjetas de balances, meta diaria, tareas completadas e historial de ganancias de `booster-profile.js`.
+  - **Silenciado de Cancelaciones en Web Share API**:
+    - Se modificaron `contract-interaction.js` y `publication-detail.js` interceptando el error de tipo `AbortError` arrojado por `navigator.share` para omitir la alerta de error si el usuario decide no concretar la acción.
 - **Impacto**: Interfaz de usuario profesional, limpia y libre de fallos por bloqueos de diálogos del navegador. Mayor fluidez en la navegación financiera y optimización extrema de la visualización en teléfonos móviles al evitar scroll innecesario.
-- **Archivos modificados**: `causa-solidaria.html`, `causa-solidaria.js`, `solicitud-solidaria.html`, `admin-panel.js`, `momentum-admin.html`, `momentum-admin.js`, `admin-recruitment.html`, `transactions.js`, `booster-profile.js`, `booster-style.css`, `TECHNICAL_IMPROVEMENTS.md`.
+- **Archivos modificados**: `causa-solidaria.html`, `causa-solidaria.js`, `solicitud-solidaria.html`, `admin-panel.js`, `momentum-admin.html`, `momentum-admin.js`, `admin-recruitment.html`, `transactions.js`, `booster-profile.js`, `booster-style.css`, `contract-interaction.js`, `publication-detail.js`, `TECHNICAL_IMPROVEMENTS.md`.
 
 ### 2026-07-03 — Escrow de Donaciones y Segmentación de Saldo Seguro (AML/Growth)
 

@@ -2671,7 +2671,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Error al compartir código de referido:', error);
-            showCustomAlert('Error al compartir el código de referido.');
+            // Ignorar de forma silenciosa si el usuario canceló la acción (AbortError)
+            if (error.name !== 'AbortError') {
+                showCustomAlert('Error al compartir el código de referido.');
+            }
         }
     }
 
