@@ -3734,3 +3734,10 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
 - **Ecosistema Web3:** Lee exclusivamente de la tabla transactions.
 - **Ecosistema Impulsor:** Lee exclusivamente de la tabla booster_transactions, donde el sistema ya registraba de forma nativa titulos explicitos.
 **Impacto (Auditoria y UX):** 100% de conciliacion matematica garantizada. La interfaz frontend ahora consume blue_change directamente del ledger contable, mostrando historiales transparentes al nivel de estandares SOC 2 y previniendo fugas de visualizacion de capital.
+
+### Ocultado de Direccion de Billetera Web3 en Pre-Lanzamiento (Privacidad / UX)
+
+**Fecha:** 06/07/2026
+**Problema:** A pesar de estar en fase de pre-lanzamiento (\pre_launch_mode_enabled = true\), al ingresar al panel de la billetera se mostraba el contenedor de la clave publica (\myWalletAddressContainer\) del usuario, lo cual resultaba confuso dado que la funcionalidad Web3 aun no esta lanzada oficialmente.
+**Solucion Profesional:** Se modifico \contract-interaction.js\ para que consulte de forma asincrona los ajustes de la plataforma (\getPlatformSettings\) al renderizar. Si el pre-lanzamiento esta activo, el contenedor de la direccion publica se fuerza a \display: none\, manteniendola invisible y privada para el usuario.
+**Impacto:** Se evita la exposicion prematura de datos Web3 y se alinea la interfaz con la etapa de lanzamiento virtual de la plataforma.
