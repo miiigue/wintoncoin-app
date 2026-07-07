@@ -124,8 +124,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getBlueUnitLabel(pub, platformSettings) {
-        if (platformSettings?.pre_launch_mode_enabled && isPlatformPublication(pub, platformSettings)) {
-            return 'BLUE iou';
+        if (platformSettings?.pre_launch_mode_enabled) {
+            return 'BLUE IOU';
         }
         return 'BLUE';
     }
@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const costLabel = isDonation ? `Meta: ${formatBalance(pub.goal_amount)} ${blueLabel}` : `${formatBalance(pub.blue_cost)} ${blueLabel}`;
 
         const metaBadgeHTML = isDonation
-            ? `<div class="donation-meta-badge-detail">Meta: ${formatBalance(pub.goal_amount)} BLUE</div>`
+            ? `<div class="donation-meta-badge-detail">Meta: ${formatBalance(pub.goal_amount)} ${blueLabel}</div>`
             : '';
 
         // Barra de progreso para donaciones
@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
             progressHTML = `
                 <div class="donation-progress-container detail-progress">
                     <div class="donation-progress-labels">
-                        <span><strong>${formatBalance(current)}</strong> recaudados de ${formatBalance(goal)} BLUE</span>
+                        <span><strong>${formatBalance(current)}</strong> recaudados de ${formatBalance(goal)} ${blueLabel}</span>
                         <span>${percent}%</span>
                     </div>
                     <div class="donation-progress-bar">
