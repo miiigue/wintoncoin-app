@@ -20,7 +20,17 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
 
-### 2026-07-06 — Unificación Completa de Modales Personalizados, Historial y UI Compacta del Booster
+### 2026-07-07 — Ajuste de Tamaño y Personalización del Banner de Vista Previa para Redes Sociales
+
+- **Contexto**: Al compartir enlaces por WhatsApp, la imagen de vista previa no se mostraba debido a que la imagen del logotipo corporativo (`logo-high-res.png`) superaba los 300 KB (límite estricto de WhatsApp/Meta) y a posibles problemas de resolución de certificados SSL sin el subdominio `www.`. Además, se requería que al compartir páginas relacionadas con causas humanitarias o referidos del booster ("Ayudemos a Venezuela"), se mostrara una imagen representativa y cálida en lugar del logo general.
+- **Decisión de Ingeniería**:
+  - Se optimizó el peso de la imagen de vista previa estática utilizando `icon-192x192.png` (86 KB) y el subdominio seguro `www.demo.wintoncoin.com` para todos los enlaces estáticos públicos en `index.html`, `como-funciona.html` y `trabaja-con-nosotros.html`.
+  - Se generó y seleccionó una nueva imagen artística personalizada `solidaridad-banner.png` (Corazón brillante con cruz médica y bandera de Venezuela de fondo) con un peso optimizado por debajo de los 300 KB.
+  - Se configuraron los metatags de `og:image` en `causa-solidaria.html` y `register.html` (página de registro que se comparte a través del banner de campaña "Ayudemos a Venezuela") para apuntar directamente a este nuevo banner de solidaridad.
+  - Se regeneró el build de producción demo a través de `npm run build:demo` y se subieron los cambios a Git.
+- **Impacto**: Incremento drástico en la conversión de compartidos al asegurar el renderizado inmediato y correcto de la vista previa en WhatsApp. Coherencia de marca y del propósito de la campaña al mostrar un corazón de ayuda médica en lugar del logo empresarial de la plataforma al compartir causas y enlaces de referidos de "Ayudemos a Venezuela".
+
+### 2026-07-06 — Unificación Completa de Modales Personalizados, Historial, KYC en Referidos, Open Graph Estático/Dinámico (WhatsApp Previews) y UI Compacta del Booster
 
 - **Contexto**: Para lograr un frontend 100% libre de elementos nativos del navegador, coherente visualmente y alineado con los estándares FinTech y bancarios, se requería:
   1. Reemplazar todos los cuadros de diálogo nativos (`alert()` y `confirm()`) restantes en las secciones públicas y del panel administrativo por los modales personalizados (`showCustomAlert` y `showCustomConfirm`).
@@ -28,6 +38,10 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   3. Renombrar las pestañas de historial de transacciones de "Estado de Cuenta (Web3)" e "Recompensas (Impulsor)" a "Blockchain" e "Impulsor" para simplificar y dinamizar la interfaz.
   4. Rediseñar la cabecera del perfil de impulsor para que sea más pequeña y muestre la frase "[Nombre], eres nivel [X]", de forma que se optimice el espacio en pantallas móviles.
   5. Agregar un icono informativo (`ⓘ`) al lado de todos los títulos de tarjetas y secciones que posean tooltips interactivos para indicar al usuario de forma intuitiva que al tocarlos se despliega ayuda.
+  6. Optimización en Compartir: Se silenciaron los mensajes de error falsos positivos al cancelar la ventana nativa de compartir (controlando el `AbortError` de la Web Share API) para evitar diálogos de error molestos e innecesarios.
+  7. Visualización del KYC en Referidos: Para justificar la retención temporal de BLUE IOU por referidos sin KYC, se requería mostrar el estado del KYC de cada referido de forma clara e intuitiva en la tabla de referidos del usuario.
+  8. Inyección Dinámica de Open Graph (og:tags) para Previsualizaciones Premium: Para que al compartir causas o enlaces de referidos por WhatsApp se muestre de forma automática la foto de la causa o el banner de la promoción de referidos subidos desde el panel administrativo, se implementó un middleware dinámico de inyección de metadatos SEO.
+  9. Integración de Fallback Estático para SEO en Hostinger: Debido a que el frontend de producción está alojado de forma estática en Hostinger y el backend en Render, las peticiones HTTP GET directas de WhatsApp a las páginas HTML las atiende Hostinger directamente sin pasar por Node.js. Para solucionar la falta de imágenes de vista previa en este escenario, se inyectaron metatags de Open Graph fijos en las 5 páginas públicas más compartidas.
 - **Decisión de Ingeniería**:
   - **Unificación de Alertas y Confirmaciones en Admin**:
     - Se mapearon y refactorizaron los archivos administrativos `admin-panel.js`, `momentum-admin.js` y `admin-recruitment.html`.
@@ -42,8 +56,23 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
     - Se rediseñó la función `getHeaderHTML` en `booster-profile.js` para capitalizar el nombre del usuario y mostrar `"Nombre, eres nivel X"` de forma directa, eliminando el badge antiguo e inyectando un icono `ⓘ` informativo al final de la frase.
     - Se modificó `booster-style.css` disminuyendo los paddings y márgenes del `.booster-header` y reduciendo el tamaño del `h1` de `2.5rem` a `1.6rem` para pantallas más pequeñas.
     - Se inyectó el icono `ⓘ` en las funciones de marcado de todas las tarjetas de balances, meta diaria, tareas completadas e historial de ganancias de `booster-profile.js`.
-- **Impacto**: Interfaz de usuario profesional, limpia y libre de fallos por bloqueos de diálogos del navegador. Mayor fluidez en la navegación financiera y optimización extrema de la visualización en teléfonos móviles al evitar scroll innecesario.
-- **Archivos modificados**: `causa-solidaria.html`, `causa-solidaria.js`, `solicitud-solidaria.html`, `admin-panel.js`, `momentum-admin.html`, `momentum-admin.js`, `admin-recruitment.html`, `transactions.js`, `booster-profile.js`, `booster-style.css`, `TECHNICAL_IMPROVEMENTS.md`.
+  - **Silenciado de Cancelaciones en Web Share API**:
+    - Se modificaron `contract-interaction.js` y `publication-detail.js` interceptando el error de tipo `AbortError` arrojado por `navigator.share` para omitir la alerta de error si el usuario decide no concretar la acción.
+  - **Mapeo e Integración de KYC en Lista de Referidos**:
+    - En el backend, se modificó `userController.js` para agregar la columna `u.kyc_verified` a la consulta de referidos en el endpoint `/api/users/:username/referral-info`.
+    - En el frontend, se actualizó `referrals.js` para añadir la columna "KYC" de primera, simplificar el título "Usuario Registrado" a "Usuario", y dibujar un badge verde `✅` (KYC Aprobado) o un reloj de arena naranja `⏳` (KYC Pendiente) según corresponda.
+  - **Inyección Dinámica de Open Graph (og:tags) para Previsualizaciones**:
+    - Se diseñó un middleware defensivo `seoMiddleware.js` en el backend para interceptar los accesos HTTP GET a `causa-solidaria.html` y `register.html` antes del servidor estático.
+    - Para causas, consulta la tabla `humanitarian_causes` para extraer el título, descripción (`story`) y la imagen principal de la causa (primer elemento de `evidence_urls`). Para registros de referidos, consulta la llave `referral_campaign_image_url` en la tabla `app_settings`.
+    - Convierte de forma dinámica las rutas relativas en URLs absolutas necesarias para WhatsApp basándose en la cabecera `Host` y el protocolo seguro de la petición.
+    - Escapa los datos recuperados de la BD para prevenir inyecciones HTML o XSS en los atributos `content` y reemplaza de forma segura la cabecera mediante expresiones regulares.
+    - Se implementó degradación elegante (fallback resiliente): en caso de ID de causa inválido, inexistencia o error de servidor, se llama a `next()` y Express sirve la página estática por defecto con el logotipo corporativo.
+    - Se incluyó un script de pruebas de regresión `test_seo.js` para validar mocks y verificar que no hay regresiones de código.
+  - **Inyección Estática de Open Graph para Soporte de Servidores CDNs (Hostinger Fallback)**:
+    - Se agregaron etiquetas fijas estáticas de Open Graph (`og:title`, `og:description`, `og:image`, `og:type` y `twitter:card`) en los archivos HTML originales del frontend para las 5 páginas principales: `index.html`, `register.html`, `causa-solidaria.html`, `como-funciona.html` y `trabaja-con-nosotros.html`.
+    - Las etiquetas apuntan al logotipo oficial corporativo en alta resolución (`/assets/icons/logo-high-res.png`) almacenado en la carpeta `public` para garantizar la compatibilidad universal en WhatsApp al compartir cualquiera de los enlaces principales desde Hostinger de forma estática.
+- **Impacto**: Interfaz de usuario profesional, limpia y libre de fallos por diálogos del navegador. Mayor transparencia en el estado del KYC de la red de referidos. Previsualizaciones premium automáticas con compatibilidad universal en redes sociales tanto de forma estática (Hostinger) como dinámica (Render), optimizadas para alta conversión, velocidad de carga y máxima ciberseguridad.
+- **Archivos modificados**: `causa-solidaria.html`, `causa-solidaria.js`, `solicitud-solidaria.html`, `admin-panel.js`, `momentum-admin.html`, `momentum-admin.js`, `admin-recruitment.html`, `transactions.js`, `booster-profile.js`, `booster-style.css`, `contract-interaction.js`, `publication-detail.js`, `userController.js`, `referrals.js`, `seoMiddleware.js`, `server.js`, `test_seo.js`, `index.html`, `como-funciona.html`, `trabaja-con-nosotros.html`, `register.html`, `TECHNICAL_IMPROVEMENTS.md`.
 
 ### 2026-07-03 — Escrow de Donaciones y Segmentación de Saldo Seguro (AML/Growth)
 
@@ -3731,3 +3760,10 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
 - **Ecosistema Web3:** Lee exclusivamente de la tabla transactions.
 - **Ecosistema Impulsor:** Lee exclusivamente de la tabla booster_transactions, donde el sistema ya registraba de forma nativa titulos explicitos.
 **Impacto (Auditoria y UX):** 100% de conciliacion matematica garantizada. La interfaz frontend ahora consume blue_change directamente del ledger contable, mostrando historiales transparentes al nivel de estandares SOC 2 y previniendo fugas de visualizacion de capital.
+
+### Ocultado de Direccion de Billetera Web3 en Pre-Lanzamiento (Privacidad / UX)
+
+**Fecha:** 06/07/2026
+**Problema:** A pesar de estar en fase de pre-lanzamiento (\pre_launch_mode_enabled = true\), al ingresar al panel de la billetera se mostraba el contenedor de la clave publica (\myWalletAddressContainer\) del usuario, lo cual resultaba confuso dado que la funcionalidad Web3 aun no esta lanzada oficialmente.
+**Solucion Profesional:** Se modifico \contract-interaction.js\ para que consulte de forma asincrona los ajustes de la plataforma (\getPlatformSettings\) al renderizar. Si el pre-lanzamiento esta activo, el contenedor de la direccion publica se fuerza a \display: none\, manteniendola invisible y privada para el usuario.
+**Impacto:** Se evita la exposicion prematura de datos Web3 y se alinea la interfaz con la etapa de lanzamiento virtual de la plataforma.

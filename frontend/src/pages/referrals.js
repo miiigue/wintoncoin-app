@@ -132,7 +132,8 @@ function initializeReferralsPage() {
             <table id="referrals-table">
                 <thead>
                     <tr>
-                        <th>Usuario Registrado</th>
+                        <th style="width: 80px; text-align: center;">KYC</th>
+                        <th>Usuario</th>
                         <th>Fecha de Registro</th>
                         <th>BLUE iou acumulado</th>
                     </tr>
@@ -153,7 +154,12 @@ function initializeReferralsPage() {
             ? `<a href="profile.html?user=${user.referred_username}" class="profile-link">${user.referred_username}</a>`
             : user.referred_username;
 
-        return `<tr><td>${userNameHTML}</td><td>${registrationDate}</td><td>${totalBoosterBlue}</td></tr>`;
+        // Indicador visual de KYC
+        const kycIndicator = user.kyc_verified
+            ? `<span style="color: #10B981; font-weight: bold; font-size: 1.1rem; display: block; text-align: center;" title="KYC Aprobado">✅</span>`
+            : `<span style="color: #F59E0B; font-weight: bold; font-size: 1.1rem; display: block; text-align: center;" title="KYC Pendiente">⏳</span>`;
+
+        return `<tr><td style="text-align: center;">${kycIndicator}</td><td>${userNameHTML}</td><td>${registrationDate}</td><td>${totalBoosterBlue}</td></tr>`;
     }
 
     function formatBlueAmount(value) {

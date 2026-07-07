@@ -793,6 +793,7 @@ const UserController = {
                 client.query(`
                     SELECT
                         u.username as referred_username,
+                        u.kyc_verified,
                         rl.created_at,
                         (
                             SELECT COALESCE(SUM(amount), 0)

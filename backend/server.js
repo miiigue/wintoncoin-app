@@ -1,5 +1,5 @@
 // 0. Cargar variables de entorno dinámicamente según el entorno
-require('./config');
+require('./config.js');
 
 // 1. Importar las librerías necesarias
 const express = require('express');
@@ -18,6 +18,7 @@ const {
     requireAcceptedLegalByUsernameField
 } = require('./src/middleware/legalAcceptanceMiddleware');
 const { verifyAdminToken } = require('./src/middleware/adminAuthMiddleware');
+const { seoMiddlewareCauses, seoMiddlewareReferrals } = require('./src/middleware/seoMiddleware');
 
 // === SERVICIOS Y RUTAS MODULARIZADOS NUEVAS ===
 const publicationRoutes = require('./src/routes/publicationRoutes');
@@ -140,6 +141,11 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser()); // CRÍTICO: Parsea las cookies de las peticiones
+
+// Inyección dinámica de metatags de SEO (Open Graph) para previsualizaciones en WhatsApp/Telegram/Redes
+app.get('/causa-solidaria.html', seoMiddlewareCauses);
+app.get('/register.html', seoMiddlewareReferrals);
+
 app.use(express.static(path.join(__dirname, '../frontend')));
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads'))); // Habilitar acceso a imágenes subidas
 

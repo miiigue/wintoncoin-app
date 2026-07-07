@@ -867,7 +867,10 @@ Puedes ver los detalles aquí:`;
 
         } catch (error) {
             console.error('Error al compartir la publicación:', error);
-            showCustomAlert(error.message || 'Ocurrió un error al intentar compartir.');
+            // Ignorar de forma silenciosa si el usuario canceló la acción (AbortError)
+            if (error.name !== 'AbortError') {
+                showCustomAlert(error.message || 'Ocurrió un error al intentar compartir.');
+            }
         }
     }
 

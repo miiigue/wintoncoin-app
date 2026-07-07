@@ -2156,13 +2156,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Countdown timers
                 handleCountdownTimers(data);
 
-                // Web3 Wallet
-                if (data.web3_wallet_address && elements.myWalletAddressContainer && elements.myWalletAddressText && elements.copyMyWalletBtn) {
+                // Web3 Wallet - Ocultar en pre-lanzamiento
+                const settings = await getPlatformSettings();
+                const isPreLaunch = settings?.pre_launch_mode_enabled === true || settings?.pre_launch_mode_enabled === 'true';
+
+                if (!isPreLaunch && data.web3_wallet_address && elements.myWalletAddressContainer && elements.myWalletAddressText && elements.copyMyWalletBtn) {
                     const addr = data.web3_wallet_address;
                     const truncated = addr.substring(0, 8) + '...' + addr.substring(addr.length - 6);
                     elements.myWalletAddressText.textContent = truncated;
                     elements.copyMyWalletBtn.dataset.address = addr;
                     elements.myWalletAddressContainer.style.display = 'flex';
+                } else if (elements.myWalletAddressContainer) {
+                    elements.myWalletAddressContainer.style.display = 'none';
                 }
             }
         } catch (error) {
@@ -2671,7 +2676,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Error al compartir código de referido:', error);
-            showCustomAlert('Error al compartir el código de referido.');
+            // Ignorar de forma silenciosa si el usuario canceló la acción (AbortError)
+            if (error.name !== 'AbortError') {
+                showCustomAlert('Error al compartir el código de referido.');
+            }
         }
     }
 
