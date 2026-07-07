@@ -15,6 +15,20 @@ function escapeHtmlAttribute(str) {
         .replace(/>/g, '&gt;');
 }
 
+// Construye de forma robusta la URL absoluta para og:image
+function toAbsoluteUrl(imageUrl, baseUrl) {
+    if (!imageUrl) {
+        return `${baseUrl}/assets/logo-high-res.png`;
+    }
+    if (/^https?:\/\//i.test(imageUrl)) {
+        return imageUrl;
+    }
+    if (imageUrl.startsWith('//')) {
+        return `https:${imageUrl}`;
+    }
+    return imageUrl.startsWith('/') ? `${baseUrl}${imageUrl}` : `${baseUrl}/${imageUrl}`;
+}
+
 // Middleware de SEO para Causas Solidarias
 async function seoMiddlewareCauses(req, res, next) {
     try {
@@ -61,13 +75,8 @@ async function seoMiddlewareCauses(req, res, next) {
         const host = req.get('host');
         const baseUrl = `${protocol}://${host}`;
 
-        // Si la imagen es relativa, prefijarla con el host absoluto
-        if (imageUrl && imageUrl.startsWith('/')) {
-            imageUrl = `${baseUrl}${imageUrl}`;
-        } else if (!imageUrl) {
-            // Fallback al logotipo oficial
-            imageUrl = `${baseUrl}/assets/logo-high-res.png`;
-        }
+        // Construir la URL absoluta de forma robusta
+        imageUrl = toAbsoluteUrl(imageUrl, baseUrl);
 
         const fullUrl = `${baseUrl}/causa-solidaria.html?id=${causeId}`;
 
@@ -143,13 +152,8 @@ async function seoMiddlewareReferrals(req, res, next) {
         const host = req.get('host');
         const baseUrl = `${protocol}://${host}`;
 
-        // Prefijar si la imagen es relativa
-        if (imageUrl && imageUrl.startsWith('/')) {
-            imageUrl = `${baseUrl}${imageUrl}`;
-        } else if (!imageUrl) {
-            // Fallback al logotipo oficial
-            imageUrl = `${baseUrl}/assets/logo-high-res.png`;
-        }
+        // Construir la URL absoluta de forma robusta
+        imageUrl = toAbsoluteUrl(imageUrl, baseUrl);
 
         const referralCode = req.query.ref ? String(req.query.ref) : '';
         const fullUrl = referralCode 
