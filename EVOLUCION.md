@@ -20,15 +20,18 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
 
-### 2026-07-07 — Ajuste de Tamaño y Personalización del Banner de Vista Previa para Redes Sociales
+### 2026-07-07 — Ajuste de Vista Previa para WhatsApp, Unificación de Moneda y Diseño Responsivo de la Escalera de Rangos
 
-- **Contexto**: Al compartir enlaces por WhatsApp, la imagen de vista previa no se mostraba debido a que la imagen del logotipo corporativo (`logo-high-res.png`) superaba los 300 KB (límite estricto de WhatsApp/Meta) y a posibles problemas de resolución de certificados SSL sin el subdominio `www.`. Además, se requería que al compartir páginas relacionadas con causas humanitarias o referidos del booster ("Ayudemos a Venezuela"), se mostrara una imagen representativa y cálida en lugar del logo general.
+- **Contexto**: 
+  1. Al compartir enlaces por WhatsApp, la vista previa no cargaba debido a que la imagen del logotipo corporativo superaba el peso máximo de 300 KB y por la ausencia del subdominio seguro `www.`. Además, se necesitaba personalizar el banner para las campañas de ayuda social.
+  2. Había inconsistencias visuales donde la meta de la tarjeta mostraba `"BLUE"` pero la barra de progreso mostraba `"BLUE IOU"`.
+  3. En pantallas móviles, el rango actual (activo) del usuario en la escalera de niveles del perfil sobresalía por el lado derecho saliéndose de los márgenes de la pantalla.
 - **Decisión de Ingeniería**:
-  - Se optimizó el peso de la imagen de vista previa estática utilizando `icon-192x192.png` (86 KB) y el subdominio seguro `www.demo.wintoncoin.com` para todos los enlaces estáticos públicos en `index.html`, `como-funciona.html` y `trabaja-con-nosotros.html`.
-  - Se generó y seleccionó una nueva imagen artística personalizada `solidaridad-banner.png` (Corazón brillante con cruz médica y bandera de Venezuela de fondo) con un peso optimizado por debajo de los 300 KB.
-  - Se configuraron los metatags de `og:image` en `causa-solidaria.html` y `register.html` (página de registro que se comparte a través del banner de campaña "Ayudemos a Venezuela") para apuntar directamente a este nuevo banner de solidaridad.
-  - Se regeneró el build de producción demo a través de `npm run build:demo` y se subieron los cambios a Git.
-- **Impacto**: Incremento drástico en la conversión de compartidos al asegurar el renderizado inmediato y correcto de la vista previa en WhatsApp. Coherencia de marca y del propósito de la campaña al mostrar un corazón de ayuda médica en lugar del logo empresarial de la plataforma al compartir causas y enlaces de referidos de "Ayudemos a Venezuela".
+  - **Optimización SEO y Banner:** Se cambió el `og:image` por `icon-192x192.png` (86 KB) y por un nuevo diseño artístico `solidaridad-banner.png` (corazón de ayuda con la bandera de Venezuela) en las páginas estáticas de causas y registros. Se forzó el uso del subdominio seguro `www.demo.wintoncoin.com` para evitar errores SSL.
+  - **Consistencia de BLUE IOU:** Se modificó la función `getBlueUnitLabel` para retornar `'BLUE IOU'` (en mayúsculas) de forma universal para todos los tipos de creadores de publicación (plataforma o usuario) en prelanzamiento. Se reemplazaron todas las cadenas de texto del tipo `"BLUE"` escritas directamente en el HTML de las barras de progreso por la variable dinámica `${blueLabel}`.
+  - **Diseño Responsivo de la Escalera:** Se detectó que la clase `.staircase-step.active` tenía una regla heredada de `width: 340px;` que colisionaba con el ancho adaptativo global del contenedor. Se eliminó la propiedad de ancho físico fijo, permitiendo que la caja activa herede el ancho de los niveles normales (100% en escritorio, 280px en dispositivos móviles) mientras mantiene su efecto de profundidad `translateZ(20px)` y sus animaciones luminosas.
+  - **Compilación:** Se regeneró el build completo mediante `npm run build:demo` y se subieron los cambios a Git.
+- **Impacto**: Incremento en la conversión de compartidos al renderizar imágenes de forma inmediata y correcta en WhatsApp. Coherencia y consistencia en el vocabulario financiero de la plataforma. Corrección visual completa de la escalera de rangos del perfil de impulsor en todos los tamaños de pantalla (escritorio y móviles), logrando una interfaz limpia y libre de cortes de cajas.
 
 ### 2026-07-06 — Unificación Completa de Modales Personalizados, Historial, KYC en Referidos, Open Graph Estático/Dinámico (WhatsApp Previews) y UI Compacta del Booster
 
