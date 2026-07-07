@@ -1,5 +1,5 @@
 // 0. Cargar variables de entorno dinámicamente según el entorno
-require('./config');
+require('./config.js');
 
 // 1. Importar las librerías necesarias
 const express = require('express');
