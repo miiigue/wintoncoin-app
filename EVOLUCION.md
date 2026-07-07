@@ -20,7 +20,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
 
-### 2026-07-06 — Unificación Completa de Modales Personalizados, Historial y UI Compacta del Booster
+### 2026-07-06 — Unificación Completa de Modales Personalizados, Historial, KYC en Referidos y UI Compacta del Booster
 
 - **Contexto**: Para lograr un frontend 100% libre de elementos nativos del navegador, coherente visualmente y alineado con los estándares FinTech y bancarios, se requería:
   1. Reemplazar todos los cuadros de diálogo nativos (`alert()` y `confirm()`) restantes en las secciones públicas y del panel administrativo por los modales personalizados (`showCustomAlert` y `showCustomConfirm`).
@@ -29,6 +29,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   4. Rediseñar la cabecera del perfil de impulsor para que sea más pequeña y muestre la frase "[Nombre], eres nivel [X]", de forma que se optimice el espacio en pantallas móviles.
   5. Agregar un icono informativo (`ⓘ`) al lado de todos los títulos de tarjetas y secciones que posean tooltips interactivos para indicar al usuario de forma intuitiva que al tocarlos se despliega ayuda.
   6. Optimización en Compartir: Se silenciaron los mensajes de error falsos positivos al cancelar la ventana nativa de compartir (controlando el `AbortError` de la Web Share API) para evitar diálogos de error molestos e innecesarios.
+  7. Visualización del KYC en Referidos: Para justificar la retención temporal de BLUE IOU por referidos sin KYC, se requería mostrar el estado del KYC de cada referido de forma clara e intuitiva en la tabla de referidos del usuario.
 - **Decisión de Ingeniería**:
   - **Unificación de Alertas y Confirmaciones en Admin**:
     - Se mapearon y refactorizaron los archivos administrativos `admin-panel.js`, `momentum-admin.js` y `admin-recruitment.html`.
@@ -45,8 +46,11 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
     - Se inyectó el icono `ⓘ` en las funciones de marcado de todas las tarjetas de balances, meta diaria, tareas completadas e historial de ganancias de `booster-profile.js`.
   - **Silenciado de Cancelaciones en Web Share API**:
     - Se modificaron `contract-interaction.js` y `publication-detail.js` interceptando el error de tipo `AbortError` arrojado por `navigator.share` para omitir la alerta de error si el usuario decide no concretar la acción.
-- **Impacto**: Interfaz de usuario profesional, limpia y libre de fallos por bloqueos de diálogos del navegador. Mayor fluidez en la navegación financiera y optimización extrema de la visualización en teléfonos móviles al evitar scroll innecesario.
-- **Archivos modificados**: `causa-solidaria.html`, `causa-solidaria.js`, `solicitud-solidaria.html`, `admin-panel.js`, `momentum-admin.html`, `momentum-admin.js`, `admin-recruitment.html`, `transactions.js`, `booster-profile.js`, `booster-style.css`, `contract-interaction.js`, `publication-detail.js`, `TECHNICAL_IMPROVEMENTS.md`.
+  - **Mapeo e Integración de KYC en Lista de Referidos**:
+    - En el backend, se modificó `userController.js` para agregar la columna `u.kyc_verified` a la consulta de referidos en el endpoint `/api/users/:username/referral-info`.
+    - En el frontend, se actualizó `referrals.js` para añadir la columna "KYC" de primera, simplificar el título "Usuario Registrado" a "Usuario", y dibujar un badge verde `✅` (KYC Aprobado) o un reloj de arena naranja `⏳` (KYC Pendiente) según corresponda.
+- **Impacto**: Interfaz de usuario profesional, limpia y libre de fallos por diálogos del navegador. Mayor transparencia en el estado del KYC de la red de referidos del impulsor y optimización de visualización en dispositivos móviles.
+- **Archivos modificados**: `causa-solidaria.html`, `causa-solidaria.js`, `solicitud-solidaria.html`, `admin-panel.js`, `momentum-admin.html`, `momentum-admin.js`, `admin-recruitment.html`, `transactions.js`, `booster-profile.js`, `booster-style.css`, `contract-interaction.js`, `publication-detail.js`, `userController.js`, `referrals.js`, `TECHNICAL_IMPROVEMENTS.md`.
 
 ### 2026-07-03 — Escrow de Donaciones y Segmentación de Saldo Seguro (AML/Growth)
 
