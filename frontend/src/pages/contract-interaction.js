@@ -1380,8 +1380,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getBlueUnitLabel(pub, platformSettings) {
-        if (platformSettings?.pre_launch_mode_enabled && isPlatformPublication(pub, platformSettings)) {
-            return 'BLUE iou';
+        if (platformSettings?.pre_launch_mode_enabled) {
+            return 'BLUE IOU';
         }
         return 'BLUE';
     }
@@ -1547,14 +1547,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 progressHTML = `
                     <div class="donation-progress-container" style="margin-top: 10px;">
                         <div class="donation-progress-labels" style="margin-bottom: 6px; font-size: 0.78rem; font-weight: normal; opacity: 0.85; display: flex; justify-content: space-between; align-items: center; letter-spacing: 0.3px;">
-                            <span><strong style="color: #ffffff; font-weight: 600; font-size: 0.82rem;">${formatBalance(totalRaised)}</strong> de <span style="opacity: 0.7; font-size: 0.8rem;">${formatBalance(goal)}</span> BLUE IOU</span>
+                            <span><strong style="color: #ffffff; font-weight: 600; font-size: 0.82rem;">${formatBalance(totalRaised)}</strong> de <span style="opacity: 0.7; font-size: 0.8rem;">${formatBalance(goal)}</span> ${blueLabel}</span>
                             <span style="font-weight: 600; color: #f472b6;">${formatPercentage(totalRaised, goal)}%</span>
                         </div>
                         <div class="donation-progress-bar" style="display: flex; height: 8px; background: rgba(255,255,255,0.08); border-radius: 5px; overflow: hidden; position: relative;">
                             <div class="donation-progress-fill" style="width: ${percentageReleased.toFixed(1)}%; height: 100%; background: linear-gradient(90deg, #ec4899, #db2777); border-radius: 0;"></div>
                             <div class="donation-progress-fill-hold" style="width: ${percentageOnHold.toFixed(1)}%; height: 100%; background: repeating-linear-gradient(45deg, rgba(232, 62, 140, 0.4), rgba(232, 62, 140, 0.4) 10px, rgba(232, 62, 140, 0.6) 10px, rgba(232, 62, 140, 0.6) 20px);"></div>
                         </div>
-                        ${hold > 0 ? `<div style="font-size: 10px; color: #f472b6; margin-top: 5px; font-weight: normal; opacity: 0.9;">${formatBalance(hold)} BLUE IOU en hold por verificación KYC</div>` : ''}
+                        ${hold > 0 ? `<div style="font-size: 10px; color: #f472b6; margin-top: 5px; font-weight: normal; opacity: 0.9;">${formatBalance(hold)} ${blueLabel} en hold por verificación KYC</div>` : ''}
                     </div>
                 `;
             } else {
@@ -1562,7 +1562,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 progressHTML = `
                     <div class="donation-progress-container">
                         <div class="donation-progress-labels">
-                            <span>${formatBalance(current)} BLUE recaudados</span>
+                             <span>${formatBalance(current)} ${blueLabel} recaudados</span>
                             <span>${percent}%</span>
                         </div>
                         <div class="donation-progress-bar">
