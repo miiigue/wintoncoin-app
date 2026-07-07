@@ -20,6 +20,16 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
 
+### 2026-07-07 — Ajuste de Tamaño y Personalización del Banner de Vista Previa para Redes Sociales
+
+- **Contexto**: Al compartir enlaces por WhatsApp, la imagen de vista previa no se mostraba debido a que la imagen del logotipo corporativo (`logo-high-res.png`) superaba los 300 KB (límite estricto de WhatsApp/Meta) y a posibles problemas de resolución de certificados SSL sin el subdominio `www.`. Además, se requería que al compartir páginas relacionadas con causas humanitarias o referidos del booster ("Ayudemos a Venezuela"), se mostrara una imagen representativa y cálida en lugar del logo general.
+- **Decisión de Ingeniería**:
+  - Se optimizó el peso de la imagen de vista previa estática utilizando `icon-192x192.png` (86 KB) y el subdominio seguro `www.demo.wintoncoin.com` para todos los enlaces estáticos públicos en `index.html`, `como-funciona.html` y `trabaja-con-nosotros.html`.
+  - Se generó y seleccionó una nueva imagen artística personalizada `solidaridad-banner.png` (Corazón brillante con cruz médica y bandera de Venezuela de fondo) con un peso optimizado por debajo de los 300 KB.
+  - Se configuraron los metatags de `og:image` en `causa-solidaria.html` y `register.html` (página de registro que se comparte a través del banner de campaña "Ayudemos a Venezuela") para apuntar directamente a este nuevo banner de solidaridad.
+  - Se regeneró el build de producción demo a través de `npm run build:demo` y se subieron los cambios a Git.
+- **Impacto**: Incremento drástico en la conversión de compartidos al asegurar el renderizado inmediato y correcto de la vista previa en WhatsApp. Coherencia de marca y del propósito de la campaña al mostrar un corazón de ayuda médica en lugar del logo empresarial de la plataforma al compartir causas y enlaces de referidos de "Ayudemos a Venezuela".
+
 ### 2026-07-06 — Unificación Completa de Modales Personalizados, Historial, KYC en Referidos, Open Graph Estático/Dinámico (WhatsApp Previews) y UI Compacta del Booster
 
 - **Contexto**: Para lograr un frontend 100% libre de elementos nativos del navegador, coherente visualmente y alineado con los estándares FinTech y bancarios, se requería:
