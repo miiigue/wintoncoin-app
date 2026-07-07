@@ -20,7 +20,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
 
-### 2026-07-06 — Unificación Completa de Modales Personalizados, Historial, KYC en Referidos, Open Graph Dinámico (WhatsApp Previews) y UI Compacta del Booster
+### 2026-07-06 — Unificación Completa de Modales Personalizados, Historial, KYC en Referidos, Open Graph Estático/Dinámico (WhatsApp Previews) y UI Compacta del Booster
 
 - **Contexto**: Para lograr un frontend 100% libre de elementos nativos del navegador, coherente visualmente y alineado con los estándares FinTech y bancarios, se requería:
   1. Reemplazar todos los cuadros de diálogo nativos (`alert()` y `confirm()`) restantes en las secciones públicas y del panel administrativo por los modales personalizados (`showCustomAlert` y `showCustomConfirm`).
@@ -31,6 +31,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   6. Optimización en Compartir: Se silenciaron los mensajes de error falsos positivos al cancelar la ventana nativa de compartir (controlando el `AbortError` de la Web Share API) para evitar diálogos de error molestos e innecesarios.
   7. Visualización del KYC en Referidos: Para justificar la retención temporal de BLUE IOU por referidos sin KYC, se requería mostrar el estado del KYC de cada referido de forma clara e intuitiva en la tabla de referidos del usuario.
   8. Inyección Dinámica de Open Graph (og:tags) para Previsualizaciones Premium: Para que al compartir causas o enlaces de referidos por WhatsApp se muestre de forma automática la foto de la causa o el banner de la promoción de referidos subidos desde el panel administrativo, se implementó un middleware dinámico de inyección de metadatos SEO.
+  9. Integración de Fallback Estático para SEO en Hostinger: Debido a que el frontend de producción está alojado de forma estática en Hostinger y el backend en Render, las peticiones HTTP GET directas de WhatsApp a las páginas HTML las atiende Hostinger directamente sin pasar por Node.js. Para solucionar la falta de imágenes de vista previa en este escenario, se inyectaron metatags de Open Graph fijos en las 5 páginas públicas más compartidas.
 - **Decisión de Ingeniería**:
   - **Unificación de Alertas y Confirmaciones en Admin**:
     - Se mapearon y refactorizaron los archivos administrativos `admin-panel.js`, `momentum-admin.js` y `admin-recruitment.html`.
@@ -57,8 +58,11 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
     - Escapa los datos recuperados de la BD para prevenir inyecciones HTML o XSS en los atributos `content` y reemplaza de forma segura la cabecera mediante expresiones regulares.
     - Se implementó degradación elegante (fallback resiliente): en caso de ID de causa inválido, inexistencia o error de servidor, se llama a `next()` y Express sirve la página estática por defecto con el logotipo corporativo.
     - Se incluyó un script de pruebas de regresión `test_seo.js` para validar mocks y verificar que no hay regresiones de código.
-- **Impacto**: Interfaz de usuario profesional, limpia y libre de fallos por diálogos del navegador. Mayor transparencia en el estado del KYC de la red de referidos. Previsualizaciones enriquecidas y premium automáticas al compartir enlaces en WhatsApp con soporte para banners específicos, optimizadas para alta conversión y máxima seguridad.
-- **Archivos modificados**: `causa-solidaria.html`, `causa-solidaria.js`, `solicitud-solidaria.html`, `admin-panel.js`, `momentum-admin.html`, `momentum-admin.js`, `admin-recruitment.html`, `transactions.js`, `booster-profile.js`, `booster-style.css`, `contract-interaction.js`, `publication-detail.js`, `userController.js`, `referrals.js`, `seoMiddleware.js`, `server.js`, `test_seo.js`, `TECHNICAL_IMPROVEMENTS.md`.
+  - **Inyección Estática de Open Graph para Soporte de Servidores CDNs (Hostinger Fallback)**:
+    - Se agregaron etiquetas fijas estáticas de Open Graph (`og:title`, `og:description`, `og:image`, `og:type` y `twitter:card`) en los archivos HTML originales del frontend para las 5 páginas principales: `index.html`, `register.html`, `causa-solidaria.html`, `como-funciona.html` y `trabaja-con-nosotros.html`.
+    - Las etiquetas apuntan al logotipo oficial corporativo en alta resolución (`/assets/icons/logo-high-res.png`) almacenado en la carpeta `public` para garantizar la compatibilidad universal en WhatsApp al compartir cualquiera de los enlaces principales desde Hostinger de forma estática.
+- **Impacto**: Interfaz de usuario profesional, limpia y libre de fallos por diálogos del navegador. Mayor transparencia en el estado del KYC de la red de referidos. Previsualizaciones premium automáticas con compatibilidad universal en redes sociales tanto de forma estática (Hostinger) como dinámica (Render), optimizadas para alta conversión, velocidad de carga y máxima ciberseguridad.
+- **Archivos modificados**: `causa-solidaria.html`, `causa-solidaria.js`, `solicitud-solidaria.html`, `admin-panel.js`, `momentum-admin.html`, `momentum-admin.js`, `admin-recruitment.html`, `transactions.js`, `booster-profile.js`, `booster-style.css`, `contract-interaction.js`, `publication-detail.js`, `userController.js`, `referrals.js`, `seoMiddleware.js`, `server.js`, `test_seo.js`, `index.html`, `como-funciona.html`, `trabaja-con-nosotros.html`, `register.html`, `TECHNICAL_IMPROVEMENTS.md`.
 
 ### 2026-07-03 — Escrow de Donaciones y Segmentación de Saldo Seguro (AML/Growth)
 
