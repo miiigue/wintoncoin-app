@@ -3770,3 +3770,10 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
 **Problema:** A pesar de estar en fase de pre-lanzamiento (\pre_launch_mode_enabled = true\), al ingresar al panel de la billetera se mostraba el contenedor de la clave publica (\myWalletAddressContainer\) del usuario, lo cual resultaba confuso dado que la funcionalidad Web3 aun no esta lanzada oficialmente.
 **Solucion Profesional:** Se modifico \contract-interaction.js\ para que consulte de forma asincrona los ajustes de la plataforma (\getPlatformSettings\) al renderizar. Si el pre-lanzamiento esta activo, el contenedor de la direccion publica se fuerza a \display: none\, manteniendola invisible y privada para el usuario.
 **Impacto:** Se evita la exposicion prematura de datos Web3 y se alinea la interfaz con la etapa de lanzamiento virtual de la plataforma.
+
+### Balance Asimétrico para Donaciones de Referidos (UX & Blindaje FinTech)
+
+**Fecha:** 08/07/2026
+**Problema:** Un usuario recién registrado (referido) tenía su bono de 10 BLUE bloqueado de forma incontrolable si su referente no poseía el KYC verificado, impidiéndole realizar donaciones a causas humanitarias de inmediato (deadlock lógico).
+**Solución Profesional:** Se modificó la consulta SQL de \unverifiedReferralBalance\ en \inancialCoreService.js\ para que sea asimétrica basada en roles. El bloqueo por falta de KYC de un referido sólo se aplica si el usuario actual es el *referente* (quien invitó). Si el usuario actual es el *referido* (el invitado), su bono de registro queda desbloqueado para ser donado. Las donaciones de donantes sin KYC siguen quedando retenidas en \on_hold\ de forma segura en cumplimiento con regulaciones AML y SOC 2.
+**Impacto:** Se rompe el deadlock de onboarding para nuevos usuarios legítimos y se permite el flujo de donaciones instantáneas, manteniendo la seguridad impenetrable contra granjas de bots del lado del referente.
