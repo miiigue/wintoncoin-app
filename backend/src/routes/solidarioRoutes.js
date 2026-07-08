@@ -221,4 +221,67 @@ router.post('/postulacion', authenticateToken, async (req, res) => {
     }
 });
 
+// =================================================================================
+// ==  ENDPOINT PÚBLICO PARA OBTENER ESTADÍSTICAS DE LA CAMPAÑA "AYUDEMOS A VENEZUELA" ==
+// =================================================================================
+router.get('/campaign-stats', async (req, res) => {
+    try {
+        const username = 'CadenaSOSVenezuela';
+        // 1. Obtener ID del receptor
+        const userRes = await pool.query('SELECT id FROM users WHERE LOWER(username) = LOWER($1)', [username]);
+        if (userRes.rowCount === 0) {
+            return res.json({
+                total_raised: 0.0000,
+                remaining_slots: 9989, // fallback por defecto de la tarjeta
+                reward_amount: 200.0000
+            });
+        }
+        const userId = userRes.rows[0].id;
+
+        // 2. Calcular total de BLUE IOU acumulados en booster_blue_ledger
+        const ledgerRes = await pool.query(
+            'SELECT COALESCE(SUM(amount), 0) AS total FROM booster_blue_ledger WHERE user_id = $1',
+            [userId]
+        );
+        const totalRaised = parseFloat(ledgerRes.rows[0].total) || 0;
+
+        // 3. Contar usuarios registrados en el sistema para calcular tramo activo y cupos
+        const countRes = await pool.query('SELECT COUNT(*) as count FROM users');
+        const totalUsers = parseInt(countRes.rows[0].count, 10);
+
+        // 4. Obtener tramo activo de la campaña de referidos
+        const tierRes = await pool.query(`
+            SELECT max_users_limit, reward_amount 
+            FROM referral_reward_tiers 
+            WHERE max_users_limit > $1 
+            ORDER BY tier_number ASC 
+            LIMIT 1
+        `, [totalUsers]);
+
+        let rewardAmount = 200.0000;
+        let remainingSlots = 0;
+        if (tierRes.rowCount > 0) {
+            rewardAmount = parseFloat(tierRes.rows[0].reward_amount) || 200.0000;
+            remainingSlots = Math.max(0, parseInt(tierRes.rows[0].max_users_limit, 10) - totalUsers);
+        } else {
+            // Si expira, usar fallback del app_settings o 0
+            const settingsRes = await pool.query(
+                "SELECT setting_value FROM app_settings WHERE setting_key = 'referral_reward_after_expiry'"
+            );
+            rewardAmount = settingsRes.rowCount > 0 ? parseFloat(settingsRes.rows[0].setting_value) : 0;
+            remainingSlots = 0;
+        }
+
+        return res.json({
+            total_raised: totalRaised,
+            remaining_slots: remainingSlots,
+            reward_amount: rewardAmount
+        });
+    } catch (err) {
+        console.error('Error fetching campaign stats:', err.message);
+        return res.status(500).json({ error: 'Database error fetching campaign stats' });
+    }
+});
+
 module.exports = router;
+

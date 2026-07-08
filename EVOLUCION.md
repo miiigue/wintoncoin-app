@@ -3691,12 +3691,20 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
   - **Enlace de Seguridad**: Se creÃ³ un enrutador `adminRoutes.js` enlazado con el middleware `verifyAdminToken` para blindar todos los accesos.
   - **ResoluciÃ³n de Rutas**: Trasladamos de manera segura las llamadas al sistema de backup, corrigiendo la ruta de importaciÃ³n (`../../backup-database.js`) para prevenir caÃ­das (fallo 500).
 - **DecisiÃ³n Fase 2 (Frontend - OpciÃ³n A: Mobile-First Dashboard)**:
-  - **ContenciÃ³n de CSS (Mobile-First)**: Se inyectÃ³ en `style.css` un bloque `@media (min-width: 1024px)` garantizando un **Riesgo Cero** para los celulares, cuyo diseÃ±o permanece inalterado por CSS por defecto.
+### 2026-06-04 — Refactorización Crítica: Extracción Administrativa y Diseño Dashboard (Fase 1 y 2)
+
+- **Contexto**: El proyecto acumulaba una severa deuda técnica en su núcleo principal (`server.js`), el cual operaba como un monolito gigante, gestionando a la vez flujos de usuario y rutas críticas de administración (DB, moderación, KYC, backups). Simultáneamente, la interfaz de usuario `contract_interaction.html` adolecía de un diseño "Mobile-Only", resultando pobre y genérica cuando se visualizaba desde un navegador de computadora. El reto fue refactorizar sin afectar la estabilidad ni el despliegue actual.
+- **Decisión Fase 1 (Backend - Modularización)**:
+  - **Extirpación Quirúrgica**: Se extrajeron las funciones críticas de administración (`getUserKycStatus`, `getDatabaseStats`, `createDatabaseBackup`, rutinas de `cleanup`, moderación de publicaciones) desde el `server.js` hacia un nuevo módulo dedicado: `src/controllers/adminController.js`.
+  - **Enlace de Seguridad**: Se creó un enrutador `adminRoutes.js` enlazado con el middleware `verifyAdminToken` para blindar todos los accesos.
+  - **Resolución de Rutas**: Trasladamos de manera segura las llamadas al sistema de backup, corrigiendo la ruta de importación (`../../backup-database.js`) para prevenir caídas (fallo 500).
+- **Decisión Fase 2 (Frontend - Opción A: Mobile-First Dashboard)**:
+  - **Contención de CSS (Mobile-First)**: Se inyectó en `style.css` un bloque `@media (min-width: 1024px)` garantizando un **Riesgo Cero** para los celulares, cuyo diseño permanece inalterado por CSS por defecto.
   - **Barra Lateral Glassmorphism**: Se introdujo el componente `<aside class="desktop-sidebar">` con acabado premium Fintech (efecto de cristal y paleta oscura) para PC.
-  - **Observer TelepÃ¡tico (JS Proxy)**: Para evitar reescribir la lÃ³gica de eventos de JS, se inyectÃ³ un `MutationObserver` en el HTML que sincroniza visualmente el estado de visibilidad y mapea los clics de la nueva Barra Lateral hacia los elementos originales del menÃº del celular ocultos por CSS, resolviendo la colisiÃ³n de IDs sin arriesgar regresiones en la lÃ³gica core de `contract-interaction.js`.
+  - **Observer Telepático (JS Proxy)**: Para evitar reescribir la lógica de eventos de JS, se inyectó un `MutationObserver` en el HTML que sincroniza visualmente el estado de visibilidad y mapea los clics de la nueva Barra Lateral hacia los elementos originales del menú del celular ocultos por CSS, resolviendo la colisión de IDs sin arriesgar regresiones en la lógica core de `contract-interaction.js`.
 - **Impacto**:
-  - Un backend auditable, seguro, y alineado con los estÃ¡ndares de ingenierÃ­a mÃ¡s exigentes.
-  - Una Interfaz de Usuario "Wow-factor" en pantallas grandes, combinando usabilidad avanzada para PC y mantenimiento sin fricciÃ³n para el soporte mÃ³vil preexistente.
+  - Un backend auditable, seguro, y alineado con los estándares de ingeniería más exigentes.
+  - Una Interfaz de Usuario "Wow-factor" en pantallas grandes, combinando usabilidad avanzada para PC y mantenimiento sin fricción para el soporte móvil preexistente.
 - **Evidencia**: Archivos modificados: `backend/server.js`, `src/controllers/adminController.js`, `src/routes/adminRoutes.js`, `frontend/contract_interaction.html`, `frontend/style.css`, `EVOLUCION.md`.
 
 ---
@@ -3777,3 +3785,19 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
 **Problema:** Un usuario recién registrado (referido) tenía su bono de 10 BLUE bloqueado de forma incontrolable si su referente no poseía el KYC verificado, impidiéndole realizar donaciones a causas humanitarias de inmediato (deadlock lógico).
 **Solución Profesional:** Se modificó la consulta SQL de \unverifiedReferralBalance\ en \inancialCoreService.js\ para que sea asimétrica basada en roles. El bloqueo por falta de KYC de un referido sólo se aplica si el usuario actual es el *referente* (quien invitó). Si el usuario actual es el *referido* (el invitado), su bono de registro queda desbloqueado para ser donado. Las donaciones de donantes sin KYC siguen quedando retenidas en \on_hold\ de forma segura en cumplimiento con regulaciones AML y SOC 2.
 **Impacto:** Se rompe el deadlock de onboarding para nuevos usuarios legítimos y se permite el flujo de donaciones instantáneas, manteniendo la seguridad impenetrable contra granjas de bots del lado del referente.
+**Evidencia:** Archivos modificados: `backend/src/services/financialCoreService.js`, `EVOLUCION.md`.
+
+---
+
+### 2026-07-08 — Ticker de Donaciones en Tiempo Real con Interpolación a 60 FPS (Winton Solidario)
+
+- **Contexto**: Para la campaña de apoyo humanitario por el terremoto de Venezuela, se requería incorporar un widget responsivo en la landing page principal (`index.html`) que mostrase las estadísticas de los BLUE IOU acumulados en fideicomiso por la cuenta receptora `CadenaSOSVenezuela` y los cupos restantes del tramo de referidos. Para garantizar una experiencia sumamente premium ("Wow-factor") y dinámica, el incremento del monto recaudado debía realizarse de manera fluida y progresiva segundo a segundo (interpolación lineal), en lugar de saltos estáticos bruscos.
+- **Decisión de Ingeniería**:
+  - **Endpoint de Datos Seguros (`solidarioRoutes.js`)**: Creación de la ruta pública `GET /api/solidario/campaign-stats`. Consulta el ID de `CadenaSOSVenezuela` y computa su balance acumulado a partir de la tabla inmutable `booster_blue_ledger`. Adicionalmente, cuenta los usuarios de forma dinámica y determina los cupos restantes del tramo de incentivos activo basándose en las reglas de *Immediate Phase Rollover* del sistema de recompensas.
+  - **Ticker Animado a 60 FPS (`landing.js` e `index.html`)**: Inyección de una tarjeta Glassmorphism en la landing page principal, enlazada a un script optimizado de renderizado. El script hace un sondeo (polling) cada 3 minutos. Al recibir una actualización de saldo, calcula la diferencia numérica y la incrementa de forma lineal segundo a segundo durante los siguientes 120 segundos utilizando la API nativa de alta frecuencia `requestAnimationFrame`. Esto previene el bloqueo del hilo de ejecución del navegador, protegiendo el rendimiento y la vida útil de la batería en dispositivos móviles.
+  - **Estructura y Cumplimiento**: Modificación de `landing-fomo.css` con degradados humanitarios (#ec4899), notas legales sobre la custodia temporal bajo Fideicomiso Inteligente (Escrow) y un llamado a la acción (CTA) directo.
+- **Impacto**:
+  - **UX Dinámica e Incentivo de Conversión**: El dinamismo en tiempo real estimula el registro de nuevos usuarios al proyectar la vitalidad y adopción instantánea de la red.
+  - **Trazabilidad y Transparencia Regulatoria**: Cumplimiento del principio de transparencia informativa FinTech/SOC 2, explicando explícitamente el estado de custodia en Escrow y requiriendo KYC de los referidos para mitigar fraude y lavado de dinero.
+- **Evidencia**: Archivos modificados/creados: `backend/src/routes/solidarioRoutes.js`, `frontend/index.html`, `frontend/landing-fomo.css`, `frontend/src/pages/landing.js`, `EVOLUCION.md`.
+

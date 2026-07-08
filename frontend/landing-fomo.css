@@ -586,3 +586,306 @@
         padding: 1rem 2rem;
     }
 }
+
+/* ============================================================================
+   SECCIÓN DE TRANSPARENCIA HUMANITARIA (VENEZUELA CAMPAIGN)
+   ============================================================================ */
+
+.transparency-campaign-section {
+    padding: 6rem 0 5rem;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, #09090b 0%, #06050b 50%, #08070e 100%);
+    border-top: 1px solid rgba(236, 72, 153, 0.08);
+    color: white;
+}
+
+/* Glow de fondo rosa humanitario sutil */
+.transparency-campaign-section::before {
+    content: '';
+    position: absolute;
+    top: -20%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 800px;
+    height: 800px;
+    background: radial-gradient(circle, rgba(236, 72, 153, 0.05) 0%, rgba(0, 0, 0, 0) 65%);
+    filter: blur(80px);
+    z-index: 0;
+    pointer-events: none;
+}
+
+.campaign-box {
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    padding: 3rem 2.5rem;
+    position: relative;
+    z-index: 2;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 30px rgba(236, 72, 153, 0.05);
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.campaign-header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.campaign-badge {
+    background: rgba(236, 72, 153, 0.15);
+    color: #f472b6;
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 6px 14px;
+    border-radius: 20px;
+    letter-spacing: 2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(236, 72, 153, 0.25);
+    box-shadow: 0 0 15px rgba(236, 72, 153, 0.1);
+}
+
+.campaign-badge .pulse {
+    width: 6px;
+    height: 6px;
+    background-color: #ec4899;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.7);
+    animation: badgePulse 2s infinite;
+}
+
+@keyframes badgePulse {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.7);
+    }
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 6px rgba(236, 72, 153, 0);
+    }
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(236, 72, 153, 0);
+    }
+}
+
+.gradient-text-pink {
+    background: linear-gradient(135deg, #f472b6 0%, #ec4899 50%, #db2777 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 800;
+}
+
+.campaign-intro {
+    font-size: 1.05rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.8);
+    max-width: 720px;
+    margin: 1rem auto 0;
+}
+
+/* Estadísticas Grid */
+.campaign-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 3.5rem;
+}
+
+.stat-card {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 16px;
+    padding: 1.8rem 1.5rem;
+    text-align: center;
+    transition: all 0.4s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(236, 72, 153, 0.2);
+    box-shadow: 0 10px 30px rgba(236, 72, 153, 0.05);
+}
+
+.stat-icon {
+    font-size: 2.2rem;
+    margin-bottom: 0.8rem;
+    display: block;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    color: rgba(255, 255, 255, 0.45);
+    margin-bottom: 0.8rem;
+    text-transform: uppercase;
+}
+
+.stat-value {
+    font-size: 1.6rem;
+    font-weight: 900;
+    font-family: 'Outfit', sans-serif;
+    color: #ffffff;
+}
+
+.stat-value.highlight-pink {
+    color: #f472b6;
+    text-shadow: 0 0 20px rgba(244, 114, 182, 0.15);
+}
+
+.stat-value.text-gold {
+    color: #f1c40f;
+    text-shadow: 0 0 15px rgba(241, 196, 15, 0.15);
+}
+
+.stat-value .unit {
+    font-size: 0.75rem;
+    font-weight: 550;
+    color: rgba(255, 255, 255, 0.5);
+    margin-left: 4px;
+}
+
+/* Progreso */
+.campaign-progress-wrapper {
+    margin-bottom: 3.5rem;
+}
+
+.progress-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.progress-bar-container {
+    background: rgba(255, 255, 255, 0.06);
+    height: 12px;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ec4899 0%, #db2777 50%, #f472b6 100%);
+    border-radius: 10px;
+    transition: width 1s cubic-bezier(0.1, 0.8, 0.25, 1);
+    box-shadow: 0 0 15px rgba(236, 72, 153, 0.5);
+}
+
+/* Nota de Trazabilidad */
+.campaign-legal-disclosure {
+    background: rgba(0, 0, 0, 0.2);
+    border-left: 3px solid #ec4899;
+    border-radius: 0 12px 12px 0;
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 3rem;
+    text-align: left;
+}
+
+.campaign-legal-disclosure p {
+    font-size: 0.76rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.65);
+    margin: 0;
+}
+
+.campaign-legal-disclosure strong {
+    color: #f472b6;
+    font-weight: 700;
+}
+
+/* CTA */
+.campaign-cta-group {
+    display: flex;
+    justify-content: center;
+}
+
+.btn-primary-campaign {
+    display: inline-block;
+    background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+    color: #ffffff !important;
+    text-decoration: none;
+    font-weight: 800;
+    font-size: 1.05rem;
+    padding: 1.2rem 2.8rem;
+    border-radius: 50px;
+    box-shadow: 0 10px 30px rgba(236, 72, 153, 0.3);
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    letter-spacing: 0.5px;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-primary-campaign:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 16px 40px rgba(236, 72, 153, 0.45);
+    filter: brightness(1.1);
+}
+
+.btn-primary-campaign::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: 0.6s;
+}
+
+.btn-primary-campaign:hover::after {
+    left: 100%;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+    .transparency-campaign-section {
+        padding: 4rem 0 3rem;
+    }
+
+    .campaign-box {
+        padding: 2rem 1.5rem;
+        border-radius: 20px;
+    }
+
+    .campaign-stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .stat-card {
+        padding: 1.5rem 1.2rem;
+    }
+
+    .stat-value {
+        font-size: 1.4rem;
+    }
+
+    .campaign-legal-disclosure {
+        padding: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .btn-primary-campaign {
+        font-size: 0.95rem;
+        padding: 1rem 2rem;
+        width: 100%;
+        text-align: center;
+    }
+}
