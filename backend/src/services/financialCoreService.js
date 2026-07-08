@@ -187,9 +187,14 @@ const FinancialCoreService = {
             WHERE bbl.user_id = $1
               AND bbl.type IN ('referral_reward', 'referral_bonus_sent') -- Solo bonos de tipo referido
               AND bbl.amount > 0                        -- Solo entradas positivas (ganancias)
-              -- GATE 2: Sólo descuentar los referidos que AÚN NO tienen KYC.
-              -- COALESCE(kyc_verified, false) trata NULL como false (sin KYC),
-              -- previniendo que un campo NULL sea interpretado como "verificado".
+              -- BLINDAJE ASIMÉTRICO (AML/UX): Solo descontar si el usuario actual ($1) es el referente de esta relación.
+              -- Si el usuario actual es el referido (invitado), su bono no se ve afectado por el KYC de quien lo invitó.
+              AND EXISTS (
+                  SELECT 1 FROM referral_log rl 
+                  WHERE rl.referrer_user_id = $1 
+                    AND rl.referred_user_id = bbl.reference_user_id
+              )
+              -- GATE 2: Sólo descontar los referidos que AÚN NO tienen KYC.
               AND COALESCE(u.kyc_verified, false) = false
         `, [userId]);
 

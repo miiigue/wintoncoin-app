@@ -327,7 +327,6 @@
 }
 
 .staircase-step.active {
-    width: 340px;
     z-index: 50;
     transform: rotateX(30deg) rotateY(-5deg) translateZ(20px);
 }
