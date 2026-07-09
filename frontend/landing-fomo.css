@@ -690,120 +690,72 @@
     margin: 1rem auto 0;
 }
 
-/* Estadísticas Grid */
-.campaign-stats-grid {
+/* Columnas de Información Clave (Infografía) */
+.campaign-info-features {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 1.5rem;
-    margin-bottom: 3.5rem;
+    gap: 2rem;
+    margin-bottom: 2rem;
 }
 
-.stat-card {
+.info-feature-card {
     background: rgba(255, 255, 255, 0.015);
     border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 16px;
-    padding: 1.8rem 1.5rem;
+    border-radius: 20px;
+    padding: 2.2rem 1.8rem;
     text-align: center;
-    transition: all 0.4s ease;
-}
-
-.stat-card:hover {
-    transform: translateY(-5px);
-    background: rgba(255, 255, 255, 0.03);
-    border-color: rgba(236, 72, 153, 0.2);
-    box-shadow: 0 10px 30px rgba(236, 72, 153, 0.05);
-}
-
-.stat-icon {
-    font-size: 2.2rem;
-    margin-bottom: 0.8rem;
-    display: block;
-}
-
-.stat-label {
-    display: block;
-    font-size: 0.68rem;
-    font-weight: 600;
-    letter-spacing: 1.5px;
-    color: rgba(255, 255, 255, 0.45);
-    margin-bottom: 0.8rem;
-    text-transform: uppercase;
-}
-
-.stat-value {
-    font-size: 1.6rem;
-    font-weight: 900;
-    font-family: 'Outfit', sans-serif;
-    color: #ffffff;
-}
-
-.stat-value.highlight-pink {
-    color: #f472b6;
-    text-shadow: 0 0 20px rgba(244, 114, 182, 0.15);
-}
-
-.stat-value.text-gold {
-    color: #f1c40f;
-    text-shadow: 0 0 15px rgba(241, 196, 15, 0.15);
-}
-
-.stat-value .unit {
-    font-size: 0.75rem;
-    font-weight: 550;
-    color: rgba(255, 255, 255, 0.5);
-    margin-left: 4px;
-}
-
-/* Progreso */
-.campaign-progress-wrapper {
-    margin-bottom: 3.5rem;
-}
-
-.progress-labels {
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
     display: flex;
-    justify-content: space-between;
-    font-size: 0.85rem;
-    color: rgba(255, 255, 255, 0.6);
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.info-feature-card:hover {
+    transform: translateY(-6px);
+    background: rgba(255, 255, 255, 0.035);
+    border-color: rgba(236, 72, 153, 0.25);
+    box-shadow: 0 20px 40px rgba(236, 72, 153, 0.06), 0 10px 20px rgba(0, 0, 0, 0.4);
+}
+
+.feature-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1.2rem;
+    background: rgba(236, 72, 153, 0.1);
+    width: 70px;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid rgba(236, 72, 153, 0.2);
+    box-shadow: 0 0 20px rgba(236, 72, 153, 0.05);
+    transition: transform 0.4s ease;
+}
+
+.info-feature-card:hover .feature-icon {
+    transform: scale(1.1) rotate(5deg);
+    background: rgba(236, 72, 153, 0.15);
+    box-shadow: 0 0 25px rgba(236, 72, 153, 0.15);
+}
+
+.info-feature-card h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
     margin-bottom: 0.8rem;
-    font-weight: 600;
-    letter-spacing: 0.5px;
+    color: #ffffff;
+    font-family: 'Outfit', sans-serif;
 }
 
-.progress-bar-container {
-    background: rgba(255, 255, 255, 0.06);
-    height: 12px;
-    border-radius: 10px;
-    overflow: hidden;
-    position: relative;
-    border: 1px solid rgba(255, 255, 255, 0.03);
-}
-
-.progress-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #ec4899 0%, #db2777 50%, #f472b6 100%);
-    border-radius: 10px;
-    transition: width 1s cubic-bezier(0.1, 0.8, 0.25, 1);
-    box-shadow: 0 0 15px rgba(236, 72, 153, 0.5);
-}
-
-/* Nota de Trazabilidad */
-.campaign-legal-disclosure {
-    background: rgba(0, 0, 0, 0.2);
-    border-left: 3px solid #ec4899;
-    border-radius: 0 12px 12px 0;
-    padding: 1.2rem 1.5rem;
-    margin-bottom: 3rem;
-    text-align: left;
-}
-
-.campaign-legal-disclosure p {
-    font-size: 0.76rem;
+.info-feature-card p {
+    font-size: 0.85rem;
     line-height: 1.55;
     color: rgba(255, 255, 255, 0.65);
     margin: 0;
+    text-align: center;
 }
 
-.campaign-legal-disclosure strong {
+.highlight-pink {
     color: #f472b6;
     font-weight: 700;
 }
@@ -853,6 +805,13 @@
 }
 
 /* RESPONSIVE */
+@media (max-width: 992px) {
+    .campaign-info-features {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+}
+
 @media (max-width: 768px) {
     .transparency-campaign-section {
         padding: 4rem 0 3rem;
@@ -863,23 +822,8 @@
         border-radius: 20px;
     }
 
-    .campaign-stats-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
-        margin-bottom: 2.5rem;
-    }
-
-    .stat-card {
-        padding: 1.5rem 1.2rem;
-    }
-
-    .stat-value {
-        font-size: 1.4rem;
-    }
-
-    .campaign-legal-disclosure {
-        padding: 1rem;
-        margin-bottom: 2rem;
+    .info-feature-card {
+        padding: 1.8rem 1.5rem;
     }
 
     .btn-primary-campaign {

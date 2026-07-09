@@ -3789,15 +3789,15 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
 
 ---
 
-### 2026-07-08 — Ticker de Donaciones en Tiempo Real con Interpolación a 60 FPS (Winton Solidario)
+### 2026-07-08 — Infografía Solidaria y Sección Humanitaria Estática "Ayudemos a Venezuela" (Winton Solidario)
 
-- **Contexto**: Para la campaña de apoyo humanitario por el terremoto de Venezuela, se requería incorporar un widget responsivo en la landing page principal (`index.html`) que mostrase las estadísticas de los BLUE IOU acumulados en fideicomiso por la cuenta receptora `CadenaSOSVenezuela` y los cupos restantes del tramo de referidos. Para garantizar una experiencia sumamente premium ("Wow-factor") y dinámica, el incremento del monto recaudado debía realizarse de manera fluida y progresiva segundo a segundo (interpolación lineal), en lugar de saltos estáticos bruscos.
+- **Contexto**: Para evitar realizar consultas dinámicas al backend para mostrar estadísticas variables de recaudación (que arrojaban 0.0000 al inicio o dependían de que la base de datos estuviera poblada y el servidor en ejecución), se decidió simplificar y optimizar la sección humanitaria de la landing page principal (`index.html`) para eliminar la dependencia de red y acelerar la velocidad de carga (Performance).
 - **Decisión de Ingeniería**:
-  - **Endpoint de Datos Seguros (`solidarioRoutes.js`)**: Creación de la ruta pública `GET /api/solidario/campaign-stats`. Consulta el ID de `CadenaSOSVenezuela` y computa su balance acumulado a partir de la tabla inmutable `booster_blue_ledger`. Adicionalmente, cuenta los usuarios de forma dinámica y determina los cupos restantes del tramo de incentivos activo basándose en las reglas de *Immediate Phase Rollover* del sistema de recompensas.
-  - **Ticker Animado a 60 FPS (`landing.js` e `index.html`)**: Inyección de una tarjeta Glassmorphism en la landing page principal, enlazada a un script optimizado de renderizado. El script hace un sondeo (polling) cada 3 minutos. Al recibir una actualización de saldo, calcula la diferencia numérica y la incrementa de forma lineal segundo a segundo durante los siguientes 120 segundos utilizando la API nativa de alta frecuencia `requestAnimationFrame`. Esto previene el bloqueo del hilo de ejecución del navegador, protegiendo el rendimiento y la vida útil de la batería en dispositivos móviles.
-  - **Estructura y Cumplimiento**: Modificación de `landing-fomo.css` con degradados humanitarios (#ec4899), notas legales sobre la custodia temporal bajo Fideicomiso Inteligente (Escrow) y un llamado a la acción (CTA) directo.
+  - **Redefinición Visual e Infografía Estática (`index.html` & `landing-fomo.css`)**: Se removieron el grid de estadísticas numéricas, la barra de progreso y el script de ticker dynamic counter. Se reemplazó la sección con una infografía responsiva premium con tres tarjetas explicativas: Bono de Registro Solidario (explicando la cuenta `CadenaSOSVenezuela` y el código `SOSVENEZUELADEMO`), Fideicomiso Seguro (Escrow) y políticas de Cumplimiento & AML. Se modificó el encabezado principal a "Ayudemos a Venezuela".
+  - **Desacoplamiento Total del Frontend (`landing.js`)**: Se purgó por completo el código cliente de peticiones de red (`fetch()`) y el bucle a 60 FPS con `requestAnimationFrame` que realizaba el polling cada 3 minutos, haciendo la landing page 100% independiente del servidor de base de datos durante la carga inicial.
 - **Impacto**:
-  - **UX Dinámica e Incentivo de Conversión**: El dinamismo en tiempo real estimula el registro de nuevos usuarios al proyectar la vitalidad y adopción instantánea de la red.
-  - **Trazabilidad y Transparencia Regulatoria**: Cumplimiento del principio de transparencia informativa FinTech/SOC 2, explicando explícitamente el estado de custodia en Escrow y requiriendo KYC de los referidos para mitigar fraude y lavado de dinero.
-- **Evidencia**: Archivos modificados/creados: `backend/src/routes/solidarioRoutes.js`, `frontend/index.html`, `frontend/landing-fomo.css`, `frontend/src/pages/landing.js`, `EVOLUCION.md`.
+  - **UX Estable y Profesional**: La landing page ya no muestra contadores vacíos (0.0000) ni placeholders desactualizados de red en la carga, garantizando una imagen limpia y confiable desde el primer segundo.
+  - **Cero Latencia en Landing**: Se redujo el volumen de llamadas de red recurrentes al servidor de producción, ahorrando ancho de banda y ciclos de CPU.
+- **Evidencia**: Archivos modificados: `frontend/index.html`, `frontend/landing-fomo.css`, `frontend/src/pages/landing.js`, `EVOLUCION.md`.
+
 
