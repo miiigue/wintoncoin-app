@@ -588,53 +588,107 @@
 }
 
 /* ============================================================================
-   SECCIÓN DE TRANSPARENCIA HUMANITARIA (VENEZUELA CAMPAIGN)
+   BANNER DE EMERGENCIA HUMANITARIA (TOP ANNOUNCEMENT RIBBON)
    ============================================================================ */
-
-.transparency-campaign-section {
-    padding: 6rem 0 5rem;
+.emergency-ribbon {
+    background: linear-gradient(90deg, 
+        rgba(255, 204, 0, 0.95) 0%, 
+        rgba(255, 204, 0, 0.95) 33.3%, 
+        rgba(0, 36, 125, 0.95) 33.3%, 
+        rgba(0, 36, 125, 0.95) 66.6%, 
+        rgba(207, 20, 43, 0.95) 66.6%, 
+        rgba(207, 20, 43, 0.95) 100%
+    );
+    color: #ffffff;
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 12px 20px;
+    text-align: center;
     position: relative;
-    overflow: hidden;
-    background: linear-gradient(180deg, #09090b 0%, #06050b 50%, #08070e 100%);
-    border-top: 1px solid rgba(236, 72, 153, 0.08);
-    color: white;
+    z-index: 10000;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Glow de fondo rosa humanitario sutil */
-.transparency-campaign-section::before {
+.ribbon-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.ribbon-text {
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+    letter-spacing: 0.5px;
+}
+
+.btn-ribbon {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff !important;
+    text-decoration: none;
+    padding: 6px 16px;
+    border-radius: 30px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+}
+
+.btn-ribbon:hover {
+    background: #ffffff;
+    color: #00247d !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(255, 255, 255, 0.3);
+}
+
+/* ============================================================================
+   PORTAL SOS VENEZUELA - ESTILOS DEL HÉROE Y DISEÑO GENERAL
+   ============================================================================ */
+
+.sos-portal-body {
+    background-color: #06050a;
+}
+
+.sos-hero {
+    padding: 9rem 0 7rem;
+    position: relative;
+    overflow: hidden;
+    /* Bandera de Venezuela como fondo difuminado y cristalizado */
+    background: linear-gradient(180deg, rgba(6, 5, 10, 0.8) 0%, rgba(6, 5, 10, 0.95) 100%),
+                linear-gradient(90deg, rgba(255, 204, 0, 0.2) 0%, rgba(0, 36, 125, 0.2) 50%, rgba(207, 20, 43, 0.2) 100%);
+    border-bottom: 1px solid rgba(236, 72, 153, 0.08);
+}
+
+/* Bandera de Venezuela difuminada en el fondo del Hero */
+.sos-hero::before {
     content: '';
     position: absolute;
-    top: -20%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 800px;
-    height: 800px;
-    background: radial-gradient(circle, rgba(236, 72, 153, 0.05) 0%, rgba(0, 0, 0, 0) 65%);
-    filter: blur(80px);
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255, 204, 0, 0.1) 0%, rgba(0, 36, 125, 0.1) 50%, rgba(207, 20, 43, 0.1) 100%);
+    filter: blur(60px);
+    opacity: 0.8;
     z-index: 0;
     pointer-events: none;
 }
 
-.campaign-box {
-    background: rgba(255, 255, 255, 0.02);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 24px;
-    padding: 3rem 2.5rem;
+.sos-hero-content {
+    max-width: 800px;
+    margin: 0 auto;
+    text-align: center;
     position: relative;
     z-index: 2;
-    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 30px rgba(236, 72, 153, 0.05);
-    max-width: 900px;
-    margin: 0 auto;
 }
 
-.campaign-header {
-    text-align: center;
-    margin-bottom: 3rem;
-}
-
-.campaign-badge {
+.sos-badge {
     background: rgba(236, 72, 153, 0.15);
     color: #f472b6;
     font-size: 0.72rem;
@@ -642,194 +696,287 @@
     padding: 6px 14px;
     border-radius: 20px;
     letter-spacing: 2px;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
+    display: inline-block;
     margin-bottom: 1.5rem;
     border: 1px solid rgba(236, 72, 153, 0.25);
     box-shadow: 0 0 15px rgba(236, 72, 153, 0.1);
 }
 
-.campaign-badge .pulse {
-    width: 6px;
-    height: 6px;
-    background-color: #ec4899;
-    border-radius: 50%;
-    display: inline-block;
-    box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.7);
-    animation: badgePulse 2s infinite;
-}
-
-@keyframes badgePulse {
-    0% {
-        transform: scale(0.95);
-        box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.7);
-    }
-    70% {
-        transform: scale(1);
-        box-shadow: 0 0 0 6px rgba(236, 72, 153, 0);
-    }
-    100% {
-        transform: scale(0.95);
-        box-shadow: 0 0 0 0 rgba(236, 72, 153, 0);
-    }
-}
-
-.gradient-text-pink {
-    background: linear-gradient(135deg, #f472b6 0%, #ec4899 50%, #db2777 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+.sos-hero-content h1 {
+    font-size: 3.8rem;
     font-weight: 800;
+    line-height: 1.15;
+    margin-bottom: 1.5rem;
+    color: #ffffff;
+    font-family: 'Outfit', sans-serif;
+    letter-spacing: -1px;
 }
 
-.campaign-intro {
+.sos-hero-subtitle {
+    font-size: 1.2rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.85);
+    margin-bottom: 2.5rem;
+}
+
+.sos-cta-group {
+    display: flex;
+    gap: 1.2rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-secondary-campaign {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff !important;
+    text-decoration: none;
+    font-weight: 600;
     font-size: 1.05rem;
-    line-height: 1.6;
-    color: rgba(255, 255, 255, 0.8);
-    max-width: 720px;
-    margin: 1rem auto 0;
+    padding: 1.2rem 2.5rem;
+    border-radius: 50px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    transition: all 0.3s ease;
 }
 
-/* Columnas de Información Clave (Infografía) */
-.campaign-info-features {
+.btn-secondary-campaign:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+/* ============================================================================
+   SECCIÓN DE BITÁCORA (TIMELINE)
+   ============================================================================ */
+
+.sos-timeline-section {
+    padding: 7rem 0;
+    position: relative;
+    background: #06050a;
+}
+
+.sos-timeline {
+    position: relative;
+    max-width: 800px;
+    margin: 4rem auto 0;
+    padding: 2rem 0;
+}
+
+.sos-timeline-section .timeline-central-line {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, #ec4899 0%, rgba(236, 72, 153, 0.1) 100%);
+    transform: translateX(-50%);
+}
+
+.sos-timeline-item {
+    position: relative;
+    width: 50%;
+    margin-bottom: 3.5rem;
+    padding: 0 3rem;
+}
+
+.sos-timeline-item:nth-child(even) {
+    left: 0;
+    text-align: right;
+}
+
+.sos-timeline-item:nth-child(odd) {
+    left: 50%;
+    text-align: left;
+}
+
+.timeline-dot {
+    position: absolute;
+    top: 6px;
+    width: 14px;
+    height: 14px;
+    background: #ec4899;
+    border: 3px solid #06050a;
+    border-radius: 50%;
+    z-index: 10;
+    box-shadow: 0 0 10px #ec4899;
+}
+
+.sos-timeline-item:nth-child(even) .timeline-dot {
+    right: -7px;
+}
+
+.sos-timeline-item:nth-child(odd) .timeline-dot {
+    left: -7px;
+}
+
+.timeline-date {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #f472b6;
+    letter-spacing: 1px;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+}
+
+.timeline-card {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 1.8rem;
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.timeline-card:hover {
+    border-color: rgba(236, 72, 153, 0.25);
+    transform: translateY(-3px);
+    box-shadow: 0 15px 35px rgba(236, 72, 153, 0.05);
+}
+
+.timeline-card h4 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0.5rem 0;
+}
+
+.timeline-card p {
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.65);
+    margin: 0;
+}
+
+.timeline-badge-status {
+    display: inline-block;
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    padding: 4px 10px;
+    border-radius: 12px;
+}
+
+.timeline-badge-status.approved {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.timeline-badge-status.pending {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.timeline-badge-status.info {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.timeline-card.next-step {
+    background: rgba(255, 255, 255, 0.005);
+    border-style: dashed;
+}
+
+/* ============================================================================
+   SECCIÓN DE CUMPLIMIENTO (COMPLIANCE)
+   ============================================================================ */
+
+.sos-compliance-section {
+    padding: 5rem 0 8rem;
+    background: #06050a;
+}
+
+.compliance-box {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 24px;
+    padding: 3.5rem;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+}
+
+.compliance-header {
+    text-align: center;
+    margin-bottom: 3.5rem;
+}
+
+.shield-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.compliance-header h2 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+}
+
+.compliance-header p {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.compliance-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 2rem;
-    margin-bottom: 2rem;
 }
 
-.info-feature-card {
-    background: rgba(255, 255, 255, 0.015);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 20px;
-    padding: 2.2rem 1.8rem;
-    text-align: center;
-    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-}
-
-.info-feature-card:hover {
-    transform: translateY(-6px);
-    background: rgba(255, 255, 255, 0.035);
-    border-color: rgba(236, 72, 153, 0.25);
-    box-shadow: 0 20px 40px rgba(236, 72, 153, 0.06), 0 10px 20px rgba(0, 0, 0, 0.4);
-}
-
-.feature-icon {
-    font-size: 2.5rem;
-    margin-bottom: 1.2rem;
-    background: rgba(236, 72, 153, 0.1);
-    width: 70px;
-    height: 70px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    border: 1px solid rgba(236, 72, 153, 0.2);
-    box-shadow: 0 0 20px rgba(236, 72, 153, 0.05);
-    transition: transform 0.4s ease;
-}
-
-.info-feature-card:hover .feature-icon {
-    transform: scale(1.1) rotate(5deg);
-    background: rgba(236, 72, 153, 0.15);
-    box-shadow: 0 0 25px rgba(236, 72, 153, 0.15);
-}
-
-.info-feature-card h3 {
-    font-size: 1.15rem;
+.compliance-card h4 {
+    font-size: 1.1rem;
     font-weight: 700;
+    color: #f472b6;
     margin-bottom: 0.8rem;
-    color: #ffffff;
-    font-family: 'Outfit', sans-serif;
 }
 
-.info-feature-card p {
+.compliance-card p {
     font-size: 0.85rem;
-    line-height: 1.55;
+    line-height: 1.6;
     color: rgba(255, 255, 255, 0.65);
     margin: 0;
-    text-align: center;
 }
 
-.highlight-pink {
-    color: #f472b6;
-    font-weight: 700;
-}
-
-/* CTA */
-.campaign-cta-group {
-    display: flex;
-    justify-content: center;
-}
-
-.btn-primary-campaign {
-    display: inline-block;
-    background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
-    color: #ffffff !important;
-    text-decoration: none;
-    font-weight: 800;
-    font-size: 1.05rem;
-    padding: 1.2rem 2.8rem;
-    border-radius: 50px;
-    box-shadow: 0 10px 30px rgba(236, 72, 153, 0.3);
-    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    letter-spacing: 0.5px;
-    position: relative;
-    overflow: hidden;
-}
-
-.btn-primary-campaign:hover {
-    transform: translateY(-4px) scale(1.02);
-    box-shadow: 0 16px 40px rgba(236, 72, 153, 0.45);
-    filter: brightness(1.1);
-}
-
-.btn-primary-campaign::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-    transition: 0.6s;
-}
-
-.btn-primary-campaign:hover::after {
-    left: 100%;
-}
-
-/* RESPONSIVE */
+/* RESPONSIVE PORTAL */
 @media (max-width: 992px) {
-    .campaign-info-features {
+    .compliance-grid {
         grid-template-columns: 1fr;
         gap: 1.5rem;
     }
 }
 
 @media (max-width: 768px) {
-    .transparency-campaign-section {
-        padding: 4rem 0 3rem;
+    .sos-hero-content h1 {
+        font-size: 2.5rem;
     }
 
-    .campaign-box {
-        padding: 2rem 1.5rem;
-        border-radius: 20px;
+    .sos-hero-subtitle {
+        font-size: 1.05rem;
     }
 
-    .info-feature-card {
-        padding: 1.8rem 1.5rem;
+    .sos-timeline {
+        padding-left: 20px;
     }
 
-    .btn-primary-campaign {
-        font-size: 0.95rem;
-        padding: 1rem 2rem;
+    .sos-timeline-section .timeline-central-line {
+        left: 20px;
+    }
+
+    .sos-timeline-item {
         width: 100%;
-        text-align: center;
+        left: 0 !important;
+        text-align: left !important;
+        padding-left: 2rem;
+        padding-right: 0;
+    }
+
+    .timeline-dot {
+        left: 13px !important;
+    }
+
+    .compliance-box {
+        padding: 2rem 1.5rem;
     }
 }

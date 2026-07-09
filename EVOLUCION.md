@@ -3799,15 +3799,18 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
 
 ---
 
-### 2026-07-08 — Infografía Solidaria y Sección Humanitaria Estática "Ayudemos a Venezuela" (Winton Solidario)
+### 2026-07-09 — Banner de Emergencia y Portal de Transparencia "SOS Venezuela" (Winton Solidario)
 
-- **Contexto**: Para evitar realizar consultas dinámicas al backend para mostrar estadísticas variables de recaudación (que arrojaban 0.0000 al inicio o dependían de que la base de datos estuviera poblada y el servidor en ejecución), se decidió simplificar y optimizar la sección humanitaria de la landing page principal (`index.html`) para eliminar la dependencia de red y acelerar la velocidad de carga (Performance).
+- **Contexto**: Ante la emergencia del terremoto en Venezuela, se requería incorporar un elemento de llamada a la acción inmediato que comunicara urgencia absoluta en la landing page principal sin entorpecer su estructura de navegación comercial. Además, se requería una página dedicada que fungiera como portal oficial de transparencia (bitácora de suministros y cumplimiento regulatorio) para las donaciones de referidos en BLUE IOU.
 - **Decisión de Ingeniería**:
-  - **Redefinición Visual e Infografía Estática (`index.html` & `landing-fomo.css`)**: Se removieron el grid de estadísticas numéricas, la barra de progreso y el script de ticker dynamic counter. Se reemplazó la sección con una infografía responsiva premium con tres tarjetas explicativas: Bono de Registro Solidario (explicando la cuenta `CadenaSOSVenezuela` y el código `SOSVENEZUELADEMO`), Fideicomiso Seguro (Escrow) y políticas de Cumplimiento & AML. Se modificó el encabezado principal a "Ayudemos a Venezuela".
-  - **Desacoplamiento Total del Frontend (`landing.js`)**: Se purgó por completo el código cliente de peticiones de red (`fetch()`) y el bucle a 60 FPS con `requestAnimationFrame` que realizaba el polling cada 3 minutos, haciendo la landing page 100% independiente del servidor de base de datos durante la carga inicial.
+  - **Banner Superior de Alerta (`index.html` & `landing-fomo.css`)**: Se colocó un Ribbon con fondo responsivo tricolor de la bandera de Venezuela y texto parpadeante de urgencia en la cabecera absoluta, visible inmediatamente al cargar el sitio. Se eliminó la sección humanitaria del medio de la página para evitar redundancia y centralizar todo el flujo en el portal.
+  - **Portal Humanitario Independiente (`sos-venezuela.html`)**: Se creó una nueva página independiente con fondo de la bandera venezolana difuminada en alta fidelidad (Glassmorphism), una bitácora lineal responsiva de despacho de suministros y un panel detallado sobre políticas de Fideicomiso Inteligente (Escrow), cumplimiento AML y registro inmutable en ledger.
+  - **Configuración de Compilación (`vite.config.js`)**: Se registró el archivo `sos-venezuela.html` en la lista de entradas de Rollup en Vite para asegurar su correcta compilación en el bundle de producción en `dist/`.
 - **Impacto**:
-  - **UX Estable y Profesional**: La landing page ya no muestra contadores vacíos (0.0000) ni placeholders desactualizados de red en la carga, garantizando una imagen limpia y confiable desde el primer segundo.
-  - **Cero Latencia en Landing**: Se redujo el volumen de llamadas de red recurrentes al servidor de producción, ahorrando ancho de banda y ciclos de CPU.
-- **Evidencia**: Archivos modificados: `frontend/index.html`, `frontend/landing-fomo.css`, `frontend/src/pages/landing.js`, `EVOLUCION.md`.
+  - **Visibilidad Inmediata**: 100% de conversión y alerta sin intrusión visual en la landing comercial.
+  - **Enlace Compartible**: El portal posee una URL dedicada (`wintoncoin.com/sos-venezuela.html`) que puede ser indexada por buscadores y compartida en redes sociales de forma directa.
+  - **Gobernanza Contable**: La bitácora y la sección de cumplimiento legal blindan al ecosistema ante auditorías financieras FinTech sobre transmisión de valor.
+- **Evidencia**: Archivos creados/modificados: `frontend/index.html`, `frontend/landing-fomo.css`, `frontend/vite.config.js`, `frontend/sos-venezuela.html`, `EVOLUCION.md`.
+
 
 

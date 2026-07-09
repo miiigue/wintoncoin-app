@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4a90d9">
+    <title>SOS Venezuela - Portal de Ayuda Humanitaria | WintonCoin</title>
+    <meta name="description" content="Canalización de ayuda social para los damnificados del terremoto en Venezuela a través de nuestro ecosistema colaborativo.">
+    
+    <!-- Open Graph (WhatsApp / Facebook Previews) -->
+    <meta property="og:title" content="SOS Venezuela - Portal de Ayuda Humanitaria | WintonCoin" />
+    <meta property="og:description" content="Apoya a los damnificados del terremoto en Venezuela a través del ecosistema colaborativo de WintonCoin. Transparencia, Escrow y control." />
+    <meta property="og:image" content="https://www.demo.wintoncoin.com/assets/icons/icon-192x192.png" />
+    <meta property="og:type" content="website" />
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="landing.css">
+    <link rel="stylesheet" href="landing-fomo.css">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+</head>
+
+<body class="sos-portal-body">
+
+    <!-- Fondo Animado Mesh -->
+    <div class="background-mesh">
+        <div class="mesh-1"></div>
+        <div class="mesh-2"></div>
+        <div class="mesh-overlay"></div>
+    </div>
+
+    <!-- BANNER DE EMERGENCIA HUMANITARIA (Mismo estilo que index) -->
+    <div class="emergency-ribbon">
+        <div class="ribbon-content">
+            <span class="flag-icon">🇻🇪</span>
+            <span class="ribbon-text"><strong>🚨 URGENTE:</strong> Campaña de Ayuda Humanitaria por el Terremoto en Venezuela.</span>
+        </div>
+    </div>
+
+    <!-- Navegación Flotante -->
+    <nav class="glass-nav">
+        <div class="logo">
+            <a href="index.html">
+                <img src="assets/branding/wintoncoin_transparent_phrase.png" alt="WintonCoin" class="logo-phrase-img" style="height: 32px; width: auto;">
+            </a>
+        </div>
+        <div class="nav-links">
+            <a href="index.html#como-funciona">¿Cómo Funciona?</a>
+            <a href="index.html#valores">Seguridad</a>
+            <a href="index.html#economia">Tokenomics</a>
+            <a href="register.html" class="btn-primary-nav">Iniciar App</a>
+        </div>
+    </nav>
+
+    <!-- Héroe Principal con Bandera de Venezuela de fondo difuminada -->
+    <header class="sos-hero">
+        <div class="container">
+            <div class="sos-hero-content">
+                <div class="sos-badge">🇻🇪 CANALIZACIÓN DE AYUDA SOCIAL ACTIVA</div>
+                <h1>Ayudemos a <span class="gradient-text-pink">Venezuela</span></h1>
+                <p class="sos-hero-subtitle">
+                    Ante la emergencia del terremoto en el país, WintonCoin activa sus protocolos de ayuda social. 
+                    Al registrarte con el código <strong class="highlight-pink">SOSVENEZUELADEMO</strong>, la plataforma te otorga un bono de 200 BLUE IOU a ti y acredita de inmediato otros 200 BLUE IOU a la cuenta receptora de la campaña: <strong style="color: #ffffff;">CadenaSOSVenezuela</strong>.
+                </p>
+                <div class="sos-cta-group">
+                    <a href="register.html?ref=SOSVENEZUELADEMO" class="btn-primary-campaign">Registrarse y Apoyar Causa</a>
+                    <a href="#bitacora" class="btn-secondary-campaign">Ver Bitácora de Transparencia ↓</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sección de Bitácora / Timeline de Ayuda -->
+    <section class="sos-timeline-section" id="bitacora">
+        <div class="container">
+            <div class="section-header">
+                <h2>Bitácora de <span class="text-pink">Transparencia</span></h2>
+                <p>Historial público, reproducible y auditable de las actividades de ayuda humanitaria y despacho de insumos.</p>
+            </div>
+
+            <div class="sos-timeline">
+                <!-- Línea central del timeline -->
+                <div class="timeline-central-line"></div>
+
+                <!-- Evento 1: Apertura -->
+                <div class="sos-timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">9 de Julio, 2026</div>
+                    <div class="timeline-card">
+                        <div class="timeline-badge-status approved">ACTIVO</div>
+                        <h4>Apertura de Cuenta Receptora</h4>
+                        <p>Se ha configurado y validado en el sistema la cuenta receptora <strong class="text-pink">CadenaSOSVenezuela</strong> y se ha liberado el código de referido <strong class="text-pink">SOSVENEZUELADEMO</strong> para el flujo de onboarding solidario.</p>
+                    </div>
+                </div>
+
+                <!-- Evento 2: Primer Bloque -->
+                <div class="sos-timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">9 de Julio, 2026</div>
+                    <div class="timeline-card">
+                        <div class="timeline-badge-status pending">EN HOLD (ESCROW)</div>
+                        <h4>Primeros Aportes en Custodia</h4>
+                        <p>Se registran los primeros usuarios asociados a la campaña. Los tokens de incentivo resultantes quedan retenidos en el Fideicomiso Inteligente (Escrow) del ledger contable de WintonCoin.</p>
+                    </div>
+                </div>
+
+                <!-- Evento 3: Planificado -->
+                <div class="sos-timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">Próximo Hito</div>
+                    <div class="timeline-card next-step">
+                        <div class="timeline-badge-status info">PLANIFICADO</div>
+                        <h4>Validación KYC y Envío de Ayuda</h4>
+                        <p>Completado el primer tramo de validaciones de identidad de los usuarios, se transferirán los tokens liberados a los equipos de logística local en Venezuela para el despacho y distribución de suministros básicos.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sección de Cumplimiento Normativo (Fintech / Fideicomiso / SOC 2) -->
+    <section class="sos-compliance-section">
+        <div class="container">
+            <div class="compliance-box">
+                <div class="compliance-header">
+                    <div class="shield-icon">🛡️</div>
+                    <h2>Gobernanza Contable y Legal (Zero-Trust)</h2>
+                    <p>Normativas de seguridad bancaria y auditoría aplicadas a la recaudación humanitaria en WintonCoin.</p>
+                </div>
+                <div class="compliance-grid">
+                    <div class="compliance-card">
+                        <h4>Fideicomiso Inteligente (Escrow)</h4>
+                        <p>Para cumplir con las regulaciones FinTech sobre custodia y transmisión de valor, todos los tokens BLUE IOU generados por referidos permanecen congelados en Escrow hasta que los usuarios correspondientes certifiquen su identidad.</p>
+                    </div>
+                    <div class="compliance-card">
+                        <h4>Políticas AML / Prevención de Fraude</h4>
+                        <p>Impedimos la creación de cuentas fantasmas o granjas de bots mediante una auditoría manual de los registros asociados a la campaña. Los fondos de usuarios que no verifiquen su identidad no serán liberados, previniendo lavado de dinero.</p>
+                    </div>
+                    <div class="compliance-card">
+                        <h4>Libro Contable Inmutable (Audit-Trail)</h4>
+                        <p>Toda transacción, débito y crédito del usuario receptor <strong>CadenaSOSVenezuela</strong> queda registrada de forma inalterable en el ledger contable centralizado, disponible para inspección de los reguladores financieros.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer Oficial -->
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col brand">
+                    <img src="assets/branding/wintoncoin_transparent_phrase.png" alt="WintonCoin" class="footer-logo-img" style="height: 32px; width: auto; margin-bottom: 1.5rem;">
+                    <p>La primera red de economía colaborativa inmutable del mundo. Intercambia servicios sin dinero y apoya causas humanitarias.</p>
+                </div>
+                <div class="footer-col links">
+                    <h5>Legal & Cumplimiento</h5>
+                    <a href="terms.html">Términos de Servicio</a>
+                    <a href="privacy.html">Política de Privacidad</a>
+                    <a href="docs.html">Documentación Legal</a>
+                </div>
+                <div class="footer-col social">
+                    <h5>Comunidad</h5>
+                    <div class="social-icons">
+                        <a href="https://x.com/WintonCoin" target="_blank" aria-label="X (Twitter)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                            </svg>
+                        </a>
+                    </div>
+                    <h6>Contáctanos</h6>
+                    <a href="mailto:support@wintoncoin.com" class="footer-contact-link">support@wintoncoin.com</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                &copy; 2026 WintonCoin. Todos los derechos reservados.<br>
+                <small style="opacity: 0.7;">WintonCoin es un producto propiedad de WTN Solutions LLC.</small>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>
