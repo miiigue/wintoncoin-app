@@ -3799,15 +3799,15 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
 
 ---
 
-### 2026-07-09 — Banner de Emergencia y Portal de Transparencia "SOS Venezuela" (Winton Solidario)
+### 2026-07-09 — Banner Hero de Emergencia y Portal de Transparencia "SOS Venezuela" (Winton Solidario)
 
 - **Contexto**: Ante la emergencia del terremoto en Venezuela, se requería incorporar un elemento de llamada a la acción inmediato que comunicara urgencia absoluta en la landing page principal sin entorpecer su estructura de navegación comercial. Además, se requería una página dedicada que fungiera como portal oficial de transparencia (bitácora de suministros y cumplimiento regulatorio) para las donaciones de referidos en BLUE IOU.
 - **Decisión de Ingeniería**:
-  - **Banner Superior de Alerta (`index.html` & `landing-fomo.css`)**: Se colocó un Ribbon con fondo responsivo tricolor de la bandera de Venezuela y texto parpadeante de urgencia en la cabecera absoluta, visible inmediatamente al cargar el sitio. Se eliminó la sección humanitaria del medio de la página para evitar redundancia y centralizar todo el flujo en el portal.
+  - **Banner de Emergencia en Cabecera (`index.html` & `landing-fomo.css`)**: Se removió el ribbon superior delgado y en su lugar se implementó una sección hero amplia de alerta (`.emergency-hero-banner`) justo debajo del menú de navegación flotante. Esta sección utiliza de fondo la imagen premium copiada de la bandera de Venezuela ondeando (Opción 6, con desgastes del sismo y reflector de ayuda humanitaria), superpuesta con un filtro de vidrio (Glassmorphism con desenfoque de 4px y degradado oscuro) para garantizar contraste de tipografía y legibilidad del texto. Se eliminó la sección humanitaria intermedia para evitar redundancia.
   - **Portal Humanitario Independiente (`sos-venezuela.html`)**: Se creó una nueva página independiente con fondo de la bandera venezolana difuminada en alta fidelidad (Glassmorphism), una bitácora lineal responsiva de despacho de suministros y un panel detallado sobre políticas de Fideicomiso Inteligente (Escrow), cumplimiento AML y registro inmutable en ledger.
   - **Configuración de Compilación (`vite.config.js`)**: Se registró el archivo `sos-venezuela.html` en la lista de entradas de Rollup en Vite para asegurar su correcta compilación en el bundle de producción en `dist/`.
 - **Impacto**:
-  - **Visibilidad Inmediata**: 100% de conversión y alerta sin intrusión visual en la landing comercial.
+  - **Visibilidad Inmediata**: Mayor impacto visual y conversión con el banner amplio, sin entorpecer el flujo comercial de la landing.
   - **Enlace Compartible**: El portal posee una URL dedicada (`wintoncoin.com/sos-venezuela.html`) que puede ser indexada por buscadores y compartida en redes sociales de forma directa.
   - **Gobernanza Contable**: La bitácora y la sección de cumplimiento legal blindan al ecosistema ante auditorías financieras FinTech sobre transmisión de valor.
 - **Evidencia**: Archivos creados/modificados: `frontend/index.html`, `frontend/landing-fomo.css`, `frontend/vite.config.js`, `frontend/sos-venezuela.html`, `EVOLUCION.md`.
