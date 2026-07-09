@@ -573,10 +573,18 @@ function initDonationsList(donationsData) {
         const statusClass = d.status === 'released' ? 'released' : 'on_hold';
         const statusLabel = d.status === 'released' ? 'Acreditada' : 'En espera';
 
+        // Clasificación de tipo de donación
+        const isReferral = d.donation_type === 'referral';
+        const typeLabel = isReferral ? 'Por código' : 'Donado';
+        const typeClass = isReferral ? 'referral' : 'voluntary';
+
         return `
             <div class="solidario-donation-item">
                 <div>
-                    <div class="solidario-donation-user">@${escapeHtml(d.donor_username)}</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="solidario-donation-user">@${escapeHtml(d.donor_username)}</div>
+                        <span class="donation-type-badge ${typeClass}">${typeLabel}</span>
+                    </div>
                     <span style="font-size:0.75em; color:#64748B;">${date}</span>
                 </div>
                 <div style="text-align:right;">

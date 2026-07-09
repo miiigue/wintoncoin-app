@@ -20,6 +20,16 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
 
+
+### 2026-07-09 — Desvío Automático de Recompensas de Referido a Causas Activas y Clasificación de Historial
+
+- **Contexto**: Para mejorar el crecimiento orgánico (Product-Led Growth) y alinear los incentivos de la comunidad, se requería que si un organizador (referente) tiene una causa humanitaria activa (aprobada), el bono que gana por referir a otros se sume de forma directa y automática a su causa en lugar de acreditarse en su balance personal ordinario. El bono del nuevo usuario (referido) se mantiene intacto en su cuenta personal para no forzar su donación. Adicionalmente, el historial de donaciones de la causa debe reflejar con etiquetas claras ("Por código" vs "Donado") la procedencia del abono.
+- **Decisión de Ingeniería**:
+  - **Base de Datos y Migración:** Se creó la migración `086_add_donation_type_to_humanitarian_donations.js` para añadir la columna `donation_type` (con valores `'voluntary'` y `'referral'`) a la tabla `humanitarian_donations`.
+  - **Desvío del Bono en Registro (`authController.js`):** Se modificó la lógica del flujo de referido para que, al registrarse un usuario con código, se verifique si el referente tiene una causa activa en estado `'approved'`. De ser así, el bono del referente (e.g. 10 BLUE) se registra como una donación a nombre del referido con tipo `'referral'` y estado `'on_hold'` (pendiente de KYC del referido para evitar fraudes Sybil), incrementando el `pending_amount` de la causa. Si no hay causa activa, se mantiene la acreditación personal ordinaria. El nuevo usuario conserva su bono de bienvenida íntegramente.
+  - **Visualización y Clasificación (`causa-solidaria.js` y HTML):** Se actualizó la función `getCauseDonations` para enviar la columna `donation_type`. En el frontend, se agregaron estilos CSS para badges y se modificó el renderizado de la lista para mostrar un distintivo visual elegante: *"Por código"* para donaciones de tipo `'referral'` y *"Donado"* para las voluntarias (`'voluntary'`).
+- **Impacto**: Mayor transparencia, alineación de incentivos para financiamiento colectivo y experiencia de usuario optimizada sin comprometer la seguridad KYC/AML. El motor de escrow (Trigger de base de datos) procesa de forma nativa la liberación a la cuenta del organizador en cuanto el referido se verifica, incluso si la causa se completa o cierra antes.
+
 ### 2026-07-07 — Ajuste de Vista Previa para WhatsApp, Unificación de Moneda y Diseño Responsivo de la Escalera de Rangos
 
 - **Contexto**: 

@@ -458,6 +458,7 @@ const getCauseDonations = async (causeId) => {
             hd.status,
             hd.created_at,
             hd.released_at,
+            hd.donation_type,
             u.username AS donor_username,
             u.kyc_verified AS donor_verified
         FROM humanitarian_donations hd
