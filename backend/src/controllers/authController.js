@@ -455,6 +455,24 @@ exports.registerVerify = async (req, res) => {
                         data: { url: `/causa-solidaria.html?id=${activeCause.id}` }
                     }, 'TRANSACTIONAL');
 
+                    // Disparar envío de correo transaccional de bienvenida y agradecimiento al nuevo usuario (no bloqueante)
+                    if (newUser.email) {
+                        sendTransactionEmail({
+                            toEmail: newUser.email,
+                            subject: '🎁 ¡Gracias por unirte! Tu registro apoya una causa — Winton Solidario',
+                            title: 'Aporte Solidario por Registro',
+                            message: `¡Bienvenido a Wintoncoin! Nos emociona mucho que te unas a nuestra comunidad. Queremos agradecerte de todo corazón porque al registrarte usando el código de referido de @${referrer.username}, has destinado tu bono de bienvenida de ${rewardAmount.toFixed(4)} BLUE IOU para apoyar la causa "${activeCause.title}". Tu granito de arena hace una gran diferencia.\n\nTu aporte está en resguardo seguro temporalmente. Para que este hermoso gesto se haga efectivo y sea liberado para la causa, solo debes completar tu verificación KYC Web3 en tu panel.`,
+                            amount: `${rewardAmount.toFixed(4)} BLUE IOU`,
+                            details: [
+                                { label: 'Causa Solidaria', value: activeCause.title },
+                                { label: 'Invitado por', value: `@${referrer.username}` },
+                                { label: 'Donante', value: `@${newUser.username}` },
+                                { label: 'Estado', value: 'En Resguardo Seguro (Falta KYC)' },
+                                { label: 'Fecha', value: new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' }) }
+                            ]
+                        }).catch(e => console.error('[SOLIDARIO CORREO] Error al enviar correo de bienvenida y agradecimiento por referido:', e.message));
+                    }
+
                 } else {
                     // CASO TRADICIONAL (Sin causa activa)
                     // Recompensa para el referente: Registra en booster_blue_ledger

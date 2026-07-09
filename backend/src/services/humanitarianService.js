@@ -493,14 +493,14 @@ const getCauseDonations = async (causeId) => {
 const sendDonationSentEmail = async (donorEmail, recipientUsername, causeTitle, amount, isHold, creatorUsername) => {
     try {
         const subject = isHold
-            ? 'Donación en espera de verificación — Winton Solidario'
-            : 'Recibo de Donación Acreditada — Winton Solidario';
+            ? '💙 ¡Gracias por tu apoyo! Donación en espera de verificación — Winton Solidario'
+            : '💖 ¡Gracias por tu generosidad! Recibo de Donación Acreditada — Winton Solidario';
         const title = isHold
-            ? 'Donación en Espera (Custodia)'
+            ? 'Donación Recibida en Custodia'
             : 'Donación Acreditada Exitosamente';
         const message = isHold
-            ? `Tu donación de ${amount.toFixed(4)} BLUE IOU para la causa "${causeTitle}" de @${recipientUsername} está retenida temporalmente. Para que sea liberada y entregada, debes completar tu verificación KYC Web3 en la plataforma.`
-            : `Tu donación de ${amount.toFixed(4)} BLUE IOU ha sido transferida y acreditada directamente en la billetera de @${recipientUsername} para su causa "${causeTitle}". ¡Gracias por tu apoyo!`;
+            ? `¡Muchísimas gracias por tu generosidad! Tu donación de ${amount.toFixed(4)} BLUE IOU para apoyar la causa "${causeTitle}" de @${recipientUsername} ha sido registrada. Con este gran gesto, estás sumando valor y esperanza.\n\nTu donación está en resguardo seguro temporalmente. Para que sea liberada y se haga efectiva en la causa, solo debes completar tu verificación KYC Web3 en la plataforma.`
+            : `¡Queremos agradecerte de todo corazón por tu hermoso gesto de solidaridad! Tu donación de ${amount.toFixed(4)} BLUE IOU para la causa "${causeTitle}" de @${recipientUsername} ha sido procesada y acreditada exitosamente. Tu apoyo es fundamental para lograr esta meta. ¡Gracias por hacer la diferencia!`;
 
         await sendTransactionEmail({
             toEmail: donorEmail,
@@ -512,7 +512,7 @@ const sendDonationSentEmail = async (donorEmail, recipientUsername, causeTitle, 
                 { label: 'Causa Humanitaria', value: causeTitle },
                 { label: 'Creador de la Causa', value: `@${creatorUsername}` },
                 { label: 'Beneficiario', value: `@${recipientUsername}` },
-                { label: 'Estado de Custodia', value: isHold ? 'Retenido (Falta KYC)' : 'Acreditado Inmediato' },
+                { label: 'Estado de Custodia', value: isHold ? 'En Resguardo Seguro (Falta KYC)' : 'Acreditado Inmediato' },
                 { label: 'Fecha', value: new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' }) }
             ]
         });
