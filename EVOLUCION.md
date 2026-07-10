@@ -3859,8 +3859,8 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
 - **Decisión de Ingeniería**:
   - **Coherencia de Marca (`sos-venezuela.html`)**: Se reemplazó la mención de la entidad de desarrollo "WTN Solutions LLC" por la marca principal de cara al público "WintonCoin" en la tarjeta de Compromiso de Cero Margen de Lucro.
   - **Precisión Terminológica (`sos-venezuela.html`)**:
-    - **Timeline**: Se ajustó el Paso 1 para mencionar "BLUE IOU donados", el Paso 2 para referirse a "BLUE IOU por registros con el código SOSVENEZUELA", y el Paso 5 para especificar "BLUE IOU" en la fase de transferencia.
-    - **FAQ**: Se especificó la unidad "BLUE IOU" en cada cantidad de la escala de cupos (100 BLUE IOU y 75 BLUE IOU) para no inducir a confusión al lector.
+    - **Timeline**: Se ajustó el Paso 1 para mencionar "BLUE IOU donados", el Paso 2 para referirse a "BLUE IOU por registros con el código SOSVENEZUELA se acumulan de forma segura", y el Paso 5 para especificar "BLUE IOU" en la fase de transferencia.
+    - **FAQ**: Se especificó la unidad "BLUE IOU" en cada cantidad de la escala de cupos (100 BLUE IOU y 75 BLUE IOU), en el valor del bono por registro ("valor en BLUE IOU del bono") y en el canje final ("Los BLUE IOU acumulados serán canjeados...").
 - **Impacto**:
   - **Experiencia de Usuario Transparente**: Al eliminar la mención técnica de la entidad legal WTN Solutions LLC en el banner principal y homogeneizar las referencias a BLUE IOU, se reduce la carga cognitiva del usuario al navegar el portal.
 - **Evidencia**: Archivos modificados: `frontend/sos-venezuela.html`, `EVOLUCION.md`.
