@@ -3812,5 +3812,24 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
   - **Gobernanza Contable**: La bitácora y la sección de cumplimiento legal blindan al ecosistema ante auditorías financieras FinTech sobre transmisión de valor.
 - **Evidencia**: Archivos creados/modificados: `frontend/index.html`, `frontend/landing-fomo.css`, `frontend/vite.config.js`, `frontend/sos-venezuela.html`, `EVOLUCION.md`.
 
+### 2026-07-09 — Pulido Estético, Simetría Tipográfica y Sub-Página Legal para "SOS Venezuela"
+
+- **Contexto**: Para alcanzar un estándar premium de producción, se requería refinar la asimetría de los títulos de la landing, simplificar y hacer más cálidos los textos humanitarios (evitando tecnicismos densos de auditoría de cara al usuario final) y asegurar que el portal contara con términos de cumplimiento legal adaptados localmente para Venezuela sin referirse a entes extranjeros (IRS).
+- **Decisión de Ingeniería**:
+  - **Sincronización Tipográfica (`landing-fomo.css`)**: Se agruparon los estilos de los encabezados principales del portal (`h1` y `h2`) forzándolos a `3.8rem` en escritorio y `2.5rem !important` en dispositivos móviles para garantizar simetría visual exacta.
+  - **Aclaración y Bandera de Fondo Fijo (`landing-fomo.css`)**: Se configuró la bandera venezolana de fondo fijo (`background-attachment: fixed`) en el body y se rediseñó la página completa con colores claros, azules y blancos translúcidos (Glassmorphism con filtros de desenfoque de 6px) para un Modo Claro sofisticado.
+  - **Compromiso Solidario (`sos-venezuela.html` & `landing-fomo.css`)**: Se inyectó la sección "Nuestro Compromiso: Cero Margen de Lucro" detallando la donación de ganancias/comisiones por WTN Solutions LLC, estilizada en una tarjeta con la bandera de fondo y animación de corazón pulsante.
+  - **Advertencia contra Estafas Centrada (`sos-venezuela.html`)**: Para mejorar la estética y simetría, reubicamos el aviso contra estafas (que alerta sobre no recibir dinero fiat ni criptos) en la zona media, entre el Compromiso Solidario y el Timeline, dándole un fondo blanco puro con sombra flotante y un borde rojo carmesí delgado.
+  - **Timeline con Títulos de Una Palabra (`sos-venezuela.html`)**: Se reestructuró la línea temporal en 6 pasos concretos y con títulos de una sola palabra (**Creación**, **Acumulación**, **Auditoría**, **Evaluación**, **Asignación**, **Canje**).
+  - **Optimización de Simetría y Márgenes en Móviles (`landing-fomo.css`)**: Implementamos un rediseño completo de la consulta de medios móvil (`@media (max-width: 768px)`) ajustando los rellenos de secciones (`sos-hero`, `sos-commitment-section`, `sos-timeline-section`, `sos-compliance-section`), reduciendo la separación de las tarjetas de línea temporal (`padding-right: 0.5rem`) para evitar que toquen el borde derecho y ajustando las celdas del FAQ (`gap: 1.2rem`) para asegurar simetría total en celulares.
+  - **Enlaces de Redes del Footer (`sos-venezuela.html` & `legales-campana.html`)**: Se incorporó el botón oficial de Instagram de @CadenaSOSVenezuela en el footer, posicionado al lado de Twitter/X.
+  - **Sub-Página Legal de Campaña (`legales-campana.html` & `vite.config.js`)**: Se creó una sub-página formal para exenciones de responsabilidad civil y fiscal enfocada en Venezuela y se registró como entrypoint en la configuración de Vite, enlazándola mediante un botón secundario al pie de las preguntas frecuentes.
+- **Impacto**:
+  - **Visual de Alta Fidelidad**: El scroll sobre la bandera de fondo fijo con capas claras superpuestas crea un efecto visual inmersivo premium.
+  - **Gobernanza Accesible**: El portal ahora explica el proceso de forma transparente pero sencilla, eliminando la fricción de lenguaje técnico innecesario.
+  - **Seguridad Jurídica**: La sub-página legal de términos salvaguarda a WTN Solutions LLC ante reclamos de valores (Securities), transmisión financiera o falsas deducciones impositivas locales.
+- **Evidencia**: Archivos creados/modificados: `frontend/sos-venezuela.html`, `frontend/legales-campana.html`, `frontend/landing-fomo.css`, `frontend/vite.config.js`, `frontend/index.html`, `EVOLUCION.md`.
+
+
 
 
