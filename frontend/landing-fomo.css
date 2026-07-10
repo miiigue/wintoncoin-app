@@ -592,7 +592,7 @@
    ============================================================================ */
 .emergency-hero-banner {
     position: relative;
-    background-image: url('assets/images/waving_venezuela_flag.png');
+    background-image: url('/assets/images/waving_venezuela_flag.png');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -1196,7 +1196,7 @@
    ============================================================================ */
 
 .sos-portal-body {
-    background-image: url('assets/images/waving_venezuela_flag.png');
+    background-image: url('/assets/images/waving_venezuela_flag.png');
     background-attachment: fixed;
     background-size: cover;
     background-position: center;
@@ -1397,7 +1397,7 @@
 }
 
 .commitment-card {
-    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.88) 0%, rgba(240, 249, 255, 0.94) 100%), url('assets/images/waving_venezuela_flag.png');
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.88) 0%, rgba(240, 249, 255, 0.94) 100%), url('/assets/images/waving_venezuela_flag.png');
     background-size: cover;
     background-position: center;
     border: 2px solid rgba(14, 165, 233, 0.25);
