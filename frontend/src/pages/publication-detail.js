@@ -3,7 +3,7 @@
  * Handles viewing and interacting with a single publication
  */
 
-import { getApiUrl, showCustomAlert, showCustomConfirm, linkify, escapeHtml, escapeAttr, fetchAndStoreAppSettings, appSettings } from '../modules/index.js';
+import { getApiUrl, showCustomAlert, showCustomConfirm, linkify, escapeHtml, escapeAttr, fetchAndStoreAppSettings, appSettings, silentRefreshIfNeeded, handleSessionExpired } from '../modules/index.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- Configuration and State ---
@@ -39,13 +39,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function initializePage() {
         try {
+            // [SEGURIDAD FINTECH] Refrescar silenciosamente el token si expiró antes de validar la sesión
+            await silentRefreshIfNeeded();
+
+            // Recargar valores de localStorage tras la posible renovación del token
+            const activeToken = localStorage.getItem('token');
+            const activeUsername = localStorage.getItem('username');
+
             const settingsPromise = fetchAndStoreAppSettings();
             const platformSettingsPromise = fetch(`${API_URL}/api/platform-settings`).then(async (response) => {
                 if (!response.ok) return {};
                 return response.json();
             });
 
-            const userParam = storedUsername ? `?user=${storedUsername}` : '';
+            const userParam = activeUsername ? `?user=${activeUsername}` : '';
             const publicationPromise = fetch(`${API_URL}/api/publications/${publicationId}${userParam}`);
 
             const [_, platformSettings, publicationResponse] = await Promise.all([settingsPromise, platformSettingsPromise, publicationPromise]);
@@ -59,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // --- REDIRECCIÓN DE ONBOARDING PARA INVITADOS ---
             // Si el visitante es un invitado (no autenticado), procedemos de la siguiente manera:
-            if (!storedUsername || !storedToken) {
+            if (!activeUsername || !activeToken) {
                 const currentPath = 'publication-detail.html' + window.location.search;
                 if (publication.category === 'donation') {
                     // Campaña de Donación: Redirigir al registro inyectando el código de referido del beneficiario
@@ -930,6 +937,9 @@ Puedes ver los detalles aquí:`;
             }
 
             if (!response.ok) {
+                // [SEGURIDAD FINTECH] Interceptar sesión expirada (401)
+                if (handleSessionExpired(response)) return null;
+
                 // Interceptar bloqueo por Términos y Condiciones pendientes (403 LEGAL_ACCEPTANCE_REQUIRED)
                 if (response.status === 403 && result.code === 'LEGAL_ACCEPTANCE_REQUIRED') {
                     return new Promise((resolve, reject) => {

@@ -14,6 +14,114 @@ export const userSession = {
 };
 
 /**
+ * [MÉTODO DE SEGURIDAD] Decodifica y comprueba si el token JWT de acceso ha expirado
+ * o está muy cerca de expirar (dentro de los próximos 30 segundos).
+ * @param {string} token - Token JWT
+ * @returns {boolean} True si expiró o es inválido, False si es válido
+ */
+export function isTokenExpired(token) {
+    if (!token) return true;
+    try {
+        const payloadBase64 = token.split('.')[1];
+        const decodedPayload = JSON.parse(atob(payloadBase64));
+        const expTimestamp = decodedPayload.exp * 1000; // exp está en segundos
+        return expTimestamp < Date.now() + 30000; // Considerar expirado si le quedan menos de 30 seg
+    } catch (e) {
+        return true;
+    }
+}
+
+// Variable para encolar/unificar peticiones paralelas de refresco de sesión
+let refreshPromise = null;
+
+/**
+ * [MÉTODO DE SEGURIDAD] Realiza el refresco silencioso del Access Token
+ * comunicándose con el backend usando la cookie HttpOnly de refresco.
+ * @returns {Promise<string|null>} Retorna el nuevo Access Token o null si falla.
+ */
+export async function silentRefreshIfNeeded() {
+    const token = localStorage.getItem('token');
+    
+    // Si no hay token de acceso previo, se trata de un invitado: no hacemos nada
+    if (!token) {
+        return null;
+    }
+
+    // Si el token aún es válido, lo retornamos sin hacer llamada de red
+    if (!isTokenExpired(token)) {
+        return token;
+    }
+
+    // Evitamos llamadas concurrentes duplicadas; si ya hay un refresco en curso, esperamos a esa promesa
+    if (refreshPromise) {
+        return refreshPromise;
+    }
+
+    const isLocal = window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1' || 
+                    window.location.protocol === 'file:';
+    const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+
+    refreshPromise = (async () => {
+        try {
+            console.log('[AUTH] Token expirado o por expirar. Iniciando refresco silencioso...');
+            
+            // Hacemos el fetch incluyendo 'credentials: include' para mandar las cookies HttpOnly
+            const response = await fetch(`${API_URL}/api/auth/refresh`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                throw new Error('Fallo al validar la cookie de sesión en el servidor.');
+            }
+
+            const data = await response.json();
+            
+            // Guardar el nuevo Access Token y el username en el storage local de corta duración
+            localStorage.setItem('token', data.token);
+            if (data.username) {
+                localStorage.setItem('username', data.username);
+            }
+
+            // Actualizar la sesión global en memoria
+            userSession.isAuthenticated = true;
+            userSession.is_verified = data.is_verified;
+            userSession.kyc_verified = data.kyc_verified;
+            userSession.requires_terms_acceptance = data.requires_terms_acceptance;
+            userSession.pending_documents = data.pending_documents || [];
+            
+            document.dispatchEvent(new CustomEvent('auth-status-checked', { detail: userSession }));
+            console.log('[AUTH] Token refrescado con éxito de manera silenciosa.');
+            return data.token;
+
+        } catch (error) {
+            console.warn('[AUTH] No se pudo refrescar la sesión:', error.message);
+            
+            // Si el refresco falla, destruimos la sesión en localStorage preventivamente
+            localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            
+            userSession.isAuthenticated = false;
+            userSession.is_verified = false;
+            userSession.kyc_verified = false;
+            userSession.requires_terms_acceptance = false;
+            userSession.pending_documents = [];
+            
+            document.dispatchEvent(new CustomEvent('auth-status-checked', { detail: userSession }));
+            return null;
+        } finally {
+            refreshPromise = null;
+        }
+    })();
+
+    return refreshPromise;
+}
+
+/**
  * Verifica el estado de autenticación del usuario contra el backend.
  * Almacena el resultado en userSession.
  * @returns {Promise<object>} El estado de la sesión del usuario.
@@ -23,6 +131,10 @@ export async function checkAuthStatus() {
                     window.location.hostname === '127.0.0.1' || 
                     window.location.protocol === 'file:';
     const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+    
+    // [SEGURIDAD FINTECH] Refrescar silenciosamente el token si ha expirado antes de consultar estado
+    await silentRefreshIfNeeded();
+    
     const token = localStorage.getItem('token');
 
     try {
@@ -68,7 +180,20 @@ export async function checkAuthStatus() {
  * Cierra la sesión del usuario.
  */
 export function logout() {
+    const isLocal = window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1' || 
+                    window.location.protocol === 'file:';
+    const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+    
+    // [SEGURIDAD FINTECH] Notificar al servidor para destruir la cookie HttpOnly de refresco
+    fetch(`${API_URL}/api/auth/logout`, {
+        method: 'POST',
+        credentials: 'include'
+    }).catch(err => console.error('[AUTH] Fallo al cerrar sesión en backend:', err.message));
+
+    // Limpiar storage local de la interfaz
     localStorage.removeItem('token');
+    localStorage.removeItem('username');
     userSession.isAuthenticated = false;
     userSession.is_verified = false;
     userSession.username = null;
@@ -109,16 +234,8 @@ export function setAuthToken(token) {
  */
 export function handleSessionExpired(response) {
     if (response.status === 401) {
-        // Limpiar datos de sesión
-        localStorage.removeItem('token');
-        localStorage.removeItem('username');
-        
-        // Resetear estado de sesión
-        userSession.isAuthenticated = false;
-        userSession.is_verified = false;
-        userSession.username = null;
-        userSession.requires_terms_acceptance = false;
-        userSession.pending_documents = [];
+        // [SEGURIDAD FINTECH] Cierra sesión destruyendo datos del storage local y cookies de refresco
+        logout();
         
         // Importar showCustomAlert dinámicamente para evitar dependencia circular
         import('./alerts.js').then(({ showCustomAlert }) => {
@@ -126,7 +243,7 @@ export function handleSessionExpired(response) {
                 window.location.href = 'index.html';
             });
         }).catch(() => {
-            // Fallback si falla la importación
+            // Fallback si falla la importación (esta función ya creará el div dinámico de alerta en alerts.js)
             alert('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
             window.location.href = 'index.html';
         });

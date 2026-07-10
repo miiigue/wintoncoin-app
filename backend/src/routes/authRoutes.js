@@ -20,6 +20,12 @@ router.post('/register-verify', registerVerifyLimiter, authController.registerVe
 // Ruta de Inicio de Sesión (acepta username o email)
 router.post('/login', loginLimiter, authController.login);
 
+// NUEVO: Endpoint para refrescar el token de acceso usando la cookie de refresco HttpOnly
+router.post('/auth/refresh', authController.refreshToken);
+
+// NUEVO: Endpoint para cerrar sesión destruyendo la cookie en el servidor
+router.post('/auth/logout', authController.logout);
+
 // NUEVO: Endpoint para verificar el estado de autenticación y verificación del usuario
 router.get('/auth/status', authController.getAuthStatus);
 

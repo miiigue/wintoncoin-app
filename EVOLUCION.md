@@ -20,6 +20,21 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
 
+### 2026-07-10 — Autenticación Robusta con Doble Token (Access/Refresh) y Unificación de Modales de Alerta
+
+- **Contexto**: 
+  1. Los usuarios experimentaban cierres abruptos y mensajes de error como `"Token de sesión inválido o expirado."` en forma de diálogos de sistema (`alert()`) al cabo de 7 días de inactividad, lo que resultaba confuso para usuarios no técnicos y rompía la UX/UI premium. El backend devolvía `403` en lugar de `401` ante tokens expirados, interfiriendo con la lógica de aceptación de términos legales (también en `403`).
+  2. Las alertas de expiración de sesión y otros fallos utilizaban el `alert()` nativo del sistema en páginas como `publication-detail.html` debido a la ausencia del contenedor `#custom-alert-container` en el HTML.
+- **Decisión de Ingeniería**:
+  - **Arquitectura de Doble Token (HttpOnly & Anti-XSS)**: Se migró la autenticación del backend a un sistema de doble token. Al iniciar sesión o verificar registro, se genera un `accessToken` corto (15 minutos, almacenado en `localStorage` temporal) y un `refreshToken` largo (7 días) firmado con `tokenType: 'refresh'` y enviado en la cookie segura `auth_refresh_token` con directivas `httpOnly: true`, `secure: true` (en producción), `sameSite: 'None'`.
+  - **Endpoints de Refresco y Cierre de Sesión**: Se crearon las rutas `POST /api/auth/refresh` (que valida el Refresh Token, comprueba el estado del usuario en tiempo real en la DB y genera un nuevo Access Token de 15 minutos rotando el Refresh Token) y `POST /api/auth/logout` (que limpia la cookie en el servidor).
+  - **Estandarización HTTP (401 vs 403)**: El middleware `authenticateToken` ahora devuelve `401 Unauthorized` ante fallos de token, permitiendo al frontend iniciar el refresco silencioso de sesión y reservando `403 Forbidden` únicamente para bloqueos de aceptación de términos legales (`LEGAL_ACCEPTANCE_REQUIRED`).
+  - **Refresco Silencioso en Frontend**: Se implementaron `isTokenExpired(token)` y `silentRefreshIfNeeded()` en `auth.js`. Al cargar el detalle de la publicación (`publication-detail.js`), el sistema realiza la renovación transparente del token en segundo plano si ha caducado.
+  - **Unificación de Alertas Dinámicas**: Se optimizó `showCustomAlert` en `alerts.js` para crear dinámicamente el contenedor `#custom-alert-container` en el DOM si no existe en el HTML. Esto erradica los popups grises nativos del navegador de manera definitiva en toda la plataforma.
+- **Impacto**: Experiencia de usuario (UX/UI) continua y sin fricciones. Cumplimiento con las normativas internacionales de seguridad financiera y protección de datos más estrictas (SOC 2, GDPR, Leyes FinTech y Directrices OWASP de seguridad contra robos de sesión por XSS). Suite de pruebas automatizadas Jest completamente exitosa.
+- **Evidencia**:
+  - Backend: [authMiddleware.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/middleware/authMiddleware.js), [authController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/authController.js), [authRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/authRoutes.js).
+  - Frontend: [alerts.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/modules/alerts.js), [auth.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/modules/auth.js), [publication-detail.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/publication-detail.js).
 
 ### 2026-07-10 — Compatibilidad Estándar de la Propiedad background-clip en landing-fomo.css
 

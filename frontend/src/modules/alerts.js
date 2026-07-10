@@ -13,56 +13,57 @@ let onConfirmCallback = null;
  * @param {function} [onClose] Una función opcional que se ejecutará cuando el modal se cierre.
  */
 export function showCustomAlert(message, onClose) {
-    const container = document.getElementById('custom-alert-container');
+    // [MEJORA UX/UI] Buscar el contenedor de alertas personalizado.
+    // Si no existe en el HTML de la página actual, lo creamos dinámicamente en el body
+    // para evitar el uso de diálogos nativos del sistema. Esto mantiene la estética premium
+    // de la app de forma consistente en toda la plataforma.
+    let container = document.getElementById('custom-alert-container');
     
-    if (container) {
-        // Limpiamos cualquier alerta anterior
-        container.innerHTML = '';
-        
-        // Creamos la estructura del modal dinámicamente
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.style.display = 'flex';
-        
-        const modalContent = document.createElement('div');
-        modalContent.className = 'modal-content';
-        
-        const messageElement = document.createElement('p');
-        messageElement.textContent = message;
-        
-        const closeButton = document.createElement('button');
-        closeButton.className = 'action-button';
-        closeButton.textContent = 'Cerrar';
-        
-        modalContent.appendChild(messageElement);
-        modalContent.appendChild(closeButton);
-        modal.appendChild(modalContent);
-        container.appendChild(modal);
-        
-        onAlertCloseCallback = typeof onClose === 'function' ? onClose : null;
-
-        const closeModal = () => {
-            container.innerHTML = ''; // Limpiamos al cerrar
-            if (onAlertCloseCallback) {
-                onAlertCloseCallback();
-                onAlertCloseCallback = null;
-            }
-        };
-
-        closeButton.addEventListener('click', closeModal);
-        modal.addEventListener('click', (event) => {
-            if (event.target === modal) {
-                closeModal();
-            }
-        });
-        
-    } else {
-        // Fallback al alert nativo si el contenedor no se encuentra
-        alert(message);
-        if (typeof onClose === 'function') {
-            onClose();
-        }
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'custom-alert-container';
+        document.body.appendChild(container);
     }
+    
+    // Limpiamos cualquier alerta anterior
+    container.innerHTML = '';
+    
+    // Creamos la estructura del modal dinámicamente con clases de CSS
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    
+    const modalContent = document.createElement('div');
+    modalContent.className = 'modal-content';
+    
+    const messageElement = document.createElement('p');
+    messageElement.textContent = message;
+    
+    const closeButton = document.createElement('button');
+    closeButton.className = 'action-button';
+    closeButton.textContent = 'Cerrar';
+    
+    modalContent.appendChild(messageElement);
+    modalContent.appendChild(closeButton);
+    modal.appendChild(modalContent);
+    container.appendChild(modal);
+    
+    onAlertCloseCallback = typeof onClose === 'function' ? onClose : null;
+
+    const closeModal = () => {
+        container.innerHTML = ''; // Limpiamos al cerrar
+        if (onAlertCloseCallback) {
+            onAlertCloseCallback();
+            onAlertCloseCallback = null;
+        }
+    };
+
+    closeButton.addEventListener('click', closeModal);
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) {
+            closeModal();
+        }
+    });
 }
 
 /**
