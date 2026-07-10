@@ -4,6 +4,8 @@
 // Gestión del estado de autenticación del usuario
 // ============================================================================
 
+import { showCustomAlert } from './alerts.js';
+
 // Variable global para almacenar la sesión del usuario.
 export const userSession = {
     isAuthenticated: false,
@@ -237,14 +239,9 @@ export function handleSessionExpired(response) {
         // [SEGURIDAD FINTECH] Cierra sesión destruyendo datos del storage local y cookies de refresco
         logout();
         
-        // Importar showCustomAlert dinámicamente para evitar dependencia circular
-        import('./alerts.js').then(({ showCustomAlert }) => {
-            showCustomAlert('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', () => {
-                window.location.href = 'index.html';
-            });
-        }).catch(() => {
-            // Fallback si falla la importación (esta función ya creará el div dinámico de alerta en alerts.js)
-            alert('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+        // [MEJORA UX/UI] Mostrar alerta amigable, comprensible e instructiva utilizando el modal premium de la aplicación.
+        // Se explica claramente el motivo de seguridad (inactividad) y la instrucción exacta a seguir (iniciar sesión).
+        showCustomAlert('Por motivos de seguridad y resguardo de tus activos, tu sesión ha expirado tras un período de inactividad. Por favor, inicia sesión nuevamente para continuar operando en la plataforma.', () => {
             window.location.href = 'index.html';
         });
         
