@@ -3853,6 +3853,19 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
   - **Seguridad Jurídica**: La sub-página legal de términos salvaguarda a WTN Solutions LLC ante reclamos de valores (Securities), transmisión financiera o falsas deducciones impositivas locales.
 - **Evidencia**: Archivos creados/modificados: `frontend/sos-venezuela.html`, `frontend/legales-campana.html`, `frontend/landing-fomo.css`, `frontend/vite.config.js`, `frontend/index.html`, `EVOLUCION.md`.
 
+### 2026-07-10 — Consistencia de Términos y Precisión de BLUE IOU en Portal Humanitario
+
+- **Contexto**: Para mejorar la coherencia de cara al usuario final y evitar confusiones, se requería utilizar de forma uniforme el nombre comercial "WintonCoin" en el Compromiso Solidario y precisar de forma explícita el alcance de los tokens "BLUE IOU" en las etapas del timeline y la distribución del FAQ.
+- **Decisión de Ingeniería**:
+  - **Coherencia de Marca (`sos-venezuela.html`)**: Se reemplazó la mención de la entidad de desarrollo "WTN Solutions LLC" por la marca principal de cara al público "WintonCoin" en la tarjeta de Compromiso de Cero Margen de Lucro.
+  - **Precisión Terminológica (`sos-venezuela.html`)**:
+    - **Timeline**: Se ajustó el Paso 1 para mencionar "BLUE IOU donados", el Paso 2 para referirse a "BLUE IOU por registros con el código SOSVENEZUELA", y el Paso 5 para especificar "BLUE IOU" en la fase de transferencia.
+    - **FAQ**: Se especificó la unidad "BLUE IOU" en cada cantidad de la escala de cupos (100 BLUE IOU y 75 BLUE IOU) para no inducir a confusión al lector.
+- **Impacto**:
+  - **Experiencia de Usuario Transparente**: Al eliminar la mención técnica de la entidad legal WTN Solutions LLC en el banner principal y homogeneizar las referencias a BLUE IOU, se reduce la carga cognitiva del usuario al navegar el portal.
+- **Evidencia**: Archivos modificados: `frontend/sos-venezuela.html`, `EVOLUCION.md`.
+
+
 
 
 
