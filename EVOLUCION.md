@@ -3861,9 +3861,10 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
   - **Precisión Terminológica (`sos-venezuela.html`)**:
     - **Timeline**: Se ajustó el Paso 1 para mencionar "BLUE IOU donados", el Paso 2 para referirse a "BLUE IOU de donaciones y registros con el código SOSVENEZUELA se acumulan de forma segura", el Paso 5 para referirse a la transferencia de BLUE IOU recibidos a beneficiarios seleccionados, y el Paso 6 para detallar el canje mensual por tokens BLUE provenientes de comisiones.
     - **FAQ**: Se especificó la unidad "BLUE IOU" en cada cantidad de la escala de cupos (100 BLUE IOU y 75 BLUE IOU), en el valor del bono por registro ("valor en BLUE IOU del bono") y en el canje final ("Los BLUE IOU acumulados serán canjeados...").
+    - **Advertencia contra Estafas**: Se modificó el recuadro de seguridad en `sos-venezuela.html` y `legales-campana.html` para precisar que el proceso es 100% gratuito y se ejecuta exclusivamente con los BLUE IOU obtenidos por registros o tareas.
 - **Impacto**:
   - **Experiencia de Usuario Transparente**: Al eliminar la mención técnica de la entidad legal WTN Solutions LLC en el banner principal y homogeneizar las referencias a BLUE IOU, se reduce la carga cognitiva del usuario al navegar el portal.
-- **Evidencia**: Archivos modificados: `frontend/sos-venezuela.html`, `EVOLUCION.md`.
+- **Evidencia**: Archivos modificados: `frontend/sos-venezuela.html`, `frontend/legales-campana.html`, `EVOLUCION.md`.
 
 
 
