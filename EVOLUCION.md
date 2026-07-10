@@ -20,6 +20,24 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
 
+
+### 2026-07-10 — Compatibilidad Estándar de la Propiedad background-clip en landing-fomo.css
+
+- **Contexto**: Se detectó una inconsistencia de compatibilidad CSS en la clase `.icon-ig` (archivo `landing-fomo.css`), donde se definía la propiedad `-webkit-background-clip: text` de manera aislada sin su equivalente estándar `background-clip: text`. Esto causaba advertencias en herramientas de validación de código/linters y limitaba potencialmente la compatibilidad con navegadores modernos no basados en WebKit antiguo.
+- **Decisión de Ingeniería**:
+  - **Estandarización CSS**: Se agregó la propiedad estándar `background-clip: text;` inmediatamente después de la versión con prefijo de proveedor (`-webkit-`).
+  - **Comentarios de Código**: Se agregaron comentarios aclaratorios detallados sobre el propósito de cada directiva de recorte de fondo de texto para mejorar la legibilidad y facilitar la trazabilidad.
+- **Impacto**: Código CSS compatible al 100% con los estándares W3C y moderno, previniendo advertencias de compilación en Vite/PostCSS, y asegurando un comportamiento visual consistente del gradiente de Instagram en todos los navegadores modernos.
+
+### 2026-07-09 — Desvío Automático de Recompensas de Referido a Causas Activas y Clasificación de Historial
+
+- **Contexto**: Para mejorar el crecimiento orgánico (Product-Led Growth) y alinear los incentivos de la comunidad, se requería que si un organizador (referente) tiene una causa humanitaria activa (aprobada), el bono que gana por referir a otros se sume de forma directa y automática a su causa en lugar de acreditarse en su balance personal ordinario. El bono del nuevo usuario (referido) se mantiene intacto en su cuenta personal para no forzar su donación. Adicionalmente, el historial de donaciones de la causa debe reflejar con etiquetas claras ("Por código" vs "Donado") la procedencia del abono.
+- **Decisión de Ingeniería**:
+  - **Base de Datos y Migración:** Se creó la migración `086_add_donation_type_to_humanitarian_donations.js` para añadir la columna `donation_type` (con valores `'voluntary'` y `'referral'`) a la tabla `humanitarian_donations`.
+  - **Desvío del Bono en Registro (`authController.js`):** Se modificó la lógica del flujo de referido para que, al registrarse un usuario con código, se verifique si el referente tiene una causa activa en estado `'approved'`. De ser así, el bono del referente (e.g. 10 BLUE) se registra como una donación a nombre del referido con tipo `'referral'` y estado `'on_hold'` (pendiente de KYC del referido para evitar fraudes Sybil), incrementando el `pending_amount` de la causa. Si no hay causa activa, se mantiene la acreditación personal ordinaria. El nuevo usuario conserva su bono de bienvenida íntegramente.
+  - **Visualización y Clasificación (`causa-solidaria.js` y HTML):** Se actualizó la función `getCauseDonations` para enviar la columna `donation_type`. En el frontend, se agregaron estilos CSS para badges y se modificó el renderizado de la lista para mostrar un distintivo visual elegante: *"Por código"* para donaciones de tipo `'referral'` y *"Donado"* para las voluntarias (`'voluntary'`).
+- **Impacto**: Mayor transparencia, alineación de incentivos para financiamiento colectivo y experiencia de usuario optimizada sin comprometer la seguridad KYC/AML. El motor de escrow (Trigger de base de datos) procesa de forma nativa la liberación a la cuenta del organizador en cuanto el referido se verifica, incluso si la causa se completa o cierra antes.
+
 ### 2026-07-07 — Ajuste de Vista Previa para WhatsApp, Unificación de Moneda y Diseño Responsivo de la Escalera de Rangos
 
 - **Contexto**: 
@@ -3691,12 +3709,20 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
   - **Enlace de Seguridad**: Se creÃ³ un enrutador `adminRoutes.js` enlazado con el middleware `verifyAdminToken` para blindar todos los accesos.
   - **ResoluciÃ³n de Rutas**: Trasladamos de manera segura las llamadas al sistema de backup, corrigiendo la ruta de importaciÃ³n (`../../backup-database.js`) para prevenir caÃ­das (fallo 500).
 - **DecisiÃ³n Fase 2 (Frontend - OpciÃ³n A: Mobile-First Dashboard)**:
-  - **ContenciÃ³n de CSS (Mobile-First)**: Se inyectÃ³ en `style.css` un bloque `@media (min-width: 1024px)` garantizando un **Riesgo Cero** para los celulares, cuyo diseÃ±o permanece inalterado por CSS por defecto.
+### 2026-06-04 — Refactorización Crítica: Extracción Administrativa y Diseño Dashboard (Fase 1 y 2)
+
+- **Contexto**: El proyecto acumulaba una severa deuda técnica en su núcleo principal (`server.js`), el cual operaba como un monolito gigante, gestionando a la vez flujos de usuario y rutas críticas de administración (DB, moderación, KYC, backups). Simultáneamente, la interfaz de usuario `contract_interaction.html` adolecía de un diseño "Mobile-Only", resultando pobre y genérica cuando se visualizaba desde un navegador de computadora. El reto fue refactorizar sin afectar la estabilidad ni el despliegue actual.
+- **Decisión Fase 1 (Backend - Modularización)**:
+  - **Extirpación Quirúrgica**: Se extrajeron las funciones críticas de administración (`getUserKycStatus`, `getDatabaseStats`, `createDatabaseBackup`, rutinas de `cleanup`, moderación de publicaciones) desde el `server.js` hacia un nuevo módulo dedicado: `src/controllers/adminController.js`.
+  - **Enlace de Seguridad**: Se creó un enrutador `adminRoutes.js` enlazado con el middleware `verifyAdminToken` para blindar todos los accesos.
+  - **Resolución de Rutas**: Trasladamos de manera segura las llamadas al sistema de backup, corrigiendo la ruta de importación (`../../backup-database.js`) para prevenir caídas (fallo 500).
+- **Decisión Fase 2 (Frontend - Opción A: Mobile-First Dashboard)**:
+  - **Contención de CSS (Mobile-First)**: Se inyectó en `style.css` un bloque `@media (min-width: 1024px)` garantizando un **Riesgo Cero** para los celulares, cuyo diseño permanece inalterado por CSS por defecto.
   - **Barra Lateral Glassmorphism**: Se introdujo el componente `<aside class="desktop-sidebar">` con acabado premium Fintech (efecto de cristal y paleta oscura) para PC.
-  - **Observer TelepÃ¡tico (JS Proxy)**: Para evitar reescribir la lÃ³gica de eventos de JS, se inyectÃ³ un `MutationObserver` en el HTML que sincroniza visualmente el estado de visibilidad y mapea los clics de la nueva Barra Lateral hacia los elementos originales del menÃº del celular ocultos por CSS, resolviendo la colisiÃ³n de IDs sin arriesgar regresiones en la lÃ³gica core de `contract-interaction.js`.
+  - **Observer Telepático (JS Proxy)**: Para evitar reescribir la lógica de eventos de JS, se inyectó un `MutationObserver` en el HTML que sincroniza visualmente el estado de visibilidad y mapea los clics de la nueva Barra Lateral hacia los elementos originales del menú del celular ocultos por CSS, resolviendo la colisión de IDs sin arriesgar regresiones en la lógica core de `contract-interaction.js`.
 - **Impacto**:
-  - Un backend auditable, seguro, y alineado con los estÃ¡ndares de ingenierÃ­a mÃ¡s exigentes.
-  - Una Interfaz de Usuario "Wow-factor" en pantallas grandes, combinando usabilidad avanzada para PC y mantenimiento sin fricciÃ³n para el soporte mÃ³vil preexistente.
+  - Un backend auditable, seguro, y alineado con los estándares de ingeniería más exigentes.
+  - Una Interfaz de Usuario "Wow-factor" en pantallas grandes, combinando usabilidad avanzada para PC y mantenimiento sin fricción para el soporte móvil preexistente.
 - **Evidencia**: Archivos modificados: `backend/server.js`, `src/controllers/adminController.js`, `src/routes/adminRoutes.js`, `frontend/contract_interaction.html`, `frontend/style.css`, `EVOLUCION.md`.
 
 ---
@@ -3777,3 +3803,41 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
 **Problema:** Un usuario recién registrado (referido) tenía su bono de 10 BLUE bloqueado de forma incontrolable si su referente no poseía el KYC verificado, impidiéndole realizar donaciones a causas humanitarias de inmediato (deadlock lógico).
 **Solución Profesional:** Se modificó la consulta SQL de \unverifiedReferralBalance\ en \inancialCoreService.js\ para que sea asimétrica basada en roles. El bloqueo por falta de KYC de un referido sólo se aplica si el usuario actual es el *referente* (quien invitó). Si el usuario actual es el *referido* (el invitado), su bono de registro queda desbloqueado para ser donado. Las donaciones de donantes sin KYC siguen quedando retenidas en \on_hold\ de forma segura en cumplimiento con regulaciones AML y SOC 2.
 **Impacto:** Se rompe el deadlock de onboarding para nuevos usuarios legítimos y se permite el flujo de donaciones instantáneas, manteniendo la seguridad impenetrable contra granjas de bots del lado del referente.
+**Evidencia:** Archivos modificados: `backend/src/services/financialCoreService.js`, `EVOLUCION.md`.
+
+---
+
+### 2026-07-09 — Banner Hero de Emergencia y Portal de Transparencia "SOS Venezuela" (Winton Solidario)
+
+- **Contexto**: Ante la emergencia del terremoto en Venezuela, se requería incorporar un elemento de llamada a la acción inmediato que comunicara urgencia absoluta en la landing page principal sin entorpecer su estructura de navegación comercial. Además, se requería una página dedicada que fungiera como portal oficial de transparencia (bitácora de suministros y cumplimiento regulatorio) para las donaciones de referidos en BLUE IOU.
+- **Decisión de Ingeniería**:
+  - **Banner de Emergencia en Cabecera (`index.html` & `landing-fomo.css`)**: Se removió el ribbon superior delgado y en su lugar se implementó una sección hero amplia de alerta (`.emergency-hero-banner`) justo debajo del menú de navegación flotante. Esta sección utiliza de fondo la imagen premium copiada de la bandera de Venezuela ondeando (Opción 6, con desgastes del sismo y reflector de ayuda humanitaria), superpuesta con un filtro de vidrio (Glassmorphism con desenfoque de 4px y degradado oscuro) para garantizar contraste de tipografía y legibilidad del texto. Se eliminó la sección humanitaria intermedia para evitar redundancia.
+  - **Portal Humanitario Independiente (`sos-venezuela.html`)**: Se creó una nueva página independiente con fondo de la bandera venezolana difuminada en alta fidelidad (Glassmorphism), una bitácora lineal responsiva de despacho de suministros y un panel detallado sobre políticas de Fideicomiso Inteligente (Escrow), cumplimiento AML y registro inmutable en ledger.
+  - **Configuración de Compilación (`vite.config.js`)**: Se registró el archivo `sos-venezuela.html` en la lista de entradas de Rollup en Vite para asegurar su correcta compilación en el bundle de producción en `dist/`.
+- **Impacto**:
+  - **Visibilidad Inmediata**: Mayor impacto visual y conversión con el banner amplio, sin entorpecer el flujo comercial de la landing.
+  - **Enlace Compartible**: El portal posee una URL dedicada (`wintoncoin.com/sos-venezuela.html`) que puede ser indexada por buscadores y compartida en redes sociales de forma directa.
+  - **Gobernanza Contable**: La bitácora y la sección de cumplimiento legal blindan al ecosistema ante auditorías financieras FinTech sobre transmisión de valor.
+- **Evidencia**: Archivos creados/modificados: `frontend/index.html`, `frontend/landing-fomo.css`, `frontend/vite.config.js`, `frontend/sos-venezuela.html`, `EVOLUCION.md`.
+
+### 2026-07-09 — Pulido Estético, Simetría Tipográfica y Sub-Página Legal para "SOS Venezuela"
+
+- **Contexto**: Para alcanzar un estándar premium de producción, se requería refinar la asimetría de los títulos de la landing, simplificar y hacer más cálidos los textos humanitarios (evitando tecnicismos densos de auditoría de cara al usuario final) y asegurar que el portal contara con términos de cumplimiento legal adaptados localmente para Venezuela sin referirse a entes extranjeros (IRS).
+- **Decisión de Ingeniería**:
+  - **Sincronización Tipográfica (`landing-fomo.css`)**: Se agruparon los estilos de los encabezados principales del portal (`h1` y `h2`) forzándolos a `3.8rem` en escritorio y `2.5rem !important` en dispositivos móviles para garantizar simetría visual exacta.
+  - **Aclaración y Bandera de Fondo Fijo (`landing-fomo.css`)**: Se configuró la bandera venezolana de fondo fijo (`background-attachment: fixed`) en el body y se rediseñó la página completa con colores claros, azules y blancos translúcidos (Glassmorphism con filtros de desenfoque de 6px) para un Modo Claro sofisticado.
+  - **Compromiso Solidario (`sos-venezuela.html` & `landing-fomo.css`)**: Se inyectó la sección "Nuestro Compromiso: Cero Margen de Lucro" detallando la donación de ganancias/comisiones por WTN Solutions LLC, estilizada en una tarjeta con la bandera de fondo y animación de corazón pulsante.
+  - **Advertencia contra Estafas Centrada (`sos-venezuela.html`)**: Para mejorar la estética y simetría, reubicamos el aviso contra estafas (que alerta sobre no recibir dinero fiat ni criptos) en la zona media, entre el Compromiso Solidario y el Timeline, dándole un fondo blanco puro con sombra flotante y un borde rojo carmesí delgado.
+  - **Timeline con Títulos de Una Palabra (`sos-venezuela.html`)**: Se reestructuró la línea temporal en 6 pasos concretos y con títulos de una sola palabra (**Creación**, **Acumulación**, **Auditoría**, **Evaluación**, **Asignación**, **Canje**).
+  - **Optimización de Simetría y Márgenes en Móviles (`landing-fomo.css`)**: Implementamos un rediseño completo de la consulta de medios móvil (`@media (max-width: 768px)`) ajustando los rellenos de secciones (`sos-hero`, `sos-commitment-section`, `sos-timeline-section`, `sos-compliance-section`), reduciendo la separación de las tarjetas de línea temporal (`padding-right: 0.5rem`) para evitar que toquen el borde derecho y ajustando las celdas del FAQ (`gap: 1.2rem`) para asegurar simetría total en celulares.
+  - **Enlaces de Redes del Footer (`sos-venezuela.html` & `legales-campana.html`)**: Se incorporó el botón oficial de Instagram de @CadenaSOSVenezuela en el footer, posicionado al lado de Twitter/X.
+  - **Sub-Página Legal de Campaña (`legales-campana.html` & `vite.config.js`)**: Se creó una sub-página formal para exenciones de responsabilidad civil y fiscal enfocada en Venezuela y se registró como entrypoint en la configuración de Vite, enlazándola mediante un botón secundario al pie de las preguntas frecuentes.
+- **Impacto**:
+  - **Visual de Alta Fidelidad**: El scroll sobre la bandera de fondo fijo con capas claras superpuestas crea un efecto visual inmersivo premium.
+  - **Gobernanza Accesible**: El portal ahora explica el proceso de forma transparente pero sencilla, eliminando la fricción de lenguaje técnico innecesario.
+  - **Seguridad Jurídica**: La sub-página legal de términos salvaguarda a WTN Solutions LLC ante reclamos de valores (Securities), transmisión financiera o falsas deducciones impositivas locales.
+- **Evidencia**: Archivos creados/modificados: `frontend/sos-venezuela.html`, `frontend/legales-campana.html`, `frontend/landing-fomo.css`, `frontend/vite.config.js`, `frontend/index.html`, `EVOLUCION.md`.
+
+
+
+

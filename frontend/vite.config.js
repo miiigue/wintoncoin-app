@@ -85,6 +85,8 @@ export default defineConfig(({ mode }) => ({
       input: {
         // Páginas principales
         main: resolve(__dirname, 'index.html'),
+        sosVenezuela: resolve(__dirname, 'sos-venezuela.html'),
+        legalesCampana: resolve(__dirname, 'legales-campana.html'),
         login: resolve(__dirname, 'login.html'),
         dashboard: resolve(__dirname, 'contract_interaction.html'),
         register: resolve(__dirname, 'register.html'),
