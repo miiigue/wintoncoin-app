@@ -234,7 +234,11 @@
     right: 5%;
     animation-delay: 1s;
     background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+    /* WebKit-specific prefix for background clipping to text (older Safari/Chrome support) */
     -webkit-background-clip: text;
+    /* Standard CSS property for text background clipping (modern cross-browser compatibility) */
+    background-clip: text;
+    /* Makes text fill transparent to let the clipped background gradient show through */
     -webkit-text-fill-color: transparent;
     border: 1px solid rgba(255, 255, 255, 0.3);
 }

@@ -21,6 +21,14 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 
 
+### 2026-07-10 — Compatibilidad Estándar de la Propiedad background-clip en landing-fomo.css
+
+- **Contexto**: Se detectó una inconsistencia de compatibilidad CSS en la clase `.icon-ig` (archivo `landing-fomo.css`), donde se definía la propiedad `-webkit-background-clip: text` de manera aislada sin su equivalente estándar `background-clip: text`. Esto causaba advertencias en herramientas de validación de código/linters y limitaba potencialmente la compatibilidad con navegadores modernos no basados en WebKit antiguo.
+- **Decisión de Ingeniería**:
+  - **Estandarización CSS**: Se agregó la propiedad estándar `background-clip: text;` inmediatamente después de la versión con prefijo de proveedor (`-webkit-`).
+  - **Comentarios de Código**: Se agregaron comentarios aclaratorios detallados sobre el propósito de cada directiva de recorte de fondo de texto para mejorar la legibilidad y facilitar la trazabilidad.
+- **Impacto**: Código CSS compatible al 100% con los estándares W3C y moderno, previniendo advertencias de compilación en Vite/PostCSS, y asegurando un comportamiento visual consistente del gradiente de Instagram en todos los navegadores modernos.
+
 ### 2026-07-09 — Desvío Automático de Recompensas de Referido a Causas Activas y Clasificación de Historial
 
 - **Contexto**: Para mejorar el crecimiento orgánico (Product-Led Growth) y alinear los incentivos de la comunidad, se requería que si un organizador (referente) tiene una causa humanitaria activa (aprobada), el bono que gana por referir a otros se sume de forma directa y automática a su causa en lugar de acreditarse en su balance personal ordinario. El bono del nuevo usuario (referido) se mantiene intacto en su cuenta personal para no forzar su donación. Adicionalmente, el historial de donaciones de la causa debe reflejar con etiquetas claras ("Por código" vs "Donado") la procedencia del abono.
