@@ -5,6 +5,7 @@
 // ============================================================================
 
 import { showCustomAlert } from './alerts.js';
+import { getApiUrl } from './config.js';
 
 // Variable global para almacenar la sesión del usuario.
 export const userSession = {
@@ -59,10 +60,7 @@ export async function silentRefreshIfNeeded() {
         return refreshPromise;
     }
 
-    const isLocal = window.location.hostname === 'localhost' || 
-                    window.location.hostname === '127.0.0.1' || 
-                    window.location.protocol === 'file:';
-    const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+    const API_URL = getApiUrl();
 
     refreshPromise = (async () => {
         try {
@@ -129,10 +127,7 @@ export async function silentRefreshIfNeeded() {
  * @returns {Promise<object>} El estado de la sesión del usuario.
  */
 export async function checkAuthStatus() {
-    const isLocal = window.location.hostname === 'localhost' || 
-                    window.location.hostname === '127.0.0.1' || 
-                    window.location.protocol === 'file:';
-    const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+    const API_URL = getApiUrl();
     
     // [SEGURIDAD FINTECH] Refrescar silenciosamente el token si ha expirado antes de consultar estado
     await silentRefreshIfNeeded();
@@ -182,10 +177,7 @@ export async function checkAuthStatus() {
  * Cierra la sesión del usuario.
  */
 export function logout() {
-    const isLocal = window.location.hostname === 'localhost' || 
-                    window.location.hostname === '127.0.0.1' || 
-                    window.location.protocol === 'file:';
-    const API_URL = isLocal ? 'http://localhost:3000' : 'https://wintoncoin-backend.onrender.com';
+    const API_URL = getApiUrl();
     
     // [SEGURIDAD FINTECH] Notificar al servidor para destruir la cookie HttpOnly de refresco
     fetch(`${API_URL}/api/auth/logout`, {
