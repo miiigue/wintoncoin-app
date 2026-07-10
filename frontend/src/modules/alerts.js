@@ -6,14 +6,25 @@ import { escapeHtml, escapeAttr } from './sanitize.js';
 // Variable para guardar la acción a realizar después de cerrar el modal
 let onAlertCloseCallback = null;
 let onConfirmCallback = null;
+let isSessionExpiredAlertActive = false;
 
 /**
  * Muestra un modal de alerta personalizado con un mensaje.
  * @param {string} message El mensaje a mostrar en el modal.
  * @param {function} [onClose] Una función opcional que se ejecutará cuando el modal se cierre.
+ * @param {boolean} [isTerminal] Indica si es una alerta de sistema crítica/terminal que no debe ser sobrescrita.
  */
-export function showCustomAlert(message, onClose) {
-    // [MEJORA UX/UI] Buscar el contenedor de alertas personalizado.
+export function showCustomAlert(message, onClose, isTerminal = false) {
+    // [MEJORA UX/UI] Si ya hay una alerta terminal de sesión expirada activa, ignoramos llamadas genéricas subsiguientes
+    if (isSessionExpiredAlertActive) {
+        return;
+    }
+
+    if (isTerminal) {
+        isSessionExpiredAlertActive = true;
+    }
+
+    // Buscar el contenedor de alertas personalizado.
     // Si no existe en el HTML de la página actual, lo creamos dinámicamente en el body
     // para evitar el uso de diálogos nativos del sistema. Esto mantiene la estética premium
     // de la app de forma consistente en toda la plataforma.
@@ -52,6 +63,7 @@ export function showCustomAlert(message, onClose) {
 
     const closeModal = () => {
         container.innerHTML = ''; // Limpiamos al cerrar
+        isSessionExpiredAlertActive = false; // Liberamos el candado de alertas
         if (onAlertCloseCallback) {
             onAlertCloseCallback();
             onAlertCloseCallback = null;

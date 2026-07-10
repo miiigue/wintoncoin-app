@@ -229,16 +229,27 @@ export function setAuthToken(token) {
  */
 export function handleSessionExpired(response) {
     if (response.status === 401) {
-        // [SEGURIDAD FINTECH] Cierra sesión destruyendo datos del storage local y cookies de refresco
+        // [SEGURIDAD FINTECH] Guardamos el estado de si el usuario ya estaba logueado
+        const wasLoggedIn = !!localStorage.getItem('username');
+
+        // Cierra sesión destruyendo datos del storage local y cookies de refresco
         logout();
         
-        // [MEJORA UX/UI] Mostrar alerta amigable, comprensible e instructiva utilizando el modal premium de la aplicación.
-        // Se explica claramente el motivo de seguridad (inactividad) y la instrucción exacta a seguir (iniciar sesión).
-        showCustomAlert('Por motivos de seguridad y resguardo de tus activos, tu sesión ha expirado tras un período de inactividad. Por favor, inicia sesión nuevamente para continuar operando en la plataforma.', () => {
+        // [MEJORA UX/UI] Si el usuario estaba logueado, mostrar la alerta de sesión expirada amigable y premium.
+        // Si era un invitado que intentó entrar a una ruta privada de forma directa, lo redirigimos silenciosamente.
+        if (wasLoggedIn) {
+            showCustomAlert(
+                'Por motivos de seguridad y resguardo de tus activos, tu sesión ha expirado tras un período de inactividad. Por favor, inicia sesión nuevamente para continuar operando en la plataforma.',
+                () => {
+                    window.location.href = 'index.html';
+                },
+                true // Marcada como alerta terminal/crítica para evitar que otras alertas la sobrescriban
+            );
+        } else {
             window.location.href = 'index.html';
-        });
+        }
         
-        return true; // Indica que la sesión expiró
+        return true; // Indica que la sesión expiró y fue manejada
     }
     return false; // La sesión está bien
 }
