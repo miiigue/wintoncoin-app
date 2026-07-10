@@ -44,9 +44,10 @@ let refreshPromise = null;
  */
 export async function silentRefreshIfNeeded() {
     const token = localStorage.getItem('token');
+    const username = localStorage.getItem('username');
     
-    // Si no hay token de acceso previo, se trata de un invitado: no hacemos nada
-    if (!token) {
+    // Si no hay token de acceso previo Y no hay username, se trata de un invitado: no hacemos nada
+    if (!token && !username) {
         return null;
     }
 
@@ -248,4 +249,76 @@ export function handleSessionExpired(response) {
  */
 export function canPerformProtectedActions() {
     return !!userSession.isAuthenticated && !userSession.requires_terms_acceptance;
+}
+
+// ============================================================================
+// INTERCEPTOR DE PETICIONES GLOBAL (window.fetch)
+// ============================================================================
+// Intercepta todas las peticiones salientes al API de WintonCoin para:
+// 1. Ejecutar automáticamente el refresco silencioso si el Access Token expiró.
+// 2. Adjuntar la cabecera 'Authorization' de forma transparente.
+// 3. Capturar errores 401 globales y disparar el modal de sesión expirada.
+// ============================================================================
+const originalFetch = window.fetch;
+window.fetch = async function (input, init) {
+    let url = '';
+    if (typeof input === 'string') {
+        url = input;
+    } else if (input instanceof URL) {
+        url = input.href;
+    } else if (input && typeof input === 'object' && input.url) {
+        url = input.url;
+    }
+
+    const API_URL = getApiUrl();
+    const isApiCall = url.startsWith(API_URL) && url.includes('/api/');
+    const isAuthRoute = url.includes('/api/auth/login') || 
+                        url.includes('/api/auth/refresh') || 
+                        url.includes('/api/auth/logout') ||
+                        url.includes('/api/register-verify');
+    const isAdminRoute = url.includes('/api/admin/');
+
+    // Interceptamos solo peticiones de nuestra API que requieran autenticación de usuario normal
+    if (isApiCall && !isAuthRoute && !isAdminRoute) {
+        try {
+            // Obtener o refrescar el token vigente de manera silenciosa
+            const activeToken = await silentRefreshIfNeeded();
+
+            if (activeToken) {
+                init = init || {};
+                init.headers = init.headers || {};
+
+                if (init.headers instanceof Headers) {
+                    init.headers.set('Authorization', `Bearer ${activeToken}`);
+                } else if (Array.isArray(init.headers)) {
+                    const authIdx = init.headers.findIndex(h => h[0].toLowerCase() === 'authorization');
+                    if (authIdx !== -1) {
+                        init.headers[authIdx][1] = `Bearer ${activeToken}`;
+                    } else {
+                        init.headers.push(['Authorization', `Bearer ${activeToken}`]);
+                    }
+                } else if (typeof init.headers === 'object') {
+                    init.headers['Authorization'] = `Bearer ${activeToken}`;
+                }
+            }
+        } catch (error) {
+            console.error('[AUTH INTERCEPTOR] Error al pre-refrescar token:', error);
+        }
+    }
+
+    // Ejecutar la petición original
+    const response = await originalFetch.call(this, input, init);
+
+    // Si el servidor nos responde 401 (Unauthorized) en un endpoint de usuario normal,
+    // significa que la sesión es definitivamente inválida y debemos destruirla.
+    if (response.status === 401 && isApiCall && !isAuthRoute && !isAdminRoute) {
+        handleSessionExpired(response);
+    }
+
+    return response;
+};
+
+// Disparamos el refresco en segundo plano al cargar el script si hay un indicio de sesión
+if (localStorage.getItem('username')) {
+    silentRefreshIfNeeded().catch(err => console.error('[AUTH] Auto-refresh on boot failed:', err));
 }
