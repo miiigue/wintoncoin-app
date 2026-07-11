@@ -312,12 +312,17 @@ router.post('/causes/:id/cancel', async (req, res) => {
 router.post('/causes/:id/donate', async (req, res) => {
     try {
         const { id } = req.params;
-        const { amount, publication_id } = req.body;
+        const { amount, publication_id, accepted_terms } = req.body;
         const donorId = req.user.userId;
 
         // Validar ID numérico
         if (isNaN(parseInt(id))) {
             return res.status(400).json({ message: 'ID de causa inválido.' });
+        }
+
+        // Validar términos aceptados (Clickwrap SOC 2)
+        if (accepted_terms !== true) {
+            return res.status(400).json({ message: 'Es obligatorio aceptar los términos y condiciones de la campaña.' });
         }
 
         // Validar monto
@@ -331,6 +336,7 @@ router.post('/causes/:id/donate', async (req, res) => {
             parseInt(id),
             parsedAmount,
             publication_id ? parseInt(publication_id) : null,
+            accepted_terms,
             req
         );
 

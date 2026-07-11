@@ -131,7 +131,7 @@ const submitCause = async (userId, data, req = null) => {
 //
 // Retorna: { success, status, message, new_amount }
 // ============================================================================
-const donateToCause = async (donorId, causeId, amount, publicationId = null, req = null) => {
+const donateToCause = async (donorId, causeId, amount, publicationId = null, acceptedTerms = false, req = null) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -384,8 +384,8 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
         // =====================================================================
         await client.query(`
             INSERT INTO humanitarian_donations 
-                (cause_id, donor_id, recipient_id, amount, status, publication_id, released_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+                (cause_id, donor_id, recipient_id, amount, status, publication_id, released_at, accepted_terms)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         `, [
             causeId,
             donorId,
@@ -393,7 +393,8 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
             donationAmount,
             donationStatus,
             publicationId,
-            isVerified ? new Date() : null
+            isVerified ? new Date() : null,
+            acceptedTerms
         ]);
 
         // =====================================================================

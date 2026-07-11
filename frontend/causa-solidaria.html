@@ -780,9 +780,17 @@
                     (<strong>Hold</strong>) hasta que completes la verificación KYC.</span>
             </div>
 
+            <!-- CHECKBOX LEGAL: Clickwrap de Aceptación -->
+            <div style="display:flex; align-items:flex-start; gap:8px; margin-bottom:20px; font-size:0.82em; color:#94A3B8; line-height:1.5;">
+                <input type="checkbox" id="donateTermsCheckbox" style="margin-top:3px; cursor:pointer; width:14px; height:14px;">
+                <label for="donateTermsCheckbox" style="cursor:pointer; user-select:none;">
+                    Confirmo que mi donación es voluntaria y acepto los <a href="legales-campana.html" target="_blank" rel="noopener noreferrer" style="color:#e83e8c; text-decoration:underline; font-weight:600;">Términos Legales de la Campaña</a>, incluyendo la retención en Resguardo Seguro hasta la verificación KYC.
+                </label>
+            </div>
+            
             <div class="solidario-donate-btn-group">
                 <button class="solidario-donate-cancel" id="donateCancelBtn">Cancelar</button>
-                <button class="solidario-donate-confirm" id="donateConfirmBtn">Confirmar Donación</button>
+                <button class="solidario-donate-confirm" id="donateConfirmBtn" disabled>Confirmar Donación</button>
             </div>
         </div>
     </div>

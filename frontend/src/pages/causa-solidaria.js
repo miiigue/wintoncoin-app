@@ -208,31 +208,7 @@ function buildCauseHTML(cause, donations) {
         `;
     }
 
-    // Helper local para resolver iconos sociales dinámicos de forma premium
-    function getSocialIcon(link, isExternal) {
-        if (!isExternal) {
-            // Icono de perfil interno de la plataforma (WintonCoin User)
-            return `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px; opacity:0.8;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
-        }
-        
-        const lowLink = link.toLowerCase();
-        if (lowLink.includes('instagram.com') || lowLink.includes('instagr.am')) {
-            // Icono oficial de Instagram
-            return `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px; color:#e83e8c;"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>`;
-        } else if (lowLink.includes('facebook.com') || lowLink.includes('fb.com')) {
-            // Icono oficial de Facebook
-            return `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px; color:#1877F2;"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>`;
-        } else if (lowLink.includes('twitter.com') || lowLink.includes('x.com')) {
-            // Icono oficial de Twitter / X
-            return `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px; color:#cbd5e1;"><path d="M4 4l11.733 16h4.267l-11.733 -16z"></path><path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772"></path></svg>`;
-        } else if (lowLink.includes('youtube.com') || lowLink.includes('youtu.be')) {
-            // Icono oficial de YouTube
-            return `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px; color:#FF0000;"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon></svg>`;
-        }
-        
-        // Icono de enlace genérico en caso de otras webs/blogs
-        return `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px; opacity:0.8;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`;
-    }
+
 
     // [Seguridad / Redirección] Resolver enlace social para el creador (influencer)
     let creatorLink = `profile.html?user=${encodeURIComponent(cause.creator_username)}`;
@@ -472,10 +448,22 @@ function setupDonateModal(cause, donorBalance) {
     const cancelBtn = document.getElementById('donateCancelBtn');
     const confirmBtn = document.getElementById('donateConfirmBtn');
     const amountInput = document.getElementById('donateAmountInput');
+    const termsCheckbox = document.getElementById('donateTermsCheckbox');
 
     // Limpiar input y resetear estado
     amountInput.value = '';
-    confirmBtn.disabled = false;
+    
+    // Lógica Clickwrap: botón deshabilitado hasta aceptar términos
+    if (termsCheckbox) {
+        termsCheckbox.checked = false;
+        confirmBtn.disabled = true;
+        termsCheckbox.onchange = () => {
+            confirmBtn.disabled = !termsCheckbox.checked;
+        };
+    } else {
+        confirmBtn.disabled = false;
+    }
+    
     confirmBtn.textContent = 'Confirmar Donación';
 
     // Función para cerrar modal
@@ -520,7 +508,7 @@ function setupDonateModal(cause, donorBalance) {
                     'Content-Type': 'application/json',
                     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                 },
-                body: JSON.stringify({ amount })
+                body: JSON.stringify({ amount, accepted_terms: true })
             });
 
             const result = await response.json();
@@ -681,6 +669,37 @@ function initDonationsList(donationsData) {
 // ============================================================================
 // UTILIDADES
 // ============================================================================
+
+/**
+ * Resuelve iconos sociales dinámicos de forma premium
+ * @param {string} link - URL de destino
+ * @param {boolean} isExternal - Si es un enlace de red externa
+ * @returns {string} Código SVG del icono
+ */
+function getSocialIcon(link, isExternal) {
+    if (!isExternal) {
+        // Icono de perfil interno de la plataforma (WintonCoin User)
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px; opacity:0.8;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
+    }
+    
+    const lowLink = link.toLowerCase();
+    if (lowLink.includes('instagram.com') || lowLink.includes('instagr.am')) {
+        // Icono oficial de Instagram
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px; color:#e83e8c;"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>`;
+    } else if (lowLink.includes('facebook.com') || lowLink.includes('fb.com')) {
+        // Icono oficial de Facebook
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px; color:#1877F2;"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>`;
+    } else if (lowLink.includes('twitter.com') || lowLink.includes('x.com')) {
+        // Icono oficial de Twitter / X
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px; color:#cbd5e1;"><path d="M4 4l11.733 16h4.267l-11.733 -16z"></path><path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772"></path></svg>`;
+    } else if (lowLink.includes('youtube.com') || lowLink.includes('youtu.be')) {
+        // Icono oficial de YouTube
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px; color:#FF0000;"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon></svg>`;
+    }
+    
+    // Icono de enlace genérico en caso de otras webs/blogs
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px; opacity:0.8;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`;
+}
 
 /**
  * Escapa HTML para prevenir XSS (seguridad obligatoria en fintech)
