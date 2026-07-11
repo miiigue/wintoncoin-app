@@ -502,7 +502,7 @@ async function initializeRegisterPage() {
         if (!session.is_verified) {
             configureSessionBanner(sessionElements, {
                 title: 'Verificación pendiente',
-                message: `Tienes una sesión activa como "${username}" pero tu cuenta aún no está verificada. Para mantener seguridad y auditoría (estándar fintech), debes completar la verificación o cerrar sesión antes de crear otra cuenta.`,
+                message: `Tienes una sesión activa como ${username}. Para mantener seguridad y auditoría, recomendamos completar la verificación de identidad.`,
                 primaryText: 'Continuar verificación',
                 onPrimary: () => {
                     safeHide(step1Div);
