@@ -11,8 +11,10 @@ const pool = require('../config/db');
  * sin necesidad de una tabla de blocklist de tokens.
  */
 const authenticateToken = (req, res, next) => {
+    // 1. Intentamos obtener el token desde las cookies primero (HttpOnly)
     let token = req.cookies ? req.cookies.auth_token : null;
 
+    // 2. Si no hay cookie, buscamos en la cabecera Authorization (Bearer Token)
     if (!token) {
         const authHeader = req.headers['authorization'];
         if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -20,16 +22,26 @@ const authenticateToken = (req, res, next) => {
         }
     }
 
+    // 3. Si no existe ningún token, denegamos el acceso (401 Unauthorized)
     if (!token) {
         return res.status(401).json({ message: 'Acceso denegado. No se proporcionó token de autenticación.' });
     }
 
+    // 4. Verificación criptográfica del token usando JWT_SECRET
     jwt.verify(token, process.env.JWT_SECRET, async (err, user) => {
+        // [MEJORA DE SEGURIDAD] Si el token expiró o su firma es inválida, respondemos con 401 (Unauthorized).
+        // Cambiar de 403 a 401 es un estándar técnico que permite al cliente iniciar un refresco silencioso de sesión.
         if (err) {
-            return res.status(403).json({ message: 'Token de sesión inválido o expirado.' });
+            return res.status(401).json({ message: 'Token de sesión inválido o expirado.' });
         }
 
-        // [MEJORA 2] Verificar si el token fue emitido antes de un cambio de contraseña
+        // [CONTROL DE TIPO DE TOKEN] Validamos que el token sea de tipo 'access'.
+        // Esto previene que un atacante intente usar un Refresh Token para consumir endpoints protegidos de negocio.
+        if (user.tokenType !== 'access') {
+            return res.status(401).json({ message: 'Tipo de token no autorizado para esta operación.' });
+        }
+
+        // 5. Verificar si el token fue emitido antes de un cambio de contraseña (password_invalidate_before)
         try {
             const result = await pool.query(
                 'SELECT password_invalidate_before FROM users WHERE id = $1',
@@ -37,10 +49,11 @@ const authenticateToken = (req, res, next) => {
             );
             if (result.rows.length > 0 && result.rows[0].password_invalidate_before) {
                 const invalidateBefore = new Date(result.rows[0].password_invalidate_before);
-                const tokenIssuedAt = new Date((user.iat || 0) * 1000); // JWT iat is in seconds
+                const tokenIssuedAt = new Date((user.iat || 0) * 1000); // JWT iat está en segundos
 
+                // Si el token fue emitido antes de invalidarse por cambio de contraseña, lo rechazamos (401)
                 if (tokenIssuedAt < invalidateBefore) {
-                    return res.status(403).json({
+                    return res.status(401).json({
                         message: 'Tu sesión ha sido invalidada por un cambio de contraseña. Por favor, inicia sesión nuevamente.',
                         code: 'SESSION_INVALIDATED'
                     });
@@ -48,9 +61,10 @@ const authenticateToken = (req, res, next) => {
             }
         } catch (dbError) {
             console.error('[AUTH] Error al verificar invalidación de sesión:', dbError);
-            // En caso de error de DB, dejamos pasar para no bloquear toda la app
+            // En caso de error de base de datos, dejamos pasar para no bloquear la disponibilidad del servicio
         }
 
+        // 6. Inyectamos la información del usuario autenticado en el objeto request y continuamos
         req.user = user;
         next();
     });

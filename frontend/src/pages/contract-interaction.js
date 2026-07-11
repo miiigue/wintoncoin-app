@@ -12,7 +12,8 @@ import {
     escapeAttr,
     fetchAndStoreAppSettings,
     appSettings,
-    handleSessionExpired
+    handleSessionExpired,
+    silentRefreshIfNeeded
 } from '../modules/index.js';
 import { initMigrationCheck } from '../modules/migrationManager.js';
 import { initPWAInstall, initSettingsInstallButton } from '../modules/pwa-install.js';
@@ -35,7 +36,10 @@ window.restartTour = restartTour;
 
 console.log('[ContractInteraction] ES Module loaded');
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // [SEGURIDAD FINTECH] Garantizar la vigencia de la sesión antes de inicializar datos del Dashboard
+    await silentRefreshIfNeeded();
+
     // Verificar migración (sc.wintoncoin.com -> wintoncoin.com)
     // initMigrationCheck();
 

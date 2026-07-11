@@ -130,6 +130,7 @@ function initializeLoginForm() {
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({ identifier, password })
             });
 

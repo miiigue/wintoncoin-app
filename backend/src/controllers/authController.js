@@ -533,12 +533,29 @@ exports.registerVerify = async (req, res) => {
         // --- 4. Limpiar la tabla de pendientes ---
         await client.query('DELETE FROM pending_verifications WHERE id = $1', [pendingUser.id]);
 
-        // --- 5. [LÓGICA CORREGIDA] Generar token de sesión y devolver datos del usuario ---
-        const token = jwt.sign(
-            { userId: newUser.id, username: newUser.username },
+        // --- 5. [DOBLE TOKEN] Generar tokens de acceso y refresco ---
+        // Generar Access Token de corta duración (15 min) para consumo del API
+        const accessToken = jwt.sign(
+            { userId: newUser.id, username: newUser.username, tokenType: 'access' },
+            jwtSecret,
+            { expiresIn: '15m' }
+        );
+
+        // Generar Refresh Token de larga duración (7 días) para renovación silenciosa
+        const refreshToken = jwt.sign(
+            { userId: newUser.id, username: newUser.username, tokenType: 'refresh' },
             jwtSecret,
             { expiresIn: '7d' }
         );
+
+        // Inyectar cookie HttpOnly (grado bancario: anti-XSS) para el Refresh Token
+        res.cookie('auth_refresh_token', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días en milisegundos
+            path: '/'
+        });
 
         await client.query('COMMIT');
 
@@ -552,7 +569,7 @@ exports.registerVerify = async (req, res) => {
 
         res.status(200).json({
             message: '¡Verificación completada con éxito!',
-            token: token,
+            token: accessToken,
             username: newUser.username
         });
 
@@ -628,11 +645,30 @@ exports.login = async (req, res) => {
             }
 
             const legalStatus = await getUserLegalStatusByUserId(pool, user.id);
-            const token = jwt.sign(
-                { userId: user.id, username: user.username },
+
+            // --- [DOBLE TOKEN] Generar tokens de acceso y refresco ---
+            // Generar Access Token de corta duración (15 min) para consumo del API
+            const accessToken = jwt.sign(
+                { userId: user.id, username: user.username, tokenType: 'access' },
+                jwtSecret,
+                { expiresIn: '15m' }
+            );
+
+            // Generar Refresh Token de larga duración (7 días) para renovación silenciosa
+            const refreshToken = jwt.sign(
+                { userId: user.id, username: user.username, tokenType: 'refresh' },
                 jwtSecret,
                 { expiresIn: '7d' }
             );
+
+            // Inyectar cookie HttpOnly (grado bancario: anti-XSS) para el Refresh Token
+            res.cookie('auth_refresh_token', refreshToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días en milisegundos
+                path: '/'
+            });
 
             // --- [WINTON TRUST SCORE] Sincronizar límite de crédito en Blockchain ---
             // Así actualizamos su límite si ganó bonos de "Winton Academy" o referidos mientras no estaba.
@@ -643,7 +679,7 @@ exports.login = async (req, res) => {
 
             res.status(200).json({
                 message: "Inicio de sesión exitoso.",
-                token: token,
+                token: accessToken,
                 username: user.username,
                 requires_terms_acceptance: legalStatus.requires_terms_acceptance,
                 pending_documents: legalStatus.pending_documents
@@ -1045,4 +1081,120 @@ exports.checkPendingStatus = async (req, res) => {
         console.error('Error checking pending status:', error);
         return res.status(500).json({ error: 'Database error' });
     }
+};
+
+/**
+ * [NUEVO ENDPOINT] Refresco silencioso de tokens (Silent Token Refresh).
+ * Valida la cookie HttpOnly 'auth_refresh_token', realiza una verificación
+ * de estado del usuario contra la base de datos (Zero-Trust) y genera un nuevo
+ * Access Token de corta duración (15 minutos), rotando el Refresh Token.
+ */
+exports.refreshToken = async (req, res) => {
+    // 1. Obtener el Refresh Token de las cookies
+    const refreshToken = req.cookies ? req.cookies.auth_refresh_token : null;
+
+    if (!refreshToken) {
+        return res.status(401).json({ message: 'No se encontró el token de refresco de sesión.' });
+    }
+
+    try {
+        // 2. Verificar la firma y expiración del Refresh Token
+        jwt.verify(refreshToken, jwtSecret, async (err, decoded) => {
+            if (err) {
+                console.error('[AUTH REFRESH] Error al verificar Refresh Token:', err.message);
+                res.clearCookie('auth_refresh_token', { path: '/' });
+                return res.status(401).json({ message: 'Sesión expirada o inválida. Por favor, inicia sesión nuevamente.' });
+            }
+
+            // 3. Validar el tipo de token para prevenir ataques de sustitución
+            if (decoded.tokenType !== 'refresh') {
+                res.clearCookie('auth_refresh_token', { path: '/' });
+                return res.status(401).json({ message: 'Token de sesión inválido.' });
+            }
+
+            try {
+                // 4. [ZERO-TRUST] Consultar el estado del usuario en tiempo real en la base de datos
+                const result = await pool.query(
+                    'SELECT account_status, is_verified, kyc_verified, password_invalidate_before FROM users WHERE id = $1',
+                    [decoded.userId]
+                );
+
+                if (result.rowCount === 0) {
+                    res.clearCookie('auth_refresh_token', { path: '/' });
+                    return res.status(401).json({ message: 'Usuario no encontrado.' });
+                }
+
+                const user = result.rows[0];
+                const status = user.account_status || 'active';
+                
+                // Si el usuario está suspendido o baneado, revocamos la sesión de inmediato
+                if (status === 'suspended' || status === 'banned') {
+                    res.clearCookie('auth_refresh_token', { path: '/' });
+                    return res.status(403).json({ message: 'La cuenta está suspendida o inactiva.' });
+                }
+
+                // 5. Verificar si las sesiones fueron invalidadas por cambio de contraseña
+                if (user.password_invalidate_before) {
+                    const invalidateBefore = new Date(user.password_invalidate_before);
+                    const tokenIssuedAt = new Date((decoded.iat || 0) * 1000);
+                    if (tokenIssuedAt < invalidateBefore) {
+                        res.clearCookie('auth_refresh_token', { path: '/' });
+                        return res.status(401).json({ message: 'Sesión invalidada por cambio de contraseña.' });
+                    }
+                }
+
+                // 6. Generar nuevo Access Token de corta duración (15 min)
+                const newAccessToken = jwt.sign(
+                    { userId: decoded.userId, username: decoded.username, tokenType: 'access' },
+                    jwtSecret,
+                    { expiresIn: '15m' }
+                );
+
+                // 7. [ROTACIÓN DE TOKEN] Generar nuevo Refresh Token para mitigar replay attacks
+                const newRefreshToken = jwt.sign(
+                    { userId: decoded.userId, username: decoded.username, tokenType: 'refresh' },
+                    jwtSecret,
+                    { expiresIn: '7d' }
+                );
+
+                // Actualizar la cookie en el navegador
+                res.cookie('auth_refresh_token', newRefreshToken, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
+                    maxAge: 7 * 24 * 60 * 60 * 1000,
+                    path: '/'
+                });
+
+                // Obtener el estado de firmas de documentos legales pendientes
+                const legalStatus = await getUserLegalStatusByUserId(pool, decoded.userId);
+
+                // 8. Responder al cliente con el nuevo Access Token e información de estado
+                return res.status(200).json({
+                    token: newAccessToken,
+                    username: decoded.username,
+                    is_verified: user.is_verified,
+                    kyc_verified: user.kyc_verified,
+                    requires_terms_acceptance: legalStatus.requires_terms_acceptance,
+                    pending_documents: legalStatus.pending_documents
+                });
+
+            } catch (dbError) {
+                console.error('[AUTH REFRESH] Error en base de datos:', dbError);
+                return res.status(500).json({ message: 'Error interno al verificar la sesión.' });
+            }
+        });
+    } catch (err) {
+        console.error('[AUTH REFRESH] Error inesperado:', err);
+        return res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+};
+
+/**
+ * [NUEVO ENDPOINT] Cierre de sesión (Logout).
+ * Limpia la cookie del Refresh Token en el navegador para invalidar la sesión.
+ */
+exports.logout = (req, res) => {
+    res.clearCookie('auth_refresh_token', { path: '/' });
+    return res.status(200).json({ message: 'Sesión cerrada exitosamente.' });
 };

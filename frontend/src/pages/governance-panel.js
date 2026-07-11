@@ -5,13 +5,15 @@
  * API: /api/governance/*
  */
 
-import { getApiUrl, showCustomAlert, showCustomConfirm, initializeAlertListeners } from '../modules/index.js';
+import { getApiUrl, showCustomAlert, showCustomConfirm, initializeAlertListeners, silentRefreshIfNeeded } from '../modules/index.js';
 
 window.getApiUrl = getApiUrl;
 window.showCustomAlert = showCustomAlert;
 window.showCustomConfirm = showCustomConfirm;
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // [SEGURIDAD FINTECH] Asegurar la vigencia de la sesión antes de inicializar la página de gobernanza
+    await silentRefreshIfNeeded();
 
     // Modales de confirmación (governance-panel.html)
     initializeAlertListeners();

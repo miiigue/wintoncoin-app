@@ -873,6 +873,7 @@ async function initializeRegisterPage() {
                 const response = await fetch(`${API_URL}/api/register-verify`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({ email, verificationCode, referral_code })
                 });
 
