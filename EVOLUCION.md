@@ -3882,6 +3882,19 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
   - **Trazabilidad y Control Financiero**: Se blindó la separación semántica de sesiones de usuario normal y administrador.
 - **Evidencia**: Archivos modificados: `frontend/src/modules/auth.js`, `frontend/src/pages/login.js`, `frontend/src/pages/register.js`, `frontend/src/pages/contract-interaction.js`, `frontend/src/pages/governance-panel.js`.
 
+---
+
+### 2026-07-11 — Rediseño de Flujo y Legibilidad en Página de Registro
+
+- **Contexto**: Se requería mejorar la experiencia de usuario (UX) en la pantalla de registro (`register.html`) cuando hay una sesión activa con verificación pendiente. El texto explicativo era demasiado denso y la tipografía de redirección de inicio de sesión resultaba pequeña en pantallas de teléfonos móviles.
+- **Decisión de Ingeniería**:
+  - **Aumento de Legibilidad**: Se incrementó el tamaño de fuente (`font-size: 1.15rem`) en el párrafo explicativo y se actualizó la frase de inicio de sesión a: "¿Ya tienes una cuenta? Toca para iniciar sesión" en `register.html`.
+  - **Simplificación del Mensaje**: Se reemplazó el texto del banner dinámico en `register.js` por una descripción concisa, directa y profesional que orienta al usuario a completar su verificación de identidad sin redundancia técnica.
+- **Impacto**:
+  - **Claridad de Interfaz**: Se facilita la lectura en pantallas móviles y se ofrece un flujo directo y sin sobrecarga cognitiva para usuarios con sesiones pendientes de verificación.
+- **Evidencia**: Archivos modificados: `frontend/register.html`, `frontend/src/pages/register.js`, `EVOLUCION.md`.
+
+
 
 
 
