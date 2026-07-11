@@ -135,6 +135,10 @@ async function loadCauseData(causeId) {
         initShareButton(cause);
         initDonationsList(donations);
         initCancelButton(cause);
+        initTabs(cause);
+        if (isOwner) {
+            initAuthorPanel(cause);
+        }
 
     } catch (err) {
         console.error('[SOLIDARIO] Error al cargar causa:', err);
@@ -229,6 +233,25 @@ function buildCauseHTML(cause, donations) {
         }
     }
 
+    let authorToolbarHTML = '';
+    if (isOwner) {
+        authorToolbarHTML = `
+            <div class="author-toolbar">
+                <div class="author-toolbar-title">
+                    ⚙️ Panel de Control de tu Causa
+                </div>
+                <div class="author-toolbar-actions">
+                    <button class="author-btn author-btn-edit" id="authorEditCauseBtn">
+                        ✏️ Editar Causa
+                    </button>
+                    <button class="author-btn author-btn-update" id="authorPublishUpdateBtn">
+                        📢 Publicar Novedad
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
     return `
         <!-- HEADER: Navegación + Badge -->
         <div class="solidario-header">
@@ -239,6 +262,8 @@ function buildCauseHTML(cause, donations) {
                 ${badgeOrCancelBtn}
             </div>
         </div>
+
+        ${authorToolbarHTML}
 
         <!-- TARJETA PRINCIPAL -->
         <div class="solidario-cause-card">
@@ -295,13 +320,40 @@ function buildCauseHTML(cause, donations) {
             </button>
         </div>
 
-        <!-- LISTA DE DONACIONES -->
-        <div class="solidario-donations-section" id="solidarioDonationsSection">
-            <div class="solidario-donations-title" style="display:flex; align-items:center; gap:8px;">
-                <span style="color:#e83e8c;">${heartIcon}</span> ${countDonations} ${countDonations === 1 ? 'Donación recibida' : 'Donaciones recibidas'}
+        <!-- SISTEMA DE PESTAÑAS (TABS) -->
+        <div class="solidario-tabs">
+            <button class="solidario-tab-btn active" id="tabDonationsBtn">Donaciones (${countDonations})</button>
+            <button class="solidario-tab-btn" id="tabUpdatesBtn">Novedades (<span id="updatesCountBadge">0</span>)</button>
+            <button class="solidario-tab-btn" id="tabHistoryBtn">Historial de Cambios</button>
+        </div>
+
+        <!-- CONTENIDO PESTAÑA: DONACIONES -->
+        <div class="solidario-tab-content active" id="tabContentDonations">
+            <div class="solidario-donations-section" id="solidarioDonationsSection" style="margin-top:0; border:1px solid rgba(255,255,255,0.06); border-radius:16px;">
+                <div class="solidario-donations-title" style="display:flex; align-items:center; gap:8px;">
+                    <span style="color:#e83e8c;">${heartIcon}</span> ${countDonations} ${countDonations === 1 ? 'Donación recibida' : 'Donaciones recibidas'}
+                </div>
+                <div id="solidarioDonationsList">
+                    <!-- Se llena dinámicamente -->
+                </div>
             </div>
-            <div id="solidarioDonationsList">
-                <!-- Se llena dinámicamente -->
+        </div>
+
+        <!-- CONTENIDO PESTAÑA: NOVEDADES -->
+        <div class="solidario-tab-content" id="tabContentUpdates">
+            <div class="solidario-donations-section" style="margin-top:0; border:1px solid rgba(255,255,255,0.06); border-radius:16px;">
+                <div id="updatesListContainer">
+                    <div class="solidario-empty-donations">No hay novedades registradas todavía.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTENIDO PESTAÑA: HISTORIAL -->
+        <div class="solidario-tab-content" id="tabContentHistory">
+            <div class="solidario-donations-section" style="margin-top:0; border:1px solid rgba(255,255,255,0.06); border-radius:16px;">
+                <div id="historyListContent">
+                    <div class="solidario-empty-donations">No hay historial de cambios registrado.</div>
+                </div>
             </div>
         </div>
     `;
@@ -638,4 +690,299 @@ function showErrorPage(message, showLogin = false) {
             <p><a href="contract_interaction.html">Volver al inicio</a></p>
         </div>
     `;
+}
+
+// ============================================================================
+// SISTEMA DE PESTAÑAS (TABS) INTERACTIVAS
+// ============================================================================
+function initTabs(cause) {
+    const tabDonationsBtn = document.getElementById('tabDonationsBtn');
+    const tabUpdatesBtn = document.getElementById('tabUpdatesBtn');
+    const tabHistoryBtn = document.getElementById('tabHistoryBtn');
+
+    const tabContentDonations = document.getElementById('tabContentDonations');
+    const tabContentUpdates = document.getElementById('tabContentUpdates');
+    const tabContentHistory = document.getElementById('tabContentHistory');
+
+    if (!tabDonationsBtn) return;
+
+    // Cambiar pestañas al hacer clic
+    tabDonationsBtn.onclick = () => switchTab(tabDonationsBtn, tabContentDonations);
+    tabUpdatesBtn.onclick = () => {
+        switchTab(tabUpdatesBtn, tabContentUpdates);
+        loadUpdates(cause.id);
+    };
+    tabHistoryBtn.onclick = () => {
+        switchTab(tabHistoryBtn, tabContentHistory);
+        loadHistory(cause.id);
+    };
+
+    // Consultar cantidad de novedades en segundo plano
+    fetchUpdatesCount(cause.id);
+}
+
+function switchTab(activeBtn, activeContent) {
+    // Desactivar botones de tab
+    document.querySelectorAll('.solidario-tab-btn').forEach(btn => btn.classList.remove('active'));
+    // Ocultar todos los tab contents
+    document.querySelectorAll('.solidario-tab-content').forEach(content => content.classList.remove('active'));
+
+    // Activar los seleccionados
+    activeBtn.classList.add('active');
+    activeContent.classList.add('active');
+}
+
+async function fetchUpdatesCount(causeId) {
+    try {
+        const response = await fetch(`${API_URL}/api/humanitarian/causes/${causeId}/updates`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.updates) {
+                const countBadge = document.getElementById('updatesCountBadge');
+                if (countBadge) countBadge.textContent = data.updates.length;
+            }
+        }
+    } catch (e) {
+        console.error('Error al obtener cantidad de novedades:', e);
+    }
+}
+
+async function loadUpdates(causeId) {
+    const container = document.getElementById('updatesListContainer');
+    if (!container) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/humanitarian/causes/${causeId}/updates`);
+        if (!response.ok) throw new Error('No se pudieron obtener las novedades.');
+        const data = await response.json();
+
+        if (!data.success || !data.updates || data.updates.length === 0) {
+            container.innerHTML = `<div class="solidario-empty-donations">No hay novedades registradas todavía.</div>`;
+            return;
+        }
+
+        container.innerHTML = data.updates.map(update => {
+            const dateStr = new Date(update.created_at).toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }) + ' hs';
+            return `
+                <div class="update-item">
+                    <div class="update-item-header">
+                        <span class="update-item-title">${escapeHtml(update.update_title)}</span>
+                        <span class="update-item-date">${dateStr}</span>
+                    </div>
+                    <div class="update-item-body">${escapeHtml(update.update_text)}</div>
+                </div>
+            `;
+        }).join('');
+    } catch (err) {
+        container.innerHTML = `<div class="solidario-empty-donations" style="color:#ef4444;">${err.message}</div>`;
+    }
+}
+
+async function loadHistory(causeId) {
+    const container = document.getElementById('historyListContent');
+    if (!container) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/humanitarian/causes/${causeId}/history`);
+        if (!response.ok) throw new Error('No se pudo obtener el historial de ediciones.');
+        const data = await response.json();
+
+        if (!data.success || !data.history || data.history.length === 0) {
+            container.innerHTML = `<div class="solidario-empty-donations">No hay historial de cambios registrado para la historia principal de la causa.</div>`;
+            return;
+        }
+
+        container.innerHTML = data.history.map(item => {
+            const dateStr = new Date(item.created_at).toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }) + ' hs';
+            return `
+                <div class="history-item">
+                    <div class="history-item-header">
+                        <span>Editado por <strong class="history-item-editor">@${escapeHtml(item.editor_username)}</strong></span>
+                        <span>${dateStr}</span>
+                    </div>
+                    <div class="history-diff-container">
+                        <div class="diff-section removed">
+                            <strong>Antes:</strong><br>
+                            ${escapeHtml(item.old_story)}
+                        </div>
+                        <div class="diff-section added">
+                            <strong>Después:</strong><br>
+                            ${escapeHtml(item.new_story)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (err) {
+        container.innerHTML = `<div class="solidario-empty-donations" style="color:#ef4444;">${err.message}</div>`;
+    }
+}
+
+// ============================================================================
+// PANEL DE ADMINISTRACIÓN DEL AUTOR DE LA CAUSA
+// ============================================================================
+function initAuthorPanel(cause) {
+    const authorEditCauseBtn = document.getElementById('authorEditCauseBtn');
+    const authorPublishUpdateBtn = document.getElementById('authorPublishUpdateBtn');
+
+    const editCauseModalOverlay = document.getElementById('editCauseModalOverlay');
+    const publishUpdateModalOverlay = document.getElementById('publishUpdateModalOverlay');
+
+    const editCancelBtn = document.getElementById('editCancelBtn');
+    const editConfirmBtn = document.getElementById('editConfirmBtn');
+    const editGoalInput = document.getElementById('editGoalInput');
+    const editStoryInput = document.getElementById('editStoryInput');
+    const editStoryCounter = document.getElementById('editStoryCounter');
+    const editStoryLimitWarning = document.getElementById('editStoryLimitWarning');
+
+    const updateCancelBtn = document.getElementById('updateCancelBtn');
+    const updateConfirmBtn = document.getElementById('updateConfirmBtn');
+    const updateTitleInput = document.getElementById('updateTitleInput');
+    const updateTextInput = document.getElementById('updateTextInput');
+
+    if (!authorEditCauseBtn) return;
+
+    // --- MODAL DE EDICIÓN ---
+    authorEditCauseBtn.onclick = () => {
+        editGoalInput.value = cause.goal_amount;
+        editStoryInput.value = cause.story;
+        editStoryCounter.textContent = `${cause.story.length} caracteres`;
+        editStoryLimitWarning.style.display = 'none';
+        editCauseModalOverlay.classList.add('active');
+    };
+
+    editCancelBtn.onclick = () => {
+        editCauseModalOverlay.classList.remove('active');
+    };
+
+    // Contador de caracteres y cálculo aproximado del diff de historia
+    editStoryInput.oninput = () => {
+        const len = editStoryInput.value.length;
+        editStoryCounter.textContent = `${len} caracteres (min 100)`;
+        
+        const originalLen = cause.story.length;
+        const diffLen = Math.abs(originalLen - len);
+        const percentChange = originalLen > 0 ? (diffLen / originalLen) * 100 : 0;
+        
+        if (percentChange > 15) {
+            editStoryLimitWarning.style.display = 'inline';
+        } else {
+            editStoryLimitWarning.style.display = 'none';
+        }
+    };
+
+    editConfirmBtn.onclick = async () => {
+        const token = localStorage.getItem('token');
+        const goalVal = editGoalInput.value.trim();
+        const storyVal = editStoryInput.value.trim();
+
+        if (isNaN(parseFloat(goalVal)) || parseFloat(goalVal) <= 0) {
+            showCustomAlert('Por favor, ingresa una meta válida.');
+            return;
+        }
+
+        if (storyVal.length < 100) {
+            showCustomAlert('La historia debe tener al menos 100 caracteres.');
+            return;
+        }
+
+        editConfirmBtn.disabled = true;
+        editConfirmBtn.textContent = 'Guardando...';
+
+        try {
+            const response = await fetch(`${API_URL}/api/humanitarian/causes/${cause.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    goal_amount: parseFloat(goalVal),
+                    story: storyVal
+                })
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Error al actualizar causa.');
+
+            editCauseModalOverlay.classList.remove('active');
+            showCustomAlert('Causa actualizada exitosamente.', () => {
+                window.location.reload();
+            });
+        } catch (err) {
+            showCustomAlert(err.message);
+        } finally {
+            editConfirmBtn.disabled = false;
+            editConfirmBtn.textContent = 'Guardar Cambios';
+        }
+    };
+
+    // --- MODAL DE NOVEDADES ---
+    authorPublishUpdateBtn.onclick = () => {
+        updateTitleInput.value = '';
+        updateTextInput.value = '';
+        publishUpdateModalOverlay.classList.add('active');
+    };
+
+    updateCancelBtn.onclick = () => {
+        publishUpdateModalOverlay.classList.remove('active');
+    };
+
+    updateConfirmBtn.onclick = async () => {
+        const token = localStorage.getItem('token');
+        const titleVal = updateTitleInput.value.trim();
+        const textVal = updateTextInput.value.trim();
+
+        if (titleVal.length < 5) {
+            showCustomAlert('El título de la novedad debe tener al menos 5 caracteres.');
+            return;
+        }
+
+        if (textVal.length < 20) {
+            showCustomAlert('El contenido de la novedad debe tener al menos 20 caracteres.');
+            return;
+        }
+
+        updateConfirmBtn.disabled = true;
+        updateConfirmBtn.textContent = 'Publicando...';
+
+        try {
+            const response = await fetch(`${API_URL}/api/humanitarian/causes/${cause.id}/updates`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    update_title: titleVal,
+                    update_text: textVal
+                })
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Error al publicar novedad.');
+
+            publishUpdateModalOverlay.classList.remove('active');
+            showCustomAlert('Novedad publicada y correos transaccionales enviados con éxito.', () => {
+                window.location.reload();
+            });
+        } catch (err) {
+            showCustomAlert(err.message);
+        } finally {
+            updateConfirmBtn.disabled = false;
+            updateConfirmBtn.textContent = 'Publicar y Notificar';
+        }
+    };
 }

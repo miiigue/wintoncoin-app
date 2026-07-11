@@ -420,7 +420,7 @@ const donateToCause = async (donorId, causeId, amount, publicationId = null, req
 
         // Disparar envío de correos electrónicos transaccionales de forma asíncrona y segura (no bloqueante)
         if (donor.email) {
-            sendDonationSentEmail(donor.email, recipientUsername, cause.title, donationAmount, !isVerified, cause.owner_username)
+            sendDonationSentEmail(donor.email, recipientUsername, cause.title, donationAmount, !isVerified, cause.owner_username, cause.evidence_urls, cause.beneficiary_socials)
                 .catch(e => console.error('[SOLIDARIO CORREO] Error al disparar sendDonationSentEmail:', e.message));
         }
         if (recipientEmail) {
@@ -490,7 +490,7 @@ const getCauseDonations = async (causeId) => {
 /**
  * Envía un correo al donante informándole del estado de su donación (Hold o Liberada).
  */
-const sendDonationSentEmail = async (donorEmail, recipientUsername, causeTitle, amount, isHold, creatorUsername) => {
+const sendDonationSentEmail = async (donorEmail, recipientUsername, causeTitle, amount, isHold, creatorUsername, evidenceUrls = null, beneficiarySocials = null) => {
     try {
         const subject = isHold
             ? '💙 ¡Gracias por tu apoyo! Donación en espera de verificación — Winton Solidario'
@@ -502,6 +502,9 @@ const sendDonationSentEmail = async (donorEmail, recipientUsername, causeTitle, 
             ? `¡Muchísimas gracias por tu generosidad! Tu donación de ${amount.toFixed(4)} BLUE IOU para apoyar la causa "${causeTitle}" de @${recipientUsername} ha sido registrada. Con este gran gesto, estás sumando valor y esperanza.\n\nTu donación está en resguardo seguro temporalmente. Para que sea liberada y se haga efectiva en la causa, solo debes completar tu verificación KYC Web3 en la plataforma.`
             : `¡Queremos agradecerte de todo corazón por tu hermoso gesto de solidaridad! Tu donación de ${amount.toFixed(4)} BLUE IOU para la causa "${causeTitle}" de @${recipientUsername} ha sido procesada y acreditada exitosamente. Tu apoyo es fundamental para lograr esta meta. ¡Gracias por hacer la diferencia!`;
 
+        const creatorSocials = extractCreatorSocials(evidenceUrls);
+        const socialsBeneficiary = beneficiarySocials || 'No especificadas';
+
         await sendTransactionEmail({
             toEmail: donorEmail,
             subject,
@@ -512,6 +515,8 @@ const sendDonationSentEmail = async (donorEmail, recipientUsername, causeTitle, 
                 { label: 'Causa Humanitaria', value: causeTitle },
                 { label: 'Creador de la Causa', value: `@${creatorUsername}` },
                 { label: 'Beneficiario', value: `@${recipientUsername}` },
+                { label: 'Redes del Organizador', value: creatorSocials },
+                { label: 'Redes del Beneficiario', value: socialsBeneficiary },
                 { label: 'Estado de Custodia', value: isHold ? 'En Resguardo Seguro (Falta KYC)' : 'Acreditado Inmediato' },
                 { label: 'Fecha', value: new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' }) }
             ]
@@ -635,9 +640,273 @@ const processAndSendEmailsForReleasedDonations = async (donorId) => {
     }
 };
 
+
+/**
+ * Edita una causa solidaria (meta o historia) aplicando controles de similitud y límites de reducción.
+ */
+const editCause = async (userId, causeId, { story, goal_amount }, req) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Obtener la causa y verificar propiedad
+        const causeRes = await client.query(`
+            SELECT hc.*, u.username AS creator_username
+            FROM humanitarian_causes hc
+            JOIN users u ON hc.user_id = u.id
+            WHERE hc.id = $1
+        `, [causeId]);
+
+        if (causeRes.rowCount === 0) {
+            throw { status: 404, message: 'Causa no encontrada.' };
+        }
+
+        const cause = causeRes.rows[0];
+        if (cause.user_id !== userId) {
+            throw { status: 403, message: 'No estás autorizado para editar esta causa.' };
+        }
+
+        let updatedStory = cause.story;
+        let updatedGoal = parseFloat(cause.goal_amount);
+
+        // 2. Si la causa está en revisión ('pending') se permite edición libre
+        if (cause.status === 'pending') {
+            if (story !== undefined) {
+                if (typeof story !== 'string' || story.trim().length < 100) {
+                    throw { status: 400, message: 'La historia debe tener al menos 100 caracteres.' };
+                }
+                updatedStory = story;
+            }
+            if (goal_amount !== undefined) {
+                const parsedGoal = parseFloat(goal_amount);
+                if (isNaN(parsedGoal) || parsedGoal <= 0) {
+                    throw { status: 400, message: 'La meta debe ser un número positivo.' };
+                }
+                updatedGoal = parsedGoal;
+            }
+        } else if (cause.status === 'approved') {
+            // 3. Si está activa ('approved'), aplicar controles estrictos
+            if (story !== undefined && story !== cause.story) {
+                if (typeof story !== 'string' || story.trim().length < 100) {
+                    throw { status: 400, message: 'La historia debe tener al menos 100 caracteres.' };
+                }
+
+                // Aplicar algoritmo de similitud (Levenshtein)
+                const distance = getLevenshteinDistance(cause.story, story);
+                const maxLength = Math.max(cause.story.length, story.length);
+                const percentChange = maxLength > 0 ? (distance / maxLength) * 100 : 0;
+
+                if (percentChange > 15) {
+                    throw { 
+                        status: 400, 
+                        message: `Has modificado un ${percentChange.toFixed(1)}% del texto. Por motivos de transparencia con tus donantes, no puedes modificar más del 15% de la historia principal de una causa activa. Por favor, publica una Actualización.` 
+                    };
+                }
+
+                // Guardar la versión anterior en el historial
+                await client.query(`
+                    INSERT INTO humanitarian_cause_history (cause_id, old_story, new_story, changed_by_user_id)
+                    VALUES ($1, $2, $3, $4)
+                `, [causeId, cause.story, story, userId]);
+
+                updatedStory = story;
+            }
+
+            if (goal_amount !== undefined && parseFloat(goal_amount) !== parseFloat(cause.goal_amount)) {
+                const parsedGoal = parseFloat(goal_amount);
+                if (isNaN(parsedGoal) || parsedGoal <= 0) {
+                    throw { status: 400, message: 'La meta debe ser un número positivo.' };
+                }
+
+                // La nueva meta no puede ser menor a lo ya recaudado (released + pending)
+                const totalRaised = parseFloat(cause.current_amount) + parseFloat(cause.pending_amount);
+                if (parsedGoal < totalRaised) {
+                    throw { 
+                        status: 400, 
+                        message: `La meta no puede ser menor a la cantidad total ya recaudada y en espera (${totalRaised.toFixed(4)} BLUE IOU).` 
+                    };
+                }
+                updatedGoal = parsedGoal;
+            }
+        } else {
+            throw { status: 400, message: 'Solo se pueden editar causas activas o pendientes.' };
+        }
+
+        // 4. Actualizar la causa
+        await client.query(`
+            UPDATE humanitarian_causes
+            SET story = $1, goal_amount = $2, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $3
+        `, [updatedStory, updatedGoal, causeId]);
+
+        // Registrar auditoría
+        await logAuditEvent(
+            userId,
+            'EDIT_HUMANITARIAN_CAUSE',
+            `Causa ID ${causeId} editada. Nueva meta: ${updatedGoal}, Historia modificada: ${story !== undefined && story !== cause.story}`,
+            req
+        );
+
+        await client.query('COMMIT');
+        return { success: true, message: 'Causa actualizada correctamente.' };
+    } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+    } finally {
+        client.release();
+    }
+};
+
+/**
+ * Crea una actualización (novedad) en la causa y notifica por correo a todos los donantes únicos.
+ */
+const createCauseUpdate = async (userId, causeId, { update_title, update_text }, req) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Obtener la causa y verificar propiedad
+        const causeRes = await client.query(`
+            SELECT hc.*, u.username AS creator_username
+            FROM humanitarian_causes hc
+            JOIN users u ON hc.user_id = u.id
+            WHERE hc.id = $1
+        `, [causeId]);
+
+        if (causeRes.rowCount === 0) {
+            throw { status: 404, message: 'Causa no encontrada.' };
+        }
+
+        const cause = causeRes.rows[0];
+        if (cause.user_id !== userId) {
+            throw { status: 403, message: 'No estás autorizado para publicar actualizaciones en esta causa.' };
+        }
+
+        if (!update_title || update_title.trim().length < 5) {
+            throw { status: 400, message: 'El título de la actualización debe tener al menos 5 caracteres.' };
+        }
+        if (!update_text || update_text.trim().length < 20) {
+            throw { status: 400, message: 'El texto de la actualización debe tener al menos 20 caracteres.' };
+        }
+
+        // 2. Insertar la actualización
+        await client.query(`
+            INSERT INTO humanitarian_cause_updates (cause_id, update_title, update_text)
+            VALUES ($1, $2, $3)
+        `, [causeId, update_title, update_text]);
+
+        // Registrar auditoría
+        await logAuditEvent(
+            userId,
+            'CREATE_HUMANITARIAN_CAUSE_UPDATE',
+            `Actualización publicada en causa ID ${causeId}: "${update_title}"`,
+            req
+        );
+
+        await client.query('COMMIT');
+
+        // 3. Buscar todos los donantes únicos (DISTINCT) de esta causa (asíncrono, no bloquea la API)
+        const donorsRes = await pool.query(`
+            SELECT DISTINCT u.email, u.username
+            FROM humanitarian_donations hd
+            JOIN users u ON hd.donor_id = u.id
+            WHERE hd.cause_id = $1 AND u.email IS NOT NULL AND u.id != $2
+        `, [causeId, userId]); // Excluimos al creador por si se auto-donó
+
+        // Extraer redes sociales para inyectarlas
+        const creatorSocials = extractCreatorSocials(cause.evidence_urls);
+        const beneficiarySocials = cause.beneficiary_socials || 'No especificadas';
+
+        // Disparar envío de correos asíncronamente
+        donorsRes.rows.forEach(donor => {
+            sendCauseUpdateEmail(
+                donor.email,
+                donor.username,
+                cause.title,
+                update_title,
+                update_text,
+                cause.creator_username,
+                creatorSocials,
+                beneficiarySocials
+            ).catch(err => console.error(`[SOLIDARIO UPDATE EMAIL] Error al notificar al donante ${donor.username}:`, err.message));
+        });
+
+        return { success: true, message: 'Actualización publicada con éxito y notificaciones enviadas.' };
+    } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+    } finally {
+        client.release();
+    }
+};
+
+// Helper de distancia de Levenshtein
+function getLevenshteinDistance(a, b) {
+    const matrix = [];
+    for (let i = 0; i <= b.length; i++) {
+        matrix[i] = [i];
+    }
+    for (let j = 0; j <= a.length; j++) {
+        matrix[0][j] = j;
+    }
+    for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+            if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1, // sustitución
+                    matrix[i][j - 1] + 1,     // inserción
+                    matrix[i - 1][j] + 1      // eliminación
+                );
+            }
+        }
+    }
+    return matrix[b.length][a.length];
+}
+
+// Helper para extraer las redes sociales del creador desde evidence_urls
+function extractCreatorSocials(evidenceUrls) {
+    try {
+        if (!evidenceUrls) return 'No especificadas';
+        const urls = typeof evidenceUrls === 'string' ? JSON.parse(evidenceUrls) : evidenceUrls;
+        if (!Array.isArray(urls) || urls.length <= 1) return 'No especificadas';
+        // El primer elemento es el PDF de soporte, los siguientes son redes sociales
+        return urls.slice(1).join(', ');
+    } catch (e) {
+        return 'No especificadas';
+    }
+}
+
+/**
+ * Envía un correo al donante informando sobre una nueva actualización en la causa que apoyó.
+ */
+const sendCauseUpdateEmail = async (donorEmail, donorUsername, causeTitle, updateTitle, updateText, creatorUsername, creatorSocials, beneficiarySocials) => {
+    try {
+        await sendTransactionEmail({
+            toEmail: donorEmail,
+            subject: `📢 Nueva actualización en la causa: "${causeTitle}" — Winton Solidario`,
+            title: 'Actualización de Causa Solidaria',
+            message: `¡Hola @${donorUsername}!\n\nQueremos mantenerte informado del impacto de tu generosidad. El organizador @${creatorUsername} ha compartido una novedad en la causa "${causeTitle}":\n\n🔹 **${updateTitle}**\n${updateText}\n\nGracias por seguir apoyando y haciendo posible este logro.`,
+            amount: 'Novedades de Campaña',
+            details: [
+                { label: 'Causa Humanitaria', value: causeTitle },
+                { label: 'Organizado por', value: `@${creatorUsername}` },
+                { label: 'Redes del Organizador', value: creatorSocials },
+                { label: 'Redes del Beneficiario', value: beneficiarySocials },
+                { label: 'Fecha de Publicación', value: new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' }) }
+            ]
+        });
+    } catch (err) {
+        console.error('[SOLIDARIO CORREO] Error al enviar correo de actualización de causa:', err.message);
+    }
+};
+
 module.exports = {
     submitCause,
     donateToCause,
     getCauseDonations,
-    processAndSendEmailsForReleasedDonations
+    processAndSendEmailsForReleasedDonations,
+    editCause,
+    createCauseUpdate
 };

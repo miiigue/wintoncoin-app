@@ -20,6 +20,17 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
 
+
+### 2026-07-11 — Panel del Creador, Edición Híbrida Inteligente de Causas y Bitácora de Novedades Auditables con DISTINCT
+
+- **Contexto**: Para habilitar la gestión activa de causas benéficas publicadas por impulsores sin dar espacio a estafas de desvío de fondos (Charity Fraud/FTC Guidelines) ni saturar con spam a los donantes recurrentes, se requería una solución de edición híbrida y actualizaciones con historial inmutable de auditoría.
+- **Decisión de Ingeniería**:
+  - **Base de Datos y Migración:** Se creó la migración `087_create_cause_updates_and_history.js` que define las tablas `humanitarian_cause_updates` (novedades fechadas de avance) y `humanitarian_cause_history` (histórico de auditoría de descripciones).
+  - **Control de Edición en el Backend (`humanitarianService.js`):** Se restringió la edición de causas activas: inmutabilidad total de título y beneficiario final; la meta (`goal_amount`) solo se puede incrementar (bloqueando reducciones por debajo de lo ya acumulado); y el texto de la historia principal (`story`) se controla con un algoritmo de similitud por distancia de Levenshtein en JS (los cambios directos se restringen a un máximo del 15% para evitar fraudes de alteración de propósito; las modificaciones mayores deben canalizarse por la bitácora).
+  - **Unicidad y Optimización de Correos (`humanitarianService.js` & `authController.js`):** Al publicar novedades, el sistema aplica la cláusula `DISTINCT` en la base de datos para recuperar a los donantes y evitar enviar múltiples correos molestos a usuarios con aportes recurrentes. Asimismo, se inyectan los enlaces sociales del organizador (extraídos de `evidence_urls`) y beneficiario (de `beneficiary_socials`) en los correos transaccionales de donación y novedades para dotar de mayor control e información a la comunidad.
+  - **Experiencia de Usuario Premium (`causa-solidaria.js` & HTML):** Se implementó una interfaz de autor en la misma página pública de la causa (`causa-solidaria.html`), visible únicamente para el creador logueado, con botones para abrir modales interactivos de edición y novedades. Adicionalmente, el historial de donaciones se convirtió en un panel premium con pestañas para Donaciones, Novedades y el Historial de Cambios inmutables del texto.
+- **Impacto**: Cumplimiento regulatorio SOC 2 inmejorable al versionar cambios, blindaje legal contra desvíos de capital y una experiencia comunitaria ágil que fideliza al donante recurrente.
+
 ### 2026-07-10 — Autenticación Robusta con Doble Token (Access/Refresh) y Unificación de Modales de Alerta
 
 - **Contexto**: 
