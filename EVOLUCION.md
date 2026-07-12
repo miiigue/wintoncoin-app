@@ -21,6 +21,19 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 
 
+### 2026-07-11 — Registro de Clickwrap en Base de Datos y Formateo HTML de Correos Transaccionales
+
+- **Contexto**: 
+  1. Para dar cumplimiento a las auditorías SOC 2, se requería almacenar de forma inmutable el consentimiento explícito (Clickwrap de donación voluntaria) en el backend y la base de datos.
+  2. Los correos electrónicos transaccionales del sistema (donaciones, novedades de campaña, transacciones P2P) e emails de gobernanza se mostraban con textos continuos y párrafos pegados. Esto ocurría porque los clientes de correo web y móviles renderizan en formato HTML, ignorando los caracteres de escape de salto de línea de texto plano (`\n`).
+- **Decisión de Ingeniería**:
+  - **Base de Datos y API REST:** Se creó la migración `088_add_accepted_terms_to_humanitarian_donations.js` que añade la columna `accepted_terms` (`BOOLEAN NOT NULL DEFAULT FALSE`) a la tabla `humanitarian_donations`. El endpoint `POST /causes/:id/donate` en `humanitarianUserRoutes.js` ahora exige que `accepted_terms` sea estrictamente `true`, guardándolo a través de `donateToCause` en `humanitarianService.js`. En el frontend, `causa-solidaria.js` envía el consentimiento tras validar el checkbox.
+  - **Formateo Centralizado de Correos (`emailService.js`):** En lugar de inyectar HTML de forma directa en las funciones de negocio, se optimizó la función central de plantillas `sendTransactionEmail` y `sendGovernanceEmail` para convertir automáticamente los saltos de línea de texto plano a formato web mediante `${escapeHtml(message).replace(/\n/g, '<br />')}` de forma segura tras aplicar el escape anti-XSS.
+- **Impacto**: Los correos del sistema se visualizan de manera estructurada, con párrafos debidamente espaciados, limpios y premium en cualquier cliente de correo móvil y web. El registro de transacciones es jurídicamente auditable conforme a regulaciones FinTech y SOC 2.
+- **Evidencia**:
+  - Backend: [emailService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/emailService.js), [humanitarianService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/humanitarianService.js), [humanitarianUserRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/humanitarianUserRoutes.js).
+  - Frontend: [causa-solidaria.html](file:///c:/Users/migue/OneDrive/Escritorio/Wintoncoin/smart-contract/frontend/causa-solidaria.html), [causa-solidaria.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/causa-solidaria.js).
+
 ### 2026-07-11 — Panel del Creador, Edición Híbrida Inteligente de Causas y Bitácora de Novedades Auditables con DISTINCT
 
 - **Contexto**: Para habilitar la gestión activa de causas benéficas publicadas por impulsores sin dar espacio a estafas de desvío de fondos (Charity Fraud/FTC Guidelines) ni saturar con spam a los donantes recurrentes, se requería una solución de edición híbrida y actualizaciones con historial inmutable de auditoría.

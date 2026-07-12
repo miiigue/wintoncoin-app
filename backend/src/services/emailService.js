@@ -302,7 +302,7 @@ async function sendTransactionEmail({ toEmail, subject, title, message, amount, 
 
               <!-- Mensaje -->
               <p style="margin: 0 0 24px 0; color: #344054; font-size: 16px; line-height: 24px; text-align: center;">
-                ${escapeHtml(message)}
+                ${escapeHtml(message).replace(/\n/g, '<br />')}
               </p>
 
               <!-- Tabla de Detalles -->
@@ -659,7 +659,7 @@ async function sendGovernanceEmail({ toEmail, subject, title, body, actionUrl, a
               <td style="padding:24px; font-family: Arial, sans-serif; color:#0B1220;">
                 <h1 style="margin:0 0 10px 0; font-size:20px; line-height:28px; font-weight:700;">${escapeHtml(title)}</h1>
                 <p style="margin:0 0 18px 0; font-size:14px; line-height:22px; color:#344054;">
-                  ${escapeHtml(body)}
+                  ${escapeHtml(body).replace(/\n/g, '<br />')}
                 </p>
 
                 ${details.length > 0 ? `
