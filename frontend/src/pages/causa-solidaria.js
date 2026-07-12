@@ -115,6 +115,8 @@ async function loadCauseData(causeId) {
 
         // Renderizar la causa
         const cause = data.cause;
+        const storedUsername = localStorage.getItem('username');
+        const isOwner = cause.creator_username === storedUsername;
 
         // --- REDIRECCIÓN DE ONBOARDING PARA INVITADOS ---
         // Si el usuario no está autenticado (no hay token), lo redirigimos al registro
@@ -135,6 +137,10 @@ async function loadCauseData(causeId) {
         initShareButton(cause);
         initDonationsList(donations);
         initCancelButton(cause);
+        initTabs(cause);
+        if (isOwner) {
+            initAuthorPanel(cause);
+        }
 
     } catch (err) {
         console.error('[SOLIDARIO] Error al cargar causa:', err);
@@ -202,31 +208,54 @@ function buildCauseHTML(cause, donations) {
         `;
     }
 
+
+
     // [Seguridad / Redirección] Resolver enlace social para el creador (influencer)
-    // El índice 0 contiene el enlace de evidencia y los siguientes índices contienen las redes del creador.
-    // Si posee redes, enlazamos externamente abriendo en una pestaña nueva por seguridad (noopener).
-    // Si no posee redes, hacemos fallback a su perfil público interno en la misma pestaña.
     let creatorLink = `profile.html?user=${encodeURIComponent(cause.creator_username)}`;
     let creatorTarget = '';
+    let isCreatorExternal = false;
     if (cause.evidence_urls && Array.isArray(cause.evidence_urls) && cause.evidence_urls.length > 1) {
         const firstSocial = cause.evidence_urls[1];
         if (firstSocial && firstSocial.trim() !== '') {
             creatorLink = firstSocial.trim();
             creatorTarget = ' target="_blank" rel="noopener noreferrer"';
+            isCreatorExternal = true;
         }
     }
 
     // [Seguridad / Redirección] Resolver enlace social para el beneficiario
-    // Se obtiene del campo beneficiary_socials (ingresado por el influencer), tomando el primer enlace.
-    // Si posee red/web, enlazamos externamente. Si no, hacemos fallback a su perfil público interno.
     let beneficiaryLink = `profile.html?user=${encodeURIComponent(cause.beneficiary_username)}`;
     let beneficiaryTarget = '';
+    let isBeneficiaryExternal = false;
     if (cause.beneficiary_socials && cause.beneficiary_socials.trim() !== '') {
         const socials = cause.beneficiary_socials.trim().split(/\s+/);
         if (socials[0] && socials[0].trim() !== '') {
             beneficiaryLink = socials[0].trim();
             beneficiaryTarget = ' target="_blank" rel="noopener noreferrer"';
+            isBeneficiaryExternal = true;
         }
+    }
+
+    const creatorIcon = getSocialIcon(creatorLink, isCreatorExternal);
+    const beneficiaryIcon = getSocialIcon(beneficiaryLink, isBeneficiaryExternal);
+
+    let authorToolbarHTML = '';
+    if (isOwner) {
+        authorToolbarHTML = `
+            <div class="author-toolbar">
+                <div class="author-toolbar-title">
+                    ⚙️ Panel de Control de tu Causa
+                </div>
+                <div class="author-toolbar-actions">
+                    <button class="author-btn author-btn-edit" id="authorEditCauseBtn">
+                        ✏️ Editar Causa
+                    </button>
+                    <button class="author-btn author-btn-update" id="authorPublishUpdateBtn">
+                        📢 Publicar Novedad
+                    </button>
+                </div>
+            </div>
+        `;
     }
 
     return `
@@ -240,12 +269,14 @@ function buildCauseHTML(cause, donations) {
             </div>
         </div>
 
+        ${authorToolbarHTML}
+
         <!-- TARJETA PRINCIPAL -->
         <div class="solidario-cause-card">
             <h1 class="solidario-cause-title" id="solidarioCauseTitle">${escapeHtml(cause.title)}</h1>
             <div class="solidario-cause-meta">
-                <span>👤 Creador: <strong><a href="${creatorLink}"${creatorTarget} class="profile-link" style="color: #a5b4fc; text-decoration: underline;">${escapeHtml(cause.creator_username || 'Creador')}</a></strong></span>
-                ${cause.beneficiary_username && cause.beneficiary_username !== cause.creator_username ? `<span>💖 Beneficiario: <strong><a href="${beneficiaryLink}"${beneficiaryTarget} class="profile-link" style="color: #a5b4fc; text-decoration: underline;">@${escapeHtml(cause.beneficiary_username)}</a>${cause.foundation_name ? ` (${escapeHtml(cause.foundation_name)})` : ''}</strong></span>` : ''}
+                <span>👤 Creador: <strong><a href="${creatorLink}"${creatorTarget} class="profile-link" style="color: #a5b4fc; text-decoration: underline;">${creatorIcon}${escapeHtml(cause.creator_username || 'Creador')}</a></strong></span>
+                ${cause.beneficiary_username && cause.beneficiary_username !== cause.creator_username ? `<span>💖 Beneficiario: <strong><a href="${beneficiaryLink}"${beneficiaryTarget} class="profile-link" style="color: #a5b4fc; text-decoration: underline;">${beneficiaryIcon}${escapeHtml(cause.beneficiary_username)}</a>${cause.foundation_name ? ` (${escapeHtml(cause.foundation_name)})` : ''}</strong></span>` : ''}
                 <span>📅 ${createdDate}</span>
             </div>
             <div class="solidario-cause-story" id="solidarioCauseStory">${escapeHtml(cause.story)}</div>
@@ -295,13 +326,40 @@ function buildCauseHTML(cause, donations) {
             </button>
         </div>
 
-        <!-- LISTA DE DONACIONES -->
-        <div class="solidario-donations-section" id="solidarioDonationsSection">
-            <div class="solidario-donations-title" style="display:flex; align-items:center; gap:8px;">
-                <span style="color:#e83e8c;">${heartIcon}</span> ${countDonations} ${countDonations === 1 ? 'Donación recibida' : 'Donaciones recibidas'}
+        <!-- SISTEMA DE PESTAÑAS (TABS) -->
+        <div class="solidario-tabs">
+            <button class="solidario-tab-btn active" id="tabDonationsBtn">Donaciones (${countDonations})</button>
+            <button class="solidario-tab-btn" id="tabUpdatesBtn">Novedades (<span id="updatesCountBadge">0</span>)</button>
+            <button class="solidario-tab-btn" id="tabHistoryBtn">Historial de Cambios</button>
+        </div>
+
+        <!-- CONTENIDO PESTAÑA: DONACIONES -->
+        <div class="solidario-tab-content active" id="tabContentDonations">
+            <div class="solidario-donations-section" id="solidarioDonationsSection" style="margin-top:0; border:1px solid rgba(255,255,255,0.06); border-radius:16px;">
+                <div class="solidario-donations-title" style="display:flex; align-items:center; gap:8px;">
+                    <span style="color:#e83e8c;">${heartIcon}</span> ${countDonations} ${countDonations === 1 ? 'Donación recibida' : 'Donaciones recibidas'}
+                </div>
+                <div id="solidarioDonationsList">
+                    <!-- Se llena dinámicamente -->
+                </div>
             </div>
-            <div id="solidarioDonationsList">
-                <!-- Se llena dinámicamente -->
+        </div>
+
+        <!-- CONTENIDO PESTAÑA: NOVEDADES -->
+        <div class="solidario-tab-content" id="tabContentUpdates">
+            <div class="solidario-donations-section" style="margin-top:0; border:1px solid rgba(255,255,255,0.06); border-radius:16px;">
+                <div id="updatesListContainer">
+                    <div class="solidario-empty-donations">No hay novedades registradas todavía.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTENIDO PESTAÑA: HISTORIAL -->
+        <div class="solidario-tab-content" id="tabContentHistory">
+            <div class="solidario-donations-section" style="margin-top:0; border:1px solid rgba(255,255,255,0.06); border-radius:16px;">
+                <div id="historyListContent">
+                    <div class="solidario-empty-donations">No hay historial de cambios registrado.</div>
+                </div>
             </div>
         </div>
     `;
@@ -390,10 +448,22 @@ function setupDonateModal(cause, donorBalance) {
     const cancelBtn = document.getElementById('donateCancelBtn');
     const confirmBtn = document.getElementById('donateConfirmBtn');
     const amountInput = document.getElementById('donateAmountInput');
+    const termsCheckbox = document.getElementById('donateTermsCheckbox');
 
     // Limpiar input y resetear estado
     amountInput.value = '';
-    confirmBtn.disabled = false;
+    
+    // Lógica Clickwrap: botón deshabilitado hasta aceptar términos
+    if (termsCheckbox) {
+        termsCheckbox.checked = false;
+        confirmBtn.disabled = true;
+        termsCheckbox.onchange = () => {
+            confirmBtn.disabled = !termsCheckbox.checked;
+        };
+    } else {
+        confirmBtn.disabled = false;
+    }
+    
     confirmBtn.textContent = 'Confirmar Donación';
 
     // Función para cerrar modal
@@ -438,7 +508,7 @@ function setupDonateModal(cause, donorBalance) {
                     'Content-Type': 'application/json',
                     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                 },
-                body: JSON.stringify({ amount })
+                body: JSON.stringify({ amount, accepted_terms: true })
             });
 
             const result = await response.json();
@@ -601,6 +671,37 @@ function initDonationsList(donationsData) {
 // ============================================================================
 
 /**
+ * Resuelve iconos sociales dinámicos de forma premium
+ * @param {string} link - URL de destino
+ * @param {boolean} isExternal - Si es un enlace de red externa
+ * @returns {string} Código SVG del icono
+ */
+function getSocialIcon(link, isExternal) {
+    if (!isExternal) {
+        // Icono de perfil interno de la plataforma (WintonCoin User)
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px; opacity:0.8;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
+    }
+    
+    const lowLink = link.toLowerCase();
+    if (lowLink.includes('instagram.com') || lowLink.includes('instagr.am')) {
+        // Icono oficial de Instagram
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px; color:#e83e8c;"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>`;
+    } else if (lowLink.includes('facebook.com') || lowLink.includes('fb.com')) {
+        // Icono oficial de Facebook
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px; color:#1877F2;"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>`;
+    } else if (lowLink.includes('twitter.com') || lowLink.includes('x.com')) {
+        // Icono oficial de Twitter / X
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px; color:#cbd5e1;"><path d="M4 4l11.733 16h4.267l-11.733 -16z"></path><path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772"></path></svg>`;
+    } else if (lowLink.includes('youtube.com') || lowLink.includes('youtu.be')) {
+        // Icono oficial de YouTube
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px; color:#FF0000;"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon></svg>`;
+    }
+    
+    // Icono de enlace genérico en caso de otras webs/blogs
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px; opacity:0.8;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`;
+}
+
+/**
  * Escapa HTML para prevenir XSS (seguridad obligatoria en fintech)
  * Convierte caracteres especiales a entidades HTML seguras
  */
@@ -638,4 +739,299 @@ function showErrorPage(message, showLogin = false) {
             <p><a href="contract_interaction.html">Volver al inicio</a></p>
         </div>
     `;
+}
+
+// ============================================================================
+// SISTEMA DE PESTAÑAS (TABS) INTERACTIVAS
+// ============================================================================
+function initTabs(cause) {
+    const tabDonationsBtn = document.getElementById('tabDonationsBtn');
+    const tabUpdatesBtn = document.getElementById('tabUpdatesBtn');
+    const tabHistoryBtn = document.getElementById('tabHistoryBtn');
+
+    const tabContentDonations = document.getElementById('tabContentDonations');
+    const tabContentUpdates = document.getElementById('tabContentUpdates');
+    const tabContentHistory = document.getElementById('tabContentHistory');
+
+    if (!tabDonationsBtn) return;
+
+    // Cambiar pestañas al hacer clic
+    tabDonationsBtn.onclick = () => switchTab(tabDonationsBtn, tabContentDonations);
+    tabUpdatesBtn.onclick = () => {
+        switchTab(tabUpdatesBtn, tabContentUpdates);
+        loadUpdates(cause.id);
+    };
+    tabHistoryBtn.onclick = () => {
+        switchTab(tabHistoryBtn, tabContentHistory);
+        loadHistory(cause.id);
+    };
+
+    // Consultar cantidad de novedades en segundo plano
+    fetchUpdatesCount(cause.id);
+}
+
+function switchTab(activeBtn, activeContent) {
+    // Desactivar botones de tab
+    document.querySelectorAll('.solidario-tab-btn').forEach(btn => btn.classList.remove('active'));
+    // Ocultar todos los tab contents
+    document.querySelectorAll('.solidario-tab-content').forEach(content => content.classList.remove('active'));
+
+    // Activar los seleccionados
+    activeBtn.classList.add('active');
+    activeContent.classList.add('active');
+}
+
+async function fetchUpdatesCount(causeId) {
+    try {
+        const response = await fetch(`${API_URL}/api/humanitarian/causes/${causeId}/updates`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.updates) {
+                const countBadge = document.getElementById('updatesCountBadge');
+                if (countBadge) countBadge.textContent = data.updates.length;
+            }
+        }
+    } catch (e) {
+        console.error('Error al obtener cantidad de novedades:', e);
+    }
+}
+
+async function loadUpdates(causeId) {
+    const container = document.getElementById('updatesListContainer');
+    if (!container) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/humanitarian/causes/${causeId}/updates`);
+        if (!response.ok) throw new Error('No se pudieron obtener las novedades.');
+        const data = await response.json();
+
+        if (!data.success || !data.updates || data.updates.length === 0) {
+            container.innerHTML = `<div class="solidario-empty-donations">No hay novedades registradas todavía.</div>`;
+            return;
+        }
+
+        container.innerHTML = data.updates.map(update => {
+            const dateStr = new Date(update.created_at).toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }) + ' hs';
+            return `
+                <div class="update-item">
+                    <div class="update-item-header">
+                        <span class="update-item-title">${escapeHtml(update.update_title)}</span>
+                        <span class="update-item-date">${dateStr}</span>
+                    </div>
+                    <div class="update-item-body">${escapeHtml(update.update_text)}</div>
+                </div>
+            `;
+        }).join('');
+    } catch (err) {
+        container.innerHTML = `<div class="solidario-empty-donations" style="color:#ef4444;">${err.message}</div>`;
+    }
+}
+
+async function loadHistory(causeId) {
+    const container = document.getElementById('historyListContent');
+    if (!container) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/humanitarian/causes/${causeId}/history`);
+        if (!response.ok) throw new Error('No se pudo obtener el historial de ediciones.');
+        const data = await response.json();
+
+        if (!data.success || !data.history || data.history.length === 0) {
+            container.innerHTML = `<div class="solidario-empty-donations">No hay historial de cambios registrado para la historia principal de la causa.</div>`;
+            return;
+        }
+
+        container.innerHTML = data.history.map(item => {
+            const dateStr = new Date(item.created_at).toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }) + ' hs';
+            return `
+                <div class="history-item">
+                    <div class="history-item-header">
+                        <span>Editado por <strong class="history-item-editor">@${escapeHtml(item.editor_username)}</strong></span>
+                        <span>${dateStr}</span>
+                    </div>
+                    <div class="history-diff-container">
+                        <div class="diff-section removed">
+                            <strong>Antes:</strong><br>
+                            ${escapeHtml(item.old_story)}
+                        </div>
+                        <div class="diff-section added">
+                            <strong>Después:</strong><br>
+                            ${escapeHtml(item.new_story)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (err) {
+        container.innerHTML = `<div class="solidario-empty-donations" style="color:#ef4444;">${err.message}</div>`;
+    }
+}
+
+// ============================================================================
+// PANEL DE ADMINISTRACIÓN DEL AUTOR DE LA CAUSA
+// ============================================================================
+function initAuthorPanel(cause) {
+    const authorEditCauseBtn = document.getElementById('authorEditCauseBtn');
+    const authorPublishUpdateBtn = document.getElementById('authorPublishUpdateBtn');
+
+    const editCauseModalOverlay = document.getElementById('editCauseModalOverlay');
+    const publishUpdateModalOverlay = document.getElementById('publishUpdateModalOverlay');
+
+    const editCancelBtn = document.getElementById('editCancelBtn');
+    const editConfirmBtn = document.getElementById('editConfirmBtn');
+    const editGoalInput = document.getElementById('editGoalInput');
+    const editStoryInput = document.getElementById('editStoryInput');
+    const editStoryCounter = document.getElementById('editStoryCounter');
+    const editStoryLimitWarning = document.getElementById('editStoryLimitWarning');
+
+    const updateCancelBtn = document.getElementById('updateCancelBtn');
+    const updateConfirmBtn = document.getElementById('updateConfirmBtn');
+    const updateTitleInput = document.getElementById('updateTitleInput');
+    const updateTextInput = document.getElementById('updateTextInput');
+
+    if (!authorEditCauseBtn) return;
+
+    // --- MODAL DE EDICIÓN ---
+    authorEditCauseBtn.onclick = () => {
+        editGoalInput.value = cause.goal_amount;
+        editStoryInput.value = cause.story;
+        editStoryCounter.textContent = `${cause.story.length} caracteres`;
+        editStoryLimitWarning.style.display = 'none';
+        editCauseModalOverlay.classList.add('active');
+    };
+
+    editCancelBtn.onclick = () => {
+        editCauseModalOverlay.classList.remove('active');
+    };
+
+    // Contador de caracteres y cálculo aproximado del diff de historia
+    editStoryInput.oninput = () => {
+        const len = editStoryInput.value.length;
+        editStoryCounter.textContent = `${len} caracteres (min 100)`;
+        
+        const originalLen = cause.story.length;
+        const diffLen = Math.abs(originalLen - len);
+        const percentChange = originalLen > 0 ? (diffLen / originalLen) * 100 : 0;
+        
+        if (percentChange > 15) {
+            editStoryLimitWarning.style.display = 'inline';
+        } else {
+            editStoryLimitWarning.style.display = 'none';
+        }
+    };
+
+    editConfirmBtn.onclick = async () => {
+        const token = localStorage.getItem('token');
+        const goalVal = editGoalInput.value.trim();
+        const storyVal = editStoryInput.value.trim();
+
+        if (isNaN(parseFloat(goalVal)) || parseFloat(goalVal) <= 0) {
+            showCustomAlert('Por favor, ingresa una meta válida.');
+            return;
+        }
+
+        if (storyVal.length < 100) {
+            showCustomAlert('La historia debe tener al menos 100 caracteres.');
+            return;
+        }
+
+        editConfirmBtn.disabled = true;
+        editConfirmBtn.textContent = 'Guardando...';
+
+        try {
+            const response = await fetch(`${API_URL}/api/humanitarian/causes/${cause.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    goal_amount: parseFloat(goalVal),
+                    story: storyVal
+                })
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Error al actualizar causa.');
+
+            editCauseModalOverlay.classList.remove('active');
+            showCustomAlert('Causa actualizada exitosamente.', () => {
+                window.location.reload();
+            });
+        } catch (err) {
+            showCustomAlert(err.message);
+        } finally {
+            editConfirmBtn.disabled = false;
+            editConfirmBtn.textContent = 'Guardar Cambios';
+        }
+    };
+
+    // --- MODAL DE NOVEDADES ---
+    authorPublishUpdateBtn.onclick = () => {
+        updateTitleInput.value = '';
+        updateTextInput.value = '';
+        publishUpdateModalOverlay.classList.add('active');
+    };
+
+    updateCancelBtn.onclick = () => {
+        publishUpdateModalOverlay.classList.remove('active');
+    };
+
+    updateConfirmBtn.onclick = async () => {
+        const token = localStorage.getItem('token');
+        const titleVal = updateTitleInput.value.trim();
+        const textVal = updateTextInput.value.trim();
+
+        if (titleVal.length < 5) {
+            showCustomAlert('El título de la novedad debe tener al menos 5 caracteres.');
+            return;
+        }
+
+        if (textVal.length < 20) {
+            showCustomAlert('El contenido de la novedad debe tener al menos 20 caracteres.');
+            return;
+        }
+
+        updateConfirmBtn.disabled = true;
+        updateConfirmBtn.textContent = 'Publicando...';
+
+        try {
+            const response = await fetch(`${API_URL}/api/humanitarian/causes/${cause.id}/updates`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    update_title: titleVal,
+                    update_text: textVal
+                })
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Error al publicar novedad.');
+
+            publishUpdateModalOverlay.classList.remove('active');
+            showCustomAlert('Novedad publicada y correos transaccionales enviados con éxito.', () => {
+                window.location.reload();
+            });
+        } catch (err) {
+            showCustomAlert(err.message);
+        } finally {
+            updateConfirmBtn.disabled = false;
+            updateConfirmBtn.textContent = 'Publicar y Notificar';
+        }
+    };
 }

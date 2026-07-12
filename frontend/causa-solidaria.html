@@ -545,6 +545,207 @@
                 font-size: 1.3em;
             }
         }
+
+        /* ============================================================ */
+        /* PANEL DE HERRAMIENTAS DE AUTOR (Dashboard de Creador)        */
+        /* ============================================================ */
+        .author-toolbar {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.99));
+            border: 1px dashed rgba(232, 62, 140, 0.4);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .author-toolbar-title {
+            font-size: 0.92em;
+            font-weight: 600;
+            color: #fbcfe8;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .author-toolbar-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .author-btn {
+            flex: 1;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.85em;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .author-btn-edit {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60A5FA;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .author-btn-edit:hover {
+            background: rgba(59, 130, 246, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .author-btn-update {
+            background: rgba(232, 62, 140, 0.15);
+            color: #f472b6;
+            border: 1px solid rgba(232, 62, 140, 0.3);
+        }
+
+        .author-btn-update:hover {
+            background: rgba(232, 62, 140, 0.25);
+            transform: translateY(-1px);
+        }
+
+        /* ============================================================ */
+        /* PESTAÑAS (TABS)                                              */
+        /* ============================================================ */
+        .solidario-tabs {
+            display: flex;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 16px;
+            gap: 8px;
+        }
+
+        .solidario-tab-btn {
+            background: none;
+            border: none;
+            color: #64748B;
+            font-size: 0.9em;
+            font-weight: 600;
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .solidario-tab-btn:hover {
+            color: #CBD5E1;
+        }
+
+        .solidario-tab-btn.active {
+            color: #e83e8c;
+            border-bottom-color: #e83e8c;
+        }
+
+        .solidario-tab-content {
+            display: none;
+        }
+
+        .solidario-tab-content.active {
+            display: block;
+        }
+
+        /* ============================================================ */
+        /* CARDS DE NOVEDADES/ACTUALIZACIONES                           */
+        /* ============================================================ */
+        .update-item {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+        }
+
+        .update-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 8px;
+            gap: 12px;
+        }
+
+        .update-item-title {
+            font-size: 0.98em;
+            font-weight: 600;
+            color: #F1F5F9;
+            line-height: 1.4;
+        }
+
+        .update-item-date {
+            font-size: 0.75em;
+            color: #64748B;
+            white-space: nowrap;
+        }
+
+        .update-item-body {
+            font-size: 0.88em;
+            color: #94A3B8;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        /* ============================================================ */
+        /* CARDS DE HISTORIAL DE CAMBIOS (EDICIONES DE LA HISTORIA)     */
+        /* ============================================================ */
+        .history-item {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .history-item-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.78em;
+            color: #64748B;
+            margin-bottom: 10px;
+        }
+
+        .history-item-editor {
+            color: #a5b4fc;
+            font-weight: 500;
+        }
+
+        .history-diff-container {
+            font-size: 0.85em;
+            line-height: 1.5;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .diff-section {
+            border-radius: 4px;
+            padding: 8px;
+        }
+
+        .diff-section.removed {
+            background: rgba(239, 68, 68, 0.08);
+            border-left: 3px solid #ef4444;
+            color: #fca5a5;
+            text-decoration: line-through;
+        }
+
+        .diff-section.added {
+            background: rgba(34, 197, 94, 0.08);
+            border-left: 3px solid #22c55e;
+            color: #86efac;
+        }
     </style>
 </head>
 
@@ -579,9 +780,93 @@
                     (<strong>Hold</strong>) hasta que completes la verificación KYC.</span>
             </div>
 
+            <!-- CHECKBOX LEGAL: Clickwrap de Aceptación -->
+            <div style="display:flex; align-items:flex-start; gap:8px; margin-bottom:20px; font-size:0.82em; color:#94A3B8; line-height:1.5;">
+                <input type="checkbox" id="donateTermsCheckbox" style="margin-top:3px; cursor:pointer; width:14px; height:14px;">
+                <label for="donateTermsCheckbox" style="cursor:pointer; user-select:none;">
+                    Confirmo que mi donación es voluntaria y acepto los <a href="legales-campana.html" target="_blank" rel="noopener noreferrer" style="color:#e83e8c; text-decoration:underline; font-weight:600;">Términos Legales de la Campaña</a>, incluyendo la retención en Resguardo Seguro hasta la verificación KYC.
+                </label>
+            </div>
+            
             <div class="solidario-donate-btn-group">
                 <button class="solidario-donate-cancel" id="donateCancelBtn">Cancelar</button>
-                <button class="solidario-donate-confirm" id="donateConfirmBtn">Confirmar Donación</button>
+                <button class="solidario-donate-confirm" id="donateConfirmBtn" disabled>Confirmar Donación</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- MODAL DE EDICIÓN DE CAUSA                                        -->
+    <!-- ================================================================ -->
+    <div class="solidario-donate-modal-overlay" id="editCauseModalOverlay">
+        <div class="solidario-donate-modal" style="max-width: 500px;">
+            <h3>✏️ Editar Causa Solidaria</h3>
+            <p class="balance-hint" id="editStatusHint">Modifica la meta o añade correcciones a tu historia principal.</p>
+
+            <div style="margin-bottom: 16px;">
+                <label style="display:block; font-size:0.85em; color:#94A3B8; margin-bottom:6px; font-weight:600;">Meta de Recaudación (BLUE IOU):</label>
+                <div class="solidario-donate-input-group" style="margin-bottom: 0;">
+                    <input type="text" id="editGoalInput" placeholder="0.0000" autocomplete="off">
+                    <span class="input-unit">BLUE IOU</span>
+                </div>
+                <small id="editGoalMinHelp" style="display:block; font-size:0.75em; color:#64748B; margin-top:4px;">No puede ser menor al acumulado actual.</small>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display:block; font-size:0.85em; color:#94A3B8; margin-bottom:6px; font-weight:600;">Historia / Descripción de la causa:</label>
+                <textarea id="editStoryInput" style="width:100%; height:160px; padding:12px; background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.1); border-radius:10px; color:#F1F5F9; font-size:0.9em; font-family:inherit; outline:none; resize:vertical; box-sizing:border-box; line-height:1.5;" placeholder="Cuéntale a la comunidad los motivos de tu campaña..."></textarea>
+                <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:0.75em; color:#64748B;">
+                    <span id="editStoryCounter">0 caracteres (min 100)</span>
+                    <span id="editStoryLimitWarning" style="color:#EF4444; display:none;">⚠️ Limita el cambio al 15%</span>
+                </div>
+            </div>
+
+            <div class="solidario-donate-btn-group">
+                <button class="solidario-donate-cancel" id="editCancelBtn">Cancelar</button>
+                <button class="solidario-donate-confirm" id="editConfirmBtn">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- MODAL DE PUBLICAR ACTUALIZACIÓN (NOVEDADES)                       -->
+    <!-- ================================================================ -->
+    <div class="solidario-donate-modal-overlay" id="publishUpdateModalOverlay">
+        <div class="solidario-donate-modal" style="max-width: 500px;">
+            <h3>📢 Publicar Novedad</h3>
+            <p class="balance-hint">Informa a tus donantes sobre el avance de la causa. Se les enviará un correo automáticamente.</p>
+
+            <div style="margin-bottom: 16px;">
+                <label style="display:block; font-size:0.85em; color:#94A3B8; margin-bottom:6px; font-weight:600;">Título de la Novedad:</label>
+                <input type="text" id="updateTitleInput" style="width:100%; padding:12px; background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.1); border-radius:10px; color:#F1F5F9; font-size:0.95em; outline:none; box-sizing:border-box;" placeholder="Ej: ¡Llegamos a la mitad de la meta!">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display:block; font-size:0.85em; color:#94A3B8; margin-bottom:6px; font-weight:600;">Contenido / Detalle:</label>
+                <textarea id="updateTextInput" style="width:100%; height:140px; padding:12px; background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.1); border-radius:10px; color:#F1F5F9; font-size:0.9em; font-family:inherit; outline:none; resize:vertical; box-sizing:border-box; line-height:1.5;" placeholder="Describe en detalle las novedades para mantener entusiasmada a la comunidad..."></textarea>
+            </div>
+
+            <div class="solidario-donate-btn-group">
+                <button class="solidario-donate-cancel" id="updateCancelBtn">Cancelar</button>
+                <button class="solidario-donate-confirm" id="updateConfirmBtn">Publicar y Notificar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- MODAL DE VISUALIZACIÓN DEL HISTORIAL DE EDICIONES                 -->
+    <!-- ================================================================ -->
+    <div class="solidario-donate-modal-overlay" id="viewHistoryModalOverlay">
+        <div class="solidario-donate-modal" style="max-width: 550px;">
+            <h3>📋 Historial de Ediciones</h3>
+            <p class="balance-hint">Consulta de forma transparente los cambios realizados en la historia oficial.</p>
+
+            <div id="historyListContainer" style="max-height: 320px; overflow-y: auto; margin-bottom: 20px; padding-right: 4px; display: flex; flex-direction: column; gap: 10px;">
+                <!-- Se inyecta por JS -->
+            </div>
+
+            <div class="solidario-donate-btn-group">
+                <button class="solidario-donate-cancel" id="historyCloseBtn" style="flex:1;">Cerrar</button>
             </div>
         </div>
     </div>

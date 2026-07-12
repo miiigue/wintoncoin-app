@@ -407,7 +407,7 @@ exports.registerVerify = async (req, res) => {
             if (rewardAmount > 0) {
                 // Consultar causa activa aprobada del referente
                 const causeCheck = await client.query(`
-                    SELECT id, title FROM humanitarian_causes 
+                    SELECT id, title, evidence_urls, beneficiary_socials FROM humanitarian_causes 
                     WHERE user_id = $1 AND status = 'approved' 
                     LIMIT 1
                 `, [referrer.id]);
@@ -457,6 +457,19 @@ exports.registerVerify = async (req, res) => {
 
                     // Disparar envío de correo transaccional de bienvenida y agradecimiento al nuevo usuario (no bloqueante)
                     if (newUser.email) {
+                        let creatorSocials = 'No especificadas';
+                        try {
+                            if (activeCause.evidence_urls) {
+                                const urls = typeof activeCause.evidence_urls === 'string' ? JSON.parse(activeCause.evidence_urls) : activeCause.evidence_urls;
+                                if (Array.isArray(urls) && urls.length > 1) {
+                                    creatorSocials = urls.slice(1).join(', ');
+                                }
+                            }
+                        } catch (e) {
+                            creatorSocials = 'No especificadas';
+                        }
+                        const beneficiarySocials = activeCause.beneficiary_socials || 'No especificadas';
+
                         sendTransactionEmail({
                             toEmail: newUser.email,
                             subject: '🎁 ¡Gracias por unirte! Tu registro apoya una causa — Winton Solidario',
@@ -467,6 +480,8 @@ exports.registerVerify = async (req, res) => {
                                 { label: 'Causa Solidaria', value: activeCause.title },
                                 { label: 'Invitado por', value: `@${referrer.username}` },
                                 { label: 'Donante', value: `@${newUser.username}` },
+                                { label: 'Redes del Organizador', value: creatorSocials },
+                                { label: 'Redes del Beneficiario', value: beneficiarySocials },
                                 { label: 'Estado', value: 'En Resguardo Seguro (Falta KYC)' },
                                 { label: 'Fecha', value: new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' }) }
                             ]

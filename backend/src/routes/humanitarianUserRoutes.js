@@ -19,7 +19,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/authMiddleware');
-const { submitCause, donateToCause, getCauseDonations } = require('../services/humanitarianService');
+const { submitCause, donateToCause, getCauseDonations, editCause, createCauseUpdate } = require('../services/humanitarianService');
 const pool = require('../config/db');
 const { requireAcceptedLegalForAuthenticatedUser } = require('../middleware/legalAcceptanceMiddleware');
 
@@ -171,6 +171,54 @@ router.get('/causes/:id', optionalAuthenticateToken, async (req, res) => {
         res.status(500).json({ message: 'Error interno del servidor.' });
     }
 });
+// ============================================================================
+// GET /api/humanitarian/causes/:id/updates — Listar novedades de una causa
+// ============================================================================
+router.get('/causes/:id/updates', optionalAuthenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (isNaN(parseInt(id))) {
+            return res.status(400).json({ message: 'ID de causa inválido.' });
+        }
+
+        const result = await pool.query(`
+            SELECT id, update_title, update_text, created_at 
+            FROM humanitarian_cause_updates 
+            WHERE cause_id = $1 
+            ORDER BY created_at DESC
+        `, [id]);
+
+        res.json({ success: true, updates: result.rows });
+    } catch (err) {
+        console.error('[SOLIDARIO] Error al listar actualizaciones:', err);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+});
+
+// ============================================================================
+// GET /api/humanitarian/causes/:id/history — Ver historial de ediciones de historia
+// ============================================================================
+router.get('/causes/:id/history', optionalAuthenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (isNaN(parseInt(id))) {
+            return res.status(400).json({ message: 'ID de causa inválido.' });
+        }
+
+        const result = await pool.query(`
+            SELECT h.id, h.old_story, h.new_story, h.created_at, u.username AS editor_username
+            FROM humanitarian_cause_history h
+            JOIN users u ON h.changed_by_user_id = u.id
+            WHERE h.cause_id = $1 
+            ORDER BY h.created_at DESC
+        `, [id]);
+
+        res.json({ success: true, history: result.rows });
+    } catch (err) {
+        console.error('[SOLIDARIO] Error al consultar historial de ediciones:', err);
+        res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+});
 
 // ============================================================================
 // TODAS LAS DEMÁS RUTAS REQUIEREN AUTENTICACIÓN DE USUARIO OBLIGATORIA
@@ -264,12 +312,17 @@ router.post('/causes/:id/cancel', async (req, res) => {
 router.post('/causes/:id/donate', async (req, res) => {
     try {
         const { id } = req.params;
-        const { amount, publication_id } = req.body;
+        const { amount, publication_id, accepted_terms } = req.body;
         const donorId = req.user.userId;
 
         // Validar ID numérico
         if (isNaN(parseInt(id))) {
             return res.status(400).json({ message: 'ID de causa inválido.' });
+        }
+
+        // Validar términos aceptados (Clickwrap SOC 2)
+        if (accepted_terms !== true) {
+            return res.status(400).json({ message: 'Es obligatorio aceptar los términos y condiciones de la campaña.' });
         }
 
         // Validar monto
@@ -283,6 +336,7 @@ router.post('/causes/:id/donate', async (req, res) => {
             parseInt(id),
             parsedAmount,
             publication_id ? parseInt(publication_id) : null,
+            accepted_terms,
             req
         );
 
@@ -312,6 +366,51 @@ router.get('/causes/:id/donations', async (req, res) => {
     } catch (err) {
         console.error('[SOLIDARIO] Error al obtener donaciones:', err);
         res.status(500).json({ message: 'Error interno del servidor.' });
+    }
+});
+
+
+// ============================================================================
+// PUT /api/humanitarian/causes/:id — Editar causa activa (Meta y descripción)
+// ============================================================================
+router.put('/causes/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.userId;
+        const { story, goal_amount } = req.body;
+
+        if (isNaN(parseInt(id))) {
+            return res.status(400).json({ message: 'ID de causa inválido.' });
+        }
+
+        const result = await editCause(userId, parseInt(id), { story, goal_amount }, req);
+        res.json(result);
+    } catch (err) {
+        console.error('[SOLIDARIO] Error al editar causa:', err);
+        const status = err.status || 500;
+        res.status(status).json({ message: err.message || 'Error interno del servidor.' });
+    }
+});
+
+// ============================================================================
+// POST /api/humanitarian/causes/:id/updates — Publicar novedad en la causa
+// ============================================================================
+router.post('/causes/:id/updates', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.userId;
+        const { update_title, update_text } = req.body;
+
+        if (isNaN(parseInt(id))) {
+            return res.status(400).json({ message: 'ID de causa inválido.' });
+        }
+
+        const result = await createCauseUpdate(userId, parseInt(id), { update_title, update_text }, req);
+        res.json(result);
+    } catch (err) {
+        console.error('[SOLIDARIO] Error al publicar actualización:', err);
+        const status = err.status || 500;
+        res.status(status).json({ message: err.message || 'Error interno del servidor.' });
     }
 });
 
