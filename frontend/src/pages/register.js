@@ -38,15 +38,17 @@ function safeHide(el) {
  * @returns {string|null} URL segura o null en caso de detectar anomalía o dominio externo
  */
 function _getSafeReturnTo(raw) {
+    // [SEGURIDAD] Validación estricta del tipo de dato de entrada
     if (!raw || typeof raw !== 'string') return null;
 
     const value = raw;
 
-    // Bloquear explícitamente URLs absolutas o esquemas no seguros (evitar suplantación de dominio)
+    // [SEGURIDAD] Bloquear URLs absolutas o esquemas no seguros para prevenir Open Redirect
+    // Vectores bloqueados: https://evil.com, //evil.com, javascript:alert(1), data:text/html,...
     if (value.includes('://') || value.startsWith('//')) return null;
     if (value.includes('javascript:') || value.includes('data:')) return null;
 
-    // Whitelist estricta de páginas seguras
+    // [SEGURIDAD] Whitelist estricta: solo se permiten las páginas internas pre-autorizadas
     const ALLOWED_PAGES = [
         'governance-panel.html',
         'contract_interaction.html',
@@ -55,11 +57,16 @@ function _getSafeReturnTo(raw) {
         'publication-detail.html'
     ];
 
-    // Extraer únicamente el nombre del archivo de la ruta, ignorando parámetros query de momento
+    // [SEGURIDAD] Extraer únicamente el nombre del archivo, descartando cualquier query param
+    // del input externo para evitar inyección de parámetros arbitrarios (defense-in-depth)
     const pagePart = value.split('?')[0].replace(/^\//, '');
     if (!ALLOWED_PAGES.includes(pagePart)) return null;
 
-    return value;
+    // [SEGURIDAD HARDENED] Retornar SOLO el pagePart validado contra la whitelist,
+    // descartando cualquier query param que el atacante pudiera haber concatenado.
+    // Antes se retornaba 'value' (el input original con query params), lo cual permitía
+    // que un atacante encadenara parámetros como ?redirect=https://evil.com
+    return pagePart;
 }
 
 function clearRegisterClientState() {
@@ -494,35 +501,40 @@ async function initializeRegisterPage() {
     const session = await checkAuthStatus();
 
     if (session.isAuthenticated) {
-        safeHide(step1Div);
-        safeHide(step2Div);
+        // [BUG-FIX] urlParams debe declararse localmente para que _getSafeReturnTo
+        // pueda usarse de forma segura en este scope sin depender de variables externas.
+        const urlParams = new URLSearchParams(window.location.search);
 
-        const username = session.username || 'tu cuenta';
-
-        if (!session.is_verified) {
-            configureSessionBanner(sessionElements, {
-                title: 'Verificación pendiente',
-                message: `Tienes una sesión activa como ${username}. Para mantener seguridad y auditoría, recomendamos completar la verificación de identidad.`,
-                primaryText: 'Continuar verificación',
-                onPrimary: () => {
-                    safeHide(step1Div);
-                    safeShow(step2Div);
-                    showCustomAlert('Introduce el código de verificación que te enviamos para completar tu registro.');
-                },
-                secondaryText: 'Ir al perfil',
-                onSecondary: () => { window.location.href = 'profile.html'; }
-            });
+        if (session.is_verified) {
+            // [SEGURIDAD FINTECH] Redirección inteligente: si ya está registrado y verificado,
+            // no debe ver el formulario de registro. Se redirige al dashboard de forma silenciosa.
+            const returnTo = _getSafeReturnTo(urlParams.get('returnTo'));
+            window.location.replace(returnTo || 'contract_interaction.html');
+            return;
         } else {
-            configureSessionBanner(sessionElements, {
-                title: 'Sesión activa',
-                message: `Ya tienes una sesión iniciada como "${username}". Por estándar profesional, el registro se bloquea mientras exista una sesión activa. Puedes ir a tu perfil o cerrar sesión para registrar otra cuenta de prueba.`,
-                primaryText: 'Ir al perfil',
-                onPrimary: () => { window.location.href = 'profile.html'; },
-                secondaryText: 'Volver al inicio',
-                onSecondary: () => { window.location.href = 'index.html'; }
-            });
+            // [UX FINTECH] Si el usuario está autenticado pero la verificación está pendiente,
+            // lo llevamos directamente al paso 2 de verificación para facilitar su conversión.
+            safeHide(step1Div);
+            safeShow(step2Div);
+
+            // Poblamos el correo electrónico recuperado del backend o del localStorage
+            const emailVal = session.email || localStorage.getItem('pendingVerificationEmail') || '';
+            const hiddenEmailInput = document.getElementById('hiddenEmail');
+            const emailInputVal = document.getElementById('email');
+
+            if (hiddenEmailInput) hiddenEmailInput.value = emailVal;
+            if (emailInputVal) emailInputVal.value = emailVal;
+
+            // [BUG-FIX] Iniciar el temporizador de reenvío inmediatamente al entrar al Paso 2
+            // directamente. Sin este llamado, el countdown nunca arrancaría porque el return
+            // anterior interrumpe el flujo antes de llegar al check de la línea 905.
+            if (resendBtn && resendTimerSpan) {
+                startResendTimer(resendBtn, resendTimerSpan);
+            }
+
+            showCustomAlert('Introduce el código de verificación para completar tu cuenta.');
+            return;
         }
-        return;
     }
 
     // Configurar checkboxes de términos
@@ -892,6 +904,11 @@ async function initializeRegisterPage() {
 
                     // Sincronizar suscripción push pendiente (si existe)
                     await syncPendingPushSubscription();
+
+                    // [SEGURIDAD] Declarar urlParams localmente para leer el parámetro returnTo
+                    // de la URL. Esta variable debe ser local a este handler porque el scope padre
+                    // (initializeRegisterPage) puede haber retornado antes de llegar aquí.
+                    const urlParams = new URLSearchParams(window.location.search);
 
                     // REDIRECCIÓN DE RETORNO SEGURA: Validar que el parámetro returnTo cumpla
                     // las directivas de seguridad para evitar redirecciones abiertas y redirigir.

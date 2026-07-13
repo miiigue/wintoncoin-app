@@ -90,6 +90,7 @@ router.post('/governance/demo-import-process', verifyAdminToken, adminController
 
 // Gestión de Invitaciones para Administradores
 router.get('/profile', verifyAdminToken, adminController.getAdminProfile);
+router.post('/change-password', verifyAdminToken, adminController.changePassword);
 router.post('/invitations', verifyAdminToken, adminController.createInvitation);
 router.get('/invitations', verifyAdminToken, adminController.getInvitations);
 router.delete('/invitations', verifyAdminToken, adminController.deleteInvitation);

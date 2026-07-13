@@ -63,6 +63,11 @@ async function login(req, res) {
         return res.status(400).json({ message: "Se requiere usuario y contraseña." });
     }
 
+    // [DoS PROTECTION] Limitar tamaño de la contraseña para evitar CPU Exhaustion en Bcrypt
+    if (password.length > 72) {
+        return res.status(400).json({ message: "La contraseña excede el límite máximo permitido de 72 caracteres." });
+    }
+
     try {
         // 1. Buscar el administrador en la base de datos (con query parametrizado)
         const adminResult = await pool.query(
@@ -94,8 +99,15 @@ async function login(req, res) {
         }
 
         // 3. Generar token JWT con la identidad y el rol real recuperado de la base de datos (superadmin, admin, auditor, etc.)
+        // [Zero-Trust] Incluimos los últimos 10 caracteres del hash como versión de la contraseña (pwdVersion)
+        // para invalidar inmediatamente el token si la clave cambia.
         const accessToken = jwt.sign(
-            { userId: user.id, username: user.username, role: user.role },
+            { 
+                userId: user.id, 
+                username: user.username, 
+                role: user.role,
+                pwdVersion: dbHash.slice(-10)
+            },
             process.env.ADMIN_SECRET_KEY,
             { expiresIn: '8h' }
         );
@@ -2226,6 +2238,7 @@ module.exports = {
     verifyInvitation,
     claimInvitation,
     getAdminProfile,
+    changePassword,
     deleteInvitation,
     getAdminUsers,
     updateAdminStatus,
@@ -2638,6 +2651,11 @@ async function claimInvitation(req, res) {
         return res.status(400).json({ message: "La contraseña debe tener al menos 8 caracteres, incluyendo letras y números." });
     }
 
+    // [DoS PROTECTION] Limitar longitud de contraseña
+    if (password.length > 72) {
+        return res.status(400).json({ message: "La contraseña no puede exceder los 72 caracteres por razones de seguridad." });
+    }
+
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -2754,6 +2772,105 @@ async function getAdminProfile(req, res) {
         console.error("Error al obtener perfil de admin:", err);
         // Retornamos 500 Internal Server Error con mensaje genérico de seguridad sin exponer detalles técnicos internos
         res.status(500).json({ message: "Error interno del servidor al recuperar el perfil." });
+    }
+}
+
+/**
+ * Cambia la contraseña del administrador autenticado de forma segura.
+ * Valida la contraseña actual, comprueba la seguridad de la nueva clave,
+ * actualiza el hash en base de datos, destruye la sesión mediante HttpOnly cookies y registra la auditoría.
+ * Cumple con los lineamientos de Zero-Trust y estándares de auditoría financiera (SOC 2).
+ */
+async function changePassword(req, res) {
+    const { currentPassword, newPassword } = req.body;
+    
+    // 1. [FINTECH SECURITY] Validación de campos obligatorios en el payload
+    if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "Se requiere la contraseña actual y la nueva contraseña." });
+    }
+
+    // [DoS PROTECTION] Limitar longitud de contraseñas contra CPU Exhaustion en hashing
+    if (currentPassword.length > 72 || newPassword.length > 72) {
+        return res.status(400).json({ message: "La contraseña no puede exceder los 72 caracteres por razones de seguridad." });
+    }
+
+    if (!req.user || !req.user.username) {
+        return res.status(401).json({ message: "Sesión administrativa no válida o no autenticada." });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 2. Obtener el hash actual del administrador en la base de datos de forma segura (FOR UPDATE para mitigar condiciones de carrera)
+        const adminResult = await client.query(
+            'SELECT id, password_hash, account_status FROM admin_users WHERE username = $1 FOR UPDATE',
+            [req.user.username]
+        );
+
+        if (adminResult.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ message: "Administrador no encontrado en el sistema." });
+        }
+
+        const admin = adminResult.rows[0];
+
+        if (admin.account_status !== 'active') {
+            await client.query('ROLLBACK');
+            return res.status(403).json({ message: "La cuenta de administrador no se encuentra activa." });
+        }
+
+        // 3. Comparar de forma segura la contraseña actual ingresada con el hash bcrypt guardado
+        const isMatch = await bcrypt.compare(currentPassword, admin.password_hash);
+        if (!isMatch) {
+            await client.query('ROLLBACK');
+            return res.status(401).json({ message: "La contraseña actual introducida es incorrecta." });
+        }
+
+        // 4. Validar fuerza de la nueva contraseña (estándar: mínimo 8 caracteres con letras y números)
+        if (newPassword.length < 8 || !/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: "La nueva contraseña debe tener al menos 8 caracteres, incluyendo letras y números." });
+        }
+
+        // 5. Prevenir reutilización de contraseña para evitar ataques de replay / credenciales estáticas
+        if (currentPassword === newPassword) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: "La nueva contraseña debe ser diferente a la contraseña actual." });
+        }
+
+        // 6. Hashear la nueva contraseña con 10 rondas de salt (Bcrypt Standard)
+        const saltRounds = 10;
+        const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+
+        // 7. Actualizar la contraseña en la base de datos
+        await client.query(
+            'UPDATE admin_users SET password_hash = $1 WHERE id = $2',
+            [newPasswordHash, admin.id]
+        );
+
+        // 8. Registro de auditoría inmutable de la acción de cambio de contraseña (SOC 2 Compliance)
+        await logAuditEvent(client, req, {
+            eventType: 'admin.password.changed',
+            actorUsername: req.user.username,
+            targetUsername: req.user.username,
+            category: 'admin',
+            metadata: { ip: req.ip, user_agent: req.headers['user-agent'] }
+        });
+
+        await client.query('COMMIT');
+
+        // 9. Destruir sesión invalidando la cookie HttpOnly en el cliente para forzar re-autenticación
+        res.clearCookie('admin_token', { path: '/' });
+        
+        return res.json({ message: "Contraseña cambiada exitosamente. Tu sesión ha sido cerrada por seguridad." });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[AdminController] Error al cambiar contraseña de administrador:', error);
+        return res.status(500).json({ message: "Error interno del servidor al procesar el cambio de contraseña." });
+    } finally {
+        client.release();
     }
 }
 

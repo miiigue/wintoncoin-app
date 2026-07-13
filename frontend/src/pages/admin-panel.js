@@ -561,6 +561,81 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
+
+        // --- CAMBIO DE CONTRASEÑA (SOC 2) ---
+        const changePasswordForm = document.getElementById('changePasswordForm');
+        if (changePasswordForm) {
+            changePasswordForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const currentPasswordInput = document.getElementById('currentPasswordInput');
+                const newPasswordInput = document.getElementById('newPasswordInput');
+                const confirmNewPasswordInput = document.getElementById('confirmNewPasswordInput');
+                const submitBtn = document.getElementById('changePasswordBtn');
+                
+                const currentPassword = currentPasswordInput?.value;
+                const newPassword = newPasswordInput?.value;
+                const confirmNewPassword = confirmNewPasswordInput?.value;
+                
+                if (!currentPassword || !newPassword || !confirmNewPassword) {
+                    showCustomAlert("Por favor, introduce todos los campos requeridos.");
+                    return;
+                }
+                
+                if (newPassword !== confirmNewPassword) {
+                    showCustomAlert("La nueva contraseña y su confirmación no coinciden.");
+                    return;
+                }
+                
+                if (newPassword.length < 8 || !/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+                    showCustomAlert("La nueva contraseña debe tener al menos 8 caracteres, incluyendo letras y números.");
+                    return;
+                }
+
+                // [DoS PROTECTION] Limitar longitud máxima
+                if (currentPassword.length > 72 || newPassword.length > 72) {
+                    showCustomAlert("La contraseña no puede exceder los 72 caracteres.");
+                    return;
+                }
+
+                if (currentPassword === newPassword) {
+                    showCustomAlert("La nueva contraseña no puede ser igual a la contraseña actual.");
+                    return;
+                }
+                
+                if (submitBtn) submitBtn.disabled = true;
+                
+                try {
+                    const result = await apiFetch('/api/admin/change-password', {
+                        method: 'POST',
+                        body: JSON.stringify({ currentPassword, newPassword })
+                    });
+                    
+                    showCustomAlert(result.message || "Contraseña actualizada con éxito. Tu sesión se cerrará por seguridad.");
+                    
+                    // Limpiar campos
+                    if (currentPasswordInput) currentPasswordInput.value = '';
+                    if (newPasswordInput) newPasswordInput.value = '';
+                    if (confirmNewPasswordInput) confirmNewPasswordInput.value = '';
+                    
+                    // Cerrar sesión y redirigir tras un breve periodo
+                    setTimeout(async () => {
+                        try {
+                            await fetch(`${API_URL}/api/admin/logout`, { method: 'POST', credentials: 'include' });
+                        } catch (err) {
+                            console.error("Error al cerrar sesión:", err);
+                        }
+                        localStorage.removeItem('admin_username');
+                        window.location.href = 'admin.html';
+                    }, 2000);
+                    
+                } catch (err) {
+                    showCustomAlert(err.message || "Error al actualizar la contraseña.");
+                } finally {
+                    if (submitBtn) submitBtn.disabled = false;
+                }
+            });
+        }
     }
 
     function showSection(sectionId) {
