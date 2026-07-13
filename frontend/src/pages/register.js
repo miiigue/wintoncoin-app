@@ -38,15 +38,17 @@ function safeHide(el) {
  * @returns {string|null} URL segura o null en caso de detectar anomalía o dominio externo
  */
 function _getSafeReturnTo(raw) {
+    // [SEGURIDAD] Validación estricta del tipo de dato de entrada
     if (!raw || typeof raw !== 'string') return null;
 
     const value = raw;
 
-    // Bloquear explícitamente URLs absolutas o esquemas no seguros (evitar suplantación de dominio)
+    // [SEGURIDAD] Bloquear URLs absolutas o esquemas no seguros para prevenir Open Redirect
+    // Vectores bloqueados: https://evil.com, //evil.com, javascript:alert(1), data:text/html,...
     if (value.includes('://') || value.startsWith('//')) return null;
     if (value.includes('javascript:') || value.includes('data:')) return null;
 
-    // Whitelist estricta de páginas seguras
+    // [SEGURIDAD] Whitelist estricta: solo se permiten las páginas internas pre-autorizadas
     const ALLOWED_PAGES = [
         'governance-panel.html',
         'contract_interaction.html',
@@ -55,11 +57,16 @@ function _getSafeReturnTo(raw) {
         'publication-detail.html'
     ];
 
-    // Extraer únicamente el nombre del archivo de la ruta, ignorando parámetros query de momento
+    // [SEGURIDAD] Extraer únicamente el nombre del archivo, descartando cualquier query param
+    // del input externo para evitar inyección de parámetros arbitrarios (defense-in-depth)
     const pagePart = value.split('?')[0].replace(/^\//, '');
     if (!ALLOWED_PAGES.includes(pagePart)) return null;
 
-    return value;
+    // [SEGURIDAD HARDENED] Retornar SOLO el pagePart validado contra la whitelist,
+    // descartando cualquier query param que el atacante pudiera haber concatenado.
+    // Antes se retornaba 'value' (el input original con query params), lo cual permitía
+    // que un atacante encadenara parámetros como ?redirect=https://evil.com
+    return pagePart;
 }
 
 function clearRegisterClientState() {
@@ -897,6 +904,11 @@ async function initializeRegisterPage() {
 
                     // Sincronizar suscripción push pendiente (si existe)
                     await syncPendingPushSubscription();
+
+                    // [SEGURIDAD] Declarar urlParams localmente para leer el parámetro returnTo
+                    // de la URL. Esta variable debe ser local a este handler porque el scope padre
+                    // (initializeRegisterPage) puede haber retornado antes de llegar aquí.
+                    const urlParams = new URLSearchParams(window.location.search);
 
                     // REDIRECCIÓN DE RETORNO SEGURA: Validar que el parámetro returnTo cumpla
                     // las directivas de seguridad para evitar redirecciones abiertas y redirigir.

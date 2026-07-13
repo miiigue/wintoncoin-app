@@ -3969,6 +3969,26 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
 - **Verificación**: La compilación posterior (`npm run build:demo`) completó exitosamente con `✓ 124 modules transformed` y sin errores ni advertencias.
 - **Evidencia**: Archivo modificado: `frontend/src/pages/register.js` (corrección de 2 bugs), `EVOLUCION.md`.
 
+---
+
+### 2026-07-13 — Auditoría de Seguridad Final: Bug #3 Crítico y Hardening de `_getSafeReturnTo`
+
+- **Autor**: Antigravity (AI Engineering — Opus 4.6 Thinking)
+- **Tipo**: Corrección de Bug Crítico + Hardening de Seguridad — Revisión Final
+- **Rama**: `feature/landing-donation-ticker`
+- **Contexto**: Se realizó una segunda pasada de auditoría de seguridad exhaustiva sobre el código de Smart Routing en `register.js`. Se descubrió un tercer bug crítico que había pasado inadvertido y una vulnerabilidad de defensa-en-profundidad en la función de validación de redirecciones.
+- **Hallazgos y Correcciones**:
+  - **Bug #3 — CRÍTICO (`ReferenceError`): `urlParams` no definido en el handler `verifyForm.submit` (línea 903).**
+    - La variable `urlParams` se usaba dentro del callback de `verifyForm.addEventListener('submit', ...)` para leer `returnTo` tras completar la verificación, pero nunca fue declarada en ese scope. La declaración que se hizo en el bloque `if (session.isAuthenticated)` (línea 506) no era accesible aquí porque ese bloque tiene un `return` que interrumpe el flujo para usuarios ya autenticados — pero los usuarios que completan el registro normalmente (Paso 1 → Paso 2 → verificación) nunca pasan por ese `if`.
+    - **Consecuencia real GRAVE**: El registro se completaba exitosamente en el backend (la cuenta se creaba, el token se emitía), pero la línea 903 lanzaba `ReferenceError: urlParams is not defined`, cayendo al `catch` que mostraba "No se pudo conectar con el servidor". El usuario recién registrado veía un mensaje de error **falso** y no era redirigido al dashboard, creyendo que su registro había fallado cuando en realidad fue exitoso.
+    - **Corrección**: Se declaró `const urlParams = new URLSearchParams(window.location.search)` localmente dentro del handler `verifyForm.submit`, justo antes de su uso, con comentarios explicativos de por qué debe ser local.
+  - **Vulnerabilidad de Seguridad — `_getSafeReturnTo` retornaba el input original con query params arbitrarios (defense-in-depth).**
+    - La función validaba correctamente el nombre del archivo contra la whitelist (`ALLOWED_PAGES`), pero retornaba `value` (el string original completo del usuario) en lugar de `pagePart` (el nombre de archivo extraído). Esto significaba que un atacante podía pasar `contract_interaction.html?parametro_malicioso=valor` y esos query params se preservaban en la redirección.
+    - **Vector de ataque teórico**: Si alguna de las 5 páginas de la whitelist leyera query params de forma insegura (por ejemplo, para precargar datos), un atacante podría inyectar valores arbitrarios a través de un enlace de registro crafteado.
+    - **Corrección**: La función ahora retorna solo `pagePart` (el nombre del archivo validado), descartando cualquier query param que el atacante pudiera haber concatenado. Esto implementa el principio de defense-in-depth (defensa en profundidad).
+- **Verificación**: La compilación posterior (`npm run build:demo`) completó exitosamente con `✓ built in 8.44s`, `✓ 134 modules transformed`, sin errores ni advertencias. El hash del bundle cambió de `register.BeZP5llT.js` a `register.xhydIokZ.js`, confirmando la inclusión de las correcciones.
+- **Evidencia**: Archivo modificado: `frontend/src/pages/register.js` (Bug #3 + hardening), `EVOLUCION.md`.
+
 
 
 
