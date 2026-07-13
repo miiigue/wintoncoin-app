@@ -21,6 +21,22 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 
 
+### 2026-07-13 — Autenticación Escalonada (OTP) y Alertas de Seguridad en Panel Administrativo (SOC 2)
+
+- **Contexto**: Para elevar el nivel de seguridad del sistema de administración al estándar bancario y cumplir con las normativas SOC 2 de Zero-Trust, se determinó que cambiar la contraseña conociendo únicamente la contraseña actual era un control insuficiente frente al compromiso de sesiones (sesiones dejadas abiertas). Se requirió implementar Autenticación Escalonada (Step-Up Authentication) mediante un código de un solo uso (OTP) por correo electrónico, acompañado de notificaciones transaccionales a la plana de Super Administradores.
+- **Decisión de Ingeniería**:
+  - **Migración de Base de Datos (089)**: Se añadió la columna `email` y las columnas criptográficas (`password_change_hash`, `password_change_expires_at`, `password_change_attempts`) a la tabla separada `admin_users`, manteniendo la segregación estricta de privilegios (no mezclando administradores con la tabla `users` normal).
+  - **Reutilización de Módulo Criptográfico (DRY)**: Se importaron las funciones de seguridad existentes de `emailService.js` (`generateOtp6`, `hashOtpForEmail`, `safeEqualHex`, `sendOtpEmail`) para garantizar que la generación y validación de OTPs para administradores hereden la robustez (comparación *timing-safe*, límites de expiración de 10 min, protección anti-bruteforce) ya probada en el sistema de usuarios.
+  - **Flujo de Prevención Activa (2 Pasos)**:
+    1. *Solicitud (`requestPasswordChange`)*: Valida la clave actual, genera el OTP, lo envía al correo del admin, y de manera síncrona **alerta a los Super Administradores** sobre el inicio del intento de cambio.
+    2. *Confirmación (`confirmPasswordChange`)*: Compara el OTP *timing-safe*, resetea la contraseña, fuerza el cierre de sesión (`clearCookie`), y envía confirmación transaccional al admin y a la plana mayor (Auditoría Centralizada).
+  - **Frontend Asíncrono**: Se actualizó `admin-panel.js` separando el formulario en dos instancias. Se inyectó el modal `adminOtpModal` en el DOM que retiene la nueva clave en memoria volátil de JavaScript de manera segura hasta recibir la confirmación del código de 6 dígitos.
+- **Impacto**: Se incorpora una capa de fricción preventiva que bloquea a un atacante con acceso a una sesión desbloqueada. Los Super Administradores obtienen visibilidad en tiempo real (Notificaciones de Auditoría) sobre movimientos de credenciales, mitigando el riesgo de Amenazas Internas (*Insider Threats*).
+- **Evidencia**:
+  - Base de Datos: `089_add_email_to_admin_users.js`
+  - Backend: [adminController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/adminController.js), [adminRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/adminRoutes.js).
+  - Frontend: [admin-panel.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/frontend/admin-panel.html), [admin-panel.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/frontend/src/pages/admin-panel.js).
+
 ### 2026-07-12 — Cambio Seguro de Contraseña Administrativa (SOC 2 & Zero-Trust)
 
 - **Contexto**: Para mejorar la ciberseguridad del panel administrativo de WintonCoin y dar cumplimiento con normativas regulatorias internacionales tipo SOC 2 y lineamientos de auditoría financiera, se requería habilitar un flujo seguro para que los administradores puedan actualizar su contraseña directamente desde el panel sin exponer credenciales en variables de entorno fijas (Zero Hardcoded Secrets).

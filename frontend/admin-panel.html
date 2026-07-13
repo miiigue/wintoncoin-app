@@ -1051,13 +1051,26 @@
 
     <!-- Modal de Confirmación -->
     <div id="customConfirmModal" class="modal">
-        <div class="modal-content">
-            <span class="close-button confirm-close-button">&times;</span>
-            <p id="customConfirmMessage"></p>
-            <div class="modal-actions">
-                <button class="action-button cancel-button">Cancelar</button>
-                <button class="action-button confirm-button">Confirmar</button>
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <h2 id="customConfirmTitle" style="margin-top: 0;">Confirmar Acción</h2>
+            <p id="customConfirmMessage">¿Estás seguro de que deseas continuar?</p>
+            <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem;">
+                <button id="customConfirmCancelBtn" class="action-button-admin" style="background-color: transparent; border: 1px solid #475569; color: #E2E8F0;">Cancelar</button>
+                <button id="customConfirmAcceptBtn" class="action-button-admin delete">Aceptar</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal para OTP de Cambio de Contraseña de Admin -->
+    <div id="adminOtpModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <span class="close-modal" id="closeAdminOtpModal">&times;</span>
+            <h2 style="margin-top: 0;">Verificación de Seguridad</h2>
+            <p>Se ha enviado un código a tu correo electrónico. Introdúcelo para autorizar el cambio de contraseña.</p>
+            <form id="adminOtpForm" style="margin-top: 1.5rem;">
+                <input type="text" id="adminOtpInput" class="admin-input-dark" required placeholder="000000" maxlength="6" style="font-size: 24px; text-align: center; letter-spacing: 4px; padding: 1rem;">
+                <button type="submit" id="adminOtpBtn" class="action-button-admin publish" style="margin-top: 1.5rem; width: 100%;">Verificar y Cambiar</button>
+            </form>
         </div>
     </div>
 </body>

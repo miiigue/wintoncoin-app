@@ -27,7 +27,7 @@ const { logAuditEvent } = require('../services/auditService');
 const boosterService = require('../services/boosterService');
 const govDemoRewardService = require('../services/governanceDemoRewardService');
 const notificationService = require('../services/notificationService');
-const { sendGovernanceEmail } = require('../services/emailService');
+const { sendGovernanceEmail, sendTransactionEmail, generateOtp6, hashOtpForEmail, safeEqualHex, sendOtpEmail } = require('../services/emailService');
 const governanceRewardService = require('../services/governanceRewardService');
 const { resolveRepeatCooldownHours } = require('../services/publicationService');
 
@@ -2238,7 +2238,8 @@ module.exports = {
     verifyInvitation,
     claimInvitation,
     getAdminProfile,
-    changePassword,
+    requestPasswordChange,
+    confirmPasswordChange,
     deleteInvitation,
     getAdminUsers,
     updateAdminStatus,
@@ -2776,24 +2777,19 @@ async function getAdminProfile(req, res) {
 }
 
 /**
- * Cambia la contraseña del administrador autenticado de forma segura.
- * Valida la contraseña actual, comprueba la seguridad de la nueva clave,
- * actualiza el hash en base de datos, destruye la sesión mediante HttpOnly cookies y registra la auditoría.
- * Cumple con los lineamientos de Zero-Trust y estándares de auditoría financiera (SOC 2).
+ * Paso 1: Solicitar cambio de contraseña.
+ * Valida la clave actual y envía OTP al email del admin.
+ * Envía alerta a superadmins.
  */
-async function changePassword(req, res) {
-    const { currentPassword, newPassword } = req.body;
+async function requestPasswordChange(req, res) {
+    const { currentPassword } = req.body;
     
-    // 1. [FINTECH SECURITY] Validación de campos obligatorios en el payload
-    if (!currentPassword || !newPassword) {
-        return res.status(400).json({ message: "Se requiere la contraseña actual y la nueva contraseña." });
+    if (!currentPassword) {
+        return res.status(400).json({ message: "Se requiere la contraseña actual." });
     }
-
-    // [DoS PROTECTION] Limitar longitud de contraseñas contra CPU Exhaustion en hashing
-    if (currentPassword.length > 72 || newPassword.length > 72) {
+    if (currentPassword.length > 72) {
         return res.status(400).json({ message: "La contraseña no puede exceder los 72 caracteres por razones de seguridad." });
     }
-
     if (!req.user || !req.user.username) {
         return res.status(401).json({ message: "Sesión administrativa no válida o no autenticada." });
     }
@@ -2801,10 +2797,9 @@ async function changePassword(req, res) {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-
-        // 2. Obtener el hash actual del administrador en la base de datos de forma segura (FOR UPDATE para mitigar condiciones de carrera)
+        
         const adminResult = await client.query(
-            'SELECT id, password_hash, account_status FROM admin_users WHERE username = $1 FOR UPDATE',
+            'SELECT id, email, password_hash, account_status FROM admin_users WHERE username = $1 FOR UPDATE',
             [req.user.username]
         );
 
@@ -2812,44 +2807,138 @@ async function changePassword(req, res) {
             await client.query('ROLLBACK');
             return res.status(404).json({ message: "Administrador no encontrado en el sistema." });
         }
-
         const admin = adminResult.rows[0];
 
         if (admin.account_status !== 'active') {
             await client.query('ROLLBACK');
             return res.status(403).json({ message: "La cuenta de administrador no se encuentra activa." });
         }
+        
+        if (!admin.email) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: "Tu cuenta no tiene un email registrado para recibir el código OTP. Contacta a un superadmin." });
+        }
 
-        // 3. Comparar de forma segura la contraseña actual ingresada con el hash bcrypt guardado
         const isMatch = await bcrypt.compare(currentPassword, admin.password_hash);
         if (!isMatch) {
             await client.query('ROLLBACK');
             return res.status(401).json({ message: "La contraseña actual introducida es incorrecta." });
         }
 
-        // 4. Validar fuerza de la nueva contraseña (estándar: mínimo 8 caracteres con letras y números)
-        if (newPassword.length < 8 || !/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ message: "La nueva contraseña debe tener al menos 8 caracteres, incluyendo letras y números." });
-        }
+        const otp = generateOtp6();
+        const otpHash = hashOtpForEmail(admin.email, otp);
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-        // 5. Prevenir reutilización de contraseña para evitar ataques de replay / credenciales estáticas
-        if (currentPassword === newPassword) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ message: "La nueva contraseña debe ser diferente a la contraseña actual." });
-        }
-
-        // 6. Hashear la nueva contraseña con 10 rondas de salt (Bcrypt Standard)
-        const saltRounds = 10;
-        const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
-
-        // 7. Actualizar la contraseña en la base de datos
         await client.query(
-            'UPDATE admin_users SET password_hash = $1 WHERE id = $2',
-            [newPasswordHash, admin.id]
+            'UPDATE admin_users SET password_change_hash = $1, password_change_expires_at = $2, password_change_attempts = 0 WHERE id = $3',
+            [otpHash, expiresAt, admin.id]
         );
 
-        // 8. Registro de auditoría inmutable de la acción de cambio de contraseña (SOC 2 Compliance)
+        await client.query('COMMIT');
+
+        const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
+        
+        sendOtpEmail({
+            toEmail: admin.email,
+            otp,
+            context: { ip, requestedAt: new Date().toISOString() }
+        }).catch(err => console.error('[ADMIN OTP ERROR]', err));
+
+        try {
+            const superadmins = await pool.query("SELECT email FROM admin_users WHERE role = 'superadmin' AND username != $1 AND email IS NOT NULL", [req.user.username]);
+            for (let row of superadmins.rows) {
+                sendTransactionEmail({
+                    toEmail: row.email,
+                    subject: '⚠️ Alerta de Seguridad: Solicitud de Cambio de Contraseña',
+                    title: 'Alerta de Seguridad',
+                    message: `El administrador @${req.user.username} ha iniciado una solicitud de cambio de contraseña desde la IP ${ip}. Si esta acción no fue autorizada, suspenda la cuenta inmediatamente.`,
+                    amount: '-',
+                    details: [{ label: 'Usuario', value: req.user.username }, { label: 'IP', value: ip }]
+                }).catch(e => console.error(e));
+            }
+        } catch (e) {
+            console.error('[ADMIN SUPERADMIN ALERT ERROR]', e);
+        }
+
+        return res.json({ message: "Se ha enviado un código de verificación (OTP) a tu correo registrado." });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[AdminController] Error al solicitar cambio de contraseña:', error);
+        return res.status(500).json({ message: "Error interno del servidor al procesar la solicitud." });
+    } finally {
+        client.release();
+    }
+}
+
+/**
+ * Paso 2: Confirmar cambio de contraseña.
+ * Valida el OTP, guarda la nueva clave y envía confirmaciones.
+ */
+async function confirmPasswordChange(req, res) {
+    const { code, newPassword } = req.body;
+    
+    if (!code || !newPassword) {
+        return res.status(400).json({ message: "El código OTP y la nueva contraseña son requeridos." });
+    }
+    if (newPassword.length < 8 || !/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+        return res.status(400).json({ message: "La nueva contraseña debe tener al menos 8 caracteres, incluyendo letras y números." });
+    }
+    if (newPassword.length > 72) {
+        return res.status(400).json({ message: "La contraseña no puede exceder los 72 caracteres por razones de seguridad." });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        
+        const adminResult = await client.query(
+            'SELECT id, username, email, password_change_hash, password_change_expires_at, password_change_attempts FROM admin_users WHERE username = $1 FOR UPDATE',
+            [req.user.username]
+        );
+        const admin = adminResult.rows[0];
+
+        if (!admin.password_change_hash || !admin.password_change_expires_at) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: "Código de verificación inválido o expirado." });
+        }
+
+        if (admin.password_change_attempts >= 3) {
+            await client.query('UPDATE admin_users SET password_change_hash = NULL WHERE id = $1', [admin.id]);
+            await client.query('COMMIT');
+            return res.status(400).json({ message: "Demasiados intentos fallidos. El código ha sido invalidado. Solicita uno nuevo." });
+        }
+
+        if (new Date() > new Date(admin.password_change_expires_at)) {
+            await client.query('UPDATE admin_users SET password_change_hash = NULL WHERE id = $1', [admin.id]);
+            await client.query('COMMIT');
+            return res.status(400).json({ message: "El código de verificación ha expirado. Solicita uno nuevo." });
+        }
+
+        const expectedHash = hashOtpForEmail(admin.email, String(code).trim());
+        const isValid = safeEqualHex(admin.password_change_hash, expectedHash);
+
+        if (!isValid) {
+            const newAttempts = admin.password_change_attempts + 1;
+            if (newAttempts >= 3) {
+                await client.query('UPDATE admin_users SET password_change_hash = NULL, password_change_attempts = 0 WHERE id = $1', [admin.id]);
+                await client.query('COMMIT');
+                return res.status(400).json({ message: "Código incorrecto. Se ha excedido el número máximo de intentos. Solicita un nuevo código." });
+            } else {
+                await client.query('UPDATE admin_users SET password_change_attempts = $1 WHERE id = $2', [newAttempts, admin.id]);
+                await client.query('COMMIT');
+                return res.status(400).json({ message: `Código incorrecto. Te quedan ${3 - newAttempts} intentos.` });
+            }
+        }
+
+        const saltRounds = 10;
+        const newHash = await bcrypt.hash(newPassword, saltRounds);
+
+        await client.query(
+            'UPDATE admin_users SET password_hash = $1, password_change_hash = NULL, password_change_expires_at = NULL, password_change_attempts = 0 WHERE id = $2',
+            [newHash, admin.id]
+        );
+
         await logAuditEvent(client, req, {
             eventType: 'admin.password.changed',
             actorUsername: req.user.username,
@@ -2859,16 +2948,41 @@ async function changePassword(req, res) {
         });
 
         await client.query('COMMIT');
-
-        // 9. Destruir sesión invalidando la cookie HttpOnly en el cliente para forzar re-autenticación
         res.clearCookie('admin_token', { path: '/' });
+
+        const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
         
+        sendTransactionEmail({
+            toEmail: admin.email,
+            subject: '✅ Tu contraseña administrativa ha sido actualizada',
+            title: 'Contraseña Actualizada',
+            message: 'Tu contraseña de administrador en WintonCoin ha sido cambiada exitosamente.',
+            amount: '-',
+            details: [{ label: 'IP', value: ip }, { label: 'Usuario', value: req.user.username }]
+        }).catch(e => console.error(e));
+
+        try {
+            const superadmins = await pool.query("SELECT email FROM admin_users WHERE role = 'superadmin' AND username != $1 AND email IS NOT NULL", [req.user.username]);
+            for (let row of superadmins.rows) {
+                sendTransactionEmail({
+                    toEmail: row.email,
+                    subject: '✅ Registro de Auditoría: Cambio de Credencial Completado',
+                    title: 'Auditoría de Seguridad',
+                    message: `El administrador @${req.user.username} ha completado exitosamente su cambio de contraseña.`,
+                    amount: '-',
+                    details: [{ label: 'Usuario', value: req.user.username }, { label: 'IP', value: ip }]
+                }).catch(e => console.error(e));
+            }
+        } catch (e) {
+            console.error(e);
+        }
+
         return res.json({ message: "Contraseña cambiada exitosamente. Tu sesión ha sido cerrada por seguridad." });
 
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error('[AdminController] Error al cambiar contraseña de administrador:', error);
-        return res.status(500).json({ message: "Error interno del servidor al procesar el cambio de contraseña." });
+        console.error('[AdminController] Error al confirmar cambio de contraseña:', error);
+        return res.status(500).json({ message: "Error interno del servidor." });
     } finally {
         client.release();
     }

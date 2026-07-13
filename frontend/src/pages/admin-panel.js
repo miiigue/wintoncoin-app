@@ -564,6 +564,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- CAMBIO DE CONTRASEÑA (SOC 2) ---
         const changePasswordForm = document.getElementById('changePasswordForm');
+        const adminOtpModal = document.getElementById('adminOtpModal');
+        const closeAdminOtpModal = document.getElementById('closeAdminOtpModal');
+        const adminOtpForm = document.getElementById('adminOtpForm');
+
+        let pendingNewPassword = '';
+
+        if (closeAdminOtpModal) {
+            closeAdminOtpModal.addEventListener('click', () => {
+                adminOtpModal.style.display = 'none';
+            });
+        }
+
         if (changePasswordForm) {
             changePasswordForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -592,7 +604,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                // [DoS PROTECTION] Limitar longitud máxima
                 if (currentPassword.length > 72 || newPassword.length > 72) {
                     showCustomAlert("La contraseña no puede exceder los 72 caracteres.");
                     return;
@@ -606,17 +617,54 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (submitBtn) submitBtn.disabled = true;
                 
                 try {
-                    const result = await apiFetch('/api/admin/change-password', {
+                    // PASO 1: Solicitar cambio
+                    const result = await apiFetch('/api/admin/change-password/request', {
                         method: 'POST',
-                        body: JSON.stringify({ currentPassword, newPassword })
+                        body: JSON.stringify({ currentPassword })
                     });
                     
+                    // Si es exitoso, guardar la nueva clave temporalmente en memoria (no en DB) y mostrar modal OTP
+                    pendingNewPassword = newPassword;
+                    adminOtpModal.style.display = 'flex';
+                    
+                } catch (err) {
+                    showCustomAlert(err.message || "Error al solicitar el cambio de contraseña.");
+                } finally {
+                    if (submitBtn) submitBtn.disabled = false;
+                }
+            });
+        }
+
+        if (adminOtpForm) {
+            adminOtpForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const codeInput = document.getElementById('adminOtpInput');
+                const code = codeInput?.value;
+                const submitBtn = document.getElementById('adminOtpBtn');
+
+                if (!code || code.length !== 6) {
+                    showCustomAlert("Por favor, introduce el código de 6 dígitos.");
+                    return;
+                }
+
+                if (submitBtn) submitBtn.disabled = true;
+
+                try {
+                    // PASO 2: Confirmar cambio
+                    const result = await apiFetch('/api/admin/change-password/confirm', {
+                        method: 'POST',
+                        body: JSON.stringify({ code, newPassword: pendingNewPassword })
+                    });
+
+                    adminOtpModal.style.display = 'none';
                     showCustomAlert(result.message || "Contraseña actualizada con éxito. Tu sesión se cerrará por seguridad.");
                     
                     // Limpiar campos
-                    if (currentPasswordInput) currentPasswordInput.value = '';
-                    if (newPasswordInput) newPasswordInput.value = '';
-                    if (confirmNewPasswordInput) confirmNewPasswordInput.value = '';
+                    document.getElementById('currentPasswordInput').value = '';
+                    document.getElementById('newPasswordInput').value = '';
+                    document.getElementById('confirmNewPasswordInput').value = '';
+                    codeInput.value = '';
+                    pendingNewPassword = '';
                     
                     // Cerrar sesión y redirigir tras un breve periodo
                     setTimeout(async () => {
@@ -628,9 +676,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         localStorage.removeItem('admin_username');
                         window.location.href = 'admin.html';
                     }, 2000);
-                    
+
                 } catch (err) {
-                    showCustomAlert(err.message || "Error al actualizar la contraseña.");
+                    showCustomAlert(err.message || "Error al verificar el código.");
                 } finally {
                     if (submitBtn) submitBtn.disabled = false;
                 }
