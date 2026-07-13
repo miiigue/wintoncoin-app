@@ -1052,11 +1052,12 @@
     <!-- Modal de Confirmación -->
     <div id="customConfirmModal" class="modal">
         <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <span class="close-button confirm-close-button">&times;</span>
             <h2 id="customConfirmTitle" style="margin-top: 0;">Confirmar Acción</h2>
             <p id="customConfirmMessage">¿Estás seguro de que deseas continuar?</p>
             <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem;">
-                <button id="customConfirmCancelBtn" class="action-button-admin" style="background-color: transparent; border: 1px solid #475569; color: #E2E8F0;">Cancelar</button>
-                <button id="customConfirmAcceptBtn" class="action-button-admin delete">Aceptar</button>
+                <button id="customConfirmCancelBtn" class="action-button-admin cancel-button" style="background-color: transparent; border: 1px solid #475569; color: #E2E8F0;">Cancelar</button>
+                <button id="customConfirmAcceptBtn" class="action-button-admin delete confirm-button">Aceptar</button>
             </div>
         </div>
     </div>
