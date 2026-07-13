@@ -2456,7 +2456,7 @@ async function createInvitation(req, res) {
         // existirá en la tabla de usuarios generales ('users') y NO debemos bloquearlo por ese motivo.
         // Para verificar si ya posee acceso admin, buscamos si tiene una invitación reclamada en 'admin_invitations'.
         const adminCheck = await client.query(
-            "SELECT id FROM admin_invitations WHERE email = $1 AND used_at IS NOT NULL",
+            "SELECT id FROM admin_users WHERE LOWER(email) = LOWER($1)",
             [email]
         );
 
@@ -2697,6 +2697,17 @@ async function claimInvitation(req, res) {
         if (userCheck.rowCount > 0) {
             await client.query('ROLLBACK');
             return res.status(409).json({ message: "El nombre de usuario administrativo ya está en uso." });
+        }
+
+        // 2.1 Verificar duplicidad de correo (case-insensitive) para dar una respuesta limpia de negocio
+        const emailCheck = await client.query(
+            'SELECT id FROM admin_users WHERE LOWER(email) = LOWER($1)',
+            [invite.email]
+        );
+
+        if (emailCheck.rowCount > 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ message: "El correo electrónico asociado a esta invitación ya está registrado en otra cuenta administrativa activa." });
         }
 
         // 3. Hashear la contraseña con bcrypt (10 rounds)
