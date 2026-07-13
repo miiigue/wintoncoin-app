@@ -21,6 +21,21 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 
 
+### 2026-07-12 — Cambio Seguro de Contraseña Administrativa (SOC 2 & Zero-Trust)
+
+- **Contexto**: Para mejorar la ciberseguridad del panel administrativo de WintonCoin y dar cumplimiento con normativas regulatorias internacionales tipo SOC 2 y lineamientos de auditoría financiera, se requería habilitar un flujo seguro para que los administradores puedan actualizar su contraseña directamente desde el panel sin exponer credenciales en variables de entorno fijas (Zero Hardcoded Secrets).
+- **Decisión de Ingeniería**:
+  - **Backend y Autenticación**: Se implementó el endpoint `POST /api/admin/change-password` en `adminRoutes.js` y `adminController.js` protegido por `verifyAdminToken`. El controlador valida que la cuenta esté activa, realiza una comparación de la contraseña actual mediante `bcrypt.compare`, valida la complejidad de la nueva clave (mínimo 8 caracteres, alfanuméricos) y previene la reutilización de claves. Al actualizar el hash en la base de datos de forma transaccional, se invoca `res.clearCookie('admin_token')` para destruir inmediatamente la sesión de JWT (HttpOnly cookie) en el cliente por seguridad.
+  - **Auditoría de Ciberseguridad (Mejoras SOC 2 / Zero-Trust)**:
+    1. *Protección contra Bcrypt DoS (CPU Exhaustion)*: Se limitó estrictamente la longitud máxima de contraseñas a 72 caracteres tanto en frontend como backend en `login`, `claimInvitation` y `changePassword`. Esto previene que payloads maliciosos gigantes degraden el rendimiento de la CPU de Node.js al ejecutar hashing de Bcrypt.
+    2. *Invalidación en Tiempo Real de Tokens (`pwdVersion`)*: Se añadió un reclamo dinámico `pwdVersion` en el payload de JWT de administrador (formado por los últimos 10 caracteres del hash actual en base de datos). El middleware de autenticación `authenticateAdmin` en `authMiddleware.js` realiza una validación en tiempo real comparando este reclamo con el hash actual del registro. Si hay un cambio de contraseña, todos los tokens JWT emitidos previamente quedan invalidados de forma instantánea e irreversible.
+  - **Trazabilidad y Auditoría**: Cada cambio de contraseña genera un registro inmutable en la tabla `audit_log` con el evento `admin.password.changed` poblado con metadatos del cliente (IP, User-Agent).
+  - **Interfaz de Usuario**: Se integró el formulario "Seguridad de la Cuenta" dentro de la sección de Configuración en `admin-panel.html` y se programó el listener en `admin-panel.js` para realizar validación en el cliente (incluyendo el límite de 72 caracteres), despachar la solicitud asíncrona mediante `apiFetch` y redirigir automáticamente al administrador a la pantalla de login (`admin.html`) tras 2 segundos de éxito.
+- **Impacto**: Se elimina la dependencia del archivo de entorno `.env` de Render para contraseñas activas de administrador. Se asegura un control estricto de sesiones y una traza 100% auditable y reproducible, mitigando el secuestro de sesiones administrativas de forma definitiva.
+- **Evidencia**:
+  - Backend: [adminController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/adminController.js), [adminRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/adminRoutes.js), [authMiddleware.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/middleware/authMiddleware.js).
+  - Frontend: [admin-panel.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/frontend/admin-panel.html), [admin-panel.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/frontend/src/pages/admin-panel.js).
+
 ### 2026-07-11 — Registro de Clickwrap en Base de Datos y Formateo HTML de Correos Transaccionales
 
 - **Contexto**: 

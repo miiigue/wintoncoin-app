@@ -106,7 +106,7 @@ const authenticateAdmin = (req, res, next) => {
             // Realizamos una consulta parametrizada a la tabla admin_users utilizando el ID del token.
             // Esto asegura la revocación inmediata de accesos huérfanos sin esperar a la expiración del JWT (8 horas).
             const result = await pool.query(
-                'SELECT account_status, role FROM admin_users WHERE id = $1',
+                'SELECT account_status, role, password_hash FROM admin_users WHERE id = $1',
                 [decoded.userId]
             );
 
@@ -119,6 +119,23 @@ const authenticateAdmin = (req, res, next) => {
             }
 
             const adminUser = result.rows[0];
+
+            // [Zero-Trust] Validar si el token fue emitido antes de un cambio de contraseña
+            if (decoded.pwdVersion) {
+                const currentPwdVersion = adminUser.password_hash.slice(-10);
+                if (decoded.pwdVersion !== currentPwdVersion) {
+                    console.warn(`[AUTH ADMIN] Token invalidado por cambio de contraseña para: ${decoded.username}`);
+                    res.clearCookie('admin_token', { path: '/' });
+                    return res.status(401).json({ message: 'Tu sesión ha sido invalidada por un cambio de contraseña. Por favor, inicia sesión nuevamente.' });
+                }
+            } else {
+                // Si el token es de una versión vieja que no tiene pwdVersion, lo invalidamos preventivamente en producción.
+                if (process.env.NODE_ENV === 'production') {
+                    console.warn(`[AUTH ADMIN] Token antiguo sin pwdVersion rechazado en producción para: ${decoded.username}`);
+                    res.clearCookie('admin_token', { path: '/' });
+                    return res.status(401).json({ message: 'Sesión administrativa obsoleta. Por favor, inicia sesión nuevamente.' });
+                }
+            }
 
             // 5. [IMMEDIATE TERMINATION] Si la cuenta del administrador ha sido suspendida o inactivada
             if (adminUser.account_status !== 'active') {

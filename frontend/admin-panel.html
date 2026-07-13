@@ -97,6 +97,34 @@
                         <!-- Los interruptores generales se cargarán aquí -->
                     </div>
                 </div>
+
+                <!-- Sección de Cambio de Contraseña de Administrador (SOC 2 Compliant) -->
+                <div class="settings-group" style="margin-top: 2.5rem;">
+                    <div class="settings-header">
+                        <h2>Seguridad de la Cuenta</h2>
+                        <p class="section-description">Actualiza la contraseña de tu cuenta de administrador. Por seguridad, se cerrará tu sesión activa tras realizar el cambio y deberás iniciar sesión nuevamente.</p>
+                    </div>
+                    
+                    <form id="changePasswordForm" class="admin-form" style="max-width: 600px; margin-top: 1.5rem;">
+                        <div class="form-group-admin" style="margin-bottom: 1.5rem;">
+                            <label for="currentPasswordInput">Contraseña Actual:</label>
+                            <input type="password" id="currentPasswordInput" class="admin-input-dark" required placeholder="Ingresa tu contraseña actual">
+                        </div>
+                        <div class="form-row-admin">
+                            <div class="form-group-admin">
+                                <label for="newPasswordInput">Nueva Contraseña:</label>
+                                <input type="password" id="newPasswordInput" class="admin-input-dark" required placeholder="Mínimo 8 caracteres (letras y números)">
+                            </div>
+                            <div class="form-group-admin">
+                                <label for="confirmNewPasswordInput">Confirmar Nueva Contraseña:</label>
+                                <input type="password" id="confirmNewPasswordInput" class="admin-input-dark" required placeholder="Repite tu nueva contraseña">
+                            </div>
+                        </div>
+                        <div class="admin-form-actions" style="margin-top: 1.5rem;">
+                            <button type="submit" id="changePasswordBtn" class="action-button-admin publish">🔒 Actualizar Contraseña</button>
+                        </div>
+                    </form>
+                </div>
             </section>
 
             <!-- Usuarios Section -->
