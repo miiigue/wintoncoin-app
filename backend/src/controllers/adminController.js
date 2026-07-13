@@ -2703,11 +2703,11 @@ async function claimInvitation(req, res) {
         const saltRounds = 10;
         const passwordHash = await bcrypt.hash(password, saltRounds);
 
-        // 4. Crear el nuevo administrador en admin_users
+        // 4. Crear el nuevo administrador en admin_users (SOC 2: persistir el email verificado)
         await client.query(
-            `INSERT INTO admin_users (username, password_hash, role, account_status)
-             VALUES ($1, $2, $3, 'active')`,
-            [username, passwordHash, invite.role]
+            `INSERT INTO admin_users (username, password_hash, role, email, account_status)
+             VALUES ($1, $2, $3, $4, 'active')`,
+            [username, passwordHash, invite.role, invite.email]
         );
 
         // 5. Marcar invitación como utilizada
@@ -2756,7 +2756,7 @@ async function getAdminProfile(req, res) {
         // 2. Realizar consulta SQL parametrizada a la tabla admin_users
         // Consultamos id, username y role de forma segura para evitar inyecciones SQL y optimizar el rendimiento al traer solo campos necesarios.
         const result = await pool.query(
-            'SELECT id, username, role FROM admin_users WHERE username = $1',
+            'SELECT id, username, role, email FROM admin_users WHERE username = $1',
             [req.user.username]
         );
 
