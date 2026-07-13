@@ -494,35 +494,29 @@ async function initializeRegisterPage() {
     const session = await checkAuthStatus();
 
     if (session.isAuthenticated) {
-        safeHide(step1Div);
-        safeHide(step2Div);
-
-        const username = session.username || 'tu cuenta';
-
-        if (!session.is_verified) {
-            configureSessionBanner(sessionElements, {
-                title: 'Verificación pendiente',
-                message: `Tienes una sesión activa como ${username}. Para mantener seguridad y auditoría, recomendamos completar la verificación de identidad.`,
-                primaryText: 'Continuar verificación',
-                onPrimary: () => {
-                    safeHide(step1Div);
-                    safeShow(step2Div);
-                    showCustomAlert('Introduce el código de verificación que te enviamos para completar tu registro.');
-                },
-                secondaryText: 'Ir al perfil',
-                onSecondary: () => { window.location.href = 'profile.html'; }
-            });
+        if (session.is_verified) {
+            // [SEGURIDAD FINTECH] Redirección inteligente: si ya está registrado y verificado,
+            // no debe ver el formulario de registro. Se redirige al dashboard de forma silenciosa.
+            const returnTo = _getSafeReturnTo(urlParams.get('returnTo'));
+            window.location.replace(returnTo || 'contract_interaction.html');
+            return;
         } else {
-            configureSessionBanner(sessionElements, {
-                title: 'Sesión activa',
-                message: `Ya tienes una sesión iniciada como "${username}". Por estándar profesional, el registro se bloquea mientras exista una sesión activa. Puedes ir a tu perfil o cerrar sesión para registrar otra cuenta de prueba.`,
-                primaryText: 'Ir al perfil',
-                onPrimary: () => { window.location.href = 'profile.html'; },
-                secondaryText: 'Volver al inicio',
-                onSecondary: () => { window.location.href = 'index.html'; }
-            });
+            // [UX FINTECH] Si el usuario está autenticado pero la verificación está pendiente,
+            // lo llevamos directamente al paso 2 de verificación para facilitar su conversión.
+            safeHide(step1Div);
+            safeShow(step2Div);
+
+            // Poblamos el correo electrónico recuperado del backend o del localStorage
+            const emailVal = session.email || localStorage.getItem('pendingVerificationEmail') || '';
+            const hiddenEmailInput = document.getElementById('hiddenEmail');
+            const emailInputVal = document.getElementById('email');
+
+            if (hiddenEmailInput) hiddenEmailInput.value = emailVal;
+            if (emailInputVal) emailInputVal.value = emailVal;
+
+            showCustomAlert('Introduce el código de verificación para completar tu cuenta.');
+            return;
         }
-        return;
     }
 
     // Configurar checkboxes de términos

@@ -3933,6 +3933,22 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
   - **Claridad de Interfaz**: Se facilita la lectura en pantallas móviles y se ofrece un flujo directo y sin sobrecarga cognitiva para usuarios con sesiones pendientes de verificación.
 - **Evidencia**: Archivos modificados: `frontend/register.html`, `frontend/src/pages/register.js`, `EVOLUCION.md`.
 
+---
+
+### 2026-07-13 — Implementación de Smart Routing (Redirección Inteligente) en Registro FinTech
+
+- **Contexto**: Para optimizar el embudo de conversión y mitigar la fricción cognitiva (UX), se requería evitar que un usuario con sesión activa visualizara pantallas o banners informativos de registro. Al ingresar a la pantalla de registro (`register.html`), el sistema debía redirigirlo de forma automática e inteligente según su estado de sesión.
+- **Decisión de Ingeniería**:
+  - **Backend (`authController.js`)**: Modificamos el endpoint `/api/auth/status` para incluir y retornar de forma segura la dirección de correo electrónico (`email`) del usuario autenticado en la sesión, permitiendo la preservación del estado incluso tras borrar el almacenamiento local del navegador.
+  - **Frontend (`register.js`)**: Reemplazamos la lógica del banner de sesión activa por un enrutador inteligente:
+    - **Usuario verificado**: Se realiza una redirección instantánea y silenciosa (`window.location.replace`) al Dashboard (`contract_interaction.html`) o a la URL segura provista en `returnTo`.
+    - **Usuario no verificado**: Se oculta el Paso 1 y se le posiciona directamente en el Paso 2 (formulario de código de verificación), autocompletando el campo de correo electrónico con los datos de la sesión del backend.
+- **Impacto**:
+  - **Experiencia de Usuario Transparente**: Se elimina cualquier cartel molesto, imitando el estándar de usabilidad de plataformas como Robinhood y Revolut.
+  - **Conversión Acelerada**: Los usuarios sin verificar continúan directamente su flujo de registro reduciendo la tasa de abandono.
+- **Evidencia**: Archivos modificados: `backend/src/controllers/authController.js`, `frontend/src/pages/register.js`, `EVOLUCION.md`.
+
+
 
 
 
