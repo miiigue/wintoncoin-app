@@ -494,6 +494,10 @@ async function initializeRegisterPage() {
     const session = await checkAuthStatus();
 
     if (session.isAuthenticated) {
+        // [BUG-FIX] urlParams debe declararse localmente para que _getSafeReturnTo
+        // pueda usarse de forma segura en este scope sin depender de variables externas.
+        const urlParams = new URLSearchParams(window.location.search);
+
         if (session.is_verified) {
             // [SEGURIDAD FINTECH] Redirección inteligente: si ya está registrado y verificado,
             // no debe ver el formulario de registro. Se redirige al dashboard de forma silenciosa.
@@ -513,6 +517,13 @@ async function initializeRegisterPage() {
 
             if (hiddenEmailInput) hiddenEmailInput.value = emailVal;
             if (emailInputVal) emailInputVal.value = emailVal;
+
+            // [BUG-FIX] Iniciar el temporizador de reenvío inmediatamente al entrar al Paso 2
+            // directamente. Sin este llamado, el countdown nunca arrancaría porque el return
+            // anterior interrumpe el flujo antes de llegar al check de la línea 905.
+            if (resendBtn && resendTimerSpan) {
+                startResendTimer(resendBtn, resendTimerSpan);
+            }
 
             showCustomAlert('Introduce el código de verificación para completar tu cuenta.');
             return;

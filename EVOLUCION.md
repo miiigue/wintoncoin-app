@@ -3948,6 +3948,27 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
   - **Conversión Acelerada**: Los usuarios sin verificar continúan directamente su flujo de registro reduciendo la tasa de abandono.
 - **Evidencia**: Archivos modificados: `backend/src/controllers/authController.js`, `frontend/src/pages/register.js`, `EVOLUCION.md`.
 
+---
+
+### 2026-07-13 — Auditoría Completa y Corrección de Bugs en Smart Routing (register.js)
+
+- **Autor**: Antigravity (AI Engineering)
+- **Tipo**: Corrección de Bugs Críticos — Auditoría de Seguridad y Calidad de Código
+- **Rama**: `feature/landing-donation-ticker`
+- **Contexto**: Tras implementar el Smart Routing (redirección inteligente para usuarios con sesión activa en `register.html`), se realizó una auditoría exhaustiva del código producido, analizando todos los escenarios posibles, seguridad, mantenibilidad y correctitud.
+- **Bugs Encontrados y Corregidos**:
+  - **Bug #1 — CRÍTICO (`ReferenceError`): `urlParams` no estaba definido en el scope de `initializeRegisterPage`.**
+    - La variable `urlParams` (tipo `URLSearchParams`) se usaba en la línea 500 del bloque `if (session.isAuthenticated)` para leer el parámetro `returnTo` de la URL, pero nunca había sido declarada dentro de la función `initializeRegisterPage`. Tampoco existía como variable global.
+    - **Consecuencia real**: En cualquier escenario de usuario verificado que accediera a `register.html`, el navegador habría lanzado `ReferenceError: urlParams is not defined`, interrumpiendo el flujo de redirección por completo. El usuario verificado permanecería atrapado en la pantalla de registro.
+    - **Corrección**: Se declaró `const urlParams = new URLSearchParams(window.location.search)` localmente al comienzo del bloque `if (session.isAuthenticated)`, garantizando que siempre esté definido y sea inmutable.
+  - **Bug #2 — MENOR (UX): El temporizador de reenvío de código no iniciaba automáticamente para usuarios no verificados.**
+    - Cuando un usuario con sesión activa pero sin verificar llegaba a `register.html`, el sistema lo posicionaba correctamente en el Paso 2. Sin embargo, el check que iniciaba el temporizador (`startResendTimer`) estaba ubicado en la línea 905, **después** de los `return` tempranos de la autenticación. El flujo retornaba antes de llegar a ese punto, dejando al usuario sin el contador de 60 segundos activo.
+    - **Consecuencia real**: El usuario no verificado podría tocar inmediatamente el botón de "Reenviar código" sin restricción de tiempo, potencialmente abusando del endpoint de reenvío.
+    - **Corrección**: Se añadió la llamada a `startResendTimer(resendBtn, resendTimerSpan)` directamente dentro del bloque `else` (usuario no verificado), inmediatamente antes del `return`, para que el temporizador arranque en todos los escenarios posibles.
+- **Resultado del Backend**: El endpoint `/api/auth/status` (`authController.js`) fue revisado en detalle y se certificó como correcto, seguro y sin vulnerabilidades. Retorna correctamente `email`, `is_verified`, `kyc_verified`, valida el token JWT, invalida sesiones por cambio de contraseña (`password_invalidate_before`) y libera la conexión al pool en todos los casos (`finally`).
+- **Verificación**: La compilación posterior (`npm run build:demo`) completó exitosamente con `✓ 124 modules transformed` y sin errores ni advertencias.
+- **Evidencia**: Archivo modificado: `frontend/src/pages/register.js` (corrección de 2 bugs), `EVOLUCION.md`.
+
 
 
 
