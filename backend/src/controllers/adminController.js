@@ -2845,7 +2845,7 @@ async function requestPasswordChange(req, res) {
         }).catch(err => console.error('[ADMIN OTP ERROR]', err));
 
         try {
-            const superadmins = await pool.query("SELECT email FROM admin_users WHERE role = 'superadmin' AND username != $1 AND email IS NOT NULL", [req.user.username]);
+            const superadmins = await pool.query("SELECT email FROM admin_users WHERE LOWER(role) = 'superadmin' AND username != $1 AND email IS NOT NULL", [req.user.username]);
             for (let row of superadmins.rows) {
                 sendTransactionEmail({
                     toEmail: row.email,
@@ -2962,7 +2962,7 @@ async function confirmPasswordChange(req, res) {
         }).catch(e => console.error(e));
 
         try {
-            const superadmins = await pool.query("SELECT email FROM admin_users WHERE role = 'superadmin' AND username != $1 AND email IS NOT NULL", [req.user.username]);
+            const superadmins = await pool.query("SELECT email FROM admin_users WHERE LOWER(role) = 'superadmin' AND username != $1 AND email IS NOT NULL", [req.user.username]);
             for (let row of superadmins.rows) {
                 sendTransactionEmail({
                     toEmail: row.email,
