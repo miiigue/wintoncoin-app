@@ -4189,6 +4189,9 @@ body.love-page {
     margin: 0.5rem 0 1rem 0;
     padding-left: 1rem;
     border-left: 3px solid var(--primary-color);
+    /* [DISEÑO RESPONSIVE PREVENCIÓN DE OVERFLOW] */
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .rating-item-footer {

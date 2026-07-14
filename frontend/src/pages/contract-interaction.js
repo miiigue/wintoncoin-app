@@ -116,6 +116,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         tabBilletera: document.getElementById('tabBilletera'),
         panelImpulsor: document.getElementById('panelImpulsor'),
         panelBilletera: document.getElementById('panelBilletera'),
+        walletTabsNav: document.querySelector('.wallet-tabs-nav'),
         createPostPrelaunchModal: document.getElementById('createPostPrelaunchModal'),
         createPostPrelaunchAccept: document.getElementById('createPostPrelaunchAccept'),
         myWalletAddressContainer: document.getElementById('myWalletAddressContainer'),
@@ -639,6 +640,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         return new Promise((resolve) => {
             getPlatformSettings().then(settings => {
                 const isPreLaunch = settings?.pre_launch_mode_enabled === true || settings?.pre_launch_mode_enabled === 'true';
+                
+                // [UX FINTECH / PRELANZAMIENTO] Ocultar dinámicamente el selector de pestañas si prelanzamiento está activo
+                if (elements.walletTabsNav) {
+                    if (isPreLaunch) {
+                        elements.walletTabsNav.style.display = 'none';
+                    } else {
+                        elements.walletTabsNav.style.display = 'flex';
+                    }
+                }
+
                 const urlParams = new URLSearchParams(window.location.search);
                 const isWalletTour = urlParams.get('start_wallet_tour') === 'true';
                 const isPendingTour = sessionStorage.getItem('pendingWalletTour') === 'true';

@@ -4018,6 +4018,26 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
 - **Verificación**: La compilación posterior (`npm run build:demo`) completó exitosamente con `✓ built in 8.44s`, `✓ 134 modules transformed`, sin errores ni advertencias. El hash del bundle cambió de `register.BeZP5llT.js` a `register.xhydIokZ.js`, confirmando la inclusión de las correcciones.
 - **Evidencia**: Archivo modificado: `frontend/src/pages/register.js` (Bug #3 + hardening), `EVOLUCION.md`.
 
+---
+
+### 2026-07-14 — Corrección de Desbordamiento de Enlaces Largos en Publicaciones y Ocultamiento del Selector de Billetera en Prelanzamiento
+
+- **Autor**: Antigravity (AI Engineering)
+- **Tipo**: Corrección de Interfaz (CSS) + Ajuste Lógico del Dashboard (JS)
+- **Rama**: `feature/landing-donation-ticker`
+- **Contexto**: Se solucionaron dos detalles visuales importantes reportados en producción para mejorar el diseño adaptativo y mitigar la fricción en la experiencia de usuario (UX).
+- **Detalles Implementados**:
+  - **Desbordamiento de Enlaces Largos (Overflow CSS)**:
+    - **Problema**: Enlaces extensos de redes sociales (por ejemplo, Instagram) sin espacios en la descripción de las causas solidarias provocaban que la tarjeta se ensanchara horizontalmente, saliéndose de los márgenes y rompiendo el responsive en teléfonos móviles.
+    - **Solución**: Añadimos las propiedades de ajuste seguro `overflow-wrap: anywhere; word-break: break-word;` a las clases `.solidario-cause-story` y `.update-item-body` en `causa-solidaria.html`.
+    - **Generalización**: Adicionalmente, auditamos otros paneles y reforzamos de forma preventiva la clase `.rating-item-comment` en `style.css` (para comentarios largos de reputación en el perfil de usuario), que también carecía de protección de desbordamiento.
+  - **Selector de Billetera en Prelanzamiento**:
+    - **Problema**: En la fase de prelanzamiento la billetera blockchain no está operativa (saldos en cero), por lo que el toggle superior "Impulsor / Billetera" en `contract_interaction.html` era redundante y confuso para los usuarios.
+    - **Solución**: Mapeamos el elemento del DOM `.wallet-tabs-nav` como `walletTabsNav` en `contract-interaction.js`. Modificamos `initializeWalletState()` para que, si el modo prelanzamiento (`isPreLaunch`) está activo, oculte dinámicamente este selector de pestañas (`style.display = 'none'`), forzando a que permanezca activa por defecto la pestaña "Impulsor". Si prelanzamiento está inactivo, vuelve a mostrarse con `display = 'flex'`.
+- **Verificación**: La compilación posterior (`npm run build:demo`) completó exitosamente con `✓ built in 5.09s` y `✓ 104 modules transformed`, integrando todos los cambios de forma consistente en `dist/`.
+- **Evidencia**: Archivos modificados: `frontend/causa-solidaria.html` (CSS de overflow), `frontend/style.css` (CSS de comentarios), `frontend/src/pages/contract-interaction.js` (Lógica de prelanzamiento), `EVOLUCION.md`.
+
+
 
 
 
