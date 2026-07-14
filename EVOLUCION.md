@@ -4037,6 +4037,28 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
 - **Verificación**: La compilación posterior (`npm run build:demo`) completó exitosamente con `✓ built in 5.09s` y `✓ 104 modules transformed`, integrando todos los cambios de forma consistente en `dist/`.
 - **Evidencia**: Archivos modificados: `frontend/causa-solidaria.html` (CSS de overflow), `frontend/style.css` (CSS de comentarios), `frontend/src/pages/contract-interaction.js` (Lógica de prelanzamiento), `EVOLUCION.md`.
 
+---
+
+### 2026-07-14 — Refinamiento Estético de la Tarjeta del Perfil de Impulsor
+
+- **Autor**: Antigravity (AI Engineering)
+- **Tipo**: Corrección y Refinamiento Estético (CSS)
+- **Rama**: `feature/landing-donation-ticker`
+- **Contexto**: Se aplicaron mejoras visuales premium para estilizar la tarjeta de "Perfil de Impulsor" en el Dashboard, atendiendo reportes de altura excesiva y desalineación del brillo animado.
+- **Detalles Implementados**:
+  - **Reducción de Altura (Tarjeta más Delgada)**:
+    - Modificamos la clase `#panelImpulsor .booster-banner` para reducir su padding vertical de `1.5rem` a `1.1rem`.
+    - Ajustamos la cabecera `#panelImpulsor .booster-banner-header` reduciendo el `margin-bottom` de `1rem` a `0.6rem` y el `padding-bottom` de `0.75rem` a `0.4rem`.
+    - Unificamos en móviles (`@media (max-width: 480px)`) para usar un padding consistente de `1.1rem 1rem`.
+    - Resultado: La tarjeta reduce notablemente su peso visual vertical, adquiriendo un aspecto más moderno, esbelto y premium alineado con estándares Fintech.
+  - **Alineación del Brillo Animado en Móviles**:
+    - **Problema**: En pantallas móviles de 480px o menos, una regla CSS heredada aplicaba la propiedad `top: 14px;` a los pseudoelementos `::before` y `::after` de la tarjeta de impulsor. Esto causaba que el brillo verde animado (`::after`), de altura 100%, se desplazara 14px hacia abajo, dejando la sección superior de la tarjeta sin iluminar y desbordando la inferior.
+    - **Solución**: Modificamos la regla en la media query móvil para desvincular el `::after` de la regla de `top: 14px;`, fijándolo de forma independiente en `top: 0;`.
+    - Resultado: El brillo verde animado recorre la tarjeta de forma simétrica desde su borde superior exacto en dispositivos móviles.
+- **Verificación**: La compilación posterior (`npm run build:demo`) concluyó exitosamente en `4.30s` transformando 135 módulos de Vite a producción sin errores.
+- **Evidencia**: Archivos modificados: `frontend/style.css`, `EVOLUCION.md`.
+
+
 
 
 
