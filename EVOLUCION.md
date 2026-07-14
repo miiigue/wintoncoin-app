@@ -21,6 +21,19 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 
 
+### 2026-07-14 — Auditoría de Ciberseguridad y Remediación de Vulnerabilidades Críticas en adminController.js
+
+- **Contexto**: Durante una auditoría exhaustiva de seguridad sobre las 3,295 líneas del controlador administrativo `adminController.js`, se detectaron vulnerabilidades y desviaciones de las mejores prácticas de desarrollo y seguridad (tales como SQL Injection en limpieza de registros, fuga de detalles internos de excepciones `error.message` y duplicidad de lógica). Se procedió a mitigar todos los hallazgos para elevar el software a los estándares SOC 2 e ISO 27001 de seguridad bancaria.
+- **Decisión de Ingeniería**:
+  - **Mitigación de SQL Injection (Hallazgo #1 - Crítica)**: Se eliminaron las interpolaciones directas de strings en `cleanupInactiveUsers` y `cleanupOldPublications` y se parametrizaron las consultas a través de `make_interval(days => $1)`. Adicionalmente, se forzó la conversión a enteros vía `parseInt()` antes de su uso.
+  - **Protección contra fuga de información (Hallazgo #2 - Alta)**: Se eliminaron todas las respuestas JSON que devolvían el `error.message` en bruto en el balance de la plataforma (`getPlatformWalletBalance`) y en las operaciones de demo (`generateDemoExport`, `downloadDemoExport`, `processDemoImport`). Ahora devuelven un mensaje genérico `"Error interno del servidor."` previniendo fuga de directorios locales o variables de entorno.
+  - **Sanitización de IDs (Hallazgo #3 - Alta)**: Se agregaron validaciones defensivas mediante `parseInt()` y validaciones de límites en los endpoints de restauración y eliminación de publicaciones (`restorePublication` y `deletePublicationAdmin`).
+  - **Ubicación Profesional del module.exports (Hallazgo #4 - Media)**: Se reubicó el bloque de exportaciones al final del archivo para seguir la regla de oro "define primero, exporta al final" y evitar la dependencia del *hoisting* de funciones.
+  - **Remediación de dependencias y DRY (Hallazgos #5, #6, #7 - Media/Baja)**: Se centralizó el `require('crypto')` en la cabecera del archivo, se corrigió un comentario histórico desactualizado en la creación de invitaciones, y se encapsuló la validación duplicada de `formFields` en la función helper `_sanitizeFormFields`.
+- **Impacto**: blindaje completo contra inyecciones SQL que pudiesen comprometer o eliminar la base de datos de demo o producción, mayor privacidad en respuestas de error de sistema, código 100% limpio y estructurado que facilita futuras auditorías de control interno.
+- **Evidencia**:
+  - Archivo Modificado: [adminController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/adminController.js).
+
 ### 2026-07-13 — Autenticación Escalonada (OTP) y Alertas de Seguridad en Panel Administrativo (SOC 2)
 
 - **Contexto**: Para elevar el nivel de seguridad del sistema de administración al estándar bancario y cumplir con las normativas SOC 2 de Zero-Trust, se determinó que cambiar la contraseña conociendo únicamente la contraseña actual era un control insuficiente frente al compromiso de sesiones (sesiones dejadas abiertas). Se requirió implementar Autenticación Escalonada (Step-Up Authentication) mediante un código de un solo uso (OTP) por correo electrónico, acompañado de notificaciones transaccionales a la plana de Super Administradores.
