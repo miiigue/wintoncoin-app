@@ -4112,6 +4112,21 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
     2. **Límite de Desistimientos Semanales**: Imponer un límite de desistimientos (máximo 2 cancelaciones por semana) y bloquear temporalmente (por 48h) la aceptación de nuevas tareas en caso de excederlo, mitigando conductas de acaparamiento malicioso.
 - **Evidencia**: Archivos modificados: `backend/src/services/humanitarianService.js`, `backend/src/controllers/publicationController.js`, `frontend/src/pages/publication-detail.js`, `frontend/src/pages/contract-interaction.js`, `EVOLUCION.md`.
 
+---
+
+### 2026-07-14 — Visibilidad de Última Migración Aplicada en Logs de Inicio (migrationRunner.js)
+
+- **Autor**: Antigravity (AI Engineering)
+- **Tipo**: DevOps & Infraestructura (Backend)
+- **Rama**: `fix/email-asterisks-cause-update`
+- **Contexto**: Se solicitó mostrar en los logs del servidor al iniciar qué versión exacta de migración de base de datos se encuentra aplicada para facilitar el monitoreo continuo en el entorno Demo y producción sin interferir en los procesos de base de datos.
+- **Solución Implementada**:
+  - Editamos `backend/scripts/migrationRunner.js` (línea 112).
+  - Agregamos una consulta SQL de sólo lectura (`SELECT migration_name FROM schema_migrations ORDER BY id DESC LIMIT 1`) que se ejecuta de forma ultra rápida usando la clave primaria cuando no hay migraciones pendientes.
+  - Actualizamos la salida por consola para que en lugar de mostrar un mensaje genérico, muestre con exactitud el nombre del archivo de la última migración registrada.
+- **Evidencia**: Archivos modificados: `backend/scripts/migrationRunner.js`, `EVOLUCION.md`.
+
+
 
 
 
