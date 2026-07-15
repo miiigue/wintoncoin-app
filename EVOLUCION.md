@@ -4055,8 +4055,27 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
     - **Problema**: En pantallas móviles de 480px o menos, una regla CSS heredada aplicaba la propiedad `top: 14px;` a los pseudoelementos `::before` y `::after` de la tarjeta de impulsor. Esto causaba que el brillo verde animado (`::after`), de altura 100%, se desplazara 14px hacia abajo, dejando la sección superior de la tarjeta sin iluminar y desbordando la inferior.
     - **Solución**: Modificamos la regla en la media query móvil para desvincular el `::after` de la regla de `top: 14px;`, fijándolo de forma independiente en `top: 0;`.
     - Resultado: El brillo verde animado recorre la tarjeta de forma simétrica desde su borde superior exacto en dispositivos móviles.
-- **Verificación**: La compilación posterior (`npm run build:demo`) concluyó exitosamente en `4.30s` transformando 135 módulos de Vite a producción sin errores.
 - **Evidencia**: Archivos modificados: `frontend/style.css`, `EVOLUCION.md`.
+
+---
+
+### 2026-07-14 — Auditoría de Experiencia de Usuario: Salvaguarda para Tours Guiados en Modo Prelanzamiento
+
+- **Autor**: Antigravity (AI Engineering — Gemini 3.5 Flash)
+- **Tipo**: UX Guard & Robustez de Código — Auditoría de Controladores
+- **Rama**: `feature/landing-donation-ticker`
+- **Contexto**: Durante una revisión exhaustiva para evitar cuellos de botella y errores en la interfaz, se auditó el comportamiento del sistema de onboarding (`onboarding.js`) frente a la ocultación dinámica del selector de pestañas del monedero en el Dashboard (`contract-interaction.js`).
+- **Problema Detectado**:
+  - El primer paso del tour guiado de la billetera y el tour de quema (`startWalletTour` y `startBurnTour` en `onboarding.js`) intentan resaltar el elemento `#tabBilletera`.
+  - Si el "Modo Prelanzamiento" está activo y el usuario inicia el tour (por ejemplo, haciendo clic desde la guía estática "Cómo Funciona" con la URL `?start_wallet_tour=true`), la regla previa ocultaba `.wallet-tabs-nav` completamente.
+  - Esto provocaría que el resaltador (`driver.js`) fallara al intentar enfocar un elemento con `display: none`, arruinando la experiencia e interrumpiendo el flujo educativo del usuario.
+- **Solución Implementada**:
+  - Modificamos la función `initializeWalletState()` en `contract-interaction.js`.
+  - Reordenamos las variables `urlParams`, `isWalletTour` e `isPendingTour` para declararlas al principio de la función, asegurando que estén disponibles al evaluar la interfaz.
+  - Actualizamos la condición de ocultamiento del selector: el elemento `.wallet-tabs-nav` se ocultará **únicamente si está en prelanzamiento Y el usuario no está ejecutando ninguno de los tours** (`isPreLaunch && !isWalletTour && !isPendingTour`). Si está en medio de un tour guiado, el selector se mantiene visible (`display: flex`) temporalmente para permitir al motor de guía enfocar el paso de la billetera adecuadamente.
+- **Verificación**: La compilación posterior (`npm run build:demo`) concluyó con éxito, generando `dist/assets/dashboard.B6CSTLE2.js` sin advertencias de dependencias circulares o referencias sin definir.
+- **Evidencia**: Archivos modificados: `frontend/src/pages/contract-interaction.js`, `EVOLUCION.md`.
+
 
 
 
