@@ -4073,8 +4073,23 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
   - Modificamos la función `initializeWalletState()` en `contract-interaction.js`.
   - Reordenamos las variables `urlParams`, `isWalletTour` e `isPendingTour` para declararlas al principio de la función, asegurando que estén disponibles al evaluar la interfaz.
   - Actualizamos la condición de ocultamiento del selector: el elemento `.wallet-tabs-nav` se ocultará **únicamente si está en prelanzamiento Y el usuario no está ejecutando ninguno de los tours** (`isPreLaunch && !isWalletTour && !isPendingTour`). Si está en medio de un tour guiado, el selector se mantiene visible (`display: flex`) temporalmente para permitir al motor de guía enfocar el paso de la billetera adecuadamente.
-- **Verificación**: La compilación posterior (`npm run build:demo`) concluyó con éxito, generando `dist/assets/dashboard.B6CSTLE2.js` sin advertencias de dependencias circulares o referencias sin definir.
 - **Evidencia**: Archivos modificados: `frontend/src/pages/contract-interaction.js`, `EVOLUCION.md`.
+
+---
+
+### 2026-07-14 — Ajuste de Alineación de Texto en Correos Transaccionales (emailService.js)
+
+- **Autor**: Antigravity (AI Engineering)
+- **Tipo**: Refinamiento y Mejora de Experiencia de Usuario (Backend)
+- **Rama**: `feature/landing-donation-ticker`
+- **Contexto**: Se detectó que las notificaciones de actualización/novedad en causas solidarias, al enviarse mediante el servicio transaccional del backend, mostraban el texto principal centrado. Esto dificultaba la lectura en textos detallados o con múltiples saltos de párrafo, restando calidad y profesionalismo.
+- **Solución Implementada**:
+  - Modificamos la función `sendTransactionEmail` en `backend/src/services/emailService.js` (línea 304).
+  - Cambiamos la alineación inline de la etiqueta `<p>` del mensaje principal de `text-align: center;` a `text-align: left;`.
+  - Agregamos comentarios de auditoría en la plantilla del correo explicando el motivo del cambio de acuerdo a los estándares bancarios de legibilidad y buenas prácticas.
+  - Resultado: Todos los correos transaccionales (recibos, alertas de KYC hold, reembolsos y novedades de causas) ahora alinean su contenido a la izquierda, brindando un aspecto uniforme, corporativo y fácil de leer.
+- **Evidencia**: Archivos modificados: `backend/src/services/emailService.js`, `EVOLUCION.md`.
+
 
 
 
