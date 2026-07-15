@@ -929,6 +929,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 body = { completerUsername: storedUsername };
                 await postToServer(endpoint, body);
                 break;
+            case 'desist': {
+                const isPending = button && button.textContent.toLowerCase().includes('solicitud');
+                const confirmMsg = isPending 
+                    ? '¿Deseas retirar tu solicitud para esta tarea? Tu postulación será eliminada y el cupo quedará libre para otros postulantes.'
+                    : '¿Deseas abandonar esta tarea? Tu participación se cancelará y el cupo se liberará de inmediato para otros ayudantes.';
+                showCustomConfirm(confirmMsg, async () => {
+                    endpoint = `/publications/${pubId}/desist`;
+                    body = { acceptorUsername: storedUsername };
+                    await postToServer(endpoint, body);
+                });
+                break;
+            }
             case 'confirm-payment':
                 const publicationElement = button.closest('.publication-item');
                 const authorUsername = publicationElement?.dataset.author;
