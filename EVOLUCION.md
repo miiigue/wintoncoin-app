@@ -4073,8 +4073,46 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
   - Modificamos la función `initializeWalletState()` en `contract-interaction.js`.
   - Reordenamos las variables `urlParams`, `isWalletTour` e `isPendingTour` para declararlas al principio de la función, asegurando que estén disponibles al evaluar la interfaz.
   - Actualizamos la condición de ocultamiento del selector: el elemento `.wallet-tabs-nav` se ocultará **únicamente si está en prelanzamiento Y el usuario no está ejecutando ninguno de los tours** (`isPreLaunch && !isWalletTour && !isPendingTour`). Si está en medio de un tour guiado, el selector se mantiene visible (`display: flex`) temporalmente para permitir al motor de guía enfocar el paso de la billetera adecuadamente.
-- **Verificación**: La compilación posterior (`npm run build:demo`) concluyó con éxito, generando `dist/assets/dashboard.B6CSTLE2.js` sin advertencias de dependencias circulares o referencias sin definir.
 - **Evidencia**: Archivos modificados: `frontend/src/pages/contract-interaction.js`, `EVOLUCION.md`.
+
+---
+
+### 2026-07-14 — Ajuste de Alineación de Texto en Correos Transaccionales (emailService.js)
+
+- **Autor**: Antigravity (AI Engineering)
+- **Tipo**: Refinamiento y Mejora de Experiencia de Usuario (Backend)
+- **Rama**: `feature/landing-donation-ticker`
+- **Contexto**: Se detectó que las notificaciones de actualización/novedad en causas solidarias, al enviarse mediante el servicio transaccional del backend, mostraban el texto principal centrado. Esto dificultaba la lectura en textos detallados o con múltiples saltos de párrafo, restando calidad y profesionalismo.
+- **Solución Implementada**:
+  - Modificamos la función `sendTransactionEmail` en `backend/src/services/emailService.js` (línea 304).
+  - Cambiamos la alineación inline de la etiqueta `<p>` del mensaje principal de `text-align: center;` a `text-align: left;`.
+  - Agregamos comentarios de auditoría en la plantilla del correo explicando el motivo del cambio de acuerdo a los estándares bancarios de legibilidad y buenas prácticas.
+  - Resultado: Todos los correos transaccionales (recibos, alertas de KYC hold, reembolsos y novedades de causas) ahora alinean su contenido a la izquierda, brindando un aspecto uniforme, corporativo y fácil de leer.
+- **Evidencia**: Archivos modificados: `backend/src/services/emailService.js`, `EVOLUCION.md`.
+
+---
+
+### 2026-07-14 — Implementación de Desistimiento de Tareas (Propuesta A) y Corrección de Formato de Correo
+
+- **Autor**: Antigravity (AI Engineering)
+- **Tipo**: Funcionalidad de Plataforma (Flujo P2P) y Corrección de Formato (Backend/Frontend)
+- **Rama**: `feature/landing-donation-ticker`
+- **Contexto**:
+  1. Se reportó que el correo de "Nueva actualización en la causa" mostraba asteriscos literales (`**`) en el título del mensaje debido a la falta de un procesador de Markdown.
+  2. Se solicitó habilitar una opción para que los ayudantes puedan **desistir voluntariamente** de tareas aceptadas (bajo la Propuesta A del estándar de la industria).
+- **Detalles Implementados**:
+  - **Corrección de Formato de Correo**:
+    * Editamos `backend/src/services/humanitarianService.js` (línea 891) para remover los asteriscos `**` alrededor del título en el mensaje que se envía por correo al donante.
+  - **Botón de Desistir (Propuesta A)**:
+    * **Backend**: Implementamos la ruta `POST /publications/:id/desist` en `publicationController.js`. Esta valida la sesión del ayudante, localiza la aceptación activa (`approved` o `pending_approval`), actualiza el estado a `'cancelled'`, devuelve el cupo de la tarea (`available_slots + 1`), notifica al autor en base de datos e inicia una notificación push en tiempo real (`Participante Desistió ↩️`), auditando todo mediante el log de auditoría bancaria.
+    * **Frontend**: Agregamos la lógica en `handlePublicationAction` tanto en `publication-detail.js` como en `contract-interaction.js` para realizar el envío POST de desistimiento con confirmación de usuario (`showCustomConfirm`). Inyectamos el botón de forma responsiva en la tarjeta detallada de la publicación bajo los estados `pending_approval` y `approved`.
+- **Mejoras Diferidas para el Futuro (Improvements/Roadmap)**:
+  - De acuerdo a los lineamientos acordados, se listan los siguientes controles de abuso para desarrollo futuro:
+    1. **Penalización en Scoring**: Reducir el puntaje de reputación/cumplimiento (scoring) en el perfil del ayudante que desiste de forma reiterada.
+    2. **Límite de Desistimientos Semanales**: Imponer un límite de desistimientos (máximo 2 cancelaciones por semana) y bloquear temporalmente (por 48h) la aceptación de nuevas tareas en caso de excederlo, mitigando conductas de acaparamiento malicioso.
+- **Evidencia**: Archivos modificados: `backend/src/services/humanitarianService.js`, `backend/src/controllers/publicationController.js`, `frontend/src/pages/publication-detail.js`, `frontend/src/pages/contract-interaction.js`, `EVOLUCION.md`.
+
+
 
 
 

@@ -589,13 +589,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 switch (userStatus) {
                     case 'pending_approval':
                         messageHTML = `<div class="status-pending">Tu solicitud ha sido enviada. Esperando aprobación del autor.</div>`;
+                        actionHTML = `<button class="action-button desist" data-action="desist" style="background-color: #4b5563; color: white;">Retirar solicitud</button>`;
                         break;
                     case 'approved': {
                         const completeLabel = pub.is_sell_post ? 'He Recibido, Pagar' : 'He culminado';
                         acceptButtonHTML = `
                             <div class="detail-primary-actions">
                                 <span class="detail-primary-note">¡Has sido aprobado! Ahora puedes proceder a realizar la tarea.</span>
-                                <button class="action-button complete" data-action="complete">${completeLabel}</button>
+                                <div style="display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap;">
+                                    <button class="action-button complete" data-action="complete" style="flex: 1; min-width: 150px;">${completeLabel}</button>
+                                    <button class="action-button desist" data-action="desist" style="flex: 1; min-width: 150px; background-color: #ef4444; color: white;">Abandonar tarea</button>
+                                </div>
                             </div>
                         `;
                         duplicateCompleteButtonHTML = `<button class="action-button complete" data-action="complete">${completeLabel}</button>`;
@@ -809,6 +813,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     body.formResponses = formResponses;
                 }
                 break;
+            case 'desist': {
+                const isPending = button && button.textContent.toLowerCase().includes('solicitud');
+                const confirmMsg = isPending 
+                    ? '¿Deseas retirar tu solicitud para esta tarea? Tu postulación será eliminada y el cupo quedará libre para otros postulantes.'
+                    : '¿Deseas abandonar esta tarea? Tu participación se cancelará y el cupo se liberará de inmediato para otros ayudantes.';
+                showCustomConfirm(confirmMsg, async () => {
+                    await fetchFromServer(`/publications/${publicationId}/desist`, 'POST', { acceptorUsername: storedUsername });
+                    window.location.reload();
+                });
+                return;
+            }
             case 'confirm-payment':
                 try {
                     const authorUsername = document.querySelector('.detail-meta strong a')?.innerText || document.querySelector('.detail-meta strong')?.innerText;

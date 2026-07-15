@@ -1109,6 +1109,104 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         }
     });
 
+    // Ruta para que un trabajador/ayudante desista de una tarea o solicitud
+    router.post('/publications/:id/desist', requireAcceptedLegalByUsernameField(['acceptorUsername']), async (req, res) => {
+        const { id } = req.params;
+        const { acceptorUsername } = req.body;
+        const actorUsername = resolveActorUsername(req, acceptorUsername);
+
+        // Seguridad: El usuario que desiste debe coincidir con el actor autenticado
+        if (actorUsername !== acceptorUsername) {
+            return res.status(403).json({ message: "No estás autorizado para desistir en nombre de otro usuario." });
+        }
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            // 1. Verificar existencia y estado de la publicación
+            const pubResult = await client.query(
+                `SELECT p.*, u.username as author_username
+                 FROM publications p
+                 JOIN users u ON p.author_id = u.id
+                 WHERE p.id = $1 AND p.deleted_at IS NULL
+                 FOR UPDATE`,
+                [id]
+            );
+            const pub = pubResult.rows[0];
+
+            if (!pub) {
+                throw { status: 404, message: "La publicación ya no existe o ha sido eliminada." };
+            }
+
+            // 2. Buscar si hay una aceptación activa en estado 'pending_approval' o 'approved'
+            const acceptanceResult = await client.query(
+                `SELECT id, status FROM publication_acceptances 
+                 WHERE publication_id = $1 AND acceptor_username = $2 AND status IN ('pending_approval', 'approved')
+                 FOR UPDATE`,
+                [id, acceptorUsername]
+            );
+
+            const acceptance = acceptanceResult.rows[0];
+            if (!acceptance) {
+                throw { status: 404, message: "No tienes una solicitud activa o aprobada de la cual puedas desistir." };
+            }
+
+            // 3. Cambiar el estado de la aceptación a 'cancelled'
+            await client.query(
+                `UPDATE publication_acceptances SET status = 'cancelled' WHERE id = $1`,
+                [acceptance.id]
+            );
+
+            // 4. Devolver el cupo a la publicación (incrementar slots disponibles)
+            await client.query(
+                `UPDATE publications SET available_slots = available_slots + 1 WHERE id = $1`,
+                [id]
+            );
+
+            // 5. Insertar notificación para el autor de la tarea
+            const notificationMsg = `El usuario @${acceptorUsername} ha desistido de la tarea "${pub.title}". Su cupo ha sido liberado.`;
+            await client.query(
+                `INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`,
+                [pub.author_username, notificationMsg]
+            );
+
+            // 6. NOTIFICACIÓN PUSH al autor
+            try {
+                await notificationService.sendNotificationToUser(pub.author_id, {
+                    title: 'Participante Desistió ↩️',
+                    body: `@${acceptorUsername} ha desistido de tu tarea: ${pub.title}`,
+                    icon: '/assets/icons/icon-192x192.png',
+                    data: { url: '/momentum-dashboard.html' }
+                }, 'TRANSACTIONAL');
+            } catch (pushErr) {
+                console.error("[DESIST PUSH] Falló el envío de push notification:", pushErr.message);
+            }
+
+            // 7. Auditoría
+            await logAuditEvent(client, req, {
+                eventType: 'publication.desisted',
+                actorUsername: acceptorUsername,
+                targetUsername: pub.author_username,
+                publicationId: parseInt(id, 10),
+                category: pub.category,
+                metadata: {
+                    acceptance_id: acceptance.id,
+                    previous_status: acceptance.status
+                }
+            });
+
+            await client.query('COMMIT');
+            res.status(200).json({ message: "Has desistido de la tarea exitosamente. El cupo ha sido liberado." });
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error("Error en /desist:", error);
+            res.status(error.status || 500).json({ message: error.message || "Error interno al desistir de la tarea." });
+        } finally {
+            client.release();
+        }
+    });
+
     // Ruta para Descartar/Rechazar a un usuario (Admin o Autor)
     router.post('/publications/:id/discard', verifyAdminToken, requireAcceptedLegalByUsernameField(['discarderUsername']), async (req, res) => {
         const { id } = req.params;

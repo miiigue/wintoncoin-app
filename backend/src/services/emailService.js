@@ -301,7 +301,8 @@ async function sendTransactionEmail({ toEmail, subject, title, message, amount, 
               </div>
 
               <!-- Mensaje -->
-              <p style="margin: 0 0 24px 0; color: #344054; font-size: 16px; line-height: 24px; text-align: center;">
+              <!-- AUDITORÍA UX: Cambiado a text-align: left para mejorar legibilidad en descripciones y novedades largas -->
+              <p style="margin: 0 0 24px 0; color: #344054; font-size: 16px; line-height: 24px; text-align: left;">
                 ${escapeHtml(message).replace(/\n/g, '<br />')}
               </p>
 

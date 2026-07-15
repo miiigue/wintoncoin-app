@@ -888,7 +888,7 @@ const sendCauseUpdateEmail = async (donorEmail, donorUsername, causeTitle, updat
             toEmail: donorEmail,
             subject: `📢 Nueva actualización en la causa: "${causeTitle}" — Winton Solidario`,
             title: 'Actualización de Causa Solidaria',
-            message: `¡Hola @${donorUsername}!\n\nQueremos mantenerte informado del impacto de tu generosidad. El organizador @${creatorUsername} ha compartido una novedad en la causa "${causeTitle}":\n\n🔹 **${updateTitle}**\n${updateText}\n\nGracias por seguir apoyando y haciendo posible este logro.`,
+            message: `¡Hola @${donorUsername}!\n\nQueremos mantenerte informado del impacto de tu generosidad. El organizador @${creatorUsername} ha compartido una novedad en la causa "${causeTitle}":\n\n🔹 ${updateTitle}\n\n${updateText}\n\nGracias por seguir apoyando y haciendo posible este logro.`,
             amount: 'Novedades de Campaña',
             details: [
                 { label: 'Causa Humanitaria', value: causeTitle },
