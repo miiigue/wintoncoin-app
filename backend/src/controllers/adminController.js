@@ -27,9 +27,11 @@ const { logAuditEvent } = require('../services/auditService');
 const boosterService = require('../services/boosterService');
 const govDemoRewardService = require('../services/governanceDemoRewardService');
 const notificationService = require('../services/notificationService');
-const { sendGovernanceEmail } = require('../services/emailService');
+const { sendGovernanceEmail, sendTransactionEmail, generateOtp6, hashOtpForEmail, safeEqualHex, sendOtpEmail } = require('../services/emailService');
 const governanceRewardService = require('../services/governanceRewardService');
 const { resolveRepeatCooldownHours } = require('../services/publicationService');
+// [SECURITY] Importación centralizada de 'crypto' — evita require() dispersos dentro de funciones (Hallazgo #6 Auditoría)
+const crypto = require('crypto');
 
 // ─── Helper: Governance Guard ────────────────────────────────────────────
 // Verifica si el sistema de gobernanza está activo.
@@ -46,6 +48,47 @@ async function _checkGovernanceActive() {
         if (err.code === '42P01') return false;
         throw err;
     }
+}
+
+// Helper: Sanitización de campos de formulario para publicaciones oficiales de la plataforma (Hallazgo #7 Auditoría)
+function _sanitizeFormFields(formFields) {
+    const ALLOWED_FIELD_TYPES = ['text', 'textarea'];
+    const MAX_STEPS = 20;
+    const MAX_FIELDS_PER_STEP = 10;
+    const MAX_LABEL_LENGTH = 200;
+
+    if (!formFields || typeof formFields !== 'object' || Object.keys(formFields).length === 0) {
+        return null;
+    }
+
+    const sanitized = {};
+    const stepKeys = Object.keys(formFields).slice(0, MAX_STEPS);
+
+    for (const stepKey of stepKeys) {
+        const stepNum = parseInt(stepKey, 10);
+        if (!Number.isFinite(stepNum) || stepNum < 1 || stepNum > MAX_STEPS) continue;
+
+        const fields = formFields[stepKey];
+        if (!Array.isArray(fields)) continue;
+
+        const sanitizedFields = [];
+        for (const field of fields.slice(0, MAX_FIELDS_PER_STEP)) {
+            if (typeof field === 'string') {
+                const trimmed = field.trim().substring(0, MAX_LABEL_LENGTH);
+                if (trimmed) sanitizedFields.push({ label: trimmed, type: 'text' });
+            } else if (field && typeof field === 'object' && typeof field.label === 'string') {
+                const label = field.label.trim().substring(0, MAX_LABEL_LENGTH);
+                const type = ALLOWED_FIELD_TYPES.includes(field.type) ? field.type : 'text';
+                if (label) sanitizedFields.push({ label, type });
+            }
+        }
+
+        if (sanitizedFields.length > 0) {
+            sanitized[String(stepNum)] = sanitizedFields;
+        }
+    }
+
+    return Object.keys(sanitized).length > 0 ? sanitized : null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -614,7 +657,8 @@ async function getPlatformWalletBalance(req, res) {
         });
     } catch (error) {
         console.error("[AdminController] Error al obtener balance de billetera:", error);
-        res.status(500).json({ message: error.message });
+        // [SECURITY] Mensaje genérico para prevenir fuga de información interna (Hallazgo #2 Auditoría)
+        res.status(500).json({ message: "Error interno del servidor." });
     } finally {
         client.release();
     }
@@ -1081,10 +1125,17 @@ async function getAdminPublications(req, res) {
 
 async function restorePublication(req, res) {
     const { id } = req.params;
+
+    // [SECURITY] Sanitización defensiva del ID de publicación (Hallazgo #3 Auditoría)
+    const safeId = parseInt(id, 10);
+    if (!Number.isFinite(safeId) || safeId <= 0) {
+        return res.status(400).json({ message: 'ID de publicación inválido.' });
+    }
+
     try {
         const pubResult = await pool.query(
             `SELECT id, category, deleted_at FROM publications WHERE id = $1`,
-            [id]
+            [safeId]
         );
 
         if (pubResult.rowCount === 0) {
@@ -1099,13 +1150,13 @@ async function restorePublication(req, res) {
             `UPDATE publications
              SET deleted_at = NULL, deleted_by_username = NULL
              WHERE id = $1`,
-            [id]
+            [safeId]
         );
 
         await logAuditEvent(pool, req, {
             eventType: 'admin.publication.restored',
             actorUsername: req.user?.username || 'admin',
-            publicationId: parseInt(id, 10),
+            publicationId: safeId,
             category: pubResult.rows[0].category,
             metadata: { soft_delete: false, restored: true }
         });
@@ -1119,10 +1170,17 @@ async function restorePublication(req, res) {
 
 async function deletePublicationAdmin(req, res) {
     const { id } = req.params;
+
+    // [SECURITY] Sanitización defensiva del ID de publicación (Hallazgo #3 Auditoría)
+    const safeId = parseInt(id, 10);
+    if (!Number.isFinite(safeId) || safeId <= 0) {
+        return res.status(400).json({ message: 'ID de publicación inválido.' });
+    }
+
     try {
         const pubResult = await pool.query(
             `SELECT id, category, deleted_at FROM publications WHERE id = $1`,
-            [id]
+            [safeId]
         );
 
         if (pubResult.rowCount === 0) {
@@ -1137,7 +1195,7 @@ async function deletePublicationAdmin(req, res) {
             `UPDATE publications
              SET deleted_at = NOW(), deleted_by_username = $2
              WHERE id = $1`,
-            [id, req.user?.username || 'admin']
+            [safeId, req.user?.username || 'admin']
         );
 
         if (updateResult.rowCount === 0) {
@@ -1147,7 +1205,7 @@ async function deletePublicationAdmin(req, res) {
         await logAuditEvent(pool, req, {
             eventType: 'admin.publication.deleted',
             actorUsername: req.user?.username || 'admin',
-            publicationId: parseInt(id, 10),
+            publicationId: safeId,
             category: pubResult.rows[0].category,
             metadata: { soft_delete: true }
         });
@@ -1208,7 +1266,8 @@ async function createDatabaseBackup(req, res) {
         });
     } catch (error) {
         console.error('Error creating backup:', error);
-        res.status(500).json({ message: 'Error al crear el backup: ' + error.message });
+        // [SECURITY] Mensaje genérico para prevenir fuga de rutas internas del servidor (Hallazgo #2 Auditoría)
+        res.status(500).json({ message: 'Error interno del servidor.' });
     }
 }
 
@@ -1263,7 +1322,7 @@ async function cleanupTestData(req, res) {
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('[ADMIN CLEANUP] Error durante limpieza de datos de prueba:', error);
-        res.status(500).json({ message: 'Error durante la limpieza: ' + error.message });
+        res.status(500).json({ message: 'Error interno del servidor.' });
     } finally {
         client.release();
     }
@@ -1271,7 +1330,8 @@ async function cleanupTestData(req, res) {
 
 // Endpoint para limpiar usuarios inactivos
 async function cleanupInactiveUsers(req, res) {
-    const { daysInactive = 90 } = req.body;
+    // [SECURITY] Sanitización estricta: convertir a entero para prevenir SQL Injection (Hallazgo #1 — CRÍTICA)
+    const daysInactive = parseInt(req.body.daysInactive, 10) || 90;
     const client = await pool.connect();
 
     try {
@@ -1291,25 +1351,26 @@ async function cleanupInactiveUsers(req, res) {
         await client.query('BEGIN');
 
         // Obtener usuarios inactivos para mostrar en los logs
+        // [SECURITY] Query parametrizada con make_interval() — previene SQL Injection (Hallazgo #1 — CRÍTICA)
         const inactiveUsersQuery = await client.query(`
             SELECT username, created_at, liquid_blue_balance, escrow_blue_balance, red_balance
             FROM users 
-            WHERE created_at < NOW() - INTERVAL '${daysInactive} days'
+            WHERE created_at < NOW() - make_interval(days => $1)
             AND username NOT LIKE '%Plataforma%'
             AND liquid_blue_balance = 100.0000
             AND escrow_blue_balance = 0.0000
             AND red_balance = 0.0000
-        `);
+        `, [daysInactive]);
 
-        // Eliminar usuarios inactivos
+        // Eliminar usuarios inactivos — query parametrizada (Hallazgo #1)
         const deleteResult = await client.query(`
             DELETE FROM users 
-            WHERE created_at < NOW() - INTERVAL '${daysInactive} days'
+            WHERE created_at < NOW() - make_interval(days => $1)
             AND username NOT LIKE '%Plataforma%'
             AND liquid_blue_balance = 100.0000
             AND escrow_blue_balance = 0.0000
             AND red_balance = 0.0000
-        `);
+        `, [daysInactive]);
 
         await client.query('COMMIT');
 
@@ -1327,7 +1388,7 @@ async function cleanupInactiveUsers(req, res) {
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('[ADMIN CLEANUP] Error durante limpieza de usuarios inactivos:', error);
-        res.status(500).json({ message: 'Error durante la limpieza: ' + error.message });
+        res.status(500).json({ message: 'Error interno del servidor.' });
     } finally {
         client.release();
     }
@@ -1335,7 +1396,8 @@ async function cleanupInactiveUsers(req, res) {
 
 // Endpoint para limpiar publicaciones antiguas
 async function cleanupOldPublications(req, res) {
-    const { daysOld = 180 } = req.body;
+    // [SECURITY] Sanitización estricta: convertir a entero para prevenir SQL Injection (Hallazgo #1 — CRÍTICA)
+    const daysOld = parseInt(req.body.daysOld, 10) || 180;
     const client = await pool.connect();
 
     try {
@@ -1354,12 +1416,12 @@ async function cleanupOldPublications(req, res) {
 
         await client.query('BEGIN');
 
-        // Eliminar publicaciones antiguas
+        // Eliminar publicaciones antiguas — query parametrizada (Hallazgo #1)
         const deleteResult = await client.query(`
             DELETE FROM publications 
-            WHERE created_at < NOW() - INTERVAL '${daysOld} days'
+            WHERE created_at < NOW() - make_interval(days => $1)
             AND status IN ('completed', 'confirmed_paid')
-        `);
+        `, [daysOld]);
 
         await client.query('COMMIT');
 
@@ -1377,7 +1439,7 @@ async function cleanupOldPublications(req, res) {
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('[ADMIN CLEANUP] Error durante limpieza de publicaciones antiguas:', error);
-        res.status(500).json({ message: 'Error durante la limpieza: ' + error.message });
+        res.status(500).json({ message: 'Error interno del servidor.' });
     } finally {
         client.release();
     }
@@ -1864,42 +1926,8 @@ async function createPlatformPublication(req, res) {
         }
         const authorId = userResult.rows[0].id;
 
-        const ALLOWED_FIELD_TYPES = ['text', 'textarea'];
-        const MAX_STEPS = 20;
-        const MAX_FIELDS_PER_STEP = 10;
-        const MAX_LABEL_LENGTH = 200;
-
-        let sanitizedFormFields = null;
-        if (formFields && typeof formFields === 'object' && Object.keys(formFields).length > 0) {
-            const sanitized = {};
-            const stepKeys = Object.keys(formFields).slice(0, MAX_STEPS);
-
-            for (const stepKey of stepKeys) {
-                const stepNum = parseInt(stepKey, 10);
-                if (!Number.isFinite(stepNum) || stepNum < 1 || stepNum > MAX_STEPS) continue;
-
-                const fields = formFields[stepKey];
-                if (!Array.isArray(fields)) continue;
-
-                const sanitizedFields = [];
-                for (const field of fields.slice(0, MAX_FIELDS_PER_STEP)) {
-                    if (typeof field === 'string') {
-                        const trimmed = field.trim().substring(0, MAX_LABEL_LENGTH);
-                        if (trimmed) sanitizedFields.push({ label: trimmed, type: 'text' });
-                    } else if (field && typeof field === 'object' && typeof field.label === 'string') {
-                        const label = field.label.trim().substring(0, MAX_LABEL_LENGTH);
-                        const type = ALLOWED_FIELD_TYPES.includes(field.type) ? field.type : 'text';
-                        if (label) sanitizedFields.push({ label, type });
-                    }
-                }
-
-                if (sanitizedFields.length > 0) {
-                    sanitized[String(stepNum)] = sanitizedFields;
-                }
-            }
-
-            sanitizedFormFields = Object.keys(sanitized).length > 0 ? sanitized : null;
-        }
+        // [SECURITY] Sanitización modular de formFields usando helper para evitar duplicación (Hallazgo #7 Auditoría)
+        const sanitizedFormFields = _sanitizeFormFields(formFields);
 
         const sql = `
             INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, is_booster_task, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, target_username, form_fields, show_preflight_modal) 
@@ -2006,42 +2034,8 @@ async function updatePlatformPublication(req, res) {
             }
         }
 
-        const ALLOWED_FIELD_TYPES_EDIT = ['text', 'textarea'];
-        const MAX_STEPS_EDIT = 20;
-        const MAX_FIELDS_PER_STEP_EDIT = 10;
-        const MAX_LABEL_LENGTH_EDIT = 200;
-
-        let sanitizedFormFields = null;
-        if (formFields && typeof formFields === 'object' && Object.keys(formFields).length > 0) {
-            const sanitized = {};
-            const stepKeys = Object.keys(formFields).slice(0, MAX_STEPS_EDIT);
-
-            for (const stepKey of stepKeys) {
-                const stepNum = parseInt(stepKey, 10);
-                if (!Number.isFinite(stepNum) || stepNum < 1 || stepNum > MAX_STEPS_EDIT) continue;
-
-                const fields = formFields[stepKey];
-                if (!Array.isArray(fields)) continue;
-
-                const sanitizedFields = [];
-                for (const field of fields.slice(0, MAX_FIELDS_PER_STEP_EDIT)) {
-                    if (typeof field === 'string') {
-                        const trimmed = field.trim().substring(0, MAX_LABEL_LENGTH_EDIT);
-                        if (trimmed) sanitizedFields.push({ label: trimmed, type: 'text' });
-                    } else if (field && typeof field === 'object' && typeof field.label === 'string') {
-                        const label = field.label.trim().substring(0, MAX_LABEL_LENGTH_EDIT);
-                        const type = ALLOWED_FIELD_TYPES_EDIT.includes(field.type) ? field.type : 'text';
-                        if (label) sanitizedFields.push({ label, type });
-                    }
-                }
-
-                if (sanitizedFields.length > 0) {
-                    sanitized[String(stepNum)] = sanitizedFields;
-                }
-            }
-
-            sanitizedFormFields = Object.keys(sanitized).length > 0 ? sanitized : null;
-        }
+        // [SECURITY] Sanitización modular de formFields usando helper para evitar duplicación (Hallazgo #7 Auditoría)
+        const sanitizedFormFields = _sanitizeFormFields(formFields);
 
         const updateSql = `
             UPDATE publications
@@ -2184,67 +2178,7 @@ async function getReferralsLog(req, res) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// EXPORTACIÓN DE MÓDULO
-// ═══════════════════════════════════════════════════════════════════════════
 
-module.exports = {
-    login,
-    logout,
-    getSettings,
-    updateSetting,
-    getUsers,
-    updateUserStatus,
-    updateUserReferralCode,
-    getDebtors,
-    getDashboardStats,
-    getPlatformWalletBalance,
-    getPlatformWalletLog,
-    getBoosterStages,
-    saveBoosterStage,
-    getAuditLog,
-    createBroadcastEmail,
-    getBroadcastEmails,
-    getBroadcastRecipients,
-    getUserKycStatus,
-    getAdminPublications,
-    restorePublication,
-    deletePublicationAdmin,
-    getDatabaseStats,
-    createDatabaseBackup,
-    cleanupTestData,
-    cleanupInactiveUsers,
-    cleanupOldPublications,
-    getBoosterSettings,
-    updateBoosterSettings,
-    getBoosterStats,
-    getBoostersList,
-    getBoosterPaymentsLog,
-    rebuildBoosterLedger,
-    getGovernanceRewardStats,
-    processGovernanceRewards,
-    createPlatformPublication,
-    updatePlatformPublication,
-    getPlatformPublicationsWithParticipants,
-    getReferralsLog,
-    getDemoExportStats,
-    generateDemoExport,
-    getDemoExportHistory,
-    downloadDemoExport,
-    previewDemoImport,
-    processDemoImport,
-    createInvitation,
-    getInvitations,
-    verifyInvitation,
-    claimInvitation,
-    getAdminProfile,
-    changePassword,
-    deleteInvitation,
-    getAdminUsers,
-    updateAdminStatus,
-    getReferralTiers,
-    updateReferralTiers,
-};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // GOBERNANZA DEMO (IMPORTACIÓN Y EXPORTACIÓN)
@@ -2269,7 +2203,8 @@ async function generateDemoExport(req, res) {
         return res.json({ message: `${result.summary.total_votes} voto(s) exportados.`, data: result });
     } catch (error) {
         console.error('[ADMIN] Error generando exportación demo:', error);
-        return res.status(500).json({ message: error.message });
+        // [SECURITY] Mensaje genérico para prevenir fuga de información interna (Hallazgo #2 Auditoría)
+        return res.status(500).json({ message: 'Error interno del servidor.' });
     }
 }
 
@@ -2291,8 +2226,11 @@ async function downloadDemoExport(req, res) {
         return res.json(exportRecord);
     } catch (error) {
         console.error('[ADMIN] Error descargando exportación:', error);
-        return res.status(error.message.includes('no encontrada') ? 404 : 500)
-            .json({ message: error.message });
+        // [SECURITY] Sanitizar mensaje para prevenir fugas de error (Hallazgo #2 Auditoría)
+        if (error.message && error.message.includes('no encontrada')) {
+            return res.status(404).json({ message: 'Exportación no encontrada.' });
+        }
+        return res.status(500).json({ message: 'Error interno del servidor.' });
     }
 }
 
@@ -2410,7 +2348,8 @@ async function processDemoImport(req, res) {
         });
     } catch (error) {
         console.error('[ADMIN] Error procesando importación demo:', error);
-        return res.status(500).json({ message: error.message });
+        // [SECURITY] Mensaje genérico para prevenir fuga de información interna (Hallazgo #2 Auditoría)
+        return res.status(500).json({ message: 'Error interno del servidor.' });
     }
 }
 
@@ -2453,9 +2392,9 @@ async function createInvitation(req, res) {
         // 2. Comprobar si el correo ya tiene una cuenta administrativa activa reclamada.
         // Un administrador puede ser un usuario registrado previamente en la plataforma, por lo que su correo
         // existirá en la tabla de usuarios generales ('users') y NO debemos bloquearlo por ese motivo.
-        // Para verificar si ya posee acceso admin, buscamos si tiene una invitación reclamada en 'admin_invitations'.
+        // Para verificar si ya posee acceso admin, buscamos directamente en la tabla de administradores activos (Hallazgo #5 Auditoría).
         const adminCheck = await client.query(
-            "SELECT id FROM admin_invitations WHERE email = $1 AND used_at IS NOT NULL",
+            "SELECT id FROM admin_users WHERE LOWER(email) = LOWER($1)",
             [email]
         );
 
@@ -2465,7 +2404,6 @@ async function createInvitation(req, res) {
         }
 
         // 3. Generar token de alta entropía (criptográficamente seguro)
-        const crypto = require('crypto');
         const token = crypto.randomBytes(32).toString('hex');
         // Hashear el token para mitigar el riesgo si la DB es filtrada (Zero Hardcoded/Leaked Secrets)
         const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -2596,7 +2534,6 @@ async function verifyInvitation(req, res) {
     }
 
     try {
-        const crypto = require('crypto');
         const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
         const result = await pool.query(
@@ -2661,7 +2598,6 @@ async function claimInvitation(req, res) {
         await client.query('BEGIN');
 
         // 1. Validar el token
-        const crypto = require('crypto');
         const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
         const inviteResult = await client.query(
@@ -2698,15 +2634,26 @@ async function claimInvitation(req, res) {
             return res.status(409).json({ message: "El nombre de usuario administrativo ya está en uso." });
         }
 
+        // 2.1 Verificar duplicidad de correo (case-insensitive) para dar una respuesta limpia de negocio
+        const emailCheck = await client.query(
+            'SELECT id FROM admin_users WHERE LOWER(email) = LOWER($1)',
+            [invite.email]
+        );
+
+        if (emailCheck.rowCount > 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ message: "El correo electrónico asociado a esta invitación ya está registrado en otra cuenta administrativa activa." });
+        }
+
         // 3. Hashear la contraseña con bcrypt (10 rounds)
         const saltRounds = 10;
         const passwordHash = await bcrypt.hash(password, saltRounds);
 
-        // 4. Crear el nuevo administrador en admin_users
+        // 4. Crear el nuevo administrador en admin_users (SOC 2: persistir el email verificado)
         await client.query(
-            `INSERT INTO admin_users (username, password_hash, role, account_status)
-             VALUES ($1, $2, $3, 'active')`,
-            [username, passwordHash, invite.role]
+            `INSERT INTO admin_users (username, password_hash, role, email, account_status)
+             VALUES ($1, $2, $3, $4, 'active')`,
+            [username, passwordHash, invite.role, invite.email]
         );
 
         // 5. Marcar invitación como utilizada
@@ -2755,7 +2702,7 @@ async function getAdminProfile(req, res) {
         // 2. Realizar consulta SQL parametrizada a la tabla admin_users
         // Consultamos id, username y role de forma segura para evitar inyecciones SQL y optimizar el rendimiento al traer solo campos necesarios.
         const result = await pool.query(
-            'SELECT id, username, role FROM admin_users WHERE username = $1',
+            'SELECT id, username, role, email FROM admin_users WHERE username = $1',
             [req.user.username]
         );
 
@@ -2776,24 +2723,19 @@ async function getAdminProfile(req, res) {
 }
 
 /**
- * Cambia la contraseña del administrador autenticado de forma segura.
- * Valida la contraseña actual, comprueba la seguridad de la nueva clave,
- * actualiza el hash en base de datos, destruye la sesión mediante HttpOnly cookies y registra la auditoría.
- * Cumple con los lineamientos de Zero-Trust y estándares de auditoría financiera (SOC 2).
+ * Paso 1: Solicitar cambio de contraseña.
+ * Valida la clave actual y envía OTP al email del admin.
+ * Envía alerta a superadmins.
  */
-async function changePassword(req, res) {
-    const { currentPassword, newPassword } = req.body;
+async function requestPasswordChange(req, res) {
+    const { currentPassword } = req.body;
     
-    // 1. [FINTECH SECURITY] Validación de campos obligatorios en el payload
-    if (!currentPassword || !newPassword) {
-        return res.status(400).json({ message: "Se requiere la contraseña actual y la nueva contraseña." });
+    if (!currentPassword) {
+        return res.status(400).json({ message: "Se requiere la contraseña actual." });
     }
-
-    // [DoS PROTECTION] Limitar longitud de contraseñas contra CPU Exhaustion en hashing
-    if (currentPassword.length > 72 || newPassword.length > 72) {
+    if (currentPassword.length > 72) {
         return res.status(400).json({ message: "La contraseña no puede exceder los 72 caracteres por razones de seguridad." });
     }
-
     if (!req.user || !req.user.username) {
         return res.status(401).json({ message: "Sesión administrativa no válida o no autenticada." });
     }
@@ -2801,10 +2743,9 @@ async function changePassword(req, res) {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-
-        // 2. Obtener el hash actual del administrador en la base de datos de forma segura (FOR UPDATE para mitigar condiciones de carrera)
+        
         const adminResult = await client.query(
-            'SELECT id, password_hash, account_status FROM admin_users WHERE username = $1 FOR UPDATE',
+            'SELECT id, email, password_hash, account_status FROM admin_users WHERE username = $1 FOR UPDATE',
             [req.user.username]
         );
 
@@ -2812,44 +2753,138 @@ async function changePassword(req, res) {
             await client.query('ROLLBACK');
             return res.status(404).json({ message: "Administrador no encontrado en el sistema." });
         }
-
         const admin = adminResult.rows[0];
 
         if (admin.account_status !== 'active') {
             await client.query('ROLLBACK');
             return res.status(403).json({ message: "La cuenta de administrador no se encuentra activa." });
         }
+        
+        if (!admin.email) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: "Tu cuenta no tiene un email registrado para recibir el código OTP. Contacta a un superadmin." });
+        }
 
-        // 3. Comparar de forma segura la contraseña actual ingresada con el hash bcrypt guardado
         const isMatch = await bcrypt.compare(currentPassword, admin.password_hash);
         if (!isMatch) {
             await client.query('ROLLBACK');
             return res.status(401).json({ message: "La contraseña actual introducida es incorrecta." });
         }
 
-        // 4. Validar fuerza de la nueva contraseña (estándar: mínimo 8 caracteres con letras y números)
-        if (newPassword.length < 8 || !/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ message: "La nueva contraseña debe tener al menos 8 caracteres, incluyendo letras y números." });
-        }
+        const otp = generateOtp6();
+        const otpHash = hashOtpForEmail(admin.email, otp);
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-        // 5. Prevenir reutilización de contraseña para evitar ataques de replay / credenciales estáticas
-        if (currentPassword === newPassword) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ message: "La nueva contraseña debe ser diferente a la contraseña actual." });
-        }
-
-        // 6. Hashear la nueva contraseña con 10 rondas de salt (Bcrypt Standard)
-        const saltRounds = 10;
-        const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
-
-        // 7. Actualizar la contraseña en la base de datos
         await client.query(
-            'UPDATE admin_users SET password_hash = $1 WHERE id = $2',
-            [newPasswordHash, admin.id]
+            'UPDATE admin_users SET password_change_hash = $1, password_change_expires_at = $2, password_change_attempts = 0 WHERE id = $3',
+            [otpHash, expiresAt, admin.id]
         );
 
-        // 8. Registro de auditoría inmutable de la acción de cambio de contraseña (SOC 2 Compliance)
+        await client.query('COMMIT');
+
+        const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
+        
+        sendOtpEmail({
+            toEmail: admin.email,
+            otp,
+            context: { ip, requestedAt: new Date().toISOString() }
+        }).catch(err => console.error('[ADMIN OTP ERROR]', err));
+
+        try {
+            const superadmins = await pool.query("SELECT email FROM admin_users WHERE LOWER(role) = 'superadmin' AND username != $1 AND email IS NOT NULL", [req.user.username]);
+            for (let row of superadmins.rows) {
+                sendTransactionEmail({
+                    toEmail: row.email,
+                    subject: '⚠️ Alerta de Seguridad: Solicitud de Cambio de Contraseña',
+                    title: 'Alerta de Seguridad',
+                    message: `El administrador @${req.user.username} ha iniciado una solicitud de cambio de contraseña desde la IP ${ip}. Si esta acción no fue autorizada, suspenda la cuenta inmediatamente.`,
+                    amount: '-',
+                    details: [{ label: 'Usuario', value: req.user.username }, { label: 'IP', value: ip }]
+                }).catch(e => console.error(e));
+            }
+        } catch (e) {
+            console.error('[ADMIN SUPERADMIN ALERT ERROR]', e);
+        }
+
+        return res.json({ message: "Se ha enviado un código de verificación (OTP) a tu correo registrado." });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('[AdminController] Error al solicitar cambio de contraseña:', error);
+        return res.status(500).json({ message: "Error interno del servidor al procesar la solicitud." });
+    } finally {
+        client.release();
+    }
+}
+
+/**
+ * Paso 2: Confirmar cambio de contraseña.
+ * Valida el OTP, guarda la nueva clave y envía confirmaciones.
+ */
+async function confirmPasswordChange(req, res) {
+    const { code, newPassword } = req.body;
+    
+    if (!code || !newPassword) {
+        return res.status(400).json({ message: "El código OTP y la nueva contraseña son requeridos." });
+    }
+    if (newPassword.length < 8 || !/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+        return res.status(400).json({ message: "La nueva contraseña debe tener al menos 8 caracteres, incluyendo letras y números." });
+    }
+    if (newPassword.length > 72) {
+        return res.status(400).json({ message: "La contraseña no puede exceder los 72 caracteres por razones de seguridad." });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        
+        const adminResult = await client.query(
+            'SELECT id, username, email, password_change_hash, password_change_expires_at, password_change_attempts FROM admin_users WHERE username = $1 FOR UPDATE',
+            [req.user.username]
+        );
+        const admin = adminResult.rows[0];
+
+        if (!admin.password_change_hash || !admin.password_change_expires_at) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ message: "Código de verificación inválido o expirado." });
+        }
+
+        if (admin.password_change_attempts >= 3) {
+            await client.query('UPDATE admin_users SET password_change_hash = NULL WHERE id = $1', [admin.id]);
+            await client.query('COMMIT');
+            return res.status(400).json({ message: "Demasiados intentos fallidos. El código ha sido invalidado. Solicita uno nuevo." });
+        }
+
+        if (new Date() > new Date(admin.password_change_expires_at)) {
+            await client.query('UPDATE admin_users SET password_change_hash = NULL WHERE id = $1', [admin.id]);
+            await client.query('COMMIT');
+            return res.status(400).json({ message: "El código de verificación ha expirado. Solicita uno nuevo." });
+        }
+
+        const expectedHash = hashOtpForEmail(admin.email, String(code).trim());
+        const isValid = safeEqualHex(admin.password_change_hash, expectedHash);
+
+        if (!isValid) {
+            const newAttempts = admin.password_change_attempts + 1;
+            if (newAttempts >= 3) {
+                await client.query('UPDATE admin_users SET password_change_hash = NULL, password_change_attempts = 0 WHERE id = $1', [admin.id]);
+                await client.query('COMMIT');
+                return res.status(400).json({ message: "Código incorrecto. Se ha excedido el número máximo de intentos. Solicita un nuevo código." });
+            } else {
+                await client.query('UPDATE admin_users SET password_change_attempts = $1 WHERE id = $2', [newAttempts, admin.id]);
+                await client.query('COMMIT');
+                return res.status(400).json({ message: `Código incorrecto. Te quedan ${3 - newAttempts} intentos.` });
+            }
+        }
+
+        const saltRounds = 10;
+        const newHash = await bcrypt.hash(newPassword, saltRounds);
+
+        await client.query(
+            'UPDATE admin_users SET password_hash = $1, password_change_hash = NULL, password_change_expires_at = NULL, password_change_attempts = 0 WHERE id = $2',
+            [newHash, admin.id]
+        );
+
         await logAuditEvent(client, req, {
             eventType: 'admin.password.changed',
             actorUsername: req.user.username,
@@ -2859,16 +2894,41 @@ async function changePassword(req, res) {
         });
 
         await client.query('COMMIT');
-
-        // 9. Destruir sesión invalidando la cookie HttpOnly en el cliente para forzar re-autenticación
         res.clearCookie('admin_token', { path: '/' });
+
+        const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
         
+        sendTransactionEmail({
+            toEmail: admin.email,
+            subject: '✅ Tu contraseña administrativa ha sido actualizada',
+            title: 'Contraseña Actualizada',
+            message: 'Tu contraseña de administrador en WintonCoin ha sido cambiada exitosamente.',
+            amount: '-',
+            details: [{ label: 'IP', value: ip }, { label: 'Usuario', value: req.user.username }]
+        }).catch(e => console.error(e));
+
+        try {
+            const superadmins = await pool.query("SELECT email FROM admin_users WHERE LOWER(role) = 'superadmin' AND username != $1 AND email IS NOT NULL", [req.user.username]);
+            for (let row of superadmins.rows) {
+                sendTransactionEmail({
+                    toEmail: row.email,
+                    subject: '✅ Registro de Auditoría: Cambio de Credencial Completado',
+                    title: 'Auditoría de Seguridad',
+                    message: `El administrador @${req.user.username} ha completado exitosamente su cambio de contraseña.`,
+                    amount: '-',
+                    details: [{ label: 'Usuario', value: req.user.username }, { label: 'IP', value: ip }]
+                }).catch(e => console.error(e));
+            }
+        } catch (e) {
+            console.error(e);
+        }
+
         return res.json({ message: "Contraseña cambiada exitosamente. Tu sesión ha sido cerrada por seguridad." });
 
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error('[AdminController] Error al cambiar contraseña de administrador:', error);
-        return res.status(500).json({ message: "Error interno del servidor al procesar el cambio de contraseña." });
+        console.error('[AdminController] Error al confirmar cambio de contraseña:', error);
+        return res.status(500).json({ message: "Error interno del servidor." });
     } finally {
         client.release();
     }
@@ -3165,5 +3225,68 @@ async function updateReferralTiers(req, res) {
         client.release();
     }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EXPORTACIÓN DE MÓDULO (Ubicado al final de forma profesional — Hallazgo #4 Auditoría)
+// ═══════════════════════════════════════════════════════════════════════════
+
+module.exports = {
+    login,
+    logout,
+    getSettings,
+    updateSetting,
+    getUsers,
+    updateUserStatus,
+    updateUserReferralCode,
+    getDebtors,
+    getDashboardStats,
+    getPlatformWalletBalance,
+    getPlatformWalletLog,
+    getBoosterStages,
+    saveBoosterStage,
+    getAuditLog,
+    createBroadcastEmail,
+    getBroadcastEmails,
+    getBroadcastRecipients,
+    getUserKycStatus,
+    getAdminPublications,
+    restorePublication,
+    deletePublicationAdmin,
+    getDatabaseStats,
+    createDatabaseBackup,
+    cleanupTestData,
+    cleanupInactiveUsers,
+    cleanupOldPublications,
+    getBoosterSettings,
+    updateBoosterSettings,
+    getBoosterStats,
+    getBoostersList,
+    getBoosterPaymentsLog,
+    rebuildBoosterLedger,
+    getGovernanceRewardStats,
+    processGovernanceRewards,
+    createPlatformPublication,
+    updatePlatformPublication,
+    getPlatformPublicationsWithParticipants,
+    getReferralsLog,
+    getDemoExportStats,
+    generateDemoExport,
+    getDemoExportHistory,
+    downloadDemoExport,
+    previewDemoImport,
+    processDemoImport,
+    createInvitation,
+    getInvitations,
+    verifyInvitation,
+    claimInvitation,
+    getAdminProfile,
+    requestPasswordChange,
+    confirmPasswordChange,
+    deleteInvitation,
+    getAdminUsers,
+    updateAdminStatus,
+    getReferralTiers,
+    updateReferralTiers,
+};
 
 

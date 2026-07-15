@@ -116,6 +116,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         tabBilletera: document.getElementById('tabBilletera'),
         panelImpulsor: document.getElementById('panelImpulsor'),
         panelBilletera: document.getElementById('panelBilletera'),
+        walletTabsNav: document.querySelector('.wallet-tabs-nav'),
         createPostPrelaunchModal: document.getElementById('createPostPrelaunchModal'),
         createPostPrelaunchAccept: document.getElementById('createPostPrelaunchAccept'),
         myWalletAddressContainer: document.getElementById('myWalletAddressContainer'),
@@ -642,6 +643,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const urlParams = new URLSearchParams(window.location.search);
                 const isWalletTour = urlParams.get('start_wallet_tour') === 'true';
                 const isPendingTour = sessionStorage.getItem('pendingWalletTour') === 'true';
+                
+                // [UX FINTECH / PRELANZAMIENTO] Ocultar dinámicamente el selector de pestañas si prelanzamiento está activo
+                // a menos que estemos ejecutando el tour guiado de la billetera o quema.
+                if (elements.walletTabsNav) {
+                    if (isPreLaunch && !isWalletTour && !isPendingTour) {
+                        elements.walletTabsNav.style.display = 'none';
+                    } else {
+                        elements.walletTabsNav.style.display = 'flex';
+                    }
+                }
 
                 let targetTab = 'billetera'; // Default fallback
 

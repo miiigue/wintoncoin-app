@@ -21,6 +21,35 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 
 
+### 2026-07-14 — Auditoría de Ciberseguridad y Remediación de Vulnerabilidades Críticas en adminController.js
+
+- **Contexto**: Durante una auditoría exhaustiva de seguridad sobre las 3,295 líneas del controlador administrativo `adminController.js`, se detectaron vulnerabilidades y desviaciones de las mejores prácticas de desarrollo y seguridad (tales como SQL Injection en limpieza de registros, fuga de detalles internos de excepciones `error.message` y duplicidad de lógica). Se procedió a mitigar todos los hallazgos para elevar el software a los estándares SOC 2 e ISO 27001 de seguridad bancaria.
+- **Decisión de Ingeniería**:
+  - **Mitigación de SQL Injection (Hallazgo #1 - Crítica)**: Se eliminaron las interpolaciones directas de strings en `cleanupInactiveUsers` y `cleanupOldPublications` y se parametrizaron las consultas a través de `make_interval(days => $1)`. Adicionalmente, se forzó la conversión a enteros vía `parseInt()` antes de su uso.
+  - **Protección contra fuga de información (Hallazgo #2 - Alta)**: Se eliminaron todas las respuestas JSON que devolvían el `error.message` en bruto en el balance de la plataforma (`getPlatformWalletBalance`) y en las operaciones de demo (`generateDemoExport`, `downloadDemoExport`, `processDemoImport`). Ahora devuelven un mensaje genérico `"Error interno del servidor."` previniendo fuga de directorios locales o variables de entorno.
+  - **Sanitización de IDs (Hallazgo #3 - Alta)**: Se agregaron validaciones defensivas mediante `parseInt()` y validaciones de límites en los endpoints de restauración y eliminación de publicaciones (`restorePublication` y `deletePublicationAdmin`).
+  - **Ubicación Profesional del module.exports (Hallazgo #4 - Media)**: Se reubicó el bloque de exportaciones al final del archivo para seguir la regla de oro "define primero, exporta al final" y evitar la dependencia del *hoisting* de funciones.
+  - **Remediación de dependencias y DRY (Hallazgos #5, #6, #7 - Media/Baja)**: Se centralizó el `require('crypto')` en la cabecera del archivo, se corrigió un comentario histórico desactualizado en la creación de invitaciones, y se encapsuló la validación duplicada de `formFields` en la función helper `_sanitizeFormFields`.
+- **Impacto**: blindaje completo contra inyecciones SQL que pudiesen comprometer o eliminar la base de datos de demo o producción, mayor privacidad en respuestas de error de sistema, código 100% limpio y estructurado que facilita futuras auditorías de control interno.
+- **Evidencia**:
+  - Archivo Modificado: [adminController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/adminController.js).
+
+### 2026-07-13 — Autenticación Escalonada (OTP) y Alertas de Seguridad en Panel Administrativo (SOC 2)
+
+- **Contexto**: Para elevar el nivel de seguridad del sistema de administración al estándar bancario y cumplir con las normativas SOC 2 de Zero-Trust, se determinó que cambiar la contraseña conociendo únicamente la contraseña actual era un control insuficiente frente al compromiso de sesiones (sesiones dejadas abiertas). Se requirió implementar Autenticación Escalonada (Step-Up Authentication) mediante un código de un solo uso (OTP) por correo electrónico, acompañado de notificaciones transaccionales a la plana de Super Administradores.
+- **Decisión de Ingeniería**:
+  - **Migración de Base de Datos (089)**: Se añadió la columna `email` y las columnas criptográficas (`password_change_hash`, `password_change_expires_at`, `password_change_attempts`) a la tabla separada `admin_users`, manteniendo la segregación estricta de privilegios (no mezclando administradores con la tabla `users` normal).
+  - **Reutilización de Módulo Criptográfico (DRY)**: Se importaron las funciones de seguridad existentes de `emailService.js` (`generateOtp6`, `hashOtpForEmail`, `safeEqualHex`, `sendOtpEmail`) para garantizar que la generación y validación de OTPs para administradores hereden la robustez (comparación *timing-safe*, límites de expiración de 10 min, protección anti-bruteforce) ya probada en el sistema de usuarios.
+  - **Flujo de Prevención Activa (2 Pasos)**:
+    1. *Solicitud (`requestPasswordChange`)*: Valida la clave actual, genera el OTP, lo envía al correo del admin, y de manera síncrona **alerta a los Super Administradores** sobre el inicio del intento de cambio.
+    2. *Confirmación (`confirmPasswordChange`)*: Compara el OTP *timing-safe*, resetea la contraseña, fuerza el cierre de sesión (`clearCookie`), y envía confirmación transaccional al admin y a la plana mayor (Auditoría Centralizada).
+  - **Frontend Asíncrono**: Se actualizó `admin-panel.js` separando el formulario en dos instancias. Se inyectó el modal `adminOtpModal` en el DOM que retiene la nueva clave en memoria volátil de JavaScript de manera segura hasta recibir la confirmación del código de 6 dígitos.
+- **Impacto**: Se incorpora una capa de fricción preventiva que bloquea a un atacante con acceso a una sesión desbloqueada. Los Super Administradores obtienen visibilidad en tiempo real (Notificaciones de Auditoría) sobre movimientos de credenciales, mitigando el riesgo de Amenazas Internas (*Insider Threats*).
+- **Evidencia**:
+  - Base de Datos: `089_add_email_to_admin_users.js`
+  - Backend: [adminController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/adminController.js), [adminRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/adminRoutes.js).
+  - Frontend: [admin-panel.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/frontend/admin-panel.html), [admin-panel.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/frontend/src/pages/admin-panel.js).
+
 ### 2026-07-12 — Cambio Seguro de Contraseña Administrativa (SOC 2 & Zero-Trust)
 
 - **Contexto**: Para mejorar la ciberseguridad del panel administrativo de WintonCoin y dar cumplimiento con normativas regulatorias internacionales tipo SOC 2 y lineamientos de auditoría financiera, se requería habilitar un flujo seguro para que los administradores puedan actualizar su contraseña directamente desde el panel sin exponer credenciales en variables de entorno fijas (Zero Hardcoded Secrets).
@@ -3988,6 +4017,67 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
     - **Corrección**: La función ahora retorna solo `pagePart` (el nombre del archivo validado), descartando cualquier query param que el atacante pudiera haber concatenado. Esto implementa el principio de defense-in-depth (defensa en profundidad).
 - **Verificación**: La compilación posterior (`npm run build:demo`) completó exitosamente con `✓ built in 8.44s`, `✓ 134 modules transformed`, sin errores ni advertencias. El hash del bundle cambió de `register.BeZP5llT.js` a `register.xhydIokZ.js`, confirmando la inclusión de las correcciones.
 - **Evidencia**: Archivo modificado: `frontend/src/pages/register.js` (Bug #3 + hardening), `EVOLUCION.md`.
+
+---
+
+### 2026-07-14 — Corrección de Desbordamiento de Enlaces Largos en Publicaciones y Ocultamiento del Selector de Billetera en Prelanzamiento
+
+- **Autor**: Antigravity (AI Engineering)
+- **Tipo**: Corrección de Interfaz (CSS) + Ajuste Lógico del Dashboard (JS)
+- **Rama**: `feature/landing-donation-ticker`
+- **Contexto**: Se solucionaron dos detalles visuales importantes reportados en producción para mejorar el diseño adaptativo y mitigar la fricción en la experiencia de usuario (UX).
+- **Detalles Implementados**:
+  - **Desbordamiento de Enlaces Largos (Overflow CSS)**:
+    - **Problema**: Enlaces extensos de redes sociales (por ejemplo, Instagram) sin espacios en la descripción de las causas solidarias provocaban que la tarjeta se ensanchara horizontalmente, saliéndose de los márgenes y rompiendo el responsive en teléfonos móviles.
+    - **Solución**: Añadimos las propiedades de ajuste seguro `overflow-wrap: anywhere; word-break: break-word;` a las clases `.solidario-cause-story` y `.update-item-body` en `causa-solidaria.html`.
+    - **Generalización**: Adicionalmente, auditamos otros paneles y reforzamos de forma preventiva la clase `.rating-item-comment` en `style.css` (para comentarios largos de reputación en el perfil de usuario), que también carecía de protección de desbordamiento.
+  - **Selector de Billetera en Prelanzamiento**:
+    - **Problema**: En la fase de prelanzamiento la billetera blockchain no está operativa (saldos en cero), por lo que el toggle superior "Impulsor / Billetera" en `contract_interaction.html` era redundante y confuso para los usuarios.
+    - **Solución**: Mapeamos el elemento del DOM `.wallet-tabs-nav` como `walletTabsNav` en `contract-interaction.js`. Modificamos `initializeWalletState()` para que, si el modo prelanzamiento (`isPreLaunch`) está activo, oculte dinámicamente este selector de pestañas (`style.display = 'none'`), forzando a que permanezca activa por defecto la pestaña "Impulsor". Si prelanzamiento está inactivo, vuelve a mostrarse con `display = 'flex'`.
+- **Verificación**: La compilación posterior (`npm run build:demo`) completó exitosamente con `✓ built in 5.09s` y `✓ 104 modules transformed`, integrando todos los cambios de forma consistente en `dist/`.
+- **Evidencia**: Archivos modificados: `frontend/causa-solidaria.html` (CSS de overflow), `frontend/style.css` (CSS de comentarios), `frontend/src/pages/contract-interaction.js` (Lógica de prelanzamiento), `EVOLUCION.md`.
+
+---
+
+### 2026-07-14 — Refinamiento Estético de la Tarjeta del Perfil de Impulsor
+
+- **Autor**: Antigravity (AI Engineering)
+- **Tipo**: Corrección y Refinamiento Estético (CSS)
+- **Rama**: `feature/landing-donation-ticker`
+- **Contexto**: Se aplicaron mejoras visuales premium para estilizar la tarjeta de "Perfil de Impulsor" en el Dashboard, atendiendo reportes de altura excesiva y desalineación del brillo animado.
+- **Detalles Implementados**:
+  - **Reducción de Altura (Tarjeta más Delgada)**:
+    - Modificamos la clase `#panelImpulsor .booster-banner` para reducir su padding vertical de `1.5rem` a `1.1rem`.
+    - Ajustamos la cabecera `#panelImpulsor .booster-banner-header` reduciendo el `margin-bottom` de `1rem` a `0.6rem` y el `padding-bottom` de `0.75rem` a `0.4rem`.
+    - Unificamos en móviles (`@media (max-width: 480px)`) para usar un padding consistente de `1.1rem 1rem`.
+    - Resultado: La tarjeta reduce notablemente su peso visual vertical, adquiriendo un aspecto más moderno, esbelto y premium alineado con estándares Fintech.
+  - **Alineación del Brillo Animado en Móviles**:
+    - **Problema**: En pantallas móviles de 480px o menos, una regla CSS heredada aplicaba la propiedad `top: 14px;` a los pseudoelementos `::before` y `::after` de la tarjeta de impulsor. Esto causaba que el brillo verde animado (`::after`), de altura 100%, se desplazara 14px hacia abajo, dejando la sección superior de la tarjeta sin iluminar y desbordando la inferior.
+    - **Solución**: Modificamos la regla en la media query móvil para desvincular el `::after` de la regla de `top: 14px;`, fijándolo de forma independiente en `top: 0;`.
+    - Resultado: El brillo verde animado recorre la tarjeta de forma simétrica desde su borde superior exacto en dispositivos móviles.
+- **Evidencia**: Archivos modificados: `frontend/style.css`, `EVOLUCION.md`.
+
+---
+
+### 2026-07-14 — Auditoría de Experiencia de Usuario: Salvaguarda para Tours Guiados en Modo Prelanzamiento
+
+- **Autor**: Antigravity (AI Engineering — Gemini 3.5 Flash)
+- **Tipo**: UX Guard & Robustez de Código — Auditoría de Controladores
+- **Rama**: `feature/landing-donation-ticker`
+- **Contexto**: Durante una revisión exhaustiva para evitar cuellos de botella y errores en la interfaz, se auditó el comportamiento del sistema de onboarding (`onboarding.js`) frente a la ocultación dinámica del selector de pestañas del monedero en el Dashboard (`contract-interaction.js`).
+- **Problema Detectado**:
+  - El primer paso del tour guiado de la billetera y el tour de quema (`startWalletTour` y `startBurnTour` en `onboarding.js`) intentan resaltar el elemento `#tabBilletera`.
+  - Si el "Modo Prelanzamiento" está activo y el usuario inicia el tour (por ejemplo, haciendo clic desde la guía estática "Cómo Funciona" con la URL `?start_wallet_tour=true`), la regla previa ocultaba `.wallet-tabs-nav` completamente.
+  - Esto provocaría que el resaltador (`driver.js`) fallara al intentar enfocar un elemento con `display: none`, arruinando la experiencia e interrumpiendo el flujo educativo del usuario.
+- **Solución Implementada**:
+  - Modificamos la función `initializeWalletState()` en `contract-interaction.js`.
+  - Reordenamos las variables `urlParams`, `isWalletTour` e `isPendingTour` para declararlas al principio de la función, asegurando que estén disponibles al evaluar la interfaz.
+  - Actualizamos la condición de ocultamiento del selector: el elemento `.wallet-tabs-nav` se ocultará **únicamente si está en prelanzamiento Y el usuario no está ejecutando ninguno de los tours** (`isPreLaunch && !isWalletTour && !isPendingTour`). Si está en medio de un tour guiado, el selector se mantiene visible (`display: flex`) temporalmente para permitir al motor de guía enfocar el paso de la billetera adecuadamente.
+- **Verificación**: La compilación posterior (`npm run build:demo`) concluyó con éxito, generando `dist/assets/dashboard.B6CSTLE2.js` sin advertencias de dependencias circulares o referencias sin definir.
+- **Evidencia**: Archivos modificados: `frontend/src/pages/contract-interaction.js`, `EVOLUCION.md`.
+
+
+
 
 
 

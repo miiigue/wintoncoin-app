@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
 const { authenticateAdmin } = require('../middleware/authMiddleware');
-const { loginLimiter, web3RpcLimiter } = require('../middleware/rateLimiters');
+const { loginLimiter, web3RpcLimiter, forgotPasswordLimiter } = require('../middleware/rateLimiters');
 
 // Alias para compatibilidad con código existente que espera verifyAdminToken
 const verifyAdminToken = authenticateAdmin;
@@ -90,7 +90,8 @@ router.post('/governance/demo-import-process', verifyAdminToken, adminController
 
 // Gestión de Invitaciones para Administradores
 router.get('/profile', verifyAdminToken, adminController.getAdminProfile);
-router.post('/change-password', verifyAdminToken, adminController.changePassword);
+router.post('/change-password/request', forgotPasswordLimiter, verifyAdminToken, adminController.requestPasswordChange);
+router.post('/change-password/confirm', forgotPasswordLimiter, verifyAdminToken, adminController.confirmPasswordChange);
 router.post('/invitations', verifyAdminToken, adminController.createInvitation);
 router.get('/invitations', verifyAdminToken, adminController.getInvitations);
 router.delete('/invitations', verifyAdminToken, adminController.deleteInvitation);

@@ -1177,7 +1177,7 @@ hr {
     background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
-    padding: 1.5rem;
+    padding: 1.1rem 1.5rem;
     position: relative;
     overflow: hidden;
     /* Sombras sutiles removidas o reducidas significativamente para quitar la "oscuridad" */
@@ -1226,8 +1226,8 @@ hr {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-bottom: 1rem;
-    padding-bottom: 0.75rem;
+    margin-bottom: 0.6rem;
+    padding-bottom: 0.4rem;
     border-bottom: 1px solid rgba(16, 185, 129, 0.25);
 }
 
@@ -1847,17 +1847,20 @@ hr {
     }
 
     #panelImpulsor .booster-banner {
-        padding: 1.5rem 1rem;
+        padding: 1.1rem 1rem;
     }
 
     #panelImpulsor .booster-total-value {
         font-size: 2.5rem;
     }
 
-    #panelImpulsor .booster-banner::before,
-    #panelImpulsor .booster-banner::after {
+    #panelImpulsor .booster-banner::before {
         font-size: 1.3rem;
         top: 14px;
+    }
+    
+    #panelImpulsor .booster-banner::after {
+        top: 0;
     }
 
     #panelBilletera .balances-container {
@@ -4189,6 +4192,9 @@ body.love-page {
     margin: 0.5rem 0 1rem 0;
     padding-left: 1rem;
     border-left: 3px solid var(--primary-color);
+    /* [DISEÑO RESPONSIVE PREVENCIÓN DE OVERFLOW] */
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .rating-item-footer {
