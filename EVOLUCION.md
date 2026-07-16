@@ -4179,6 +4179,20 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
   - **Resiliencia ante Fallos**: El script no se interrumpe ni arroja errores de JavaScript ante cambios o ausencias del input de referidos.
 - **Evidencia**: Archivos modificados: `frontend/src/pages/register.js`, `EVOLUCION.md`.
 
+---
+
+### 2026-07-16 — Rediseño de Sección de Comunidad y Limpieza de Copias en Landing Page
+
+- **Autor**: Antigravity (AI Engineering)
+- **Tipo**: Refinamiento y Optimización Estructural UI/UX (Frontend)
+- **Rama**: `fix/email-asterisks-cause-update`
+- **Contexto**: Se identificó que la imagen de ayuda comunitaria de las manos de neón no mantenía simetría con las otras ilustraciones del portal y afectaba la estética general de la landing page. Adicionalmente, se solicitó retirar una frase redundante del texto introductorio.
+- **Solución Implementada**:
+  - **Rediseño Estructural (Opción A)**: Eliminamos la columna de imagen en la sección de Comunidad (`index.html`) para transformar la grilla en un contenedor de una sola columna centralizado. Centramos los textos (título y párrafo) y estilizamos la lista de puntos clave (`check-list`) para distribuirse horizontalmente de manera simétrica y responsiva usando flexbox y estilos de alta fidelidad.
+  - **Limpieza de Copia**: Retiramos del párrafo descriptivo el fragmento final `, creando un tejido social irrompible.`, cerrando la oración adecuadamente con un punto.
+- **Evidencia**: Archivos modificados: `frontend/index.html`, `EVOLUCION.md`.
+
+
 
 
 
