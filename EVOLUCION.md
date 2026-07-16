@@ -4162,6 +4162,23 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
     * Se renombró la descripción del límite inicial de scoring a "El límite de compromiso inicial que se asigna a los nuevos usuarios al registrarse", manteniendo intactas las llaves técnicas de base de datos para no comprometer la estabilidad del sistema.
 - **Evidencia**: Archivos modificados: `frontend/index.html`, `frontend/docs.html`, `frontend/src/pages/admin-panel.js`, `EVOLUCION.md`.
 
+---
+
+### 2026-07-16 — Robustez de UI y Estabilidad del Proceso de Registro (Bug-Fixes UX/UI)
+
+- **Contexto**: Tras el recorrido de usuario (walkthrough), se identificaron tres fallos potenciales de robustez y experiencia de usuario en `register.js`:
+  1. **Memory Leak en Temporizador OTP**: Si la función `startResendTimer()` se ejecutaba varias veces, se sobreescribía el intervalo `countdown` sin limpiarlo previamente, haciendo que el temporizador contara el doble de rápido y consumiera recursos de red y CPU infinitamente.
+  2. **Interrupción de Modales en Paso 2**: Al volver a visitar la página en el Paso 2 (OTP pendiente), saltaban los modales de "conseguir código de referido" y "políticas de cuenta única" que corresponden únicamente al Paso 1 (Formulario Inicial), estorbando visualmente al usuario.
+  3. **Vulnerabilidad de Null-Pointer**: La obtención del campo `referral_code` dentro del listener de verificación se realizaba de manera directa (`document.getElementById('referral_code').value`), lo cual causaría una excepción en JavaScript si el DOM de referido era modificado o no se encontraba.
+- **Decisión de Ingeniería**:
+  - **Limpieza de Intervalo Activo**: Modificamos `startResendTimer` para comprobar la existencia previa de `countdown` y limpiar el intervalo (`clearInterval(countdown)`) antes de instanciar uno nuevo, reseteando la variable a `null` al finalizar.
+  - **Aislamiento de Modales**: Condicionamos la activación del `referralModal` y el `policyModal` únicamente si el elemento visual de verificación `step2Div` no se encuentra activo (`style.display !== 'block'`).
+  - **Extracción Defensiva**: Aplicamos encadenamiento opcional (`?.value`) y limpieza de espacios en la captura de código de referido en la verificación.
+- **Impacto**:
+  - **UX Impecable**: Flujos libres de diálogos intrusivos redundantes y temporizadores con sincronía de reloj exacta.
+  - **Resiliencia ante Fallos**: El script no se interrumpe ni arroja errores de JavaScript ante cambios o ausencias del input de referidos.
+- **Evidencia**: Archivos modificados: `frontend/src/pages/register.js`, `EVOLUCION.md`.
+
 
 
 
