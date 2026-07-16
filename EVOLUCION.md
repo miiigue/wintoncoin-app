@@ -4112,6 +4112,89 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
     2. **Límite de Desistimientos Semanales**: Imponer un límite de desistimientos (máximo 2 cancelaciones por semana) y bloquear temporalmente (por 48h) la aceptación de nuevas tareas en caso de excederlo, mitigando conductas de acaparamiento malicioso.
 - **Evidencia**: Archivos modificados: `backend/src/services/humanitarianService.js`, `backend/src/controllers/publicationController.js`, `frontend/src/pages/publication-detail.js`, `frontend/src/pages/contract-interaction.js`, `EVOLUCION.md`.
 
+---
+
+### 2026-07-14 — Visibilidad de Última Migración Aplicada en Logs de Inicio (migrationRunner.js)
+
+- **Autor**: Antigravity (AI Engineering)
+- **Tipo**: DevOps & Infraestructura (Backend)
+- **Rama**: `fix/email-asterisks-cause-update`
+- **Contexto**: Se solicitó mostrar en los logs del servidor al iniciar qué versión exacta de migración de base de datos se encuentra aplicada para facilitar el monitoreo continuo en el entorno Demo y producción sin interferir en los procesos de base de datos.
+- **Solución Implementada**:
+  - Editamos `backend/scripts/migrationRunner.js` (línea 112).
+  - Agregamos una consulta SQL de sólo lectura (`SELECT migration_name FROM schema_migrations ORDER BY id DESC LIMIT 1`) que se ejecuta de forma ultra rápida usando la clave primaria cuando no hay migraciones pendientes.
+  - Actualizamos la salida por consola para que en lugar de mostrar un mensaje genérico, muestre con exactitud el nombre del archivo de la última migración registrada.
+- **Evidencia**: Archivos modificados: `backend/scripts/migrationRunner.js`, `EVOLUCION.md`.
+
+---
+
+### 2026-07-16 — Optimización de Inicialización de Registro y Flujo de Adquisición/Referidos (WhatsApp Link UX Bug-Fix)
+
+- **Contexto**: Al tocar un enlace de referido desde WhatsApp (`/register.html?ref=SOSVENEZUELA`), los usuarios ya registrados y con sesión activa veían una pantalla confusa de verificación OTP (Paso 2) con una alerta de "introduce el código para completar tu cuenta" en lugar de acceder directamente a la aplicación. Esto se debía a una condición de carrera: la restauración del paso síncrono (`validateAndSetInitialStep`) se ejecutaba antes de verificar la sesión activa (`checkAuthStatus`). Además, las variables residuales de registro no se limpiaban y el código de referido se perdía porque el script redireccionaba al Dashboard antes de procesar el parámetro `ref` de la URL.
+- **Decisión de Ingeniería**:
+  - **Captura Inmediata de Campaña**: Se reestructuró `initializeRegisterPage()` en `register.js` para extraer y guardar el código de referido `ref` en `localStorage` (como `pending_referral_code`) en la primera línea de ejecución, garantizando que el contexto de la campaña persista a través de cualquier redirección inmediata.
+  - **Sincronización de Guardia de Sesión**: Se colocó un `await` obligatorio sobre `checkAuthStatus()` al inicio del ciclo de vida, congelando cualquier renderizado o alertas de registro hasta conocer el estatus real del usuario.
+  - **Auto-limpieza de Estado Stale**: Si el usuario está autenticado y verificado, se limpia cualquier residuo de registros antiguos de LocalStorage (`clearRegisterClientState()`) y se le redirecciona silenciosamente al Dashboard.
+  - **Restauración Condicionada de Paso 2**: Se limitó la comprobación de registro pendiente (`validateAndSetInitialStep`) únicamente a usuarios que ingresan como invitados (no autenticados).
+- **Impacto**:
+  - **UX Profesional**: Flujo de redirección transparente sin parpadeos de interfaz ni alertas erróneas para usuarios registrados.
+  - **Conversión de Campañas**: El código de referido (`SOSVENEZUELA`) se propaga con éxito al Dashboard, permitiendo que la campaña asigne los bonos de donación y registros de forma automática.
+- **Evidencia**: Archivos modificados: `frontend/src/pages/register.js`, `EVOLUCION.md`.
+
+---
+
+### 2026-07-16 — Unificación Terminológica de Obligaciones (Compromiso vs Crédito/Deuda)
+
+- **Autor**: Antigravity (AI Engineering)
+- **Tipo**: Refinamiento Conceptual y UI/UX (Frontend)
+- **Rama**: `fix/email-asterisks-cause-update`
+- **Contexto**: Se requirió alinear la terminología de la interfaz de usuario con los fundamentos no financieros del protocolo WintonCoin. Siguiendo las directrices de cumplimiento y claridad conceptual, se reemplazaron las referencias a "crédito" y "deuda" por "compromiso" en las vistas principales.
+- **Detalles Implementados**:
+  - **Landing Page (`index.html`)**:
+    * Se actualizó el reverso de la moneda RED giratoria (línea 139) de `Tu Crédito` a `Tu Compromiso` de forma consistente.
+    * Se cambió la etiqueta del ticker de estadísticas en la cabecera (línea 108) de `Sin buró de crédito` a `Sin historial financiero` para evitar el uso del término financiero "crédito".
+  - **Whitepaper Técnico (`docs.html`)**:
+    * Se adaptó el subtítulo a "Arquitectura de Compromiso Mutuo y Consenso".
+    * Se modificaron las menciones de "emitir su propio crédito" y "emitir crédito respaldado" a "emitir compromisos" en las secciones conceptuales.
+    * Se actualizó el título de la sección 4.3 a "Compensación y Ciclo de Compromiso".
+    * Se sustituyeron "créditos de liquidez" por "recompensas de liquidez" y "créditos de servicio" por "compromisos de servicio".
+  - **Panel de Administración (`admin-panel.js`)**:
+    * Se renombró la descripción del límite inicial de scoring a "El límite de compromiso inicial que se asigna a los nuevos usuarios al registrarse", manteniendo intactas las llaves técnicas de base de datos para no comprometer la estabilidad del sistema.
+- **Evidencia**: Archivos modificados: `frontend/index.html`, `frontend/docs.html`, `frontend/src/pages/admin-panel.js`, `EVOLUCION.md`.
+
+---
+
+### 2026-07-16 — Robustez de UI y Estabilidad del Proceso de Registro (Bug-Fixes UX/UI)
+
+- **Contexto**: Tras el recorrido de usuario (walkthrough), se identificaron tres fallos potenciales de robustez y experiencia de usuario en `register.js`:
+  1. **Memory Leak en Temporizador OTP**: Si la función `startResendTimer()` se ejecutaba varias veces, se sobreescribía el intervalo `countdown` sin limpiarlo previamente, haciendo que el temporizador contara el doble de rápido y consumiera recursos de red y CPU infinitamente.
+  2. **Interrupción de Modales en Paso 2**: Al volver a visitar la página en el Paso 2 (OTP pendiente), saltaban los modales de "conseguir código de referido" y "políticas de cuenta única" que corresponden únicamente al Paso 1 (Formulario Inicial), estorbando visualmente al usuario.
+  3. **Vulnerabilidad de Null-Pointer**: La obtención del campo `referral_code` dentro del listener de verificación se realizaba de manera directa (`document.getElementById('referral_code').value`), lo cual causaría una excepción en JavaScript si el DOM de referido era modificado o no se encontraba.
+- **Decisión de Ingeniería**:
+  - **Limpieza de Intervalo Activo**: Modificamos `startResendTimer` para comprobar la existencia previa de `countdown` y limpiar el intervalo (`clearInterval(countdown)`) antes de instanciar uno nuevo, reseteando la variable a `null` al finalizar.
+  - **Aislamiento de Modales**: Condicionamos la activación del `referralModal` y el `policyModal` únicamente si el elemento visual de verificación `step2Div` no se encuentra activo (`style.display !== 'block'`).
+  - **Extracción Defensiva**: Aplicamos encadenamiento opcional (`?.value`) y limpieza de espacios en la captura de código de referido en la verificación.
+- **Impacto**:
+  - **UX Impecable**: Flujos libres de diálogos intrusivos redundantes y temporizadores con sincronía de reloj exacta.
+  - **Resiliencia ante Fallos**: El script no se interrumpe ni arroja errores de JavaScript ante cambios o ausencias del input de referidos.
+- **Evidencia**: Archivos modificados: `frontend/src/pages/register.js`, `EVOLUCION.md`.
+
+---
+
+### 2026-07-16 — Rediseño de Sección de Comunidad y Limpieza de Copias en Landing Page
+
+- **Autor**: Antigravity (AI Engineering)
+- **Tipo**: Refinamiento y Optimización Estructural UI/UX (Frontend)
+- **Rama**: `fix/email-asterisks-cause-update`
+- **Contexto**: Se identificó que la imagen de ayuda comunitaria de las manos de neón no mantenía simetría con las otras ilustraciones del portal y afectaba la estética general de la landing page. Adicionalmente, se solicitó retirar una frase redundante del texto introductorio.
+- **Solución Implementada**:
+  - **Rediseño Estructural (Opción A)**: Eliminamos la columna de imagen en la sección de Comunidad (`index.html`) para transformar la grilla en un contenedor de una sola columna centralizado. Centramos los textos (título y párrafo) y estilizamos la lista de puntos clave (`check-list`) para distribuirse horizontalmente de manera simétrica y responsiva usando flexbox y estilos de alta fidelidad.
+  - **Limpieza de Copia**: Retiramos del párrafo descriptivo el fragmento final `, creando un tejido social irrompible.`, cerrando la oración adecuadamente con un punto.
+- **Evidencia**: Archivos modificados: `frontend/index.html`, `EVOLUCION.md`.
+
+
+
+
 
 
 

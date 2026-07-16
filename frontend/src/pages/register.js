@@ -77,6 +77,16 @@ function clearRegisterClientState() {
     localStorage.removeItem('pending_verification_email');
 }
 
+/**
+ * Limpia únicamente el estado de registro pendiente del cliente
+ * sin afectar el token ni el username de la sesión activa.
+ */
+function clearPendingVerificationState() {
+    localStorage.removeItem('pendingVerificationPhone');
+    localStorage.removeItem('pendingVerificationEmail');
+    localStorage.removeItem('pending_verification_email');
+}
+
 // --- Configuración del banner de sesión ---
 function configureSessionBanner(elements, { title, message, primaryText, onPrimary, secondaryText, onSecondary }) {
     const { sessionBanner, sessionBannerTitle, sessionBannerMessage, sessionPrimaryBtn, sessionSecondaryBtn, sessionLogoutBtn } = elements;
@@ -139,6 +149,9 @@ async function validateAndSetInitialStep(API_URL, pendingPhone, pendingEmail, st
 
 // --- Temporizador para reenvío de código ---
 function startResendTimer(resendBtn, resendTimerSpan) {
+    if (countdown) {
+        clearInterval(countdown);
+    }
     resendBtn.disabled = true;
     timer = 60;
     resendTimerSpan.textContent = `(espera ${timer}s)`;
@@ -150,6 +163,7 @@ function startResendTimer(resendBtn, resendTimerSpan) {
             clearInterval(countdown);
             resendTimerSpan.textContent = '';
             resendBtn.disabled = false;
+            countdown = null;
         }
     }, 1000);
 }
@@ -476,10 +490,22 @@ async function initializeRegisterPage() {
         sessionLogoutBtn: document.getElementById('session-action-logout')
     };
 
-    // Verificar estado pendiente
-    const pendingPhone = localStorage.getItem('pendingVerificationPhone');
-    const pendingEmail = localStorage.getItem('pendingVerificationEmail');
-    validateAndSetInitialStep(API_URL, pendingPhone, pendingEmail, step1Div, step2Div);
+    // [CAMPAÑA/REFERIDO] Capturar el código de la URL inmediatamente (antes de cualquier redirección)
+    // para asegurar que no se pierda el contexto de la campaña en usuarios ya autenticados.
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCodeFromUrl = urlParams.get('ref');
+    const referralCodeInput = document.getElementById('referral_code');
+
+    if (refCodeFromUrl) {
+        const cleanRef = refCodeFromUrl.trim().toUpperCase();
+        if (referralCodeInput) {
+            referralCodeInput.value = cleanRef;
+        }
+        localStorage.setItem('pending_referral_code', cleanRef);
+        console.log(`[CAMPAÑA] Código de referido '${cleanRef}' capturado de inmediato.`);
+    } else if (isPWAInstalled()) {
+        restoreReferralCode();
+    }
 
     async function loadActiveLegalDocuments() {
         try {
@@ -497,17 +523,16 @@ async function initializeRegisterPage() {
 
     await loadActiveLegalDocuments();
 
-    // Comprobar estado de autenticación
+    // Comprobar estado de autenticación (Síncrono / Guardia Principal)
     const session = await checkAuthStatus();
 
     if (session.isAuthenticated) {
-        // [BUG-FIX] urlParams debe declararse localmente para que _getSafeReturnTo
-        // pueda usarse de forma segura en este scope sin depender de variables externas.
-        const urlParams = new URLSearchParams(window.location.search);
-
         if (session.is_verified) {
-            // [SEGURIDAD FINTECH] Redirección inteligente: si ya está registrado y verificado,
-            // no debe ver el formulario de registro. Se redirige al dashboard de forma silenciosa.
+            // [SEGURIDAD FINTECH] Si ya está registrado y verificado, limpiamos la basura residual de registro
+            // de forma aislada, sin afectar las credenciales de la sesión activa.
+            clearPendingVerificationState();
+            
+            // Redirección inteligente al dashboard de forma silenciosa.
             const returnTo = _getSafeReturnTo(urlParams.get('returnTo'));
             window.location.replace(returnTo || 'contract_interaction.html');
             return;
@@ -525,15 +550,29 @@ async function initializeRegisterPage() {
             if (hiddenEmailInput) hiddenEmailInput.value = emailVal;
             if (emailInputVal) emailInputVal.value = emailVal;
 
-            // [BUG-FIX] Iniciar el temporizador de reenvío inmediatamente al entrar al Paso 2
-            // directamente. Sin este llamado, el countdown nunca arrancaría porque el return
-            // anterior interrumpe el flujo antes de llegar al check de la línea 905.
             if (resendBtn && resendTimerSpan) {
                 startResendTimer(resendBtn, resendTimerSpan);
             }
 
             showCustomAlert('Introduce el código de verificación para completar tu cuenta.');
             return;
+        }
+    }
+
+    // [RESTAURACIÓN DE PASO 2] Solo para INVITADOS (no autenticados) con registro pendiente
+    const pendingPhone = localStorage.getItem('pendingVerificationPhone');
+    const pendingEmail = localStorage.getItem('pendingVerificationEmail');
+
+    if (pendingPhone && pendingEmail) {
+        // Ejecutamos la validación del estado pendiente de forma síncrona
+        await validateAndSetInitialStep(API_URL, pendingPhone, pendingEmail, step1Div, step2Div);
+
+        // Si el backend validó el registro y nos pasó al Paso 2, activamos los listeners correspondientes
+        if (step2Div.style.display === 'block') {
+            if (resendBtn && resendTimerSpan) {
+                startResendTimer(resendBtn, resendTimerSpan);
+            }
+            showCustomAlert('Introduce el código de verificación para completar tu cuenta.');
         }
     }
 
@@ -574,32 +613,22 @@ async function initializeRegisterPage() {
     // Configurar modales
     const { showReferralModal, showPolicyModal } = setupModals();
 
-    // Verificar código de referido en URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const refCodeFromUrl = urlParams.get('ref');
-    const referralCodeInput = document.getElementById('referral_code');
+    // Nota: El código de referido en la URL ya se verificó y guardó de inmediato al inicio del módulo
 
-    if (refCodeFromUrl && referralCodeInput) {
-        referralCodeInput.value = refCodeFromUrl.trim().toUpperCase();
-        // Guardar en localStorage para que persista después de instalar la PWA
-        localStorage.setItem('pending_referral_code', refCodeFromUrl.trim().toUpperCase());
-    } else if (isPWAInstalled()) {
-        // Si estamos en la PWA instalada, restaurar código de referido guardado
-        restoreReferralCode();
-    }
+    // Mostrar modales según corresponda (SOLO si el usuario está en el paso 1 de registro inicial)
+    if (step2Div.style.display !== 'block') {
+        if (!refCodeFromUrl) {
+            const referralModalShown = sessionStorage.getItem('referralModalShown') === 'true';
+            const policyModalShown = sessionStorage.getItem('policyModalShown') === 'true';
 
-    // Mostrar modales según corresponda
-    if (!refCodeFromUrl) {
-        const referralModalShown = sessionStorage.getItem('referralModalShown') === 'true';
-        const policyModalShown = sessionStorage.getItem('policyModalShown') === 'true';
-
-        if (!referralModalShown) {
-            showReferralModal();
-        } else if (!policyModalShown) {
+            if (!referralModalShown) {
+                showReferralModal();
+            } else if (!policyModalShown) {
+                showPolicyModal();
+            }
+        } else {
             showPolicyModal();
         }
-    } else {
-        showPolicyModal();
     }
 
     // Configurar campos de menor de edad
@@ -879,7 +908,7 @@ async function initializeRegisterPage() {
 
             const verificationCode = document.getElementById('verificationCode').value;
             const email = (document.getElementById('hiddenEmail')?.value || document.getElementById('email')?.value || '').trim();
-            const referral_code = document.getElementById('referral_code').value;
+            const referral_code = (document.getElementById('referral_code')?.value || '').trim();
 
             try {
                 const response = await fetch(`${API_URL}/api/register-verify`, {
