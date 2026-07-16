@@ -4126,6 +4126,21 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
   - Actualizamos la salida por consola para que en lugar de mostrar un mensaje genérico, muestre con exactitud el nombre del archivo de la última migración registrada.
 - **Evidencia**: Archivos modificados: `backend/scripts/migrationRunner.js`, `EVOLUCION.md`.
 
+---
+
+### 2026-07-16 — Optimización de Inicialización de Registro y Flujo de Adquisición/Referidos (WhatsApp Link UX Bug-Fix)
+
+- **Contexto**: Al tocar un enlace de referido desde WhatsApp (`/register.html?ref=SOSVENEZUELA`), los usuarios ya registrados y con sesión activa veían una pantalla confusa de verificación OTP (Paso 2) con una alerta de "introduce el código para completar tu cuenta" en lugar de acceder directamente a la aplicación. Esto se debía a una condición de carrera: la restauración del paso síncrono (`validateAndSetInitialStep`) se ejecutaba antes de verificar la sesión activa (`checkAuthStatus`). Además, las variables residuales de registro no se limpiaban y el código de referido se perdía porque el script redireccionaba al Dashboard antes de procesar el parámetro `ref` de la URL.
+- **Decisión de Ingeniería**:
+  - **Captura Inmediata de Campaña**: Se reestructuró `initializeRegisterPage()` en `register.js` para extraer y guardar el código de referido `ref` en `localStorage` (como `pending_referral_code`) en la primera línea de ejecución, garantizando que el contexto de la campaña persista a través de cualquier redirección inmediata.
+  - **Sincronización de Guardia de Sesión**: Se colocó un `await` obligatorio sobre `checkAuthStatus()` al inicio del ciclo de vida, congelando cualquier renderizado o alertas de registro hasta conocer el estatus real del usuario.
+  - **Auto-limpieza de Estado Stale**: Si el usuario está autenticado y verificado, se limpia cualquier residuo de registros antiguos de LocalStorage (`clearRegisterClientState()`) y se le redirecciona silenciosamente al Dashboard.
+  - **Restauración Condicionada de Paso 2**: Se limitó la comprobación de registro pendiente (`validateAndSetInitialStep`) únicamente a usuarios que ingresan como invitados (no autenticados).
+- **Impacto**:
+  - **UX Profesional**: Flujo de redirección transparente sin parpadeos de interfaz ni alertas erróneas para usuarios registrados.
+  - **Conversión de Campañas**: El código de referido (`SOSVENEZUELA`) se propaga con éxito al Dashboard, permitiendo que la campaña asigne los bonos de donación y registros de forma automática.
+- **Evidencia**: Archivos modificados: `frontend/src/pages/register.js`, `EVOLUCION.md`.
+
 
 
 
