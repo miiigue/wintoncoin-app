@@ -77,6 +77,16 @@ function clearRegisterClientState() {
     localStorage.removeItem('pending_verification_email');
 }
 
+/**
+ * Limpia únicamente el estado de registro pendiente del cliente
+ * sin afectar el token ni el username de la sesión activa.
+ */
+function clearPendingVerificationState() {
+    localStorage.removeItem('pendingVerificationPhone');
+    localStorage.removeItem('pendingVerificationEmail');
+    localStorage.removeItem('pending_verification_email');
+}
+
 // --- Configuración del banner de sesión ---
 function configureSessionBanner(elements, { title, message, primaryText, onPrimary, secondaryText, onSecondary }) {
     const { sessionBanner, sessionBannerTitle, sessionBannerMessage, sessionPrimaryBtn, sessionSecondaryBtn, sessionLogoutBtn } = elements;
@@ -515,7 +525,8 @@ async function initializeRegisterPage() {
     if (session.isAuthenticated) {
         if (session.is_verified) {
             // [SEGURIDAD FINTECH] Si ya está registrado y verificado, limpiamos la basura residual de registro
-            clearRegisterClientState();
+            // de forma aislada, sin afectar las credenciales de la sesión activa.
+            clearPendingVerificationState();
             
             // Redirección inteligente al dashboard de forma silenciosa.
             const returnTo = _getSafeReturnTo(urlParams.get('returnTo'));
