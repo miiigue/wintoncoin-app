@@ -149,6 +149,9 @@ async function validateAndSetInitialStep(API_URL, pendingPhone, pendingEmail, st
 
 // --- Temporizador para reenvío de código ---
 function startResendTimer(resendBtn, resendTimerSpan) {
+    if (countdown) {
+        clearInterval(countdown);
+    }
     resendBtn.disabled = true;
     timer = 60;
     resendTimerSpan.textContent = `(espera ${timer}s)`;
@@ -160,6 +163,7 @@ function startResendTimer(resendBtn, resendTimerSpan) {
             clearInterval(countdown);
             resendTimerSpan.textContent = '';
             resendBtn.disabled = false;
+            countdown = null;
         }
     }, 1000);
 }
@@ -611,18 +615,20 @@ async function initializeRegisterPage() {
 
     // Nota: El código de referido en la URL ya se verificó y guardó de inmediato al inicio del módulo
 
-    // Mostrar modales según corresponda
-    if (!refCodeFromUrl) {
-        const referralModalShown = sessionStorage.getItem('referralModalShown') === 'true';
-        const policyModalShown = sessionStorage.getItem('policyModalShown') === 'true';
+    // Mostrar modales según corresponda (SOLO si el usuario está en el paso 1 de registro inicial)
+    if (step2Div.style.display !== 'block') {
+        if (!refCodeFromUrl) {
+            const referralModalShown = sessionStorage.getItem('referralModalShown') === 'true';
+            const policyModalShown = sessionStorage.getItem('policyModalShown') === 'true';
 
-        if (!referralModalShown) {
-            showReferralModal();
-        } else if (!policyModalShown) {
+            if (!referralModalShown) {
+                showReferralModal();
+            } else if (!policyModalShown) {
+                showPolicyModal();
+            }
+        } else {
             showPolicyModal();
         }
-    } else {
-        showPolicyModal();
     }
 
     // Configurar campos de menor de edad
@@ -902,7 +908,7 @@ async function initializeRegisterPage() {
 
             const verificationCode = document.getElementById('verificationCode').value;
             const email = (document.getElementById('hiddenEmail')?.value || document.getElementById('email')?.value || '').trim();
-            const referral_code = document.getElementById('referral_code').value;
+            const referral_code = (document.getElementById('referral_code')?.value || '').trim();
 
             try {
                 const response = await fetch(`${API_URL}/api/register-verify`, {
