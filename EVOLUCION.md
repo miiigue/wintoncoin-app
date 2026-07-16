@@ -4141,6 +4141,28 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
   - **Conversión de Campañas**: El código de referido (`SOSVENEZUELA`) se propaga con éxito al Dashboard, permitiendo que la campaña asigne los bonos de donación y registros de forma automática.
 - **Evidencia**: Archivos modificados: `frontend/src/pages/register.js`, `EVOLUCION.md`.
 
+---
+
+### 2026-07-16 — Unificación Terminológica de Obligaciones (Compromiso vs Crédito/Deuda)
+
+- **Autor**: Antigravity (AI Engineering)
+- **Tipo**: Refinamiento Conceptual y UI/UX (Frontend)
+- **Rama**: `fix/email-asterisks-cause-update`
+- **Contexto**: Se requirió alinear la terminología de la interfaz de usuario con los fundamentos no financieros del protocolo WintonCoin. Siguiendo las directrices de cumplimiento y claridad conceptual, se reemplazaron las referencias a "crédito" y "deuda" por "compromiso" en las vistas principales.
+- **Detalles Implementados**:
+  - **Landing Page (`index.html`)**:
+    * Se actualizó el reverso de la moneda RED giratoria (línea 139) de `Tu Crédito` a `Tu Compromiso` de forma consistente.
+    * Se cambió la etiqueta del ticker de estadísticas en la cabecera (línea 108) de `Sin buró de crédito` a `Sin historial financiero` para evitar el uso del término financiero "crédito".
+  - **Whitepaper Técnico (`docs.html`)**:
+    * Se adaptó el subtítulo a "Arquitectura de Compromiso Mutuo y Consenso".
+    * Se modificaron las menciones de "emitir su propio crédito" y "emitir crédito respaldado" a "emitir compromisos" en las secciones conceptuales.
+    * Se actualizó el título de la sección 4.3 a "Compensación y Ciclo de Compromiso".
+    * Se sustituyeron "créditos de liquidez" por "recompensas de liquidez" y "créditos de servicio" por "compromisos de servicio".
+  - **Panel de Administración (`admin-panel.js`)**:
+    * Se renombró la descripción del límite inicial de scoring a "El límite de compromiso inicial que se asigna a los nuevos usuarios al registrarse", manteniendo intactas las llaves técnicas de base de datos para no comprometer la estabilidad del sistema.
+- **Evidencia**: Archivos modificados: `frontend/index.html`, `frontend/docs.html`, `frontend/src/pages/admin-panel.js`, `EVOLUCION.md`.
+
+
 
 
 

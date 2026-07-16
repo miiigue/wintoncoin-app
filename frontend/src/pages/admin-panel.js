@@ -1131,7 +1131,7 @@ document.addEventListener('DOMContentLoaded', () => {
             'gov_reminder_cooldown_hours': { title: 'Gobernanza — Enfriamiento entre Recordatorios (horas)', description: 'Horas mínimas entre recordatorios al mismo guardián.' },
             'gov_vote_reward_blue': { title: 'Gobernanza — Recompensa por Voto (BLUE IOU)', description: 'BLUE IOU acreditados al guardián al emitir su voto. Valor 0 desactiva la recompensa.' },
             // Credit Scoring (Winton Trust Score)
-            'red_credit_base_limit': { title: 'Scoring — Límite Base RED (Nuevos Usuarios)', description: 'El límite de crédito inicial que se asigna a los nuevos usuarios al registrarse.' },
+            'red_credit_base_limit': { title: 'Scoring — Límite Base RED (Nuevos Usuarios)', description: 'El límite de compromiso inicial que se asigna a los nuevos usuarios al registrarse.' },
             'red_credit_culture_quiz': { title: 'Scoring — Bono por Cuestionario de Cultura (RED)', description: 'Aumento del límite por aprobar cuestionarios de la Winton Academy.' },
             'red_credit_referral': { title: 'Scoring — Bono por Referido Activo (RED)', description: 'Aumento del límite por cada referido exitoso que utilice la plataforma.' },
             'red_credit_monthly_activity': { title: 'Scoring — Bono por Alta Actividad (RED)', description: 'Aumento del límite al superar 20 tareas en un mes calendario.' },
