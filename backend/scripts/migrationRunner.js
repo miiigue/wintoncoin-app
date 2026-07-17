@@ -110,8 +110,8 @@ async function runPendingMigrations() {
         const pending = files.filter(f => !appliedMigrations.has(f));
 
         if (pending.length === 0) {
-            const lastAppliedRes = await client.query('SELECT migration_name FROM schema_migrations ORDER BY id DESC LIMIT 1');
-            const lastAppliedName = lastAppliedRes.rows[0]?.migration_name || 'Ninguna (BD vacía)';
+            const sortedApplied = appliedRows.map(r => r.migration_name).sort();
+            const lastAppliedName = sortedApplied[sortedApplied.length - 1] || 'Ninguna (BD vacía)';
             console.log(`[MIGRATIONS] ✅ Base de datos al día. Última migración aplicada: ${lastAppliedName}`);
             return;
         }

@@ -4192,6 +4192,21 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
   - **Limpieza de Copia**: Retiramos del párrafo descriptivo el fragmento final `, creando un tejido social irrompible.`, cerrando la oración adecuadamente con un punto.
 - **Evidencia**: Archivos modificados: `frontend/index.html`, `EVOLUCION.md`.
 
+---
+
+### 2026-07-16 — Hotfix de Estabilidad en Arranque de Base de Datos (migrationRunner.js)
+
+- **Autor**: Antigravity (AI Engineering)
+- **Tipo**: Corrección Crítica de Despliegue (DevOps / Backend)
+- **Rama**: `fix/email-asterisks-cause-update`
+- **Contexto**: Al desplegar en entornos con bases de datos pre-existentes (como Render/Staging/Production), el servidor fallaba al iniciar debido a que la tabla de control `schema_migrations` fue creada con un esquema heredado que carece de la columna `id` (usando `migration_name` como llave primaria única). La consulta `ORDER BY id DESC` fallaba interrumpiendo el flujo.
+- **Solución Implementada**:
+  - Editamos `backend/scripts/migrationRunner.js` (línea 112).
+  - Eliminamos la consulta SQL dependiente de columnas específicas. En su lugar, reutilizamos la consulta inicial (`appliedRows`) que lee la lista completa de nombres de migraciones aplicadas y las ordenamos alfabéticamente en memoria con JavaScript (`appliedRows.map(r => r.migration_name).sort()`).
+  - Esto garantiza un arranque 100% resiliente y compatible con cualquier versión de base de datos activa sin requerir alteraciones DDL ni migraciones de control peligrosas.
+- **Evidencia**: Archivos modificados: `backend/scripts/migrationRunner.js`, `EVOLUCION.md`.
+
+
 
 
 
