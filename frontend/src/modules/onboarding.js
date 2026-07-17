@@ -171,9 +171,6 @@ function startWalletTour() {
             if (burnModal) {
                 burnModal.style.display = 'none';
             }
-
-            // Forzar destrucción para evitar cuelgues
-            driverObj.destroy();
         },
         steps: [
             {
@@ -289,8 +286,6 @@ function startBurnTour() {
 
             const prelaunchModal = document.getElementById('prelaunchWalletModal');
             if (prelaunchModal) prelaunchModal.style.display = 'none';
-
-            driverObj.destroy();
         },
         steps: [
             {
@@ -450,7 +445,6 @@ function startTour() {
             const activeElement = document.querySelector('.driver-active-element');
             if (activeElement) activeElement.style.pointerEvents = '';
 
-            driverObj.destroy();
             localStorage.setItem('wintoncoin_tour_completed', 'true');
         },
     });
@@ -504,7 +498,6 @@ function startPublishTour() {
             // Al cerrar el tour, cerramos el modal si el usuario no hizo click en una opción
             // Pero como el click en opción navega, si cancela el tour, cerramos modal.
             if (pubModal) pubModal.style.display = 'none';
-            driverObj.destroy();
         },
         steps: [
             {
@@ -633,7 +626,6 @@ function runTaskDriver(pubElement) {
         onDestroyStarted: () => {
             // Limpiar la clase temporal
             pubElement.classList.remove(uniqueClass);
-            driverObj.destroy();
         },
         steps: [
             {

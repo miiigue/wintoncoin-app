@@ -160,10 +160,10 @@ export function initPWAInstall() {
     // Siempre guardar el código de referido si viene en la URL
     saveReferralCodeFromUrl();
 
-    // VERIFICACIÓN 1: Si estamos DENTRO de la PWA instalada (modo standalone)
-    // No mostrar botón flotante, solo restaurar código de referido
-    if (isPWAInstalled()) {
-        console.log('[PWA] Ejecutando DENTRO de la PWA instalada - no mostrar botón');
+    // VERIFICACIÓN 1: Si ya está instalada (modo standalone u registrada en local en este navegador)
+    // No mostrar botón flotante, restaurar código de referido si aplica.
+    if (isPWAInstalled() || localStorage.getItem(PWA_INSTALLED_KEY) === 'true') {
+        console.log('[PWA] App ya está instalada (modo standalone o flag local) - no mostrar botón');
         restoreReferralCode();
         return;
     }
@@ -196,16 +196,10 @@ export function initPWAInstall() {
         });
     }
 
-    // VERIFICACIÓN 2: Registro pendiente → SIEMPRE mostrar botón
+    // VERIFICACIÓN 2: Registro pendiente → mostrar botón (solo si pasa la verificación 1)
     if (hasPendingRegistration()) {
         console.log('[PWA] Registro pendiente detectado - mostrando botón de instalación');
         showInstallButton();
-        return;
-    }
-
-    // VERIFICACIÓN 3: Ya fue instalada anteriormente
-    if (localStorage.getItem(PWA_INSTALLED_KEY) === 'true') {
-        console.log('[PWA] App ya fue instalada previamente - no mostrar botón');
         return;
     }
 
