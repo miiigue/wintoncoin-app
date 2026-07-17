@@ -8,7 +8,6 @@ import { getApiUrl, showCustomAlert, checkAuthStatus } from '../modules/index.js
 import { togglePasswordVisibility } from '../modules/password-toggle.js';
 import { initPWAInstall, restoreReferralCode, isPWAInstalled } from '../modules/pwa-install.js';
 import { syncPendingPushSubscription } from '../modules/pushManager.js';
-import { initInAppDetector } from '../modules/in-app-detector.js';
 
 // Hacer toggle disponible globalmente para el onclick del HTML
 window.togglePasswordVisibility = togglePasswordVisibility;
@@ -467,9 +466,6 @@ function setupMinorFields() {
 
 // --- Inicialización principal ---
 async function initializeRegisterPage() {
-    // Detectar y orientar si se corre en el navegador interno de WhatsApp/Instagram
-    initInAppDetector();
-
     const API_URL = getApiUrl();
 
     // Inicializar botón de instalación PWA

@@ -8,7 +8,6 @@ import { getApiUrl, showCustomAlert } from '../modules/index.js';
 import { togglePasswordVisibility } from '../modules/password-toggle.js';
 import { initPWAInstall, isPWAInstalled } from '../modules/pwa-install.js';
 import { syncPendingPushSubscription } from '../modules/pushManager.js';
-import { initInAppDetector } from '../modules/in-app-detector.js';
 
 // Hacer toggle disponible globalmente para el onclick del HTML
 window.togglePasswordVisibility = togglePasswordVisibility;
@@ -177,9 +176,6 @@ function initializeLoginForm() {
  * Inicialización principal de la página de login
  */
 function initializeLoginPage() {
-    // Detectar y orientar si se corre en el navegador interno de WhatsApp/Instagram
-    initInAppDetector();
-
     // PRIMERO: Verificar si hay código de referido pendiente
     // Si lo hay, redirigir a registro y no continuar
     if (checkPendingReferralAndRedirect()) {

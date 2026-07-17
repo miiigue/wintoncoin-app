@@ -21,8 +21,6 @@ import { initOnboarding, restartTour } from '../modules/onboarding.js';
 import { initNotificationGate } from '../modules/notificationGate.js';
 import { initializeNotificationSettings } from '../modules/notificationSettings.js';
 import { initializeGlobalInterstitial } from '../modules/interstitials.js';
-import { initInAppDetector } from '../modules/in-app-detector.js';
-import { initTabManager } from '../modules/tab-manager.js';
 // ...
 // ...
 
@@ -39,12 +37,6 @@ window.restartTour = restartTour;
 console.log('[ContractInteraction] ES Module loaded');
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Detectar si se corre en el navegador interno de WhatsApp/Instagram
-    initInAppDetector();
-
-    // Detectar y notificar si hay pestañas duplicadas de este dashboard activas
-    initTabManager();
-
     // [SEGURIDAD FINTECH] Garantizar la vigencia de la sesión antes de inicializar datos del Dashboard
     await silentRefreshIfNeeded();
 
