@@ -4221,3 +4221,9 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
 
 
 
+
+### Resolución de Incidente de Entorno: Case Mismatch en Windows
+- **Fecha:** 2026-07-17
+- **Problema:** Error de compilación en TypeScript por módulos duplicados de \dotenv\.
+- **Causa Analizada:** El servidor de lenguaje de TypeScript (Case-sensitive) entró en conflicto al tener archivos abiertos en el editor bajo dos rutas con capitalización distinta (WINTONCOIN vs Wintoncoin) aprovechando la flexibilidad del sistema de archivos de Windows (Case-insensitive).
+- **Solución Aplicada:** Reinicio del entorno de desarrollo (VS Code) asegurando cargar el workspace desde una ruta unificada con una única capitalización. No se requirió modificación a la base del código, garantizando la estabilidad y previniendo inyección de riesgos de seguridad.
