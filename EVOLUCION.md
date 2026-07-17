@@ -4242,3 +4242,21 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
 - **Impacto**:
   - **Experiencia Óptima**: Los usuarios registrados tienen un punto de salida llamativo e inmediato para loguearse y salir del flujo de registro/verificación.
 - **Evidencia**: Archivos modificados: `frontend/register.html`, `EVOLUCION.md`.
+
+---
+
+### 2026-07-17 — Corrección de Bucle Infinito del Tour de Onboarding y Prioridad de Instalación PWA
+
+- **Autor**: Antigravity (AI Engineering)
+- **Tipo**: Estabilidad, Lógica de Flujo y UI/UX (Frontend)
+- **Rama**: `fix/email-asterisks-cause-update`
+- **Contexto**:
+  1. Se reportó que el tour de bienvenida se disparaba en cada inicio de sesión o apertura de la app, incluso si el usuario ya lo había terminado o cerrado previamente.
+  2. El banner/botón flotante de instalar la app ("Primero debes instalar la app") se mostraba a usuarios que ya la tenían instalada si entraban mediante un enlace de referidos.
+- **Solución Implementada**:
+  - **Resolución de Recursión en Onboarding (`onboarding.js`)**: Identificamos que las funciones callback `onDestroyStarted` de los 5 tours en el sistema llamaban internamente a `driverObj.destroy()`. Puesto que `onDestroyStarted` es gatillado *durante* el ciclo de destrucción propio de Driver.js, esto causaba un desbordamiento de pila (stack overflow) silencioso en JavaScript, interrumpiendo el flujo antes de que se ejecutara `localStorage.setItem('wintoncoin_tour_completed', 'true')`. Removimos los llamados redundantes a `.destroy()` para permitir que finalicen limpiamente y guarden la bandera.
+  - **Reordenamiento de Prioridad PWA (`pwa-install.js`)**: Fusionamos las validaciones de instalación standalone y la existencia del flag `pwa_installed` en LocalStorage en una sola condición unificada al principio de `initPWAInstall()`. Esto asegura que si el usuario ya instaló la app, el sistema retorne de inmediato sin evaluar si posee una campaña/referido pendiente.
+- **Impacto**:
+  - **Estabilidad de Onboarding**: El progreso del tour se guarda exitosamente la primera vez que el usuario lo termina o lo cierra, previniendo apariciones molestas recurrentes.
+  - **Experiencia Silenciosa**: Los usuarios con la app instalada no reciben indicaciones de descarga redundantes al ingresar por enlaces de mercadeo.
+- **Evidencia**: Archivos modificados: `frontend/src/modules/onboarding.js`, `frontend/src/modules/pwa-install.js`, `EVOLUCION.md`.
