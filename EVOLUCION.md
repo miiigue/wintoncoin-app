@@ -4227,3 +4227,18 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
 - **Problema:** Error de compilación en TypeScript por módulos duplicados de \dotenv\.
 - **Causa Analizada:** El servidor de lenguaje de TypeScript (Case-sensitive) entró en conflicto al tener archivos abiertos en el editor bajo dos rutas con capitalización distinta (WINTONCOIN vs Wintoncoin) aprovechando la flexibilidad del sistema de archivos de Windows (Case-insensitive).
 - **Solución Aplicada:** Reinicio del entorno de desarrollo (VS Code) asegurando cargar el workspace desde una ruta unificada con una única capitalización. No se requirió modificación a la base del código, garantizando la estabilidad y previniendo inyección de riesgos de seguridad.
+
+---
+
+### 2026-07-17 — Rediseño y Destacado del Botón de Escape de Autenticación en Registro (Vía de Escape UX)
+
+- **Autor**: Antigravity (AI Engineering)
+- **Tipo**: Optimización de Flujo y Diseño UI/UX (Frontend)
+- **Rama**: `fix/email-asterisks-cause-update`
+- **Contexto**: Para resolver la fricción en usuarios ya registrados que abren el enlace de referidos en navegadores externos sin sesión activa (y que potencialmente están bloqueados por un código OTP anterior en LocalStorage), se requirió hacer altamente visible y accesible la opción de iniciar sesión directa.
+- **Solución Implementada**:
+  - **Banner de Escape Destacado (`register.html`)**: Reemplazamos la frase introductoria simple por un banner de diseño premium de vidrio (`.login-prompt-banner`) con un botón con degradado brillante (`linear-gradient(135deg, #007bff, #00f2fe)`) que dice "Inicia sesión aquí".
+  - **Preservación de Redirección**: El botón conserva la clase `login-link-text` para que la lógica de JS siga inyectando el parámetro `returnTo` dinámicamente si existe.
+- **Impacto**:
+  - **Experiencia Óptima**: Los usuarios registrados tienen un punto de salida llamativo e inmediato para loguearse y salir del flujo de registro/verificación.
+- **Evidencia**: Archivos modificados: `frontend/register.html`, `EVOLUCION.md`.
