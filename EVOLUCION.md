@@ -4265,3 +4265,8 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
   - Incorporamos la directiva `"launch_handler": { "client_mode": "focus-existing" }` en ambos manifiestos Web App.
   - Esto indica al sistema operativo/navegador que si la PWA ya está abierta y recibe una petición de inicio externa, debe reenfocar y enrutar a la ventana existente en vez de levantar instancias duplicadas.
 - **Evidencia**: Archivos modificados: `frontend/public/manifest.json`, `frontend/public/manifest.demo.json`, `EVOLUCION.md`.
+
+- **Corrección de Bloqueo del Tour Guiado (`onboarding.js`)**:
+  - Cambiamos el callback de `onDestroyStarted` a `onDestroyed` en los 5 flujos de onboarding.
+  - Al usar `onDestroyed`, permitimos que Driver.js finalice su destrucción de forma natural en lugar de interceptar y congelar la pantalla. Una vez completado el desmantelamiento, se registra la bandera de completado en `localStorage`.
+- **Evidencia**: Archivos modificados: `frontend/src/modules/onboarding.js`, `EVOLUCION.md`.
