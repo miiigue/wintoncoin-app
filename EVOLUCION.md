@@ -4260,3 +4260,8 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
   - **Estabilidad de Onboarding**: El progreso del tour se guarda exitosamente la primera vez que el usuario lo termina o lo cierra, previniendo apariciones molestas recurrentes.
   - **Experiencia Silenciosa**: Los usuarios con la app instalada no reciben indicaciones de descarga redundantes al ingresar por enlaces de mercadeo.
 - **Evidencia**: Archivos modificados: `frontend/src/modules/onboarding.js`, `frontend/src/modules/pwa-install.js`, `EVOLUCION.md`.
+
+- **Alineación de Comportamiento Multiventana (`manifest.json` y `manifest.demo.json`)**:
+  - Incorporamos la directiva `"launch_handler": { "client_mode": "focus-existing" }` en ambos manifiestos Web App.
+  - Esto indica al sistema operativo/navegador que si la PWA ya está abierta y recibe una petición de inicio externa, debe reenfocar y enrutar a la ventana existente en vez de levantar instancias duplicadas.
+- **Evidencia**: Archivos modificados: `frontend/public/manifest.json`, `frontend/public/manifest.demo.json`, `EVOLUCION.md`.
