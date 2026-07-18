@@ -43,8 +43,13 @@ exports.uploadImages = async (req, res) => {
         const publicUrlBase = process.env.S3_PUBLIC_URL;
 
         if (!bucketName || !publicUrlBase) {
-            console.error('[MEDIA CONTROLLER] Faltan variables de entorno para S3/R2.');
-            return res.status(500).json({ success: false, message: 'La infraestructura de almacenamiento no está configurada.' });
+            const availableKeys = Object.keys(process.env).filter(key => key.includes('S3') || key.includes('R2') || key.includes('BUCKET') || key.includes('CLOUDFLARE'));
+            console.error('[MEDIA CONTROLLER] Faltan variables de entorno para S3/R2. Claves encontradas:', availableKeys);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'La infraestructura de almacenamiento no está configurada.',
+                details: `Faltan variables críticas (S3_BUCKET_NAME o S3_PUBLIC_URL). Claves cargadas en Render relacionadas: [${availableKeys.join(', ')}]`
+            });
         }
 
         const uploadedUrls = [];
@@ -91,8 +96,8 @@ exports.uploadImages = async (req, res) => {
         console.error('[MEDIA CONTROLLER] Error interno al subir imágenes:', error);
         res.status(500).json({ 
             success: false, 
-            message: 'Error interno del servidor al procesar las imágenes.',
-            details: error.message,
+            message: error.message || 'Error interno del servidor al procesar las imágenes.',
+            details: error.stack,
             code: error.code || error.name || 'UNKNOWN_ERROR'
         });
     }
