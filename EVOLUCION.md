@@ -4296,3 +4296,17 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
    - Modificado rontend/src/pages/publication-detail.js para interceptar clics sobre las imágenes principales de la publicación. Esto abre las fotos a pantalla completa usando el mismo modal inmersivo de Lightbox y autodesplaza el carrusel al slide exacto que fue seleccionado.
 
 - **Evidencia**: Archivos modificados: ackend/src/controllers/adminController.js, rontend/src/pages/admin-panel.js, rontend/src/pages/publication-detail.js, rontend/style.css, EVOLUCION.md.
+### 2026-07-18 - Ajuste de Portadas al Borde de la Tarjeta y Truncado de Títulos/Descripciones (Estilo Uber Eats Tarjeta Completa)
+
+**Contexto**: El usuario solicitó mejorar el impacto visual y la consistencia de las tarjetas de publicaciones en el listado general (contract_interaction.html). Esto requería que las imágenes de portada/carruseles cubrieran la tarjeta de borde a borde en la parte superior, flotando los botones interactivos (como cerrar y la banda de precio) sobre ellas, además de recortar el título y descripción a una sola línea para optimizar el espacio.
+
+**Cambios Realizados**:
+1. **Flotación y Posicionamiento de Portada Edge-to-Edge**:
+   - Modificado rontend/src/pages/contract-interaction.js para añadir la clase dinámica has-images a las tarjetas .publication-item con imágenes y colocar el bloque de la imagen en la parte superior, antes del card-top-row.
+   - Modificado rontend/style.css para aplicar position: relative a las tarjetas .has-images y posicionar de forma absoluta su .card-top-row (position: absolute; top: 0; left: 0; z-index: 5) para que el botón de cerrar y la banda de precio floten de manera natural sobre la imagen.
+   - Aplicados márgenes negativos superiores y laterales (margin: -1.25rem -1.25rem 0.75rem -1.25rem) a la imagen para expandirse y tocar el borde superior e izquierdo/derecho del contenedor de la tarjeta, heredando el redondeado superior (order-radius: 16px 16px 0 0).
+   - Configurado pointer-events: none en la barra contenedora flotante superior (y pointer-events: auto en sus hijos) para asegurar que hacer clic en los espacios vacíos del banner siga permitiendo el ingreso al detalle de la publicación.
+2. **Truncamiento de Textos a Una Línea (Ellipsis)**:
+   - Añadidas reglas en rontend/style.css para recortar mediante CSS (white-space: nowrap; overflow: hidden; text-overflow: ellipsis) el título (.publication-header) y la descripción (.pub-description) a exactamente una línea. Esto previene variaciones verticales desproporcionadas y dota a la lista de una simetría premium.
+
+- **Evidencia**: Archivos modificados: rontend/src/pages/contract-interaction.js, rontend/style.css, EVOLUCION.md.

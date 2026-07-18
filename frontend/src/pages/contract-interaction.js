@@ -1653,8 +1653,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         return `
             <a href="${detailUrl}" class="publication-item-link">
-                <div class="publication-item ${expirationInfo.isExpired ? 'expired' : ''} ${isDonation ? 'donation-card' : ''}" data-id="${pub.id}" data-author="${safeAuthorAttr}">
+                <div class="publication-item ${expirationInfo.isExpired ? 'expired' : ''} ${isDonation ? 'donation-card' : ''} ${(pub.image_urls && pub.image_urls.length > 0) ? 'has-images' : ''}" data-id="${pub.id}" data-author="${safeAuthorAttr}">
                     
+                    ${(pub.image_urls && pub.image_urls.length > 0) ? `
+                        <div class="card-images-container ${pub.image_urls.length > 1 ? 'is-carousel' : 'single-image'}">
+                            ${pub.image_urls.map(url => `<img src="${escapeAttr(url)}" alt="Imagen de publicación" loading="lazy">`).join('')}
+                        </div>
+                    ` : ''}
+
                     <div class="card-top-row ${statusMessageHTML ? 'has-status' : ''}">
                         ${actionButtonHTML}
                         
@@ -1668,12 +1674,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                     
                     ${progressHTML}
-
-                    ${(pub.image_urls && pub.image_urls.length > 0) ? `
-                        <div class="card-images-container ${pub.image_urls.length > 1 ? 'is-carousel' : 'single-image'}">
-                            ${pub.image_urls.map(url => `<img src="${escapeAttr(url)}" alt="Imagen de publicación" loading="lazy">`).join('')}
-                        </div>
-                    ` : ''}
 
                     ${pub.is_humanitarian_cause ? '' : `<p class="pub-description">${linkify(pub.description?.slice(0, 150) || '')}</p>`}
                     

@@ -8285,3 +8285,62 @@ body.wallet-tour-active #prelaunchWalletModal {
     flex: 0 0 100%; /* El carrusel en detalles se enfoca al 100% de ancho */
     max-height: 280px !important;
 }
+
+/* === AJUSTES DE TARJETAS FLUSH Y CLAMP DE TEXTOS (ESTILO UBER EATS) === */
+
+/* Forzar posicionamiento relativo en tarjetas con imágenes */
+.publication-item.has-images {
+    position: relative !important;
+}
+
+/* Flotar la cabecera (close btn y precio) sobre la imagen */
+.publication-item.has-images .card-top-row {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    z-index: 5 !important;
+    background: transparent !important;
+    pointer-events: none; /* Permitir clics a través de la barra si es transparente */
+}
+
+/* Permitir clics en los elementos interactivos dentro de card-top-row */
+.publication-item.has-images .card-top-row * {
+    pointer-events: auto;
+}
+
+/* Estirar el contenedor de imágenes al borde absoluto superior y lateral */
+.publication-item.has-images .card-images-container {
+    margin-top: -1.25rem !important;
+    margin-left: -1.25rem !important;
+    margin-right: -1.25rem !important;
+    margin-bottom: 0.75rem !important;
+    border-radius: 16px 16px 0 0 !important;
+    overflow: hidden !important;
+    border: none !important;
+}
+
+/* Imágenes cuadradas en los extremos del carrusel/portada en tarjeta */
+.publication-item.has-images .card-images-container img {
+    border-radius: 0 !important;
+}
+
+/* Limitar el título a una sola línea con puntos suspensivos */
+.publication-item .publication-header {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: block !important;
+    max-width: 100% !important;
+}
+
+/* Limitar la descripción a una sola línea con puntos suspensivos */
+.publication-item .pub-description {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: block !important;
+    max-width: 100% !important;
+    margin-bottom: 0.75rem !important;
+}
