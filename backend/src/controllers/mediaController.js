@@ -41,14 +41,24 @@ exports.uploadImages = async (req, res) => {
 
         const bucketName = process.env.S3_BUCKET_NAME;
         const publicUrlBase = process.env.S3_PUBLIC_URL;
+        const endpoint = process.env.S3_ENDPOINT;
+        const accessKey = process.env.S3_ACCESS_KEY;
+        const secretKey = process.env.S3_SECRET_KEY;
 
-        if (!bucketName || !publicUrlBase) {
-            const availableKeys = Object.keys(process.env).filter(key => key.includes('S3') || key.includes('R2') || key.includes('BUCKET') || key.includes('CLOUDFLARE'));
-            console.error('[MEDIA CONTROLLER] Faltan variables de entorno para S3/R2. Claves encontradas:', availableKeys);
+        if (!bucketName || !publicUrlBase || !endpoint || !accessKey || !secretKey) {
+            const missing = [];
+            if (!bucketName) missing.push('S3_BUCKET_NAME');
+            if (!publicUrlBase) missing.push('S3_PUBLIC_URL');
+            if (!endpoint) missing.push('S3_ENDPOINT');
+            if (!accessKey) missing.push('S3_ACCESS_KEY');
+            if (!secretKey) missing.push('S3_SECRET_KEY');
+
+            const availableKeys = Object.keys(process.env).filter(key => key.includes('S3') || key.includes('R2') || key.includes('BUCKET') || key.includes('CLOUDFLARE') || key.includes('ACCESS') || key.includes('SECRET'));
+            console.error('[MEDIA CONTROLLER] Configuración de S3/R2 incompleta. Faltan:', missing);
             return res.status(500).json({ 
                 success: false, 
-                message: 'La infraestructura de almacenamiento no está configurada.',
-                details: `Faltan variables críticas (S3_BUCKET_NAME o S3_PUBLIC_URL). Claves cargadas en Render relacionadas: [${availableKeys.join(', ')}]`
+                message: 'La infraestructura de almacenamiento no está completamente configurada.',
+                details: `Faltan variables críticas: [${missing.join(', ')}]. Claves relacionadas cargadas en Render: [${availableKeys.join(', ')}]`
             });
         }
 
