@@ -4280,3 +4280,19 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
 3. **Visor Lightbox de Evidencias**: Modificada la vista detallada para a�adir un bot�n "Ver Evidencias" a cada participante que complet� la tarea enviando im�genes. Se configur� un modal Lightbox oscuro e inmersivo en publication-detail.js para examinar el trabajo entregado.
 
 - **Evidencia**: Archivos modificados: rontend/src/pages/contract-interaction.js, rontend/src/pages/publication-detail.js, rontend/publication-detail.html, rontend/style.css, EVOLUCION.md.
+
+### 2026-07-18 - Visualización de Evidencias en Administrador y Optimizaciones de Portada (Estilo Uber Eats con Lightbox)
+
+**Contexto**: Los administradores no contaban con un método visual directo en el panel de control para inspeccionar las evidencias fotográficas entregadas por los participantes. Adicionalmente, el diseño visual de las publicaciones en el listado general variaba de tamaño desproporcionadamente debido al tamaño de las imágenes cargadas por los usuarios.
+
+**Cambios Realizados**:
+1. **Auditoría Visual de Evidencias para Administradores**:
+   - Modificado ackend/src/controllers/adminController.js para incluir evidence_urls en el SELECT agregado de los participantes de una publicación.
+   - Modificado rontend/src/pages/admin-panel.js para renderizar miniaturas compactas (45px) de las imágenes de evidencia subidas directamente debajo del estado de cada participante con estado "Culminada". Las miniaturas actúan como enlaces en pestaña nueva para verificar su autenticidad.
+2. **Ajustes de Portadas estilo Uber Eats/Coinbase (CSS)**:
+   - Añadidas reglas en rontend/style.css para forzar que los contenedores de imágenes en las tarjetas del listado principal (.publication-item) tengan un alto máximo uniforme de 125px y efectos de hover suaves.
+   - Ampliado el banner hero de detalles de publicación (#publication-content .card-images-container img) a 280px de alto máximo para una experiencia más atractiva y premium.
+3. **Lightbox Integrado para Fotos Principales**:
+   - Modificado rontend/src/pages/publication-detail.js para interceptar clics sobre las imágenes principales de la publicación. Esto abre las fotos a pantalla completa usando el mismo modal inmersivo de Lightbox y autodesplaza el carrusel al slide exacto que fue seleccionado.
+
+- **Evidencia**: Archivos modificados: ackend/src/controllers/adminController.js, rontend/src/pages/admin-panel.js, rontend/src/pages/publication-detail.js, rontend/style.css, EVOLUCION.md.
