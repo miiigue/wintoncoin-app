@@ -4310,3 +4310,14 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
    - Añadidas reglas en rontend/style.css para recortar mediante CSS (white-space: nowrap; overflow: hidden; text-overflow: ellipsis) el título (.publication-header) y la descripción (.pub-description) a exactamente una línea. Esto previene variaciones verticales desproporcionadas y dota a la lista de una simetría premium.
 
 - **Evidencia**: Archivos modificados: rontend/src/pages/contract-interaction.js, rontend/style.css, EVOLUCION.md.
+### 2026-07-18 - Corrección de Estiramiento Lateral en Portada de Tarjetas (Edge-to-Edge)
+
+**Contexto**: Se observó que, aunque el contenedor de imágenes tocaba el borde izquierdo de la tarjeta, quedaba un espacio vacío del color de fondo de la tarjeta en el borde derecho. Esto ocurría porque el contenedor original tenía width: 100% (ancho de contenido) desplazado por un margen izquierdo negativo, lo que lo acortaba lateralmente en el extremo opuesto.
+
+**Cambios Realizados**:
+1. **Ajuste de Ancho Completo Horizontal**:
+   - Modificado rontend/style.css para aplicar width: calc(100% + 2.5rem) !important a .card-images-container cuando se encuentra en tarjetas .has-images. Esto compensa el padding de ambos lados y alinea los límites del contenedor exactamente con los bordes de la tarjeta.
+   - Forzado que las imágenes de contenedor único (.single-image img) tomen width: 100% !important para cubrir toda la superficie sin dejar barras o bordes negros.
+   - Asegurado que las imágenes dentro del carrusel mantengan un width: 90% !important de su contenedor extendido para que no queden huecos vacíos y se vea el indicativo de scroll de forma simétrica.
+
+- **Evidencia**: Archivos modificados: rontend/style.css, EVOLUCION.md.

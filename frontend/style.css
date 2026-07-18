@@ -8344,3 +8344,17 @@ body.wallet-tour-active #prelaunchWalletModal {
     max-width: 100% !important;
     margin-bottom: 0.75rem !important;
 }
+/* Ajustar ancho del contenedor de imágenes para cubrir exactamente de lado a lado */
+.publication-item.has-images .card-images-container {
+    width: calc(100% + 2.5rem) !important;
+}
+
+/* Forzar que las imágenes individuales cubran todo el ancho */
+.publication-item.has-images .card-images-container.single-image img {
+    width: 100% !important;
+}
+
+/* Asegurar que las imágenes del carrusel mantengan consistencia de visualización */
+.publication-item.has-images .card-images-container.is-carousel img {
+    width: 90% !important;
+}
