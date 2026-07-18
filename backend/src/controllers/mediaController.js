@@ -10,14 +10,21 @@ const sharp = require('sharp');
 const crypto = require('crypto');
 const path = require('path');
 
-// Configuración de AWS S3 / Cloudflare R2
+// Variables de configuración de AWS S3 / Cloudflare R2 con soporte de nomenclatura flexible
+const s3Endpoint = process.env.S3_ENDPOINT;
+const s3AccessKeyId = process.env.S3_ACCESS_KEY || process.env.S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+const s3SecretAccessKey = process.env.S3_SECRET_KEY || process.env.S3_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
+const s3BucketName = process.env.S3_BUCKET_NAME;
+const s3PublicUrl = process.env.S3_PUBLIC_URL;
+
+// Inicialización del Cliente S3
 const s3Client = new S3Client({
     region: 'auto',
-    endpoint: process.env.S3_ENDPOINT,
+    endpoint: s3Endpoint,
     forcePathStyle: true, // [CRÍTICO PARA CLOUDFLARE R2] Desactiva enrutamiento virtual-host estilo AWS que no es soportado por R2
     credentials: {
-        accessKeyId: process.env.S3_ACCESS_KEY,
-        secretAccessKey: process.env.S3_SECRET_KEY
+        accessKeyId: s3AccessKeyId,
+        secretAccessKey: s3SecretAccessKey
     }
 });
 
@@ -39,19 +46,13 @@ exports.uploadImages = async (req, res) => {
             });
         }
 
-        const bucketName = process.env.S3_BUCKET_NAME;
-        const publicUrlBase = process.env.S3_PUBLIC_URL;
-        const endpoint = process.env.S3_ENDPOINT;
-        const accessKey = process.env.S3_ACCESS_KEY;
-        const secretKey = process.env.S3_SECRET_KEY;
-
-        if (!bucketName || !publicUrlBase || !endpoint || !accessKey || !secretKey) {
+        if (!s3BucketName || !s3PublicUrl || !s3Endpoint || !s3AccessKeyId || !s3SecretAccessKey) {
             const missing = [];
-            if (!bucketName) missing.push('S3_BUCKET_NAME');
-            if (!publicUrlBase) missing.push('S3_PUBLIC_URL');
-            if (!endpoint) missing.push('S3_ENDPOINT');
-            if (!accessKey) missing.push('S3_ACCESS_KEY');
-            if (!secretKey) missing.push('S3_SECRET_KEY');
+            if (!s3BucketName) missing.push('S3_BUCKET_NAME');
+            if (!s3PublicUrl) missing.push('S3_PUBLIC_URL');
+            if (!s3Endpoint) missing.push('S3_ENDPOINT');
+            if (!s3AccessKeyId) missing.push('S3_ACCESS_KEY (o S3_ACCESS_KEY_ID)');
+            if (!s3SecretAccessKey) missing.push('S3_SECRET_KEY (o S3_SECRET_ACCESS_KEY)');
 
             const availableKeys = Object.keys(process.env).filter(key => key.includes('S3') || key.includes('R2') || key.includes('BUCKET') || key.includes('CLOUDFLARE') || key.includes('ACCESS') || key.includes('SECRET'));
             console.error('[MEDIA CONTROLLER] Configuración de S3/R2 incompleta. Faltan:', missing);
@@ -61,6 +62,9 @@ exports.uploadImages = async (req, res) => {
                 details: `Faltan variables críticas: [${missing.join(', ')}]. Claves relacionadas cargadas en Render: [${availableKeys.join(', ')}]`
             });
         }
+
+        const bucketName = s3BucketName;
+        const publicUrlBase = s3PublicUrl;
 
         const uploadedUrls = [];
 
