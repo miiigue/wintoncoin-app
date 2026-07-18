@@ -1025,8 +1025,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         let errMsg = 'Error al subir la imagen.';
                         try {
                             const errData = await res.json();
-                            if (errData && errData.details) {
-                                errMsg += ` Detalle: ${errData.details}`;
+                            const detailText = errData.message || errData.details;
+                            if (detailText) {
+                                errMsg += ` Detalle: ${detailText}`;
                             }
                         } catch (e) {}
                         showCustomAlert(errMsg);
