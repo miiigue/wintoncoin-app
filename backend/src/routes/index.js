@@ -25,17 +25,17 @@ const router = express.Router();
 
 // Montar todos los routers de dominio bajo rutas base semánticas
 router.use('/users', userRoutes);
-router.use('/publications', publicationRoutes);
+// router.use('/publications', publicationRoutes); // DESACTIVADO: Factory route, ya montado en server.js
 router.use('/admin', adminRoutes);
 router.use('/p2p', p2pRoutes);
-router.use('/me/transactions', transactionRoutes);
-router.use('/notifications', notificationRoutes);
+// router.use('/me/transactions', transactionRoutes); // DESACTIVADO: Factory route
+// router.use('/notifications', notificationRoutes); // DESACTIVADO: Factory route
 router.use('/auth', authRoutes);
-router.use('/momentum', momentumRoutes);
+// router.use('/momentum', momentumRoutes); // DESACTIVADO: Factory route, rompe la api de server.js
 router.use('/academy', academyRoutes);
 router.use('/causes', humanitarianUserRoutes);
 router.use('/humanitarian', humanitarianRoutes);
-router.use('/governance', governanceRoutes);
+// router.use('/governance', governanceRoutes); // DESACTIVADO: Factory route
 router.use('/recruitment', recruitmentRoutes);
 router.use('/validations', validationRoutes);
 router.use('/uploads', uploadRoutes); // Admin Legacy uploads
