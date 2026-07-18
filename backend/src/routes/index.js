@@ -32,12 +32,12 @@ router.use('/p2p', p2pRoutes);
 // router.use('/notifications', notificationRoutes); // DESACTIVADO: Factory route
 router.use('/auth', authRoutes);
 // router.use('/momentum', momentumRoutes); // DESACTIVADO: Factory route, rompe la api de server.js
-router.use('/academy', academyRoutes);
-router.use('/causes', humanitarianUserRoutes);
-router.use('/humanitarian', humanitarianRoutes);
+// router.use('/academy', academyRoutes); // DESACTIVADO: Conflicto, ya montado en server.js
+// router.use('/causes', humanitarianUserRoutes); // DESACTIVADO: Conflicto
+// router.use('/humanitarian', humanitarianRoutes); // PELIGRO FATAL: Esto interceptaba la ruta pública y le aplicaba seguridad de Admin, causando el 401!
 // router.use('/governance', governanceRoutes); // DESACTIVADO: Factory route
-router.use('/recruitment', recruitmentRoutes);
-router.use('/validations', validationRoutes);
+// router.use('/recruitment', recruitmentRoutes); // DESACTIVADO: Conflicto
+// router.use('/validations', validationRoutes); // DESACTIVADO: Conflicto
 router.use('/uploads', uploadRoutes); // Admin Legacy uploads
 router.use('/media', mediaRoutes); // [NUEVO] Subida de imágenes públicas
 router.use('/inapp-notifications', inAppNotificationRoutes);
