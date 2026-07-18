@@ -8257,3 +8257,31 @@ body.wallet-tour-active #prelaunchWalletModal {
     scroll-snap-align: center;
     border-radius: 4px;
 }
+
+/* === AJUSTES DE TAMAÑO DE IMAGEN ESTILO UBER EATS / COINBASE === */
+/* Portadas pequeñas y uniformes en la lista general de publicaciones */
+.publication-item .card-images-container img {
+    max-height: 125px !important;
+    border-radius: 6px;
+    transition: transform 0.2s ease;
+}
+
+.publication-item .card-images-container img:hover {
+    transform: scale(1.02);
+}
+
+/* Portadas grandes y elegantes en el detalle de la publicación */
+#publication-content .card-images-container img {
+    max-height: 280px !important;
+    border-radius: 12px;
+    cursor: zoom-in;
+}
+
+#publication-content .card-images-container.single-image img {
+    max-height: 280px !important;
+}
+
+#publication-content .card-images-container.is-carousel img {
+    flex: 0 0 100%; /* El carrusel en detalles se enfoca al 100% de ancho */
+    max-height: 280px !important;
+}

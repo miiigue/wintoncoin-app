@@ -3547,6 +3547,24 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
 
+        // Mostrar evidencias si existen
+        let evidenceHTML = '';
+        if (participant.evidence_urls && participant.evidence_urls.length > 0) {
+            const imagesHTML = participant.evidence_urls.map(url => `
+                <a href="${escapeHtml(url)}" target="_blank" class="admin-evidence-link" style="display: inline-block; margin-right: 5px;">
+                    <img src="${escapeHtml(url)}" class="admin-evidence-thumbnail" alt="Evidencia" style="width: 45px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); cursor: pointer; transition: transform 0.15s ease;">
+                </a>
+            `).join('');
+            evidenceHTML = `
+                <div class="participant-evidence-admin" style="margin-top: 8px; padding: 0.5rem; background: rgba(255, 255, 255, 0.03); border-radius: 6px; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 0.8rem; color: var(--admin-text-secondary); font-weight: 500;">Evidencias:</span>
+                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                        ${imagesHTML}
+                    </div>
+                </div>
+            `;
+        }
+
         return `
             <li class="participant-item-admin ${participant.form_responses ? 'has-responses' : ''}">
                 <div class="participant-row-admin">
@@ -3561,6 +3579,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 ${formResponsesHTML}
+                ${evidenceHTML}
             </li>
         `;
     }

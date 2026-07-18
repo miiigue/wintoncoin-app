@@ -2105,6 +2105,7 @@ async function getPlatformPublicationsWithParticipants(req, res) {
                 p.id, p.title, p.description, p.created_at, p.status, p.is_paused,
                 p.blue_cost, p.available_slots, p.is_sell_post, p.allow_repeat_participation, p.max_repeat_per_user, p.repeat_cooldown_hours,
                 p.expires_at, p.deleted_at, p.deleted_by_username, p.is_quick_sale, p.auto_approve, p.is_booster_task, p.target_username, p.form_fields,
+                p.image_urls, p.requires_evidence,
                 u.username as author_username,
                 (
                     SELECT json_agg(json_build_object(
@@ -2113,7 +2114,8 @@ async function getPlatformPublicationsWithParticipants(req, res) {
                         'accepted_at', pa.created_at,
                         'average_rating', u_participant.average_rating,
                         'ratings_count', u_participant.ratings_count,
-                        'form_responses', pa.form_responses
+                        'form_responses', pa.form_responses,
+                        'evidence_urls', pa.evidence_urls
                     ) ORDER BY 
                         CASE WHEN pa.status = 'pending' THEN 1 ELSE 2 END ASC,
                         CASE WHEN pa.status = 'pending' THEN pa.created_at END ASC,

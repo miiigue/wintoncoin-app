@@ -790,7 +790,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (e.target === evidenceLightboxModal) evidenceLightboxModal.style.display = 'none';
             });
             
-            // Listen for clicks on "Ver Evidencias" buttons
+            // Listen for clicks on "Ver Evidencias" buttons or main publication images
             elements.content.addEventListener('click', (e) => {
                 const btn = e.target.closest('.view-evidence-btn');
                 if (btn) {
@@ -806,6 +806,28 @@ document.addEventListener('DOMContentLoaded', () => {
                         } catch(err) {
                             console.error('Error parsing evidence urls', err);
                         }
+                    }
+                }
+
+                // NUEVO: Abrir Lightbox al hacer clic en las imágenes principales de la publicación
+                const pubImg = e.target.closest('.card-images-container img');
+                if (pubImg) {
+                    const imgUrls = window.currentPublication?.image_urls || [];
+                    if (imgUrls.length > 0) {
+                        const container = document.getElementById('lightboxImagesContainer');
+                        container.innerHTML = imgUrls.map(url => `
+                            <img src="${escapeAttr(url)}" style="max-height: 85vh; max-width: 100%; object-fit: contain; scroll-snap-align: center; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                        `).join('');
+                        
+                        // Centrar la imagen clickeada si es carrusel
+                        const clickedUrl = pubImg.getAttribute('src');
+                        const clickedIndex = imgUrls.indexOf(clickedUrl);
+                        if (clickedIndex !== -1 && container.children[clickedIndex]) {
+                            setTimeout(() => {
+                                container.children[clickedIndex].scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' });
+                            }, 50);
+                        }
+                        evidenceLightboxModal.style.display = 'flex';
                     }
                 }
             });
