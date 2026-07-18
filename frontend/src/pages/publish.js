@@ -465,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     let errMsg = 'Error al subir la imagen.';
                     try {
                         const errData = await res.json();
-                        const detailText = errData.message || errData.details;
+                        const detailText = [errData.message, errData.details].filter(Boolean).join(' - ');
                         if (detailText) {
                             errMsg += ` Detalle: ${detailText}`;
                         }
