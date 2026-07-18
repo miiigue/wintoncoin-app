@@ -1022,12 +1022,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     } else {
                         item.remove();
-                        showCustomAlert('Error al subir la imagen.');
+                        let errMsg = 'Error al subir la imagen.';
+                        try {
+                            const errData = await res.json();
+                            if (errData && errData.details) {
+                                errMsg += ` Detalle: ${errData.details}`;
+                            }
+                        } catch (e) {}
+                        showCustomAlert(errMsg);
                     }
                 } catch (err) {
                     console.error(err);
                     item.remove();
-                    showCustomAlert('Error de red al subir la imagen.');
+                    showCustomAlert(`Error de red al subir la imagen: ${err.message}`);
                 }
             }
         }

@@ -14,6 +14,7 @@ const path = require('path');
 const s3Client = new S3Client({
     region: 'auto',
     endpoint: process.env.S3_ENDPOINT,
+    forcePathStyle: true, // [CRÍTICO PARA CLOUDFLARE R2] Desactiva enrutamiento virtual-host estilo AWS que no es soportado por R2
     credentials: {
         accessKeyId: process.env.S3_ACCESS_KEY,
         secretAccessKey: process.env.S3_SECRET_KEY
@@ -90,7 +91,9 @@ exports.uploadImages = async (req, res) => {
         console.error('[MEDIA CONTROLLER] Error interno al subir imágenes:', error);
         res.status(500).json({ 
             success: false, 
-            message: 'Error interno del servidor al procesar las imágenes.' 
+            message: 'Error interno del servidor al procesar las imágenes.',
+            details: error.message,
+            code: error.code || error.name || 'UNKNOWN_ERROR'
         });
     }
 };
