@@ -144,7 +144,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Inicialización ---
+    let auditChartInstance = null;
+    let referralsChartInstance = null;
     let platformPublicationsCache = [];
+    let platformUploadedImagesUrls = [];
     let platformEditId = null;
     // --- NUEVO: Variables de Estado del Programa de Impulsores (Booster level filter) ---
     let activeBoosterLevelFilter = null;
@@ -696,7 +699,116 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sectionEl) sectionEl.classList.add('active-section');
         if (navEl) navEl.classList.add('active');
 
-        if (sectionId === 'dashboard') loadDashboardData();
+        if (sectionId === 'dashboard') {
+            // Cargar configuración de imágenes y configurar Dropzone
+            const platformDropzone = document.getElementById('platformMediaDropzone');
+            const platformFileInput = document.getElementById('platformMediaFileInput');
+            const platformPreviewContainer = document.getElementById('platformMediaPreviewContainer');
+            const platformDropzoneLimitMsg = document.getElementById('platform-dropzone-limit-message');
+            let platformMaxImagesAllowed = 3; // Valor por defecto de plataforma
+
+            async function loadPlatformImageLimits() {
+                try {
+                    const res = await apiFetch('/api/platform-settings');
+                    if (res && res.max_images_platform) {
+                        platformMaxImagesAllowed = parseInt(res.max_images_platform, 10);
+                    }
+                    if (platformDropzoneLimitMsg) {
+                        platformDropzoneLimitMsg.textContent = `Puedes subir hasta ${platformMaxImagesAllowed} imagen${platformMaxImagesAllowed !== 1 ? 'es' : ''}.`;
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            loadPlatformImageLimits();
+
+            if (platformDropzone && platformFileInput) {
+                platformDropzone.addEventListener('click', () => platformFileInput.click());
+                platformDropzone.addEventListener('dragover', (e) => { e.preventDefault(); platformDropzone.classList.add('dragover'); });
+                platformDropzone.addEventListener('dragleave', () => platformDropzone.classList.remove('dragover'));
+                platformDropzone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    platformDropzone.classList.remove('dragover');
+                    handlePlatformMediaFiles(e.dataTransfer.files);
+                });
+                platformFileInput.addEventListener('change', (e) => handlePlatformMediaFiles(e.target.files));
+            }
+
+            async function handlePlatformMediaFiles(files) {
+                const remainingSlots = platformMaxImagesAllowed - platformUploadedImagesUrls.length;
+                if (remainingSlots <= 0) {
+                    showCustomAlert(`Solo puedes subir un máximo de ${platformMaxImagesAllowed} imágenes.`);
+                    return;
+                }
+
+                const filesToUpload = Array.from(files).slice(0, remainingSlots);
+                
+                for (const file of filesToUpload) {
+                    if (!file.type.startsWith('image/')) continue;
+                    
+                    const item = document.createElement('div');
+                    item.className = 'media-preview-item';
+                    
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(file);
+                    
+                    const progress = document.createElement('div');
+                    progress.className = 'upload-progress';
+                    
+                    const removeBtn = document.createElement('button');
+                    removeBtn.className = 'remove-btn';
+                    removeBtn.innerHTML = '&times;';
+                    removeBtn.type = 'button';
+                    removeBtn.style.display = 'none';
+
+                    item.appendChild(img);
+                    item.appendChild(progress);
+                    item.appendChild(removeBtn);
+                    platformPreviewContainer.appendChild(item);
+
+                    const formData = new FormData();
+                    formData.append('images', file);
+                    
+                    try {
+                        const token = localStorage.getItem('admin_token');
+                        const res = await fetch(`${API_URL}/api/media/upload`, {
+                            method: 'POST',
+                            headers: { ...(token && { 'Authorization': `Bearer ${token}` }) },
+                            body: formData
+                        });
+                        
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.urls && data.urls.length > 0) {
+                                const uploadedUrl = data.urls[0];
+                                platformUploadedImagesUrls.push(uploadedUrl);
+                                
+                                progress.style.width = '100%';
+                                setTimeout(() => progress.style.display = 'none', 500);
+                                img.classList.add('loaded');
+                                removeBtn.style.display = 'block';
+                                
+                                removeBtn.onclick = (e) => {
+                                    e.stopPropagation(); 
+                                    platformUploadedImagesUrls = platformUploadedImagesUrls.filter(u => u !== uploadedUrl);
+                                    item.remove();
+                                };
+                            }
+                        } else {
+                            item.remove();
+                            showCustomAlert('Error al subir la imagen.');
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        item.remove();
+                        showCustomAlert('Error de red al subir la imagen.');
+                    }
+                }
+            }
+            loadDashboardStats();
+            loadUsers();
+        }
         else if (sectionId === 'settings') loadSettings();
         else if (sectionId === 'users') loadUsers();
         else if (sectionId === 'debtors') loadDebtors();
@@ -2374,7 +2486,9 @@ document.addEventListener('DOMContentLoaded', () => {
             isBoosterTask: document.getElementById('platformIsBoosterTask').checked,
             targetUsername: targetUsername || null,
             formFields: formFields,
-            showPreflightModal: document.getElementById('platformShowPreflightModal').checked
+            showPreflightModal: document.getElementById('platformShowPreflightModal').checked,
+            image_urls: platformUploadedImagesUrls,
+            requires_evidence: document.getElementById('platformRequiresEvidence') ? document.getElementById('platformRequiresEvidence').checked : false
         };
         try {
             if (platformEditId) {
@@ -2386,6 +2500,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             form.reset();
+            platformUploadedImagesUrls = [];
+            const previewContainer = document.getElementById('platformMediaPreviewContainer');
+            if (previewContainer) previewContainer.innerHTML = '';
             resetPlatformEditForm();
             loadPlatformManagementData();
         } catch (error) {
@@ -3042,6 +3159,42 @@ document.addEventListener('DOMContentLoaded', () => {
         const preflightToggle = document.getElementById('platformShowPreflightModal');
         if (preflightToggle) {
             preflightToggle.checked = !!pub.show_preflight_modal;
+        }
+
+        const requiresEvidenceToggle = document.getElementById('platformRequiresEvidence');
+        if (requiresEvidenceToggle) {
+            requiresEvidenceToggle.checked = !!pub.requires_evidence;
+        }
+
+        // Reset and populate images in edit mode
+        platformUploadedImagesUrls = pub.image_urls || [];
+        const previewContainer = document.getElementById('platformMediaPreviewContainer');
+        if (previewContainer) {
+            previewContainer.innerHTML = '';
+            platformUploadedImagesUrls.forEach(url => {
+                const item = document.createElement('div');
+                item.className = 'media-preview-item';
+                
+                const img = document.createElement('img');
+                img.src = url;
+                img.classList.add('loaded');
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-btn';
+                removeBtn.innerHTML = '&times;';
+                removeBtn.type = 'button';
+                removeBtn.style.display = 'block';
+
+                item.appendChild(img);
+                item.appendChild(removeBtn);
+                previewContainer.appendChild(item);
+
+                removeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    platformUploadedImagesUrls = platformUploadedImagesUrls.filter(u => u !== url);
+                    item.remove();
+                };
+            });
         }
 
         if (elements.platformRepeatLimit) {

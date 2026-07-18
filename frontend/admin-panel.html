@@ -606,6 +606,34 @@
                                 <textarea id="platformPubDescription" rows="4" required></textarea>
                             </div>
 
+                            <!-- MEDIA UPLOAD DROPZONE -->
+                            <div id="platform-media-upload-wrapper" class="dropzone-wrapper full-width" style="margin-top: 15px;">
+                                <label>Fotos (Opcional):</label>
+                                <div id="platformMediaDropzone" class="dropzone" tabindex="0">
+                                    <input type="file" id="platformMediaFileInput" name="images" multiple accept="image/jpeg, image/png, image/webp, image/jpg, image/heic" style="display: none;">
+                                    <div class="dropzone-message">
+                                        <span class="dropzone-icon" style="font-size: 2rem; display: block; margin-bottom: 5px;">📷</span>
+                                        <p>Haz clic o arrastra fotos aquí</p>
+                                        <small id="platform-dropzone-limit-message">Cargando límites...</small>
+                                    </div>
+                                </div>
+                                <div id="platformMediaPreviewContainer" class="media-preview-container" style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;"></div>
+                            </div>
+
+                            <!-- EVIDENCIAS SWITCH -->
+                            <div class="form-group-switch has-switch-header full-width" id="platform-evidence-wrapper" style="margin-top: 20px;">
+                                <div class="switch-header">
+                                    <div class="switch-label-group">
+                                        <label for="platformRequiresEvidence">Exigir evidencias fotográficas</label>
+                                        <small class="input-hint">El trabajador deberá subir fotos obligatoriamente para poder culminar la tarea.</small>
+                                    </div>
+                                    <label class="switch">
+                                        <input type="checkbox" id="platformRequiresEvidence" name="platformRequiresEvidence">
+                                        <span class="slider round"></span>
+                                    </label>
+                                </div>
+                            </div>
+
                             <div class="form-group-admin">
                                 <label>Describe las instrucciones paso a paso</label>
                                 <div class="admin-step-inputs" id="platformStepInputs">
