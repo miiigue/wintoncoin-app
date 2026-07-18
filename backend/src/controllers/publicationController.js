@@ -402,7 +402,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 SELECT
             p.id, p.title, p.description, p.blue_cost, p.created_at, p.status, p.category,
             p.is_booster_task, p.is_sell_post, p.available_slots, p.expires_at, p.allow_repeat_participation, p.max_repeat_per_user, p.repeat_cooldown_hours,
-            p.goal_amount, p.current_amount,
+            p.goal_amount, p.current_amount, p.image_urls, p.requires_evidence,
                     u.username as author_username,
             u.average_rating as author_average_rating,
             u.ratings_count as author_ratings_count,
@@ -1723,6 +1723,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 p.is_sell_post, p.available_slots, p.category, p.expires_at,
                 p.is_quick_sale, p.target_username, p.form_fields, p.show_preflight_modal,
                 p.goal_amount, p.current_amount, p.beneficiary_referral_code,
+                p.image_urls, p.requires_evidence,
                 u.username as author_username,
                 u.average_rating as author_average_rating,
                 u.ratings_count as author_ratings_count,
