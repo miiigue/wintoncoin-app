@@ -35,6 +35,34 @@
                     herramientas, lugares, horarios, habilidades, etc.</small>
             </div>
 
+            <!-- MEDIA UPLOAD DROPZONE -->
+            <div id="media-upload-wrapper" class="dropzone-wrapper">
+                <label>Fotos (Opcional):</label>
+                <div id="mediaDropzone" class="dropzone" tabindex="0">
+                    <input type="file" id="mediaFileInput" name="images" multiple accept="image/jpeg, image/png, image/webp, image/jpg, image/heic" style="display: none;">
+                    <div class="dropzone-message">
+                        <span class="dropzone-icon" style="font-size: 2rem; display: block; margin-bottom: 5px;">📷</span>
+                        <p>Haz clic o arrastra fotos aquí</p>
+                        <small id="dropzone-limit-message">Cargando límites...</small>
+                    </div>
+                </div>
+                <div id="mediaPreviewContainer" class="media-preview-container" style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;"></div>
+            </div>
+
+            <!-- EVIDENCIAS SWITCH -->
+            <div class="form-group-switch has-switch-header" id="evidence-wrapper">
+                <div class="switch-header">
+                    <div class="switch-label-group">
+                        <label for="requiresEvidence">Exigir evidencias fotográficas</label>
+                        <small class="input-hint">El trabajador deberá subir fotos obligatoriamente para poder culminar la tarea.</small>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" id="requiresEvidence" name="requiresEvidence">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+
             <div id="step-instructions-container" class="step-instructions-container" style="display: none;">
                 <label class="step-instructions-title">Describe las instrucciones paso a paso</label>
                 <div id="stepInstructionsPanel" class="step-instructions-panel">

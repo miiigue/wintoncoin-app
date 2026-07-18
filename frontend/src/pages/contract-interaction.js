@@ -1669,6 +1669,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     
                     ${progressHTML}
 
+                    ${(pub.image_urls && pub.image_urls.length > 0) ? `
+                        <div class="card-images-container ${pub.image_urls.length > 1 ? 'is-carousel' : 'single-image'}">
+                            ${pub.image_urls.map(url => `<img src="${escapeAttr(url)}" alt="Imagen de publicación" loading="lazy">`).join('')}
+                        </div>
+                    ` : ''}
+
                     ${pub.is_humanitarian_cause ? '' : `<p class="pub-description">${linkify(pub.description?.slice(0, 150) || '')}</p>`}
                     
 

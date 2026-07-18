@@ -1874,7 +1874,7 @@ async function processGovernanceRewards(req, res) {
  * Crea una nueva publicación oficial en nombre de la Plataforma.
  */
 async function createPlatformPublication(req, res) {
-    const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours, repeatCooldownDays, repeatCooldownMinutes, targetUsername, formFields } = req.body;
+    const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours, repeatCooldownDays, repeatCooldownMinutes, targetUsername, formFields, image_urls, requires_evidence } = req.body;
 
     if (!title || !description || !costString) {
         return res.status(400).json({ message: "Faltan datos: título, descripción y costo son requeridos." });
@@ -1929,12 +1929,18 @@ async function createPlatformPublication(req, res) {
         // [SECURITY] Sanitización modular de formFields usando helper para evitar duplicación (Hallazgo #7 Auditoría)
         const sanitizedFormFields = _sanitizeFormFields(formFields);
 
+        // === VALIDACIÓN DE IMÁGENES ===
+        const settingsResult = await pool.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'max_images_platform'`);
+        const maxAllowedImages = parseInt(settingsResult.rows[0]?.setting_value || '3', 10);
+        const urlsToSave = (Array.isArray(image_urls) ? image_urls : []).slice(0, maxAllowedImages);
+        const demandsEvidence = !!requires_evidence;
+
         const sql = `
-            INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, is_booster_task, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, target_username, form_fields, show_preflight_modal) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
+            INSERT INTO publications (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, is_booster_task, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, target_username, form_fields, show_preflight_modal, image_urls, requires_evidence) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) 
             RETURNING id
         `;
-        const result = await pool.query(sql, [title, description, cost, !!isSellPost, authorId, slots, !!autoApprove, !!isBoosterTask, allowRepeat, maxRepeat, repeatCooldown, sanitizedTargetUsername, sanitizedFormFields, !!req.body.showPreflightModal]);
+        const result = await pool.query(sql, [title, description, cost, !!isSellPost, authorId, slots, !!autoApprove, !!isBoosterTask, allowRepeat, maxRepeat, repeatCooldown, sanitizedTargetUsername, sanitizedFormFields, !!req.body.showPreflightModal, urlsToSave, demandsEvidence]);
 
         const newPubId = result.rows[0].id;
 

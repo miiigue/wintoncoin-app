@@ -4270,3 +4270,13 @@ Se asienta en auditorÃƒÂ­a la remociÃƒÂ³n fÃƒÂ­sica de la subcarpeta `android-ap
   - Cambiamos el callback de `onDestroyStarted` a `onDestroyed` en los 5 flujos de onboarding.
   - Al usar `onDestroyed`, permitimos que Driver.js finalice su destrucciÃ³n de forma natural en lugar de interceptar y congelar la pantalla. Una vez completado el desmantelamiento, se registra la bandera de completado en `localStorage`.
 - **Evidencia**: Archivos modificados: `frontend/src/modules/onboarding.js`, `EVOLUCION.md`.
+### 2026-07-18 - UI/UX de Carga y Visualización de Evidencias (Frontend Premium)
+
+**Contexto**: Se requería completar el flujo frontend para permitir la subida de imágenes de evidencia (a través de Cloudflare R2/AWS S3) durante el proceso de "Finalizar Tarea" y visualizar estas imágenes en un carrusel dinámico en la publicación y en un Lightbox para evaluación.
+
+**Cambios Realizados**:
+1. **Rediseño de Publicaciones (Premium UI)**: Modificado contract-interaction.js y publication-detail.js para renderizar un carrusel interactivo y responsivo bajo el título de las publicaciones que contengan imágenes adjuntas.
+2. **Modal Finalizar Tarea con Dropzone**: Se inyectó un nuevo modal de confirmación en publication-detail.html que impide enviar la tarea como culminada si el creador ha exigido evidencias (equires_evidence=true) y no se ha cargado ninguna. Se maneja la carga múltiple visual mediante Drag & Drop y se suben directo al backend a través de la ruta /api/media/upload.
+3. **Visor Lightbox de Evidencias**: Modificada la vista detallada para añadir un botón "Ver Evidencias" a cada participante que completó la tarea enviando imágenes. Se configuró un modal Lightbox oscuro e inmersivo en publication-detail.js para examinar el trabajo entregado.
+
+- **Evidencia**: Archivos modificados: rontend/src/pages/contract-interaction.js, rontend/src/pages/publication-detail.js, rontend/publication-detail.html, rontend/style.css, EVOLUCION.md.

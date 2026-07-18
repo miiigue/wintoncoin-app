@@ -8137,4 +8137,123 @@ body.wallet-tour-active #prelaunchWalletModal {
     }
 }
 
-
+
+/* ==========================================================================
+   DROPZONE Y GALERIA UI (Publicaciones)
+   ========================================================================== */
+.dropzone-wrapper {
+    margin-bottom: 20px;
+}
+.dropzone {
+    border: 2px dashed rgba(106, 90, 205, 0.5);
+    border-radius: 12px;
+    background: rgba(106, 90, 205, 0.05);
+    padding: 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: var(--text-color);
+}
+.dropzone:hover, .dropzone.dragover {
+    background: rgba(106, 90, 205, 0.15);
+    border-color: var(--primary-color);
+}
+.dropzone-message p {
+    margin: 5px 0;
+    font-weight: 500;
+}
+.dropzone-message small {
+    color: #999;
+}
+.media-preview-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 15px;
+}
+.media-preview-item {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    background: #000;
+}
+.media-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+.media-preview-item img.loaded {
+    opacity: 1;
+}
+.media-preview-item .remove-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(255, 50, 50, 0.8);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 24px;
+    text-align: center;
+    padding: 0;
+}
+.media-preview-item .remove-btn:hover {
+    background: rgba(255, 50, 50, 1);
+}
+.media-preview-item .upload-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+    background: var(--primary-color);
+    width: 0%;
+    transition: width 0.2s ease;
+}
+
+/* ==========================================================================
+   CAROUSEL/IMÁGENES EN TARJETAS DE PUBLICACIÓN
+   ========================================================================== */
+.card-images-container {
+    width: 100%;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #000;
+}
+.card-images-container.single-image img {
+    width: 100%;
+    max-height: 200px;
+    object-fit: cover;
+    display: block;
+}
+.card-images-container.is-carousel {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    gap: 4px;
+    padding-bottom: 4px; /* for scrollbar */
+}
+.card-images-container.is-carousel::-webkit-scrollbar {
+    height: 6px;
+}
+.card-images-container.is-carousel::-webkit-scrollbar-thumb {
+    background-color: var(--primary-color);
+    border-radius: 4px;
+}
+.card-images-container.is-carousel img {
+    flex: 0 0 90%;
+    max-height: 200px;
+    object-fit: cover;
+    scroll-snap-align: center;
+    border-radius: 4px;
+}

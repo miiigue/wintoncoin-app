@@ -35,7 +35,9 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours,
             repeatCooldownDays, repeatCooldownMinutes,
             goalAmount, // Nuevo campo recogido del frontend
-            beneficiaryReferralCode // CÓDIGO DE REFERIDO: Recibido en campañas de donación
+            beneficiaryReferralCode, // CÓDIGO DE REFERIDO: Recibido en campañas de donación
+            image_urls, // [NUEVO] Arreglo de URLs de fotos subidas
+            requires_evidence // [NUEVO] Booleano para requerir pruebas de culminación
         } = req.body;
 
         if (!title || !description || !authorUsername || (!blueCost && !blueSell && !goalAmount) || !publicationType) {
@@ -71,7 +73,10 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 'allow_sell_publications',
                 'allow_donation_publications',
                 'platform_commission_percentage',
-                'pre_launch_mode_enabled'
+                'pre_launch_mode_enabled',
+                'max_images_request',
+                'max_images_sell',
+                'max_images_donation'
             ];
             const settingsResult = await client.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key = ANY($1::text[])`, [settingsKeys]);
             // Almacenar valores crudos (string) para poder convertir a boolean o número según contexto.
@@ -86,6 +91,12 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             if (!typePermissionMap[publicationType]) {
                 throw { status: 403, message: `La creación de publicaciones de tipo "${publicationType}" está desactivada temporalmente.` };
             }
+
+            // === VALIDACIÓN DE IMÁGENES ===
+            const limitKey = `max_images_${publicationType}`;
+            const maxAllowedImages = parseInt(settings[limitKey] || '1', 10);
+            const urlsToSave = (Array.isArray(image_urls) ? image_urls : []).slice(0, maxAllowedImages);
+            const demandsEvidence = !!requires_evidence;
 
             // === SEGURIDAD Y CONTROL DE PRE-LANZAMIENTO ===
             // En modo de pre-lanzamiento, únicamente la cuenta oficial de la plataforma 
@@ -256,9 +267,9 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             const sql = `
                         INSERT INTO publications
-                            (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, category, expires_at, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, show_preflight_modal, goal_amount, beneficiary_referral_code)
+                            (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, category, expires_at, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, show_preflight_modal, goal_amount, beneficiary_referral_code, image_urls, requires_evidence)
                         VALUES
-                            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+                            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
                         RETURNING id
                     `;
             const result = await client.query(sql, [
@@ -276,7 +287,9 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 repeatCooldown,
                 !!req.body.show_preflight_modal,
                 goal,
-                beneficiaryUser ? beneficiaryUser.referral_code : null
+                beneficiaryUser ? beneficiaryUser.referral_code : null,
+                urlsToSave,
+                demandsEvidence
             ]);
 
             await logAuditEvent(client, req, {
@@ -1377,7 +1390,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
     // Ruta para Marcar como Culminada
     router.post('/publications/:id/complete', requireAcceptedLegalByUsernameField(['completerUsername']), async (req, res) => {
         const pubId = req.params.id;
-        const { completerUsername, formResponses } = req.body;
+        const { completerUsername, formResponses, evidence_urls } = req.body;
 
         const client = await pool.connect();
         try {
@@ -1395,7 +1408,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             // 2. FETCH ACCEPTANCE DATA
             // AUDITORÍA FINTECH: Agregamos 'p.is_booster_task' a la consulta SQL para recuperar el tipo de tarea y modularizar el comportamiento transaccional de pagos.
             const acceptanceResult = await client.query(
-                `SELECT p.blue_cost, p.is_sell_post, p.title, p.category, p.form_fields, p.is_booster_task,
+                `SELECT p.blue_cost, p.is_sell_post, p.title, p.category, p.form_fields, p.is_booster_task, p.requires_evidence,
                             u.username as author_username,
                             pa.id as acceptance_id,
                             pa.form_responses_submitted_at
@@ -1410,6 +1423,25 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             const acceptance = acceptanceResult.rows[0];
             if (!acceptance) {
                 throw { status: 404, message: "No se encontró una tarea o compra aprobada para procesar." };
+            }
+
+            // --- VALIDACIÓN DE EVIDENCIAS FOTOGRÁFICAS ---
+            if (acceptance.requires_evidence) {
+                if (!evidence_urls || !Array.isArray(evidence_urls) || evidence_urls.length === 0) {
+                    throw { status: 400, message: "Esta tarea exige subir evidencia fotográfica para poder culminarla." };
+                }
+            }
+            
+            let urlsToSave = [];
+            if (evidence_urls && Array.isArray(evidence_urls)) {
+                // Obtener límite de configuración y evitar overflow de memoria
+                const settingsLimits = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'max_images_evidence'`);
+                const maxAllowedEvidence = parseInt(settingsLimits.rows[0]?.setting_value || '2', 10);
+                
+                if (evidence_urls.length > maxAllowedEvidence) {
+                    throw { status: 400, message: `Has excedido el límite máximo de ${maxAllowedEvidence} imágenes de evidencia.` };
+                }
+                urlsToSave = evidence_urls.slice(0, maxAllowedEvidence);
             }
 
             // ──────────────────────────────────────────────────────────
@@ -1464,15 +1496,17 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             }
 
             const shouldSaveResponses = !!sanitizedFormResponses;
+            const shouldSaveEvidences = urlsToSave.length > 0;
 
-            if (shouldSaveResponses) {
+            if (shouldSaveResponses || shouldSaveEvidences) {
                 const updateResponsesResult = await client.query(
                     `UPDATE publication_acceptances
-                         SET form_responses = $1,
+                         SET form_responses = COALESCE($1, form_responses),
+                             evidence_urls = COALESCE(NULLIF($3::text[], '{}'), evidence_urls),
                              form_responses_submitted_at = COALESCE(form_responses_submitted_at, NOW())
                          WHERE id = $2
                          RETURNING form_responses_submitted_at`,
-                    [sanitizedFormResponses, acceptance.acceptance_id]
+                    [sanitizedFormResponses || null, acceptance.acceptance_id, urlsToSave]
                 );
 
                 if (!acceptance.form_responses_submitted_at) {

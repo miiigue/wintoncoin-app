@@ -700,7 +700,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (sectionId === 'settings') loadSettings();
         else if (sectionId === 'users') loadUsers();
         else if (sectionId === 'debtors') loadDebtors();
-        else if (sectionId === 'publications') loadPublications();
+        else if (sectionId === 'publications') { loadPublications(); loadImageLimits(); }
         else if (sectionId === 'platform-wallet') loadPlatformWalletData();
         else if (sectionId === 'platform-publications') loadPlatformManagementData();
         else if (sectionId === 'referrals') loadReferralsData();
@@ -3512,6 +3512,58 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
             </tr>
         `;
+    }
+
+    // --- Image Limits Logic ---
+    async function loadImageLimits() {
+        try {
+            const settings = await apiFetch('/api/admin/settings');
+            const keys = ['max_images_request', 'max_images_sell', 'max_images_donation', 'max_images_platform', 'max_images_evidence'];
+            keys.forEach(k => {
+                const setting = settings.find(s => s.setting_key === k);
+                const input = document.getElementById(k.replace(/_([a-z])/g, g => g[1].toUpperCase())); // snake_case to camelCase
+                if (input && setting) {
+                    input.value = setting.setting_value;
+                }
+            });
+        } catch (error) {
+            console.error("Error al cargar configuración de límites de imágenes:", error);
+        }
+    }
+
+    const imageLimitsForm = document.getElementById('imageLimitsForm');
+    if (imageLimitsForm) {
+        imageLimitsForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            const originalText = btn.textContent;
+            btn.textContent = 'Guardando...';
+            btn.disabled = true;
+
+            const limitsToSave = [
+                { key: 'max_images_request', value: document.getElementById('maxImagesRequest').value },
+                { key: 'max_images_sell', value: document.getElementById('maxImagesSell').value },
+                { key: 'max_images_donation', value: document.getElementById('maxImagesDonation').value },
+                { key: 'max_images_platform', value: document.getElementById('maxImagesPlatform').value },
+                { key: 'max_images_evidence', value: document.getElementById('maxImagesEvidence').value }
+            ];
+
+            try {
+                for (const item of limitsToSave) {
+                    await apiFetch('/api/admin/settings', {
+                        method: 'POST',
+                        body: JSON.stringify({ key: item.key, value: item.value.toString() })
+                    });
+                }
+                showCustomAlert('Límites de imágenes guardados correctamente.');
+            } catch (err) {
+                console.error(err);
+                showCustomAlert('Error al guardar los límites de imágenes.');
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        });
     }
 
     function renderPublicationsTable(publications) {

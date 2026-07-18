@@ -88,6 +88,39 @@
         </div>
     </div>
 
+    <!-- Modal Finalizar Tarea con Evidencias -->
+    <div id="completeTaskModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-button complete-close-button">&times;</span>
+            <h2 style="margin-bottom: 15px;">Finalizar Tarea</h2>
+            <p id="evidenceRequiredMessage" style="margin-bottom: 15px; font-size: 0.95rem; opacity: 0.9;">El creador ha solicitado que proporciones evidencias (imágenes). Por favor súbelas antes de continuar.</p>
+            
+            <div id="evidenceDropzone" class="dropzone" style="margin-bottom: 20px;">
+                <div class="dropzone-message">
+                    <p>Haz clic o arrastra tus imágenes de evidencia aquí</p>
+                    <small id="evidence-limit-message">Puedes subir hasta 2 imágenes.</small>
+                </div>
+            </div>
+            <input type="file" id="evidenceFileInput" accept="image/*" multiple style="display: none;">
+            <div id="evidencePreviewContainer" class="media-preview-container"></div>
+            
+            <div class="confirm-buttons" style="margin-top: 20px;">
+                <button class="action-button cancel-button complete-cancel-button">Cancelar</button>
+                <button class="action-button confirm-button" id="completeTaskConfirmBtn">Finalizar Tarea</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Lightbox para Evidencias -->
+    <div id="evidenceLightboxModal" class="modal" style="display: none; background: rgba(0,0,0,0.9);">
+        <div class="modal-content lightbox-content" style="background: transparent; border: none; box-shadow: none; max-width: 90vw;">
+            <span class="close-button lightbox-close-button" style="color: white; font-size: 2rem; position: absolute; right: 20px; top: 20px;">&times;</span>
+            <div id="lightboxImagesContainer" style="display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 20px; padding: 20px; align-items: center;">
+                <!-- Las imágenes se insertarán aquí dinámicamente -->
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
 </body>
 

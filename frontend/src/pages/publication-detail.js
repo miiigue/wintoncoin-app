@@ -29,7 +29,16 @@ document.addEventListener('DOMContentLoaded', () => {
         preflightTitle: document.getElementById('preflightTitle'),
         preflightMessage: document.getElementById('preflightMessage'),
         preflightContinueBtn: document.getElementById('preflightContinueBtn'),
+        completeTaskModal: document.getElementById('completeTaskModal'),
+        completeTaskConfirmBtn: document.getElementById('completeTaskConfirmBtn'),
+        evidenceDropzone: document.getElementById('evidenceDropzone'),
+        evidenceFileInput: document.getElementById('evidenceFileInput'),
+        evidencePreviewContainer: document.getElementById('evidencePreviewContainer'),
+        evidenceRequiredMessage: document.getElementById('evidenceRequiredMessage'),
+        evidenceLimitMessage: document.getElementById('evidence-limit-message')
     };
+
+    let uploadedEvidenceUrls = [];
 
     // --- Initialization ---
     if (!publicationId) {
@@ -138,6 +147,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderPublication(pub, platformSettings) {
+        window.currentPublication = pub;
+        window.maxEvidenceImages = parseInt(platformSettings?.max_images_evidence || '2', 10);
+
         const isDonation = pub.category === 'donation';
         const authorRatingHTML = generateStarRating(pub.author_average_rating, pub.author_ratings_count);
 
@@ -224,6 +236,12 @@ document.addEventListener('DOMContentLoaded', () => {
             ${progressHTML}
 
             <hr>
+
+            ${(pub.image_urls && pub.image_urls.length > 0) ? `
+                <div class="card-images-container ${pub.image_urls.length > 1 ? 'is-carousel' : 'single-image'}">
+                    ${pub.image_urls.map(url => `<img src="${escapeAttr(url)}" alt="Imagen de publicación" loading="lazy">`).join('')}
+                </div>
+            ` : ''}
 
             <div class="detail-description">
                 ${linkify(normalizeMultilineText(mainText))}
@@ -447,6 +465,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? `<span class="participant-donation-amount">+${formatBalance(p.blue_cost)} BLUE</span>`
                 : '';
 
+            let evidenceHTML = '';
+            if (p.evidence_urls && p.evidence_urls.length > 0) {
+                const encodedUrls = encodeURIComponent(JSON.stringify(p.evidence_urls));
+                evidenceHTML = `
+                    <div class="participant-evidence" style="margin-top: 10px;">
+                        <button type="button" class="action-button view-evidence-btn" data-evidence="${encodedUrls}" style="font-size: 0.85rem; padding: 6px 12px;">Ver Evidencias</button>
+                    </div>
+                `;
+            }
+
             return `
                 <li class="participant-item ${p.form_responses ? 'has-responses' : ''}">
                     <div class="participant-info">
@@ -459,6 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="status-badge ${p.status}">${statusText}</span>
                         ${actionButtons}
                     </div>
+                    ${evidenceHTML}
                     ${formResponsesHTML}
                 </li>
             `;
@@ -743,7 +772,46 @@ document.addEventListener('DOMContentLoaded', () => {
             if (event.target == elements.ratingModal) {
                 elements.ratingModal.style.display = 'none';
             }
+            if (event.target == elements.completeTaskModal) {
+                elements.completeTaskModal.style.display = 'none';
+            }
         });
+
+        const closeCompleteBtns = elements.completeTaskModal?.querySelectorAll('.complete-close-button, .complete-cancel-button');
+        if (closeCompleteBtns) {
+            closeCompleteBtns.forEach(btn => btn.addEventListener('click', () => elements.completeTaskModal.style.display = 'none'));
+        }
+
+        const evidenceLightboxModal = document.getElementById('evidenceLightboxModal');
+        if (evidenceLightboxModal) {
+            const lightboxCloseBtn = evidenceLightboxModal.querySelector('.lightbox-close-button');
+            lightboxCloseBtn.addEventListener('click', () => evidenceLightboxModal.style.display = 'none');
+            evidenceLightboxModal.addEventListener('click', (e) => {
+                if (e.target === evidenceLightboxModal) evidenceLightboxModal.style.display = 'none';
+            });
+            
+            // Listen for clicks on "Ver Evidencias" buttons
+            elements.content.addEventListener('click', (e) => {
+                const btn = e.target.closest('.view-evidence-btn');
+                if (btn) {
+                    const encodedUrls = btn.getAttribute('data-evidence');
+                    if (encodedUrls) {
+                        try {
+                            const urls = JSON.parse(decodeURIComponent(encodedUrls));
+                            const container = document.getElementById('lightboxImagesContainer');
+                            container.innerHTML = urls.map(url => `
+                                <img src="${escapeAttr(url)}" style="max-height: 80vh; max-width: 100%; object-fit: contain; scroll-snap-align: center; border-radius: 8px;">
+                            `).join('');
+                            evidenceLightboxModal.style.display = 'flex';
+                        } catch(err) {
+                            console.error('Error parsing evidence urls', err);
+                        }
+                    }
+                }
+            });
+        }
+
+        setupEvidenceUpload();
     }
 
     async function handleActionClick(event) {
@@ -788,10 +856,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 body = { approverUsername: storedUsername, userToApprove: userInAction };
                 break;
             case 'complete':
-                endpoint = `/publications/${publicationId}/complete`;
                 // Recopilar respuestas del formulario si existen
                 const formResponses = collectFormResponses();
-                body = { completerUsername: storedUsername };
+                
                 // Validar que todos los campos requeridos estén completos
                 const requiredFields = document.querySelectorAll('.step-form-input[required]');
                 if (requiredFields.length > 0) {
@@ -809,10 +876,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         return;
                     }
                 }
-                if (formResponses && Object.keys(formResponses).length > 0) {
-                    body.formResponses = formResponses;
+
+                if (window.currentPublication?.requires_evidence) {
+                    // Mostrar modal de evidencias
+                    if (elements.completeTaskModal) {
+                        elements.completeTaskModal.style.display = 'flex';
+                        elements.completeTaskConfirmBtn.onclick = async () => {
+                            if (uploadedEvidenceUrls.length === 0) {
+                                showCustomAlert('El creador de esta publicación exige imágenes como evidencia. Por favor sube al menos una imagen.');
+                                return;
+                            }
+                            await submitCompleteTask(publicationId, formResponses, uploadedEvidenceUrls);
+                        };
+                    }
+                } else {
+                    await submitCompleteTask(publicationId, formResponses, []);
                 }
-                break;
+                return;
             case 'desist': {
                 const isPending = button && button.textContent.toLowerCase().includes('solicitud');
                 const confirmMsg = isPending 
@@ -990,6 +1070,114 @@ Puedes ver los detalles aquí:`;
         } catch (error) {
             console.error(`Error en fetchFromServer (${endpoint}):`, error);
             return null;
+        }
+    }
+
+    async function submitCompleteTask(pubId, formResponses, evidenceUrls) {
+        let endpoint = `/publications/${pubId}/complete`;
+        let body = { completerUsername: storedUsername, evidence_urls: evidenceUrls };
+        if (formResponses && Object.keys(formResponses).length > 0) {
+            body.formResponses = formResponses;
+        }
+        if (elements.completeTaskModal) {
+            elements.completeTaskModal.style.display = 'none';
+        }
+        await fetchFromServer(endpoint, 'POST', body);
+    }
+
+    // --- Evidence Upload Helpers ---
+    function setupEvidenceUpload() {
+        if (!elements.evidenceDropzone || !elements.evidenceFileInput) return;
+
+        elements.evidenceDropzone.addEventListener('click', () => elements.evidenceFileInput.click());
+        elements.evidenceDropzone.addEventListener('dragover', (e) => { e.preventDefault(); elements.evidenceDropzone.classList.add('dragover'); });
+        elements.evidenceDropzone.addEventListener('dragleave', () => elements.evidenceDropzone.classList.remove('dragover'));
+        elements.evidenceDropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            elements.evidenceDropzone.classList.remove('dragover');
+            handleEvidenceFiles(e.dataTransfer.files);
+        });
+        elements.evidenceFileInput.addEventListener('change', (e) => handleEvidenceFiles(e.target.files));
+
+        if (elements.evidenceLimitMessage) {
+            // we update it when rendering
+            setInterval(() => {
+                const max = window.maxEvidenceImages || 2;
+                elements.evidenceLimitMessage.textContent = `Puedes subir hasta ${max} imagen${max !== 1 ? 'es' : ''}.`;
+            }, 1000);
+        }
+    }
+
+    async function handleEvidenceFiles(files) {
+        const maxImagesAllowed = window.maxEvidenceImages || 2;
+        const remainingSlots = maxImagesAllowed - uploadedEvidenceUrls.length;
+        if (remainingSlots <= 0) {
+            showCustomAlert(`Solo puedes subir un máximo de ${maxImagesAllowed} imágenes de evidencia.`);
+            return;
+        }
+
+        const filesToUpload = Array.from(files).slice(0, remainingSlots);
+        
+        for (const file of filesToUpload) {
+            if (!file.type.startsWith('image/')) continue;
+            
+            const item = document.createElement('div');
+            item.className = 'media-preview-item';
+            
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            
+            const progress = document.createElement('div');
+            progress.className = 'upload-progress';
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'remove-btn';
+            removeBtn.innerHTML = '&times;';
+            removeBtn.type = 'button';
+            removeBtn.style.display = 'none';
+
+            item.appendChild(img);
+            item.appendChild(progress);
+            item.appendChild(removeBtn);
+            elements.evidencePreviewContainer.appendChild(item);
+
+            const formData = new FormData();
+            formData.append('images', file);
+            
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch(`${API_URL}/api/media/upload`, {
+                    method: 'POST',
+                    headers: { ...(token && { 'Authorization': `Bearer ${token}` }) },
+                    body: formData
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.urls && data.urls.length > 0) {
+                        const uploadedUrl = data.urls[0];
+                        uploadedEvidenceUrls.push(uploadedUrl);
+                        
+                        progress.style.width = '100%';
+                        setTimeout(() => progress.style.display = 'none', 500);
+                        img.classList.add('loaded');
+                        removeBtn.style.display = 'block';
+                        
+                        removeBtn.onclick = (e) => {
+                            e.stopPropagation(); 
+                            uploadedEvidenceUrls = uploadedEvidenceUrls.filter(u => u !== uploadedUrl);
+                            item.remove();
+                        };
+                    }
+                } else {
+                    item.remove();
+                    showCustomAlert('Error al subir la imagen.');
+                }
+            } catch (err) {
+                console.error(err);
+                item.remove();
+                showCustomAlert('Error de red al subir la imagen.');
+            }
         }
     }
 

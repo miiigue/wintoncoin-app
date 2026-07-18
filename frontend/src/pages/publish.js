@@ -361,6 +361,117 @@ document.addEventListener('DOMContentLoaded', () => {
         updateRepeatVisibility();
     }
 
+    // --- Image Upload Logic ---
+    let uploadedImagesUrls = [];
+    const dropzone = document.getElementById('mediaDropzone');
+    const fileInput = document.getElementById('mediaFileInput');
+    const previewContainer = document.getElementById('mediaPreviewContainer');
+    const dropzoneLimitMsg = document.getElementById('dropzone-limit-message');
+    let maxImagesAllowed = 1;
+
+    async function loadImageLimits(pubType) {
+        try {
+            const res = await fetch(`${API_URL}/api/platform-settings`);
+            if (res.ok) {
+                const settings = await res.json();
+                maxImagesAllowed = parseInt(settings[`max_images_${pubType}`] || '1', 10);
+                if (dropzoneLimitMsg) {
+                    dropzoneLimitMsg.textContent = `Puedes subir hasta ${maxImagesAllowed} imagen${maxImagesAllowed !== 1 ? 'es' : ''}.`;
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    const urlParamsForUpload = new URLSearchParams(window.location.search);
+    const pubTypeForUpload = urlParamsForUpload.get('type') || 'request';
+    loadImageLimits(pubTypeForUpload);
+
+    if (dropzone && fileInput) {
+        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            handleMediaFiles(e.dataTransfer.files);
+        });
+        fileInput.addEventListener('change', (e) => handleMediaFiles(e.target.files));
+    }
+
+    async function handleMediaFiles(files) {
+        const remainingSlots = maxImagesAllowed - uploadedImagesUrls.length;
+        if (remainingSlots <= 0) {
+            showCustomAlert(`Solo puedes subir un máximo de ${maxImagesAllowed} imágenes.`);
+            return;
+        }
+
+        const filesToUpload = Array.from(files).slice(0, remainingSlots);
+        
+        for (const file of filesToUpload) {
+            if (!file.type.startsWith('image/')) continue;
+            
+            const item = document.createElement('div');
+            item.className = 'media-preview-item';
+            
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            
+            const progress = document.createElement('div');
+            progress.className = 'upload-progress';
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'remove-btn';
+            removeBtn.innerHTML = '&times;';
+            removeBtn.type = 'button';
+            removeBtn.style.display = 'none';
+
+            item.appendChild(img);
+            item.appendChild(progress);
+            item.appendChild(removeBtn);
+            previewContainer.appendChild(item);
+
+            const formData = new FormData();
+            formData.append('images', file);
+            
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch(`${API_URL}/api/media/upload`, {
+                    method: 'POST',
+                    headers: { ...(token && { 'Authorization': `Bearer ${token}` }) },
+                    body: formData
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.urls && data.urls.length > 0) {
+                        const uploadedUrl = data.urls[0];
+                        uploadedImagesUrls.push(uploadedUrl);
+                        
+                        progress.style.width = '100%';
+                        setTimeout(() => progress.style.display = 'none', 500);
+                        img.classList.add('loaded');
+                        removeBtn.style.display = 'block';
+                        
+                        removeBtn.onclick = (e) => {
+                            e.stopPropagation(); 
+                            uploadedImagesUrls = uploadedImagesUrls.filter(u => u !== uploadedUrl);
+                            item.remove();
+                        };
+                    }
+                } else {
+                    item.remove();
+                    showCustomAlert('Error al subir la imagen.');
+                }
+            } catch (err) {
+                console.error(err);
+                item.remove();
+                showCustomAlert('Error de red al subir la imagen.');
+            }
+        }
+    }
+
     // --- Donation warning modal ---
     function showDonationWarningModal(mode) {
         if (!donationWarningModal || !donationModalActions) return;
@@ -426,6 +537,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = Object.fromEntries(formData.entries());
         data.authorUsername = storedUsername;
         data.publicationType = publicationType;
+        data.image_urls = uploadedImagesUrls;
+        data.requires_evidence = document.getElementById('requiresEvidence')?.checked || false;
 
         data.autoApprove = document.getElementById('autoApprove').checked;
         data.allowRepeatParticipation = document.getElementById('allowRepeatParticipation').checked;
