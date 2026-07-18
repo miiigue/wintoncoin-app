@@ -8220,7 +8220,7 @@ body.wallet-tour-active #prelaunchWalletModal {
 }
 
 /* ==========================================================================
-   CAROUSEL/IM�GENES EN TARJETAS DE PUBLICACI�N
+   CAROUSEL/IM�GENES EN TARJETAS DE PUBLICACI�N
    ========================================================================== */
 .card-images-container {
     width: 100%;
@@ -8258,8 +8258,8 @@ body.wallet-tour-active #prelaunchWalletModal {
     border-radius: 4px;
 }
 
-/* === AJUSTES DE TAMA�O DE IMAGEN ESTILO UBER EATS / COINBASE === */
-/* Portadas peque�as y uniformes en la lista general de publicaciones */
+/* === AJUSTES DE TAMA�O DE IMAGEN ESTILO UBER EATS / COINBASE === */
+/* Portadas peque�as y uniformes en la lista general de publicaciones */
 .publication-item .card-images-container img {
     max-height: 125px !important;
     border-radius: 6px;
@@ -8270,7 +8270,7 @@ body.wallet-tour-active #prelaunchWalletModal {
     transform: scale(1.02);
 }
 
-/* Portadas grandes y elegantes en el detalle de la publicaci�n */
+/* Portadas grandes y elegantes en el detalle de la publicaci�n */
 #publication-content .card-images-container img {
     max-height: 280px !important;
     border-radius: 12px;
@@ -8302,16 +8302,16 @@ body.wallet-tour-active #prelaunchWalletModal {
     margin: 0 !important;
     z-index: 5 !important;
     background: transparent !important;
-    pointer-events: none; /* Permitir clics a través de la barra si es transparente */
+    pointer-events: none;
 }
 
-/* Permitir clics en los elementos interactivos dentro de card-top-row */
 .publication-item.has-images .card-top-row * {
     pointer-events: auto;
 }
 
-/* Estirar el contenedor de imágenes al borde absoluto superior y lateral */
+/* Estirar el contenedor de imágenes al borde absoluto superior y lateral (Izquierda y Derecha) */
 .publication-item.has-images .card-images-container {
+    width: auto !important;
     margin-top: -1.25rem !important;
     margin-left: -1.25rem !important;
     margin-right: -1.25rem !important;
@@ -8319,42 +8319,52 @@ body.wallet-tour-active #prelaunchWalletModal {
     border-radius: 16px 16px 0 0 !important;
     overflow: hidden !important;
     border: none !important;
+    background: #000 !important;
 }
 
-/* Imágenes cuadradas en los extremos del carrusel/portada en tarjeta */
-.publication-item.has-images .card-images-container img {
+/* Asegurar visualización del carrusel completo de lado a lado con el peeking del 90% */
+.publication-item.has-images .card-images-container.is-carousel {
+    display: flex !important;
+    overflow-x: auto !important;
+    scroll-snap-type: x mandatory !important;
+    gap: 8px !important;
+    padding-bottom: 0 !important;
+}
+
+/* Forzar que las imágenes individuales cubran todo el ancho */
+.publication-item.has-images .card-images-container.single-image img {
+    width: 100% !important;
+    max-height: 125px !important;
+    object-fit: cover !important;
     border-radius: 0 !important;
 }
 
-/* Limitar el título a una sola línea con puntos suspensivos */
+/* Ajustar las imágenes del carrusel para que tomen el 90% de ancho del contenedor estirado */
+.publication-item.has-images .card-images-container.is-carousel img {
+    flex: 0 0 90% !important;
+    width: 90% !important;
+    max-height: 125px !important;
+    object-fit: cover !important;
+    border-radius: 0 !important;
+    scroll-snap-align: center !important;
+}
+
+/* Limitar el título a una sola línea con puntos suspensivos y espaciado consistente */
 .publication-item .publication-header {
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     display: block !important;
     max-width: 100% !important;
+    margin: 8px 0 6px 0 !important; /* Espaciado simétrico */
 }
 
-/* Limitar la descripción a una sola línea con puntos suspensivos */
+/* Limitar la descripción a una sola línea con puntos suspensivos y espaciado consistente */
 .publication-item .pub-description {
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     display: block !important;
     max-width: 100% !important;
-    margin-bottom: 0.75rem !important;
-}
-/* Ajustar ancho del contenedor de imágenes para cubrir exactamente de lado a lado */
-.publication-item.has-images .card-images-container {
-    width: calc(100% + 2.5rem) !important;
-}
-
-/* Forzar que las imágenes individuales cubran todo el ancho */
-.publication-item.has-images .card-images-container.single-image img {
-    width: 100% !important;
-}
-
-/* Asegurar que las imágenes del carrusel mantengan consistencia de visualización */
-.publication-item.has-images .card-images-container.is-carousel img {
-    width: 90% !important;
+    margin: 0 0 10px 0 !important; /* Separación con el footer */
 }
