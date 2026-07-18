@@ -34,7 +34,7 @@ exports.uploadImages = async (req, res) => {
         if (req.files.length > maxImages) {
             return res.status(400).json({ 
                 success: false, 
-                message: \`Has excedido el límite máximo de \${maxImages} imágenes permitidas para esta acción.\` 
+                message: `Has excedido el límite máximo de ${maxImages} imágenes permitidas para esta acción.` 
             });
         }
 
@@ -58,7 +58,7 @@ exports.uploadImages = async (req, res) => {
 
             // 2. Generar nombre de archivo inmutable y seguro
             const uniqueSuffix = Date.now() + '-' + crypto.randomBytes(6).toString('hex');
-            const fileName = \`uploads/\${uniqueSuffix}.webp\`;
+            const fileName = `uploads/${uniqueSuffix}.webp`;
 
             // 3. Comando de subida a S3/R2
             const uploadParams = {
@@ -73,7 +73,7 @@ exports.uploadImages = async (req, res) => {
             // 4. Retornar URL pública final
             // Formatear correctamente asegurando que no haya dobles slashes
             const cleanBase = publicUrlBase.endsWith('/') ? publicUrlBase.slice(0, -1) : publicUrlBase;
-            return \`\${cleanBase}/\${fileName}\`;
+            return `${cleanBase}/${fileName}`;
         });
 
         // Esperar a que todas las imágenes se suban exitosamente
