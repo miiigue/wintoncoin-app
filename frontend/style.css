@@ -8288,6 +8288,11 @@ body.wallet-tour-active #prelaunchWalletModal {
 
 /* === AJUSTES DE TARJETAS FLUSH Y CLAMP DE TEXTOS (ESTILO UBER EATS) === */
 
+/* Forzar color de fondo sólido claro (el azul superior del gradiente anterior, sin degradado) */
+.publication-item {
+    background: #1447b4 !important;
+}
+
 /* Forzar posicionamiento relativo en tarjetas con imágenes */
 .publication-item.has-images {
     position: relative !important;
@@ -8349,7 +8354,7 @@ body.wallet-tour-active #prelaunchWalletModal {
     scroll-snap-align: center !important;
 }
 
-/* Limitar el título a una sola línea con puntos suspensivos y espaciado idéntico de 10px */
+/* Contenedor del título - Limitar espacio vertical */
 .publication-item .publication-header {
     white-space: nowrap !important;
     overflow: hidden !important;
@@ -8357,8 +8362,18 @@ body.wallet-tour-active #prelaunchWalletModal {
     display: block !important;
     max-width: 100% !important;
     margin-top: 0 !important;
-    margin-bottom: 10px !important; /* Espacio idéntico de 10px abajo */
+    margin-bottom: 10px !important;
     padding: 0 !important;
+}
+
+/* Limitar el título H3 a una sola línea con puntos suspensivos (...) para prevenir cortes */
+.publication-item .publication-header h3 {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
 }
 
 /* Limitar la descripción a una sola línea con puntos suspensivos y espaciado idéntico de 10px */

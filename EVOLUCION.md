@@ -4321,3 +4321,16 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
    - Asegurado que las imágenes dentro del carrusel mantengan un width: 90% !important de su contenedor extendido para que no queden huecos vacíos y se vea el indicativo de scroll de forma simétrica.
 
 - **Evidencia**: Archivos modificados: rontend/style.css, EVOLUCION.md.
+### 2026-07-18 - Corrección de Elipsis en Títulos H3 y Fondo Sólido de Tarjetas (Premium Blue)
+
+**Contexto**: Se identificaron dos inconsistencias visuales remanentes:
+1. El título largo de la tarjeta se cortaba abruptamente en lugar de mostrar los puntos suspensivos (...). Esto ocurría porque las propiedades CSS de truncamiento se aplicaban al contenedor .publication-header en lugar del tag de encabezado interno h3.
+2. Las publicaciones contaban con un fondo degradado azul de arriba hacia abajo. Al colocar la imagen del banner al inicio de la tarjeta, el área superior más clara del gradiente quedaba oculta, haciendo que la parte inferior se viera excesivamente oscura. El usuario solicitó cambiar la tarjeta a un color sólido utilizando el tono más claro del gradiente original (#1447b4).
+
+**Cambios Realizados**:
+1. **Elipsis de Título H3 Directa**:
+   - Modificado rontend/style.css para aplicar white-space: nowrap, overflow: hidden y 	ext-overflow: ellipsis directamente sobre .publication-item .publication-header h3, asegurando el renderizado correcto de ... en textos de títulos que excedan el ancho de la tarjeta.
+2. **Color de Fondo Sólido Claro**:
+   - Modificado rontend/style.css para anular el degradado lineal en las tarjetas .publication-item, aplicando un fondo sólido #1447b4 !important que provee un acabado elegante, consistente y limpio en combinación con las portadas.
+
+- **Evidencia**: Archivos modificados: rontend/style.css, EVOLUCION.md.
