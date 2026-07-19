@@ -377,13 +377,13 @@ router.put('/causes/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.userId;
-        const { story, goal_amount } = req.body;
+        const { story, goal_amount, new_evidence_urls } = req.body;
 
         if (isNaN(parseInt(id))) {
             return res.status(400).json({ message: 'ID de causa inválido.' });
         }
 
-        const result = await editCause(userId, parseInt(id), { story, goal_amount }, req);
+        const result = await editCause(userId, parseInt(id), { story, goal_amount, new_evidence_urls }, req);
         res.json(result);
     } catch (err) {
         console.error('[SOLIDARIO] Error al editar causa:', err);

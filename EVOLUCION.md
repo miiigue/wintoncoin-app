@@ -4346,3 +4346,22 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
    - En caso de fallos de red (TypeError) o errores temporales del servidor (5xx), la sesión y las credenciales locales (`token` y `username`) se mantienen intactas en el cliente para evitar cierres de sesión no deseados.
 
 - **Evidencia**: Archivos modificados: `frontend/src/modules/auth.js`, `EVOLUCION.md`.
+
+### 2026-07-19 - Carga de Imágenes de Progreso en Edición de Causas Solidarias
+
+**Contexto**: Se requería dar soporte a los creadores de campañas solidarias de ayuda humanitaria para agregar imágenes de progreso o evidencias posteriores de hitos en sus campañas activas o pendientes. Siguiendo normativas FinTech de transparencia (crowdfunding), el sistema solo permite **anexar (agregar)** imágenes a la colección original sin eliminar las previas para garantizar registros históricos inmutables ante auditorías y donantes.
+
+**Cambios Realizados**:
+1. **Infraestructura del Backend (Servicios y Rutas)**:
+   - Modificado ackend/src/services/humanitarianService.js en la función editCause para aceptar un campo opcional 
+ew_evidence_urls.
+   - Implementado control de seguridad de doble capa: valida que las nuevas imágenes no superen el límite de **3 por actualización**, que correspondan a URLs de nuestra infraestructura de medios, y que el total absoluto acumulado no exceda las **15 imágenes**.
+   - Corregido un bug preexistente en la firma del invocador logAuditEvent dentro de las funciones editCause y createCauseUpdate para ajustarse al formato de la función exportada en uditService.js.
+   - Modificado ackend/src/routes/humanitarianUserRoutes.js en la ruta PUT /api/humanitarian/causes/:id para extraer y delegar el arreglo 
+ew_evidence_urls del cuerpo del request.
+2. **Interfaz del Frontend (Modal e Integración Dropzone)**:
+   - Modificado rontend/causa-solidaria.html agregando la maquetación HTML de un Dropzone #editCauseDropzone e input de archivos bajo el textarea de la historia en el modal editCauseModalOverlay.
+   - Modificado rontend/src/pages/causa-solidaria.js inicializando los manejadores de eventos (drag/drop e input file), realizando la subida inmediata en segundo plano a la API de R2 /api/media/upload, limitando en cliente a un máximo de 3 imágenes nuevas, renderizando previsualizaciones de la sesión con botón de remoción rápida, y transmitiendo 
+ew_evidence_urls al endpoint PUT.
+
+- **Evidencia**: Archivos modificados: ackend/src/services/humanitarianService.js, ackend/src/routes/humanitarianUserRoutes.js, rontend/causa-solidaria.html, rontend/src/pages/causa-solidaria.js, EVOLUCION.md.

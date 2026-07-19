@@ -896,6 +896,12 @@ function initAuthorPanel(cause) {
     const editStoryCounter = document.getElementById('editStoryCounter');
     const editStoryLimitWarning = document.getElementById('editStoryLimitWarning');
 
+    // Uploader de imágenes adicionales (Dropzone)
+    const editCauseDropzone = document.getElementById('editCauseDropzone');
+    const editCauseFileInput = document.getElementById('editCauseFileInput');
+    const editCausePreviewContainer = document.getElementById('editCausePreviewContainer');
+    let newUploadedImages = [];
+
     const updateCancelBtn = document.getElementById('updateCancelBtn');
     const updateConfirmBtn = document.getElementById('updateConfirmBtn');
     const updateTitleInput = document.getElementById('updateTitleInput');
@@ -903,17 +909,148 @@ function initAuthorPanel(cause) {
 
     if (!authorEditCauseBtn) return;
 
+    // --- RENDER DE MINIATURAS PREVIAS ---
+    function renderEditCausePreviews() {
+        editCausePreviewContainer.innerHTML = '';
+        newUploadedImages.forEach((url, index) => {
+            const div = document.createElement('div');
+            div.style.position = 'relative';
+            div.style.width = '70px';
+            div.style.height = '70px';
+            div.style.borderRadius = '8px';
+            div.style.overflow = 'hidden';
+            div.style.border = '1px solid rgba(255,255,255,0.1)';
+
+            const img = document.createElement('img');
+            img.src = url;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+
+            const btn = document.createElement('button');
+            btn.innerHTML = '&times;';
+            btn.style.position = 'absolute';
+            btn.style.top = '2px';
+            btn.style.right = '2px';
+            btn.style.width = '18px';
+            btn.style.height = '18px';
+            btn.style.background = 'rgba(239, 68, 68, 0.9)';
+            btn.style.color = 'white';
+            btn.style.border = 'none';
+            btn.style.borderRadius = '50%';
+            btn.style.cursor = 'pointer';
+            btn.style.display = 'flex';
+            btn.style.alignItems = 'center';
+            btn.style.justifyContent = 'center';
+            btn.style.fontSize = '12px';
+            btn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                newUploadedImages.splice(index, 1);
+                renderEditCausePreviews();
+            };
+
+            div.appendChild(img);
+            div.appendChild(btn);
+            editCausePreviewContainer.appendChild(div);
+        });
+    }
+
+    const resetEditUploader = () => {
+        newUploadedImages = [];
+        editCausePreviewContainer.innerHTML = '';
+        if (editCauseDropzone) {
+            editCauseDropzone.style.borderColor = 'rgba(255,255,255,0.15)';
+            const p = editCauseDropzone.querySelector('p');
+            if (p) p.textContent = 'Arrastra nuevas imágenes o haz clic aquí';
+        }
+    };
+
+    // --- EVENTOS DEL DROPZONE ---
+    if (editCauseDropzone && editCauseFileInput) {
+        editCauseDropzone.onclick = () => editCauseFileInput.click();
+
+        editCauseDropzone.ondragover = (e) => {
+            e.preventDefault();
+            editCauseDropzone.style.borderColor = '#3B82F6';
+        };
+
+        editCauseDropzone.ondragleave = () => {
+            editCauseDropzone.style.borderColor = 'rgba(255,255,255,0.15)';
+        };
+
+        editCauseDropzone.ondrop = async (e) => {
+            e.preventDefault();
+            editCauseDropzone.style.borderColor = 'rgba(255,255,255,0.15)';
+            const files = Array.from(e.dataTransfer.files);
+            await handleFilesUpload(files);
+        };
+
+        editCauseFileInput.onchange = async () => {
+            const files = Array.from(editCauseFileInput.files);
+            await handleFilesUpload(files);
+            editCauseFileInput.value = '';
+        };
+    }
+
+    async function handleFilesUpload(files) {
+        const token = localStorage.getItem('token');
+        const imageFiles = files.filter(f => f.type.startsWith('image/'));
+        if (imageFiles.length === 0) return;
+
+        if (newUploadedImages.length + imageFiles.length > 3) {
+            showCustomAlert('Solo puedes agregar un máximo de 3 nuevas imágenes por cada actualización.');
+            return;
+        }
+
+        const label = editCauseDropzone.querySelector('p');
+        const originalText = label ? label.textContent : '';
+        if (label) label.textContent = 'Subiendo...';
+
+        try {
+            for (const file of imageFiles) {
+                const formData = new FormData();
+                formData.append('images', file);
+                formData.append('max_images', 3);
+
+                const uploadRes = await fetch(`${API_URL}/api/media/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                const uploadData = await uploadRes.json();
+                if (!uploadRes.ok) {
+                    throw new Error(uploadData.message || 'Error al subir la imagen.');
+                }
+
+                if (uploadData.urls && uploadData.urls.length > 0) {
+                    newUploadedImages.push(uploadData.urls[0]);
+                }
+            }
+            renderEditCausePreviews();
+        } catch (error) {
+            showCustomAlert(`Error al subir imágenes: ${error.message}`);
+        } finally {
+            if (label) label.textContent = originalText;
+        }
+    }
+
     // --- MODAL DE EDICIÓN ---
     authorEditCauseBtn.onclick = () => {
         editGoalInput.value = cause.goal_amount;
         editStoryInput.value = cause.story;
         editStoryCounter.textContent = `${cause.story.length} caracteres`;
         editStoryLimitWarning.style.display = 'none';
+        resetEditUploader();
         editCauseModalOverlay.classList.add('active');
     };
 
     editCancelBtn.onclick = () => {
         editCauseModalOverlay.classList.remove('active');
+        resetEditUploader();
     };
 
     // Contador de caracteres y cálculo aproximado del diff de historia
@@ -959,7 +1096,8 @@ function initAuthorPanel(cause) {
                 },
                 body: JSON.stringify({
                     goal_amount: parseFloat(goalVal),
-                    story: storyVal
+                    story: storyVal,
+                    new_evidence_urls: newUploadedImages
                 })
             });
 
@@ -967,6 +1105,7 @@ function initAuthorPanel(cause) {
             if (!response.ok) throw new Error(data.message || 'Error al actualizar causa.');
 
             editCauseModalOverlay.classList.remove('active');
+            resetEditUploader();
             showCustomAlert('Causa actualizada exitosamente.', () => {
                 window.location.reload();
             });
