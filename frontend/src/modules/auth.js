@@ -121,8 +121,10 @@ export async function silentRefreshIfNeeded() {
                 userSession.pending_documents = [];
                 
                 document.dispatchEvent(new CustomEvent('auth-status-checked', { detail: userSession }));
+                return null;
             }
-            return null;
+            // Propagar el error transitorio (red, 5xx) para evitar que se intente la llamada sin token
+            throw error;
         } finally {
             refreshPromise = null;
         }
@@ -323,6 +325,11 @@ window.fetch = async function (input, init) {
             }
         } catch (error) {
             console.error('[AUTH INTERCEPTOR] Error al pre-refrescar token:', error);
+            // Si el error no es de sesión inválida (es decir, es un error temporal de red o 500),
+            // arrojamos la excepción para detener el fetch original y evitar un falso logout (401).
+            if (!error || error.isSessionInvalid !== true) {
+                throw error;
+            }
         }
     }
 
