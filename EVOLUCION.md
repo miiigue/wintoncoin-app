@@ -4334,3 +4334,15 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
    - Modificado rontend/style.css para anular el degradado lineal en las tarjetas .publication-item, aplicando un fondo sólido #1447b4 !important que provee un acabado elegante, consistente y limpio en combinación con las portadas.
 
 - **Evidencia**: Archivos modificados: rontend/style.css, EVOLUCION.md.
+
+### 2026-07-19 - Parche de Estabilidad ante Fallos Temporales de Refresco (Resiliencia UX)
+
+**Contexto**: Se reportó que, bajo ciertas circunstancias (como estado de batería baja del dispositivo al 9% o micro-cortes de red en 4G), el sistema cerraba la sesión del usuario de forma inmediata mostrando una alerta de sesión expirada por inactividad. Esto se debía a que el frontend borraba los datos locales preventivamente ante cualquier fallo en la llamada de refresco, sin distinguir fallos de infraestructura/red de una invalidación de credenciales legítima.
+
+**Cambios Realizados**:
+1. **Lógica de Refresco Resiliente**:
+   - Modificado `frontend/src/modules/auth.js` (método `silentRefreshIfNeeded`) para verificar el estado de la respuesta.
+   - Solo se lanza el error de invalidación de sesión si el servidor devuelve un código `401 Unauthorized` explícito.
+   - En caso de fallos de red (TypeError) o errores temporales del servidor (5xx), la sesión y las credenciales locales (`token` y `username`) se mantienen intactas en el cliente para evitar cierres de sesión no deseados.
+
+- **Evidencia**: Archivos modificados: `frontend/src/modules/auth.js`, `EVOLUCION.md`.
