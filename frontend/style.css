@@ -8315,7 +8315,7 @@ body.wallet-tour-active #prelaunchWalletModal {
     margin-top: -1.25rem !important;
     margin-left: -1.25rem !important;
     margin-right: -1.25rem !important;
-    margin-bottom: 0.75rem !important;
+    margin-bottom: 10px !important; /* Espacio idéntico de 10px abajo */
     border-radius: 16px 16px 0 0 !important;
     overflow: hidden !important;
     border: none !important;
@@ -8349,22 +8349,39 @@ body.wallet-tour-active #prelaunchWalletModal {
     scroll-snap-align: center !important;
 }
 
-/* Limitar el título a una sola línea con puntos suspensivos y espaciado consistente */
+/* Limitar el título a una sola línea con puntos suspensivos y espaciado idéntico de 10px */
 .publication-item .publication-header {
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     display: block !important;
     max-width: 100% !important;
-    margin: 8px 0 6px 0 !important; /* Espaciado simétrico */
+    margin-top: 0 !important;
+    margin-bottom: 10px !important; /* Espacio idéntico de 10px abajo */
+    padding: 0 !important;
 }
 
-/* Limitar la descripción a una sola línea con puntos suspensivos y espaciado consistente */
+/* Limitar la descripción a una sola línea con puntos suspensivos y espaciado idéntico de 10px */
 .publication-item .pub-description {
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     display: block !important;
     max-width: 100% !important;
-    margin: 0 0 10px 0 !important; /* Separación con el footer */
+    margin-top: 0 !important;
+    margin-bottom: 10px !important; /* Espacio idéntico de 10px abajo */
+    padding: 0 !important;
+    flex-grow: 0 !important; /* Desactivar flex-grow para que fluya matemáticamente según el margen */
+}
+
+/* Mantener el footer alineado y sin márgenes superiores excedentes */
+.publication-item .publication-footer {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+/* Ajustar barra de progreso si existe en la tarjeta */
+.publication-item .donation-progress-container {
+    margin-top: 0 !important;
+    margin-bottom: 10px !important; /* Espacio idéntico de 10px abajo */
 }
