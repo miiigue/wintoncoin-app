@@ -4568,57 +4568,62 @@ document.addEventListener('DOMContentLoaded', () => {
             const cause = data.cause;
             const date = new Date(cause.created_at).toLocaleString('es-ES');
 
-            // Renderizar evidencia (array de URLs)
+            // Renderizar evidencia separando imágenes reales de enlaces externos
+            // Las imágenes reales (R2/WebP) se muestran como miniaturas clicables
+            // Los enlaces externos (Drive, Instagram, etc.) se muestran como texto con word-break
             let evidenceHtml = '<em>Sin evidencia</em>';
             if (cause.evidence_urls && Array.isArray(cause.evidence_urls) && cause.evidence_urls.length > 0) {
-                const links = [];
-                const images = [];
-
-                cause.evidence_urls.forEach((url) => {
-                    if (!url) return;
+                // Separar imágenes reales de enlaces externos
+                const realImages = cause.evidence_urls.filter(url => {
+                    if (!url || typeof url !== 'string') return false;
                     const lower = url.toLowerCase();
-                    const isImg = lower.endsWith('.webp') || 
-                                  lower.endsWith('.png') || 
-                                  lower.endsWith('.jpg') || 
-                                  lower.endsWith('.jpeg') || 
-                                  lower.endsWith('.gif') || 
-                                  lower.includes('/uploads/');
-                    if (isImg) {
-                        images.push(url);
-                    } else {
-                        links.push(url);
-                    }
+                    return lower.endsWith('.webp') || lower.endsWith('.png') ||
+                           lower.endsWith('.jpg') || lower.endsWith('.jpeg') ||
+                           lower.endsWith('.gif') || lower.includes('/uploads/');
+                });
+                const externalLinks = cause.evidence_urls.filter(url => {
+                    if (!url || typeof url !== 'string') return false;
+                    const lower = url.toLowerCase();
+                    return !(lower.endsWith('.webp') || lower.endsWith('.png') ||
+                             lower.endsWith('.jpg') || lower.endsWith('.jpeg') ||
+                             lower.endsWith('.gif') || lower.includes('/uploads/'));
                 });
 
-                let imagesHtml = '';
-                if (images.length > 0) {
-                    imagesHtml = `
-                        <div style="margin-top: 10px; margin-bottom: 10px;">
-                            <strong style="color: #94A3B8; display: block; margin-bottom: 6px;">Fotos de Evidencia:</strong>
-                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                                ${images.map(url => `
-                                    <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">
-                                        <img src="${escapeHtml(url)}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-                                    </a>
-                                `).join('')}
-                            </div>
-                        </div>
-                    `;
-                }
+                let partsHtml = '';
 
-                let linksHtml = '';
-                if (links.length > 0) {
-                    linksHtml = `
-                        <div style="margin-bottom: 10px;">
-                            <strong style="color: #94A3B8; display: block; margin-bottom: 6px;">Enlaces Externos (Drive/Redes):</strong>
-                            ${links.map((url, i) => `
-                                <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="color: #3B82F6; text-decoration: underline; display: block; margin-bottom: 4px; word-break: break-all; overflow-wrap: break-word;">📎 Enlace ${i + 1}: ${escapeHtml(url)}</a>
+                // Mostrar miniaturas de imágenes reales si las hay
+                if (realImages.length > 0) {
+                    partsHtml += `
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+                            ${realImages.map((url, i) => `
+                                <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" 
+                                   title="Ver imagen ${i + 1} completa" style="flex-shrink: 0;">
+                                    <img src="${escapeHtml(url)}" alt="Imagen de evidencia ${i + 1}"
+                                         style="width: 90px; height: 70px; object-fit: cover; border-radius: 8px; 
+                                                border: 2px solid rgba(255,255,255,0.15); cursor: pointer;
+                                                transition: transform 0.2s;"
+                                         onmouseover="this.style.transform='scale(1.05)'"
+                                         onmouseout="this.style.transform='scale(1)'"
+                                         loading="lazy">
+                                </a>
                             `).join('')}
                         </div>
                     `;
                 }
 
-                evidenceHtml = linksHtml + imagesHtml;
+                // Mostrar enlaces externos (Drive, Instagram, etc.) como texto con word-break
+                if (externalLinks.length > 0) {
+                    partsHtml += externalLinks.map((url, i) => `
+                        <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"
+                           style="color: #3B82F6; text-decoration: underline; display: block; 
+                                  margin-bottom: 6px; word-break: break-all; overflow-wrap: anywhere; 
+                                  font-size: 0.85rem; line-height: 1.5;">
+                            📎 Evidencia ${realImages.length + i + 1}
+                        </a>
+                    `).join('');
+                }
+
+                evidenceHtml = partsHtml || '<em>Sin evidencia procesable</em>';
             }
 
             elements.humanitarianModalTitle.textContent = `Causa #${cause.id}: ${cause.title}`;

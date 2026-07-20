@@ -288,6 +288,62 @@
                 padding: 0.8rem 2rem;
             }
         }
+        /* --- Estilos del Dropzone de Imágenes de Evidencia --- */
+        .dropzone-evidencia {
+            border: 2px dashed rgba(219, 39, 119, 0.4);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            background: rgba(219, 39, 119, 0.04);
+            transition: border-color 0.3s, background 0.3s;
+        }
+        .dropzone-evidencia:hover {
+            border-color: rgba(219, 39, 119, 0.8);
+            background: rgba(219, 39, 119, 0.08);
+        }
+        .dropzone-evidencia.drag-over {
+            border-color: #DB2777;
+            background: rgba(219, 39, 119, 0.12);
+        }
+        .dropzone-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            opacity: 0.7;
+        }
+        .dropzone-label { color: #94A3B8; font-size: 0.9rem; line-height: 1.4; }
+        .dropzone-label strong { color: #F472B6; }
+        .dropzone-previews {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .dropzone-thumb {
+            position: relative;
+            width: 72px;
+            height: 72px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .dropzone-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .dropzone-thumb-remove {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 18px;
+            height: 18px;
+            background: rgba(239,68,68,0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 
@@ -365,18 +421,6 @@
                 </small>
             </div>
 
-            <!-- Carga de imágenes opcionales de la causa -->
-            <div class="form-group">
-                <label>Imágenes de progreso / evidencia física (Opcional, máx 3):</label>
-                <div class="edit-cause-dropzone" id="postulationDropzone" style="border: 2px dashed rgba(255,255,255,0.15); border-radius: 12px; padding: 25px; text-align: center; cursor: pointer; transition: all 0.3s; background: rgba(255,255,255,0.02); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
-                    <span style="font-size: 2rem; color: rgba(255,255,255,0.4);">📸</span>
-                    <p style="margin: 0; color: rgba(255,255,255,0.8); font-size: 0.95rem;">Arrastra imágenes de tu causa o haz clic aquí</p>
-                    <span style="font-size: 0.8rem; color: rgba(255,255,255,0.4);">Máximo 3 imágenes en formato JPG, PNG o WebP.</span>
-                    <input type="file" id="postulationFileInput" multiple accept="image/*" style="display: none;">
-                </div>
-                <div id="postulationPreviewContainer" style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;"></div>
-            </div>
-
             <div class="form-group">
                 <label for="redesSociales">Enlaces a tus Redes Sociales (Para Verificación)</label>
                 <input type="text" id="redesSociales"
@@ -387,7 +431,28 @@
                 </small>
             </div>
 
-            <button type="submit" class="btn-submit">Enviar para Auditoría</button>
+            <!-- ============================================================ -->
+            <!-- SECCIÓN DE IMÁGENES OPCIONALES (Dropzone)                    -->
+            <!-- El creador puede subir hasta 3 fotos de evidencia visual.    -->
+            <!-- Se suben a R2 antes del envío del formulario.                -->
+            <!-- ============================================================ -->
+            <div class="form-group">
+                <label>📷 Imágenes de Evidencia Visual <span style="color: #64748B; font-weight: 400;">(Opcional, máx. 3)</span></label>
+                <div id="solicitudDropzone" class="dropzone-evidencia" role="button" aria-label="Subir imágenes de evidencia">
+                    <input type="file" id="solicitudFileInput" multiple accept="image/*" style="display: none;" tabindex="-1">
+                    <div class="dropzone-icon">🖼️</div>
+                    <p id="solicitudDropzoneLabel" class="dropzone-label">
+                        Arrastra y suelta tus fotos aquí, o <strong>haz clic para seleccionarlas</strong><br>
+                        Máximo 3 imágenes · Se convierten a WebP automáticamente
+                    </p>
+                    <div id="solicitudDropzonePreviews" class="dropzone-previews"></div>
+                </div>
+                <small class="input-hint" style="color: #94A3B8; font-size: 0.85em; display: block; margin-top: 5px;">
+                    Añade fotos que refuercen visualmente la veracidad de tu causa. Sólo se aceptan imágenes (JPG, PNG, WEBP, GIF).
+                </small>
+            </div>
+
+            <button type="submit" class="btn-submit" id="solidarioSubmitBtn">Enviar para Auditoría</button>
         </form>
 
         <p class="footer-text">Al enviar tu postulación, aceptas los T&C y la revisión de tus datos para verificar tu
@@ -441,7 +506,102 @@
         import { getApiUrl, showCustomAlert } from './src/modules/index.js';
         const API_URL = getApiUrl();
 
-        // --- VALIDACIÓN DE SESIÓN OBLIGATORIA (SEGURIDAD FINTECH) ---
+        // ===================================================================
+        // MÓDULO DE CARGA DE IMÁGENES EN LA POSTULACIÓN
+        // ===================================================================
+        // Permite al creador subir hasta 3 imágenes antes de enviar el form.
+        // Se suben de forma inmediata a /api/media/upload (Cloudflare R2).
+        // Las URLs resultantes se incluyen en el payload del formulario.
+        // ===================================================================
+        const solicitudDropzone = document.getElementById('solicitudDropzone');
+        const solicitudFileInput = document.getElementById('solicitudFileInput');
+        const solicitudDropzoneLabel = document.getElementById('solicitudDropzoneLabel');
+        const solicitudDropzonePreviews = document.getElementById('solicitudDropzonePreviews');
+        let solicitudUploadedImageUrls = [];
+
+        // Helper: filtrar solo imágenes válidas del input File
+        function getSolicitudImageFiles(files) {
+            return Array.from(files).filter(f => f.type.startsWith('image/'));
+        }
+
+        // Renderiza las miniaturas de imágenes ya subidas en el Dropzone
+        function renderSolicitudPreviews() {
+            solicitudDropzonePreviews.innerHTML = '';
+            solicitudUploadedImageUrls.forEach((url, idx) => {
+                const wrap = document.createElement('div');
+                wrap.className = 'dropzone-thumb';
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = `Evidencia ${idx + 1}`;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'dropzone-thumb-remove';
+                btn.innerHTML = '&times;';
+                btn.title = 'Eliminar imagen';
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    solicitudUploadedImageUrls.splice(idx, 1);
+                    renderSolicitudPreviews();
+                };
+                wrap.appendChild(img);
+                wrap.appendChild(btn);
+                solicitudDropzonePreviews.appendChild(wrap);
+            });
+        }
+
+        // Sube los archivos seleccionados a R2 y guarda las URLs
+        async function handleSolicitudFilesUpload(files) {
+            const imageFiles = getSolicitudImageFiles(files);
+            if (imageFiles.length === 0) return;
+            if (solicitudUploadedImageUrls.length + imageFiles.length > 3) {
+                showCustomAlert('Solo puedes subir un máximo de 3 imágenes de evidencia.');
+                return;
+            }
+            const originalLabelText = solicitudDropzoneLabel.textContent;
+            solicitudDropzoneLabel.textContent = 'Subiendo imágenes…';
+            const token = localStorage.getItem('token');
+            try {
+                for (const file of imageFiles) {
+                    const fd = new FormData();
+                    fd.append('images', file);
+                    fd.append('max_images', '3');
+                    const res = await fetch(`${API_URL}/api/media/upload`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: fd
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.message || 'Error al subir imagen.');
+                    if (data.urls && data.urls.length > 0) {
+                        solicitudUploadedImageUrls.push(data.urls[0]);
+                    }
+                }
+                renderSolicitudPreviews();
+            } catch (err) {
+                showCustomAlert(`Error al subir imagen: ${err.message}`);
+            } finally {
+                solicitudDropzoneLabel.textContent = originalLabelText;
+            }
+        }
+
+        // [BUG FIX] stopPropagation en input para evitar doble click al Dropzone
+        solicitudFileInput.onclick = (e) => e.stopPropagation();
+        solicitudDropzone.onclick = () => solicitudFileInput.click();
+
+        solicitudDropzone.ondragover = (e) => {
+            e.preventDefault();
+            solicitudDropzone.classList.add('drag-over');
+        };
+        solicitudDropzone.ondragleave = () => solicitudDropzone.classList.remove('drag-over');
+        solicitudDropzone.ondrop = async (e) => {
+            e.preventDefault();
+            solicitudDropzone.classList.remove('drag-over');
+            await handleSolicitudFilesUpload(e.dataTransfer.files);
+        };
+        solicitudFileInput.onchange = async () => {
+            await handleSolicitudFilesUpload(solicitudFileInput.files);
+            solicitudFileInput.value = '';
+        };
         const storedToken = localStorage.getItem('token');
         const storedUsername = localStorage.getItem('username');
 
@@ -473,131 +633,6 @@
         window.closeModal = function () {
             document.getElementById('termsModal').classList.remove('active');
         };
-
-        // --- UPLOADER DE IMÁGENES PARA LA SOLICITUD ---
-        const postulationDropzone = document.getElementById('postulationDropzone');
-        const postulationFileInput = document.getElementById('postulationFileInput');
-        const postulationPreviewContainer = document.getElementById('postulationPreviewContainer');
-        let uploadedImages = [];
-
-        function renderPostulationPreviews() {
-            postulationPreviewContainer.innerHTML = '';
-            uploadedImages.forEach((url, index) => {
-                const div = document.createElement('div');
-                div.style.position = 'relative';
-                div.style.width = '70px';
-                div.style.height = '70px';
-                div.style.borderRadius = '8px';
-                div.style.overflow = 'hidden';
-                div.style.border = '1px solid rgba(255,255,255,0.1)';
-
-                const img = document.createElement('img');
-                img.src = url;
-                img.style.width = '100%';
-                img.style.height = '100%';
-                img.style.objectFit = 'cover';
-
-                const btn = document.createElement('button');
-                btn.innerHTML = '&times;';
-                btn.style.position = 'absolute';
-                btn.style.top = '2px';
-                btn.style.right = '2px';
-                btn.style.width = '18px';
-                btn.style.height = '18px';
-                btn.style.background = 'rgba(239, 68, 68, 0.9)';
-                btn.style.color = 'white';
-                btn.style.border = 'none';
-                btn.style.borderRadius = '50%';
-                btn.style.cursor = 'pointer';
-                btn.style.display = 'flex';
-                btn.style.alignItems = 'center';
-                btn.style.justifyContent = 'center';
-                btn.style.fontSize = '12px';
-                btn.onclick = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    uploadedImages.splice(index, 1);
-                    renderPostulationPreviews();
-                };
-
-                div.appendChild(img);
-                div.appendChild(btn);
-                postulationPreviewContainer.appendChild(div);
-            });
-        }
-
-        if (postulationDropzone && postulationFileInput) {
-            postulationFileInput.onclick = (e) => {
-                e.stopPropagation();
-            };
-            postulationDropzone.onclick = () => postulationFileInput.click();
-
-            postulationDropzone.ondragover = (e) => {
-                e.preventDefault();
-                postulationDropzone.style.borderColor = '#3B82F6';
-            };
-
-            postulationDropzone.ondragleave = () => {
-                postulationDropzone.style.borderColor = 'rgba(255,255,255,0.15)';
-            };
-
-            postulationDropzone.ondrop = async (e) => {
-                e.preventDefault();
-                postulationDropzone.style.borderColor = 'rgba(255,255,255,0.15)';
-                const files = Array.from(e.dataTransfer.files);
-                await handlePostulationFiles(files);
-            };
-
-            postulationFileInput.onchange = async () => {
-                const files = Array.from(postulationFileInput.files);
-                await handlePostulationFiles(files);
-                postulationFileInput.value = '';
-            };
-        }
-
-        async function handlePostulationFiles(files) {
-            const imageFiles = files.filter(f => f.type.startsWith('image/'));
-            if (imageFiles.length === 0) return;
-
-            if (uploadedImages.length + imageFiles.length > 3) {
-                showCustomAlert('Solo puedes agregar un máximo de 3 imágenes de progreso.');
-                return;
-            }
-
-            const label = postulationDropzone.querySelector('p');
-            const originalText = label ? label.textContent : '';
-            if (label) label.textContent = 'Subiendo...';
-
-            try {
-                for (const file of imageFiles) {
-                    const formData = new FormData();
-                    formData.append('images', file);
-                    formData.append('max_images', 3);
-
-                    const uploadRes = await fetch(`${API_URL}/api/media/upload`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${storedToken}`
-                        },
-                        body: formData
-                    });
-
-                    const uploadData = await uploadRes.json();
-                    if (!uploadRes.ok) {
-                        throw new Error(uploadData.message || 'Error al subir la imagen.');
-                    }
-
-                    if (uploadData.urls && uploadData.urls.length > 0) {
-                        uploadedImages.push(uploadData.urls[0]);
-                    }
-                }
-                renderPostulationPreviews();
-            } catch (error) {
-                showCustomAlert(`Error al subir imágenes: ${error.message}`);
-            } finally {
-                if (label) label.textContent = originalText;
-            }
-        }
 
         const usernameInput = document.getElementById('username');
         const validationMsg = document.getElementById('userValidationMsg');
@@ -767,7 +802,7 @@
                 }
             }
 
-            const btn = e.target.querySelector('button');
+            const btn = e.target.querySelector('#solidarioSubmitBtn') || e.target.querySelector('button');
             const originalText = btn.innerText;
             btn.innerText = 'Registrando en Auditoría...';
             btn.disabled = true;
@@ -782,7 +817,8 @@
                 evidencia_link: document.getElementById('evidenciaLink').value.trim(),
                 redes_sociales: document.getElementById('redesSociales').value.trim(),
                 beneficiary_socials: document.getElementById('beneficiarySocials').value.trim(),
-                uploaded_images: uploadedImages
+                // Imágenes opcionales subidas al Dropzone (URLs en R2)
+                image_uploads: solicitudUploadedImageUrls
             };
 
             try {

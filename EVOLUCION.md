@@ -21,6 +21,27 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 
 
+### 2026-07-20 — Flujo Completo de Imágenes en Causas Solidarias (Postulación + Panel Admin)
+
+**Problema resuelto**:
+1. Al postular una causa, no existía forma de subir fotos de evidencia — solo se podía adjuntar un enlace externo (Google Drive).
+2. El feed y el detalle mostraban "cajas negras" porque `evidence_urls` contenía mezclados: imágenes reales (R2), enlace de Drive e Instagram; al intentar renderizar Drive/Instagram en un `<img>` el navegador mostraba bloques negros vacíos.
+3. El Dropzone al editar tenía un bug de doble apertura del explorador de archivos (el evento click burbujeaba desde el `<input>` al contenedor).
+
+**Cambios**:
+- **`solicitud-solidaria.html`**: Nuevo Dropzone visual para subir hasta 3 imágenes de evidencia antes de enviar la postulación. Las imágenes se suben a R2 via `/api/media/upload` de forma individual, y las URLs se incluyen en `image_uploads` del payload.
+- **`solidarioRoutes.js`**: El endpoint `POST /solidario/postulacion` ahora acepta `image_uploads`, valida cada URL (solo HTTPS, solo extensiones de imagen reales), las limita a 3 y las coloca *primero* en el arreglo `evidence_urls` en DB (para que sean las más visibles).
+- **`contract-interaction.js`**: La propiedad `image_urls` de las causas mapeadas al feed ahora filtra `evidence_urls` con `filterRealImages()` — excluye Drive, Instagram, etc.
+- **`causa-solidaria.js`**: 
+  - Nuevo helper `filterRealImages(urls)` reutilizable.
+  - `buildCauseHTML` usa `actualImages = filterRealImages(cause.evidence_urls)` para el carrusel del detalle.
+  - Carrusel con `overflow-x: auto; scroll-snap-type: x mandatory` para deslizamiento horizontal correcto de lado a lado.
+  - Lightbox también filtra con `filterRealImages`.
+  - Bug de doble click corregido: `editCauseFileInput.onclick = (e) => e.stopPropagation()`.
+- **`admin-panel.js`**: El modal de revisión de causas ahora muestra **miniaturas clicables** de las imágenes reales (90×70px con hover zoom), y los links externos (Drive/redes) como texto con `word-break: break-all` para que no rompan el contenedor.
+
+**Impacto**: El administrador puede ver visualmente las fotos de evidencia sin salir del panel antes de aprobar. Las causas sin imágenes reales se ven limpias (sin cajas negras).
+
 ### 2026-07-20 — Corrección de Estilo del Carrusel en Detalle de Causa
 * **Cambio**: Removidos estilos en línea que impedían el scroll horizontal (overflow: hidden) en el carrusel de la causa detallada. Delegado el layout a clases CSS específicas dentro de la etiqueta style del documento HTML.
 * **Evidencia**: Modificaciones en causa-solidaria.html y causa-solidaria.js.

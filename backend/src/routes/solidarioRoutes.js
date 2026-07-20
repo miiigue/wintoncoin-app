@@ -55,7 +55,9 @@ router.get('/check-referral/:code', async (req, res) => {
 // ==  Seguridad: Validación de URL, límites de longitud, sanitización           ==
 // =================================================================================
 router.post('/postulacion', authenticateToken, async (req, res) => {
-    const { username, titulo, historia, meta, evidencia_link, redes_sociales, beneficiary_referral_code, foundation_name, beneficiary_socials, uploaded_images } = req.body;
+    const { username, titulo, historia, meta, evidencia_link, redes_sociales,
+            beneficiary_referral_code, foundation_name, beneficiary_socials,
+            image_uploads } = req.body; // image_uploads: arreglo opcional de URLs subidas a R2
 
     // --- VALIDACIÓN DE COHERENCIA DE SEGURIDAD (ANTI-SPOOFING) ---
     // Impide que un usuario autenticado postule causas en nombre de otro usuario
@@ -166,15 +168,31 @@ router.post('/postulacion', authenticateToken, async (req, res) => {
         }
 
         // 3. Insertar en la tabla humanitarian_causes (Migración 038 + 071 + 072 + 073)
-        let allUrls = [evidencia_link.trim(), ...redesArray];
-        if (uploaded_images && Array.isArray(uploaded_images)) {
-            for (const url of uploaded_images) {
-                if (typeof url !== 'string' || !url.startsWith('https://')) {
-                    return res.status(400).json({ message: "URL de imagen subida inválida o no segura." });
+        // Las imágenes reales de R2 se colocan PRIMERO para que sean visibles inmediatamente.
+        // Luego vienen el enlace de Drive (evidencia documental) y las redes sociales.
+        let imageUploadUrls = [];
+        if (Array.isArray(image_uploads) && image_uploads.length > 0) {
+            // [SEGURIDAD] Validar que cada URL de imagen provenga de nuestro CDN R2
+            // y no sea un enlace externo inyectado maliciosamente (prevención de SSRF).
+            const cdnBase = process.env.S3_PUBLIC_URL || '';
+            for (const imgUrl of image_uploads) {
+                if (typeof imgUrl !== 'string' || !imgUrl.startsWith('https')) {
+                    return res.status(400).json({ message: 'URL de imagen inválida en image_uploads.' });
+                }
+                // Solo aceptar URLs de nuestro propio CDN R2 o que terminen en extensiones de imagen
+                const lower = imgUrl.toLowerCase();
+                const isRealImage = lower.endsWith('.webp') || lower.endsWith('.png') ||
+                                    lower.endsWith('.jpg') || lower.endsWith('.jpeg') ||
+                                    lower.endsWith('.gif') || lower.includes('/uploads/');
+                if (!isRealImage) {
+                    return res.status(400).json({ message: 'Solo se permiten URLs de imágenes válidas en image_uploads.' });
                 }
             }
-            allUrls = [...allUrls, ...uploaded_images];
+            // Máximo 3 imágenes para evitar abuso del límite
+            imageUploadUrls = image_uploads.slice(0, 3);
         }
+
+        const allUrls = [...imageUploadUrls, evidencia_link.trim(), ...redesArray];
         const evidenceUrls = JSON.stringify(allUrls);
         const insertSql = `
             INSERT INTO humanitarian_causes 

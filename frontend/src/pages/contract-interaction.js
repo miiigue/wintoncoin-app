@@ -1158,14 +1158,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 foundation_name: cause.foundation_name,
                 category: 'donation', // Chip de filtrado 'Donaciones'
                 is_humanitarian_cause: true,
+                // Filtrar solo URLs de imágenes reales subidas a R2 (extensiones .webp/.png/.jpg/.jpeg)
+                // Excluye enlaces externos como Google Drive, Instagram, etc. que causarían cajas negras
                 image_urls: (cause.evidence_urls || []).filter(url => {
-                    if (!url) return false;
+                    if (!url || typeof url !== 'string') return false;
                     const lower = url.toLowerCase();
-                    return lower.endsWith('.webp') || 
-                           lower.endsWith('.png') || 
-                           lower.endsWith('.jpg') || 
-                           lower.endsWith('.jpeg') || 
-                           lower.endsWith('.gif') || 
+                    return lower.endsWith('.webp') ||
+                           lower.endsWith('.png')  ||
+                           lower.endsWith('.jpg')  ||
+                           lower.endsWith('.jpeg') ||
+                           lower.endsWith('.gif')  ||
                            lower.includes('/uploads/');
                 }),
                 available_slots: 1,

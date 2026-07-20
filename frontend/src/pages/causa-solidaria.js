@@ -163,18 +163,27 @@ async function loadCauseData(causeId) {
 // ============================================================================
 // Genera todo el HTML de la causa con datos reales del backend
 // ============================================================================
-function buildCauseHTML(cause, donations) {
-    const actualImages = (cause.evidence_urls || []).filter(url => {
-        if (!url) return false;
+/**
+ * Helper: filtra evidence_urls para retener solo URLs de imágenes reales.
+ * Excluye Google Drive, Instagram, Facebook y otros enlaces externos.
+ * @param {string[]} urls - Arreglo de URLs a filtrar
+ * @returns {string[]} Solo las URLs que apuntan a imágenes de R2/CDN
+ */
+function filterRealImages(urls) {
+    if (!Array.isArray(urls)) return [];
+    return urls.filter(url => {
+        if (!url || typeof url !== 'string') return false;
         const lower = url.toLowerCase();
-        return lower.endsWith('.webp') || 
-               lower.endsWith('.png') || 
-               lower.endsWith('.jpg') || 
-               lower.endsWith('.jpeg') || 
-               lower.endsWith('.gif') || 
+        return lower.endsWith('.webp') ||
+               lower.endsWith('.png')  ||
+               lower.endsWith('.jpg')  ||
+               lower.endsWith('.jpeg') ||
+               lower.endsWith('.gif')  ||
                lower.includes('/uploads/');
     });
+}
 
+function buildCauseHTML(cause, donations) {
     const currentAmount = parseFloat(cause.current_amount) || 0;
     const goalAmount = parseFloat(cause.goal_amount) || 0;
 
@@ -199,6 +208,9 @@ function buildCauseHTML(cause, donations) {
         minute: '2-digit',
         hour12: false
     }) + ' hs';
+
+    // Filtrar solo imágenes reales subidas a R2 (excluye Drive, Instagram, etc.)
+    const actualImages = filterRealImages(cause.evidence_urls);
 
     // Determinar si la causa alcanzó su meta o está culminada
     const isCompleted = cause.status === 'completed' || (goalAmount > 0 && totalRaised >= goalAmount);
@@ -286,8 +298,9 @@ function buildCauseHTML(cause, donations) {
         <!-- TARJETA PRINCIPAL -->
         <div class="solidario-cause-card ${(actualImages && actualImages.length > 0) ? 'has-images' : ''}" style="position: relative;">
             ${(actualImages && actualImages.length > 0) ? `
-                <div class="card-images-container ${actualImages.length > 1 ? 'is-carousel' : 'single-image'}" style="margin: -20px -20px 20px -20px; border-radius: 16px 16px 0 0; overflow: hidden; background: #000; display: flex; gap: 8px;">
-                    ${actualImages.map(url => `<img src="${escapeAttr(url)}" alt="Evidencia de causa" loading="lazy" style="max-height: 200px; width: ${actualImages.length > 1 ? '90%' : '100%'}; object-fit: cover; scroll-snap-align: center; border-radius: 0;">`).join('')}
+                <!-- Carrusel de imágenes de evidencia: ocupa el ancho completo (bordes de extremo a extremo) -->
+                <div class="card-images-container ${actualImages.length > 1 ? 'is-carousel' : 'single-image'}" style="margin: -20px -20px 20px -20px; border-radius: 16px 16px 0 0; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; display: flex; background: #000;">
+                    ${actualImages.map(url => `<img src="${escapeAttr(url)}" alt="Evidencia de causa" loading="lazy" style="flex-shrink: 0; width: ${actualImages.length > 1 ? '90%' : '100%'}; max-height: 240px; min-height: 180px; object-fit: cover; scroll-snap-align: start; border-radius: 0; cursor: pointer;">`).join('')}
                 </div>
             ` : ''}
             <h1 class="solidario-cause-title" id="solidarioCauseTitle">${escapeHtml(cause.title)}</h1>
@@ -990,9 +1003,9 @@ function initAuthorPanel(cause) {
 
     // --- EVENTOS DEL DROPZONE ---
     if (editCauseDropzone && editCauseFileInput) {
-        editCauseFileInput.onclick = (e) => {
-            e.stopPropagation();
-        };
+        // [BUG FIX] stopPropagation en el input de archivo para evitar que el click
+        // burbujee al contenedor Dropzone y lo active dos veces (doble subida).
+        editCauseFileInput.onclick = (e) => e.stopPropagation();
         editCauseDropzone.onclick = () => editCauseFileInput.click();
 
         editCauseDropzone.ondragover = (e) => {
@@ -1207,16 +1220,8 @@ document.addEventListener('click', (e) => {
         const evidenceLightboxModal = document.getElementById('evidenceLightboxModal');
         const container = document.getElementById('lightboxImagesContainer');
         if (evidenceLightboxModal && container) {
-            const imgUrls = (window.currentCause?.evidence_urls || []).filter(url => {
-                if (!url) return false;
-                const lower = url.toLowerCase();
-                return lower.endsWith('.webp') || 
-                       lower.endsWith('.png') || 
-                       lower.endsWith('.jpg') || 
-                       lower.endsWith('.jpeg') || 
-                       lower.endsWith('.gif') || 
-                       lower.includes('/uploads/');
-            });
+            // Filtrar solo imágenes reales para el Lightbox (excluye Drive, Instagram, etc.)
+            const imgUrls = filterRealImages(window.currentCause?.evidence_urls || []);
             if (imgUrls.length > 0) {
                 container.innerHTML = imgUrls.map(url => `
                     <img src="${escapeAttr(url)}" style="max-height: 85vh; max-width: 100%; object-fit: contain; scroll-snap-align: center; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
