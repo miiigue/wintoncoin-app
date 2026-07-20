@@ -1158,6 +1158,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 foundation_name: cause.foundation_name,
                 category: 'donation', // Chip de filtrado 'Donaciones'
                 is_humanitarian_cause: true,
+                // [FILTRO DE SEGURIDAD VISUAL] Solo retener URLs que sean imágenes reales
+                // subidas a la plataforma (Cloudflare R2 vía /uploads/) o con extensiones
+                // gráficas válidas. Excluye enlaces de Google Drive, Instagram, TikTok, etc.
+                // que causan cajas negras/rotas al renderizarse en <img>.
+                image_urls: (cause.evidence_urls || []).filter(url => {
+                    if (!url || typeof url !== 'string') return false;
+                    const lower = url.toLowerCase();
+                    // Aceptar URLs que contengan /uploads/ (Cloudflare R2)
+                    if (lower.includes('/uploads/')) return true;
+                    // Aceptar URLs que terminen en extensiones de imagen conocidas
+                    if (/\.(webp|png|jpg|jpeg|gif)(\?.*)?$/i.test(lower)) return true;
+                    // Rechazar todo lo demás (Drive, Instagram, Facebook, etc.)
+                    return false;
+                }),
                 available_slots: 1,
                 blue_cost: 0
             }));
@@ -1519,7 +1533,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function getPublicationCardHTML(pub, blueLabel, ratingHTML = '') {
         const isDonation = pub.category === 'donation';
-        const rewardText = isDonation ? `Meta: ${formatBalance(pub.goal_amount)} ${blueLabel}` : `${formatBalance(pub.blue_cost)} ${blueLabel}`;
+        const rewardText = isDonation ? `${formatBalance(pub.goal_amount)} ${blueLabel}` : `${formatBalance(pub.blue_cost)} ${blueLabel}`;
         const statusMessageHTML = getCardStatusMessageHTML(pub);
 
         let ribbonClass = '';
@@ -1653,8 +1667,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         return `
             <a href="${detailUrl}" class="publication-item-link">
-                <div class="publication-item ${expirationInfo.isExpired ? 'expired' : ''} ${isDonation ? 'donation-card' : ''}" data-id="${pub.id}" data-author="${safeAuthorAttr}">
+                <div class="publication-item ${expirationInfo.isExpired ? 'expired' : ''} ${isDonation ? 'donation-card' : ''} ${(pub.image_urls && pub.image_urls.length > 0) ? 'has-images' : ''}" data-id="${pub.id}" data-author="${safeAuthorAttr}">
                     
+                    ${(pub.image_urls && pub.image_urls.length > 0) ? `
+                        <div class="card-images-wrapper">
+                            <div class="card-images-container ${pub.image_urls.length > 1 ? 'is-carousel' : 'single-image'}" onscroll="if(this.classList.contains('is-carousel')){const idx = Math.round(this.scrollLeft / this.offsetWidth); this.parentElement.querySelectorAll('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === idx));}">
+                                ${pub.image_urls.map(url => `<img src="${escapeAttr(url)}" alt="Imagen de publicación" loading="lazy">`).join('')}
+                            </div>
+                            ${pub.image_urls.length > 1 ? `
+                                <div class="carousel-dots">
+                                    ${pub.image_urls.map((_, i) => `<span class="carousel-dot ${i === 0 ? 'active' : ''}"></span>`).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+
                     <div class="card-top-row ${statusMessageHTML ? 'has-status' : ''}">
                         ${actionButtonHTML}
                         

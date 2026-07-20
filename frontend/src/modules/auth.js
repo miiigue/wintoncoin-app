@@ -77,7 +77,12 @@ export async function silentRefreshIfNeeded() {
             });
 
             if (!response.ok) {
-                throw new Error('Fallo al validar la cookie de sesión en el servidor.');
+                // Si es un error de no autorizado (401), la sesión es explícitamente inválida
+                if (response.status === 401) {
+                    throw { isSessionInvalid: true, message: 'Sesión expirada o inválida en el servidor.' };
+                }
+                // Si es otro error (500, 502, 503, 504), es un problema temporal del servidor. Conservamos credenciales.
+                throw { isSessionInvalid: false, message: `Error temporal del servidor (${response.status}).` };
             }
 
             const data = await response.json();
@@ -100,20 +105,26 @@ export async function silentRefreshIfNeeded() {
             return data.token;
 
         } catch (error) {
-            console.warn('[AUTH] No se pudo refrescar la sesión:', error.message);
+            console.warn('[AUTH] No se pudo refrescar la sesión:', error.message || error);
             
-            // Si el refresco falla, destruimos la sesión en localStorage preventivamente
-            localStorage.removeItem('token');
-            localStorage.removeItem('username');
-            
-            userSession.isAuthenticated = false;
-            userSession.is_verified = false;
-            userSession.kyc_verified = false;
-            userSession.requires_terms_acceptance = false;
-            userSession.pending_documents = [];
-            
-            document.dispatchEvent(new CustomEvent('auth-status-checked', { detail: userSession }));
-            return null;
+            // [SEGURIDAD FINTECH] Solo destruimos la sesión si el servidor nos confirmó explícitamente
+            // que la sesión es inválida (401). Si el fallo es de red (TypeError) o por error 5xx
+            // del servidor, no deslogueamos al usuario, evitamos arruinar su UX por un fallo temporal.
+            if (error && error.isSessionInvalid === true) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('username');
+                
+                userSession.isAuthenticated = false;
+                userSession.is_verified = false;
+                userSession.kyc_verified = false;
+                userSession.requires_terms_acceptance = false;
+                userSession.pending_documents = [];
+                
+                document.dispatchEvent(new CustomEvent('auth-status-checked', { detail: userSession }));
+                return null;
+            }
+            // Propagar el error transitorio (red, 5xx) para evitar que se intente la llamada sin token
+            throw error;
         } finally {
             refreshPromise = null;
         }
@@ -314,6 +325,11 @@ window.fetch = async function (input, init) {
             }
         } catch (error) {
             console.error('[AUTH INTERCEPTOR] Error al pre-refrescar token:', error);
+            // Si el error no es de sesión inválida (es decir, es un error temporal de red o 500),
+            // arrojamos la excepción para detener el fetch original y evitar un falso logout (401).
+            if (!error || error.isSessionInvalid !== true) {
+                throw error;
+            }
         }
     }
 

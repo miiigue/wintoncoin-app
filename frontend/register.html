@@ -421,6 +421,58 @@
             .step-title {
                 font-size: 1.2rem;
             }
+            
+            .login-prompt-banner {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+                padding: 14px 15px;
+            }
+            
+            .login-highlight-btn {
+                width: 100%;
+                text-align: center;
+            }
+        }
+
+        /* --- NUEVO: Banner destacado para iniciar sesión (UX/UI de escape) --- */
+        .login-prompt-banner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            padding: 12px 20px;
+            margin: 10px 0 25px 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .login-prompt-banner span {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
+        }
+
+        .login-highlight-btn {
+            background: linear-gradient(135deg, #007bff, #00f2fe) !important;
+            border: none !important;
+            color: #fff !important;
+            font-weight: bold !important;
+            padding: 8px 18px !important;
+            font-size: 0.95rem !important;
+            border-radius: 8px !important;
+            text-decoration: none !important;
+            box-shadow: 0 0 12px rgba(0, 242, 254, 0.3) !important;
+            transition: all 0.3s ease !important;
+            display: inline-block;
+        }
+
+        .login-highlight-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.6) !important;
         }
     </style>
 </head>
@@ -430,7 +482,12 @@
         <a href="/" title="Ir al Inicio"><img src="assets/icons/icon-192x192.png"
                 alt="WintonCoin" class="auth-page-logo"></a>
         <h1>Crear Cuenta</h1>
-        <p style="margin-bottom: 20px; font-size: 1.15rem;">¿Ya tienes una cuenta? <a href="login.html" class="login-link-text">Toca para iniciar sesión</a></p>
+        
+        <!-- Banner destacado para iniciar sesión -->
+        <div class="login-prompt-banner">
+            <span>¿Ya tienes una cuenta?</span>
+            <a href="login.html" class="btn login-highlight-btn login-link-text">Inicia sesión aquí</a>
+        </div>
 
         <!-- NUEVO: Banner profesional para manejar sesión activa / verificación pendiente -->
         <div id="session-banner" class="session-banner">

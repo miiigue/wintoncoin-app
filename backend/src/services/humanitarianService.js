@@ -645,7 +645,7 @@ const processAndSendEmailsForReleasedDonations = async (donorId) => {
 /**
  * Edita una causa solidaria (meta o historia) aplicando controles de similitud y límites de reducción.
  */
-const editCause = async (userId, causeId, { story, goal_amount }, req) => {
+const editCause = async (userId, causeId, { story, goal_amount, new_evidence_urls }, req) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -669,6 +669,38 @@ const editCause = async (userId, causeId, { story, goal_amount }, req) => {
 
         let updatedStory = cause.story;
         let updatedGoal = parseFloat(cause.goal_amount);
+        let updatedEvidence = Array.isArray(cause.evidence_urls) ? cause.evidence_urls : [];
+
+        // Validar nuevas imágenes si se proveen
+        if (new_evidence_urls !== undefined && new_evidence_urls !== null) {
+            if (!Array.isArray(new_evidence_urls)) {
+                throw { status: 400, message: 'Las nuevas URLs de evidencia deben ser un arreglo.' };
+            }
+            if (new_evidence_urls.length > 3) {
+                throw { status: 400, message: 'Solo puedes agregar un máximo de 3 nuevas imágenes por cada actualización.' };
+            }
+            const allowedImageExtensions = /\.(webp|png|jpg|jpeg|gif)(\?.*)?$/i;
+            for (const imgUrl of new_evidence_urls) {
+                if (typeof imgUrl !== 'string' || imgUrl.length > 2048) {
+                    throw { status: 400, message: 'Una de las URLs de imagen es inválida.' };
+                }
+                try {
+                    const parsedUrl = new URL(imgUrl);
+                    if (parsedUrl.protocol !== 'https:') {
+                        throw { status: 400, message: 'Las URLs de imagen de evidencia deben usar HTTPS por seguridad.' };
+                    }
+                } catch (_) {
+                    throw { status: 400, message: 'Una de las URLs de imagen no es válida.' };
+                }
+                if (!allowedImageExtensions.test(imgUrl) && !imgUrl.includes('/uploads/')) {
+                    throw { status: 400, message: 'Solo se permiten imágenes en formato WebP, PNG, JPG o GIF.' };
+                }
+            }
+            updatedEvidence = [...updatedEvidence, ...new_evidence_urls];
+            if (updatedEvidence.length > 15) {
+                throw { status: 400, message: 'La causa ya ha alcanzado el límite máximo total de 15 imágenes.' };
+            }
+        }
 
         // 2. Si la causa está en revisión ('pending') se permite edición libre
         if (cause.status === 'pending') {
@@ -736,17 +768,22 @@ const editCause = async (userId, causeId, { story, goal_amount }, req) => {
         // 4. Actualizar la causa
         await client.query(`
             UPDATE humanitarian_causes
-            SET story = $1, goal_amount = $2, updated_at = CURRENT_TIMESTAMP
-            WHERE id = $3
-        `, [updatedStory, updatedGoal, causeId]);
+            SET story = $1, goal_amount = $2, evidence_urls = $3::jsonb, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $4
+        `, [updatedStory, updatedGoal, JSON.stringify(updatedEvidence), causeId]);
 
-        // Registrar auditoría
-        await logAuditEvent(
-            userId,
-            'EDIT_HUMANITARIAN_CAUSE',
-            `Causa ID ${causeId} editada. Nueva meta: ${updatedGoal}, Historia modificada: ${story !== undefined && story !== cause.story}`,
-            req
-        );
+        // Registrar auditoría con firma correcta (client, req, options)
+        await logAuditEvent(client, req, {
+            eventType: 'EDIT_HUMANITARIAN_CAUSE',
+            actorId: userId,
+            category: 'HUMANITARIAN',
+            metadata: {
+                cause_id: causeId,
+                goal_amount: updatedGoal,
+                story_changed: story !== undefined && story !== cause.story,
+                images_added_count: new_evidence_urls ? new_evidence_urls.length : 0
+            }
+        });
 
         await client.query('COMMIT');
         return { success: true, message: 'Causa actualizada correctamente.' };

@@ -162,6 +162,40 @@
             <section id="publications-section" class="admin-section">
                 <h1>Contenido</h1>
                 <p>Modera las publicaciones de la plataforma.</p>
+
+                <!-- === LÍMITES DE IMÁGENES === -->
+                <div class="settings-group" style="margin-top: 20px;">
+                    <div class="settings-header">
+                        <h2>Límites de Imágenes por Tipo de Publicación</h2>
+                        <p class="section-description">Define la cantidad máxima de fotos permitidas para cada caso.</p>
+                    </div>
+                    <form id="imageLimitsForm" class="admin-form">
+                        <div class="admin-form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                            <div class="form-group-admin">
+                                <label for="maxImagesRequest">Solicitudes (Request)</label>
+                                <input type="number" id="maxImagesRequest" name="maxImagesRequest" class="admin-input-dark" min="0" value="1">
+                            </div>
+                            <div class="form-group-admin">
+                                <label for="maxImagesSell">Ventas (Sell)</label>
+                                <input type="number" id="maxImagesSell" name="maxImagesSell" class="admin-input-dark" min="0" value="2">
+                            </div>
+                            <div class="form-group-admin">
+                                <label for="maxImagesDonation">Donaciones</label>
+                                <input type="number" id="maxImagesDonation" name="maxImagesDonation" class="admin-input-dark" min="0" value="1">
+                            </div>
+                            <div class="form-group-admin">
+                                <label for="maxImagesPlatform">Plataforma</label>
+                                <input type="number" id="maxImagesPlatform" name="maxImagesPlatform" class="admin-input-dark" min="0" value="3">
+                            </div>
+                            <div class="form-group-admin">
+                                <label for="maxImagesEvidence">Evidencias</label>
+                                <input type="number" id="maxImagesEvidence" name="maxImagesEvidence" class="admin-input-dark" min="0" value="2">
+                            </div>
+                        </div>
+                        <button type="submit" class="action-button-admin" style="margin-top:15px; width:100%;">Guardar Límites</button>
+                    </form>
+                </div>
+                <!-- ============================ -->
                 <!-- Un campo de búsqueda para filtrar publicaciones por título o autor -->
                 <div class="table-controls">
                     <input type="text" id="publicationSearchInput" placeholder="Buscar por título o autor...">
@@ -570,6 +604,34 @@
                             <div class="form-group-admin">
                                 <label for="platformPubDescription">Descripción:</label>
                                 <textarea id="platformPubDescription" rows="4" required></textarea>
+                            </div>
+
+                            <!-- MEDIA UPLOAD DROPZONE -->
+                            <div id="platform-media-upload-wrapper" class="dropzone-wrapper full-width" style="margin-top: 15px;">
+                                <label>Fotos (Opcional):</label>
+                                <div id="platformMediaDropzone" class="dropzone" tabindex="0">
+                                    <input type="file" id="platformMediaFileInput" name="images" multiple accept="image/jpeg, image/png, image/webp, image/jpg, image/heic" style="display: none;">
+                                    <div class="dropzone-message">
+                                        <span class="dropzone-icon" style="font-size: 2rem; display: block; margin-bottom: 5px;">📷</span>
+                                        <p>Haz clic o arrastra fotos aquí</p>
+                                        <small id="platform-dropzone-limit-message">Cargando límites...</small>
+                                    </div>
+                                </div>
+                                <div id="platformMediaPreviewContainer" class="media-preview-container" style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;"></div>
+                            </div>
+
+                            <!-- EVIDENCIAS SWITCH -->
+                            <div class="form-group-switch has-switch-header full-width" id="platform-evidence-wrapper" style="margin-top: 20px;">
+                                <div class="switch-header">
+                                    <div class="switch-label-group">
+                                        <label for="platformRequiresEvidence">Exigir evidencias fotográficas</label>
+                                        <small class="input-hint">El trabajador deberá subir fotos obligatoriamente para poder culminar la tarea.</small>
+                                    </div>
+                                    <label class="switch">
+                                        <input type="checkbox" id="platformRequiresEvidence" name="platformRequiresEvidence">
+                                        <span class="slider round"></span>
+                                    </label>
+                                </div>
                             </div>
 
                             <div class="form-group-admin">

@@ -149,7 +149,7 @@ function startWalletTour() {
                 children.forEach(child => child.style.pointerEvents = '');
             }
         },
-        onDestroyStarted: () => {
+        onDestroyed: () => {
             document.body.classList.remove('wallet-tour-active');
             sessionStorage.removeItem('suppressWalletModal'); // Limpieza legacy por si acaso
 
@@ -171,9 +171,6 @@ function startWalletTour() {
             if (burnModal) {
                 burnModal.style.display = 'none';
             }
-
-            // Forzar destrucción para evitar cuelgues
-            driverObj.destroy();
         },
         steps: [
             {
@@ -273,7 +270,7 @@ function startBurnTour() {
                 children.forEach(child => child.style.pointerEvents = '');
             }
         },
-        onDestroyStarted: () => {
+        onDestroyed: () => {
             document.body.classList.remove('wallet-tour-active');
             sessionStorage.removeItem('suppressWalletModal');
 
@@ -289,8 +286,6 @@ function startBurnTour() {
 
             const prelaunchModal = document.getElementById('prelaunchWalletModal');
             if (prelaunchModal) prelaunchModal.style.display = 'none';
-
-            driverObj.destroy();
         },
         steps: [
             {
@@ -445,12 +440,11 @@ function startTour() {
             }
         ],
         // Asegurar que el tour se cierre correctamente al finalizar
-        onDestroyStarted: () => {
+        onDestroyed: () => {
             // Asegurar limpieza del último elemento si es necesario
             const activeElement = document.querySelector('.driver-active-element');
             if (activeElement) activeElement.style.pointerEvents = '';
 
-            driverObj.destroy();
             localStorage.setItem('wintoncoin_tour_completed', 'true');
         },
     });
@@ -500,11 +494,10 @@ function startPublishTour() {
                 element.style.pointerEvents = '';
             }
         },
-        onDestroyStarted: () => {
+        onDestroyed: () => {
             // Al cerrar el tour, cerramos el modal si el usuario no hizo click en una opción
             // Pero como el click en opción navega, si cancela el tour, cerramos modal.
             if (pubModal) pubModal.style.display = 'none';
-            driverObj.destroy();
         },
         steps: [
             {
@@ -630,10 +623,9 @@ function runTaskDriver(pubElement) {
                 element.style.pointerEvents = '';
             }
         },
-        onDestroyStarted: () => {
+        onDestroyed: () => {
             // Limpiar la clase temporal
             pubElement.classList.remove(uniqueClass);
-            driverObj.destroy();
         },
         steps: [
             {

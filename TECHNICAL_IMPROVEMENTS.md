@@ -2,6 +2,18 @@
 
 Este documento describe una serie de mejoras técnicas y de arquitectura sugeridas para fortalecer el código base del proyecto, mejorar su mantenibilidad, escalabilidad y seguridad. Las tareas están **ordenadas por prioridad**, desde la más crítica a la más recomendable.
 
+## 0.1. Reestructuración de Controladores Monolíticos (Deuda Técnica)
+
+**Prioridad: Urgente (Deuda Técnica / SOC 2)**
+
+**Problema Actual:**
+Los controladores como `userController.js` (aprox. 1,000 líneas) y `adminController.js` (más de 3,000 líneas) tienen un diseño monolítico. Mezclan la lógica de manejo de solicitudes HTTP (routing) con cálculos complejos de negocio, reglas económicas, validaciones on-chain y llamadas directas a la base de datos. Esto dificulta el mantenimiento, viola el principio de Responsabilidad Única (SRP) y complica las auditorías de seguridad.
+
+**Solución Propuesta (Opción A):**
+1. **Separación en Servicios:** Extraer toda la lógica de negocio a una nueva capa de servicios (ej. `creditScoringService.js`, `kycService.js`, `boosterLedgerService.js`).
+2. **Refactorización de Controladores:** Dejar los controladores estrictamente para validar la entrada HTTP (req.body/params), llamar al servicio correspondiente, y devolver la respuesta (res.status).
+3. **Mantenimiento de Seguridad:** Mantener los estándares SOC 2, validación anti-SQL injection y validaciones OTP en la refactorización para garantizar un ecosistema blindado.
+
 ---
 
 ## 0.5. Refactorización de Llaves Foráneas (Deuda Técnica)

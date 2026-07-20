@@ -1,9 +1,3 @@
-# EvoluciÃ³n de WintonCoin
-
----
-
-# EvoluciÃ³n del proyecto (historia tÃ©cnica + decisiones)
-
 # Evolución de WintonCoin
 
 ---
@@ -19,7 +13,74 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-20 — Unificación de Carruseles: Feed de Tarjetas y Detalles
+* **Cambio**: 
+  - **Tarjetas del Feed (`contract-interaction.js`)**: Modificado el carrusel de publicaciones para ocupar el 100% del ancho (eliminando la visualización del 90% de la siguiente imagen). Se envolvió el contenedor en un `.card-images-wrapper` y se integraron puntos indicadores (dots) interactivos que se actualizan mediante un listener `onscroll`. También se eliminó el prefijo de texto `"Meta: "` de la etiqueta de valor de donación (ribbon superior derecho) para maximizar el espacio en pantallas pequeñas.
+  - **Detalle de Publicaciones (`publication-detail.js`)**: Actualizado el carrusel de la página de descripción para utilizar el mismo diseño responsivo de 100% de ancho con flechas físicas laterales y dots del carrusel unificado. Se actualizó el selector de Lightbox.
+  - **Estilos (`style.css`)**: Centralizados los estilos de `.carousel-dots`, `.carousel-dot`, y `.card-images-wrapper` para mantener el principio DRY y mejorar la cohesión visual del portal. Además se eliminaron los márgenes verticales de `.card-images-container` dentro de `.card-images-wrapper` para evitar las franjas negras superior y inferior que aparecían en las tarjetas.
+* **Evidencia**: Modificaciones en `style.css`, `contract-interaction.js` y `publication-detail.js`.
+* **Impacto**: Unificación total de la UI de carruseles en la plataforma. Se elimina el peeking desordenado en las tarjetas del feed, ofreciendo una experiencia moderna, limpia e intuitiva (estilo Instagram) tanto en la lista general como en las vistas detalladas, sin márgenes negros residuales en las portadas. Además, se optimizó el espacio de las etiquetas de meta de recaudación en el feed.
 
+### 2026-07-20 — Auditoría Técnica y Mitigación de Seguridad (Harden editCause)
+* **Cambio**: 
+  - **Auditoría Técnica**: Realizado análisis estático del flujo de donaciones solidarias y subida de imágenes, validando el cumplimiento de directrices de inyección SQL, control de Race Conditions y principio de Zero Hardcoded Secrets.
+  - **Mitigación (Backend)**: Se detectó una inconsistencia de validación al editar causas (`editCause` en `humanitarianService.js`). Se reforzó la validación de `new_evidence_urls` para que valide estrictamente el protocolo HTTPS, limite de caracteres a 2048, y extensiones de imagen permitidas (WebP/PNG/JPG/GIF) o pertenecientes al bucket (`/uploads/`), equiparándose a la seguridad de la postulación inicial.
+* **Evidencia**: Modificaciones en `humanitarianService.js`.
+* **Impacto**: Eliminación de un vector potencial de inyección de enlaces maliciosos o no HTTPS en el historial y detalle de la causa durante las actualizaciones. Consistencia del 100% en las reglas de validación bajo el principio de Zero-Trust.
+
+### 2026-07-20 — Fix Carrusel: Puntos Indicadores y Lightbox + Fix Modal Overflow
+* **Cambio**: 
+  - **Puntos Indicadores (Dots)**: Añadido un manejador de eventos `onscroll` en línea al contenedor `.cause-carousel-track`. Calcula el índice de la imagen visible actualizando dinámicamente el color de fondo de los puntos.
+  - **Lightbox**: Se ajustó el evento de escucha de clics en el documento global (`document.addEventListener('click', ...)`). Se amplió el selector de `.card-images-container img` a `.cause-carousel-track img, .card-images-container img` para abarcar el nuevo contenedor del carrusel, restaurando la capacidad de visualizar las imágenes a pantalla completa al hacer clic.
+  - **Modal Overflow**: Añadido `max-height: 90vh` y `overflow-y: auto` a la clase CSS `.solidario-donate-modal` en `causa-solidaria.html` para permitir scroll interno cuando el contenido (como las previsualizaciones de imágenes) excede la altura de la pantalla, evitando que los botones de confirmación queden ocultos.
+* **Evidencia**: Modificaciones en `causa-solidaria.js` y `causa-solidaria.html`.
+* **Impacto**: Mejora significativa de UX. Los donantes pueden navegar intuitivamente por la evidencia en el carrusel con retroalimentación visual (puntos) y hacer clic en cualquier imagen para ver los detalles originales en el Lightbox, igual que en el resto de la plataforma.
+
+### 2026-07-20 — Subida de Imágenes en Postulación + Carrusel Responsivo + Fix Cajas Negras
+* **Cambio**: 
+  - **Postulación**: Añadido Dropzone interactivo en `solicitud-solidaria.html` para que el creador suba hasta 3 imágenes (JPG/PNG/WebP, 5MB máx.) al momento de postular. Las imágenes se envían a Cloudflare R2 vía `/api/media/upload` y sus URLs se incluyen en `evidence_urls`.
+  - **Backend**: Extendido `solidarioRoutes.js` (`POST /postulacion`) para validar `uploaded_image_urls` (máx. 3, HTTPS, extensiones de imagen permitidas) y combinarlas con el arreglo de evidencias.
+  - **Carrusel**: Reescrito el carrusel del detalle de causa (`causa-solidaria.js`) con scroll-snap horizontal, flechas de navegación, dots indicadores, altura fija de 280px y `object-fit: cover` para eliminar barras negras.
+  - **Filtrado de imágenes**: Implementado filtro en `contract-interaction.js`, `causa-solidaria.js` (cabecera + lightbox) y `admin-panel.js` para excluir URLs de Drive/Instagram/redes del renderizado de `<img>`, reteniéndolas como enlaces de texto.
+  - **Fix Dropzone doble-click**: Agregado `e.stopPropagation()` en el input file dentro del dropzone para evitar doble apertura del explorador de archivos.
+  - **Panel Admin**: El modal de revisión ahora muestra miniaturas clicables para imágenes reales y enlaces de texto para URLs externas, permitiendo auditoría visual instantánea.
+* **Evidencia**: Modificaciones en `solicitud-solidaria.html`, `causa-solidaria.js`, `contract-interaction.js`, `admin-panel.js`, `solidarioRoutes.js`.
+* **Impacto**: Flujo completo de extremo a extremo: el creador sube fotos → el admin las ve al revisar → los usuarios las ven en el feed y en el carrusel del detalle. Eliminadas cajas negras/rotas. Bug de doble-click corregido.
+
+### 2026-07-20 — Corrección de Estilo del Carrusel en Detalle de Causa
+* **Cambio**: Removidos estilos en línea que impedían el scroll horizontal (overflow: hidden) en el carrusel de la causa detallada. Delegado el layout a clases CSS específicas dentro de la etiqueta style del documento HTML.
+* **Evidencia**: Modificaciones en causa-solidaria.html y causa-solidaria.js.
+* **Impacto**: El carrusel de fotos en el detalle ahora es responsivo, desliza correctamente de extremo a extremo al 100% de ancho del contenedor y respeta los bordes redondeados superiores de la tarjeta.
+
+### 2026-07-20 — Ajuste de Ancho y Snap del Carrusel en Móviles
+* **Cambio**: Modificada la regla CSS de .card-images-container para fijar un ancho del calc(100% + 48px) !important, alineación scroll-snap-align: start y asignación del redondeado de borde superior al primer elemento hijo directamente.
+* **Evidencia**: Modificaciones en style.css.
+* **Impacto**: Corrige la desalineación asimétrica del lado derecho y asegura el correcto recorte redondeado de las esquinas en Android/iOS.
+
+### 2026-07-20 — Alineación al Ras de Carrusel en Detalle de Causa
+* **Cambio**: Ajustados márgenes de .solidario-cause-card .card-images-container a -24px arriba y laterales, y el radio de borde superior a 15px en style.css.
+* **Evidencia**: Modificaciones en style.css.
+* **Impacto**: Cancela exactamente el padding de 24px de la tarjeta de la causa, dejando la cabecera visual al ras con los bordes de la tarjeta.
+
+### 2026-07-20 — Corrección de Scroll y Altura del Carrusel en Detalle de Causas
+* **Cambio**: Removidos estilos inline del contenedor de imágenes en causa-solidaria.js y creadas reglas CSS específicas en style.css para habilitar el scroll horizontal de evidencias, aplicar peeking del 90% y fijar una altura de 280px consistente.
+* **Evidencia**: Modificaciones en causa-solidaria.js y style.css.
+* **Impacto**: Resuelve el carrusel bloqueado y la distorsión/recorte de portadas en el detalle de la causa.
+
+### 2026-07-20 — Carga de Imágenes en Postulación Solidaria y Filtro de Enlaces No-Imagen
+* **Cambio**: Incorporado Dropzone de subida al formulario de postulación original (solicitud-solidaria.html), modificado el backend para procesar el arreglo (solidarioRoutes.js) y agregado un filtro del lado del cliente en el feed y detalles para omitir enlaces no-imagen (como Drive o Instagram) que causaban imágenes rotas.
+* **Evidencia**: Modificaciones en solicitud-solidaria.html, solidarioRoutes.js, contract-interaction.js y causa-solidaria.js.
+* **Impacto**: Completa el flujo de auditoría permitiendo que el administrador revise la evidencia visual real antes de la aprobación y asegura que las causas se rendericen correctamente desde el primer segundo sin mostrar cajas vacías.
+
+### 2026-07-20 — Flujo de Imágenes en Postulación Solidaria y Auditoría de Administrador
+* **Cambio**: Integrado el Dropzone en el formulario inicial de postulación (solicitud-solidaria.html) para subir hasta 3 imágenes físicas. Implementado visor de imágenes directo en el modal de auditoría de causas del panel administrativo (admin-panel.js).
+* **Evidencia**: Commits subsiguientes.
+* **Impacto**: Permite que el creador de la causa cargue evidencias visuales al registrarse, y que el administrador las evalúe en miniatura antes de aprobar el caso, optimizando el flujo completo de canje solidario.
+
+### 2026-07-19 — Visualización de Imágenes en Tarjetas y Detalle de Causas Solidarias
+* **Cambio**: Conectada la visualización del carrusel de imágenes en las tarjetas virtuales del feed principal y en la cabecera de la vista detallada de la causa (causa-solidaria.html).
+* **Evidencia**: Commit ebaa656 y actualizaciones subsecuentes.
+* **Impacto**: Permite la transparencia completa al poder visualizar las evidencias de progreso y fotos de la causa directamente desde el feed y verlas a pantalla completa usando el visor lightbox.
 
 ### 2026-07-14 — Auditoría de Ciberseguridad y Remediación de Vulnerabilidades Críticas en adminController.js
 
@@ -4221,3 +4282,147 @@ Se asienta en auditorÃ­a la remociÃ³n fÃ­sica de la subcarpeta `android-ap
 
 
 
+
+### Resolución de Incidente de Entorno: Case Mismatch en Windows
+- **Fecha:** 2026-07-17
+- **Problema:** Error de compilación en TypeScript por módulos duplicados de \dotenv\.
+- **Causa Analizada:** El servidor de lenguaje de TypeScript (Case-sensitive) entró en conflicto al tener archivos abiertos en el editor bajo dos rutas con capitalización distinta (WINTONCOIN vs Wintoncoin) aprovechando la flexibilidad del sistema de archivos de Windows (Case-insensitive).
+- **Solución Aplicada:** Reinicio del entorno de desarrollo (VS Code) asegurando cargar el workspace desde una ruta unificada con una única capitalización. No se requirió modificación a la base del código, garantizando la estabilidad y previniendo inyección de riesgos de seguridad.
+
+---
+
+### 2026-07-17 — Rediseño y Destacado del Botón de Escape de Autenticación en Registro (Vía de Escape UX)
+
+- **Autor**: Antigravity (AI Engineering)
+- **Tipo**: Optimización de Flujo y Diseño UI/UX (Frontend)
+- **Rama**: `fix/email-asterisks-cause-update`
+- **Contexto**: Para resolver la fricción en usuarios ya registrados que abren el enlace de referidos en navegadores externos sin sesión activa (y que potencialmente están bloqueados por un código OTP anterior en LocalStorage), se requirió hacer altamente visible y accesible la opción de iniciar sesión directa.
+- **Solución Implementada**:
+  - **Banner de Escape Destacado (`register.html`)**: Reemplazamos la frase introductoria simple por un banner de diseño premium de vidrio (`.login-prompt-banner`) con un botón con degradado brillante (`linear-gradient(135deg, #007bff, #00f2fe)`) que dice "Inicia sesión aquí".
+  - **Preservación de Redirección**: El botón conserva la clase `login-link-text` para que la lógica de JS siga inyectando el parámetro `returnTo` dinámicamente si existe.
+- **Impacto**:
+  - **Experiencia Óptima**: Los usuarios registrados tienen un punto de salida llamativo e inmediato para loguearse y salir del flujo de registro/verificación.
+- **Evidencia**: Archivos modificados: `frontend/register.html`, `EVOLUCION.md`.
+
+---
+
+### 2026-07-17 — Corrección de Bucle Infinito del Tour de Onboarding y Prioridad de Instalación PWA
+
+- **Autor**: Antigravity (AI Engineering)
+- **Tipo**: Estabilidad, Lógica de Flujo y UI/UX (Frontend)
+- **Rama**: `fix/email-asterisks-cause-update`
+- **Contexto**:
+  1. Se reportó que el tour de bienvenida se disparaba en cada inicio de sesión o apertura de la app, incluso si el usuario ya lo había terminado o cerrado previamente.
+  2. El banner/botón flotante de instalar la app ("Primero debes instalar la app") se mostraba a usuarios que ya la tenían instalada si entraban mediante un enlace de referidos.
+- **Solución Implementada**:
+  - **Resolución de Recursión en Onboarding (`onboarding.js`)**: Identificamos que las funciones callback `onDestroyStarted` de los 5 tours en el sistema llamaban internamente a `driverObj.destroy()`. Puesto que `onDestroyStarted` es gatillado *durante* el ciclo de destrucción propio de Driver.js, esto causaba un desbordamiento de pila (stack overflow) silencioso en JavaScript, interrumpiendo el flujo antes de que se ejecutara `localStorage.setItem('wintoncoin_tour_completed', 'true')`. Removimos los llamados redundantes a `.destroy()` para permitir que finalicen limpiamente y guarden la bandera.
+  - **Reordenamiento de Prioridad PWA (`pwa-install.js`)**: Fusionamos las validaciones de instalación standalone y la existencia del flag `pwa_installed` en LocalStorage en una sola condición unificada al principio de `initPWAInstall()`. Esto asegura que si el usuario ya instaló la app, el sistema retorne de inmediato sin evaluar si posee una campaña/referido pendiente.
+- **Impacto**:
+  - **Estabilidad de Onboarding**: El progreso del tour se guarda exitosamente la primera vez que el usuario lo termina o lo cierra, previniendo apariciones molestas recurrentes.
+  - **Experiencia Silenciosa**: Los usuarios con la app instalada no reciben indicaciones de descarga redundantes al ingresar por enlaces de mercadeo.
+- **Evidencia**: Archivos modificados: `frontend/src/modules/onboarding.js`, `frontend/src/modules/pwa-install.js`, `EVOLUCION.md`.
+
+- **Alineación de Comportamiento Multiventana (`manifest.json` y `manifest.demo.json`)**:
+  - Incorporamos la directiva `"launch_handler": { "client_mode": "focus-existing" }` en ambos manifiestos Web App.
+  - Esto indica al sistema operativo/navegador que si la PWA ya está abierta y recibe una petición de inicio externa, debe reenfocar y enrutar a la ventana existente en vez de levantar instancias duplicadas.
+- **Evidencia**: Archivos modificados: `frontend/public/manifest.json`, `frontend/public/manifest.demo.json`, `EVOLUCION.md`.
+
+- **Corrección de Bloqueo del Tour Guiado (`onboarding.js`)**:
+  - Cambiamos el callback de `onDestroyStarted` a `onDestroyed` en los 5 flujos de onboarding.
+  - Al usar `onDestroyed`, permitimos que Driver.js finalice su destrucción de forma natural en lugar de interceptar y congelar la pantalla. Una vez completado el desmantelamiento, se registra la bandera de completado en `localStorage`.
+- **Evidencia**: Archivos modificados: `frontend/src/modules/onboarding.js`, `EVOLUCION.md`.
+### 2026-07-18 - UI/UX de Carga y Visualizaci�n de Evidencias (Frontend Premium)
+
+**Contexto**: Se requer�a completar el flujo frontend para permitir la subida de im�genes de evidencia (a trav�s de Cloudflare R2/AWS S3) durante el proceso de "Finalizar Tarea" y visualizar estas im�genes en un carrusel din�mico en la publicaci�n y en un Lightbox para evaluaci�n.
+
+**Cambios Realizados**:
+1. **Redise�o de Publicaciones (Premium UI)**: Modificado contract-interaction.js y publication-detail.js para renderizar un carrusel interactivo y responsivo bajo el t�tulo de las publicaciones que contengan im�genes adjuntas.
+2. **Modal Finalizar Tarea con Dropzone**: Se inyect� un nuevo modal de confirmaci�n en publication-detail.html que impide enviar la tarea como culminada si el creador ha exigido evidencias (equires_evidence=true) y no se ha cargado ninguna. Se maneja la carga m�ltiple visual mediante Drag & Drop y se suben directo al backend a trav�s de la ruta /api/media/upload.
+3. **Visor Lightbox de Evidencias**: Modificada la vista detallada para a�adir un bot�n "Ver Evidencias" a cada participante que complet� la tarea enviando im�genes. Se configur� un modal Lightbox oscuro e inmersivo en publication-detail.js para examinar el trabajo entregado.
+
+- **Evidencia**: Archivos modificados: rontend/src/pages/contract-interaction.js, rontend/src/pages/publication-detail.js, rontend/publication-detail.html, rontend/style.css, EVOLUCION.md.
+
+### 2026-07-18 - Visualización de Evidencias en Administrador y Optimizaciones de Portada (Estilo Uber Eats con Lightbox)
+
+**Contexto**: Los administradores no contaban con un método visual directo en el panel de control para inspeccionar las evidencias fotográficas entregadas por los participantes. Adicionalmente, el diseño visual de las publicaciones en el listado general variaba de tamaño desproporcionadamente debido al tamaño de las imágenes cargadas por los usuarios.
+
+**Cambios Realizados**:
+1. **Auditoría Visual de Evidencias para Administradores**:
+   - Modificado ackend/src/controllers/adminController.js para incluir evidence_urls en el SELECT agregado de los participantes de una publicación.
+   - Modificado rontend/src/pages/admin-panel.js para renderizar miniaturas compactas (45px) de las imágenes de evidencia subidas directamente debajo del estado de cada participante con estado "Culminada". Las miniaturas actúan como enlaces en pestaña nueva para verificar su autenticidad.
+2. **Ajustes de Portadas estilo Uber Eats/Coinbase (CSS)**:
+   - Añadidas reglas en rontend/style.css para forzar que los contenedores de imágenes en las tarjetas del listado principal (.publication-item) tengan un alto máximo uniforme de 125px y efectos de hover suaves.
+   - Ampliado el banner hero de detalles de publicación (#publication-content .card-images-container img) a 280px de alto máximo para una experiencia más atractiva y premium.
+3. **Lightbox Integrado para Fotos Principales**:
+   - Modificado rontend/src/pages/publication-detail.js para interceptar clics sobre las imágenes principales de la publicación. Esto abre las fotos a pantalla completa usando el mismo modal inmersivo de Lightbox y autodesplaza el carrusel al slide exacto que fue seleccionado.
+
+- **Evidencia**: Archivos modificados: ackend/src/controllers/adminController.js, rontend/src/pages/admin-panel.js, rontend/src/pages/publication-detail.js, rontend/style.css, EVOLUCION.md.
+### 2026-07-18 - Ajuste de Portadas al Borde de la Tarjeta y Truncado de Títulos/Descripciones (Estilo Uber Eats Tarjeta Completa)
+
+**Contexto**: El usuario solicitó mejorar el impacto visual y la consistencia de las tarjetas de publicaciones en el listado general (contract_interaction.html). Esto requería que las imágenes de portada/carruseles cubrieran la tarjeta de borde a borde en la parte superior, flotando los botones interactivos (como cerrar y la banda de precio) sobre ellas, además de recortar el título y descripción a una sola línea para optimizar el espacio.
+
+**Cambios Realizados**:
+1. **Flotación y Posicionamiento de Portada Edge-to-Edge**:
+   - Modificado rontend/src/pages/contract-interaction.js para añadir la clase dinámica has-images a las tarjetas .publication-item con imágenes y colocar el bloque de la imagen en la parte superior, antes del card-top-row.
+   - Modificado rontend/style.css para aplicar position: relative a las tarjetas .has-images y posicionar de forma absoluta su .card-top-row (position: absolute; top: 0; left: 0; z-index: 5) para que el botón de cerrar y la banda de precio floten de manera natural sobre la imagen.
+   - Aplicados márgenes negativos superiores y laterales (margin: -1.25rem -1.25rem 0.75rem -1.25rem) a la imagen para expandirse y tocar el borde superior e izquierdo/derecho del contenedor de la tarjeta, heredando el redondeado superior (order-radius: 16px 16px 0 0).
+   - Configurado pointer-events: none en la barra contenedora flotante superior (y pointer-events: auto en sus hijos) para asegurar que hacer clic en los espacios vacíos del banner siga permitiendo el ingreso al detalle de la publicación.
+2. **Truncamiento de Textos a Una Línea (Ellipsis)**:
+   - Añadidas reglas en rontend/style.css para recortar mediante CSS (white-space: nowrap; overflow: hidden; text-overflow: ellipsis) el título (.publication-header) y la descripción (.pub-description) a exactamente una línea. Esto previene variaciones verticales desproporcionadas y dota a la lista de una simetría premium.
+
+- **Evidencia**: Archivos modificados: rontend/src/pages/contract-interaction.js, rontend/style.css, EVOLUCION.md.
+### 2026-07-18 - Corrección de Estiramiento Lateral en Portada de Tarjetas (Edge-to-Edge)
+
+**Contexto**: Se observó que, aunque el contenedor de imágenes tocaba el borde izquierdo de la tarjeta, quedaba un espacio vacío del color de fondo de la tarjeta en el borde derecho. Esto ocurría porque el contenedor original tenía width: 100% (ancho de contenido) desplazado por un margen izquierdo negativo, lo que lo acortaba lateralmente en el extremo opuesto.
+
+**Cambios Realizados**:
+1. **Ajuste de Ancho Completo Horizontal**:
+   - Modificado rontend/style.css para aplicar width: calc(100% + 2.5rem) !important a .card-images-container cuando se encuentra en tarjetas .has-images. Esto compensa el padding de ambos lados y alinea los límites del contenedor exactamente con los bordes de la tarjeta.
+   - Forzado que las imágenes de contenedor único (.single-image img) tomen width: 100% !important para cubrir toda la superficie sin dejar barras o bordes negros.
+   - Asegurado que las imágenes dentro del carrusel mantengan un width: 90% !important de su contenedor extendido para que no queden huecos vacíos y se vea el indicativo de scroll de forma simétrica.
+
+- **Evidencia**: Archivos modificados: rontend/style.css, EVOLUCION.md.
+### 2026-07-18 - Corrección de Elipsis en Títulos H3 y Fondo Sólido de Tarjetas (Premium Blue)
+
+**Contexto**: Se identificaron dos inconsistencias visuales remanentes:
+1. El título largo de la tarjeta se cortaba abruptamente en lugar de mostrar los puntos suspensivos (...). Esto ocurría porque las propiedades CSS de truncamiento se aplicaban al contenedor .publication-header en lugar del tag de encabezado interno h3.
+2. Las publicaciones contaban con un fondo degradado azul de arriba hacia abajo. Al colocar la imagen del banner al inicio de la tarjeta, el área superior más clara del gradiente quedaba oculta, haciendo que la parte inferior se viera excesivamente oscura. El usuario solicitó cambiar la tarjeta a un color sólido utilizando el tono más claro del gradiente original (#1447b4).
+
+**Cambios Realizados**:
+1. **Elipsis de Título H3 Directa**:
+   - Modificado rontend/style.css para aplicar white-space: nowrap, overflow: hidden y 	ext-overflow: ellipsis directamente sobre .publication-item .publication-header h3, asegurando el renderizado correcto de ... en textos de títulos que excedan el ancho de la tarjeta.
+2. **Color de Fondo Sólido Claro**:
+   - Modificado rontend/style.css para anular el degradado lineal en las tarjetas .publication-item, aplicando un fondo sólido #1447b4 !important que provee un acabado elegante, consistente y limpio en combinación con las portadas.
+
+- **Evidencia**: Archivos modificados: rontend/style.css, EVOLUCION.md.
+
+### 2026-07-19 - Parche de Estabilidad ante Fallos Temporales de Refresco (Resiliencia UX)
+
+**Contexto**: Se reportó que, bajo ciertas circunstancias (como estado de batería baja del dispositivo al 9% o micro-cortes de red en 4G), el sistema cerraba la sesión del usuario de forma inmediata mostrando una alerta de sesión expirada por inactividad. Esto se debía a que el frontend borraba los datos locales preventivamente ante cualquier fallo en la llamada de refresco, sin distinguir fallos de infraestructura/red de una invalidación de credenciales legítima.
+
+**Cambios Realizados**:
+1. **Lógica de Refresco Resiliente**:
+   - Modificado `frontend/src/modules/auth.js` (método `silentRefreshIfNeeded`) para verificar el estado de la respuesta.
+   - Solo se lanza el error de invalidación de sesión si el servidor devuelve un código `401 Unauthorized` explícito.
+   - En caso de fallos de red (TypeError) o errores temporales del servidor (5xx), la sesión y las credenciales locales (`token` y `username`) se mantienen intactas en el cliente para evitar cierres de sesión no deseados.
+
+- **Evidencia**: Archivos modificados: `frontend/src/modules/auth.js`, `EVOLUCION.md`.
+
+### 2026-07-19 - Carga de Imágenes de Progreso en Edición de Causas Solidarias
+
+**Contexto**: Se requería dar soporte a los creadores de campañas solidarias de ayuda humanitaria para agregar imágenes de progreso o evidencias posteriores de hitos en sus campañas activas o pendientes. Siguiendo normativas FinTech de transparencia (crowdfunding), el sistema solo permite **anexar (agregar)** imágenes a la colección original sin eliminar las previas para garantizar registros históricos inmutables ante auditorías y donantes.
+
+**Cambios Realizados**:
+1. **Infraestructura del Backend (Servicios y Rutas)**:
+   - Modificado ackend/src/services/humanitarianService.js en la función editCause para aceptar un campo opcional 
+ew_evidence_urls.
+   - Implementado control de seguridad de doble capa: valida que las nuevas imágenes no superen el límite de **3 por actualización**, que correspondan a URLs de nuestra infraestructura de medios, y que el total absoluto acumulado no exceda las **15 imágenes**.
+   - Corregido un bug preexistente en la firma del invocador logAuditEvent dentro de las funciones editCause y createCauseUpdate para ajustarse al formato de la función exportada en uditService.js.
+   - Modificado ackend/src/routes/humanitarianUserRoutes.js en la ruta PUT /api/humanitarian/causes/:id para extraer y delegar el arreglo 
+ew_evidence_urls del cuerpo del request.
+2. **Interfaz del Frontend (Modal e Integración Dropzone)**:
+   - Modificado rontend/causa-solidaria.html agregando la maquetación HTML de un Dropzone #editCauseDropzone e input de archivos bajo el textarea de la historia en el modal editCauseModalOverlay.
+   - Modificado rontend/src/pages/causa-solidaria.js inicializando los manejadores de eventos (drag/drop e input file), realizando la subida inmediata en segundo plano a la API de R2 /api/media/upload, limitando en cliente a un máximo de 3 imágenes nuevas, renderizando previsualizaciones de la sesión con botón de remoción rápida, y transmitiendo 
+ew_evidence_urls al endpoint PUT.
+
+- **Evidencia**: Archivos modificados: ackend/src/services/humanitarianService.js, ackend/src/routes/humanitarianUserRoutes.js, rontend/causa-solidaria.html, rontend/src/pages/causa-solidaria.js, EVOLUCION.md.

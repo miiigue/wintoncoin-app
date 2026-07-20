@@ -130,6 +130,7 @@ async function loadCauseData(causeId) {
 
         const donations = data.donations || { donations: [], summary: {} };
 
+        window.currentCause = cause;
         container.innerHTML = buildCauseHTML(cause, donations);
 
         // Inicializar interactividad
@@ -272,7 +273,34 @@ function buildCauseHTML(cause, donations) {
         ${authorToolbarHTML}
 
         <!-- TARJETA PRINCIPAL -->
-        <div class="solidario-cause-card">
+        ${/* [FILTRO] Extraer solo URLs de imágenes reales (R2 uploads / extensiones gráficas) */''}
+        <div class="solidario-cause-card ${((() => { const imgs = (cause.evidence_urls || []).filter(u => u && (u.toLowerCase().includes('/uploads/') || /\.(webp|png|jpg|jpeg|gif)(\?.*)?$/i.test(u))); return imgs.length > 0; })()) ? 'has-images' : ''}" style="position: relative;">
+            ${(() => {
+                // [SEGURIDAD VISUAL] Filtrar evidence_urls para retener solo imágenes reales
+                // Excluir enlaces de Drive, Instagram, TikTok, etc. que causan cajas negras
+                const realImages = (cause.evidence_urls || []).filter(u => {
+                    if (!u || typeof u !== 'string') return false;
+                    const lower = u.toLowerCase();
+                    return lower.includes('/uploads/') || /\.(webp|png|jpg|jpeg|gif)(\?.*)?$/i.test(lower);
+                });
+                if (realImages.length === 0) return '';
+                // Guardar referencia para el lightbox
+                window._currentCauseRealImages = realImages;
+                return `
+                    <div class="cause-carousel-wrapper" style="margin: -20px -20px 20px -20px; border-radius: 16px 16px 0 0; overflow: hidden; position: relative; background: #0a0a14;">
+                        <div class="cause-carousel-track" onscroll="const idx = Math.round(this.scrollLeft / this.offsetWidth); this.parentElement.querySelectorAll('.carousel-dot').forEach((d, i) => d.style.background = i === idx ? 'white' : 'rgba(255,255,255,0.4)');" style="display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; -webkit-overflow-scrolling: touch;">
+                            ${realImages.map(url => `<img src="${escapeAttr(url)}" alt="Evidencia de causa" loading="lazy" style="flex: 0 0 100%; width: 100%; height: 280px; object-fit: cover; scroll-snap-align: center; cursor: pointer;">`).join('')}
+                        </div>
+                        ${realImages.length > 1 ? `
+                            <button class="carousel-arrow carousel-arrow-left" onclick="this.parentElement.querySelector('.cause-carousel-track').scrollBy({left: -this.parentElement.offsetWidth, behavior: 'smooth'})" aria-label="Imagen anterior" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0.7;transition:opacity 0.3s;">❮</button>
+                            <button class="carousel-arrow carousel-arrow-right" onclick="this.parentElement.querySelector('.cause-carousel-track').scrollBy({left: this.parentElement.offsetWidth, behavior: 'smooth'})" aria-label="Imagen siguiente" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0.7;transition:opacity 0.3s;">❯</button>
+                            <div class="carousel-dots" style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px;">
+                                ${realImages.map((_, i) => `<span class="carousel-dot" style="width:8px;height:8px;border-radius:50%;background:${i === 0 ? 'white' : 'rgba(255,255,255,0.4)'};transition:background 0.3s;"></span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            })()}
             <h1 class="solidario-cause-title" id="solidarioCauseTitle">${escapeHtml(cause.title)}</h1>
             <div class="solidario-cause-meta">
                 <span>👤 Creador: <strong><a href="${creatorLink}"${creatorTarget} class="profile-link" style="color: #a5b4fc; text-decoration: underline;">${creatorIcon}${escapeHtml(cause.creator_username || 'Creador')}</a></strong></span>
@@ -712,6 +740,11 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
+function escapeAttr(str) {
+    if (!str) return '';
+    return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 /**
  * Formatea un número como balance con 4 decimales y separador de miles
  * Ejemplo: 1500.5 → "1.500,5000"
@@ -896,6 +929,12 @@ function initAuthorPanel(cause) {
     const editStoryCounter = document.getElementById('editStoryCounter');
     const editStoryLimitWarning = document.getElementById('editStoryLimitWarning');
 
+    // Uploader de imágenes adicionales (Dropzone)
+    const editCauseDropzone = document.getElementById('editCauseDropzone');
+    const editCauseFileInput = document.getElementById('editCauseFileInput');
+    const editCausePreviewContainer = document.getElementById('editCausePreviewContainer');
+    let newUploadedImages = [];
+
     const updateCancelBtn = document.getElementById('updateCancelBtn');
     const updateConfirmBtn = document.getElementById('updateConfirmBtn');
     const updateTitleInput = document.getElementById('updateTitleInput');
@@ -903,17 +942,157 @@ function initAuthorPanel(cause) {
 
     if (!authorEditCauseBtn) return;
 
+    // --- RENDER DE MINIATURAS PREVIAS ---
+    function renderEditCausePreviews() {
+        editCausePreviewContainer.innerHTML = '';
+        newUploadedImages.forEach((url, index) => {
+            const div = document.createElement('div');
+            div.style.position = 'relative';
+            div.style.width = '70px';
+            div.style.height = '70px';
+            div.style.borderRadius = '8px';
+            div.style.overflow = 'hidden';
+            div.style.border = '1px solid rgba(255,255,255,0.1)';
+
+            const img = document.createElement('img');
+            img.src = url;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+
+            const btn = document.createElement('button');
+            btn.innerHTML = '&times;';
+            btn.style.position = 'absolute';
+            btn.style.top = '2px';
+            btn.style.right = '2px';
+            btn.style.width = '18px';
+            btn.style.height = '18px';
+            btn.style.background = 'rgba(239, 68, 68, 0.9)';
+            btn.style.color = 'white';
+            btn.style.border = 'none';
+            btn.style.borderRadius = '50%';
+            btn.style.cursor = 'pointer';
+            btn.style.display = 'flex';
+            btn.style.alignItems = 'center';
+            btn.style.justifyContent = 'center';
+            btn.style.fontSize = '12px';
+            btn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                newUploadedImages.splice(index, 1);
+                renderEditCausePreviews();
+            };
+
+            div.appendChild(img);
+            div.appendChild(btn);
+            editCausePreviewContainer.appendChild(div);
+        });
+    }
+
+    const resetEditUploader = () => {
+        newUploadedImages = [];
+        editCausePreviewContainer.innerHTML = '';
+        if (editCauseDropzone) {
+            editCauseDropzone.style.borderColor = 'rgba(255,255,255,0.15)';
+            const p = editCauseDropzone.querySelector('p');
+            if (p) p.textContent = 'Arrastra nuevas imágenes o haz clic aquí';
+        }
+    };
+
+    // --- EVENTOS DEL DROPZONE ---
+    if (editCauseDropzone && editCauseFileInput) {
+        // [FIX] Abrir el selector de archivos al hacer clic en el dropzone
+        editCauseDropzone.onclick = (e) => {
+            e.stopPropagation(); // Evitar burbujeo que causa doble apertura del explorador
+            editCauseFileInput.click();
+        };
+
+        // [FIX] Detener burbujeo del input file para no re-disparar el onclick del dropzone
+        editCauseFileInput.onclick = (e) => {
+            e.stopPropagation();
+        };
+
+        editCauseDropzone.ondragover = (e) => {
+            e.preventDefault();
+            editCauseDropzone.style.borderColor = '#3B82F6';
+        };
+
+        editCauseDropzone.ondragleave = () => {
+            editCauseDropzone.style.borderColor = 'rgba(255,255,255,0.15)';
+        };
+
+        editCauseDropzone.ondrop = async (e) => {
+            e.preventDefault();
+            editCauseDropzone.style.borderColor = 'rgba(255,255,255,0.15)';
+            const files = Array.from(e.dataTransfer.files);
+            await handleFilesUpload(files);
+        };
+
+        editCauseFileInput.onchange = async () => {
+            const files = Array.from(editCauseFileInput.files);
+            await handleFilesUpload(files);
+            editCauseFileInput.value = '';
+        };
+    }
+
+    async function handleFilesUpload(files) {
+        const token = localStorage.getItem('token');
+        const imageFiles = files.filter(f => f.type.startsWith('image/'));
+        if (imageFiles.length === 0) return;
+
+        if (newUploadedImages.length + imageFiles.length > 3) {
+            showCustomAlert('Solo puedes agregar un máximo de 3 nuevas imágenes por cada actualización.');
+            return;
+        }
+
+        const label = editCauseDropzone.querySelector('p');
+        const originalText = label ? label.textContent : '';
+        if (label) label.textContent = 'Subiendo...';
+
+        try {
+            for (const file of imageFiles) {
+                const formData = new FormData();
+                formData.append('images', file);
+                formData.append('max_images', 3);
+
+                const uploadRes = await fetch(`${API_URL}/api/media/upload`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                const uploadData = await uploadRes.json();
+                if (!uploadRes.ok) {
+                    throw new Error(uploadData.message || 'Error al subir la imagen.');
+                }
+
+                if (uploadData.urls && uploadData.urls.length > 0) {
+                    newUploadedImages.push(uploadData.urls[0]);
+                }
+            }
+            renderEditCausePreviews();
+        } catch (error) {
+            showCustomAlert(`Error al subir imágenes: ${error.message}`);
+        } finally {
+            if (label) label.textContent = originalText;
+        }
+    }
+
     // --- MODAL DE EDICIÓN ---
     authorEditCauseBtn.onclick = () => {
         editGoalInput.value = cause.goal_amount;
         editStoryInput.value = cause.story;
         editStoryCounter.textContent = `${cause.story.length} caracteres`;
         editStoryLimitWarning.style.display = 'none';
+        resetEditUploader();
         editCauseModalOverlay.classList.add('active');
     };
 
     editCancelBtn.onclick = () => {
         editCauseModalOverlay.classList.remove('active');
+        resetEditUploader();
     };
 
     // Contador de caracteres y cálculo aproximado del diff de historia
@@ -959,7 +1138,8 @@ function initAuthorPanel(cause) {
                 },
                 body: JSON.stringify({
                     goal_amount: parseFloat(goalVal),
-                    story: storyVal
+                    story: storyVal,
+                    new_evidence_urls: newUploadedImages
                 })
             });
 
@@ -967,6 +1147,7 @@ function initAuthorPanel(cause) {
             if (!response.ok) throw new Error(data.message || 'Error al actualizar causa.');
 
             editCauseModalOverlay.classList.remove('active');
+            resetEditUploader();
             showCustomAlert('Causa actualizada exitosamente.', () => {
                 window.location.reload();
             });
@@ -1035,3 +1216,44 @@ function initAuthorPanel(cause) {
         }
     };
 }
+
+// --- MANEJO DE LIGHTBOX PARA IMÁGENES DE LA CAUSA ---
+document.addEventListener('click', (e) => {
+    // [FIX] Soportar el nuevo selector del carrusel (.cause-carousel-track img) y el anterior
+    const pubImg = e.target.closest('.cause-carousel-track img, .card-images-container img');
+    if (pubImg) {
+        const evidenceLightboxModal = document.getElementById('evidenceLightboxModal');
+        const container = document.getElementById('lightboxImagesContainer');
+        if (evidenceLightboxModal && container) {
+            // [FILTRO] Solo mostrar imágenes reales en el lightbox, no enlaces de Drive/redes
+            const rawUrls = window.currentCause?.evidence_urls || [];
+            const imgUrls = rawUrls.filter(u => {
+                if (!u || typeof u !== 'string') return false;
+                const lower = u.toLowerCase();
+                return lower.includes('/uploads/') || /\.(webp|png|jpg|jpeg|gif)(\?.*)?$/i.test(lower);
+            });
+            if (imgUrls.length > 0) {
+                container.innerHTML = imgUrls.map(url => `
+                    <img src="${escapeAttr(url)}" style="max-height: 85vh; max-width: 100%; object-fit: contain; scroll-snap-align: center; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                `).join('');
+
+                const clickedUrl = pubImg.getAttribute('src');
+                const clickedIndex = imgUrls.indexOf(clickedUrl);
+                if (clickedIndex !== -1 && container.children[clickedIndex]) {
+                    setTimeout(() => {
+                        container.children[clickedIndex].scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' });
+                    }, 50);
+                }
+                evidenceLightboxModal.style.display = 'flex';
+            }
+        }
+    }
+
+    // Cerrar Lightbox al hacer clic en cerrar o fuera de la imagen
+    if (e.target.closest('.lightbox-close-button') || e.target.id === 'evidenceLightboxModal') {
+        const evidenceLightboxModal = document.getElementById('evidenceLightboxModal');
+        if (evidenceLightboxModal) {
+            evidenceLightboxModal.style.display = 'none';
+        }
+    }
+});

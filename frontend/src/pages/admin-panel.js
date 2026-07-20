@@ -144,7 +144,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Inicialización ---
+    let auditChartInstance = null;
+    let referralsChartInstance = null;
     let platformPublicationsCache = [];
+    let platformUploadedImagesUrls = [];
     let platformEditId = null;
     // --- NUEVO: Variables de Estado del Programa de Impulsores (Booster level filter) ---
     let activeBoosterLevelFilter = null;
@@ -153,6 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- NUEVO: Estado Legal para Admin (Simplificado para gestión) ---
     let legalStatus = { requires_terms_acceptance: false };
     setupEventListeners();
+    setupPlatformMediaDropzone(); // Inicializar el Dropzone de Carga de Imágenes para la Plataforma
     // checkLegalStatus(); // Ruta obsoleta eliminada para mayor fluidez del panel
     renderConnectedUser(); // Inyectar el nombre de usuario del administrador activo
     checkAdminProfile(); // NUEVO: Verificar rol administrativo y ajustar menú del equipo
@@ -700,7 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (sectionId === 'settings') loadSettings();
         else if (sectionId === 'users') loadUsers();
         else if (sectionId === 'debtors') loadDebtors();
-        else if (sectionId === 'publications') loadPublications();
+        else if (sectionId === 'publications') { loadPublications(); loadImageLimits(); }
         else if (sectionId === 'platform-wallet') loadPlatformWalletData();
         else if (sectionId === 'platform-publications') loadPlatformManagementData();
         else if (sectionId === 'referrals') loadReferralsData();
@@ -918,6 +922,122 @@ document.addEventListener('DOMContentLoaded', () => {
             updatePlatformPublicationsBadge(totals.totalPending);
         } catch (error) {
             console.warn('No se pudo actualizar el badge de pendientes:', error.message);
+        }
+    }
+
+    async function setupPlatformMediaDropzone() {
+        const platformDropzone = document.getElementById('platformMediaDropzone');
+        const platformFileInput = document.getElementById('platformMediaFileInput');
+        const platformPreviewContainer = document.getElementById('platformMediaPreviewContainer');
+        const platformDropzoneLimitMsg = document.getElementById('platform-dropzone-limit-message');
+        let platformMaxImagesAllowed = 3; // Valor por defecto de plataforma
+
+        async function loadPlatformImageLimits() {
+            try {
+                const res = await apiFetch('/api/platform-settings');
+                if (res && res.max_images_platform) {
+                    platformMaxImagesAllowed = parseInt(res.max_images_platform, 10);
+                }
+                if (platformDropzoneLimitMsg) {
+                    platformDropzoneLimitMsg.textContent = `Puedes subir hasta ${platformMaxImagesAllowed} imagen${platformMaxImagesAllowed !== 1 ? 'es' : ''}.`;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        loadPlatformImageLimits();
+
+        if (platformDropzone && platformFileInput) {
+            platformDropzone.addEventListener('click', () => platformFileInput.click());
+            platformDropzone.addEventListener('dragover', (e) => { e.preventDefault(); platformDropzone.classList.add('dragover'); });
+            platformDropzone.addEventListener('dragleave', () => platformDropzone.classList.remove('dragover'));
+            platformDropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                platformDropzone.classList.remove('dragover');
+                handlePlatformMediaFiles(e.dataTransfer.files);
+            });
+            platformFileInput.addEventListener('change', (e) => handlePlatformMediaFiles(e.target.files));
+        }
+
+        async function handlePlatformMediaFiles(files) {
+            const remainingSlots = platformMaxImagesAllowed - platformUploadedImagesUrls.length;
+            if (remainingSlots <= 0) {
+                showCustomAlert(`Solo puedes subir un máximo de ${platformMaxImagesAllowed} imágenes.`);
+                return;
+            }
+
+            const filesToUpload = Array.from(files).slice(0, remainingSlots);
+            
+            for (const file of filesToUpload) {
+                if (!file.type.startsWith('image/')) continue;
+                
+                const item = document.createElement('div');
+                item.className = 'media-preview-item';
+                
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                
+                const progress = document.createElement('div');
+                progress.className = 'upload-progress';
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-btn';
+                removeBtn.innerHTML = '&times;';
+                removeBtn.type = 'button';
+                removeBtn.style.display = 'none';
+
+                item.appendChild(img);
+                item.appendChild(progress);
+                item.appendChild(removeBtn);
+                platformPreviewContainer.appendChild(item);
+
+                const formData = new FormData();
+                formData.append('images', file);
+                
+                try {
+                    const token = localStorage.getItem('admin_token');
+                    const res = await fetch(`${API_URL}/api/media/upload`, {
+                        method: 'POST',
+                        headers: { ...(token && { 'Authorization': `Bearer ${token}` }) },
+                        body: formData
+                    });
+                    
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.urls && data.urls.length > 0) {
+                            const uploadedUrl = data.urls[0];
+                            platformUploadedImagesUrls.push(uploadedUrl);
+                            
+                            progress.style.width = '100%';
+                            setTimeout(() => progress.style.display = 'none', 500);
+                            img.classList.add('loaded');
+                            removeBtn.style.display = 'block';
+                            
+                            removeBtn.onclick = (e) => {
+                                e.stopPropagation(); 
+                                platformUploadedImagesUrls = platformUploadedImagesUrls.filter(u => u !== uploadedUrl);
+                                item.remove();
+                            };
+                        }
+                    } else {
+                        item.remove();
+                        let errMsg = 'Error al subir la imagen.';
+                        try {
+                            const errData = await res.json();
+                            const detailText = [errData.message, errData.details].filter(Boolean).join(' - ');
+                            if (detailText) {
+                                errMsg += ` Detalle: ${detailText}`;
+                            }
+                        } catch (e) {}
+                        showCustomAlert(errMsg);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    item.remove();
+                    showCustomAlert(`Error de red al subir la imagen: ${err.message}`);
+                }
+            }
         }
     }
 
@@ -2374,7 +2494,9 @@ document.addEventListener('DOMContentLoaded', () => {
             isBoosterTask: document.getElementById('platformIsBoosterTask').checked,
             targetUsername: targetUsername || null,
             formFields: formFields,
-            showPreflightModal: document.getElementById('platformShowPreflightModal').checked
+            showPreflightModal: document.getElementById('platformShowPreflightModal').checked,
+            image_urls: platformUploadedImagesUrls,
+            requires_evidence: document.getElementById('platformRequiresEvidence') ? document.getElementById('platformRequiresEvidence').checked : false
         };
         try {
             if (platformEditId) {
@@ -2386,6 +2508,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             form.reset();
+            platformUploadedImagesUrls = [];
+            const previewContainer = document.getElementById('platformMediaPreviewContainer');
+            if (previewContainer) previewContainer.innerHTML = '';
             resetPlatformEditForm();
             loadPlatformManagementData();
         } catch (error) {
@@ -3044,6 +3169,42 @@ document.addEventListener('DOMContentLoaded', () => {
             preflightToggle.checked = !!pub.show_preflight_modal;
         }
 
+        const requiresEvidenceToggle = document.getElementById('platformRequiresEvidence');
+        if (requiresEvidenceToggle) {
+            requiresEvidenceToggle.checked = !!pub.requires_evidence;
+        }
+
+        // Reset and populate images in edit mode
+        platformUploadedImagesUrls = pub.image_urls || [];
+        const previewContainer = document.getElementById('platformMediaPreviewContainer');
+        if (previewContainer) {
+            previewContainer.innerHTML = '';
+            platformUploadedImagesUrls.forEach(url => {
+                const item = document.createElement('div');
+                item.className = 'media-preview-item';
+                
+                const img = document.createElement('img');
+                img.src = url;
+                img.classList.add('loaded');
+                
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-btn';
+                removeBtn.innerHTML = '&times;';
+                removeBtn.type = 'button';
+                removeBtn.style.display = 'block';
+
+                item.appendChild(img);
+                item.appendChild(removeBtn);
+                previewContainer.appendChild(item);
+
+                removeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    platformUploadedImagesUrls = platformUploadedImagesUrls.filter(u => u !== url);
+                    item.remove();
+                };
+            });
+        }
+
         if (elements.platformRepeatLimit) {
             const repeatValue = Number(pub.max_repeat_per_user);
             elements.platformRepeatLimit.value = Number.isFinite(repeatValue) && repeatValue >= 2 ? repeatValue : 2;
@@ -3386,6 +3547,24 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
 
+        // Mostrar evidencias si existen
+        let evidenceHTML = '';
+        if (participant.evidence_urls && participant.evidence_urls.length > 0) {
+            const imagesHTML = participant.evidence_urls.map(url => `
+                <a href="${escapeHtml(url)}" target="_blank" class="admin-evidence-link" style="display: inline-block; margin-right: 5px;">
+                    <img src="${escapeHtml(url)}" class="admin-evidence-thumbnail" alt="Evidencia" style="width: 45px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); cursor: pointer; transition: transform 0.15s ease;">
+                </a>
+            `).join('');
+            evidenceHTML = `
+                <div class="participant-evidence-admin" style="margin-top: 8px; padding: 0.5rem; background: rgba(255, 255, 255, 0.03); border-radius: 6px; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 0.8rem; color: var(--admin-text-secondary); font-weight: 500;">Evidencias:</span>
+                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                        ${imagesHTML}
+                    </div>
+                </div>
+            `;
+        }
+
         return `
             <li class="participant-item-admin ${participant.form_responses ? 'has-responses' : ''}">
                 <div class="participant-row-admin">
@@ -3400,6 +3579,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 ${formResponsesHTML}
+                ${evidenceHTML}
             </li>
         `;
     }
@@ -3512,6 +3692,58 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
             </tr>
         `;
+    }
+
+    // --- Image Limits Logic ---
+    async function loadImageLimits() {
+        try {
+            const settings = await apiFetch('/api/admin/settings');
+            const keys = ['max_images_request', 'max_images_sell', 'max_images_donation', 'max_images_platform', 'max_images_evidence'];
+            keys.forEach(k => {
+                const setting = settings.find(s => s.setting_key === k);
+                const input = document.getElementById(k.replace(/_([a-z])/g, g => g[1].toUpperCase())); // snake_case to camelCase
+                if (input && setting) {
+                    input.value = setting.setting_value;
+                }
+            });
+        } catch (error) {
+            console.error("Error al cargar configuración de límites de imágenes:", error);
+        }
+    }
+
+    const imageLimitsForm = document.getElementById('imageLimitsForm');
+    if (imageLimitsForm) {
+        imageLimitsForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            const originalText = btn.textContent;
+            btn.textContent = 'Guardando...';
+            btn.disabled = true;
+
+            const limitsToSave = [
+                { key: 'max_images_request', value: document.getElementById('maxImagesRequest').value },
+                { key: 'max_images_sell', value: document.getElementById('maxImagesSell').value },
+                { key: 'max_images_donation', value: document.getElementById('maxImagesDonation').value },
+                { key: 'max_images_platform', value: document.getElementById('maxImagesPlatform').value },
+                { key: 'max_images_evidence', value: document.getElementById('maxImagesEvidence').value }
+            ];
+
+            try {
+                for (const item of limitsToSave) {
+                    await apiFetch('/api/admin/settings', {
+                        method: 'POST',
+                        body: JSON.stringify({ key: item.key, value: item.value.toString() })
+                    });
+                }
+                showCustomAlert('Límites de imágenes guardados correctamente.');
+            } catch (err) {
+                console.error(err);
+                showCustomAlert('Error al guardar los límites de imágenes.');
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        });
     }
 
     function renderPublicationsTable(publications) {
@@ -4336,12 +4568,47 @@ document.addEventListener('DOMContentLoaded', () => {
             const cause = data.cause;
             const date = new Date(cause.created_at).toLocaleString('es-ES');
 
-            // Renderizar evidencia (array de URLs)
+            // Renderizar evidencia separando imágenes reales de enlaces externos
+            // [SEGURIDAD VISUAL] Las imágenes reales (R2/extensiones gráficas) se muestran
+            // como miniaturas clicables; los enlaces externos (Drive, redes) como links de texto
             let evidenceHtml = '<em>Sin evidencia</em>';
             if (cause.evidence_urls && Array.isArray(cause.evidence_urls) && cause.evidence_urls.length > 0) {
-                evidenceHtml = cause.evidence_urls.map((url, i) =>
-                    `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="color: #3B82F6; text-decoration: underline; display: block; margin-bottom: 4px;">📎 Evidencia ${i + 1}</a>`
-                ).join('');
+                // Separar imágenes reales de enlaces externos
+                const realImages = [];
+                const externalLinks = [];
+                cause.evidence_urls.forEach(url => {
+                    if (!url || typeof url !== 'string') return;
+                    const lower = url.toLowerCase();
+                    if (lower.includes('/uploads/') || /\.(webp|png|jpg|jpeg|gif)(\?.*)?$/i.test(lower)) {
+                        realImages.push(url);
+                    } else {
+                        externalLinks.push(url);
+                    }
+                });
+
+                let parts = [];
+
+                // Renderizar miniaturas de imágenes reales
+                if (realImages.length > 0) {
+                    parts.push(`
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+                            ${realImages.map((url, i) => `
+                                <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="Ver imagen ${i + 1} en tamaño completo">
+                                    <img src="${escapeHtml(url)}" alt="Evidencia ${i + 1}" style="width: 90px; height: 90px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: transform 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.3);" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                                </a>
+                            `).join('')}
+                        </div>
+                    `);
+                }
+
+                // Renderizar enlaces externos como texto
+                if (externalLinks.length > 0) {
+                    parts.push(externalLinks.map((url, i) =>
+                        `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="color: #3B82F6; text-decoration: underline; display: block; margin-bottom: 4px; word-break: break-all;">📎 Evidencia ${i + 1}</a>`
+                    ).join(''));
+                }
+
+                evidenceHtml = parts.join('') || '<em>Sin evidencia</em>';
             }
 
             elements.humanitarianModalTitle.textContent = `Causa #${cause.id}: ${cause.title}`;

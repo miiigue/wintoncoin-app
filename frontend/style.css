@@ -8137,4 +8137,277 @@ body.wallet-tour-active #prelaunchWalletModal {
     }
 }
 
-
+
+/* ==========================================================================
+   DROPZONE Y GALERIA UI (Publicaciones)
+   ========================================================================== */
+.dropzone-wrapper {
+    margin-bottom: 20px;
+}
+.dropzone {
+    border: 2px dashed rgba(106, 90, 205, 0.5);
+    border-radius: 12px;
+    background: rgba(106, 90, 205, 0.05);
+    padding: 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: var(--text-color);
+}
+.dropzone:hover, .dropzone.dragover {
+    background: rgba(106, 90, 205, 0.15);
+    border-color: var(--primary-color);
+}
+.dropzone-message p {
+    margin: 5px 0;
+    font-weight: 500;
+}
+.dropzone-message small {
+    color: #999;
+}
+.media-preview-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 15px;
+}
+.media-preview-item {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    background: #000;
+}
+.media-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+.media-preview-item img.loaded {
+    opacity: 1;
+}
+.media-preview-item .remove-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(255, 50, 50, 0.8);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 24px;
+    text-align: center;
+    padding: 0;
+}
+.media-preview-item .remove-btn:hover {
+    background: rgba(255, 50, 50, 1);
+}
+.media-preview-item .upload-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+    background: var(--primary-color);
+    width: 0%;
+    transition: width 0.2s ease;
+}
+
+/* ==========================================================================
+   CAROUSEL/IMGENES EN TARJETAS DE PUBLICACIN
+   ========================================================================== */
+.card-images-container {
+    width: 100%;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #000;
+}
+.card-images-container.single-image img {
+    width: 100%;
+    max-height: 200px;
+    object-fit: cover;
+    display: block;
+}
+.card-images-container.is-carousel {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    gap: 0;
+    padding-bottom: 0;
+    scrollbar-width: none; /* Hide scrollbar */
+}
+.card-images-container.is-carousel::-webkit-scrollbar {
+    display: none; /* Hide scrollbar Chrome/Safari */
+}
+.card-images-container.is-carousel img {
+    flex: 0 0 100%;
+    max-height: 200px;
+    object-fit: cover;
+    scroll-snap-align: center;
+    border-radius: 4px;
+}
+
+/* === AJUSTES DE TAMAO DE IMAGEN ESTILO UBER EATS / COINBASE === */
+/* Portadas pequeas y uniformes en la lista general de publicaciones */
+.publication-item .card-images-container img {
+    max-height: 125px !important;
+    border-radius: 6px;
+    transition: transform 0.2s ease;
+}
+
+.publication-item .card-images-container img:hover {
+    transform: scale(1.02);
+}
+
+/* Portadas grandes y elegantes en el detalle de la publicacin */
+#publication-content .card-images-container img {
+    max-height: 280px !important;
+    border-radius: 12px;
+    cursor: zoom-in;
+}
+
+#publication-content .card-images-container.single-image img {
+    max-height: 280px !important;
+}
+
+#publication-content .card-images-container.is-carousel img {
+    flex: 0 0 100%; /* El carrusel en detalles se enfoca al 100% de ancho */
+    max-height: 280px !important;
+}
+
+/* === AJUSTES DE TARJETAS FLUSH Y CLAMP DE TEXTOS (ESTILO UBER EATS) === */
+
+/* Forzar color de fondo sólido claro (el azul superior del gradiente anterior, sin degradado) */
+.publication-item {
+    background: #1447b4 !important;
+}
+
+/* Forzar posicionamiento relativo en tarjetas con imágenes */
+.publication-item.has-images {
+    position: relative !important;
+}
+
+/* Flotar la cabecera (close btn y precio) sobre la imagen */
+.publication-item.has-images .card-top-row {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    z-index: 5 !important;
+    background: transparent !important;
+    pointer-events: none;
+}
+
+.publication-item.has-images .card-top-row * {
+    pointer-events: auto;
+}
+
+/* Estirar el contenedor de imágenes al borde absoluto superior y lateral (Izquierda y Derecha) */
+.publication-item.has-images .card-images-wrapper {
+    width: auto !important;
+    margin-top: -1.25rem !important;
+    margin-left: -1.25rem !important;
+    margin-right: -1.25rem !important;
+    margin-bottom: 10px !important; /* Espacio idéntico de 10px abajo */
+    border-radius: 16px 16px 0 0 !important;
+    overflow: hidden !important;
+    border: none !important;
+    background: #000 !important;
+    position: relative;
+}
+
+/* Evitar que los márgenes por defecto del contenedor de imágenes generen franjas negras */
+.card-images-wrapper .card-images-container {
+    margin: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+}
+
+/* Asegurar visualización del carrusel completo de lado a lado con ancho 100% */
+.publication-item.has-images .card-images-container.is-carousel {
+    display: flex !important;
+    overflow-x: auto !important;
+    scroll-snap-type: x mandatory !important;
+    gap: 0 !important;
+    padding-bottom: 0 !important;
+    width: 100% !important;
+    border-radius: 0 !important;
+    scrollbar-width: none;
+}
+.publication-item.has-images .card-images-container.is-carousel::-webkit-scrollbar {
+    display: none;
+}
+
+/* Forzar que las imágenes individuales cubran todo el ancho */
+.publication-item.has-images .card-images-container.single-image img {
+    width: 100% !important;
+    max-height: 125px !important;
+    object-fit: cover !important;
+    border-radius: 0 !important;
+}
+
+/* Ajustar las imágenes del carrusel para que tomen el 100% de ancho del contenedor estirado */
+.publication-item.has-images .card-images-container.is-carousel img {
+    flex: 0 0 100% !important;
+    width: 100% !important;
+    max-height: 125px !important;
+    object-fit: cover !important;
+    border-radius: 0 !important;
+    scroll-snap-align: center !important;
+}
+
+/* Contenedor del título - Limitar espacio vertical */
+.publication-item .publication-header {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: block !important;
+    max-width: 100% !important;
+    margin-top: 0 !important;
+    margin-bottom: 10px !important;
+    padding: 0 !important;
+}
+
+/* Limitar el título H3 a una sola línea con puntos suspensivos (...) para prevenir cortes */
+.publication-item .publication-header h3 {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+}
+
+/* Limitar la descripción a una sola línea con puntos suspensivos y espaciado idéntico de 10px */
+.publication-item .pub-description {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: block !important;
+    max-width: 100% !important;
+    margin-top: 0 !important;
+    margin-bottom: 10px !important; /* Espacio idéntico de 10px abajo */
+    padding: 0 !important;
+    flex-grow: 0 !important; /* Desactivar flex-grow para que fluya matemáticamente según el margen */
+}
+
+/* Mantener el footer alineado y sin márgenes superiores excedentes */
+.publication-item .publication-footer {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+/* Ajustar barra de progreso si existe en la tarjeta */
+.publication-item .donation-progress-container {
+    margin-top: 0 !important;
+    margin-bottom: 10px !important; /* Espacio idéntico de 10px abajo */
+}
