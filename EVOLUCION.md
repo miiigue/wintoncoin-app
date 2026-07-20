@@ -13,6 +13,14 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-20 — Unificación de Carruseles: Feed de Tarjetas y Detalles
+* **Cambio**: 
+  - **Tarjetas del Feed (`contract-interaction.js`)**: Modificado el carrusel de publicaciones para ocupar el 100% del ancho (eliminando la visualización del 90% de la siguiente imagen). Se envolvió el contenedor en un `.card-images-wrapper` y se integraron puntos indicadores (dots) interactivos que se actualizan mediante un listener `onscroll`.
+  - **Detalle de Publicaciones (`publication-detail.js`)**: Actualizado el carrusel de la página de descripción para utilizar el mismo diseño responsivo de 100% de ancho con flechas físicas laterales y dots del carrusel unificado. Se actualizó el selector de Lightbox.
+  - **Estilos (`style.css`)**: Centralizados los estilos de `.carousel-dots`, `.carousel-dot`, y `.card-images-wrapper` para mantener el principio DRY y mejorar la cohesión visual del portal.
+* **Evidencia**: Modificaciones en `style.css`, `contract-interaction.js` y `publication-detail.js`.
+* **Impacto**: Unificación total de la UI de carruseles en la plataforma. Se elimina el peeking desordenado en las tarjetas del feed, ofreciendo una experiencia moderna, limpia e intuitiva (estilo Instagram) tanto en la lista general como en las vistas detalladas.
+
 ### 2026-07-20 — Auditoría Técnica y Mitigación de Seguridad (Harden editCause)
 * **Cambio**: 
   - **Auditoría Técnica**: Realizado análisis estático del flujo de donaciones solidarias y subida de imágenes, validando el cumplimiento de directrices de inyección SQL, control de Race Conditions y principio de Zero Hardcoded Secrets.

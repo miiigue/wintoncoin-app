@@ -1670,8 +1670,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="publication-item ${expirationInfo.isExpired ? 'expired' : ''} ${isDonation ? 'donation-card' : ''} ${(pub.image_urls && pub.image_urls.length > 0) ? 'has-images' : ''}" data-id="${pub.id}" data-author="${safeAuthorAttr}">
                     
                     ${(pub.image_urls && pub.image_urls.length > 0) ? `
-                        <div class="card-images-container ${pub.image_urls.length > 1 ? 'is-carousel' : 'single-image'}">
-                            ${pub.image_urls.map(url => `<img src="${escapeAttr(url)}" alt="Imagen de publicación" loading="lazy">`).join('')}
+                        <div class="card-images-wrapper">
+                            <div class="card-images-container ${pub.image_urls.length > 1 ? 'is-carousel' : 'single-image'}" onscroll="if(this.classList.contains('is-carousel')){const idx = Math.round(this.scrollLeft / this.offsetWidth); this.parentElement.querySelectorAll('.carousel-dot').forEach((d, i) => d.classList.toggle('active', i === idx));}">
+                                ${pub.image_urls.map(url => `<img src="${escapeAttr(url)}" alt="Imagen de publicación" loading="lazy">`).join('')}
+                            </div>
+                            ${pub.image_urls.length > 1 ? `
+                                <div class="carousel-dots">
+                                    ${pub.image_urls.map((_, i) => `<span class="carousel-dot ${i === 0 ? 'active' : ''}"></span>`).join('')}
+                                </div>
+                            ` : ''}
                         </div>
                     ` : ''}
 

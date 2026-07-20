@@ -238,8 +238,17 @@ document.addEventListener('DOMContentLoaded', () => {
             <hr>
 
             ${(pub.image_urls && pub.image_urls.length > 0) ? `
-                <div class="card-images-container ${pub.image_urls.length > 1 ? 'is-carousel' : 'single-image'}">
-                    ${pub.image_urls.map(url => `<img src="${escapeAttr(url)}" alt="Imagen de publicación" loading="lazy">`).join('')}
+                <div class="cause-carousel-wrapper" style="margin: 20px 0; border-radius: 12px; overflow: hidden; position: relative; background: #000;">
+                    <div class="cause-carousel-track" onscroll="const idx = Math.round(this.scrollLeft / this.offsetWidth); this.parentElement.querySelectorAll('.carousel-dot').forEach((d, i) => d.style.background = i === idx ? 'white' : 'rgba(255,255,255,0.4)');" style="display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scrollbar-width: none;">
+                        ${pub.image_urls.map(url => `<img src="${escapeAttr(url)}" alt="Imagen de publicación" loading="lazy" style="flex: 0 0 100%; width: 100%; max-height: 280px; object-fit: cover; scroll-snap-align: center; cursor: pointer;">`).join('')}
+                    </div>
+                    ${pub.image_urls.length > 1 ? `
+                        <button class="carousel-arrow carousel-arrow-left" onclick="event.preventDefault(); event.stopPropagation(); this.parentElement.querySelector('.cause-carousel-track').scrollBy({left: -this.parentElement.offsetWidth, behavior: 'smooth'})" aria-label="Imagen anterior" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0.7;transition:opacity 0.3s; z-index: 2;">❮</button>
+                        <button class="carousel-arrow carousel-arrow-right" onclick="event.preventDefault(); event.stopPropagation(); this.parentElement.querySelector('.cause-carousel-track').scrollBy({left: this.parentElement.offsetWidth, behavior: 'smooth'})" aria-label="Imagen siguiente" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0.7;transition:opacity 0.3s; z-index: 2;">❯</button>
+                        <div class="carousel-dots" style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px;pointer-events: none;">
+                            ${pub.image_urls.map((_, i) => `<span class="carousel-dot" style="width:8px;height:8px;border-radius:50%;background:${i === 0 ? 'white' : 'rgba(255,255,255,0.4)'};transition:background 0.3s;"></span>`).join('')}
+                        </div>
+                    ` : ''}
                 </div>
             ` : ''}
 
@@ -810,7 +819,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // NUEVO: Abrir Lightbox al hacer clic en las imágenes principales de la publicación
-                const pubImg = e.target.closest('.card-images-container img');
+                const pubImg = e.target.closest('.cause-carousel-track img, .card-images-container img');
                 if (pubImg) {
                     const imgUrls = window.currentPublication?.image_urls || [];
                     if (imgUrls.length > 0) {

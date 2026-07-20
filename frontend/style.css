@@ -8220,7 +8220,7 @@ body.wallet-tour-active #prelaunchWalletModal {
 }
 
 /* ==========================================================================
-   CAROUSEL/IM�GENES EN TARJETAS DE PUBLICACI�N
+   CAROUSEL/IMGENES EN TARJETAS DE PUBLICACIN
    ========================================================================== */
 .card-images-container {
     width: 100%;
@@ -8240,26 +8240,23 @@ body.wallet-tour-active #prelaunchWalletModal {
     display: flex;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
-    gap: 4px;
-    padding-bottom: 4px; /* for scrollbar */
+    gap: 0;
+    padding-bottom: 0;
+    scrollbar-width: none; /* Hide scrollbar */
 }
 .card-images-container.is-carousel::-webkit-scrollbar {
-    height: 6px;
-}
-.card-images-container.is-carousel::-webkit-scrollbar-thumb {
-    background-color: var(--primary-color);
-    border-radius: 4px;
+    display: none; /* Hide scrollbar Chrome/Safari */
 }
 .card-images-container.is-carousel img {
-    flex: 0 0 90%;
+    flex: 0 0 100%;
     max-height: 200px;
     object-fit: cover;
     scroll-snap-align: center;
     border-radius: 4px;
 }
 
-/* === AJUSTES DE TAMA�O DE IMAGEN ESTILO UBER EATS / COINBASE === */
-/* Portadas peque�as y uniformes en la lista general de publicaciones */
+/* === AJUSTES DE TAMAO DE IMAGEN ESTILO UBER EATS / COINBASE === */
+/* Portadas pequeas y uniformes en la lista general de publicaciones */
 .publication-item .card-images-container img {
     max-height: 125px !important;
     border-radius: 6px;
@@ -8270,7 +8267,7 @@ body.wallet-tour-active #prelaunchWalletModal {
     transform: scale(1.02);
 }
 
-/* Portadas grandes y elegantes en el detalle de la publicaci�n */
+/* Portadas grandes y elegantes en el detalle de la publicacin */
 #publication-content .card-images-container img {
     max-height: 280px !important;
     border-radius: 12px;
@@ -8315,7 +8312,7 @@ body.wallet-tour-active #prelaunchWalletModal {
 }
 
 /* Estirar el contenedor de imágenes al borde absoluto superior y lateral (Izquierda y Derecha) */
-.publication-item.has-images .card-images-container {
+.publication-item.has-images .card-images-wrapper {
     width: auto !important;
     margin-top: -1.25rem !important;
     margin-left: -1.25rem !important;
@@ -8325,15 +8322,22 @@ body.wallet-tour-active #prelaunchWalletModal {
     overflow: hidden !important;
     border: none !important;
     background: #000 !important;
+    position: relative;
 }
 
-/* Asegurar visualización del carrusel completo de lado a lado con el peeking del 90% */
+/* Asegurar visualización del carrusel completo de lado a lado con ancho 100% */
 .publication-item.has-images .card-images-container.is-carousel {
     display: flex !important;
     overflow-x: auto !important;
     scroll-snap-type: x mandatory !important;
-    gap: 8px !important;
+    gap: 0 !important;
     padding-bottom: 0 !important;
+    width: 100% !important;
+    border-radius: 0 !important;
+    scrollbar-width: none;
+}
+.publication-item.has-images .card-images-container.is-carousel::-webkit-scrollbar {
+    display: none;
 }
 
 /* Forzar que las imágenes individuales cubran todo el ancho */
@@ -8344,10 +8348,10 @@ body.wallet-tour-active #prelaunchWalletModal {
     border-radius: 0 !important;
 }
 
-/* Ajustar las imágenes del carrusel para que tomen el 90% de ancho del contenedor estirado */
+/* Ajustar las imágenes del carrusel para que tomen el 100% de ancho del contenedor estirado */
 .publication-item.has-images .card-images-container.is-carousel img {
-    flex: 0 0 90% !important;
-    width: 90% !important;
+    flex: 0 0 100% !important;
+    width: 100% !important;
     max-height: 125px !important;
     object-fit: cover !important;
     border-radius: 0 !important;
