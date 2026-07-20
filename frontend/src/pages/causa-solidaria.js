@@ -288,8 +288,8 @@ function buildCauseHTML(cause, donations) {
                 window._currentCauseRealImages = realImages;
                 return `
                     <div class="cause-carousel-wrapper" style="margin: -20px -20px 20px -20px; border-radius: 16px 16px 0 0; overflow: hidden; position: relative; background: #0a0a14;">
-                        <div class="cause-carousel-track" style="display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; -webkit-overflow-scrolling: touch;">
-                            ${realImages.map(url => `<img src="${escapeAttr(url)}" alt="Evidencia de causa" loading="lazy" style="flex: 0 0 100%; width: 100%; height: 280px; object-fit: cover; scroll-snap-align: center;">`).join('')}
+                        <div class="cause-carousel-track" onscroll="const idx = Math.round(this.scrollLeft / this.offsetWidth); this.parentElement.querySelectorAll('.carousel-dot').forEach((d, i) => d.style.background = i === idx ? 'white' : 'rgba(255,255,255,0.4)');" style="display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; -webkit-overflow-scrolling: touch;">
+                            ${realImages.map(url => `<img src="${escapeAttr(url)}" alt="Evidencia de causa" loading="lazy" style="flex: 0 0 100%; width: 100%; height: 280px; object-fit: cover; scroll-snap-align: center; cursor: pointer;">`).join('')}
                         </div>
                         ${realImages.length > 1 ? `
                             <button class="carousel-arrow carousel-arrow-left" onclick="this.parentElement.querySelector('.cause-carousel-track').scrollBy({left: -this.parentElement.offsetWidth, behavior: 'smooth'})" aria-label="Imagen anterior" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0.7;transition:opacity 0.3s;">❮</button>
@@ -1219,7 +1219,8 @@ function initAuthorPanel(cause) {
 
 // --- MANEJO DE LIGHTBOX PARA IMÁGENES DE LA CAUSA ---
 document.addEventListener('click', (e) => {
-    const pubImg = e.target.closest('.card-images-container img');
+    // [FIX] Soportar el nuevo selector del carrusel (.cause-carousel-track img) y el anterior
+    const pubImg = e.target.closest('.cause-carousel-track img, .card-images-container img');
     if (pubImg) {
         const evidenceLightboxModal = document.getElementById('evidenceLightboxModal');
         const container = document.getElementById('lightboxImagesContainer');

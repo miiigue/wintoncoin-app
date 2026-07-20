@@ -13,6 +13,13 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-20 — Fix Carrusel: Puntos Indicadores y Lightbox
+* **Cambio**: 
+  - **Puntos Indicadores (Dots)**: Añadido un manejador de eventos `onscroll` en línea al contenedor `.cause-carousel-track`. Calcula el índice de la imagen visible actualizando dinámicamente el color de fondo de los puntos.
+  - **Lightbox**: Se ajustó el evento de escucha de clics en el documento global (`document.addEventListener('click', ...)`). Se amplió el selector de `.card-images-container img` a `.cause-carousel-track img, .card-images-container img` para abarcar el nuevo contenedor del carrusel, restaurando la capacidad de visualizar las imágenes a pantalla completa al hacer clic.
+* **Evidencia**: Modificaciones en `causa-solidaria.js`.
+* **Impacto**: Mejora significativa de UX. Los donantes pueden navegar intuitivamente por la evidencia en el carrusel con retroalimentación visual (puntos) y hacer clic en cualquier imagen para ver los detalles originales en el Lightbox, igual que en el resto de la plataforma.
+
 ### 2026-07-20 — Subida de Imágenes en Postulación + Carrusel Responsivo + Fix Cajas Negras
 * **Cambio**: 
   - **Postulación**: Añadido Dropzone interactivo en `solicitud-solidaria.html` para que el creador suba hasta 3 imágenes (JPG/PNG/WebP, 5MB máx.) al momento de postular. Las imágenes se envían a Cloudflare R2 vía `/api/media/upload` y sus URLs se incluyen en `evidence_urls`.
