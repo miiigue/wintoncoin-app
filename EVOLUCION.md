@@ -21,6 +21,11 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 
 
+### 2026-07-20 — Carga de Imágenes en Postulación Solidaria y Filtro de Enlaces No-Imagen
+* **Cambio**: Incorporado Dropzone de subida al formulario de postulación original (solicitud-solidaria.html), modificado el backend para procesar el arreglo (solidarioRoutes.js) y agregado un filtro del lado del cliente en el feed y detalles para omitir enlaces no-imagen (como Drive o Instagram) que causaban imágenes rotas.
+* **Evidencia**: Modificaciones en solicitud-solidaria.html, solidarioRoutes.js, contract-interaction.js y causa-solidaria.js.
+* **Impacto**: Completa el flujo de auditoría permitiendo que el administrador revise la evidencia visual real antes de la aprobación y asegura que las causas se rendericen correctamente desde el primer segundo sin mostrar cajas vacías.
+
 ### 2026-07-19 — Visualización de Imágenes en Tarjetas y Detalle de Causas Solidarias
 * **Cambio**: Conectada la visualización del carrusel de imágenes en las tarjetas virtuales del feed principal y en la cabecera de la vista detallada de la causa (causa-solidaria.html).
 * **Evidencia**: Commit ebaa656 y actualizaciones subsecuentes.

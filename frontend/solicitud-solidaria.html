@@ -366,6 +366,21 @@
             </div>
 
             <div class="form-group">
+                <label>Imágenes de Evidencia/Progreso (Opcional, máx 3):</label>
+                <div class="evidence-dropzone" id="postulateDropzone" style="border: 2px dashed rgba(255,255,255,0.15); border-radius: 10px; padding: 20px; text-align: center; background: rgba(0,0,0,0.15); cursor: pointer; transition: border-color 0.3s; position: relative;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 8px;">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    <p style="margin: 0; font-size: 0.85em; color: #94A3B8;">Arrastra imágenes de progreso o haz clic aquí</p>
+                    <small style="display: block; margin-top: 4px; font-size: 0.75em; color: #64748B;">Máximo 3 imágenes en total.</small>
+                    <input type="file" id="postulateFileInput" multiple accept="image/*" style="display: none;">
+                </div>
+                <div id="postulatePreviewContainer" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;"></div>
+            </div>
+
+            <div class="form-group">
                 <label for="redesSociales">Enlaces a tus Redes Sociales (Para Verificación)</label>
                 <input type="text" id="redesSociales"
                     placeholder="Ej: https://instagram.com/usuario https://tiktok.com/@usuario (Separados por espacio)"
@@ -469,6 +484,129 @@
         const beneficiaryRefInput = document.getElementById('beneficiaryReferralCode');
         const beneficiaryValidationMsg = document.getElementById('beneficiaryValidationMsg');
         let isBeneficiaryValid = false;
+
+        // --- UPLOADER DE IMÁGENES EN CREACIÓN ---
+        const postulateDropzone = document.getElementById('postulateDropzone');
+        const postulateFileInput = document.getElementById('postulateFileInput');
+        const postulatePreviewContainer = document.getElementById('postulatePreviewContainer');
+        let uploadedImages = [];
+
+        function renderPostulatePreviews() {
+            postulatePreviewContainer.innerHTML = '';
+            uploadedImages.forEach((url, index) => {
+                const div = document.createElement('div');
+                div.style.position = 'relative';
+                div.style.width = '70px';
+                div.style.height = '70px';
+                div.style.borderRadius = '8px';
+                div.style.overflow = 'hidden';
+                div.style.border = '1px solid rgba(255,255,255,0.1)';
+
+                const img = document.createElement('img');
+                img.src = url;
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'cover';
+
+                const btn = document.createElement('button');
+                btn.innerHTML = '&times;';
+                btn.style.position = 'absolute';
+                btn.style.top = '2px';
+                btn.style.right = '2px';
+                btn.style.width = '18px';
+                btn.style.height = '18px';
+                btn.style.background = 'rgba(239, 68, 68, 0.9)';
+                btn.style.color = 'white';
+                btn.style.border = 'none';
+                btn.style.borderRadius = '50%';
+                btn.style.cursor = 'pointer';
+                btn.style.display = 'flex';
+                btn.style.alignItems = 'center';
+                btn.style.justifyContent = 'center';
+                btn.style.fontSize = '12px';
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    uploadedImages.splice(index, 1);
+                    renderPostulatePreviews();
+                };
+
+                div.appendChild(img);
+                div.appendChild(btn);
+                postulatePreviewContainer.appendChild(div);
+            });
+        }
+
+        if (postulateDropzone && postulateFileInput) {
+            postulateDropzone.onclick = () => postulateFileInput.click();
+            postulateFileInput.onclick = (e) => e.stopPropagation();
+
+            postulateDropzone.ondragover = (e) => {
+                e.preventDefault();
+                postulateDropzone.style.borderColor = '#3B82F6';
+            };
+
+            postulateDropzone.ondragleave = () => {
+                postulateDropzone.style.borderColor = 'rgba(255,255,255,0.15)';
+            };
+
+            postulateDropzone.ondrop = async (e) => {
+                e.preventDefault();
+                postulateDropzone.style.borderColor = 'rgba(255,255,255,0.15)';
+                const files = Array.from(e.dataTransfer.files);
+                await handlePostulateUpload(files);
+            };
+
+            postulateFileInput.onchange = async () => {
+                const files = Array.from(postulateFileInput.files);
+                await handlePostulateUpload(files);
+                postulateFileInput.value = '';
+            };
+        }
+
+        async function handlePostulateUpload(files) {
+            const imageFiles = files.filter(f => f.type.startsWith('image/'));
+            if (imageFiles.length === 0) return;
+
+            if (uploadedImages.length + imageFiles.length > 3) {
+                showCustomAlert('Solo puedes subir un máximo de 3 imágenes de evidencia.');
+                return;
+            }
+
+            const label = postulateDropzone.querySelector('p');
+            const originalText = label ? label.textContent : '';
+            if (label) label.textContent = 'Subiendo...';
+
+            try {
+                for (const file of imageFiles) {
+                    const formData = new FormData();
+                    formData.append('images', file);
+                    formData.append('max_images', 3);
+
+                    const uploadRes = await fetch(`${API_URL}/api/media/upload`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${storedToken}`
+                        },
+                        body: formData
+                    });
+
+                    const uploadData = await uploadRes.json();
+                    if (!uploadRes.ok) {
+                        throw new Error(uploadData.message || 'Error al subir la imagen.');
+                    }
+
+                    if (uploadData.urls && uploadData.urls.length > 0) {
+                        uploadedImages.push(uploadData.urls[0]);
+                    }
+                }
+                renderPostulatePreviews();
+            } catch (error) {
+                showCustomAlert(`Error al subir imágenes: ${error.message}`);
+            } finally {
+                if (label) label.textContent = originalText;
+            }
+        }
 
         // Lógica de validación de CÓDIGO DE REFERIDO DEL BENEFICIARIO (Conexión con Backend)
         beneficiaryRefInput.addEventListener('blur', async () => {
@@ -644,7 +782,8 @@
                 meta: document.getElementById('meta').value.trim(),
                 evidencia_link: document.getElementById('evidenciaLink').value.trim(),
                 redes_sociales: document.getElementById('redesSociales').value.trim(),
-                beneficiary_socials: document.getElementById('beneficiarySocials').value.trim()
+                beneficiary_socials: document.getElementById('beneficiarySocials').value.trim(),
+                uploaded_images: uploadedImages
             };
 
             try {

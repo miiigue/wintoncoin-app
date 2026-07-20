@@ -55,7 +55,7 @@ router.get('/check-referral/:code', async (req, res) => {
 // ==  Seguridad: Validación de URL, límites de longitud, sanitización           ==
 // =================================================================================
 router.post('/postulacion', authenticateToken, async (req, res) => {
-    const { username, titulo, historia, meta, evidencia_link, redes_sociales, beneficiary_referral_code, foundation_name, beneficiary_socials } = req.body;
+    const { username, titulo, historia, meta, evidencia_link, redes_sociales, beneficiary_referral_code, foundation_name, beneficiary_socials, uploaded_images } = req.body;
 
     // --- VALIDACIÓN DE COHERENCIA DE SEGURIDAD (ANTI-SPOOFING) ---
     // Impide que un usuario autenticado postule causas en nombre de otro usuario
@@ -165,8 +165,18 @@ router.post('/postulacion', authenticateToken, async (req, res) => {
             return res.status(400).json({ message: "Actualmente posees una causa en curso o en revisión. Debes culminarla antes de postular una nueva." });
         }
 
-        // 3. Insertar en la tabla humanitarian_causes (Migración 038 + 071 + 072 + 073)
-        const allUrls = [evidencia_link.trim(), ...redesArray];
+        let uploadedArray = [];
+        if (uploaded_images && Array.isArray(uploaded_images)) {
+            if (uploaded_images.length > 3) {
+                return res.status(400).json({ message: "No puedes subir más de 3 imágenes de evidencia al postular una causa." });
+            }
+            for (const url of uploaded_images) {
+                if (typeof url === 'string' && url.startsWith('http')) {
+                    uploadedArray.push(url.trim());
+                }
+            }
+        }
+        const allUrls = [evidencia_link.trim(), ...redesArray, ...uploadedArray];
         const evidenceUrls = JSON.stringify(allUrls);
         const insertSql = `
             INSERT INTO humanitarian_causes 

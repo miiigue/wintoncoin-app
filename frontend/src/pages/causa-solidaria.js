@@ -164,6 +164,16 @@ async function loadCauseData(causeId) {
 // Genera todo el HTML de la causa con datos reales del backend
 // ============================================================================
 function buildCauseHTML(cause, donations) {
+    const actualImages = (cause.evidence_urls || []).filter(url => {
+        if (!url) return false;
+        const lower = url.toLowerCase();
+        return lower.endsWith('.webp') || 
+               lower.endsWith('.png') || 
+               lower.endsWith('.jpg') || 
+               lower.endsWith('.jpeg') || 
+               lower.endsWith('.gif') || 
+               lower.includes('/uploads/');
+    });
     const currentAmount = parseFloat(cause.current_amount) || 0;
     const goalAmount = parseFloat(cause.goal_amount) || 0;
 
@@ -273,10 +283,10 @@ function buildCauseHTML(cause, donations) {
         ${authorToolbarHTML}
 
         <!-- TARJETA PRINCIPAL -->
-        <div class="solidario-cause-card ${(cause.evidence_urls && cause.evidence_urls.length > 0) ? 'has-images' : ''}" style="position: relative;">
-            ${(cause.evidence_urls && cause.evidence_urls.length > 0) ? `
-                <div class="card-images-container ${cause.evidence_urls.length > 1 ? 'is-carousel' : 'single-image'}" style="margin: -20px -20px 20px -20px; border-radius: 16px 16px 0 0; overflow: hidden; background: #000; display: flex; gap: 8px;">
-                    ${cause.evidence_urls.map(url => `<img src="${escapeAttr(url)}" alt="Evidencia de causa" loading="lazy" style="max-height: 200px; width: ${cause.evidence_urls.length > 1 ? '90%' : '100%'}; object-fit: cover; scroll-snap-align: center; border-radius: 0;">`).join('')}
+        <div class="solidario-cause-card ${(actualImages && actualImages.length > 0) ? 'has-images' : ''}" style="position: relative;">
+            ${(actualImages && actualImages.length > 0) ? `
+                <div class="card-images-container ${actualImages.length > 1 ? 'is-carousel' : 'single-image'}" style="margin: -20px -20px 20px -20px; border-radius: 16px 16px 0 0; overflow: hidden; background: #000; display: flex; gap: 8px;">
+                    ${actualImages.map(url => `<img src="${escapeAttr(url)}" alt="Evidencia de causa" loading="lazy" style="max-height: 200px; width: ${actualImages.length > 1 ? '90%' : '100%'}; object-fit: cover; scroll-snap-align: center; border-radius: 0;">`).join('')}
                 </div>
             ` : ''}
             <h1 class="solidario-cause-title" id="solidarioCauseTitle">${escapeHtml(cause.title)}</h1>
@@ -980,6 +990,7 @@ function initAuthorPanel(cause) {
     // --- EVENTOS DEL DROPZONE ---
     if (editCauseDropzone && editCauseFileInput) {
         editCauseDropzone.onclick = () => editCauseFileInput.click();
+        editCauseFileInput.onclick = (e) => e.stopPropagation();
 
         editCauseDropzone.ondragover = (e) => {
             e.preventDefault();
@@ -1193,7 +1204,16 @@ document.addEventListener('click', (e) => {
         const evidenceLightboxModal = document.getElementById('evidenceLightboxModal');
         const container = document.getElementById('lightboxImagesContainer');
         if (evidenceLightboxModal && container) {
-            const imgUrls = window.currentCause?.evidence_urls || [];
+            const imgUrls = (window.currentCause?.evidence_urls || []).filter(url => {
+                if (!url) return false;
+                const lower = url.toLowerCase();
+                return lower.endsWith('.webp') || 
+                       lower.endsWith('.png') || 
+                       lower.endsWith('.jpg') || 
+                       lower.endsWith('.jpeg') || 
+                       lower.endsWith('.gif') || 
+                       lower.includes('/uploads/');
+            });
             if (imgUrls.length > 0) {
                 container.innerHTML = imgUrls.map(url => `
                     <img src="${escapeAttr(url)}" style="max-height: 85vh; max-width: 100%; object-fit: contain; scroll-snap-align: center; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
