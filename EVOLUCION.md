@@ -21,6 +21,11 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 
 
+### 2026-07-20 — Alineación al Ras de Carrusel en Detalle de Causa
+* **Cambio**: Ajustados márgenes de .solidario-cause-card .card-images-container a -24px arriba y laterales, y el radio de borde superior a 15px en style.css.
+* **Evidencia**: Modificaciones en style.css.
+* **Impacto**: Cancela exactamente el padding de 24px de la tarjeta de la causa, dejando la cabecera visual al ras con los bordes de la tarjeta.
+
 ### 2026-07-20 — Corrección de Scroll y Altura del Carrusel en Detalle de Causas
 * **Cambio**: Removidos estilos inline del contenedor de imágenes en causa-solidaria.js y creadas reglas CSS específicas en style.css para habilitar el scroll horizontal de evidencias, aplicar peeking del 90% y fijar una altura de 280px consistente.
 * **Evidencia**: Modificaciones en causa-solidaria.js y style.css.
