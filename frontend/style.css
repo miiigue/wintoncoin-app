@@ -8325,6 +8325,13 @@ body.wallet-tour-active #prelaunchWalletModal {
     position: relative;
 }
 
+/* Evitar que los márgenes por defecto del contenedor de imágenes generen franjas negras */
+.card-images-wrapper .card-images-container {
+    margin: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+}
+
 /* Asegurar visualización del carrusel completo de lado a lado con ancho 100% */
 .publication-item.has-images .card-images-container.is-carousel {
     display: flex !important;
