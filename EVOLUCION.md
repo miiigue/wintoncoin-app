@@ -21,6 +21,11 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 
 
+### 2026-07-20 — Corrección de Estilo del Carrusel en Detalle de Causa
+* **Cambio**: Removidos estilos en línea que impedían el scroll horizontal (overflow: hidden) en el carrusel de la causa detallada. Delegado el layout a clases CSS específicas dentro de la etiqueta style del documento HTML.
+* **Evidencia**: Modificaciones en causa-solidaria.html y causa-solidaria.js.
+* **Impacto**: El carrusel de fotos en el detalle ahora es responsivo, desliza correctamente de extremo a extremo al 100% de ancho del contenedor y respeta los bordes redondeados superiores de la tarjeta.
+
 ### 2026-07-20 — Ajuste de Ancho y Snap del Carrusel en Móviles
 * **Cambio**: Modificada la regla CSS de .card-images-container para fijar un ancho del calc(100% + 48px) !important, alineación scroll-snap-align: start y asignación del redondeado de borde superior al primer elemento hijo directamente.
 * **Evidencia**: Modificaciones en style.css.

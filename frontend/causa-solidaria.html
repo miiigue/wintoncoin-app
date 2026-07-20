@@ -95,6 +95,46 @@
         }
 
         /* ============================================================ */
+        /* IMÁGENES Y CARRUSEL DE EVIDENCIA EN DETALLE                  */
+        /* ============================================================ */
+        .solidario-cause-card .card-images-container {
+            margin: -24px -24px 24px -24px !important;
+            border-radius: 16px 16px 0 0 !important;
+            width: auto !important;
+            background: #000;
+        }
+        
+        .solidario-cause-card .card-images-container.single-image img {
+            width: 100%;
+            max-height: 280px;
+            object-fit: cover;
+            border-radius: 15px 15px 0 0; /* Un pixel menos para evitar sangrado de bordes */
+            display: block;
+            cursor: zoom-in;
+        }
+
+        .solidario-cause-card .card-images-container.is-carousel {
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            gap: 0px;
+            border-radius: 15px 15px 0 0;
+        }
+
+        .solidario-cause-card .card-images-container.is-carousel::-webkit-scrollbar {
+            display: none;
+        }
+
+        .solidario-cause-card .card-images-container.is-carousel img {
+            flex: 0 0 100%;
+            max-height: 280px;
+            object-fit: cover;
+            scroll-snap-align: center;
+            border-radius: 0;
+            cursor: zoom-in;
+        }
+
+        /* ============================================================ */
         /* TARJETA PRINCIPAL DE LA CAUSA                                */
         /* ============================================================ */
         .solidario-cause-card {
