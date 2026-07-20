@@ -1533,7 +1533,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function getPublicationCardHTML(pub, blueLabel, ratingHTML = '') {
         const isDonation = pub.category === 'donation';
-        const rewardText = isDonation ? `Meta: ${formatBalance(pub.goal_amount)} ${blueLabel}` : `${formatBalance(pub.blue_cost)} ${blueLabel}`;
+        const rewardText = isDonation ? `${formatBalance(pub.goal_amount)} ${blueLabel}` : `${formatBalance(pub.blue_cost)} ${blueLabel}`;
         const statusMessageHTML = getCardStatusMessageHTML(pub);
 
         let ribbonClass = '';

@@ -15,11 +15,11 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ### 2026-07-20 — Unificación de Carruseles: Feed de Tarjetas y Detalles
 * **Cambio**: 
-  - **Tarjetas del Feed (`contract-interaction.js`)**: Modificado el carrusel de publicaciones para ocupar el 100% del ancho (eliminando la visualización del 90% de la siguiente imagen). Se envolvió el contenedor en un `.card-images-wrapper` y se integraron puntos indicadores (dots) interactivos que se actualizan mediante un listener `onscroll`.
+  - **Tarjetas del Feed (`contract-interaction.js`)**: Modificado el carrusel de publicaciones para ocupar el 100% del ancho (eliminando la visualización del 90% de la siguiente imagen). Se envolvió el contenedor en un `.card-images-wrapper` y se integraron puntos indicadores (dots) interactivos que se actualizan mediante un listener `onscroll`. También se eliminó el prefijo de texto `"Meta: "` de la etiqueta de valor de donación (ribbon superior derecho) para maximizar el espacio en pantallas pequeñas.
   - **Detalle de Publicaciones (`publication-detail.js`)**: Actualizado el carrusel de la página de descripción para utilizar el mismo diseño responsivo de 100% de ancho con flechas físicas laterales y dots del carrusel unificado. Se actualizó el selector de Lightbox.
   - **Estilos (`style.css`)**: Centralizados los estilos de `.carousel-dots`, `.carousel-dot`, y `.card-images-wrapper` para mantener el principio DRY y mejorar la cohesión visual del portal. Además se eliminaron los márgenes verticales de `.card-images-container` dentro de `.card-images-wrapper` para evitar las franjas negras superior y inferior que aparecían en las tarjetas.
 * **Evidencia**: Modificaciones en `style.css`, `contract-interaction.js` y `publication-detail.js`.
-* **Impacto**: Unificación total de la UI de carruseles en la plataforma. Se elimina el peeking desordenado en las tarjetas del feed, ofreciendo una experiencia moderna, limpia e intuitiva (estilo Instagram) tanto en la lista general como en las vistas detalladas, sin márgenes negros residuales en las portadas.
+* **Impacto**: Unificación total de la UI de carruseles en la plataforma. Se elimina el peeking desordenado en las tarjetas del feed, ofreciendo una experiencia moderna, limpia e intuitiva (estilo Instagram) tanto en la lista general como en las vistas detalladas, sin márgenes negros residuales en las portadas. Además, se optimizó el espacio de las etiquetas de meta de recaudación en el feed.
 
 ### 2026-07-20 — Auditoría Técnica y Mitigación de Seguridad (Harden editCause)
 * **Cambio**: 
