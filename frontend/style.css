@@ -8403,7 +8403,9 @@ body.wallet-tour-active #prelaunchWalletModal {
 
 /* Causa Solidaria Detail Gallery Carousel */
 .solidario-cause-card .card-images-container {
-    margin: -24px -24px 20px -24px;
+    margin: -24px -24px 20px -24px !important;
+    width: calc(100% + 48px) !important;
+    max-width: calc(100% + 48px) !important;
     border-radius: 15px 15px 0 0;
     background: #000;
     overflow: hidden;
@@ -8414,6 +8416,8 @@ body.wallet-tour-active #prelaunchWalletModal {
     object-fit: cover;
     display: block;
     cursor: zoom-in;
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
 }
 .solidario-cause-card .card-images-container.is-carousel {
     display: flex;
@@ -8426,6 +8430,9 @@ body.wallet-tour-active #prelaunchWalletModal {
     flex: 0 0 90%;
     max-height: 280px;
     object-fit: cover;
-    scroll-snap-align: center;
+    scroll-snap-align: start;
     cursor: zoom-in;
+}
+.solidario-cause-card .card-images-container.is-carousel img:first-child {
+    border-top-left-radius: 15px;
 }

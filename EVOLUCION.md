@@ -21,6 +21,11 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 
 
+### 2026-07-20 — Ajuste de Ancho y Snap del Carrusel en Móviles
+* **Cambio**: Modificada la regla CSS de .card-images-container para fijar un ancho del calc(100% + 48px) !important, alineación scroll-snap-align: start y asignación del redondeado de borde superior al primer elemento hijo directamente.
+* **Evidencia**: Modificaciones en style.css.
+* **Impacto**: Corrige la desalineación asimétrica del lado derecho y asegura el correcto recorte redondeado de las esquinas en Android/iOS.
+
 ### 2026-07-20 — Alineación al Ras de Carrusel en Detalle de Causa
 * **Cambio**: Ajustados márgenes de .solidario-cause-card .card-images-container a -24px arriba y laterales, y el radio de borde superior a 15px en style.css.
 * **Evidencia**: Modificaciones en style.css.
