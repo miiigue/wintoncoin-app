@@ -1158,6 +1158,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 foundation_name: cause.foundation_name,
                 category: 'donation', // Chip de filtrado 'Donaciones'
                 is_humanitarian_cause: true,
+                image_urls: cause.evidence_urls || [],
                 available_slots: 1,
                 blue_cost: 0
             }));

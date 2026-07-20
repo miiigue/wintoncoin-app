@@ -21,6 +21,11 @@ Para el detalle â€œtipo releaseâ€, ver `CHANGELOG.md`.
 
 
 
+### 2026-07-19 â€” VisualizaciÃ³n de ImÃ¡genes en Tarjetas y Detalle de Causas Solidarias
+* **Cambio**: Conectada la visualizaciÃ³n del carrusel de imÃ¡genes en las tarjetas virtuales del feed principal y en la cabecera de la vista detallada de la causa (causa-solidaria.html).
+* **Evidencia**: Commit ebaa656 y actualizaciones subsecuentes.
+* **Impacto**: Permite la transparencia completa al poder visualizar las evidencias de progreso y fotos de la causa directamente desde el feed y verlas a pantalla completa usando el visor lightbox.
+
 ### 2026-07-14 â€” AuditorÃ­a de Ciberseguridad y RemediaciÃ³n de Vulnerabilidades CrÃ­ticas en adminController.js
 
 - **Contexto**: Durante una auditorÃ­a exhaustiva de seguridad sobre las 3,295 lÃ­neas del controlador administrativo `adminController.js`, se detectaron vulnerabilidades y desviaciones de las mejores prÃ¡cticas de desarrollo y seguridad (tales como SQL Injection en limpieza de registros, fuga de detalles internos de excepciones `error.message` y duplicidad de lÃ³gica). Se procediÃ³ a mitigar todos los hallazgos para elevar el software a los estÃ¡ndares SOC 2 e ISO 27001 de seguridad bancaria.
@@ -4270,14 +4275,14 @@ Se asienta en auditorÃƒÂ­a la remociÃƒÂ³n fÃƒÂ­sica de la subcarpeta `android-ap
   - Cambiamos el callback de `onDestroyStarted` a `onDestroyed` en los 5 flujos de onboarding.
   - Al usar `onDestroyed`, permitimos que Driver.js finalice su destrucciÃ³n de forma natural en lugar de interceptar y congelar la pantalla. Una vez completado el desmantelamiento, se registra la bandera de completado en `localStorage`.
 - **Evidencia**: Archivos modificados: `frontend/src/modules/onboarding.js`, `EVOLUCION.md`.
-### 2026-07-18 - UI/UX de Carga y Visualización de Evidencias (Frontend Premium)
+### 2026-07-18 - UI/UX de Carga y Visualizaciï¿½n de Evidencias (Frontend Premium)
 
-**Contexto**: Se requería completar el flujo frontend para permitir la subida de imágenes de evidencia (a través de Cloudflare R2/AWS S3) durante el proceso de "Finalizar Tarea" y visualizar estas imágenes en un carrusel dinámico en la publicación y en un Lightbox para evaluación.
+**Contexto**: Se requerï¿½a completar el flujo frontend para permitir la subida de imï¿½genes de evidencia (a travï¿½s de Cloudflare R2/AWS S3) durante el proceso de "Finalizar Tarea" y visualizar estas imï¿½genes en un carrusel dinï¿½mico en la publicaciï¿½n y en un Lightbox para evaluaciï¿½n.
 
 **Cambios Realizados**:
-1. **Rediseño de Publicaciones (Premium UI)**: Modificado contract-interaction.js y publication-detail.js para renderizar un carrusel interactivo y responsivo bajo el título de las publicaciones que contengan imágenes adjuntas.
-2. **Modal Finalizar Tarea con Dropzone**: Se inyectó un nuevo modal de confirmación en publication-detail.html que impide enviar la tarea como culminada si el creador ha exigido evidencias (equires_evidence=true) y no se ha cargado ninguna. Se maneja la carga múltiple visual mediante Drag & Drop y se suben directo al backend a través de la ruta /api/media/upload.
-3. **Visor Lightbox de Evidencias**: Modificada la vista detallada para añadir un botón "Ver Evidencias" a cada participante que completó la tarea enviando imágenes. Se configuró un modal Lightbox oscuro e inmersivo en publication-detail.js para examinar el trabajo entregado.
+1. **Rediseï¿½o de Publicaciones (Premium UI)**: Modificado contract-interaction.js y publication-detail.js para renderizar un carrusel interactivo y responsivo bajo el tï¿½tulo de las publicaciones que contengan imï¿½genes adjuntas.
+2. **Modal Finalizar Tarea con Dropzone**: Se inyectï¿½ un nuevo modal de confirmaciï¿½n en publication-detail.html que impide enviar la tarea como culminada si el creador ha exigido evidencias (equires_evidence=true) y no se ha cargado ninguna. Se maneja la carga mï¿½ltiple visual mediante Drag & Drop y se suben directo al backend a travï¿½s de la ruta /api/media/upload.
+3. **Visor Lightbox de Evidencias**: Modificada la vista detallada para aï¿½adir un botï¿½n "Ver Evidencias" a cada participante que completï¿½ la tarea enviando imï¿½genes. Se configurï¿½ un modal Lightbox oscuro e inmersivo en publication-detail.js para examinar el trabajo entregado.
 
 - **Evidencia**: Archivos modificados: rontend/src/pages/contract-interaction.js, rontend/src/pages/publication-detail.js, rontend/publication-detail.html, rontend/style.css, EVOLUCION.md.
 

@@ -130,6 +130,7 @@ async function loadCauseData(causeId) {
 
         const donations = data.donations || { donations: [], summary: {} };
 
+        window.currentCause = cause;
         container.innerHTML = buildCauseHTML(cause, donations);
 
         // Inicializar interactividad
@@ -272,7 +273,12 @@ function buildCauseHTML(cause, donations) {
         ${authorToolbarHTML}
 
         <!-- TARJETA PRINCIPAL -->
-        <div class="solidario-cause-card">
+        <div class="solidario-cause-card ${(cause.evidence_urls && cause.evidence_urls.length > 0) ? 'has-images' : ''}" style="position: relative;">
+            ${(cause.evidence_urls && cause.evidence_urls.length > 0) ? `
+                <div class="card-images-container ${cause.evidence_urls.length > 1 ? 'is-carousel' : 'single-image'}" style="margin: -20px -20px 20px -20px; border-radius: 16px 16px 0 0; overflow: hidden; background: #000; display: flex; gap: 8px;">
+                    ${cause.evidence_urls.map(url => `<img src="${escapeAttr(url)}" alt="Evidencia de causa" loading="lazy" style="max-height: 200px; width: ${cause.evidence_urls.length > 1 ? '90%' : '100%'}; object-fit: cover; scroll-snap-align: center; border-radius: 0;">`).join('')}
+                </div>
+            ` : ''}
             <h1 class="solidario-cause-title" id="solidarioCauseTitle">${escapeHtml(cause.title)}</h1>
             <div class="solidario-cause-meta">
                 <span>👤 Creador: <strong><a href="${creatorLink}"${creatorTarget} class="profile-link" style="color: #a5b4fc; text-decoration: underline;">${creatorIcon}${escapeHtml(cause.creator_username || 'Creador')}</a></strong></span>
@@ -710,6 +716,11 @@ function escapeHtml(str) {
     const div = document.createElement('div');
     div.appendChild(document.createTextNode(str));
     return div.innerHTML;
+}
+
+function escapeAttr(str) {
+    if (!str) return '';
+    return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 /**
@@ -1174,3 +1185,37 @@ function initAuthorPanel(cause) {
         }
     };
 }
+
+// --- MANEJO DE LIGHTBOX PARA IMÁGENES DE LA CAUSA ---
+document.addEventListener('click', (e) => {
+    const pubImg = e.target.closest('.card-images-container img');
+    if (pubImg) {
+        const evidenceLightboxModal = document.getElementById('evidenceLightboxModal');
+        const container = document.getElementById('lightboxImagesContainer');
+        if (evidenceLightboxModal && container) {
+            const imgUrls = window.currentCause?.evidence_urls || [];
+            if (imgUrls.length > 0) {
+                container.innerHTML = imgUrls.map(url => `
+                    <img src="${escapeAttr(url)}" style="max-height: 85vh; max-width: 100%; object-fit: contain; scroll-snap-align: center; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                `).join('');
+
+                const clickedUrl = pubImg.getAttribute('src');
+                const clickedIndex = imgUrls.indexOf(clickedUrl);
+                if (clickedIndex !== -1 && container.children[clickedIndex]) {
+                    setTimeout(() => {
+                        container.children[clickedIndex].scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' });
+                    }, 50);
+                }
+                evidenceLightboxModal.style.display = 'flex';
+            }
+        }
+    }
+
+    // Cerrar Lightbox al hacer clic en cerrar o fuera de la imagen
+    if (e.target.closest('.lightbox-close-button') || e.target.id === 'evidenceLightboxModal') {
+        const evidenceLightboxModal = document.getElementById('evidenceLightboxModal');
+        if (evidenceLightboxModal) {
+            evidenceLightboxModal.style.display = 'none';
+        }
+    }
+});

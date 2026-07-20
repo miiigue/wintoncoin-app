@@ -913,6 +913,16 @@
         </div>
     </div>
 
+    <!-- Modal Lightbox para Evidencias de Causa -->
+    <div id="evidenceLightboxModal" class="modal" style="display: none; background: rgba(0,0,0,0.9); z-index: 9999;">
+        <div class="modal-content lightbox-content" style="background: transparent; border: none; box-shadow: none; max-width: 90vw;">
+            <span class="close-button lightbox-close-button" style="color: white; font-size: 2rem; position: absolute; right: 20px; top: 20px; cursor: pointer;">&times;</span>
+            <div id="lightboxImagesContainer" style="display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 20px; padding: 20px; align-items: center;">
+                <!-- Las imágenes se insertarán aquí dinámicamente -->
+            </div>
+        </div>
+    </div>
+
     <!-- ES Modules (Vite) -->
     <script type="module" src="src/pages/causa-solidaria.js"></script>
 </body>
