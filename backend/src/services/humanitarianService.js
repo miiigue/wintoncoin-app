@@ -679,9 +679,21 @@ const editCause = async (userId, causeId, { story, goal_amount, new_evidence_url
             if (new_evidence_urls.length > 3) {
                 throw { status: 400, message: 'Solo puedes agregar un máximo de 3 nuevas imágenes por cada actualización.' };
             }
-            for (const url of new_evidence_urls) {
-                if (typeof url !== 'string' || !url.startsWith('http')) {
-                    throw { status: 400, message: 'URL de evidencia inválida.' };
+            const allowedImageExtensions = /\.(webp|png|jpg|jpeg|gif)(\?.*)?$/i;
+            for (const imgUrl of new_evidence_urls) {
+                if (typeof imgUrl !== 'string' || imgUrl.length > 2048) {
+                    throw { status: 400, message: 'Una de las URLs de imagen es inválida.' };
+                }
+                try {
+                    const parsedUrl = new URL(imgUrl);
+                    if (parsedUrl.protocol !== 'https:') {
+                        throw { status: 400, message: 'Las URLs de imagen de evidencia deben usar HTTPS por seguridad.' };
+                    }
+                } catch (_) {
+                    throw { status: 400, message: 'Una de las URLs de imagen no es válida.' };
+                }
+                if (!allowedImageExtensions.test(imgUrl) && !imgUrl.includes('/uploads/')) {
+                    throw { status: 400, message: 'Solo se permiten imágenes en formato WebP, PNG, JPG o GIF.' };
                 }
             }
             updatedEvidence = [...updatedEvidence, ...new_evidence_urls];

@@ -13,11 +13,19 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
-### 2026-07-20 — Fix Carrusel: Puntos Indicadores y Lightbox
+### 2026-07-20 — Auditoría Técnica y Mitigación de Seguridad (Harden editCause)
+* **Cambio**: 
+  - **Auditoría Técnica**: Realizado análisis estático del flujo de donaciones solidarias y subida de imágenes, validando el cumplimiento de directrices de inyección SQL, control de Race Conditions y principio de Zero Hardcoded Secrets.
+  - **Mitigación (Backend)**: Se detectó una inconsistencia de validación al editar causas (`editCause` en `humanitarianService.js`). Se reforzó la validación de `new_evidence_urls` para que valide estrictamente el protocolo HTTPS, limite de caracteres a 2048, y extensiones de imagen permitidas (WebP/PNG/JPG/GIF) o pertenecientes al bucket (`/uploads/`), equiparándose a la seguridad de la postulación inicial.
+* **Evidencia**: Modificaciones en `humanitarianService.js`.
+* **Impacto**: Eliminación de un vector potencial de inyección de enlaces maliciosos o no HTTPS en el historial y detalle de la causa durante las actualizaciones. Consistencia del 100% en las reglas de validación bajo el principio de Zero-Trust.
+
+### 2026-07-20 — Fix Carrusel: Puntos Indicadores y Lightbox + Fix Modal Overflow
 * **Cambio**: 
   - **Puntos Indicadores (Dots)**: Añadido un manejador de eventos `onscroll` en línea al contenedor `.cause-carousel-track`. Calcula el índice de la imagen visible actualizando dinámicamente el color de fondo de los puntos.
   - **Lightbox**: Se ajustó el evento de escucha de clics en el documento global (`document.addEventListener('click', ...)`). Se amplió el selector de `.card-images-container img` a `.cause-carousel-track img, .card-images-container img` para abarcar el nuevo contenedor del carrusel, restaurando la capacidad de visualizar las imágenes a pantalla completa al hacer clic.
-* **Evidencia**: Modificaciones en `causa-solidaria.js`.
+  - **Modal Overflow**: Añadido `max-height: 90vh` y `overflow-y: auto` a la clase CSS `.solidario-donate-modal` en `causa-solidaria.html` para permitir scroll interno cuando el contenido (como las previsualizaciones de imágenes) excede la altura de la pantalla, evitando que los botones de confirmación queden ocultos.
+* **Evidencia**: Modificaciones en `causa-solidaria.js` y `causa-solidaria.html`.
 * **Impacto**: Mejora significativa de UX. Los donantes pueden navegar intuitivamente por la evidencia en el carrusel con retroalimentación visual (puntos) y hacer clic en cualquier imagen para ver los detalles originales en el Lightbox, igual que en el resto de la plataforma.
 
 ### 2026-07-20 — Subida de Imágenes en Postulación + Carrusel Responsivo + Fix Cajas Negras
