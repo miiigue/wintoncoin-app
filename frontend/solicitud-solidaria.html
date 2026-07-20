@@ -365,19 +365,16 @@
                 </small>
             </div>
 
+            <!-- Carga de imágenes opcionales de la causa -->
             <div class="form-group">
-                <label>Imágenes de Evidencia/Progreso (Opcional, máx 3):</label>
-                <div class="evidence-dropzone" id="postulateDropzone" style="border: 2px dashed rgba(255,255,255,0.15); border-radius: 10px; padding: 20px; text-align: center; background: rgba(0,0,0,0.15); cursor: pointer; transition: border-color 0.3s; position: relative;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 8px;">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                        <polyline points="21 15 16 10 5 21"></polyline>
-                    </svg>
-                    <p style="margin: 0; font-size: 0.85em; color: #94A3B8;">Arrastra imágenes de progreso o haz clic aquí</p>
-                    <small style="display: block; margin-top: 4px; font-size: 0.75em; color: #64748B;">Máximo 3 imágenes en total.</small>
-                    <input type="file" id="postulateFileInput" multiple accept="image/*" style="display: none;">
+                <label>Imágenes de progreso / evidencia física (Opcional, máx 3):</label>
+                <div class="edit-cause-dropzone" id="postulationDropzone" style="border: 2px dashed rgba(255,255,255,0.15); border-radius: 12px; padding: 25px; text-align: center; cursor: pointer; transition: all 0.3s; background: rgba(255,255,255,0.02); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
+                    <span style="font-size: 2rem; color: rgba(255,255,255,0.4);">📸</span>
+                    <p style="margin: 0; color: rgba(255,255,255,0.8); font-size: 0.95rem;">Arrastra imágenes de tu causa o haz clic aquí</p>
+                    <span style="font-size: 0.8rem; color: rgba(255,255,255,0.4);">Máximo 3 imágenes en formato JPG, PNG o WebP.</span>
+                    <input type="file" id="postulationFileInput" multiple accept="image/*" style="display: none;">
                 </div>
-                <div id="postulatePreviewContainer" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;"></div>
+                <div id="postulationPreviewContainer" style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;"></div>
             </div>
 
             <div class="form-group">
@@ -477,22 +474,14 @@
             document.getElementById('termsModal').classList.remove('active');
         };
 
-        const usernameInput = document.getElementById('username');
-        const validationMsg = document.getElementById('userValidationMsg');
-        let isUserValid = false;
-
-        const beneficiaryRefInput = document.getElementById('beneficiaryReferralCode');
-        const beneficiaryValidationMsg = document.getElementById('beneficiaryValidationMsg');
-        let isBeneficiaryValid = false;
-
-        // --- UPLOADER DE IMÁGENES EN CREACIÓN ---
-        const postulateDropzone = document.getElementById('postulateDropzone');
-        const postulateFileInput = document.getElementById('postulateFileInput');
-        const postulatePreviewContainer = document.getElementById('postulatePreviewContainer');
+        // --- UPLOADER DE IMÁGENES PARA LA SOLICITUD ---
+        const postulationDropzone = document.getElementById('postulationDropzone');
+        const postulationFileInput = document.getElementById('postulationFileInput');
+        const postulationPreviewContainer = document.getElementById('postulationPreviewContainer');
         let uploadedImages = [];
 
-        function renderPostulatePreviews() {
-            postulatePreviewContainer.innerHTML = '';
+        function renderPostulationPreviews() {
+            postulationPreviewContainer.innerHTML = '';
             uploadedImages.forEach((url, index) => {
                 const div = document.createElement('div');
                 div.style.position = 'relative';
@@ -528,52 +517,54 @@
                     e.preventDefault();
                     e.stopPropagation();
                     uploadedImages.splice(index, 1);
-                    renderPostulatePreviews();
+                    renderPostulationPreviews();
                 };
 
                 div.appendChild(img);
                 div.appendChild(btn);
-                postulatePreviewContainer.appendChild(div);
+                postulationPreviewContainer.appendChild(div);
             });
         }
 
-        if (postulateDropzone && postulateFileInput) {
-            postulateDropzone.onclick = () => postulateFileInput.click();
-            postulateFileInput.onclick = (e) => e.stopPropagation();
+        if (postulationDropzone && postulationFileInput) {
+            postulationFileInput.onclick = (e) => {
+                e.stopPropagation();
+            };
+            postulationDropzone.onclick = () => postulationFileInput.click();
 
-            postulateDropzone.ondragover = (e) => {
+            postulationDropzone.ondragover = (e) => {
                 e.preventDefault();
-                postulateDropzone.style.borderColor = '#3B82F6';
+                postulationDropzone.style.borderColor = '#3B82F6';
             };
 
-            postulateDropzone.ondragleave = () => {
-                postulateDropzone.style.borderColor = 'rgba(255,255,255,0.15)';
+            postulationDropzone.ondragleave = () => {
+                postulationDropzone.style.borderColor = 'rgba(255,255,255,0.15)';
             };
 
-            postulateDropzone.ondrop = async (e) => {
+            postulationDropzone.ondrop = async (e) => {
                 e.preventDefault();
-                postulateDropzone.style.borderColor = 'rgba(255,255,255,0.15)';
+                postulationDropzone.style.borderColor = 'rgba(255,255,255,0.15)';
                 const files = Array.from(e.dataTransfer.files);
-                await handlePostulateUpload(files);
+                await handlePostulationFiles(files);
             };
 
-            postulateFileInput.onchange = async () => {
-                const files = Array.from(postulateFileInput.files);
-                await handlePostulateUpload(files);
-                postulateFileInput.value = '';
+            postulationFileInput.onchange = async () => {
+                const files = Array.from(postulationFileInput.files);
+                await handlePostulationFiles(files);
+                postulationFileInput.value = '';
             };
         }
 
-        async function handlePostulateUpload(files) {
+        async function handlePostulationFiles(files) {
             const imageFiles = files.filter(f => f.type.startsWith('image/'));
             if (imageFiles.length === 0) return;
 
             if (uploadedImages.length + imageFiles.length > 3) {
-                showCustomAlert('Solo puedes subir un máximo de 3 imágenes de evidencia.');
+                showCustomAlert('Solo puedes agregar un máximo de 3 imágenes de progreso.');
                 return;
             }
 
-            const label = postulateDropzone.querySelector('p');
+            const label = postulationDropzone.querySelector('p');
             const originalText = label ? label.textContent : '';
             if (label) label.textContent = 'Subiendo...';
 
@@ -600,13 +591,21 @@
                         uploadedImages.push(uploadData.urls[0]);
                     }
                 }
-                renderPostulatePreviews();
+                renderPostulationPreviews();
             } catch (error) {
                 showCustomAlert(`Error al subir imágenes: ${error.message}`);
             } finally {
                 if (label) label.textContent = originalText;
             }
         }
+
+        const usernameInput = document.getElementById('username');
+        const validationMsg = document.getElementById('userValidationMsg');
+        let isUserValid = false;
+
+        const beneficiaryRefInput = document.getElementById('beneficiaryReferralCode');
+        const beneficiaryValidationMsg = document.getElementById('beneficiaryValidationMsg');
+        let isBeneficiaryValid = false;
 
         // Lógica de validación de CÓDIGO DE REFERIDO DEL BENEFICIARIO (Conexión con Backend)
         beneficiaryRefInput.addEventListener('blur', async () => {

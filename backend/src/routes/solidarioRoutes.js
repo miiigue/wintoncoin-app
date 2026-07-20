@@ -165,18 +165,16 @@ router.post('/postulacion', authenticateToken, async (req, res) => {
             return res.status(400).json({ message: "Actualmente posees una causa en curso o en revisión. Debes culminarla antes de postular una nueva." });
         }
 
-        let uploadedArray = [];
+        // 3. Insertar en la tabla humanitarian_causes (Migración 038 + 071 + 072 + 073)
+        let allUrls = [evidencia_link.trim(), ...redesArray];
         if (uploaded_images && Array.isArray(uploaded_images)) {
-            if (uploaded_images.length > 3) {
-                return res.status(400).json({ message: "No puedes subir más de 3 imágenes de evidencia al postular una causa." });
-            }
             for (const url of uploaded_images) {
-                if (typeof url === 'string' && url.startsWith('http')) {
-                    uploadedArray.push(url.trim());
+                if (typeof url !== 'string' || !url.startsWith('https://')) {
+                    return res.status(400).json({ message: "URL de imagen subida inválida o no segura." });
                 }
             }
+            allUrls = [...allUrls, ...uploaded_images];
         }
-        const allUrls = [evidencia_link.trim(), ...redesArray, ...uploadedArray];
         const evidenceUrls = JSON.stringify(allUrls);
         const insertSql = `
             INSERT INTO humanitarian_causes 

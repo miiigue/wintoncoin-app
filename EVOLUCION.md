@@ -46,6 +46,11 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 * **Evidencia**: Modificaciones en solicitud-solidaria.html, solidarioRoutes.js, contract-interaction.js y causa-solidaria.js.
 * **Impacto**: Completa el flujo de auditoría permitiendo que el administrador revise la evidencia visual real antes de la aprobación y asegura que las causas se rendericen correctamente desde el primer segundo sin mostrar cajas vacías.
 
+### 2026-07-20 — Flujo de Imágenes en Postulación Solidaria y Auditoría de Administrador
+* **Cambio**: Integrado el Dropzone en el formulario inicial de postulación (solicitud-solidaria.html) para subir hasta 3 imágenes físicas. Implementado visor de imágenes directo en el modal de auditoría de causas del panel administrativo (admin-panel.js).
+* **Evidencia**: Commits subsiguientes.
+* **Impacto**: Permite que el creador de la causa cargue evidencias visuales al registrarse, y que el administrador las evalúe en miniatura antes de aprobar el caso, optimizando el flujo completo de canje solidario.
+
 ### 2026-07-19 — Visualización de Imágenes en Tarjetas y Detalle de Causas Solidarias
 * **Cambio**: Conectada la visualización del carrusel de imágenes en las tarjetas virtuales del feed principal y en la cabecera de la vista detallada de la causa (causa-solidaria.html).
 * **Evidencia**: Commit ebaa656 y actualizaciones subsecuentes.
