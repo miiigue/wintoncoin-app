@@ -4569,61 +4569,46 @@ document.addEventListener('DOMContentLoaded', () => {
             const date = new Date(cause.created_at).toLocaleString('es-ES');
 
             // Renderizar evidencia separando imágenes reales de enlaces externos
-            // Las imágenes reales (R2/WebP) se muestran como miniaturas clicables
-            // Los enlaces externos (Drive, Instagram, etc.) se muestran como texto con word-break
+            // [SEGURIDAD VISUAL] Las imágenes reales (R2/extensiones gráficas) se muestran
+            // como miniaturas clicables; los enlaces externos (Drive, redes) como links de texto
             let evidenceHtml = '<em>Sin evidencia</em>';
             if (cause.evidence_urls && Array.isArray(cause.evidence_urls) && cause.evidence_urls.length > 0) {
                 // Separar imágenes reales de enlaces externos
-                const realImages = cause.evidence_urls.filter(url => {
-                    if (!url || typeof url !== 'string') return false;
+                const realImages = [];
+                const externalLinks = [];
+                cause.evidence_urls.forEach(url => {
+                    if (!url || typeof url !== 'string') return;
                     const lower = url.toLowerCase();
-                    return lower.endsWith('.webp') || lower.endsWith('.png') ||
-                           lower.endsWith('.jpg') || lower.endsWith('.jpeg') ||
-                           lower.endsWith('.gif') || lower.includes('/uploads/');
-                });
-                const externalLinks = cause.evidence_urls.filter(url => {
-                    if (!url || typeof url !== 'string') return false;
-                    const lower = url.toLowerCase();
-                    return !(lower.endsWith('.webp') || lower.endsWith('.png') ||
-                             lower.endsWith('.jpg') || lower.endsWith('.jpeg') ||
-                             lower.endsWith('.gif') || lower.includes('/uploads/'));
+                    if (lower.includes('/uploads/') || /\.(webp|png|jpg|jpeg|gif)(\?.*)?$/i.test(lower)) {
+                        realImages.push(url);
+                    } else {
+                        externalLinks.push(url);
+                    }
                 });
 
-                let partsHtml = '';
+                let parts = [];
 
-                // Mostrar miniaturas de imágenes reales si las hay
+                // Renderizar miniaturas de imágenes reales
                 if (realImages.length > 0) {
-                    partsHtml += `
-                        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+                    parts.push(`
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
                             ${realImages.map((url, i) => `
-                                <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" 
-                                   title="Ver imagen ${i + 1} completa" style="flex-shrink: 0;">
-                                    <img src="${escapeHtml(url)}" alt="Imagen de evidencia ${i + 1}"
-                                         style="width: 90px; height: 70px; object-fit: cover; border-radius: 8px; 
-                                                border: 2px solid rgba(255,255,255,0.15); cursor: pointer;
-                                                transition: transform 0.2s;"
-                                         onmouseover="this.style.transform='scale(1.05)'"
-                                         onmouseout="this.style.transform='scale(1)'"
-                                         loading="lazy">
+                                <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="Ver imagen ${i + 1} en tamaño completo">
+                                    <img src="${escapeHtml(url)}" alt="Evidencia ${i + 1}" style="width: 90px; height: 90px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: transform 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.3);" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
                                 </a>
                             `).join('')}
                         </div>
-                    `;
+                    `);
                 }
 
-                // Mostrar enlaces externos (Drive, Instagram, etc.) como texto con word-break
+                // Renderizar enlaces externos como texto
                 if (externalLinks.length > 0) {
-                    partsHtml += externalLinks.map((url, i) => `
-                        <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"
-                           style="color: #3B82F6; text-decoration: underline; display: block; 
-                                  margin-bottom: 6px; word-break: break-all; overflow-wrap: anywhere; 
-                                  font-size: 0.85rem; line-height: 1.5;">
-                            📎 Evidencia ${realImages.length + i + 1}
-                        </a>
-                    `).join('');
+                    parts.push(externalLinks.map((url, i) =>
+                        `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" style="color: #3B82F6; text-decoration: underline; display: block; margin-bottom: 4px; word-break: break-all;">📎 Evidencia ${i + 1}</a>`
+                    ).join(''));
                 }
 
-                evidenceHtml = partsHtml || '<em>Sin evidencia procesable</em>';
+                evidenceHtml = parts.join('') || '<em>Sin evidencia</em>';
             }
 
             elements.humanitarianModalTitle.textContent = `Causa #${cause.id}: ${cause.title}`;

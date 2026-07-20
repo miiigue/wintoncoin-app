@@ -163,26 +163,6 @@ async function loadCauseData(causeId) {
 // ============================================================================
 // Genera todo el HTML de la causa con datos reales del backend
 // ============================================================================
-/**
- * Helper: filtra evidence_urls para retener solo URLs de imágenes reales.
- * Excluye Google Drive, Instagram, Facebook y otros enlaces externos.
- * @param {string[]} urls - Arreglo de URLs a filtrar
- * @returns {string[]} Solo las URLs que apuntan a imágenes de R2/CDN
- */
-function filterRealImages(urls) {
-    if (!Array.isArray(urls)) return [];
-    return urls.filter(url => {
-        if (!url || typeof url !== 'string') return false;
-        const lower = url.toLowerCase();
-        return lower.endsWith('.webp') ||
-               lower.endsWith('.png')  ||
-               lower.endsWith('.jpg')  ||
-               lower.endsWith('.jpeg') ||
-               lower.endsWith('.gif')  ||
-               lower.includes('/uploads/');
-    });
-}
-
 function buildCauseHTML(cause, donations) {
     const currentAmount = parseFloat(cause.current_amount) || 0;
     const goalAmount = parseFloat(cause.goal_amount) || 0;
@@ -208,9 +188,6 @@ function buildCauseHTML(cause, donations) {
         minute: '2-digit',
         hour12: false
     }) + ' hs';
-
-    // Filtrar solo imágenes reales subidas a R2 (excluye Drive, Instagram, etc.)
-    const actualImages = filterRealImages(cause.evidence_urls);
 
     // Determinar si la causa alcanzó su meta o está culminada
     const isCompleted = cause.status === 'completed' || (goalAmount > 0 && totalRaised >= goalAmount);
@@ -296,13 +273,34 @@ function buildCauseHTML(cause, donations) {
         ${authorToolbarHTML}
 
         <!-- TARJETA PRINCIPAL -->
-        <div class="solidario-cause-card ${(actualImages && actualImages.length > 0) ? 'has-images' : ''}" style="position: relative;">
-            ${(actualImages && actualImages.length > 0) ? `
-                <!-- Carrusel de imágenes de evidencia: ocupa el ancho completo (bordes de extremo a extremo) -->
-                <div class="card-images-container ${actualImages.length > 1 ? 'is-carousel' : 'single-image'}" style="margin: -20px -20px 20px -20px; border-radius: 16px 16px 0 0; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; display: flex; background: #000;">
-                    ${actualImages.map(url => `<img src="${escapeAttr(url)}" alt="Evidencia de causa" loading="lazy" style="flex-shrink: 0; width: ${actualImages.length > 1 ? '90%' : '100%'}; max-height: 240px; min-height: 180px; object-fit: cover; scroll-snap-align: start; border-radius: 0; cursor: pointer;">`).join('')}
-                </div>
-            ` : ''}
+        ${/* [FILTRO] Extraer solo URLs de imágenes reales (R2 uploads / extensiones gráficas) */''}
+        <div class="solidario-cause-card ${((() => { const imgs = (cause.evidence_urls || []).filter(u => u && (u.toLowerCase().includes('/uploads/') || /\.(webp|png|jpg|jpeg|gif)(\?.*)?$/i.test(u))); return imgs.length > 0; })()) ? 'has-images' : ''}" style="position: relative;">
+            ${(() => {
+                // [SEGURIDAD VISUAL] Filtrar evidence_urls para retener solo imágenes reales
+                // Excluir enlaces de Drive, Instagram, TikTok, etc. que causan cajas negras
+                const realImages = (cause.evidence_urls || []).filter(u => {
+                    if (!u || typeof u !== 'string') return false;
+                    const lower = u.toLowerCase();
+                    return lower.includes('/uploads/') || /\.(webp|png|jpg|jpeg|gif)(\?.*)?$/i.test(lower);
+                });
+                if (realImages.length === 0) return '';
+                // Guardar referencia para el lightbox
+                window._currentCauseRealImages = realImages;
+                return `
+                    <div class="cause-carousel-wrapper" style="margin: -20px -20px 20px -20px; border-radius: 16px 16px 0 0; overflow: hidden; position: relative; background: #0a0a14;">
+                        <div class="cause-carousel-track" style="display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; -webkit-overflow-scrolling: touch;">
+                            ${realImages.map(url => `<img src="${escapeAttr(url)}" alt="Evidencia de causa" loading="lazy" style="flex: 0 0 100%; width: 100%; height: 280px; object-fit: cover; scroll-snap-align: center;">`).join('')}
+                        </div>
+                        ${realImages.length > 1 ? `
+                            <button class="carousel-arrow carousel-arrow-left" onclick="this.parentElement.querySelector('.cause-carousel-track').scrollBy({left: -this.parentElement.offsetWidth, behavior: 'smooth'})" aria-label="Imagen anterior" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0.7;transition:opacity 0.3s;">❮</button>
+                            <button class="carousel-arrow carousel-arrow-right" onclick="this.parentElement.querySelector('.cause-carousel-track').scrollBy({left: this.parentElement.offsetWidth, behavior: 'smooth'})" aria-label="Imagen siguiente" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);color:white;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0.7;transition:opacity 0.3s;">❯</button>
+                            <div class="carousel-dots" style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px;">
+                                ${realImages.map((_, i) => `<span class="carousel-dot" style="width:8px;height:8px;border-radius:50%;background:${i === 0 ? 'white' : 'rgba(255,255,255,0.4)'};transition:background 0.3s;"></span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            })()}
             <h1 class="solidario-cause-title" id="solidarioCauseTitle">${escapeHtml(cause.title)}</h1>
             <div class="solidario-cause-meta">
                 <span>👤 Creador: <strong><a href="${creatorLink}"${creatorTarget} class="profile-link" style="color: #a5b4fc; text-decoration: underline;">${creatorIcon}${escapeHtml(cause.creator_username || 'Creador')}</a></strong></span>
@@ -1003,10 +1001,16 @@ function initAuthorPanel(cause) {
 
     // --- EVENTOS DEL DROPZONE ---
     if (editCauseDropzone && editCauseFileInput) {
-        // [BUG FIX] stopPropagation en el input de archivo para evitar que el click
-        // burbujee al contenedor Dropzone y lo active dos veces (doble subida).
-        editCauseFileInput.onclick = (e) => e.stopPropagation();
-        editCauseDropzone.onclick = () => editCauseFileInput.click();
+        // [FIX] Abrir el selector de archivos al hacer clic en el dropzone
+        editCauseDropzone.onclick = (e) => {
+            e.stopPropagation(); // Evitar burbujeo que causa doble apertura del explorador
+            editCauseFileInput.click();
+        };
+
+        // [FIX] Detener burbujeo del input file para no re-disparar el onclick del dropzone
+        editCauseFileInput.onclick = (e) => {
+            e.stopPropagation();
+        };
 
         editCauseDropzone.ondragover = (e) => {
             e.preventDefault();
@@ -1220,8 +1224,13 @@ document.addEventListener('click', (e) => {
         const evidenceLightboxModal = document.getElementById('evidenceLightboxModal');
         const container = document.getElementById('lightboxImagesContainer');
         if (evidenceLightboxModal && container) {
-            // Filtrar solo imágenes reales para el Lightbox (excluye Drive, Instagram, etc.)
-            const imgUrls = filterRealImages(window.currentCause?.evidence_urls || []);
+            // [FILTRO] Solo mostrar imágenes reales en el lightbox, no enlaces de Drive/redes
+            const rawUrls = window.currentCause?.evidence_urls || [];
+            const imgUrls = rawUrls.filter(u => {
+                if (!u || typeof u !== 'string') return false;
+                const lower = u.toLowerCase();
+                return lower.includes('/uploads/') || /\.(webp|png|jpg|jpeg|gif)(\?.*)?$/i.test(lower);
+            });
             if (imgUrls.length > 0) {
                 container.innerHTML = imgUrls.map(url => `
                     <img src="${escapeAttr(url)}" style="max-height: 85vh; max-width: 100%; object-fit: contain; scroll-snap-align: center; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">

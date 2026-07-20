@@ -1158,17 +1158,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 foundation_name: cause.foundation_name,
                 category: 'donation', // Chip de filtrado 'Donaciones'
                 is_humanitarian_cause: true,
-                // Filtrar solo URLs de imágenes reales subidas a R2 (extensiones .webp/.png/.jpg/.jpeg)
-                // Excluye enlaces externos como Google Drive, Instagram, etc. que causarían cajas negras
+                // [FILTRO DE SEGURIDAD VISUAL] Solo retener URLs que sean imágenes reales
+                // subidas a la plataforma (Cloudflare R2 vía /uploads/) o con extensiones
+                // gráficas válidas. Excluye enlaces de Google Drive, Instagram, TikTok, etc.
+                // que causan cajas negras/rotas al renderizarse en <img>.
                 image_urls: (cause.evidence_urls || []).filter(url => {
                     if (!url || typeof url !== 'string') return false;
                     const lower = url.toLowerCase();
-                    return lower.endsWith('.webp') ||
-                           lower.endsWith('.png')  ||
-                           lower.endsWith('.jpg')  ||
-                           lower.endsWith('.jpeg') ||
-                           lower.endsWith('.gif')  ||
-                           lower.includes('/uploads/');
+                    // Aceptar URLs que contengan /uploads/ (Cloudflare R2)
+                    if (lower.includes('/uploads/')) return true;
+                    // Aceptar URLs que terminen en extensiones de imagen conocidas
+                    if (/\.(webp|png|jpg|jpeg|gif)(\?.*)?$/i.test(lower)) return true;
+                    // Rechazar todo lo demás (Drive, Instagram, Facebook, etc.)
+                    return false;
                 }),
                 available_slots: 1,
                 blue_cost: 0

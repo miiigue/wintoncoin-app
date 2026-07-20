@@ -55,9 +55,7 @@ router.get('/check-referral/:code', async (req, res) => {
 // ==  Seguridad: Validación de URL, límites de longitud, sanitización           ==
 // =================================================================================
 router.post('/postulacion', authenticateToken, async (req, res) => {
-    const { username, titulo, historia, meta, evidencia_link, redes_sociales,
-            beneficiary_referral_code, foundation_name, beneficiary_socials,
-            image_uploads } = req.body; // image_uploads: arreglo opcional de URLs subidas a R2
+    const { username, titulo, historia, meta, evidencia_link, redes_sociales, beneficiary_referral_code, foundation_name, beneficiary_socials } = req.body;
 
     // --- VALIDACIÓN DE COHERENCIA DE SEGURIDAD (ANTI-SPOOFING) ---
     // Impide que un usuario autenticado postule causas en nombre de otro usuario
@@ -167,32 +165,46 @@ router.post('/postulacion', authenticateToken, async (req, res) => {
             return res.status(400).json({ message: "Actualmente posees una causa en curso o en revisión. Debes culminarla antes de postular una nueva." });
         }
 
-        // 3. Insertar en la tabla humanitarian_causes (Migración 038 + 071 + 072 + 073)
-        // Las imágenes reales de R2 se colocan PRIMERO para que sean visibles inmediatamente.
-        // Luego vienen el enlace de Drive (evidencia documental) y las redes sociales.
-        let imageUploadUrls = [];
-        if (Array.isArray(image_uploads) && image_uploads.length > 0) {
-            // [SEGURIDAD] Validar que cada URL de imagen provenga de nuestro CDN R2
-            // y no sea un enlace externo inyectado maliciosamente (prevención de SSRF).
-            const cdnBase = process.env.S3_PUBLIC_URL || '';
-            for (const imgUrl of image_uploads) {
-                if (typeof imgUrl !== 'string' || !imgUrl.startsWith('https')) {
-                    return res.status(400).json({ message: 'URL de imagen inválida en image_uploads.' });
+        // 3. Construir arreglo de evidencias combinando:
+        //    - El enlace de nube (Drive, Dropbox, etc.)
+        //    - Los enlaces de redes sociales del creador
+        //    - Las imágenes subidas directamente (Cloudflare R2)
+        const allUrls = [evidencia_link.trim(), ...redesArray];
+
+        // --- VALIDACIÓN 5: Imágenes subidas (opcional, máx. 3) ---
+        // Las imágenes se suben al endpoint /api/media/upload y llegan aquí
+        // como un array de URLs de Cloudflare R2 ya procesadas.
+        const { uploaded_image_urls } = req.body;
+        if (uploaded_image_urls && Array.isArray(uploaded_image_urls)) {
+            // [SEGURIDAD] Limitar a 3 imágenes por postulación
+            if (uploaded_image_urls.length > 3) {
+                return res.status(400).json({ message: "No se permiten más de 3 imágenes por postulación." });
+            }
+
+            // [SEGURIDAD] Validar que cada URL sea HTTPS y tenga extensión de imagen válida
+            const allowedImageExtensions = /\.(webp|png|jpg|jpeg|gif)(\?.*)?$/i;
+            for (const imgUrl of uploaded_image_urls) {
+                if (typeof imgUrl !== 'string' || imgUrl.length > 2048) {
+                    return res.status(400).json({ message: "Una de las URLs de imagen es inválida." });
                 }
-                // Solo aceptar URLs de nuestro propio CDN R2 o que terminen en extensiones de imagen
-                const lower = imgUrl.toLowerCase();
-                const isRealImage = lower.endsWith('.webp') || lower.endsWith('.png') ||
-                                    lower.endsWith('.jpg') || lower.endsWith('.jpeg') ||
-                                    lower.endsWith('.gif') || lower.includes('/uploads/');
-                if (!isRealImage) {
-                    return res.status(400).json({ message: 'Solo se permiten URLs de imágenes válidas en image_uploads.' });
+                try {
+                    const parsedUrl = new URL(imgUrl);
+                    if (parsedUrl.protocol !== 'https:') {
+                        return res.status(400).json({ message: "Las URLs de imagen deben usar HTTPS." });
+                    }
+                } catch (_) {
+                    return res.status(400).json({ message: "Una de las URLs de imagen no es válida." });
+                }
+                // Solo aceptar URLs que sean archivos de imagen reales o de /uploads/
+                if (!allowedImageExtensions.test(imgUrl) && !imgUrl.includes('/uploads/')) {
+                    return res.status(400).json({ message: "Solo se permiten imágenes en formato WebP, PNG, JPG o GIF." });
                 }
             }
-            // Máximo 3 imágenes para evitar abuso del límite
-            imageUploadUrls = image_uploads.slice(0, 3);
+
+            // Agregar las imágenes válidas al arreglo de evidencias
+            allUrls.push(...uploaded_image_urls);
         }
 
-        const allUrls = [...imageUploadUrls, evidencia_link.trim(), ...redesArray];
         const evidenceUrls = JSON.stringify(allUrls);
         const insertSql = `
             INSERT INTO humanitarian_causes 
