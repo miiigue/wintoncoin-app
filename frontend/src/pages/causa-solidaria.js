@@ -285,8 +285,8 @@ function buildCauseHTML(cause, donations) {
         <!-- TARJETA PRINCIPAL -->
         <div class="solidario-cause-card ${(actualImages && actualImages.length > 0) ? 'has-images' : ''}" style="position: relative;">
             ${(actualImages && actualImages.length > 0) ? `
-                <div class="card-images-container ${actualImages.length > 1 ? 'is-carousel' : 'single-image'}" style="margin: -20px -20px 20px -20px; border-radius: 16px 16px 0 0; overflow: hidden; background: #000; display: flex; gap: 8px;">
-                    ${actualImages.map(url => `<img src="${escapeAttr(url)}" alt="Evidencia de causa" loading="lazy" style="max-height: 200px; width: ${actualImages.length > 1 ? '90%' : '100%'}; object-fit: cover; scroll-snap-align: center; border-radius: 0;">`).join('')}
+                <div class="card-images-container ${actualImages.length > 1 ? 'is-carousel' : 'single-image'}">
+                    ${actualImages.map(url => `<img src="${escapeAttr(url)}" alt="Evidencia de causa" loading="lazy">`).join('')}
                 </div>
             ` : ''}
             <h1 class="solidario-cause-title" id="solidarioCauseTitle">${escapeHtml(cause.title)}</h1>

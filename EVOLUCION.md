@@ -21,6 +21,11 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 
 
+### 2026-07-20 — Corrección de Scroll y Altura del Carrusel en Detalle de Causas
+* **Cambio**: Removidos estilos inline del contenedor de imágenes en causa-solidaria.js y creadas reglas CSS específicas en style.css para habilitar el scroll horizontal de evidencias, aplicar peeking del 90% y fijar una altura de 280px consistente.
+* **Evidencia**: Modificaciones en causa-solidaria.js y style.css.
+* **Impacto**: Resuelve el carrusel bloqueado y la distorsión/recorte de portadas en el detalle de la causa.
+
 ### 2026-07-20 — Carga de Imágenes en Postulación Solidaria y Filtro de Enlaces No-Imagen
 * **Cambio**: Incorporado Dropzone de subida al formulario de postulación original (solicitud-solidaria.html), modificado el backend para procesar el arreglo (solidarioRoutes.js) y agregado un filtro del lado del cliente en el feed y detalles para omitir enlaces no-imagen (como Drive o Instagram) que causaban imágenes rotas.
 * **Evidencia**: Modificaciones en solicitud-solidaria.html, solidarioRoutes.js, contract-interaction.js y causa-solidaria.js.
