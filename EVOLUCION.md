@@ -18,8 +18,10 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - **Middleware (`authMiddleware.js`)**: Creado e inyectado el nuevo middleware dual `authenticateUserOrAdmin`, el cual valida firmas de tokens usando `JWT_SECRET` para usuarios regulares y `ADMIN_SECRET_KEY` para administradores.
   - **Rutas (`mediaRoutes.js`)**: Modificado el endpoint `/upload` para utilizar `authenticateUserOrAdmin` en lugar del middleware restrictivo `authenticateToken`.
   - **Frontend (`admin-panel.js`)**: Corregido el llamado a `fetch` al subir imágenes a `/api/media/upload` agregando `credentials: 'include'` para transmitir la cookie HttpOnly `admin_token`, y removiendo el uso inoperante de `localStorage.getItem('admin_token')`.
-* **Evidencia**: Modificaciones en `authMiddleware.js`, `mediaRoutes.js`, y `admin-panel.js`.
-* **Impacto**: Se resolvió el bug crítico en producción en el que subir una imagen desde el panel administrativo devolvía un error `401 Unauthorized` por firma inválida, lo cual gatillaba el interceptor de seguridad global de `auth.js` expulsando al administrador de su sesión inmediatamente. Ahora, tanto administradores como usuarios finales pueden subir imágenes de forma segura y transparente.
+  - **Controlador de Admin (`adminController.js`)**: Corregida la función `updatePlatformPublication` que omitía por completo los campos `image_urls` y `requires_evidence` en la desestructuración del cuerpo y en la consulta SQL de `UPDATE`. Se incluyó la validación de límites contra `app_settings`.
+  - **Tests (`platformFormFields.test.js`)**: Actualizado el suite de pruebas unitarias para mockear la consulta a `app_settings` introducida por el conteo de imágenes y ajustar el índice de verificación de la llamada a `pool.query`.
+* **Evidencia**: Modificaciones en `authMiddleware.js`, `mediaRoutes.js`, `admin-panel.js`, `adminController.js` y `platformFormFields.test.js`.
+* **Impacto**: Se resolvió el bug crítico en producción en el que subir una imagen desde el panel administrativo devolvía un error `401 Unauthorized` por firma inválida, lo cual gatillaba el interceptor de seguridad global de `auth.js` expulsando al administrador de su sesión inmediatamente. Adicionalmente, se habilitó el guardado correcto de imágenes y el flag de "exigir evidencias" al editar publicaciones de plataforma que el backend omitía.
 
 ### 2026-07-20 — Unificación de Carruseles: Feed de Tarjetas y Detalles
 * **Cambio**: 
