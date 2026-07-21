@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const { authenticateToken } = require('../middleware/authMiddleware');
+const { authenticateUserOrAdmin } = require('../middleware/authMiddleware');
 const mediaController = require('../controllers/mediaController');
 
 const router = express.Router();
@@ -53,7 +53,7 @@ const multerErrorHandler = (err, req, res, next) => {
 
 router.post(
     '/upload', 
-    authenticateToken, // Solo usuarios logueados (o admins que comparten este flujo) pueden subir
+    authenticateUserOrAdmin, // Permite que tanto usuarios comunes como administradores suban imágenes
     upload.array('images', 5), // 'images' es el nombre del campo FormData, máx 5
     multerErrorHandler,
     mediaController.uploadImages

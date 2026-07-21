@@ -996,10 +996,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 formData.append('images', file);
                 
                 try {
-                    const token = localStorage.getItem('admin_token');
                     const res = await fetch(`${API_URL}/api/media/upload`, {
                         method: 'POST',
-                        headers: { ...(token && { 'Authorization': `Bearer ${token}` }) },
+                        credentials: 'include',
                         body: formData
                     });
                     

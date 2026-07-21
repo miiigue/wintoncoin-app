@@ -13,6 +13,14 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-21 — Autenticación Dual en Carga de Medios (Fix Cierre de Sesión de Admin)
+* **Cambio**: 
+  - **Middleware (`authMiddleware.js`)**: Creado e inyectado el nuevo middleware dual `authenticateUserOrAdmin`, el cual valida firmas de tokens usando `JWT_SECRET` para usuarios regulares y `ADMIN_SECRET_KEY` para administradores.
+  - **Rutas (`mediaRoutes.js`)**: Modificado el endpoint `/upload` para utilizar `authenticateUserOrAdmin` en lugar del middleware restrictivo `authenticateToken`.
+  - **Frontend (`admin-panel.js`)**: Corregido el llamado a `fetch` al subir imágenes a `/api/media/upload` agregando `credentials: 'include'` para transmitir la cookie HttpOnly `admin_token`, y removiendo el uso inoperante de `localStorage.getItem('admin_token')`.
+* **Evidencia**: Modificaciones en `authMiddleware.js`, `mediaRoutes.js`, y `admin-panel.js`.
+* **Impacto**: Se resolvió el bug crítico en producción en el que subir una imagen desde el panel administrativo devolvía un error `401 Unauthorized` por firma inválida, lo cual gatillaba el interceptor de seguridad global de `auth.js` expulsando al administrador de su sesión inmediatamente. Ahora, tanto administradores como usuarios finales pueden subir imágenes de forma segura y transparente.
+
 ### 2026-07-20 — Unificación de Carruseles: Feed de Tarjetas y Detalles
 * **Cambio**: 
   - **Tarjetas del Feed (`contract-interaction.js`)**: Modificado el carrusel de publicaciones para ocupar el 100% del ancho (eliminando la visualización del 90% de la siguiente imagen). Se envolvió el contenedor en un `.card-images-wrapper` y se integraron puntos indicadores (dots) interactivos que se actualizan mediante un listener `onscroll`. También se eliminó el prefijo de texto `"Meta: "` de la etiqueta de valor de donación (ribbon superior derecho) para maximizar el espacio en pantallas pequeñas.

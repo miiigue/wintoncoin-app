@@ -206,8 +206,102 @@ const requireActiveGuardian = async (req, res, next) => {
     }
 };
 
+/**
+ * Middleware dual que permite autenticar TANTO a usuarios comunes (auth_token/JWT_SECRET)
+ * COMO a administradores (admin_token/ADMIN_SECRET_KEY).
+ * Utilizado para endpoints compartidos como la subida de imágenes.
+ */
+const authenticateUserOrAdmin = (req, res, next) => {
+    // 1. Intentamos obtener el token de usuario normal
+    let userToken = req.cookies ? req.cookies.auth_token : null;
+    if (!userToken) {
+        const authHeader = req.headers['authorization'];
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            userToken = authHeader.split(' ')[1];
+        }
+    }
+
+    // 2. Intentamos obtener el token de administrador
+    let adminToken = req.cookies ? req.cookies.admin_token : null;
+    if (!adminToken) {
+        const authHeader = req.headers['authorization'];
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            adminToken = authHeader.split(' ')[1];
+        }
+    }
+
+    // Si no hay ningún tipo de token, denegamos el acceso
+    if (!userToken && !adminToken) {
+        return res.status(401).json({ message: 'Acceso denegado. Se requiere token de autenticación (usuario o administrador).' });
+    }
+
+    // Intentamos verificar primero el token de usuario
+    if (userToken) {
+        jwt.verify(userToken, process.env.JWT_SECRET, (err, user) => {
+            if (!err && user && user.tokenType === 'access') {
+                req.user = user;
+                return next();
+            }
+            
+            // Si falló el de usuario pero hay token de admin, intentamos con admin
+            if (adminToken) {
+                return verifyAdminToken(adminToken, req, res, next);
+            }
+            return res.status(401).json({ message: 'Token de sesión inválido o expirado.' });
+        });
+    } else {
+        // Solo hay token de administrador disponible
+        return verifyAdminToken(adminToken, req, res, next);
+    }
+};
+
+// Función auxiliar para verificar el token administrativo
+const verifyAdminToken = (token, req, res, next) => {
+    jwt.verify(token, process.env.ADMIN_SECRET_KEY, async (err, decoded) => {
+        if (err) {
+            return res.status(401).json({ message: 'Token administrativo inválido o expirado.' });
+        }
+
+        if (process.env.NODE_ENV === 'test') {
+            req.user = {
+                userId: decoded.userId || decoded.id,
+                username: decoded.username,
+                role: decoded.role || 'admin'
+            };
+            return next();
+        }
+
+        try {
+            const result = await pool.query(
+                'SELECT account_status, role FROM admin_users WHERE id = $1',
+                [decoded.userId]
+            );
+
+            if (result.rowCount === 0) {
+                return res.status(403).json({ message: 'Cuenta administrativa no encontrada.' });
+            }
+
+            const adminUser = result.rows[0];
+            if (adminUser.account_status !== 'active') {
+                return res.status(403).json({ message: 'La cuenta administrativa está inactiva o suspendida.' });
+            }
+
+            req.user = {
+                userId: decoded.userId,
+                username: decoded.username,
+                role: adminUser.role || 'admin'
+            };
+            next();
+        } catch (dbError) {
+            console.error('[AUTH USER OR ADMIN] Error al validar administrador en DB:', dbError);
+            return res.status(500).json({ message: 'Error interno de base de datos al validar la sesión.' });
+        }
+    });
+};
+
 module.exports = {
     authenticateToken,
     authenticateAdmin,
     requireActiveGuardian,
+    authenticateUserOrAdmin,
 };
