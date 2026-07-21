@@ -1982,7 +1982,7 @@ async function createPlatformPublication(req, res) {
  */
 async function updatePlatformPublication(req, res) {
     const { id } = req.params;
-    const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours, repeatCooldownDays, repeatCooldownMinutes, targetUsername, formFields } = req.body;
+    const { title, description, cost: costString, availableSlots: slotsString, isSellPost, autoApprove, isBoosterTask, allowRepeatParticipation, maxRepeatPerUser, repeatCooldownHours, repeatCooldownDays, repeatCooldownMinutes, targetUsername, formFields, image_urls, requires_evidence } = req.body;
 
     if (!title || !description || !costString) {
         return res.status(400).json({ message: "Faltan datos: título, descripción y costo son requeridos." });
@@ -2043,6 +2043,12 @@ async function updatePlatformPublication(req, res) {
         // [SECURITY] Sanitización modular de formFields usando helper para evitar duplicación (Hallazgo #7 Auditoría)
         const sanitizedFormFields = _sanitizeFormFields(formFields);
 
+        // === VALIDACIÓN DE IMÁGENES ===
+        const settingsResult = await pool.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'max_images_platform'`);
+        const maxAllowedImages = parseInt(settingsResult.rows[0]?.setting_value || '3', 10);
+        const urlsToSave = (Array.isArray(image_urls) ? image_urls : []).slice(0, maxAllowedImages);
+        const demandsEvidence = !!requires_evidence;
+
         const updateSql = `
             UPDATE publications
             SET title = $1,
@@ -2058,8 +2064,10 @@ async function updatePlatformPublication(req, res) {
                 target_username = $11,
                 form_fields = $12,
                 show_preflight_modal = $13,
+                image_urls = $14,
+                requires_evidence = $15,
                 updated_at = NOW()
-            WHERE id = $14
+            WHERE id = $16
         `;
 
         await pool.query(updateSql, [
@@ -2076,6 +2084,8 @@ async function updatePlatformPublication(req, res) {
             sanitizedTargetUsername,
             sanitizedFormFields,
             !!req.body.showPreflightModal,
+            urlsToSave,
+            demandsEvidence,
             id
         ]);
 
