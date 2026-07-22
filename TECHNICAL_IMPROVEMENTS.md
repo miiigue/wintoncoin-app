@@ -316,3 +316,23 @@ Estas mejoras **no son obligatorias para que el sistema funcione hoy**, pero son
 **Beneficios:**
 - Protección total del token de sesión contra robos vía XSS.
 - Alineación con los estándares FinTech y SOC 2 de máxima seguridad de datos de usuario.
+
+---
+
+## 12. Plan de Refactorización y Auditoría del Frontend
+
+**Prioridad: Alta (Mantenibilidad, UX y Seguridad Client-Side)**
+
+**Problemas Identificados:**
+1. **Controladores Frontend Monolíticos**: Archivos como `contract-interaction.js` (~3,100+ líneas) y `admin-panel.js` (~6,500+ líneas) concentran múltiples responsabilidades (feed, modales, temporizadores de deuda/escrow, encuestas y ratings), dificultando el mantenimiento y las pruebas automatizadas.
+2. **Ambigüedad Visual en Saldos**: Falta diferenciar explícitamente en la UI el token de activo `BLUE` circulante (post-lanzamiento) de los pagarés `BLUE IOU` (perfil de impulsor/pre-lanzamiento), previniendo confusión en transferencias.
+3. **Auditoría y Telemetría Client-Side**: Ausencia de trazabilidad y logs estandarizados en el cliente ante eventos financieros o errores de interacción Web3.
+4. **Optimización Responsiva Móvil**: Necesidad de garantizar Touch Targets mayores a 48px y evitar overflow horizontal en modales e historiales P2P para pantallas estrechas (<380px).
+5. **Consistencia de Entradas Multi-Página en Vite**: Requisito de mantener al día `vite.config.js` ante cualquier creación o cambio de nombre de vistas HTML para garantizar compilación limpia en producción.
+
+**Solución Propuesta:**
+1. **Modularización Progresiva**: Desacoplar gradualmente los controladores monolíticos en módulos especializados (`feedManager.js`, `walletManager.js`, `countdownManager.js`, `ratingModal.js`).
+2. **Clarificación UI de Tokens**: Añadir indicadores visuales (badging / tooltips explicativos) entre saldo líquido y saldo IOU.
+3. **Logs Auditables Client-Side**: Implementar logger estandarizado para eventos críticos de cliente.
+4. **UX Responsiva Élite**: Ajustar la rejilla de modales y tablas P2P para cumplimiento de guías estilo Binance/Coinbase/Rappi.
+5. **Sincronización Vite**: Automatizar o verificar las entradas de `rollupOptions.input` en `vite.config.js`.

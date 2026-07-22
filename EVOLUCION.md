@@ -13,6 +13,29 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-22 — Diagnóstico Frontend, Sección de Voluntariado y Corrección de Coherencia Narrativa en SOS Venezuela
+* **Cambio**: 
+  - **Mejoras Técnicas ([TECHNICAL_IMPROVEMENTS.md](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/TECHNICAL_IMPROVEMENTS.md))**: Incorporada la Sección 12 describiendo el Plan de Refactorización y Auditoría del Frontend (modularización de `contract-interaction.js` y `admin-panel.js`, clarificación de saldos `BLUE Token` vs `BLUE IOU`, auditoría de eventos client-side, optimización UX responsiva y verificación multi-página en `vite.config.js`).
+  - **Campañas Humanitarias ([sos-venezuela.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/sos-venezuela.html))**: 
+    1. Corregida la incoherencia en las "Fases de los BLUE IOU donados": sustituido "Creación" en el Paso 1 por **"Selección"** (badge `SELECCIÓN` e icono diana 🎯) para reflejar la elección del usuario, y alineados badges del Paso 5 a **"ASIGNACIÓN"**. Y reemplazado "Ciclo de vida" por "Fases".
+    2. Rediseñada la sección de **Convocatoria de Voluntarios y Difusión** ("Únete como Voluntario y Difunde la Campaña") integrando un **fondo suave ambientado con la Bandera de Venezuela 🇻🇪** (gradiente tricolor sutil y listón superior), retirando la etiqueta `CANALIZACIÓN DE AYUDA SOCIAL ACTIVA` de la cabecera, removiendo la frase *"la entrega de insumos"*, incorporando un **mensaje motivacional de alianzas en formato píldora azul fina** (*"Aún queda mucho por hacer: cualquier asociación, organización o propuesta es bienvenida para sumar esfuerzos"*), sustituyendo el bloque CTA por una caja clara con enlace a **@cadenasosvenezuela** en Instagram, y actualizando el texto de la tarjeta de **Difusión Directa** para enfatizar que las familias afectadas pueden aprovechar y obtener el bono por registrarse.
+    3. Homologado el tamaño y contenedor de la sección **"Nuestro Compromiso: Cero Margen de Lucro"** utilizando la estructura estándar `compliance-box` (mismo ancho y padding de las demás tarjetas de la página) y retirada la frase final *"En tiempos de crisis, la solidaridad está por encima de cualquier beneficio corporativo"*.
+* **Evidencia**: Actualización en [TECHNICAL_IMPROVEMENTS.md](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/TECHNICAL_IMPROVEMENTS.md), [sos-venezuela.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/sos-venezuela.html) y [EVOLUCION.md](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/EVOLUCION.md).
+* **Impacto**: Coherencia del 100% en la explicación pública del ciclo de donaciones humanitarias, habilitación de un canal directo para reclutamiento de veedores en terreno y consolidación de la hoja de ruta de refactorización del frontend orientada a estándares bancarios y SOC 2.
+
+### 2026-07-21 — Modularización Profesional del Controlador Administrativo (`adminController.js`)
+* **Cambio**: 
+  - **Arquitectura & Clean Code (Patrón Fachada)**: Se refactorizó el archivo monolítico `adminController.js` (3,311 líneas y 56 funciones) dividiéndolo en 5 submódulos especializados dentro del directorio `src/controllers/admin/` aplicando el Principio de Responsabilidad Única (SRP):
+    1. `adminAuthSecurityController.js`: Autenticación, OTP, Roles, Invitaciones y Sesiones de Administrador.
+    2. `adminUserController.js`: Gestión de Usuarios, Estados de Cuenta, Código de Referido y Sincronización KYC on-chain.
+    3. `adminPublicationsController.js`: Moderación de Tareas, Soft-Delete, Restauración y Publicaciones Institucionales de la Plataforma.
+    4. `adminSystemSettingsController.js`: Configuraciones Globales (`app_settings`), Tramos de Referidos y Multiplicadores Booster.
+    5. `adminAuditStatsController.js`: Métricas del Dashboard, Auditoría (`audit_log`), Billetera de Plataforma, Limpieza de BD y Entorno Demo.
+  - **Compatibilidad 100% (Zero Regressions)**: `adminController.js` se transformó en un archivo Fachada de Re-exportación Unificada (`module.exports = { ...sub1, ...sub2, ... }`), garantizando la preservación exacta de las firmas y referencias de importación sin modificar `adminRoutes.js` ni causar rupturas en Express.
+  - **Auditoría & Pruebas**: Verificación ejecutada pre y post refactorización mediante la suite automatizada Jest (`npm test`), confirmando un resultado de 14/14 tests aprobados al 100%.
+* **Evidencia**: Archivos creados en `src/controllers/admin/` y actualización del archivo fachada [adminController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/adminController.js).
+* **Impacto**: Reducción drástica de la complejidad cognitiva del módulo administrativo, aislamiento de dominios de seguridad y cumplimiento de los estándares de mantenibilidad y ciberseguridad bancaria SOC 2 / ISO 27001.
+
 ### 2026-07-21 — Autenticación Dual en Carga de Medios (Fix Cierre de Sesión de Admin)
 * **Cambio**: 
   - **Middleware (`authMiddleware.js`)**: Creado e inyectado el nuevo middleware dual `authenticateUserOrAdmin`, el cual valida firmas de tokens usando `JWT_SECRET` para usuarios regulares y `ADMIN_SECRET_KEY` para administradores.
