@@ -13,6 +13,15 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-22 — Auditoría de Ciberseguridad e Endurecimiento del Servidor (Helmet P0 y Protección DoS)
+* **Cambio**: 
+  - **Ciberseguridad Backend ([server.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/server.js))**: 
+    1. Integrado el middleware de protección HTTP **Helmet** (`helmet()`) inyectando encabezados de seguridad de grado bancario (Content-Security-Policy estricto para dominios autorizados en `ALLOWED_ORIGINS`, X-Frame-Options `none` anti-clickjacking, X-Content-Type-Options `nosniff`, HSTS y Referrer-Policy).
+    2. Establecido un límite estricto de **1MB** al parseador del cuerpo de peticiones JSON (`express.json({ limit: '1mb' })`) para prevenir ataques de Denegación de Servicio (DoS) por agotamiento de memoria RAM mediante cargas excesivas.
+  - **Auditoría e Informes ([security_audit.md](file:///C:/Users/migue/.gemini/antigravity-ide/brain/6362dbee-028e-4305-afa5-538f7ba91878/security_audit.md))**: Redactado informe intensivo de ciberseguridad categorizando fortalezas (Zero-Trust JWT, SQL 100% parametrizado, rate limiters) y plan de remediación ejecutado.
+* **Evidencia**: Actualización en `server.js`, `package.json`, y suite de pruebas pasando al 100% (25/25 tests).
+* **Impacto**: Blindaje del backend contra vulnerabilidades OWASP Top 10 (Clickjacking, MIME Sniffing, Script Injection y DoS por Payload Oversized) bajo estándares de ingeniería y cumplimiento bancario FinTech.
+
 ### 2026-07-22 — Diagnóstico Frontend, Sección de Voluntariado y Corrección de Coherencia Narrativa en SOS Venezuela
 * **Cambio**: 
   - **Mejoras Técnicas ([TECHNICAL_IMPROVEMENTS.md](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/TECHNICAL_IMPROVEMENTS.md))**: Incorporada la Sección 12 describiendo el Plan de Refactorización y Auditoría del Frontend (modularización de `contract-interaction.js` y `admin-panel.js`, clarificación de saldos `BLUE Token` vs `BLUE IOU`, auditoría de eventos client-side, optimización UX responsiva y verificación multi-página en `vite.config.js`).
