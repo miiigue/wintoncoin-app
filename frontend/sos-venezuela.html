@@ -20,6 +20,37 @@
     <link rel="stylesheet" href="landing.css">
     <link rel="stylesheet" href="landing-fomo.css">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <style>
+        .vzla-flag-bg {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(180deg, rgba(255, 204, 0, 0.05) 0%, rgba(0, 51, 160, 0.05) 50%, rgba(207, 20, 43, 0.05) 100%), #ffffff !important;
+            border: 1px solid rgba(255, 204, 0, 0.4) !important;
+        }
+        .vzla-flag-bg::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 6px;
+            background: linear-gradient(90deg, #ffcc00 33.33%, #0033a0 33.33%, #0033a0 66.66%, #cf142b 66.66%);
+            z-index: 0;
+        }
+        .vzla-flag-bg::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: 
+                radial-gradient(circle at 10% 10%, rgba(255, 204, 0, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 50%, rgba(0, 51, 160, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 25% 90%, rgba(207, 20, 43, 0.15) 0%, transparent 40%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .vzla-flag-bg > * {
+            position: relative;
+            z-index: 1;
+        }
+    </style>
 </head>
 
 <body class="sos-portal-body">
@@ -64,7 +95,6 @@
                 </p>
                 <div class="sos-cta-group">
                     <a href="register.html?ref=SOSVENEZUELA" class="btn-primary-campaign">Registrarse y Apoyar Causa</a>
-                    <a href="#bitacora" class="btn-secondary-campaign">Ver Bitácora de Transparencia ↓</a>
                 </div>
             </div>
         </div>
@@ -73,7 +103,7 @@
     <!-- Sección de Compromiso Solidario WTN Solutions (Mismo tamaño y estilo compliance-box que las demás secciones) -->
     <section class="sos-compliance-section">
         <div class="container">
-            <div class="compliance-box" style="text-align: center;">
+            <div class="compliance-box vzla-flag-bg" style="text-align: center;">
                 <div class="compliance-header" style="margin-bottom: 0;">
                     <div class="shield-icon">❤️</div>
                     <h2 style="font-size: clamp(1.8rem, 4vw, 2.3rem); font-weight: 800; color: #0f172a; margin-bottom: 1rem; font-family: 'Outfit', sans-serif;">Nuestro Compromiso: Cero Margen de Lucro</h2>
@@ -86,7 +116,7 @@
     </section>
 
     <!-- Sección del Proceso de los BLUE IOU -->
-    <section class="sos-timeline-section" id="bitacora">
+    <section class="sos-timeline-section vzla-flag-bg" id="bitacora" style="padding-top: 4rem; padding-bottom: 4rem; margin: 2rem 0; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
         <div class="container">
             <!-- Advertencia contra Estafas (Ubicación Centralizada) -->
             <div class="alert-scam-warning" style="background: #ffffff; border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 12px; padding: 1.2rem; margin: 0 auto 3.5rem; max-width: 800px; color: #b91c1c; font-size: 0.95rem; line-height: 1.6; text-align: left; display: flex; gap: 0.8rem; align-items: flex-start; box-shadow: 0 15px 40px rgba(15, 23, 42, 0.04);">
@@ -195,17 +225,9 @@
     <!-- Sección de Convocatoria de Voluntarios y Difusión (Bandera de Venezuela de Fondo & Sin Íconos/Fondo Oscuro) -->
     <section class="sos-compliance-section" style="padding-top: 1rem; padding-bottom: 3rem;">
         <div class="container">
-            <div class="compliance-box" style="position: relative; overflow: hidden; background: linear-gradient(180deg, rgba(255, 204, 0, 0.05) 0%, rgba(0, 51, 160, 0.05) 50%, rgba(207, 20, 43, 0.05) 100%), #ffffff; border: 1px solid rgba(255, 204, 0, 0.4); border-radius: 24px; padding: 3rem 1.8rem; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.06); text-align: center;">
+            <div class="compliance-box vzla-flag-bg" style="border-radius: 24px; padding: 3rem 1.8rem; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.06); text-align: center;">
 
-                <!-- Listón Tricolor de la Bandera de Venezuela en la parte superior del Card -->
-                <div style="position: absolute; top: 0; left: 0; right: 0; height: 6px; background: linear-gradient(90deg, #ffcc00 33.33%, #0033a0 33.33%, #0033a0 66.66%, #cf142b 66.66%);"></div>
-
-                <!-- Resplandores suaves de la Bandera de Venezuela de fondo -->
-                <div style="position: absolute; top: -30px; left: 10%; width: 220px; height: 220px; background: rgba(255, 204, 0, 0.15); filter: blur(60px); pointer-events: none;"></div>
-                <div style="position: absolute; top: 35%; right: 5%; width: 220px; height: 220px; background: rgba(0, 51, 160, 0.12); filter: blur(60px); pointer-events: none;"></div>
-                <div style="position: absolute; bottom: -30px; left: 25%; width: 220px; height: 220px; background: rgba(207, 20, 43, 0.12); filter: blur(60px); pointer-events: none;"></div>
-
-                <div style="position: relative; z-index: 1;">
+                <div>
                     <!-- Título Principal Grande -->
                     <h2 style="font-size: clamp(1.8rem, 4vw, 2.4rem); font-weight: 800; color: #0f172a; margin-bottom: 0.9rem; font-family: 'Outfit', sans-serif; line-height: 1.25;">
                         Únete como <span style="background: linear-gradient(135deg, #d97706, #0284c7, #dc2626); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Voluntario y Difunde</span> la Campaña
@@ -248,11 +270,11 @@
                         <p style="color: #475569; font-size: clamp(1rem, 2vw, 1.1rem); max-width: 600px; margin: 0 auto 1.6rem; line-height: 1.5;">
                             Escríbenos un mensaje privado por Instagram detallando tu ciudad y cómo deseas colaborar.
                         </p>
-                        <a href="https://www.instagram.com/cadenasosvenezuela?igsh=MTIxcGVnZGs4bm0yYw==" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; justify-content: center; gap: 0.8rem; background: linear-gradient(90deg, #e1306c, #c13584, #833ab4); color: #ffffff; font-weight: 800; font-size: clamp(1rem, 2vw, 1.1rem); padding: 1rem 2.4rem; border-radius: 50px; text-decoration: none; box-shadow: 0 10px 25px rgba(225, 48, 108, 0.3); transition: transform 0.2s; min-height: 48px; width: auto; max-width: 100%; box-sizing: border-box;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16" style="flex-shrink: 0;">
+                        <a href="https://www.instagram.com/cadenasosvenezuela?igsh=MTIxcGVnZGs4bm0yYw==" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem; background: linear-gradient(90deg, #e1306c, #c13584, #833ab4); color: #ffffff; font-weight: 800; font-size: clamp(0.95rem, 1.8vw, 1.05rem); padding: 0.7rem 1.6rem; border-radius: 50px; text-decoration: none; box-shadow: 0 8px 20px rgba(225, 48, 108, 0.25); transition: transform 0.2s; min-height: 44px; width: auto; max-width: 100%; box-sizing: border-box;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" style="flex-shrink: 0;">
                                 <path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0h.003zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599.28.28.453.546.598.92.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.47 2.47 0 0 1-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.478 2.478 0 0 1-.92-.598 2.48 2.48 0 0 1-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233 0-2.136.008-2.388.046-3.231.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92.28-.28.546-.453.92-.598.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045v.002zm4.988 1.328a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92zm-4.27 1.122a4.109 4.109 0 1 0 0 8.217 4.109 4.109 0 0 0 0-8.217zm0 1.441a2.667 2.667 0 1 1 0 5.334 2.667 2.667 0 0 1 0-5.334z"/>
                             </svg>
-                            Escribir a @cadenasosvenezuela en Instagram
+                            Contáctanos
                         </a>
                     </div>
                 </div>
@@ -264,7 +286,7 @@
     <!-- Sección de Preguntas Frecuentes (FAQ de la Campaña) -->
     <section class="sos-compliance-section">
         <div class="container">
-            <div class="compliance-box">
+            <div class="compliance-box vzla-flag-bg">
                 <div class="compliance-header">
                     <div class="shield-icon">💡</div>
                     <h2>Preguntas Frecuentes de la Campaña</h2>
