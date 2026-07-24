@@ -13,6 +13,18 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-23 — Multiplicador Dinámico en Publicaciones y Formularios de Creación (Migración 093 y Recálculo en Vivo)
+* **Cambio**: 
+  - **Base de Datos ([093_add_base_blue_cost_to_publications.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/093_add_base_blue_cost_to_publications.js))**: Creada migración PostgreSQL que añade la columna `base_blue_cost NUMERIC(15, 4)` en la tabla `publications` y retroalimenta las publicaciones existentes.
+  - **Servidor Backend ([publicationController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/publicationController.js) y [adminPublicationsController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/admin/adminPublicationsController.js))**:
+    1. Modificado el guardado de publicaciones para almacenar la cantidad base real ingresada por el creador (`base_blue_cost`).
+    2. Actualizados los endpoints `GET /publications/active` y `GET /api/publications/:id` para calcular dinámicamente el valor total recompuesto `blue_cost`, `current_multiplier` y `current_stage_name` invocando `boosterService.calculateMultipliedAmount()`. Esto garantiza que al cambiar la etapa del multiplicador global, todas las publicaciones abiertas adapten dinámicamente su valor total sin congelar montos.
+  - **Rutas de Sistema ([systemRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/systemRoutes.js) & [systemController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/systemController.js))**: Añadido endpoint público `GET /api/booster/current-multiplier` para exponer el multiplicador y etapa vigentes al cliente web.
+  - **Formularios de Creación ([admin-panel.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/admin-panel.js), [publish.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/publish.js), [admin-panel.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-panel.html), [publish.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/publish.html))**: Incorporada calculadora en tiempo real que muestra al ingresar la cantidad base: `Valor Base: X BLUE × 15x (Etapa 1 - Presale) = Total Final: Z BLUE IOU`.
+  - **Detalle de Publicación ([publication-detail.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/publication-detail.js))**: Añadida una línea breve e integrada en la cabecera: `Base: X BLUE | Multiplicador: 15x (Etapa 1) | Total: Z BLUE IOU`.
+* **Evidencia**: Pruebas de integración automatizadas `npm test` aprobadas al 100% (5/5 suites, 25/25 tests). Compilación de producción/demo finalizada sin errores.
+* **Impacto**: Cumplimiento del requerimiento de multiplicador transparente y recalculado en tiempo real sin romper las tarjetas principales del Feed.
+
 ### 2026-07-22 — Auditoría de Ciberseguridad e Endurecimiento del Servidor (Helmet P0 y Protección DoS)
 * **Cambio**: 
   - **Ciberseguridad Backend ([server.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/server.js))**: 

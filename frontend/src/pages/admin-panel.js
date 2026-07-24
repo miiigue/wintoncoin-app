@@ -287,6 +287,34 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.platformPublicationForm.addEventListener('submit', handlePlatformPublicationSubmit);
         }
 
+        const costInput = document.getElementById('platformPubCost');
+        const calcHelper = document.getElementById('platformPubCostCalculator');
+        if (costInput && calcHelper) {
+            let activeMult = 1.0;
+            let activeStage = 'Sin etapa activa';
+            apiFetch('/api/booster/current-multiplier')
+                .then(data => {
+                    activeMult = data.multiplier || 1.0;
+                    activeStage = data.stageName || 'Sin etapa activa';
+                    updateCalcDisplay();
+                })
+                .catch(() => {
+                    updateCalcDisplay();
+                });
+
+            function updateCalcDisplay() {
+                const val = parseFloat(costInput.value);
+                if (isNaN(val) || val <= 0) {
+                    calcHelper.textContent = `Multiplicador vigente: ${activeMult}x (${activeStage})`;
+                } else {
+                    const total = (val * activeMult).toFixed(4);
+                    calcHelper.textContent = `Valor Base: ${val} BLUE × ${activeMult}x (${activeStage}) = Total Final: ${total} BLUE IOU`;
+                }
+            }
+
+            costInput.addEventListener('input', updateCalcDisplay);
+        }
+
         let platformSearchTimeout;
         if (elements.platformPublicationSearchInput) {
             elements.platformPublicationSearchInput.addEventListener('keyup', () => {

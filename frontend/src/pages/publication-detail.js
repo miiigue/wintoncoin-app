@@ -216,6 +216,21 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
 
+        const baseCostVal = parseFloat(pub.base_blue_cost || pub.blue_cost || 0);
+        const multVal = parseFloat(pub.current_multiplier || 1.0);
+        const stageVal = escapeHtml(pub.current_stage_name || 'Sin etapa activa');
+        const totalVal = formatBalance(pub.blue_cost);
+
+        const singleLineBreakdownHTML = `
+            <div class="multiplier-brief-line" style="margin-top: 10px; padding: 6px 14px; background: rgba(2, 132, 199, 0.07); border: 1px solid rgba(2, 132, 199, 0.2); border-radius: 30px; font-size: 0.88rem; color: #0369a1; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span>Base: <strong>${formatBalance(baseCostVal)} BLUE</strong></span>
+                <span style="opacity: 0.5;">|</span>
+                <span>Multiplicador: <strong>${multVal}x (${stageVal})</strong></span>
+                <span style="opacity: 0.5;">|</span>
+                <span>Total: <strong style="color: #0284c7;">${totalVal} ${blueLabel}</strong></span>
+            </div>
+        `;
+
         const publicationHTML = `
             <div class="detail-header">
                 ${metaBadgeHTML}
@@ -225,6 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="detail-date">el ${new Date(pub.created_at).toLocaleDateString()}</span>
                     ${expirationInfo.html}
                 </div>
+                ${singleLineBreakdownHTML}
                 ${beneficiaryHTML}
             </div>
 
