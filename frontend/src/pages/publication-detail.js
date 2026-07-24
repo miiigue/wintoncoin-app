@@ -218,16 +218,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const baseCostVal = parseFloat(pub.base_blue_cost || pub.blue_cost || 0);
         const multVal = parseFloat(pub.current_multiplier || 1.0);
-        const stageVal = escapeHtml(pub.current_stage_name || 'Sin etapa activa');
         const totalVal = formatBalance(pub.blue_cost);
 
         const singleLineBreakdownHTML = `
-            <div class="multiplier-brief-line" style="margin-top: 10px; padding: 6px 14px; background: rgba(2, 132, 199, 0.07); border: 1px solid rgba(2, 132, 199, 0.2); border-radius: 30px; font-size: 0.88rem; color: #0369a1; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                <span>Base: <strong>${formatBalance(baseCostVal)} BLUE</strong></span>
-                <span style="opacity: 0.5;">|</span>
-                <span>Multiplicador: <strong>${multVal}x (${stageVal})</strong></span>
-                <span style="opacity: 0.5;">|</span>
-                <span>Total: <strong style="color: #0284c7;">${totalVal} ${blueLabel}</strong></span>
+            <div class="multiplier-brief-line" style="margin-top: 8px; padding: 5px 12px; background: rgba(2, 132, 199, 0.07); border: 1px solid rgba(2, 132, 199, 0.2); border-radius: 30px; font-size: 0.78rem; color: #0369a1; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; flex-wrap: nowrap; white-space: nowrap; max-width: 100%; overflow-x: auto;">
+                <span>Base <strong>${formatBalance(baseCostVal)}</strong></span>
+                <span style="opacity: 0.6; font-weight: 400;">x</span>
+                <span>Mult. <strong>${multVal}x</strong></span>
+                <span style="opacity: 0.6; font-weight: 400;">=</span>
+                <strong style="color: #0284c7;">${totalVal} ${blueLabel}</strong>
             </div>
         `;
 
