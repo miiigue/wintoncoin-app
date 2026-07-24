@@ -5,6 +5,7 @@ require('./config.js');
 const express = require('express');
 const pool = require('./src/config/db'); // Importamos la conexión a BD centralizada
 const cors = require('cors');
+const helmet = require('helmet'); // [SEGURIDAD P0] HTTP Security Headers (X-Frame-Options, HSTS, CSP, etc.)
 const cookieParser = require('cookie-parser'); // NECESARIO PARA COOKIES
 const path = require('path');
 const jwt = require('jsonwebtoken');
@@ -73,6 +74,7 @@ const {
 
 
 // 3. Middlewares
+
 // Configuración de CORS segura para permitir cookies
 // CORS allowlist:
 // - En producción: solo dominios reales (Hostinger/Render)
@@ -120,6 +122,32 @@ if (process.env.NODE_ENV !== 'production') {
     );
 }
 
+// [SEGURIDAD P0] Helmet: Inyecta HTTP Security Headers en cada respuesta del servidor.
+// Protege contra: Clickjacking (X-Frame-Options), MIME Sniffing (X-Content-Type-Options),
+// downgrade a HTTP (HSTS), inyección de scripts externos (CSP), fuga de Referer (Referrer-Policy).
+// Referencia OWASP: https://owasp.org/www-project-secure-headers/
+app.use(helmet({
+    // Content-Security-Policy: Controla qué recursos puede cargar el navegador.
+    // Previene inyección de scripts, estilos e imágenes de dominios no autorizados.
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],                                         // Solo recursos del mismo origen por defecto
+            scriptSrc: ["'self'"],                                          // Scripts solo del mismo origen (bloquea inline por defecto)
+            styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'], // Estilos propios + inline (necesario para componentes) + Google Fonts
+            fontSrc: ["'self'", 'https://fonts.gstatic.com'],               // Fuentes propias + Google Fonts CDN
+            imgSrc: ["'self'", 'data:', 'https:'],                          // Imágenes propias + data URIs (SVG inline) + cualquier HTTPS
+            connectSrc: ["'self'", ...ALLOWED_ORIGINS],                     // Conexiones API solo a orígenes permitidos por CORS
+            frameSrc: ["'none'"],                                           // Prohibir iframes de terceros (anti-clickjacking reforzado)
+            objectSrc: ["'none'"],                                          // Bloquear plugins Flash/Java/Silverlight
+            upgradeInsecureRequests: [],                                     // Forzar upgrade de HTTP a HTTPS automáticamente
+        }
+    },
+    // crossOriginEmbedderPolicy: false para permitir carga de fuentes externas (Google Fonts)
+    crossOriginEmbedderPolicy: false,
+    // crossOriginResourcePolicy: false para permitir compartir imágenes subidas entre frontend y backend
+    crossOriginResourcePolicy: false,
+}));
+
 app.use(cors({
     origin: (origin, callback) => {
         // Permitir requests sin Origin (ej: health checks, curl, server-to-server)
@@ -139,7 +167,10 @@ app.use(cors({
     },
     credentials: true // CRÍTICO: Permite cookies entre dominios
 }));
-app.use(express.json());
+// [SEGURIDAD P0] Limitar el tamaño máximo del body JSON a 1MB.
+// Sin este límite, un atacante podría enviar payloads de cientos de MB
+// causando un Denial of Service (DoS) por agotamiento de memoria RAM.
+app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser()); // CRÍTICO: Parsea las cookies de las peticiones
 
 // Inyección dinámica de metatags de SEO (Open Graph) para previsualizaciones en WhatsApp/Telegram/Redes

@@ -41,8 +41,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitButton = document.querySelector('#publishForm button[type="submit"]');
     const blueCostInput = document.getElementById('blueCost');
     const blueSellInput = document.getElementById('blueSell');
+    const pubCostCalculator = document.getElementById('pubCostCalculator');
     const STEP_MARKER_START = '[[INSTRUCTIONS_STEPS]]';
     const STEP_MARKER_END = '[[/INSTRUCTIONS_STEPS]]';
+
+    if (blueCostInput && pubCostCalculator) {
+        let activeMult = 1.0;
+        let activeStage = 'Sin etapa activa';
+        fetch(`${API_URL}/api/booster/current-multiplier`)
+            .then(res => res.json())
+            .then(data => {
+                activeMult = data.multiplier || 1.0;
+                activeStage = data.stageName || 'Sin etapa activa';
+                updatePubCalcDisplay();
+            })
+            .catch(() => updatePubCalcDisplay());
+
+        function updatePubCalcDisplay() {
+            const val = parseFloat(blueCostInput.value.replace(',', '.'));
+            if (isNaN(val) || val <= 0) {
+                pubCostCalculator.textContent = `Multiplicador vigente: ${activeMult}x (${activeStage})`;
+            } else {
+                const total = (val * activeMult).toFixed(4);
+                pubCostCalculator.textContent = `Valor Base: ${val} BLUE × ${activeMult}x (${activeStage}) = Total Final: ${total} BLUE IOU`;
+            }
+        }
+
+        blueCostInput.addEventListener('input', updatePubCalcDisplay);
+    }
 
     // --- Donation Warning Modal ---
     const donationWarningModal = document.getElementById('donationWarningModal');

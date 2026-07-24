@@ -299,6 +299,23 @@ const SystemController = {
             console.error("[SystemController] Error al obtener la configuración de la plataforma:", error);
             res.status(500).json({ message: "Error interno del servidor." });
         }
+    },
+
+    // =========================================================================
+    // Obtener el multiplicador vigente actual y etapa activa (Público)
+    // =========================================================================
+    getCurrentMultiplier: async (req, res) => {
+        try {
+            const boosterService = require('../services/boosterService');
+            const result = await boosterService.calculateMultipliedAmount(1);
+            res.status(200).json({
+                multiplier: result.multiplier || 1.0,
+                stageName: result.stageName || 'Sin etapa activa'
+            });
+        } catch (error) {
+            console.error("[SystemController] Error al obtener multiplicador vigente:", error);
+            res.status(200).json({ multiplier: 1.0, stageName: 'Sin etapa activa' });
+        }
     }
 };
 

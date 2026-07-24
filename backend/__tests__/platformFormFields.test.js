@@ -103,7 +103,7 @@ describe('Admin Form Fields Processor Tests', () => {
 
         // Verificar que formFields se convirtió de strings a objetos {label, type}
         expect(insertQueryCall).toBeDefined();
-        const passedFormFields = insertQueryCall[1][12];
+        const passedFormFields = insertQueryCall[1][13];
 
         // Verificamos que el formato legacy se convirtió correctamente a objetos tipados
         expect(passedFormFields).toBeDefined();
@@ -149,7 +149,7 @@ describe('Admin Form Fields Processor Tests', () => {
         expect(res.statusCode).toEqual(201);
 
         const insertQueryCall = mockPool.query.mock.calls[2];
-        const passedFormFields = insertQueryCall[1][12];
+        const passedFormFields = insertQueryCall[1][13];
 
         expect(passedFormFields).toBeDefined();
         expect(passedFormFields["2"]).toEqual([
@@ -193,7 +193,7 @@ describe('Admin Form Fields Processor Tests', () => {
         expect(res.statusCode).toEqual(201);
 
         const insertQueryCall = mockPool.query.mock.calls[2];
-        const passedFormFields = insertQueryCall[1][12];
+        const passedFormFields = insertQueryCall[1][13];
 
         // Todos los tipos inválidos deben caer a 'text' (whitelist)
         expect(passedFormFields["2"]).toEqual([

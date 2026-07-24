@@ -267,14 +267,15 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             const sql = `
                         INSERT INTO publications
-                            (title, description, blue_cost, is_sell_post, author_id, available_slots, auto_approve, category, expires_at, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, show_preflight_modal, goal_amount, beneficiary_referral_code, image_urls, requires_evidence)
+                            (title, description, blue_cost, base_blue_cost, is_sell_post, author_id, available_slots, auto_approve, category, expires_at, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, show_preflight_modal, goal_amount, beneficiary_referral_code, image_urls, requires_evidence)
                         VALUES
-                            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+                            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
                         RETURNING id
                     `;
             const result = await client.query(sql, [
                 title,
                 description,
+                cost,
                 cost,
                 isSellPost,
                 authorId,
@@ -400,7 +401,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         // Estructura de consulta SQL optimizada con índices y subqueries.
         const sql = `
                 SELECT
-            p.id, p.title, p.description, p.blue_cost, p.created_at, p.status, p.category,
+            p.id, p.title, p.description, p.blue_cost, p.base_blue_cost, p.created_at, p.status, p.category,
             p.is_booster_task, p.is_sell_post, p.available_slots, p.expires_at, p.allow_repeat_participation, p.max_repeat_per_user, p.repeat_cooldown_hours,
             p.goal_amount, p.current_amount, p.image_urls, p.requires_evidence,
                     u.username as author_username,
@@ -539,10 +540,23 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
         try {
             const result = await pool.query(sql, queryParams);
-            const publications = result.rows.map(p => ({
-                ...p,
-                participants: p.participants || [],
-            }));
+            const boosterService = require('../services/boosterService');
+            const currentMultiplierInfo = await boosterService.calculateMultipliedAmount(1);
+            const activeMultiplier = currentMultiplierInfo.multiplier || 1.0;
+            const activeStageName = currentMultiplierInfo.stageName || 'Sin etapa activa';
+
+            const publications = result.rows.map(p => {
+                const baseCost = parseFloat(p.base_blue_cost || p.blue_cost || 0);
+                const dynamicCost = baseCost * activeMultiplier;
+                return {
+                    ...p,
+                    base_blue_cost: baseCost,
+                    current_multiplier: activeMultiplier,
+                    current_stage_name: activeStageName,
+                    blue_cost: dynamicCost,
+                    participants: p.participants || [],
+                };
+            });
             res.status(200).json(publications);
         } catch (error) {
             console.error("Error al obtener las publicaciones activas:", error);
@@ -1719,7 +1733,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             // Esto es más eficiente que hacer múltiples consultas a la base de datos.
             const query = `
             SELECT
-                p.id, p.title, p.description, p.blue_cost, p.status, p.created_at, p.is_paused,
+                p.id, p.title, p.description, p.blue_cost, p.base_blue_cost, p.status, p.created_at, p.is_paused,
                 p.is_sell_post, p.available_slots, p.category, p.expires_at,
                 p.is_quick_sale, p.target_username, p.form_fields, p.show_preflight_modal,
                 p.goal_amount, p.current_amount, p.beneficiary_referral_code,
@@ -1770,6 +1784,15 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             const publication = result.rows[0];
             publication.participants = publication.participants || []; // Asegurarse de que sea un array
+
+            // --- Multiplicador dinámico vigente ---
+            const boosterService = require('../services/boosterService');
+            const baseCost = parseFloat(publication.base_blue_cost || publication.blue_cost || 0);
+            const currentMultiplierInfo = await boosterService.calculateMultipliedAmount(baseCost);
+            publication.base_blue_cost = baseCost;
+            publication.current_multiplier = currentMultiplierInfo.multiplier || 1.0;
+            publication.current_stage_name = currentMultiplierInfo.stageName || 'Sin etapa activa';
+            publication.blue_cost = currentMultiplierInfo.multipliedAmount;
 
             // --- NUEVO: Lógica de Modal Intersticial (Pre-flight) ---
             if (publication.show_preflight_modal) {

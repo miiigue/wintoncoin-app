@@ -13,6 +13,27 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-23 — Multiplicador Dinámico en Publicaciones y Formularios de Creación (Migración 093 y Recálculo en Vivo)
+* **Cambio**: 
+  - **Base de Datos ([093_add_base_blue_cost_to_publications.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/093_add_base_blue_cost_to_publications.js))**: Creada migración PostgreSQL que añade la columna `base_blue_cost NUMERIC(15, 4)` en la tabla `publications` y retroalimenta las publicaciones existentes.
+  - **Servidor Backend ([publicationController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/publicationController.js) y [adminPublicationsController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/admin/adminPublicationsController.js))**:
+    1. Modificado el guardado de publicaciones para almacenar la cantidad base real ingresada por el creador (`base_blue_cost`).
+    2. Actualizados los endpoints `GET /publications/active` y `GET /api/publications/:id` para calcular dinámicamente el valor total recompuesto `blue_cost`, `current_multiplier` y `current_stage_name` invocando `boosterService.calculateMultipliedAmount()`. Esto garantiza que al cambiar la etapa del multiplicador global, todas las publicaciones abiertas adapten dinámicamente su valor total sin congelar montos.
+  - **Rutas de Sistema ([systemRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/systemRoutes.js) & [systemController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/systemController.js))**: Añadido endpoint público `GET /api/booster/current-multiplier` para exponer el multiplicador y etapa vigentes al cliente web.
+  - **Formularios de Creación ([admin-panel.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/admin-panel.js), [publish.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/publish.js), [admin-panel.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-panel.html), [publish.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/publish.html))**: Incorporada calculadora en tiempo real que muestra al ingresar la cantidad base: `Valor Base: X BLUE × 15x (Etapa 1 - Presale) = Total Final: Z BLUE IOU`.
+  - **Detalle de Publicación ([publication-detail.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/publication-detail.js))**: Ajustada la franja en la cabecera a una estructura de fórmula matemática ultra-compacta en una sola línea para teléfonos móviles: `Base 1000,0000 x Mult. 9x = 9000,0000 BLUE IOU` (omitiendo la palabra `BLUE IOU` en la base para evitar redundancia).
+* **Evidencia**: Pruebas de integración automatizadas `npm test` aprobadas al 100% (5/5 suites, 25/25 tests). Compilación de producción/demo finalizada sin errores.
+* **Impacto**: Cumplimiento del requerimiento de multiplicador transparente y recalculado en tiempo real sin romper las tarjetas principales del Feed.
+
+### 2026-07-22 — Auditoría de Ciberseguridad e Endurecimiento del Servidor (Helmet P0 y Protección DoS)
+* **Cambio**: 
+  - **Ciberseguridad Backend ([server.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/server.js))**: 
+    1. Integrado el middleware de protección HTTP **Helmet** (`helmet()`) inyectando encabezados de seguridad de grado bancario (Content-Security-Policy estricto para dominios autorizados en `ALLOWED_ORIGINS`, X-Frame-Options `none` anti-clickjacking, X-Content-Type-Options `nosniff`, HSTS y Referrer-Policy).
+    2. Establecido un límite estricto de **1MB** al parseador del cuerpo de peticiones JSON (`express.json({ limit: '1mb' })`) para prevenir ataques de Denegación de Servicio (DoS) por agotamiento de memoria RAM mediante cargas excesivas.
+  - **Auditoría e Informes ([security_audit.md](file:///C:/Users/migue/.gemini/antigravity-ide/brain/6362dbee-028e-4305-afa5-538f7ba91878/security_audit.md))**: Redactado informe intensivo de ciberseguridad categorizando fortalezas (Zero-Trust JWT, SQL 100% parametrizado, rate limiters) y plan de remediación ejecutado.
+* **Evidencia**: Actualización en `server.js`, `package.json`, y suite de pruebas pasando al 100% (25/25 tests).
+* **Impacto**: Blindaje del backend contra vulnerabilidades OWASP Top 10 (Clickjacking, MIME Sniffing, Script Injection y DoS por Payload Oversized) bajo estándares de ingeniería y cumplimiento bancario FinTech.
+
 ### 2026-07-22 — Diagnóstico Frontend, Sección de Voluntariado y Corrección de Coherencia Narrativa en SOS Venezuela
 * **Cambio**: 
   - **Mejoras Técnicas ([TECHNICAL_IMPROVEMENTS.md](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/TECHNICAL_IMPROVEMENTS.md))**: Incorporada la Sección 12 describiendo el Plan de Refactorización y Auditoría del Frontend (modularización de `contract-interaction.js` y `admin-panel.js`, clarificación de saldos `BLUE Token` vs `BLUE IOU`, auditoría de eventos client-side, optimización UX responsiva y verificación multi-página en `vite.config.js`).
