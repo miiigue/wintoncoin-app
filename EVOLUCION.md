@@ -13,6 +13,20 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-24 — Snapshot de Multiplicadores en Creación/Edición de Publicaciones y Resguardo de Pagos
+* **Cambio**: 
+  - **Servidor Backend ([adminPublicationsController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/admin/adminPublicationsController.js), [publicationController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/publicationController.js))**:
+    1. Ajustada la creación y edición de publicaciones oficiales en el Panel de Administración para que obtengan el multiplicador vigente y congelen inmutablemente el snapshot: `base_blue_cost` (precio base), `applied_multiplier` y `blue_cost` (total recompensado = Base × Multiplicador).
+    2. Actualizado `GET /api/publications` para respetar el valor congelado `p.blue_cost` de la base de datos PostgreSQL, garantizando coherencia absoluta con el feed y detalle.
+  - **Motor de Pagos y Notificaciones ([publicationService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/publicationService.js))**:
+    1. Vinculada la liquidación de recompensa en `processRequestPayment` al snapshot `blue_cost` de la publicación.
+    2. Incorporado resguardo de seguridad en el backend para aplicar el multiplicador activo si la publicación es legacy (donde `blue_cost == base_blue_cost`), previniendo subpagos al trabajador.
+    3. Garantizado que las notificaciones in-app, notificaciones push y correos transaccionales notifiquen el monto total multiplicado exacto (ej. 810.0000 BLUE IOU).
+  - **Panel de Administración Frontend ([admin-panel.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/admin-panel.js))**:
+    1. Actualizado `fillPlatformForm` al presionar "Editar" para cargar `pub.base_blue_cost` en el campo del costo base.
+* **Evidencia**: Pruebas de integración aprobadas y verificación en controladores.
+* **Impacto**: Coherencia total del 100% entre la tarjeta presentada al usuario, los registros de auditoría en la base de datos, el saldo acreditado en el perfil de impulsor y las notificaciones/correos enviados.
+
 ### 2026-07-23 — Multiplicador Dinámico en Publicaciones y Formularios de Creación (Migración 093 y Recálculo en Vivo)
 * **Cambio**: 
   - **Base de Datos ([093_add_base_blue_cost_to_publications.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/093_add_base_blue_cost_to_publications.js))**: Creada migración PostgreSQL que añade la columna `base_blue_cost NUMERIC(15, 4)` en la tabla `publications` y retroalimenta las publicaciones existentes.

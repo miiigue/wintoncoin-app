@@ -3185,7 +3185,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.getElementById('platformPubTitle').value = pub.title || '';
         document.getElementById('platformPubDescription').value = mainText || '';
-        document.getElementById('platformPubCost').value = pub.blue_cost || '';
+        // AUDITORÍA FINTECH: Cargar el precio base real (base_blue_cost) en el campo del costo al editar para permitir al administrador modificar la tarifa base.
+        const baseCostToEdit = pub.base_blue_cost ? pub.base_blue_cost : (pub.blue_cost || '');
+        document.getElementById('platformPubCost').value = baseCostToEdit;
         document.getElementById('platformPubSlots').value = pub.available_slots || 1;
         document.getElementById('platformAutoApprove').checked = !!pub.auto_approve;
         document.getElementById('platformAllowRepeatParticipation').checked = !!pub.allow_repeat_participation;
