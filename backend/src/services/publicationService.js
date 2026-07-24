@@ -158,8 +158,19 @@ async function processRequestCompletion(client, acceptance) {
  * Maneja la lógica económica tanto para el modo normal como para el pre-lanzamiento.
  */
 async function processRequestPayment(client, acceptance, pubId, preLaunchMode, settings) {
-    const { blue_cost, title, author_username: author, author_id: authorId, workerUsername, workerId: workerIdFromQuery } = acceptance;
-    const cost = parseFloat(blue_cost);
+    const { blue_cost, base_blue_cost, title, author_username: author, author_id: authorId, workerUsername, workerId: workerIdFromQuery } = acceptance;
+    let cost = parseFloat(blue_cost || 0);
+    const baseCost = parseFloat(base_blue_cost || 0);
+
+    // AUDITORÍA FINTECH: Resguardo de seguridad para publicaciones sin snapshot congelado en BD (donde blue_cost == base_blue_cost).
+    // Si no se ha congelado el snapshot previo, se aplica el multiplicador de etapa activa para no subpagar al usuario.
+    if (cost > 0 && baseCost > 0 && cost === baseCost) {
+        const boosterService = require('./boosterService');
+        const currentMultiplierInfo = await boosterService.calculateMultipliedAmount(1);
+        const activeMultiplier = parseFloat(currentMultiplierInfo.multiplier || 1.0);
+        cost = baseCost * activeMultiplier;
+    }
+
     // AUDITORÍA FINTECH: Se establece la variable global de resguardo de base de datos
     let web3IntentId = null;
 

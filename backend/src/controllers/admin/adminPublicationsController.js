@@ -286,12 +286,19 @@ async function createPlatformPublication(req, res) {
         const urlsToSave = (Array.isArray(image_urls) ? image_urls : []).slice(0, maxAllowedImages);
         const demandsEvidence = !!requires_evidence;
 
+        // AUDITORÍA FINTECH: Obtención del multiplicador de etapa activa de la plataforma para calcular el snapshot inmutable.
+        const boosterService = require('../../services/boosterService');
+        const currentMultiplierInfo = await boosterService.calculateMultipliedAmount(1);
+        const activeMultiplier = parseFloat(currentMultiplierInfo.multiplier || 1.0);
+        const totalBlueCost = cost * activeMultiplier; // Cálculo del monto total congelado (Base * Multiplicador)
+
         const sql = `
             INSERT INTO publications (title, description, blue_cost, base_blue_cost, is_sell_post, author_id, available_slots, auto_approve, is_booster_task, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, target_username, form_fields, show_preflight_modal, image_urls, requires_evidence) 
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) 
             RETURNING id
         `;
-        const result = await pool.query(sql, [title, description, cost, cost, !!isSellPost, authorId, slots, !!autoApprove, !!isBoosterTask, allowRepeat, maxRepeat, repeatCooldown, sanitizedTargetUsername, sanitizedFormFields, !!req.body.showPreflightModal, urlsToSave, demandsEvidence]);
+        // Inserción congelando el monto total ($3 = totalBlueCost) y el monto base ingresado ($4 = cost)
+        const result = await pool.query(sql, [title, description, totalBlueCost, cost, !!isSellPost, authorId, slots, !!autoApprove, !!isBoosterTask, allowRepeat, maxRepeat, repeatCooldown, sanitizedTargetUsername, sanitizedFormFields, !!req.body.showPreflightModal, urlsToSave, demandsEvidence]);
 
         const newPubId = result.rows[0].id;
 
@@ -301,7 +308,7 @@ async function createPlatformPublication(req, res) {
             targetUsername: sanitizedTargetUsername,
             publicationId: newPubId,
             category: 'platform',
-            metadata: { title, cost, is_targeted: !!sanitizedTargetUsername }
+            metadata: { title, base_cost: cost, total_cost: totalBlueCost, multiplier: activeMultiplier, is_targeted: !!sanitizedTargetUsername }
         });
 
         const message = sanitizedTargetUsername
@@ -398,30 +405,38 @@ async function updatePlatformPublication(req, res) {
         const urlsToSave = (Array.isArray(image_urls) ? image_urls : []).slice(0, maxAllowedImages);
         const demandsEvidence = !!requires_evidence;
 
+        // AUDITORÍA FINTECH: Obtención del multiplicador de etapa activa para recalcular y congelar el snapshot al editar la publicación.
+        const boosterService = require('../../services/boosterService');
+        const currentMultiplierInfo = await boosterService.calculateMultipliedAmount(1);
+        const activeMultiplier = parseFloat(currentMultiplierInfo.multiplier || 1.0);
+        const totalBlueCost = cost * activeMultiplier; // Recálculo del monto total recompensado (Base * Multiplicador)
+
         const updateSql = `
             UPDATE publications
             SET title = $1,
                 description = $2,
                 blue_cost = $3,
-                is_sell_post = $4,
-                available_slots = $5,
-                auto_approve = $6,
-                is_booster_task = $7,
-                allow_repeat_participation = $8,
-                max_repeat_per_user = $9,
-                repeat_cooldown_hours = $10,
-                target_username = $11,
-                form_fields = $12,
-                show_preflight_modal = $13,
-                image_urls = $14,
-                requires_evidence = $15,
+                base_blue_cost = $4,
+                is_sell_post = $5,
+                available_slots = $6,
+                auto_approve = $7,
+                is_booster_task = $8,
+                allow_repeat_participation = $9,
+                max_repeat_per_user = $10,
+                repeat_cooldown_hours = $11,
+                target_username = $12,
+                form_fields = $13,
+                show_preflight_modal = $14,
+                image_urls = $15,
+                requires_evidence = $16,
                 updated_at = NOW()
-            WHERE id = $16
+            WHERE id = $17
         `;
 
         await pool.query(updateSql, [
             title,
             description,
+            totalBlueCost,
             cost,
             !!isSellPost,
             slots,
@@ -443,7 +458,7 @@ async function updatePlatformPublication(req, res) {
             actorUsername: req.user?.username || 'admin',
             publicationId: parseInt(id, 10),
             category: 'platform',
-            metadata: { title, cost }
+            metadata: { title, base_cost: cost, total_cost: totalBlueCost, multiplier: activeMultiplier }
         });
 
         res.json({ message: "Publicación de la plataforma actualizada exitosamente." });

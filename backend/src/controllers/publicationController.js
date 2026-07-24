@@ -545,15 +545,23 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             const activeMultiplier = currentMultiplierInfo.multiplier || 1.0;
             const activeStageName = currentMultiplierInfo.stageName || 'Sin etapa activa';
 
+            // AUDITORÍA FINTECH: Garantizar coherencia inmutable entre la consulta del feed y el pago final.
+            // Se respeta el snapshot congelado p.blue_cost almacenado en PostgreSQL.
             const publications = result.rows.map(p => {
                 const baseCost = parseFloat(p.base_blue_cost || p.blue_cost || 0);
-                const dynamicCost = baseCost * activeMultiplier;
+                const dbBlueCost = parseFloat(p.blue_cost || 0);
+                // Si la publicación ya posee su snapshot congelado (dbBlueCost > baseCost), se respeta el valor inmutable de la BD.
+                // Si es una publicación legacy donde blue_cost == base_blue_cost, se calcula dinámicamente.
+                const finalBlueCost = (dbBlueCost > 0 && baseCost > 0 && dbBlueCost !== baseCost)
+                    ? dbBlueCost
+                    : baseCost * activeMultiplier;
+
                 return {
                     ...p,
                     base_blue_cost: baseCost,
                     current_multiplier: activeMultiplier,
                     current_stage_name: activeStageName,
-                    blue_cost: dynamicCost,
+                    blue_cost: finalBlueCost,
                     participants: p.participants || [],
                 };
             });
@@ -1610,7 +1618,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             console.log(`[DEBUG] Transacción BEGIN iniciada para pubId=${pubId}`);
 
             const acceptanceResult = await client.query(
-                `SELECT p.blue_cost, p.title, p.category, p.is_booster_task,
+                `SELECT p.blue_cost, p.base_blue_cost, p.title, p.category, p.is_booster_task,
                     u.id as author_id,
                     u.username as author_username,
                     w.id as worker_id,
