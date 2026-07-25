@@ -13,6 +13,20 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-25 — Restricción de Registro por Prefijo Telefónico (+58 Venezuela) con Auto-Guardado y Validación Zero-Trust
+* **Cambio**: 
+  - **Servidor Backend ([systemController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/systemController.js), [authController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/authController.js))**:
+    1. Expuestas las claves `registration_country_restriction_enabled`, `registration_allowed_country_prefixes` y `registration_country_restriction_notice_text` en `/api/public-settings` con valores por defecto auditables (`+58`).
+    2. Implementada validación invulnerable Zero-Trust en `authController.js` (`registerRequest`) para verificar el prefijo del número de teléfono en el backend, evitando cualquier bypass del lado del cliente.
+  - **Formulario de Registro ([register.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/register.html), [register.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/register.js))**:
+    1. Añadido banner dinámico explicativo `#country-restriction-banner` sobre las credenciales de registro indicando la restricción de residencia.
+    2. Incorporada autocompletación inteligente de `+58 ` al hacer foco en el campo telefónico y validación estricta con alerta visual roja en los eventos `input` y `blur`.
+  - **Panel de Administración ([admin-panel.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-panel.html), [admin-panel.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/admin-panel.js))**:
+    1. Creado el panel de control de Restricción de País con Toggle (ON/OFF), campo de prefijos permitidos y texto de nota informativa.
+    2. Implementada persistencia instantánea por auto-guardado en eventos `change` (toggle) y `blur` (campos de texto), manteniendo la experiencia fluida del panel sin requerir botones manuales de guardado.
+* **Evidencia**: Compilación de frontend limpia (`npm run build:demo` en 3.25s) y validación de controladores.
+* **Impacto**: Cumplimiento legal y operativo de las fases territoriales de la startup, resguardando la integridad del registro de usuarios.
+
 ### 2026-07-24 — Snapshot de Multiplicadores en Creación/Edición de Publicaciones y Resguardo de Pagos
 * **Cambio**: 
   - **Servidor Backend ([adminPublicationsController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/admin/adminPublicationsController.js), [publicationController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/publicationController.js))**:

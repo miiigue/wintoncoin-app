@@ -1088,6 +1088,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const settings = await apiFetch('/api/admin/settings');
             renderSettings(settings);
+            loadRegistrationCountrySettings(settings);
+            setupRegistrationCountryListeners();
         } catch (error) {
             showCustomAlert(error.message);
         }
@@ -3773,6 +3775,78 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.disabled = false;
             }
         });
+    }
+
+    // --- AUDITORÍA FINTECH: Lógica de Restricción de Registro por País (+58 Venezuela) con Auto-Guardado en Blur/Change ---
+    function loadRegistrationCountrySettings(settingsList) {
+        const toggle = document.getElementById('registrationCountryRestrictionToggle');
+        const prefixesInput = document.getElementById('registrationAllowedPrefixesInput');
+        const noticeInput = document.getElementById('registrationNoticeTextInput');
+
+        if (!settingsList || !Array.isArray(settingsList)) return;
+
+        if (toggle) {
+            const setting = settingsList.find(s => s.setting_key === 'registration_country_restriction_enabled');
+            toggle.checked = setting ? setting.setting_value !== 'false' : true;
+        }
+        if (prefixesInput) {
+            const setting = settingsList.find(s => s.setting_key === 'registration_allowed_country_prefixes');
+            prefixesInput.value = setting ? setting.setting_value : '+58';
+        }
+        if (noticeInput) {
+            const setting = settingsList.find(s => s.setting_key === 'registration_country_restriction_notice_text');
+            noticeInput.value = setting ? setting.setting_value : 'Por el momento solo se aceptan registros de personas residentes en Venezuela (+58).';
+        }
+    }
+
+    function setupRegistrationCountryListeners() {
+        const toggle = document.getElementById('registrationCountryRestrictionToggle');
+        const prefixesInput = document.getElementById('registrationAllowedPrefixesInput');
+        const noticeInput = document.getElementById('registrationNoticeTextInput');
+        const feedbackEl = document.getElementById('registration-country-admin-feedback');
+
+        if (!toggle && !prefixesInput && !noticeInput) return;
+        if (toggle && toggle.dataset.listenerAttached) return;
+        if (toggle) toggle.dataset.listenerAttached = 'true';
+
+        const showFeedback = (msg) => {
+            if (feedbackEl) {
+                feedbackEl.textContent = msg;
+                feedbackEl.style.display = 'block';
+                setTimeout(() => { feedbackEl.style.display = 'none'; }, 3000);
+            }
+        };
+
+        const saveSingleSetting = async (key, value) => {
+            try {
+                await apiFetch('/api/admin/settings', {
+                    method: 'POST',
+                    body: JSON.stringify({ key, value: String(value) })
+                });
+                showFeedback('✓ Configuración guardada automáticamente');
+            } catch (err) {
+                console.error("Error al guardar ajuste:", err);
+                showCustomAlert("Error al guardar la configuración de restricción por país: " + err.message);
+            }
+        };
+
+        if (toggle) {
+            toggle.addEventListener('change', () => {
+                saveSingleSetting('registration_country_restriction_enabled', toggle.checked ? 'true' : 'false');
+            });
+        }
+
+        if (prefixesInput) {
+            prefixesInput.addEventListener('blur', () => {
+                saveSingleSetting('registration_allowed_country_prefixes', prefixesInput.value.trim() || '+58');
+            });
+        }
+
+        if (noticeInput) {
+            noticeInput.addEventListener('blur', () => {
+                saveSingleSetting('registration_country_restriction_notice_text', noticeInput.value.trim());
+            });
+        }
     }
 
     function renderPublicationsTable(publications) {

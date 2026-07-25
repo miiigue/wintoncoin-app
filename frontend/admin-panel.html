@@ -98,6 +98,39 @@
                     </div>
                 </div>
 
+                <!-- AUDITORÍA FINTECH: Restricción por Prefijo Telefónico (+58 Venezuela) -->
+                <div class="settings-group" style="margin-top: 2rem;">
+                    <div class="settings-header">
+                        <h2>Restricción de Registro por País (+58 Venezuela)</h2>
+                        <p class="section-description">Controla si el formulario de registro está restringido a ciertos prefijos telefónicos de país y configura la nota informativa.</p>
+                    </div>
+                    <div class="admin-card" style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 1.5rem; margin-top: 1rem;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                            <div>
+                                <strong style="font-size: 1.05rem; color: #f8fafc; display: block;">Activar Restricción por País</strong>
+                                <small style="color: #94a3b8;">Si está activado, solo se aceptarán registros de números telefónicos con los prefijos autorizados.</small>
+                            </div>
+                            <label class="switch" style="position: relative; display: inline-block; width: 50px; height: 26px;">
+                                <input type="checkbox" id="registrationCountryRestrictionToggle" checked style="opacity: 0; width: 0; height: 0;">
+                                <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #475569; transition: .4s; border-radius: 34px;"></span>
+                            </label>
+                        </div>
+
+                        <div class="form-group-admin" style="margin-bottom: 1.25rem;">
+                            <label for="registrationAllowedPrefixesInput" style="font-weight: 600; color: #e2e8f0; display: block; margin-bottom: 0.5rem;">Prefijos de País Permitidos (separados por comas):</label>
+                            <input type="text" id="registrationAllowedPrefixesInput" class="admin-input-dark" value="+58" placeholder="Ej: +58, +57" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: #fff;">
+                            <small style="color: #64748b; margin-top: 4px; display: block;">Auto-guardado al cambiar de campo (blur).</small>
+                        </div>
+
+                        <div class="form-group-admin" style="margin-bottom: 0.5rem;">
+                            <label for="registrationNoticeTextInput" style="font-weight: 600; color: #e2e8f0; display: block; margin-bottom: 0.5rem;">Texto de la Nota Informativa en el Formulario:</label>
+                            <input type="text" id="registrationNoticeTextInput" class="admin-input-dark" value="Por el momento solo se aceptan registros de personas residentes en Venezuela (+58)." style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: #fff;">
+                            <small style="color: #64748b; margin-top: 4px; display: block;">Auto-guardado al cambiar de campo (blur).</small>
+                        </div>
+                        <div id="registration-country-admin-feedback" style="display: none; margin-top: 1rem; color: #10b981; font-weight: 600; font-size: 0.9rem;"></div>
+                    </div>
+                </div>
+
                 <!-- Sección de Cambio de Contraseña de Administrador (SOC 2 Compliant) -->
                 <div class="settings-group" style="margin-top: 2.5rem;">
                     <div class="settings-header">

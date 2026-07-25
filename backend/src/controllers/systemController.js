@@ -206,7 +206,10 @@ const SystemController = {
             const settingKeys = [
                 'public_profiles_enabled',
                 'referral_reward_amount',
-                'welcome_bonus_amount'
+                'welcome_bonus_amount',
+                'registration_country_restriction_enabled',
+                'registration_allowed_country_prefixes',
+                'registration_country_restriction_notice_text'
             ];
             // Ejecutar consulta segura parametrizada contra la tabla de configuraciones
             const result = await pool.query(
@@ -219,6 +222,17 @@ const SystemController = {
                 acc[setting.setting_key] = setting.setting_value;
                 return acc;
             }, {});
+
+            // AUDITORÍA FINTECH: Asignar valores por defecto seguros si aún no existen en la base de datos
+            if (settingsObject.registration_country_restriction_enabled === undefined) {
+                settingsObject.registration_country_restriction_enabled = 'true';
+            }
+            if (settingsObject.registration_allowed_country_prefixes === undefined) {
+                settingsObject.registration_allowed_country_prefixes = '+58';
+            }
+            if (settingsObject.registration_country_restriction_notice_text === undefined) {
+                settingsObject.registration_country_restriction_notice_text = 'Por el momento solo se aceptan registros de personas residentes en Venezuela (+58).';
+            }
 
             // Retornar código de éxito 200 con el objeto de configuración cargado
             res.status(200).json(settingsObject);
@@ -240,7 +254,10 @@ const SystemController = {
                     'public_profiles_enabled', 
                     'allow_new_registrations', 
                     'allow_new_publications',
-                    'platform_commission_percentage'
+                    'platform_commission_percentage',
+                    'registration_country_restriction_enabled',
+                    'registration_allowed_country_prefixes',
+                    'registration_country_restriction_notice_text'
                 )
             `;
             const result = await pool.query(sql);
@@ -250,12 +267,27 @@ const SystemController = {
                 if (row.setting_key === 'platform_commission_percentage') {
                     // La comisión se trata de forma estricta como un float
                     acc[row.setting_key] = parseFloat(row.setting_value) || 0;
+                } else if (row.setting_key === 'registration_country_restriction_enabled') {
+                    acc[row.setting_key] = row.setting_value === 'true';
+                } else if (row.setting_key === 'registration_allowed_country_prefixes' || row.setting_key === 'registration_country_restriction_notice_text') {
+                    acc[row.setting_key] = row.setting_value;
                 } else {
                     // Los demás parámetros se evalúan como booleanos limpios
                     acc[row.setting_key] = row.setting_value === 'true';
                 }
                 return acc;
             }, {});
+
+            // Fallbacks por defecto si no existen en la BD
+            if (settings.registration_country_restriction_enabled === undefined) {
+                settings.registration_country_restriction_enabled = true;
+            }
+            if (!settings.registration_allowed_country_prefixes) {
+                settings.registration_allowed_country_prefixes = '+58';
+            }
+            if (!settings.registration_country_restriction_notice_text) {
+                settings.registration_country_restriction_notice_text = 'Por el momento solo se aceptan registros de personas residentes en Venezuela (+58).';
+            }
             
             res.status(200).json(settings);
         } catch (error) {
