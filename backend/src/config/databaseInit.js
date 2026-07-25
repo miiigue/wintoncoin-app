@@ -70,8 +70,15 @@ async function applyMigrations(client) {
                 id SERIAL PRIMARY KEY,
                 setting_key VARCHAR(255) UNIQUE NOT NULL,
                 setting_value TEXT NOT NULL,
-                description TEXT
+                description TEXT,
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );`,
+            `DO $$
+             BEGIN
+                 IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='app_settings' AND column_name='updated_at') THEN
+                     ALTER TABLE app_settings ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+                 END IF;
+             END $$;`,
             // MIGRACIÓN 7: Añadir campos de email y teléfono a la tabla de usuarios.
             `DO $$
              BEGIN

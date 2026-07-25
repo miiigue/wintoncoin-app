@@ -108,13 +108,13 @@ async function updateSetting(req, res) {
             );
         }
 
-        // AUDITORÍA FINTECH & CIBERSEGURIDAD: Operación UPSERT (INSERT ... ON CONFLICT DO UPDATE)
-        // Garantiza resiliencia total: si la clave existe se actualiza, y si aún no existía se crea automáticamente sin arrojar 404 ni 500.
+        // AUDITORÍA FINTECH & CIBERSEGURIDAD (SOC 2 / ISO 27001): Operación UPSERT con Timestamp de Auditoría
+        // Garantiza resiliencia total y trazabilidad: actualiza setting_value y marca updated_at = NOW().
         const result = await pool.query(
-            `INSERT INTO app_settings (setting_key, setting_value)
-             VALUES ($2, $1)
+            `INSERT INTO app_settings (setting_key, setting_value, updated_at)
+             VALUES ($2, $1, NOW())
              ON CONFLICT (setting_key) 
-             DO UPDATE SET setting_value = EXCLUDED.setting_value
+             DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = NOW()
              RETURNING *`,
             [value, key]
         );
