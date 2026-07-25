@@ -109,12 +109,12 @@ async function updateSetting(req, res) {
         }
 
         // AUDITORÍA FINTECH & CIBERSEGURIDAD: Operación UPSERT (INSERT ... ON CONFLICT DO UPDATE)
-        // Garantiza resiliencia total: si la clave existe se actualiza, y si aún no existía se crea automáticamente sin arrojar 404.
+        // Garantiza resiliencia total: si la clave existe se actualiza, y si aún no existía se crea automáticamente sin arrojar 404 ni 500.
         const result = await pool.query(
-            `INSERT INTO app_settings (setting_key, setting_value, updated_at)
-             VALUES ($2, $1, NOW())
+            `INSERT INTO app_settings (setting_key, setting_value)
+             VALUES ($2, $1)
              ON CONFLICT (setting_key) 
-             DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = NOW()
+             DO UPDATE SET setting_value = EXCLUDED.setting_value
              RETURNING *`,
             [value, key]
         );
