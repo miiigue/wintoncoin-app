@@ -86,7 +86,10 @@ async function updateSetting(req, res) {
                                      key === 'referral_card_title' ||
                                      key === 'referral_card_button_text' ||
                                      key === 'referral_campaign_image_url' ||
-                                     key === 'referral_card_subtitle';
+                                     key === 'referral_card_subtitle' ||
+                                     key === 'registration_country_restriction_enabled' ||
+                                     key === 'registration_allowed_country_prefixes' ||
+                                     key === 'registration_country_restriction_notice_text';
 
         const isGovActive = await _checkGovernanceActive();
 
@@ -105,14 +108,16 @@ async function updateSetting(req, res) {
             );
         }
 
+        // AUDITORÍA FINTECH & CIBERSEGURIDAD: Operación UPSERT (INSERT ... ON CONFLICT DO UPDATE)
+        // Garantiza resiliencia total: si la clave existe se actualiza, y si aún no existía se crea automáticamente sin arrojar 404.
         const result = await pool.query(
-            `UPDATE app_settings SET setting_value = $1 WHERE setting_key = $2 RETURNING *`,
+            `INSERT INTO app_settings (setting_key, setting_value, updated_at)
+             VALUES ($2, $1, NOW())
+             ON CONFLICT (setting_key) 
+             DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = NOW()
+             RETURNING *`,
             [value, key]
         );
-
-        if (result.rowCount === 0) {
-            return res.status(404).json({ message: `Configuración '${key}' no encontrada.` });
-        }
 
         await logAuditEvent(pool, req, {
             eventType: 'admin.settings.updated',

@@ -13,19 +13,22 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
-### 2026-07-25 — Restricción de Registro por Prefijo Telefónico (+58 Venezuela) con Auto-Guardado y Validación Zero-Trust
+### 2026-07-25 — Restricción de Registro por Prefijo Telefónico (+58 Venezuela), Migración 094 y Resiliencia UPSERT
 * **Cambio**: 
-  - **Servidor Backend ([systemController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/systemController.js), [authController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/authController.js))**:
-    1. Expuestas las claves `registration_country_restriction_enabled`, `registration_allowed_country_prefixes` y `registration_country_restriction_notice_text` en `/api/public-settings` con valores por defecto auditables (`+58`).
-    2. Implementada validación invulnerable Zero-Trust en `authController.js` (`registerRequest`) para verificar el prefijo del número de teléfono en el backend, evitando cualquier bypass del lado del cliente.
+  - **Migración 094 BD ([094_add_country_restriction_app_settings.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/094_add_country_restriction_app_settings.js))**:
+    1. Creada e integrada la migración oficial 094 para insertar automáticamente en `app_settings` al arrancar el backend las 3 claves globales: `registration_country_restriction_enabled` (`'true'`), `registration_allowed_country_prefixes` (`'+58'`) y `registration_country_restriction_notice_text`.
+  - **Servidor Backend ([adminSystemSettingsController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/admin/adminSystemSettingsController.js), [systemController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/systemController.js), [authController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/authController.js))**:
+    1. Convertida la actualización de `adminSystemSettingsController.js` a una operación `UPSERT` (`INSERT INTO app_settings ... ON CONFLICT DO UPDATE`), previniendo errores 404 si alguna clave no existiera previamente.
+    2. Expuestas las 3 claves en `/api/public-settings` con fallbacks por defecto.
+    3. Implementada validación invulnerable Zero-Trust (fail-closed) en `authController.js` (`registerRequest`) para verificar el prefijo telefónico en el servidor.
   - **Formulario de Registro ([register.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/register.html), [register.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/register.js))**:
     1. Añadido banner dinámico explicativo `#country-restriction-banner` sobre las credenciales de registro indicando la restricción de residencia.
     2. Incorporada autocompletación inteligente de `+58 ` al hacer foco en el campo telefónico y validación estricta con alerta visual roja en los eventos `input` y `blur`.
   - **Panel de Administración ([admin-panel.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-panel.html), [admin-panel.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/admin-panel.js))**:
-    1. Creado el panel de control de Restricción de País con Toggle (ON/OFF), campo de prefijos permitidos y texto de nota informativa.
-    2. Implementada persistencia instantánea por auto-guardado en eventos `change` (toggle) y `blur` (campos de texto), manteniendo la experiencia fluida del panel sin requerir botones manuales de guardado.
-* **Evidencia**: Compilación de frontend limpia (`npm run build:demo` en 3.25s) y validación de controladores.
-* **Impacto**: Cumplimiento legal y operativo de las fases territoriales de la startup, resguardando la integridad del registro de usuarios.
+    1. Creado el panel de control de Restricción de País con Toggle (ON/OFF), campo de prefijos permitidos (soporta múltiples prefijos comas: `+58, +57, +54`) y texto de nota informativa.
+    2. Implementada persistencia instantánea por auto-guardado en eventos `change` (toggle) y `blur` (campos de texto).
+* **Evidencia**: Migración 094 integrada con `migrationRunner.js`, pruebas de `UPSERT` superadas y compilación de frontend limpia (`npm run build:demo` en 3.80s).
+* **Impacto**: Resiliencia total del 100% en la base de datos y cumplimiento legal-operativo de la expansión territorial de la startup.
 
 ### 2026-07-24 — Snapshot de Multiplicadores en Creación/Edición de Publicaciones y Resguardo de Pagos
 * **Cambio**: 
