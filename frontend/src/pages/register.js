@@ -338,9 +338,24 @@ function setupFieldValidation(API_URL, checkAgreements) {
     // Validación de teléfono
     if (phoneInput && phoneFeedback) {
         const validatePhonePrefix = () => {
-            if (!isCountryRestrictionEnabled) return true;
+            const step2NextBtn = document.querySelector('.next-step-btn[data-next="3"]');
+            if (!isCountryRestrictionEnabled) {
+                if (step2NextBtn) {
+                    step2NextBtn.disabled = false;
+                    step2NextBtn.style.opacity = '1';
+                    step2NextBtn.style.cursor = 'pointer';
+                }
+                return true;
+            }
             const val = phoneInput.value.trim().replace(/[\s\-\(\)]/g, '');
-            if (!val) return true;
+            if (!val) {
+                if (step2NextBtn) {
+                    step2NextBtn.disabled = false;
+                    step2NextBtn.style.opacity = '1';
+                    step2NextBtn.style.cursor = 'pointer';
+                }
+                return true;
+            }
 
             const isAllowed = allowedPrefixes.some(prefix => val.startsWith(prefix));
             if (!isAllowed) {
@@ -349,7 +364,18 @@ function setupFieldValidation(API_URL, checkAgreements) {
                 phoneFeedback.style.display = 'block';
                 phoneFeedback.style.fontWeight = 'bold';
                 phoneInput.style.borderColor = '#dc3545';
+                if (step2NextBtn) {
+                    step2NextBtn.disabled = true;
+                    step2NextBtn.style.opacity = '0.5';
+                    step2NextBtn.style.cursor = 'not-allowed';
+                }
                 return false;
+            }
+
+            if (step2NextBtn) {
+                step2NextBtn.disabled = false;
+                step2NextBtn.style.opacity = '1';
+                step2NextBtn.style.cursor = 'pointer';
             }
             return true;
         };
@@ -802,6 +828,11 @@ async function initializeRegisterPage() {
 
             if (!username || !phone || !dob) {
                 showCustomAlert('Por favor completa todos los campos de tu perfil.');
+                return false;
+            }
+
+            if (typeof validatePhonePrefix === 'function' && !validatePhonePrefix()) {
+                showCustomAlert('El número telefónico no tiene un prefijo de país permitido (+58).');
                 return false;
             }
 
