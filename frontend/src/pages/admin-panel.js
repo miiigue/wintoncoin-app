@@ -1287,7 +1287,11 @@ document.addEventListener('DOMContentLoaded', () => {
             'red_credit_early_payment': { title: 'Scoring — Bono por Amortización Anticipada (RED)', description: 'Aumento del límite por amortizar compromisos en los primeros 5 días del ciclo.' },
             // Winton Solidario (Causas Humanitarias y Reembolsos)
             'donation_refund_enabled': { title: 'Reembolso Automático de Donaciones', description: 'Activa o desactiva el demonio que devuelve automáticamente las donaciones en espera (on_hold) si el donante no verifica su KYC Web3.' },
-            'donation_escrow_expiration_days': { title: 'Días de Retención de Donaciones', description: 'Cantidad de días que una donación permanece en espera antes de ser devuelta automáticamente al donante si este no completa su KYC.' }
+            'donation_escrow_expiration_days': { title: 'Días de Retención de Donaciones', description: 'Cantidad de días que una donación permanece en espera antes de ser devuelta automáticamente al donante si este no completa su KYC.' },
+            // Restricción por País
+            'registration_country_restriction_enabled': { title: 'Activar Restricción por País', description: 'Controla si el formulario de registro está restringido a ciertos prefijos telefónicos.' },
+            'registration_allowed_country_prefixes': { title: 'Prefijos de País Permitidos', description: 'Prefijos telefónicos autorizados para el registro.' },
+            'registration_country_restriction_notice_text': { title: 'Texto de la Nota Informativa', description: 'Mensaje descriptivo mostrado en el formulario de registro.' }
         };
         return map[key] || { title: key, description: 'Sin descripción.' };
     }
@@ -1306,10 +1310,16 @@ document.addEventListener('DOMContentLoaded', () => {
             'welcome_bonus_enabled', 'welcome_bonus_amount',
             'referral_bonus_enabled', 'referral_bonus_amount'
         ];
+        const countryRestrictionKeys = [
+            'registration_country_restriction_enabled',
+            'registration_allowed_country_prefixes',
+            'registration_country_restriction_notice_text'
+        ];
         const generalSettings = settings.filter(s =>
             !phaseSettings.includes(s) &&
             !timeSettingsRaw.includes(s) &&
-            !referralKeys.includes(s.setting_key)
+            !referralKeys.includes(s.setting_key) &&
+            !countryRestrictionKeys.includes(s.setting_key)
         );
 
         if (elements.phaseManagementContainer) {
