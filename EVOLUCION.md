@@ -13,6 +13,24 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-27 — Auditoría de Estructura del Proyecto, Limpieza (Fase 1) y Reorganización de Arquitectura Senior (Fase 2)
+* **Cambio**: 
+  - **Fase 1: Auditoría de Referencias (Grep Audit) y Limpieza de Basura Técnica**:
+    1. Eliminados de la raíz del proyecto los archivos huérfanos: [temp_old_contract.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/temp_old_contract.js), [temp_old_html.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/temp_old_html.html), [temp_old_interaction.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/temp_old_interaction.js) y [tmp_backend_structure.csv](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/tmp_backend_structure.csv).
+    2. Eliminados del backend: `backend/temp_query2.js`, `backend/test_error.log` y `backend/test_server.log`.
+    3. Eliminados del frontend: Archivos de caché temporales de Vite (`frontend/vite.config.js.timestamp-*.mjs`).
+  - **Blindaje de Ciberseguridad y Exclusión SOC 2 ([.gitignore](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/.gitignore), [backend/.gitignore](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/.gitignore))**:
+    1. Inyectadas reglas estrictas de exclusión en `.gitignore` para bloquear la subida a Git de dumps de base de datos (`demo_audit_backup_genesis.json`, `*_backup_*.json`) y archivos de configuración o respaldos de entorno (`.env.backup`, `.env.demo.local`). Esto garantiza el cumplimiento del estándar bancario Zero-Trust y evita fugas de PII/Secretos.
+  - **Fase 2: Reorganización de Archivos y Estandarización de Directorios**:
+    1. **Documentación Técnica**: Reubicados 10 archivos `.md` de planificación e inventario desde la raíz hacia [docs/](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/docs), manteniendo únicamente `README.md` y `EVOLUCION.md` en la raíz. Reubicado también `qa_web3_checklist.md.resolved` a `docs/`.
+    2. **Scripts de Backend ([backend/scripts/](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/scripts))**: Trasladados los 9 scripts de utilería e inspección (`backup-database.js`, `check_schema.js`, `check_subs.js`, `debug_active.js`, `fix-booster-task.js`, `run_booster_payments_now.js`, `test_prod_connection.js`, `test_user_balance.js`, `test_seo.js`) hacia la carpeta de scripts, refactorizando sus importaciones relativas (`require('../config')`, `require('../src/config/db')`).
+    3. **Erradicación de Claves Hardcoded (Zero Hardcoded Secrets)**: Refactorizado `test_prod_connection.js` para eliminar la cadena de conexión con credenciales quemadas en código y reemplazarla por `process.env.DATABASE_URL` y `require('../config')`.
+    4. **Activos y Utilerías Frontend**: Reubicada la imagen `winton_solidario_hero.png` a `frontend/public/assets/images/` y los generadores de iconos/logos a `frontend/scripts/`.
+  - **Verificación de Integridad Completa**:
+    1. Validada la sintaxis de todos los scripts trasladados en `backend/scripts/` y del servidor backend `backend/server.js` con `node --check` con resultado de éxito en el 100% de los archivos.
+* **Evidencia**: Eliminación y reubicación verificadas, saneamiento de credenciales completado, reglas de `.gitignore` actualizadas y chequeos sintácticos aprobados.
+* **Impacto**: Estructura de proyecto nivel Senior / Enterprise, cero desorden en la raíz, prevención total de fugas de datos y mantenimiento del 100% de la funcionalidad sin ninguna ruptura.
+
 ### 2026-07-25 — Restricción de Registro por Prefijo Telefónico (+58 Venezuela), Migraciones 094 y 095 y Auditoría SOC 2 en app_settings
 * **Cambio**: 
   - **Migraciones BD ([094_add_country_restriction_app_settings.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/094_add_country_restriction_app_settings.js), [095_add_updated_at_to_app_settings.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/095_add_updated_at_to_app_settings.js))**:

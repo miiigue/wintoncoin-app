@@ -1,5 +1,5 @@
 // Script de Backup para Base de Datos WintonCoin
-require('./config'); // Carga la configuración del entorno
+require('../config'); // Carga la configuración del entorno
 const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');

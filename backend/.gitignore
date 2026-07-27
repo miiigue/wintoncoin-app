@@ -12,6 +12,12 @@ node_modules/
 backups/
 *.sql
 *.dump
+*_backup_*.json
+demo_audit_backup_genesis.json
+
+# Archivos de entorno y backup de configuracion
+.env.*
+.env.backup
 
 # Logs y archivos de debug
 *.log 

@@ -1,5 +1,6 @@
-const { seoMiddlewareCauses, seoMiddlewareReferrals } = require('./middleware/seoMiddleware');
-const pool = require('./config/db');
+require('../config');
+const { seoMiddlewareCauses, seoMiddlewareReferrals } = require('../src/middleware/seoMiddleware');
+const pool = require('../src/config/db');
 
 async function runTests() {
     console.log('🧪 Iniciando pruebas unitarias de seoMiddleware...\n');
