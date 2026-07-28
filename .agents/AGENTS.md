@@ -23,6 +23,7 @@ PASOS:
 4. El bloque de pasos **DEBE COMENZAR SIEMPRE EN EL NÚMERO 2** (Ej: `2. Ve a tu perfil...`). Esto es obligatorio porque el sistema frontend inyecta el Paso 1 automáticamente.
 5. Cada paso debe estar en una sola línea, sin saltos de línea.
 6. **Lenguaje No Técnico:** Las instrucciones y la descripción deben ser escritas en un lenguaje **completamente comprensible para un usuario común**. NUNCA uses jerga técnica.
+7. **Registro Continuo (Catálogo QA):** Cada vez que generes nuevas pruebas QA, TIENES LA OBLIGACIÓN de agregarlas automáticamente al final del archivo `QA_TEST_CATALOG.md` ubicado en la raíz del proyecto para mantener el registro histórico de todas las misiones. Sigue estrictamente la numeración correlativa (si la última fue QA-5, la tuya será QA-6).
 
 Nunca entregues las pruebas en tablas o listas markdown tradicionales. Usa estrictamente este formato.
 </RULE[qa_manual_tests]>
