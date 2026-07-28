@@ -6071,16 +6071,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const extractedTitle = titleMatch[1].trim();
             let extractedDesc = descMatch[1].trim();
 
-            // 2. Inyectar Paso 1 obligatorio al principio de la descripción
-            const finalDescription = "1. Aceptar tarea y grabar pantalla.\n" + extractedDesc;
+            // 2. Inyectar Paso 1 obligatorio y dividir los demás pasos
+            const rawSteps = extractedDesc.split('\n').filter(s => s.trim().length > 0);
+            
+            // Extraer texto limpio de los pasos, removiendo "2.", "3.", etc.
+            const cleanSteps = rawSteps.map(s => s.replace(/^\d+\.\s*/, '').trim());
+            
+            const finalSteps = [
+                "Aceptar tarea y grabar pantalla",
+                ...cleanSteps
+            ];
 
-            // 3. Autocompletar Título y Descripción
+            // 3. Autocompletar Título
             const pubTitleInput = document.getElementById('platformPubTitle');
-            const pubDescInput = document.getElementById('platformPubDescription');
             if (pubTitleInput) pubTitleInput.value = extractedTitle;
-            if (pubDescInput) pubDescInput.value = finalDescription;
 
-            // 4. Configurar Switches (Auto-Aprobar = ON) y Costo (1 BLUE) y Cupos (10)
+            // Llenamos el textarea de descripción por si acaso (fallback)
+            const pubDescInput = document.getElementById('platformPubDescription');
+            if (pubDescInput) pubDescInput.value = finalSteps.map((s, i) => `${i+1}. ${s}`).join('\n');
+
+            // 4. Configurar Switches y Costo
             const pubCostInput = document.getElementById('platformPubCost');
             if (pubCostInput) pubCostInput.value = "1";
             
@@ -6090,44 +6100,59 @@ document.addEventListener('DOMContentLoaded', () => {
             const autoApproveSwitch = document.getElementById('platformAutoApprove');
             if (autoApproveSwitch) autoApproveSwitch.checked = true;
 
-            // 5. Configurar Campos Dinámicos Estrictos
-            // Primero limpiamos los campos actuales
-            const fieldsContainer = document.getElementById('platformFormFieldsContainer');
-            if (fieldsContainer) fieldsContainer.innerHTML = '';
-            
-            // Añadimos los 3 campos obligatorios de la prueba (usando la función nativa del admin-panel)
-            // Asumiendo que addPlatformFormField existe y recibe (label, type) o al menos hace click en un botón
-            // Si la función addPlatformFormField requiere otros parámetros o si se manipula directamente:
-            try {
-                if (typeof addPlatformFormField === 'function') {
-                    addPlatformFormField('¿Pasó la prueba?', 'text');
-                    addPlatformFormField('Enlace de evidencia', 'text');
-                    addPlatformFormField('Si dio error, detalla lo ocurrido', 'textarea');
-                } else {
-                    // Fallback manual si la función no es pública/global
-                    const createFieldHTML = (label, type) => {
-                        const id = Date.now() + Math.random();
-                        return `
-                            <div class="form-field-item platform-form-field-item" data-id="${id}">
-                                <div class="form-field-inputs">
-                                    <input type="text" class="field-label-input" placeholder="Nombre del campo" value="${label}" required>
-                                    <select class="field-type-select">
-                                        <option value="text" ${type === 'text' ? 'selected' : ''}>Texto Corto</option>
-                                        <option value="textarea" ${type === 'textarea' ? 'selected' : ''}>Texto Largo (Párrafo)</option>
-                                        <option value="number" ${type === 'number' ? 'selected' : ''}>Número</option>
-                                    </select>
-                                </div>
-                                <button type="button" class="btn-remove-field" onclick="this.closest('.form-field-item').remove()">✖</button>
-                            </div>
-                        `;
-                    };
-                    fieldsContainer.insertAdjacentHTML('beforeend', createFieldHTML('¿Pasó la prueba?', 'text'));
-                    fieldsContainer.insertAdjacentHTML('beforeend', createFieldHTML('Enlace de evidencia', 'text'));
-                    fieldsContainer.insertAdjacentHTML('beforeend', createFieldHTML('Si dio error, detalla lo ocurrido', 'textarea'));
+            const requiresEvidenceSwitch = document.getElementById('platformRequiresEvidence');
+            if (requiresEvidenceSwitch) requiresEvidenceSwitch.checked = true;
+
+            // 5. Configurar Pasos Dinámicos en la UI (platformStepX)
+            // Asegurarnos de que haya suficientes contenedores haciendo click en el botón "Agregar más pasos" si hace falta
+            const addStepBtn = document.getElementById('platformAddStepBtn');
+            if (addStepBtn) {
+                while (document.querySelectorAll('.admin-step-input').length < finalSteps.length) {
+                    addStepBtn.click();
                 }
-            } catch(e) {
-                console.error("Error inyectando campos de formulario QA:", e);
             }
+
+            const stepContainers = document.querySelectorAll('.admin-step-input');
+            stepContainers.forEach((container, index) => {
+                const stepNum = index + 1;
+                const stepTextInput = container.querySelector(`input[id="platformStep${stepNum}"]`);
+                const checkbox = container.querySelector('.step-form-checkbox');
+                const formFieldsContainer = container.querySelector('.step-form-fields');
+                const formInputsContainer = container.querySelector('.step-form-inputs');
+                
+                if (!stepTextInput) return;
+
+                if (index < finalSteps.length) {
+                    // Hay un paso real para este índice
+                    stepTextInput.value = finalSteps[index];
+                    
+                    // Activar el formulario de este paso
+                    if (checkbox) {
+                        checkbox.checked = true;
+                    }
+                    if (formFieldsContainer) {
+                        formFieldsContainer.style.display = 'block';
+                    }
+                    if (formInputsContainer) {
+                        // Limpiar campos actuales e inyectar los 3 campos obligatorios de QA
+                        formInputsContainer.innerHTML = `
+                            <input type="text" class="step-form-field" value="¿Pasó la prueba?">
+                            <input type="text" class="step-form-field" value="Enlace de evidencia">
+                            <input type="text" class="step-form-field" value="Si dio error, detalla lo ocurrido">
+                        `;
+                    }
+                } else {
+                    // Limpiar pasos vacíos restantes
+                    stepTextInput.value = '';
+                    if (checkbox) checkbox.checked = false;
+                    if (formFieldsContainer) formFieldsContainer.style.display = 'none';
+                    if (formInputsContainer) formInputsContainer.innerHTML = `
+                        <input type="text" class="step-form-field" placeholder="Campo 1">
+                        <input type="text" class="step-form-field" placeholder="Campo 2">
+                        <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
+                    `;
+                }
+            });
 
             showCustomAlert("¡Formulario de prueba autocompletado exitosamente! Revisa los datos y haz clic en Publicar.");
         });
