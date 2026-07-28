@@ -248,6 +248,38 @@ async function getUserKycStatus(req, res) {
             console.log(`[ADMIN KYC-STATUS] ✅ Sincronización automática: DB actualizada de ${kycInDatabase} a ${kycResult.verified} para usuario #${userId}`);
 
             if (kycResult.verified === true) {
+                const creditScoringService = require('../../services/creditScoringService');
+                const notificationService = require('../../services/notificationService');
+
+                // 1. Sincronizar límite de compromiso del usuario recien verificado
+                creditScoringService.syncCreditLimitOnChain(userId)
+                    .catch(e => console.error(`[ADMIN KYC-STATUS] Error al sincronizar compromiso on-chain para usuario #${userId}:`, e.message));
+
+                // 2. Verificar si el usuario fue invitado por un referente para recalcular y notificar
+                pool.query("SELECT referrer_id, username FROM users WHERE id = $1", [userId])
+                    .then(res => {
+                        const referrerId = res.rows[0]?.referrer_id;
+                        const verifiedUsername = res.rows[0]?.username;
+                        if (referrerId) {
+                            // Recalcular y sincronizar límite de compromiso del referente
+                            creditScoringService.calculateUserScore(referrerId).then(newScore => {
+                                creditScoringService.syncCreditLimitOnChain(referrerId);
+                                
+                                // Disparar notificación push al referente usando la API real del servicio
+                                // Firma: sendNotificationToUser(userId, { title, body, url? }, type)
+                                notificationService.sendNotificationToUser(
+                                    referrerId,
+                                    {
+                                        title: '🎉 ¡Bonificación de Compromiso RED Aumentada!',
+                                        body: `Tu referido @${verifiedUsername} ha verificado su KYC. Tu límite de compromiso RED ha aumentado a ${newScore} RED.`
+                                    },
+                                    'TRANSACTIONAL'
+                                ).catch(nErr => console.error('[ADMIN KYC-STATUS] Error enviando notificación a referente:', nErr.message));
+                            });
+                        }
+                    })
+                    .catch(rErr => console.error('[ADMIN KYC-STATUS] Error al consultar referente:', rErr.message));
+
                 const humanitarianService = require('../../services/humanitarianService');
                 humanitarianService.processAndSendEmailsForReleasedDonations(userId)
                     .catch(e => console.error(`[ADMIN KYC-STATUS] Error al procesar correos de liberación tras KYC para usuario #${userId}:`, e.message));

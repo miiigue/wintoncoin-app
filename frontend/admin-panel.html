@@ -628,6 +628,15 @@
                         <span class="accordion-icon">▼</span>
                     </div>
                     <div class="admin-accordion-content" id="platformFormContent" style="display: none;">
+                        
+                        <!-- GENERADOR QA IA -->
+                        <div id="qaGeneratorContainer" style="background: rgba(30,30,40,0.8); border: 1px dashed #00ffd5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                            <h3 style="color: #00ffd5; margin-top: 0; font-size: 1rem; margin-bottom: 10px;">🤖 Autocompletar Misión de Pruebas (QA)</h3>
+                            <p style="font-size: 0.85rem; color: #a0a0b0; margin-bottom: 10px;">Pega aquí el texto generado por la IA (modelo estricto con TITULO: y DESCRIPCION:) para autocompletar el formulario.</p>
+                            <textarea id="qaMarkdownInput" rows="4" style="width: 100%; background: #111; border: 1px solid #333; color: white; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; margin-bottom: 10px;" placeholder="TITULO: ...&#10;DESCRIPCION: ..."></textarea>
+                            <button type="button" id="btnAutoFillQA" class="btn-primary" style="width: 100%; padding: 8px; font-size: 0.9rem;">Pegar Prueba y Autocompletar</button>
+                        </div>
+
                         <form id="platformPublicationForm" class="admin-form">
                             <div id="platformEditNotice" class="admin-edit-notice" style="display: none;"></div>
                             <div class="form-group-admin">

@@ -13,6 +13,25 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-28 — Resoluciones Críticas de Scoring de Compromiso RED, Migración 096 e Inmutabilidad SOC 2
+* **Cambio**: 
+  - **Smart Contracts ([WintonProtocol.sol](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/web3-contracts/contracts/WintonProtocol.sol))**:
+    1. Inyectada la función `updateUserTrustScore(address userWallet, uint256 newScoreLimit)` y el mapeo `redCreditLimits` en el protocolo central, permitiendo la sincronización on-chain de los límites de compromiso RED desde el backend (Relayer).
+    2. Agregada la validación de disyuntor en `processPayment` para exigir que la suma del saldo acumulado de compromiso RED más la nueva transacción no exceda el límite otorgado al pagador.
+  - **Ciberseguridad Anti-Bots & Algoritmo de Scoring ([creditScoringService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/creditScoringService.js))**:
+    1. Refactorizada la consulta en `calculateUserScore` para exigir que **únicamente los referidos con verificación KYC aprobada** (`kyc_verified = TRUE` o `kyc_status = 'approved'`) sumen bonificación al límite de compromiso RED, desarmando ataques por granjas de cuentas falsas.
+    2. Optimizada la consulta de actividad mensual reemplazando búsquedas de texto por `JOIN` indexado con la clave primaria `p.id`.
+    1. Creada la migración 096 con la tabla `user_trust_score_logs` para registrar inmutablemente cada evaluación de scoring.
+    2. Implementado un trigger nativo en PostgreSQL (`trg_enforce_trust_score_logs_immutability`) que rechaza `UPDATE` o `DELETE` bajo estándar de auditoría de grado bancario (Append-Only).
+    3. Creada la migración 097 con la tabla `audit_logs` para resolver un error crítico (crash) del proceso en segundo plano "Debt Collector" que colapsaba al intentar registrar el cobro de deudas en una tabla inexistente.
+  - **Notificaciones al Referente ([adminUserController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/admin/adminUserController.js))**:
+    1. Vinculada la aprobación KYC de un referido a la sincronización inmediata del score del referente y al envío automático de una notificación in-app y push celebrando el incremento en su límite de compromiso RED.
+  - **Fase de Calidad (QA) y Pruebas Unitarias ([platformFormFields.test.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/__tests__/platformFormFields.test.js))**:
+    1. Reparada la suite de pruebas unitarias que fallaba por un error preexistente de desincronización de simulaciones (mocks) con la base de datos tras la reciente integración de multiplicadores del Booster (`boosterService.calculateMultipliedAmount`). 
+    2. Ejecutada exitosamente la suite completa (`npm test`), logrando un 100% de pases (25/25 tests en verde) asegurando que no se generó ninguna regresión.
+* **Evidencia**: Compilación de contratos exitosa (`npx hardhat compile` en 1 archivo), chequeos sintácticos `node --check` aprobados al 100%, migración 096 validada en base de datos local y suite de tests pasada con éxito (`npm test`: 25 passed).
+* **Impacto**: Cero vectores de inflación por bots, trazabilidad bancaria inmutable, alineación semántica sin romper retrocompatibilidad técnica y cobertura de QA asegurada sin errores.
+
 ### 2026-07-27 — Auditoría de Estructura del Proyecto, Limpieza (Fase 1) y Reorganización de Arquitectura Senior (Fase 2)
 * **Cambio**: 
   - **Fase 1: Auditoría de Referencias (Grep Audit) y Limpieza de Basura Técnica**:

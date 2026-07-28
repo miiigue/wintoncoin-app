@@ -6045,4 +6045,92 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // ========================================================================
+    // GENERADOR AUTOMÁTICO DE TAREAS QA
+    // ========================================================================
+    const btnAutoFillQA = document.getElementById('btnAutoFillQA');
+    if (btnAutoFillQA) {
+        btnAutoFillQA.addEventListener('click', () => {
+            const qaInput = document.getElementById('qaMarkdownInput');
+            const text = qaInput ? qaInput.value.trim() : '';
+            
+            if (!text) {
+                showCustomAlert("Por favor, pega el texto de la prueba generado por la IA.");
+                return;
+            }
+
+            // 1. Extraer Título y Descripción usando el Modelo Estricto
+            const titleMatch = text.match(/TITULO:\s*(.*)/i);
+            const descMatch = text.match(/DESCRIPCION:\s*([\s\S]*)/i);
+
+            if (!titleMatch || !descMatch) {
+                showCustomAlert("Error de formato. Asegúrate de incluir 'TITULO:' y 'DESCRIPCION:' exactamente como indica el modelo estricto.");
+                return;
+            }
+
+            const extractedTitle = titleMatch[1].trim();
+            let extractedDesc = descMatch[1].trim();
+
+            // 2. Inyectar Paso 1 obligatorio al principio de la descripción
+            const finalDescription = "1. Aceptar tarea y grabar pantalla.\n" + extractedDesc;
+
+            // 3. Autocompletar Título y Descripción
+            const pubTitleInput = document.getElementById('platformPubTitle');
+            const pubDescInput = document.getElementById('platformPubDescription');
+            if (pubTitleInput) pubTitleInput.value = extractedTitle;
+            if (pubDescInput) pubDescInput.value = finalDescription;
+
+            // 4. Configurar Switches (Auto-Aprobar = ON) y Costo (1 BLUE) y Cupos (10)
+            const pubCostInput = document.getElementById('platformPubCost');
+            if (pubCostInput) pubCostInput.value = "1";
+            
+            const pubSlotsInput = document.getElementById('platformPubSlots');
+            if (pubSlotsInput) pubSlotsInput.value = "10";
+
+            const autoApproveSwitch = document.getElementById('platformAutoApprove');
+            if (autoApproveSwitch) autoApproveSwitch.checked = true;
+
+            // 5. Configurar Campos Dinámicos Estrictos
+            // Primero limpiamos los campos actuales
+            const fieldsContainer = document.getElementById('platformFormFieldsContainer');
+            if (fieldsContainer) fieldsContainer.innerHTML = '';
+            
+            // Añadimos los 3 campos obligatorios de la prueba (usando la función nativa del admin-panel)
+            // Asumiendo que addPlatformFormField existe y recibe (label, type) o al menos hace click en un botón
+            // Si la función addPlatformFormField requiere otros parámetros o si se manipula directamente:
+            try {
+                if (typeof addPlatformFormField === 'function') {
+                    addPlatformFormField('¿Pasó la prueba?', 'text');
+                    addPlatformFormField('Enlace de evidencia', 'text');
+                    addPlatformFormField('Si dio error, detalla lo ocurrido', 'textarea');
+                } else {
+                    // Fallback manual si la función no es pública/global
+                    const createFieldHTML = (label, type) => {
+                        const id = Date.now() + Math.random();
+                        return `
+                            <div class="form-field-item platform-form-field-item" data-id="${id}">
+                                <div class="form-field-inputs">
+                                    <input type="text" class="field-label-input" placeholder="Nombre del campo" value="${label}" required>
+                                    <select class="field-type-select">
+                                        <option value="text" ${type === 'text' ? 'selected' : ''}>Texto Corto</option>
+                                        <option value="textarea" ${type === 'textarea' ? 'selected' : ''}>Texto Largo (Párrafo)</option>
+                                        <option value="number" ${type === 'number' ? 'selected' : ''}>Número</option>
+                                    </select>
+                                </div>
+                                <button type="button" class="btn-remove-field" onclick="this.closest('.form-field-item').remove()">✖</button>
+                            </div>
+                        `;
+                    };
+                    fieldsContainer.insertAdjacentHTML('beforeend', createFieldHTML('¿Pasó la prueba?', 'text'));
+                    fieldsContainer.insertAdjacentHTML('beforeend', createFieldHTML('Enlace de evidencia', 'text'));
+                    fieldsContainer.insertAdjacentHTML('beforeend', createFieldHTML('Si dio error, detalla lo ocurrido', 'textarea'));
+                }
+            } catch(e) {
+                console.error("Error inyectando campos de formulario QA:", e);
+            }
+
+            showCustomAlert("¡Formulario de prueba autocompletado exitosamente! Revisa los datos y haz clic en Publicar.");
+        });
+    }
+
 });
