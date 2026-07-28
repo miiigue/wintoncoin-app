@@ -6059,20 +6059,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // 1. Extraer Título y Descripción usando el Modelo Estricto
+            // 1. Extraer Título, Descripción y Pasos usando el Modelo Estricto
             const titleMatch = text.match(/TITULO:\s*(.*)/i);
-            const descMatch = text.match(/DESCRIPCION:\s*([\s\S]*)/i);
+            const descMatch = text.match(/DESCRIPCION:\s*([\s\S]*?)(?=PASOS:|$)/i);
+            const pasosMatch = text.match(/PASOS:\s*([\s\S]*)/i);
 
-            if (!titleMatch || !descMatch) {
-                showCustomAlert("Error de formato. Asegúrate de incluir 'TITULO:' y 'DESCRIPCION:' exactamente como indica el modelo estricto.");
+            if (!titleMatch || !descMatch || !pasosMatch) {
+                showCustomAlert("Error de formato. Asegúrate de incluir 'TITULO:', 'DESCRIPCION:' y 'PASOS:' exactamente como indica el modelo estricto.");
                 return;
             }
 
             const extractedTitle = titleMatch[1].trim();
-            let extractedDesc = descMatch[1].trim();
+            const extractedDesc = descMatch[1].trim();
+            const extractedPasos = pasosMatch[1].trim();
 
             // 2. Inyectar Paso 1 obligatorio y dividir los demás pasos
-            const rawSteps = extractedDesc.split('\n').filter(s => s.trim().length > 0);
+            const rawSteps = extractedPasos.split('\n').filter(s => s.trim().length > 0);
             
             // Extraer texto limpio de los pasos, removiendo "2.", "3.", etc.
             const cleanSteps = rawSteps.map(s => s.replace(/^\d+\.\s*/, '').trim());
@@ -6082,13 +6084,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 ...cleanSteps
             ];
 
-            // 3. Autocompletar Título
+            // 3. Autocompletar Título y Descripción General
             const pubTitleInput = document.getElementById('platformPubTitle');
             if (pubTitleInput) pubTitleInput.value = extractedTitle;
 
-            // Llenamos el textarea de descripción por si acaso (fallback)
             const pubDescInput = document.getElementById('platformPubDescription');
-            if (pubDescInput) pubDescInput.value = finalSteps.map((s, i) => `${i+1}. ${s}`).join('\n');
+            if (pubDescInput) pubDescInput.value = extractedDesc;
 
             // 4. Configurar Switches y Costo
             const pubCostInput = document.getElementById('platformPubCost');
@@ -6102,6 +6103,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const requiresEvidenceSwitch = document.getElementById('platformRequiresEvidence');
             if (requiresEvidenceSwitch) requiresEvidenceSwitch.checked = true;
+
+            // Habilitar repetición de la tarea 10 veces
+            const repeatSwitch = document.getElementById('platformAllowRepeatParticipation');
+            if (repeatSwitch) {
+                repeatSwitch.checked = true;
+                repeatSwitch.dispatchEvent(new Event('change'));
+            }
+            const repeatLimit = document.getElementById('platformRepeatLimit');
+            if (repeatLimit) repeatLimit.value = "10";
 
             // 5. Configurar Pasos Dinámicos en la UI (platformStepX)
             // Asegurarnos de que haya suficientes contenedores haciendo click en el botón "Agregar más pasos" si hace falta
