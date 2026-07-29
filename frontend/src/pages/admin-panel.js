@@ -6136,19 +6136,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Hay un paso real para este índice
                     stepTextInput.value = finalSteps[index];
                     
-                    // Activar el formulario de este paso
-                    if (checkbox) {
-                        checkbox.checked = true;
-                    }
-                    if (formFieldsContainer) {
-                        formFieldsContainer.style.display = 'block';
-                    }
-                    if (formInputsContainer) {
-                        // Limpiar campos actuales e inyectar los 3 campos obligatorios de QA
-                        formInputsContainer.innerHTML = `
-                            <input type="text" class="step-form-field" value="¿Pasó la prueba?">
-                            <input type="text" class="step-form-field" value="Enlace de evidencia">
-                            <input type="text" class="step-form-field" value="Si dio error, detalla lo ocurrido">
+                    // Activar el formulario de QA SOLO en el ÚLTIMO paso de la prueba
+                    if (index === finalSteps.length - 1) {
+                        if (checkbox) {
+                            checkbox.checked = true;
+                        }
+                        if (formFieldsContainer) {
+                            formFieldsContainer.style.display = 'block';
+                        }
+                        if (formInputsContainer) {
+                            // Limpiar campos actuales e inyectar los 3 campos obligatorios de QA
+                            formInputsContainer.innerHTML = `
+                                <input type="text" class="step-form-field" value="¿Pasó la prueba?">
+                                <input type="text" class="step-form-field" value="Enlace de evidencia">
+                                <input type="text" class="step-form-field" value="Si dio error, detalla lo ocurrido">
+                            `;
+                        }
+                    } else {
+                        // Si no es el último paso, nos aseguramos de que el formulario esté desactivado
+                        if (checkbox) checkbox.checked = false;
+                        if (formFieldsContainer) formFieldsContainer.style.display = 'none';
+                        if (formInputsContainer) formInputsContainer.innerHTML = `
+                            <input type="text" class="step-form-field" placeholder="Campo 1">
+                            <input type="text" class="step-form-field" placeholder="Campo 2">
+                            <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
                         `;
                     }
                 } else {
