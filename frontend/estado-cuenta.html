@@ -322,6 +322,104 @@
                         <span class="data-label">Cupo RED utilizado</span>
                         <span class="data-value highlight-red" id="redDebtTotal">0.0000 RED</span>
                     </div>
+
+                    <!-- Desglose transparente del Límite RED (Auditoría UX - estilo Aave/Nubank) -->
+                    <div id="limitBreakdown" style="margin-top: 12px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);">
+                        <p style="font-size: 0.75rem; color: #64748b; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">Desglose de tu Límite</p>
+                        <div class="data-row" style="padding: 4px 0; border: none;">
+                            <span class="data-label" style="font-size: 0.82rem;">🟢 Score Orgánico (Referidos/KYC)</span>
+                            <span class="data-value" id="organicScore" style="font-size: 0.82rem;">0.0000 RED</span>
+                        </div>
+                        <div class="data-row" style="padding: 4px 0; border: none;">
+                            <span class="data-label" style="font-size: 0.82rem;">🔒 Garantía en Bóveda</span>
+                            <span class="data-value highlight-green" id="collateralDisplay" style="font-size: 0.82rem;">+0.0000 RED</span>
+                        </div>
+                    </div>
+
+                    <!-- Botón CTA Principal: Aumentar Límite RED (estilo Aave / Nubank) -->
+                    <button id="toggleVaultPanelBtn" style="
+                        width: 100%;
+                        margin-top: 15px;
+                        padding: 12px 16px;
+                        background: linear-gradient(135deg, #f59e0b, #ef4444);
+                        color: #fff;
+                        border: none;
+                        border-radius: 10px;
+                        font-size: 0.95rem;
+                        font-weight: 700;
+                        cursor: pointer;
+                        transition: all 0.3s ease;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 8px;
+                        box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+                    ">
+                        ⚡ Aumentar Límite RED
+                    </button>
+
+                    <!-- Panel Expandible de la Bóveda (Collateral Vault) -->
+                    <div id="vaultPanel" style="display: none; margin-top: 15px; padding: 16px; background: rgba(0,0,0,0.3); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px;">
+                        <h4 style="color: #e2e8f0; margin: 0 0 12px 0; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">
+                            🏦 Bóveda de Garantías
+                        </h4>
+
+                        <!-- Selector de Token -->
+                        <label style="color: #94a3b8; font-size: 0.8rem; display: block; margin-bottom: 5px;">Token de Garantía</label>
+                        <select id="vaultTokenSelect" style="
+                            width: 100%; padding: 10px; border-radius: 8px; 
+                            background: rgba(0,0,0,0.4); color: #f8fafc; border: 1px solid rgba(255,255,255,0.1);
+                            font-size: 0.9rem; margin-bottom: 12px; cursor: pointer;
+                        ">
+                            <option value="USDT">USDT (Tether)</option>
+                            <option value="USDC">USDC (USD Coin)</option>
+                            <option value="DAI">DAI (MakerDAO)</option>
+                        </select>
+
+                        <!-- Input de Monto -->
+                        <label style="color: #94a3b8; font-size: 0.8rem; display: block; margin-bottom: 5px;">Monto a depositar</label>
+                        <div style="position: relative; margin-bottom: 8px;">
+                            <input type="number" id="vaultAmountInput" placeholder="Ej: 50" min="1" step="0.01" style="
+                                width: 100%; padding: 10px 70px 10px 10px; border-radius: 8px;
+                                background: rgba(0,0,0,0.4); color: #f8fafc; border: 1px solid rgba(255,255,255,0.1);
+                                font-size: 1rem; box-sizing: border-box;
+                            ">
+                            <span id="vaultTokenLabel" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 0.85rem; font-weight: 600;">USDT</span>
+                        </div>
+
+                        <!-- Calculadora en Vivo -->
+                        <div id="vaultPreview" style="background: rgba(16, 185, 129, 0.1); padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 14px;">
+                            <span style="color: #94a3b8; font-size: 0.82rem;">Tu nuevo Límite RED será: </span>
+                            <span id="vaultNewLimit" style="color: #10B981; font-weight: 700; font-size: 0.95rem;">--</span>
+                        </div>
+
+                        <!-- Botones de Acción -->
+                        <div style="display: flex; gap: 10px;">
+                            <button id="vaultDepositBtn" style="
+                                flex: 1; padding: 11px; border-radius: 8px; border: none; cursor: pointer;
+                                background: linear-gradient(135deg, #10B981, #059669); color: #fff;
+                                font-weight: 700; font-size: 0.9rem; transition: all 0.2s;
+                            ">
+                                Depositar
+                            </button>
+                            <button id="vaultWithdrawBtn" style="
+                                flex: 1; padding: 11px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;
+                                background: rgba(255,255,255,0.05); color: #94a3b8;
+                                font-weight: 600; font-size: 0.9rem; transition: all 0.2s;
+                            ">
+                                Retirar
+                            </button>
+                        </div>
+
+                        <!-- Estado de la operación -->
+                        <div id="vaultStatus" style="display: none; margin-top: 12px; padding: 10px; border-radius: 8px; text-align: center; font-size: 0.85rem;"></div>
+
+                        <!-- Aviso legal -->
+                        <p style="font-size: 0.7rem; color: #475569; margin-top: 10px; text-align: center; line-height: 1.4;">
+                            Al depositar, tus tokens quedan bloqueados en el contrato inteligente <strong>WintonCollateralVault</strong>.
+                            Solo podrás retirarlos si tu Cupo RED utilizado es 0.
+                        </p>
+                    </div>
                     
                     <button class="sc-btn" id="scRedBtn" style="margin-top: 20px;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>

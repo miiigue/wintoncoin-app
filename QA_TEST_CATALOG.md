@@ -64,3 +64,28 @@ PASOS:
 5. Verifica que la pantalla te arroje un mensaje de error rojo indicando que no tienes fondos suficientes.
 6. Regresa a tu perfil y asegúrate de que el Impulsor NO se haya activado por error.
 ```
+
+---
+
+```text
+TITULO: QA-6 - Depósito de Garantía para Aumentar Límite RED
+DESCRIPCION: El objetivo de esta prueba es verificar que el sistema de la Bóveda de Garantías funciona correctamente. Un usuario debe poder depositar tokens estables (como USDT o USDC) desde su billetera para que su Límite de Compromiso RED aumente automáticamente en la misma cantidad depositada. Se necesita confirmar que el saldo de la billetera baja, que el Límite RED sube y que la transacción queda registrada en el historial.
+PASOS:
+2. Conecta tu billetera MetaMask a la plataforma e ingresa a tu perfil.
+3. Anota tu Límite de Compromiso RED actual y tu saldo de tokens estables (USDT o USDC) en MetaMask.
+4. Busca la sección "Aumentar Límite RED" o "Bóveda de Garantías" y selecciona una cantidad para depositar.
+5. Confirma la transacción en MetaMask cuando te aparezca la ventana de aprobación.
+6. Espera a que la transacción se procese y verifica que tu Límite RED aumentó exactamente en la cantidad que depositaste.
+```
+
+---
+
+```text
+TITULO: QA-7 - Bloqueo de Retiro de Garantía con Deuda RED Pendiente
+DESCRIPCION: Esta prueba verifica que la plataforma NO permite retirar el dinero depositado como garantía si el usuario todavía tiene compromisos (deuda RED) pendientes por pagar. El sistema debe bloquear el retiro y mostrar un mensaje claro explicando que primero debe pagar lo que debe. Esto protege a la plataforma de que alguien se lleve su garantía sin cumplir sus compromisos.
+PASOS:
+2. Asegúrate de que tu cuenta tenga un depósito de garantía activo en la Bóveda y que también tengas algún compromiso RED pendiente (deuda mayor a cero).
+3. Ve a la sección "Bóveda de Garantías" en tu perfil e intenta presionar el botón de "Retirar" tu garantía.
+4. Verifica que la plataforma te muestre un mensaje de error indicando que debes pagar toda tu deuda RED antes de poder retirar.
+5. Confirma que tu saldo de garantía en la Bóveda no cambió y sigue intacto después del intento fallido.
+```

@@ -13,6 +13,23 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-30 — Integración Frontend + Backend de la Bóveda de Garantías (Collateral Vault E2E)
+* **Cambio**: 
+  - **Backend Endpoint ([userController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/userController.js), [userRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/userRoutes.js))**:
+    1. Creado endpoint `POST /api/me/collateral/sync` que registra depósitos/retiros de la Bóveda Web3 en la tabla inmutable `collateral_deposits` y recalcula automáticamente el Límite RED.
+    2. Implementada validación Zero-Trust con whitelist estricta de tokens (USDT/USDC/DAI), validación de direcciones Ethereum, validación de tx_hash, y protección contra duplicados.
+    3. Añadida consulta de `collateral_balance` al response de `getMyBalance` para que el frontend muestre el desglose del Límite RED.
+  - **Frontend Interacción Web3 ([estado-cuenta.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/estado-cuenta.html), [estado-cuenta.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/estado-cuenta.js))**:
+    1. Desglose visual del Límite RED (Score Orgánico 🟢 + Garantía en Bóveda 🔒) dentro de la tarjeta de Tokens RED.
+    2. Botón CTA premium "⚡ Aumentar Límite RED" con gradiente y panel expandible elegante.
+    3. Selector de Stablecoin (USDT/USDC/DAI), input de monto y calculadora en vivo del nuevo Límite.
+    4. Integración MetaMask: flujo de 2 pasos (approve + deposit) con feedback visual en cada etapa.
+    5. Validación de retiro Zero-Trust: bloqueo de retiro si deuda RED > 0 con mensaje explicativo.
+    6. Sincronización automática con backend tras cada operación exitosa en blockchain.
+    7. Ocultamiento automático en modo Pre-lanzamiento (producción off-chain).
+* **Evidencia**: Verificación sintáctica (`node --check`) aprobada al 100%. Suite de tests sin regresiones.
+* **Impacto**: Ciclo completo E2E de la Bóveda de Garantías: el usuario puede depositar Stablecoins desde MetaMask → el Límite RED aumenta en vivo → el registro queda en blockchain + base de datos inmutable → no puede retirar hasta pagar toda su deuda RED. Modelo DeFi profesional (Aave/MakerDAO).
+
 ### 2026-07-29 — Bóveda de Garantías Web3 (Collateral Vault) para Aumento de Límite RED
 * **Cambio**: 
   - **Smart Contracts ([WintonCollateralVault.sol](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/web3-contracts/contracts/WintonCollateralVault.sol))**:
