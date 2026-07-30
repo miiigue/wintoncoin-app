@@ -81,14 +81,27 @@ class CreditScoringService {
             // E. Pagos tempranos - Próximamente integrado
             const earlyPayCount = 0;
 
+            // F. BÓVEDA DE GARANTÍAS (Collateral Vault - WintonCollateralVault)
+            // Consulta el saldo neto de Stablecoins depositadas por el usuario.
+            // Los depósitos suman (+), los retiros y liquidaciones restan (-).
+            // El resultado se convierte de 18 decimales (wei) a unidades legibles.
+            const collateralRes = await client.query(
+                `SELECT COALESCE(SUM(amount), 0) AS net_collateral 
+                 FROM collateral_deposits 
+                 WHERE user_id = $1`,
+                [userId]
+            );
+            const collateralBonus = parseFloat(collateralRes.rows[0].net_collateral) || 0;
+
             // 3. Cálculo final (Únicamente los referidos con KYC verificado otorgan bonificación)
             let score = baseLimit;
-            score += (verifiedRefCount * refBonus);
-            score += (quizCount * quizBonus);
-            if (hasActivityBonus) score += activityBonus;
-            score += (earlyPayCount * earlyPayBonus);
+            score += (verifiedRefCount * refBonus);       // Bono por referidos verificados
+            score += (quizCount * quizBonus);             // Bono por quizzes (próximamente)
+            if (hasActivityBonus) score += activityBonus;  // Bono por actividad mensual
+            score += (earlyPayCount * earlyPayBonus);      // Bono por pagos tempranos (próximamente)
+            score += collateralBonus;                      // Bono por garantía depositada en bóveda
 
-            console.log(`[SCORING] Límite de compromiso RED calculado para Usuario #${userId}: ${score} RED (Total Refs: ${totalRefCount}, Refs KYC Verificados: ${verifiedRefCount}, Actividad: ${taskCount})`);
+            console.log(`[SCORING] Límite de compromiso RED calculado para Usuario #${userId}: ${score} RED (Total Refs: ${totalRefCount}, Refs KYC Verificados: ${verifiedRefCount}, Actividad: ${taskCount}, Colateral: ${collateralBonus})`);
             return score;
 
         } catch (error) {

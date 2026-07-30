@@ -13,6 +13,29 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-07-29 — Bóveda de Garantías Web3 (Collateral Vault) para Aumento de Límite RED
+* **Cambio**: 
+  - **Smart Contracts ([WintonCollateralVault.sol](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/web3-contracts/contracts/WintonCollateralVault.sol))**:
+    1. Creado nuevo contrato inteligente `WintonCollateralVault.sol` que funciona como bóveda segura para bloquear Stablecoins (USDT/USDC/DAI) como garantía.
+    2. Implementado `SafeERC20` de OpenZeppelin para compatibilidad con tokens no estándar como USDT (que no retorna `bool` en `transfer`).
+    3. Implementado patrón Checks-Effects-Interactions (CEI) en todas las funciones para prevenir ataques de reentrada.
+    4. Variables `collateralToken` y `redToken` marcadas como `immutable` (no modificables post-despliegue).
+    5. Función `deposit()`: permite depositar Stablecoins para aumentar Límite RED.
+    6. Función `withdraw()`: permite retirar SOLO si deuda RED del usuario es exactamente 0 (Zero-Trust).
+    7. Función `liquidate()`: permite al sistema confiscar garantía de usuarios morosos, pero SOLO si tienen deuda RED > 0 (previene abuso administrativo).
+    8. Función `getCollateralBalance()`: consulta de lectura para que el backend lea saldos.
+    9. Variable `totalCollateralLocked`: acumulador global para auditoría de solvencia.
+    10. Eventos enriquecidos con datos de auditoría SOC 2 (totales globales, deuda al momento de liquidación).
+  - **Migración de Base de Datos ([098_create_collateral_deposits.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/098_create_collateral_deposits.js))**:
+    1. Creada tabla `collateral_deposits` con registro inmutable de cada depósito, retiro y liquidación.
+    2. Implementado trigger SOC 2 de inmutabilidad (`trg_enforce_collateral_deposits_immutability`) que prohíbe UPDATE y DELETE.
+    3. Creados índices optimizados para consultas del backend (user_id, operation_type, tx_hash).
+  - **Motor de Scoring ([creditScoringService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/creditScoringService.js))**:
+    1. Añadida nueva variable F (Bóveda de Garantías) al cálculo de `calculateUserScore()`.
+    2. Consulta el saldo neto de Stablecoins depositadas en `collateral_deposits` y lo suma al Límite RED orgánico del usuario.
+* **Evidencia**: Auditoría de seguridad completada con 3 vulnerabilidades críticas encontradas y corregidas (SafeERC20, verificación de deuda en liquidate, funciones de lectura). Contrato cumple estándares OpenZeppelin v5.x.
+* **Impacto**: Los usuarios ahora pueden aumentar su Límite de Compromiso RED depositando Stablecoins como garantía, siguiendo el modelo DeFi de MakerDAO/Aave. Garantiza solvencia de la plataforma mediante colateral bloqueado y liquidación automática de morosos.
+
 ### 2026-07-28 — Resoluciones Críticas de Scoring de Compromiso RED, Migración 096 e Inmutabilidad SOC 2
 * **Cambio**: 
   - **Smart Contracts ([WintonProtocol.sol](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/web3-contracts/contracts/WintonProtocol.sol))**:
