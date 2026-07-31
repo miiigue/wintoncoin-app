@@ -12,10 +12,10 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
-### 2026-07-31 — Censo y Registro de Damnificados del Terremoto (SOS Venezuela), Migración 096 y Auditoría SOC 2
+### 2026-07-31 — Censo y Registro de Damnificados del Terremoto (SOS Venezuela), Migración 099 e Integración SOC 2
 * **Cambio**: 
-  - **Migración 096 BD ([096_create_disaster_victims_system.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/096_create_disaster_victims_system.js))**:
-    1. Creada e integrada la migración 096 con las tablas `disaster_victims_registry` (expedientes de damnificados y censo), `disaster_aid_disbursements` (entregas recurrentes de ayuda) y `email_templates_sos` (plantillas de correo personalizables).
+  - **Migración 099 BD ([099_create_disaster_victims_system.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/099_create_disaster_victims_system.js))**:
+    1. Creada e integrada la migración 099 con las tablas `disaster_victims_registry` (expedientes de damnificados y censo), `disaster_aid_disbursements` (entregas recurrentes de ayuda) y `email_templates_sos` (plantillas de correo personalizables).
   - **Código de Expediente Inteligente & Backend ([victimController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/victimController.js), [systemRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/systemRoutes.js), [adminRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/adminRoutes.js))**:
     1. Implementada la matriz de 3 dígitos centrales para generar expedientes amigables e informativos (ej: `#SOS-VZLA-249-00142` -> *Mujer cabeza de familia (2), con 4 dependientes a cargo (4), en urgencia máxima por pérdida total (9)*).
     2. Creación automática de cuenta WintonCoin vinculada al código especial `SOSVENEZUELA` con bono de 200 BLUE IOU.

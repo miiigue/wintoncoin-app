@@ -1,7 +1,7 @@
 const pool = require('../src/config/db');
 
 /**
- * Migración 096: Sistema de Registro, Censo, Notificaciones y Entregas Múltiples para Damnificados del Terremoto (SOS Venezuela)
+ * Migración 099: Sistema de Registro, Censo, Notificaciones y Entregas Múltiples para Damnificados del Terremoto (SOS Venezuela)
  * ═════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
  * Crea:
  * 1. Tabla disaster_victims_registry: Expedientes de damnificados con censo familiar, ubicación y código inteligente.
@@ -132,10 +132,10 @@ async function up() {
         }
 
         await client.query('COMMIT');
-        console.log('✅ Migración 096 completada: Tablas disaster_victims_registry, disaster_aid_disbursements y email_templates_sos creadas.');
+        console.log('✅ Migración 099 completada: Tablas disaster_victims_registry, disaster_aid_disbursements y email_templates_sos creadas.');
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error('❌ Error en la migración 096:', error);
+        console.error('❌ Error en la migración 099:', error);
         throw error;
     } finally {
         client.release();
