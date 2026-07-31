@@ -116,15 +116,15 @@
         </div>
     </section>
 
-    <!-- SECCIÓN DE REGISTRO Y CENSO DE DAMNIFICADOS DEL TERREMOTO -->
-    <section id="registro-damnificados" class="sos-victim-section" style="padding: 4rem 1rem; margin: 2rem auto; max-width: 900px;">
-        <div class="compliance-box vzla-flag-bg" style="background: rgba(15, 23, 42, 0.95) !important; color: #f8fafc; padding: 2.5rem; border-radius: 20px; border: 1px solid rgba(219, 39, 119, 0.3); box-shadow: 0 20px 50px rgba(0,0,0,0.4);">
+    <!-- SECCIÓN DE REGISTRO Y CENSO DE DAMNIFICADOS DEL TERREMOTO (TEMA CLARO E IMPERMEABLE) -->
+    <section id="registro-damnificados" class="sos-victim-section" style="padding: 3.5rem 1rem; margin: 2rem auto; max-width: 920px;">
+        <div class="compliance-box" style="background: #ffffff !important; color: #0f172a; padding: 2.5rem; border-radius: 24px; border: 1px solid rgba(219, 39, 119, 0.2); box-shadow: 0 15px 45px rgba(0,0,0,0.06);">
             <div style="text-align: center; margin-bottom: 2rem;">
                 <span style="font-size: 2.5rem; display: block; margin-bottom: 0.5rem;">🚨</span>
-                <h2 style="font-size: clamp(1.8rem, 4vw, 2.3rem); font-weight: 800; color: #f8fafc; font-family: 'Outfit', sans-serif; margin-bottom: 0.5rem;">
+                <h2 style="font-size: clamp(1.8rem, 4vw, 2.3rem); font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif; margin-bottom: 0.5rem;">
                     Censo y Registro de Asistencia para Damnificados
                 </h2>
-                <p style="color: #94a3b8; font-size: 1.05rem; max-width: 700px; margin: 0 auto; line-height: 1.6;">
+                <p style="color: #475569; font-size: 1.05rem; max-width: 700px; margin: 0 auto; line-height: 1.6;">
                     Si fuiste afectado por el sismo en Venezuela, completa este formulario oficial de censo para evaluar tu caso, generar tu expediente e inscribirte en el programa de asistencia humanitaria directa.
                 </p>
             </div>
@@ -132,87 +132,87 @@
             <form id="sos-victim-registration-form" style="display: flex; flex-direction: column; gap: 1.5rem;">
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
                     <div>
-                        <label for="sos-fullname" style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.5rem;">Nombre Completo:</label>
-                        <input type="text" id="sos-fullname" required placeholder="Ej: María Alejandrina Pérez" style="width: 100%; padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff;">
+                        <label for="sos-fullname" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Nombre Completo:</label>
+                        <input type="text" id="sos-fullname" required placeholder="Ej: María Alejandrina Pérez" style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                     </div>
                     <div>
-                        <label for="sos-iddocument" style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.5rem;">Cédula de Identidad (V-/E-):</label>
-                        <input type="text" id="sos-iddocument" required placeholder="Ej: V-12345678" style="width: 100%; padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff;">
+                        <label for="sos-iddocument" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Cédula de Identidad (V-/E-):</label>
+                        <input type="text" id="sos-iddocument" required placeholder="Ej: V-12345678" style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                     </div>
                 </div>
 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem;">
                     <div>
-                        <label for="sos-gender" style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.5rem;">Género:</label>
-                        <select id="sos-gender" required style="width: 100%; padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: #0f172a; color: #fff;">
+                        <label for="sos-gender" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Género:</label>
+                        <select id="sos-gender" required style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                             <option value="female">Femenino</option>
                             <option value="male">Masculino</option>
                             <option value="other">Otro</option>
                         </select>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 1.8rem;">
-                        <input type="checkbox" id="sos-headof-family" checked style="width: 20px; height: 20px; accent-color: #db2777;">
-                        <label for="sos-headof-family" style="font-weight: 600; color: #f8fafc; cursor: pointer;">¿Es Cabeza de Familia?</label>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 1.8rem; background: #f8fafc; padding: 10px 14px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                        <input type="checkbox" id="sos-headof-family" style="width: 20px; height: 20px; accent-color: #db2777;">
+                        <label for="sos-headof-family" style="font-weight: 600; color: #0f172a; cursor: pointer;">¿Es Cabeza de Familia?</label>
                     </div>
                 </div>
 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
                     <div>
-                        <label for="sos-email" style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.5rem;">Correo Electrónico (para notificaciones):</label>
-                        <input type="email" id="sos-email" required placeholder="ejemplo@correo.com" style="width: 100%; padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff;">
+                        <label for="sos-email" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Correo Electrónico (para notificaciones):</label>
+                        <input type="email" id="sos-email" required placeholder="ejemplo@correo.com" style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                     </div>
                     <div>
-                        <label for="sos-phone" style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.5rem;">Teléfono WhatsApp (+58):</label>
-                        <input type="tel" id="sos-phone" required placeholder="+58 414 123 4567" value="+58 " style="width: 100%; padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff;">
+                        <label for="sos-phone" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Teléfono WhatsApp (+58):</label>
+                        <input type="tel" id="sos-phone" required placeholder="+58 414 123 4567" value="+58 " style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                     </div>
                 </div>
 
                 <!-- Ubicación de la Emergencia -->
-                <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
+                <div style="background: #f8fafc; padding: 1.25rem; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
                     <strong style="color: #db2777; display: block; margin-bottom: 1rem; font-size: 1.05rem;">📍 Ubicación Geográfica de la Emergencia</strong>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
                         <div>
-                            <label for="sos-state" style="font-size: 0.9rem; color: #cbd5e1;">Estado:</label>
-                            <input type="text" id="sos-state" required placeholder="Ej: Sucre" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.4); color: #fff;">
+                            <label for="sos-state" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Estado:</label>
+                            <input type="text" id="sos-state" required placeholder="Ej: Sucre" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                         </div>
                         <div>
-                            <label for="sos-municipality" style="font-size: 0.9rem; color: #cbd5e1;">Municipio:</label>
-                            <input type="text" id="sos-municipality" required placeholder="Ej: Bermúdez" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.4); color: #fff;">
+                            <label for="sos-municipality" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Municipio:</label>
+                            <input type="text" id="sos-municipality" required placeholder="Ej: Bermúdez" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                         </div>
                         <div>
-                            <label for="sos-sector" style="font-size: 0.9rem; color: #cbd5e1;">Sector / Comunidad:</label>
-                            <input type="text" id="sos-sector" required placeholder="Ej: Carúpano Centro" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.4); color: #fff;">
+                            <label for="sos-sector" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Sector / Comunidad:</label>
+                            <input type="text" id="sos-sector" required placeholder="Ej: Carúpano Centro" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                         </div>
                     </div>
                     <div>
-                        <label for="sos-address" style="font-size: 0.9rem; color: #cbd5e1;">Dirección Detallada (Calle, Edificio/Casa, Apt/Nro, Punto de Referencia):</label>
-                        <input type="text" id="sos-address" required placeholder="Ej: Calle Carabobo, Casa Nro 45, al lado del abasto" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.4); color: #fff;">
+                        <label for="sos-address" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Dirección Detallada (Calle, Edificio/Casa, Apt/Nro, Punto de Referencia):</label>
+                        <input type="text" id="sos-address" required placeholder="Ej: Calle Carabobo, Casa Nro 45, al lado del abasto" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                     </div>
                 </div>
 
                 <!-- Censo de Cargas Familiares -->
-                <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
+                <div style="background: #f8fafc; padding: 1.25rem; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
                     <strong style="color: #db2777; display: block; margin-bottom: 1rem; font-size: 1.05rem;">👨‍👩‍👧‍👦 Censo de Cargas Familiares a Cargo</strong>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
                         <div>
-                            <label for="sos-minors" style="font-size: 0.9rem; color: #cbd5e1;">Niños / Menores de Edad:</label>
-                            <input type="number" id="sos-minors" min="0" value="0" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.4); color: #fff;">
+                            <label for="sos-minors" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Niños / Menores de Edad:</label>
+                            <input type="number" id="sos-minors" min="0" value="0" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                         </div>
                         <div>
-                            <label for="sos-elderly" style="font-size: 0.9rem; color: #cbd5e1;">Adultos Mayores / Tercera Edad:</label>
-                            <input type="number" id="sos-elderly" min="0" value="0" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.4); color: #fff;">
+                            <label for="sos-elderly" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Adultos Mayores / Tercera Edad:</label>
+                            <input type="number" id="sos-elderly" min="0" value="0" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                         </div>
                         <div>
-                            <label for="sos-disabled" style="font-size: 0.9rem; color: #cbd5e1;">Personas con Discapacidad:</label>
-                            <input type="number" id="sos-disabled" min="0" value="0" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.4); color: #fff;">
+                            <label for="sos-disabled" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Personas con Discapacidad:</label>
+                            <input type="number" id="sos-disabled" min="0" value="0" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                         </div>
                     </div>
                 </div>
 
                 <!-- Detalle del Daño y Evidencia -->
                 <div>
-                    <label for="sos-affectation-level" style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.5rem;">Nivel de Afectación Principal:</label>
-                    <select id="sos-affectation-level" required style="width: 100%; padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: #0f172a; color: #fff;">
+                    <label for="sos-affectation-level" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Nivel de Afectación Principal:</label>
+                    <select id="sos-affectation-level" required style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                         <option value="total_loss">🚨 Pérdida Total de Vivienda / Enseres (Urgencia Máxima)</option>
                         <option value="medical_emergency">🚑 Emergencia Médica / Lesionados por el Sismo</option>
                         <option value="partial_damage">🏚️ Daños Estructurales Parciales en Vivienda</option>
@@ -221,38 +221,37 @@
                 </div>
 
                 <div>
-                    <label for="sos-description" style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.5rem;">Descripción de la Situación y Necesidades Urgentes:</label>
-                    <textarea id="sos-description" required rows="4" placeholder="Describe brevemente lo ocurrido en tu vivienda o sector tras el sismo y cuáles son tus necesidades más urgentes..." style="width: 100%; padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff; line-height: 1.5;"></textarea>
+                    <label for="sos-description" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Descripción de la Situación y Necesidades Urgentes:</label>
+                    <textarea id="sos-description" required rows="4" placeholder="Describe brevemente lo ocurrido en tu vivienda o sector tras el sismo y cuáles son tus necesidades más urgentes..." style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; line-height: 1.5;"></textarea>
                     <small style="color: #64748b; margin-top: 4px; display: block;">💡 Describe los detalles principales para ayudar a nuestro equipo a priorizar tu atención.</small>
                 </div>
 
-                <div>
                 <!-- Evidencias Fotográficas -->
-                <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
-                    <label for="sos-photo-files" style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.5rem;">
+                <div style="background: #f8fafc; padding: 1.25rem; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+                    <label for="sos-photo-files" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">
                         📷 Subir Fotos de Evidencia (Vivienda / Daños / Documentos):
                     </label>
-                    <input type="file" id="sos-photo-files" accept="image/*" multiple style="width: 100%; padding: 10px; border-radius: 8px; border: 1px dashed #db2777; background: rgba(0,0,0,0.5); color: #fff; cursor: pointer;">
+                    <input type="file" id="sos-photo-files" accept="image/*" multiple style="width: 100%; padding: 10px; border-radius: 8px; border: 1px dashed #db2777; background: #ffffff; color: #0f172a; cursor: pointer;">
                     <small style="color: #64748b; margin-top: 6px; display: block;">💡 Puedes seleccionar o tomar varias fotos directamente desde la cámara o galería de tu teléfono (Máx. 5 fotos).</small>
                     <div id="sos-photo-previews" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;"></div>
 
-                    <div style="margin-top: 1rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 1rem;">
-                        <label for="sos-photo-link" style="font-size: 0.9rem; color: #cbd5e1; display: block; margin-bottom: 0.3rem;">O pega un Enlace de Google Fotos / Drive (Opcional):</label>
-                        <input type="url" id="sos-photo-link" placeholder="Ej: https://photos.app.goo.gl/..." style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.4); color: #fff;">
+                    <div style="margin-top: 1rem; border-top: 1px dashed #cbd5e1; padding-top: 1rem;">
+                        <label for="sos-photo-link" style="font-size: 0.9rem; color: #475569; font-weight: 600; display: block; margin-bottom: 0.3rem;">O pega un Enlace de Google Fotos / Drive (Opcional):</label>
+                        <input type="url" id="sos-photo-link" placeholder="Ej: https://photos.app.goo.gl/..." style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                     </div>
                 </div>
 
-                <!-- Checkboxes Legales (Sin marcar por defecto) -->
-                <div style="background: rgba(219, 39, 119, 0.08); padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(219, 39, 119, 0.2); display: flex; flex-direction: column; gap: 0.8rem;">
+                <!-- Checkboxes Legales (Todos sin marcar por defecto) -->
+                <div style="background: #fff5f8; padding: 1.25rem; border-radius: 14px; border: 1px solid rgba(219, 39, 119, 0.25); display: flex; flex-direction: column; gap: 0.8rem;">
                     <div style="display: flex; gap: 10px; align-items: flex-start;">
                         <input type="checkbox" id="sos-data-consent" required style="width: 20px; height: 20px; margin-top: 3px; accent-color: #db2777;">
-                        <label for="sos-data-consent" style="font-size: 0.9rem; color: #e2e8f0; cursor: pointer; line-height: 1.4;">
+                        <label for="sos-data-consent" style="font-size: 0.9rem; color: #1e293b; cursor: pointer; line-height: 1.4;">
                             Autorizo el tratamiento confidencial de mis datos personales únicamente con fines de censo humanitario, verificación de campo y entrega de asistencia (Protección de Datos / Habeas Data).
                         </label>
                     </div>
                     <div style="display: flex; gap: 10px; align-items: flex-start;">
                         <input type="checkbox" id="sos-sworn-declaration" required style="width: 20px; height: 20px; margin-top: 3px; accent-color: #db2777;">
-                        <label for="sos-sworn-declaration" style="font-size: 0.9rem; color: #e2e8f0; cursor: pointer; line-height: 1.4;">
+                        <label for="sos-sworn-declaration" style="font-size: 0.9rem; color: #1e293b; cursor: pointer; line-height: 1.4;">
                             Declaro bajo fe de juramento que la información y evidencias suministradas corresponden a mi situación real y verídica como afectado por el sismo.
                         </label>
                     </div>
@@ -260,32 +259,32 @@
 
                 <div id="sos-victim-feedback" style="display: none;"></div>
 
-                <button type="submit" class="btn-primary-campaign" style="width: 100%; padding: 16px; font-size: 1.1rem; font-weight: 800; margin-top: 1rem; border-radius: 12px; cursor: pointer;">
+                <button type="submit" class="btn-primary-campaign" style="width: 100%; padding: 16px; font-size: 1.15rem; font-weight: 600; margin-top: 1rem; border-radius: 50px; cursor: pointer;">
                     Enviar Solicitud de Asistencia Humanitaria &rarr;
                 </button>
             </form>
 
-            <!-- Card de Resultado de Expediente Generado y Verificación OTP -->
+            <!-- Card de Resultado de Expediente Generado y Verificación OTP (Tema Claro) -->
             <div id="sos-victim-result-card" style="display: none; text-align: center; padding: 2rem 1rem;">
                 <div style="font-size: 3.5rem; margin-bottom: 1rem;">✅</div>
                 <h3 style="font-size: 1.8rem; font-weight: 800; color: #10b981; font-family: 'Outfit', sans-serif; margin-bottom: 0.5rem;">
                     ¡Solicitud Registrada Exitosamente!
                 </h3>
-                <p style="color: #cbd5e1; font-size: 1.05rem; max-width: 650px; margin: 0 auto 1.25rem; line-height: 1.6;">
-                    Se ha generado tu expediente de censo de emergencia con el correlativo <strong id="sos-dossier-number-display" style="color: #f8fafc; font-weight: 700;">#SOS-VZLA-000-00000</strong>. Tu solicitud ha entrado directamente en <strong>Proceso de Verificación Manual</strong>.
+                <p style="color: #334155; font-size: 1.05rem; max-width: 650px; margin: 0 auto 1.25rem; line-height: 1.6;">
+                    Se ha generado tu expediente de censo de emergencia con el correlativo <strong id="sos-dossier-number-display" style="color: #0f172a; font-weight: 700;">#SOS-VZLA-000-00000</strong>. Tu solicitud ha entrado directamente en <strong>Proceso de Verificación Manual</strong>.
                 </p>
 
                 <!-- Caja Destacada Exclusiva para el Código OTP de 6 dígitos -->
-                <div id="sos-otp-verification-card" style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(219, 39, 119, 0.4); border-radius: 16px; padding: 1.75rem; max-width: 500px; margin: 1.5rem auto 1.5rem; text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.4);">
-                    <h4 style="color: #f8fafc; font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; font-family: 'Outfit', sans-serif;">
+                <div id="sos-otp-verification-card" style="background: #f8fafc; border: 1px solid rgba(219, 39, 119, 0.3); border-radius: 20px; padding: 1.75rem; max-width: 500px; margin: 1.5rem auto 1.5rem; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.04);">
+                    <h4 style="color: #0f172a; font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; font-family: 'Outfit', sans-serif;">
                         🔐 Activa tu Billetera de Ayuda Humanitaria
                     </h4>
-                    <p style="color: #94a3b8; font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.25rem;">
+                    <p style="color: #475569; font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.25rem;">
                         Hemos creado tu cuenta WintonCoin con el código especial <strong>SOSVENEZUELA</strong> y enviado un <strong>Código de Verificación de 6 dígitos</strong> a tu correo electrónico. Ingrésalo a continuación para activar tus 200 BLUE IOU iniciales:
                     </p>
                     <div style="display: flex; gap: 10px; justify-content: center; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap;">
-                        <input type="text" id="sos-otp-code-input" maxlength="6" placeholder="849201" style="width: 160px; padding: 12px; font-size: 1.4rem; font-weight: 800; text-align: center; letter-spacing: 4px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: #0f172a; color: #34d399;">
-                        <button type="button" id="sos-btn-verify-otp" class="btn-primary-campaign" style="padding: 12px 22px; font-size: 1rem; font-weight: 700; border-radius: 8px; cursor: pointer;">
+                        <input type="text" id="sos-otp-code-input" maxlength="6" placeholder="849201" style="width: 160px; padding: 12px; font-size: 1.4rem; font-weight: 800; text-align: center; letter-spacing: 4px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                        <button type="button" id="sos-btn-verify-otp" class="btn-primary-campaign" style="padding: 12px 22px; font-size: 1rem; font-weight: 600; border-radius: 50px; cursor: pointer;">
                             Confirmar Código
                         </button>
                     </div>
