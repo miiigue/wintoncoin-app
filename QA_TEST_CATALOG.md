@@ -116,3 +116,47 @@ PASOS:
 6. Verifica que la aplicación muestre un mensaje de aviso en letras rojas solicitando ingresar un monto válido mayor a cero.
 ```
 
+---
+
+```text
+TITULO: QA-10 - Registro de Damnificados del Terremoto y Código de Expediente Inteligente
+DESCRIPCION: Esta prueba valida que una persona afectada por el desastre pueda registrar su censo de emergencia desde su teléfono móvil. Se debe verificar que el formulario capture la ubicación, censo familiar, fotos de evidencia y que genere su número de expediente inteligente sin bloqueos.
+PASOS:
+2. Abre tu navegador en el teléfono móvil e ingresa a la página del portal SOS Venezuela (sos-venezuela.html).
+3. Desplázate hacia abajo hasta ubicar el formulario de "Censo y Registro de Asistencia para Damnificados" o presiona el botón rosa de acceso rápido.
+4. Llenar los datos personales: tu nombre completo, Cédula de Identidad con formato V-, género, teléfono venezolano con prefijo +58 y correo electrónico.
+5. Indicar la ubicación exacta de la emergencia con tu Estado, Municipio, Sector y la dirección detallada de la vivienda afectada.
+6. Completar el censo de cargas familiares indicando cuántos niños, adultos mayores y personas con discapacidad viven contigo.
+7. Seleccionar el nivel de afectación (ejemplo: Pérdida Total o Daños Parciales) y escribir un relato breve de la situación vivida.
+8. Dejar marcadas las casillas de consentimiento legal y declaración jurada, y presionar el botón "Enviar Solicitud de Asistencia Humanitaria".
+9. Confirmar que la pantalla muestre el mensaje verde de éxito y que en el texto se despliegue tu número de expediente asignado (ejemplo: #SOS-VZLA-249-00001).
+```
+
+---
+
+```text
+TITULO: QA-11 - Verificación de Cuenta por Código de 6 Dígitos en SOS Venezuela
+DESCRIPCION: Esta misión garantiza que el usuario pueda activar su cuenta recién creada e ingresar sus 6 dígitos de seguridad en la misma pantalla del portal SOS sin perder su número de expediente. Se debe verificar la llegada del correo y la acreditación de los 200 BLUE IOU iniciales.
+PASOS:
+2. Tras completar el registro de damnificado en la prueba anterior, ubica en la pantalla la caja destacada que dice "Activa tu Billetera de Ayuda Humanitaria".
+3. Revisa la bandeja de entrada de tu correo electrónico (o la carpeta de correo no deseado) y busca el mensaje de confirmación enviado por WintonCoin.
+4. Anota el código de seguridad numérico de 6 dígitos que viene en el correo (ejemplo: 849201).
+5. Regresa a la página en tu teléfono e ingresa exactamente esos 6 dígitos en el campo de texto.
+6. Presiona el botón que dice "Confirmar Código".
+7. Verifica que la caja cambie a color verde y te muestre el mensaje de éxito informándote que tu cuenta y tus 200 BLUE IOU han sido activados correctamente.
+```
+
+---
+
+```text
+TITULO: QA-12 - Control Administrativo y Asignación de Ayuda Recurrente a Damnificados
+DESCRIPCION: Esta prueba valida que los administradores puedan auditar los expedientes recibidos desde el panel de administración, revisar las evidencias y realizar asignaciones de ayuda en tokens BLUE de forma recurrente.
+PASOS:
+2. Inicia sesión como administrador en el Panel de Administración (admin-panel.html).
+3. En el menú lateral, busca y selecciona la pestaña dedicada a "Damnificados Terremoto (SOS)".
+4. Revisa la lista de solicitudes y ubica el expediente recién creado filtrando por la Cédula o número de expediente inteligente.
+5. Presiona el expediente para abrir la ficha de detalle y comprobar que se muestren la dirección completa, el desglose del censo familiar y los enlaces a las fotos.
+6. Presiona el botón de "Asignar Ayuda" e ingresa un monto en tokens BLUE (ejemplo: 500) junto con una nota explicativa de la fase de entrega.
+7. Presiona guardar y verifica que la entrega quede registrada en el historial y que el estado del expediente se actualice a Desembolsado.
+```
+
