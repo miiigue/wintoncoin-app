@@ -89,3 +89,30 @@ PASOS:
 4. Verifica que la plataforma te muestre un mensaje de error indicando que debes pagar toda tu deuda RED antes de poder retirar.
 5. Confirma que tu saldo de garantía en la Bóveda no cambió y sigue intacto después del intento fallido.
 ```
+
+---
+
+```text
+TITULO: QA-8 - Visualización del Desglose de Límite RED y Despliegue de Bóveda
+DESCRIPCION: Esta prueba busca confirmar que la pantalla de Estado de Cuenta presenta de forma transparente el origen del Límite de Compromiso RED del usuario, separando claramente los puntos ganados por invitaciones y verificación de la garantía depositada en dinero estable. Además, se debe comprobar que el panel para depositar garantía se despliega y oculta de forma fluida al presionar el botón interactivo.
+PASOS:
+2. Inicia sesión en la aplicación y dirígete a la sección de Estado de Cuenta Web3 desde el menú principal.
+3. Observa la tarjeta de Tokens RED y confirma que aparezca la casilla de Desglose de tu Límite con dos filas indicando el Score Orgánico y la Garantía en Bóveda.
+4. Presiona el botón anaranjado que dice Aumentar Límite RED.
+5. Verifica que se abra una caja explicativa mostrando el selector de moneda, la calculadora de monto y los botones de Depositar y Retirar.
+6. Vuelve a presionar el botón superior para verificar que la caja se cierre correctamente sin desajustar la pantalla.
+```
+
+---
+
+```text
+TITULO: QA-9 - Calculadora en Tiempo Real y Validación de Retiro de Garantía
+DESCRIPCION: Esta prueba valida que la calculadora interactiva responda al instante cuando el usuario escribe una cantidad a depositar, calculando exactamente cuánto aumentará su capacidad de compromiso antes de confirmar la operación en la red. Asimismo, confirma que el sistema rechace montos inválidos o vacíos al intentar presionar los botones de acción.
+PASOS:
+2. Ingresa al Estado de Cuenta Web3 y despliega el panel de Aumentar Límite RED.
+3. Selecciona la moneda USDT en la lista desplegable y escribe la cantidad de 50 en el campo de monto.
+4. Confirma que la etiqueta verde inferior cambie automáticamente mostrando la suma total de tu nuevo Límite RED proyectado.
+5. Borra el número dejando el campo vacío e intenta presionar el botón de Depositar.
+6. Verifica que la aplicación muestre un mensaje de aviso en letras rojas solicitando ingresar un monto válido mayor a cero.
+```
+

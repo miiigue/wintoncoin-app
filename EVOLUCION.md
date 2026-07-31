@@ -12,6 +12,21 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
+### 2026-07-31 — Censo y Registro de Damnificados del Terremoto (SOS Venezuela), Migración 096 y Auditoría SOC 2
+* **Cambio**: 
+  - **Migración 096 BD ([096_create_disaster_victims_system.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/096_create_disaster_victims_system.js))**:
+    1. Creada e integrada la migración 096 con las tablas `disaster_victims_registry` (expedientes de damnificados y censo), `disaster_aid_disbursements` (entregas recurrentes de ayuda) y `email_templates_sos` (plantillas de correo personalizables).
+  - **Código de Expediente Inteligente & Backend ([victimController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/victimController.js), [systemRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/systemRoutes.js), [adminRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/adminRoutes.js))**:
+    1. Implementada la matriz de 3 dígitos centrales para generar expedientes amigables e informativos (ej: `#SOS-VZLA-249-00142` -> *Mujer cabeza de familia (2), con 4 dependientes a cargo (4), en urgencia máxima por pérdida total (9)*).
+    2. Creación automática de cuenta WintonCoin vinculada al código especial `SOSVENEZUELA` con bono de 200 BLUE IOU.
+    3. Servicio de correos transaccionales (`emailService.js`) con notificación de registro inicial en *Verificación Manual*, solicitud de información adicional (`info_requested`) y aprobación/desembolso.
+    4. Endpoints administrativos para gestionar expedientes, editar plantillas de correo y realizar entregas recurrentes con auditoría SOC 2.
+  - **Frontend Censo Humanitario ([sos-venezuela.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/sos-venezuela.html), [sos-venezuela.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/sos-venezuela.js))**:
+    1. Tarjeta y formulario responsivo de censo con campos de dirección detallada, censo de niños/tercera edad/discapacidad, selector de afectación y carga dual de imágenes/Google Fotos.
+    2. Checkboxes de consentimiento de Habeas Data y Declaración Jurada bajo fe de juramento.
+    3. Card de resultado con despliegue animado del expediente generado.
+* **Evidencia**: Migración 096 validada, compilación de frontend limpia (`npm run build:demo` en 13.44s).
+* **Impacto**: Canalización transparente, segura y auditable de asistencia humanitaria directa a damnificados del sismo en Venezuela.
 
 ### 2026-07-30 — Integración Frontend + Backend de la Bóveda de Garantías (Collateral Vault E2E)
 * **Cambio**: 

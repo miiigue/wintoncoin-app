@@ -102,4 +102,13 @@ router.post('/invitations/claim', adminController.claimInvitation);
 router.get('/team', verifyAdminToken, adminController.getAdminUsers);
 router.post('/team/:adminId/status', verifyAdminToken, adminController.updateAdminStatus);
 
+// Gestión de Expedientes SOS Venezuela (Damnificados)
+const victimController = require('../controllers/victimController');
+router.get('/sos-venezuela/victims', verifyAdminToken, victimController.listVictimsAdmin);
+router.get('/sos-venezuela/victims/:id', verifyAdminToken, victimController.getVictimDetailAdmin);
+router.post('/sos-venezuela/victims/:id/update-status', verifyAdminToken, victimController.updateVictimStatusAdmin);
+router.post('/sos-venezuela/victims/:id/disburse', verifyAdminToken, victimController.disburseVictimAidAdmin);
+router.get('/sos-venezuela/email-templates', verifyAdminToken, victimController.getEmailTemplatesAdmin);
+router.post('/sos-venezuela/email-templates', verifyAdminToken, victimController.updateEmailTemplateAdmin);
+
 module.exports = router;

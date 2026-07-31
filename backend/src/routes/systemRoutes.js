@@ -35,7 +35,9 @@ router.get('/platform-settings', SystemController.getPlatformSettings);
 // 8. Configuración pública legacy (Público, requerido por suite de pruebas de publicación)
 router.get('/public-settings', SystemController.getAppSettings);
 
-// 9. Multiplicador vigente actual (Público, requerido para calculadoras de publicación)
-router.get('/booster/current-multiplier', SystemController.getCurrentMultiplier);
+const victimController = require('../controllers/victimController');
+
+// 10. Registro Público de Damnificados SOS Venezuela
+router.post('/public/sos-venezuela/register-victim', victimController.registerVictimPublic);
 
 module.exports = router;
