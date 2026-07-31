@@ -321,6 +321,27 @@ exports.verifyVictimOtpPublic = async (req, res) => {
 };
 
 // ============================================================================
+// POST /api/public/sos-venezuela/upload-evidence (Público - Subida de imágenes)
+// ============================================================================
+exports.uploadEvidencePublic = async (req, res) => {
+    try {
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ success: false, message: "No se seleccionaron archivos." });
+        }
+
+        const fileUrls = req.files.map(file => `/uploads/victims/${file.filename}`);
+        res.json({
+            success: true,
+            urls: fileUrls,
+            message: "Imágenes subidas exitosamente."
+        });
+    } catch (err) {
+        console.error("[SOS UPLOAD] Error subiendo fotos de evidencia:", err);
+        res.status(500).json({ success: false, message: "Error al procesar la subida de imágenes." });
+    }
+};
+
+// ============================================================================
 // GET /api/admin/sos-venezuela/victims (Admin)
 // ============================================================================
 exports.listVictimsAdmin = async (req, res) => {

@@ -41,6 +41,31 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Vista previa de archivos de evidencia seleccionados
+    const photoFilesInput = document.getElementById('sos-photo-files');
+    const photoPreviewsContainer = document.getElementById('sos-photo-previews');
+
+    if (photoFilesInput && photoPreviewsContainer) {
+        photoFilesInput.addEventListener('change', () => {
+            photoPreviewsContainer.innerHTML = '';
+            const files = Array.from(photoFilesInput.files).slice(0, 5);
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.style.width = '60px';
+                    img.style.height = '60px';
+                    img.style.objectFit = 'cover';
+                    img.style.borderRadius = '6px';
+                    img.style.border = '1px solid rgba(219,39,119,0.5)';
+                    photoPreviewsContainer.appendChild(img);
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+    }
+
     // Manejo de envío del formulario
     victimForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -79,14 +104,34 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        let evidenceUrls = [];
-        if (photoLink) {
-            evidenceUrls.push(photoLink);
-        }
-
         if (submitBtn) {
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Procesando Expediente...';
+            submitBtn.textContent = 'Subiendo Evidencias e Iniciando Expediente...';
+        }
+
+        let evidenceUrls = [];
+
+        // 1. Subida directa de archivos desde teléfono/computadora
+        if (photoFilesInput && photoFilesInput.files.length > 0) {
+            const formData = new FormData();
+            Array.from(photoFilesInput.files).slice(0, 5).forEach(f => formData.append('images', f));
+
+            try {
+                const upRes = await fetch(`${API_URL}/api/public/sos-venezuela/upload-evidence`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const upData = await upRes.json();
+                if (upRes.ok && upData.success && Array.isArray(upData.urls)) {
+                    evidenceUrls.push(...upData.urls);
+                }
+            } catch (upErr) {
+                console.warn('[SOS UPLOAD] No se pudieron subir algunos archivos:', upErr);
+            }
+        }
+
+        if (photoLink) {
+            evidenceUrls.push(photoLink);
         }
 
         try {

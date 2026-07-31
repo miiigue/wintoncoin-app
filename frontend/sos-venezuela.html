@@ -227,21 +227,31 @@
                 </div>
 
                 <div>
-                    <label for="sos-photo-link" style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.5rem;">Enlace a Fotos / Evidencia (Google Fotos, Drive, Imgur, etc.):</label>
-                    <input type="url" id="sos-photo-link" placeholder="Ej: https://photos.app.goo.gl/..." style="width: 100%; padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff;">
-                    <small style="color: #64748b; margin-top: 4px; display: block;">💡 Puedes pegar un enlace público de Google Fotos o Drive con imágenes del estado de tu inmueble o documento.</small>
+                <!-- Evidencias Fotográficas -->
+                <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08);">
+                    <label for="sos-photo-files" style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.5rem;">
+                        📷 Subir Fotos de Evidencia (Vivienda / Daños / Documentos):
+                    </label>
+                    <input type="file" id="sos-photo-files" accept="image/*" multiple style="width: 100%; padding: 10px; border-radius: 8px; border: 1px dashed #db2777; background: rgba(0,0,0,0.5); color: #fff; cursor: pointer;">
+                    <small style="color: #64748b; margin-top: 6px; display: block;">💡 Puedes seleccionar o tomar varias fotos directamente desde la cámara o galería de tu teléfono (Máx. 5 fotos).</small>
+                    <div id="sos-photo-previews" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;"></div>
+
+                    <div style="margin-top: 1rem; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 1rem;">
+                        <label for="sos-photo-link" style="font-size: 0.9rem; color: #cbd5e1; display: block; margin-bottom: 0.3rem;">O pega un Enlace de Google Fotos / Drive (Opcional):</label>
+                        <input type="url" id="sos-photo-link" placeholder="Ej: https://photos.app.goo.gl/..." style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.4); color: #fff;">
+                    </div>
                 </div>
 
-                <!-- Checkboxes Legales -->
+                <!-- Checkboxes Legales (Sin marcar por defecto) -->
                 <div style="background: rgba(219, 39, 119, 0.08); padding: 1.25rem; border-radius: 12px; border: 1px solid rgba(219, 39, 119, 0.2); display: flex; flex-direction: column; gap: 0.8rem;">
                     <div style="display: flex; gap: 10px; align-items: flex-start;">
-                        <input type="checkbox" id="sos-data-consent" required checked style="width: 20px; height: 20px; margin-top: 3px; accent-color: #db2777;">
+                        <input type="checkbox" id="sos-data-consent" required style="width: 20px; height: 20px; margin-top: 3px; accent-color: #db2777;">
                         <label for="sos-data-consent" style="font-size: 0.9rem; color: #e2e8f0; cursor: pointer; line-height: 1.4;">
                             Autorizo el tratamiento confidencial de mis datos personales únicamente con fines de censo humanitario, verificación de campo y entrega de asistencia (Protección de Datos / Habeas Data).
                         </label>
                     </div>
                     <div style="display: flex; gap: 10px; align-items: flex-start;">
-                        <input type="checkbox" id="sos-sworn-declaration" required checked style="width: 20px; height: 20px; margin-top: 3px; accent-color: #db2777;">
+                        <input type="checkbox" id="sos-sworn-declaration" required style="width: 20px; height: 20px; margin-top: 3px; accent-color: #db2777;">
                         <label for="sos-sworn-declaration" style="font-size: 0.9rem; color: #e2e8f0; cursor: pointer; line-height: 1.4;">
                             Declaro bajo fe de juramento que la información y evidencias suministradas corresponden a mi situación real y verídica como afectado por el sismo.
                         </label>

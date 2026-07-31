@@ -56,6 +56,12 @@
                             <span class="nav-badge" id="humanitarianBadge" aria-label="Pendientes"></span>
                         </a>
                     </li>
+                    <li>
+                        <a href="#sos-victims" class="nav-link" data-section="sos-victims" style="color: #EC4899;">🚨
+                            Damnificados (SOS)
+                            <span class="nav-badge" id="sosVictimsBadge" aria-label="Pendientes"></span>
+                        </a>
+                    </li>
                     <li><a href="admin-recruitment.html" class="nav-link" style="color: #60A5FA;">🎯 Talento</a></li>
                 </ul>
             </nav>
@@ -1133,6 +1139,75 @@
                     <h2 id="humanitarianModalTitle" style="margin-bottom: 1rem;">Detalle de Causa</h2>
                     <div id="humanitarianModalBody"></div>
                     <div id="humanitarianModalActions" class="modal-actions" style="margin-top: 1.5rem;"></div>
+                </div>
+            </div>
+
+            <!-- Sección Damnificados Terremoto (SOS Venezuela) -->
+            <section id="sos-victims-section" class="admin-section">
+                <h1>🚨 Damnificados Terremoto (SOS Venezuela)</h1>
+                <p>Gestión y auditoría de expedientes de censo, verificación de estado y asignación de ayuda en tokens BLUE.</p>
+
+                <div class="table-controls" style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem;">
+                    <input type="text" id="sosVictimsSearchInput" class="admin-input-dark" placeholder="Buscar por expediente, nombre o cédula..." style="flex: 1; min-width: 250px; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: #fff;">
+                    <select id="sosVictimsStatusFilter" class="admin-input-dark" style="padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: #0f172a; color: #fff;">
+                        <option value="all">Todos los estados</option>
+                        <option value="pending_verification" selected>En Verificación Manual</option>
+                        <option value="info_requested">Información Requerida</option>
+                        <option value="verified_approved">Aprobados</option>
+                        <option value="disbursed">Desembolsados</option>
+                        <option value="rejected">Rechazados</option>
+                    </select>
+                    <button type="button" id="sosEditEmailTemplatesBtn" class="action-button-admin publish" style="padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        ✉️ Plantillas de Correo SOS
+                    </button>
+                </div>
+
+                <!-- Tabla de Expedientes SOS -->
+                <div id="sos-victims-table-container" class="table-container-admin">
+                    <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- Modal de Detalle de Expediente SOS -->
+            <div id="sosVictimDetailModal" class="modal">
+                <div class="modal-content" style="max-width: 700px;">
+                    <span class="close-button sos-victim-modal-close">&times;</span>
+                    <h2 id="sosVictimModalTitle" style="margin-bottom: 1rem; color: #ec4899;">Expediente de Censo</h2>
+                    <div id="sosVictimModalBody"></div>
+                    <div id="sosVictimModalActions" class="modal-actions" style="margin-top: 1.5rem; display: flex; gap: 0.8rem; justify-content: flex-end; flex-wrap: wrap;"></div>
+                </div>
+            </div>
+
+            <!-- Modal de Asignación de Ayuda SOS -->
+            <div id="sosVictimDisburseModal" class="modal">
+                <div class="modal-content" style="max-width: 500px;">
+                    <span class="close-button sos-disburse-modal-close">&times;</span>
+                    <h2 style="margin-bottom: 1rem; color: #10b981;">💸 Asignar Ayuda Humanitaria</h2>
+                    <form id="sosDisburseForm">
+                        <input type="hidden" id="sosDisburseVictimId">
+                        <div style="margin-bottom: 1rem;">
+                            <label style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.4rem;">Monto en Tokens BLUE IOU:</label>
+                            <input type="number" id="sosDisburseAmount" required min="1" step="any" placeholder="Ej: 500" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff;">
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <label style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.4rem;">Fase / Periodo de Entrega:</label>
+                            <input type="text" id="sosDisbursePeriod" required value="Fase 1 - Asistencia Inicial" placeholder="Ej: Entrega Mensual Agosto" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff;">
+                        </div>
+                        <div style="margin-bottom: 1.25rem;">
+                            <label style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.4rem;">Notas Auditables:</label>
+                            <textarea id="sosDisburseNotes" rows="3" placeholder="Detalles de inspección o concepto de entrega..." style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff;"></textarea>
+                        </div>
+                        <button type="submit" class="action-button-admin publish" style="width: 100%; padding: 12px; font-weight: 700;">Confirmar Asignación de Tokens</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Modal de Plantillas de Correo SOS -->
+            <div id="sosEmailTemplatesModal" class="modal">
+                <div class="modal-content" style="max-width: 750px;">
+                    <span class="close-button sos-templates-modal-close">&times;</span>
+                    <h2 style="margin-bottom: 1rem; color: #ec4899;">✉️ Configuración de Plantillas de Correo SOS</h2>
+                    <div id="sosEmailTemplatesBody"></div>
                 </div>
             </div>
 
