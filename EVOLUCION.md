@@ -12,22 +12,19 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
-### 2026-07-31 — Rediseño Tema Claro Formulario SOS, Subida Directa de Fotos y Módulo Admin Damnificados
+### 2026-07-31 — Rediseño Tema Claro Formulario SOS, Fondo Continuo de Ancho Completo, Subida Directa y Admin
 * **Cambio**: 
-  - **Rediseño a Tema Claro & Desmarcación de Casillas ([sos-venezuela.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/sos-venezuela.html))**:
-    1. Se convirtió el contenedor y los campos del formulario de censo SOS a un diseño en **Tema Claro** (`background: #ffffff`, texto `#0f172a`, bordes suaves y sombras sutiles) acorde con el lenguaje visual de la página principal.
-    2. Se removieron los atributos `checked` de **todas** las casillas de verificación (incluyendo la casilla *¿Es Cabeza de Familia?* y los consentimientos de Habeas Data y Declaración Jurada) para que inicien desmarcadas por defecto.
+  - **Fondo Claro Continuo de Ancho Completo & Desmarcación ([sos-venezuela.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/sos-venezuela.html))**:
+    1. Se aplicó la clase `sos-compliance-section` a la sección `<section id="registro-damnificados">`, eliminando los bordes/márgenes oscuros laterales y garantizando que el **fondo claro continuo (`rgba(248, 250, 252, 0.9)`)** abarque todo el ancho de la pantalla, integrándose 100% con las secciones superior e inferior ("Nuestro Compromiso" y "Fases de Donaciones").
+    2. Se integró la tarjeta en `<div class="container">` manteniendo la desmarcación completa por defecto de todas las casillas de verificación.
   - **Subida Directa de Fotos desde el Celular ([sos-venezuela.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/sos-venezuela.html), [sos-venezuela.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/sos-venezuela.js), [systemRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/systemRoutes.js), [victimController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/victimController.js))**:
     1. Integrado selector directo `<input type="file" accept="image/*" multiple>` para cargar de 1 a 5 fotos desde la cámara o galería del teléfono móvil.
     2. Creado el endpoint `POST /api/public/sos-venezuela/upload-evidence` con middleware Multer para almacenar las evidencias en el servidor (`/uploads/victims/`) y retornar URLs públicas.
-    3. Añadida vista previa en miniaturas de imágenes antes de enviar la solicitud.
   - **Módulo de Administración de Damnificados SOS ([admin-panel.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-panel.html), [admin-panel.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/admin-panel.js))**:
     1. Incorporada la sección `🚨 Damnificados Terremoto (SOS)` en la barra lateral del Panel Admin con badge de pendientes.
     2. Implementada tabla de expedientes con filtrado por estado y buscador.
-    3. Creado el modal de detalle con visor de fotos, desglose de censo, notas auditables y actualización de estado con envío de correo.
-    4. Creado el modal de asignación/desembolso de ayuda en tokens BLUE IOU y editor de plantillas de correo SOS.
-* **Evidencia**: Commits `b2368c0`, build de Vite exitoso en 10.94s (`npm run build:demo`).
-* **Impacto**: Experiencia de usuario limpia, clara e intuitiva desde teléfonos móviles sin casillas marcadas indebidamente, con auditoría total en el panel administrativo.
+* **Evidencia**: Build de Vite exitoso en 9.65s (`npm run build:demo`).
+* **Impacto**: Continuidad visual 100% clara e impecable en toda la landing page SOS Venezuela.
 
 ### 2026-07-31 — Censo y Registro de Damnificados del Terremoto (SOS Venezuela), Migración 099 e Integración SOC 2
 * **Cambio**: 
