@@ -12,7 +12,7 @@
 'use strict';
 
 const pool = require('../config/db');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { logAuditEvent } = require('../services/auditService');
 const emailService = require('../services/emailService');

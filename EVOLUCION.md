@@ -21,6 +21,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
     2. Creación automática de cuenta WintonCoin vinculada al código especial `SOSVENEZUELA` con bono de 200 BLUE IOU.
     3. Servicio de correos transaccionales (`emailService.js`) con notificación de registro inicial en *Verificación Manual*, solicitud de información adicional (`info_requested`) y aprobación/desembolso.
     4. Endpoints administrativos para gestionar expedientes, editar plantillas de correo y realizar entregas recurrentes con auditoría SOC 2.
+    5. Corregido el import de dependencia `bcrypt` (en lugar de `bcryptjs`) en `victimController.js` para resolver compatibilidad con el entorno de despliegue en Render.
   - **Frontend Censo Humanitario ([sos-venezuela.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/sos-venezuela.html), [sos-venezuela.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/sos-venezuela.js))**:
     1. Tarjeta y formulario responsivo de censo con campos de dirección detallada, censo de niños/tercera edad/discapacidad, selector de afectación y carga dual de imágenes/Google Fotos.
     2. Checkboxes de consentimiento de Habeas Data y Declaración Jurada bajo fe de juramento.
