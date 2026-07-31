@@ -255,23 +255,35 @@
                 </button>
             </form>
 
-            <!-- Card de Resultado de Expediente Generado -->
+            <!-- Card de Resultado de Expediente Generado y Verificación OTP -->
             <div id="sos-victim-result-card" style="display: none; text-align: center; padding: 2rem 1rem;">
                 <div style="font-size: 3.5rem; margin-bottom: 1rem;">✅</div>
                 <h3 style="font-size: 1.8rem; font-weight: 800; color: #10b981; font-family: 'Outfit', sans-serif; margin-bottom: 0.5rem;">
                     ¡Solicitud Registrada Exitosamente!
                 </h3>
-                <p style="color: #cbd5e1; font-size: 1.05rem; max-width: 600px; margin: 0 auto 1.5rem;">
-                    Se ha generado tu expediente de censo de emergencia. Tu solicitud ha entrado en <strong>Proceso de Verificación Manual</strong>.
+                <p style="color: #cbd5e1; font-size: 1.05rem; max-width: 650px; margin: 0 auto 1.25rem; line-height: 1.6;">
+                    Se ha generado tu expediente de censo de emergencia con el correlativo <strong id="sos-dossier-number-display" style="color: #f8fafc; font-weight: 700;">#SOS-VZLA-000-00000</strong>. Tu solicitud ha entrado directamente en <strong>Proceso de Verificación Manual</strong>.
                 </p>
-                <div style="background: rgba(16, 185, 129, 0.1); border: 2px dashed #10b981; border-radius: 12px; padding: 1.25rem; max-width: 450px; margin: 0 auto 1.5rem;">
-                    <span style="font-size: 0.9rem; color: #a7f3d0; display: block; margin-bottom: 0.3rem;">CÓDIGO DE EXPEDIENTE INTELIGENTE:</span>
-                    <strong id="sos-dossier-number-display" style="font-size: 1.6rem; color: #34d399; font-family: monospace;">#SOS-VZLA-000-00000</strong>
+
+                <!-- Caja Destacada Exclusiva para el Código OTP de 6 dígitos -->
+                <div id="sos-otp-verification-card" style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(219, 39, 119, 0.4); border-radius: 16px; padding: 1.75rem; max-width: 500px; margin: 1.5rem auto 1.5rem; text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.4);">
+                    <h4 style="color: #f8fafc; font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; font-family: 'Outfit', sans-serif;">
+                        🔐 Activa tu Billetera de Ayuda Humanitaria
+                    </h4>
+                    <p style="color: #94a3b8; font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.25rem;">
+                        Hemos creado tu cuenta WintonCoin con el código especial <strong>SOSVENEZUELA</strong> y enviado un <strong>Código de Verificación de 6 dígitos</strong> a tu correo electrónico. Ingrésalo a continuación para activar tus 200 BLUE IOU iniciales:
+                    </p>
+                    <div style="display: flex; gap: 10px; justify-content: center; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap;">
+                        <input type="text" id="sos-otp-code-input" maxlength="6" placeholder="849201" style="width: 160px; padding: 12px; font-size: 1.4rem; font-weight: 800; text-align: center; letter-spacing: 4px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: #0f172a; color: #34d399;">
+                        <button type="button" id="sos-btn-verify-otp" class="btn-primary-campaign" style="padding: 12px 22px; font-size: 1rem; font-weight: 700; border-radius: 8px; cursor: pointer;">
+                            Confirmar Código
+                        </button>
+                    </div>
+                    <small style="color: #64748b; display: block; font-size: 0.82rem;">💡 Nota: Este código de 6 dígitos es tu clave de seguridad de correo, no lo confundas con tu número de expediente.</small>
+                    <div id="sos-otp-feedback-msg" style="display: none; margin-top: 10px; font-size: 0.9rem; padding: 8px; border-radius: 6px;"></div>
                 </div>
-                <p style="color: #94a3b8; font-size: 0.95rem; max-width: 650px; margin: 0 auto 1.5rem;">
-                    Hemos creado tu cuenta de usuario WintonCoin con el código especial <strong>SOSVENEZUELA</strong> y acreditado tus 200 BLUE IOU iniciales. Por favor revisa tu bandeja de entrada de correo electrónico para las instrucciones de seguimiento.
-                </p>
-                <a href="login.html" class="btn-primary-campaign" style="display: inline-block; padding: 12px 24px; border-radius: 50px; text-decoration: none;">Ingresar a mi Cuenta</a>
+
+                <a href="login.html" class="btn-primary-campaign" style="display: inline-block; padding: 12px 24px; border-radius: 50px; text-decoration: none; margin-top: 0.5rem;">Ingresar a mi Cuenta</a>
             </div>
         </div>
     </section>

@@ -37,7 +37,8 @@ router.get('/public-settings', SystemController.getAppSettings);
 
 const victimController = require('../controllers/victimController');
 
-// 10. Registro Público de Damnificados SOS Venezuela
+// 10. Registro y Verificación OTP de Damnificados SOS Venezuela
 router.post('/public/sos-venezuela/register-victim', victimController.registerVictimPublic);
+router.post('/public/sos-venezuela/verify-otp', victimController.verifyVictimOtpPublic);
 
 module.exports = router;

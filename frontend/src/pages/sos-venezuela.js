@@ -121,6 +121,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(data.message || 'Error al registrar la solicitud.');
             }
 
+            // Guardar email registrado para la verificación OTP
+            window._registeredVictimEmail = email;
+
             // Mostrar resultado exitoso
             victimForm.style.display = 'none';
             if (resultCard && dossierNumberEl) {
@@ -138,6 +141,60 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
+    // Manejo de la Verificación OTP de 6 dígitos
+    const btnVerifyOtp = document.getElementById('sos-btn-verify-otp');
+    const otpInput = document.getElementById('sos-otp-code-input');
+    const otpFeedback = document.getElementById('sos-otp-feedback-msg');
+
+    if (btnVerifyOtp && otpInput) {
+        btnVerifyOtp.addEventListener('click', async () => {
+            const code = otpInput.value.trim();
+            const email = window._registeredVictimEmail || document.getElementById('sos-email').value.trim();
+
+            if (!code || code.length < 6) {
+                showOtpMsg('Por favor ingresa los 6 dígitos del código enviado a tu correo.', '#ef4444');
+                return;
+            }
+
+            btnVerifyOtp.disabled = true;
+            btnVerifyOtp.textContent = 'Verificando...';
+
+            try {
+                const res = await fetch(`${API_URL}/api/public/sos-venezuela/verify-otp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, otp_code: code })
+                });
+
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    throw new Error(data.message || 'Código incorrecto.');
+                }
+
+                showOtpMsg('¡Cuenta y Billetera Activadas Exitosamente! Tus 200 BLUE IOU están disponibles.', '#10b981');
+                const otpCard = document.getElementById('sos-otp-verification-card');
+                if (otpCard) {
+                    otpCard.style.borderColor = '#10b981';
+                    otpCard.style.background = 'rgba(16, 185, 129, 0.1)';
+                }
+            } catch (err) {
+                showOtpMsg(err.message, '#ef4444');
+            } finally {
+                btnVerifyOtp.disabled = false;
+                btnVerifyOtp.textContent = 'Confirmar Código';
+            }
+        });
+    }
+
+    function showOtpMsg(msg, color) {
+        if (otpFeedback) {
+            otpFeedback.textContent = msg;
+            otpFeedback.style.display = 'block';
+            otpFeedback.style.color = color;
+            otpFeedback.style.background = color === '#10b981' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+        }
+    }
 
     function showError(msg) {
         if (feedbackEl) {

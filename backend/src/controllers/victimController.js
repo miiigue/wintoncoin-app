@@ -142,29 +142,45 @@ exports.registerVictimPublic = async (req, res) => {
 
         // 4. Buscar o Crear Cuenta WintonCoin con código 'SOSVENEZUELA'
         let userId = null;
+        let username = null;
         const userCheck = await client.query(
-            'SELECT id FROM users WHERE email = $1 OR phone_number = $2',
+            'SELECT id, username, is_email_verified FROM users WHERE email = $1 OR phone_number = $2',
             [normEmail, normPhone]
         );
 
+        const verificationCode = emailService.generateOtp6();
+        const verificationCodeHash = emailService.hashOtpForEmail(normEmail, verificationCode);
+        const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
+
         if (userCheck.rows.length > 0) {
             userId = userCheck.rows[0].id;
+            username = userCheck.rows[0].username;
         } else {
-            // Crear usuario nuevo automáticamente
+            // Crear usuario nuevo automáticamente (con verificación pendiente)
             const tempPassword = crypto.randomBytes(6).toString('hex');
             const hashedPassword = await bcrypt.hash(tempPassword, 10);
             const baseUsername = normEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').substring(0, 20);
-            const username = `${baseUsername}_${Math.floor(100 + Math.random() * 900)}`;
+            username = `${baseUsername}_${Math.floor(100 + Math.random() * 900)}`;
 
             const newUserRes = await client.query(`
                 INSERT INTO users (username, email, password_hash, phone_number, referral_code_used, is_email_verified)
-                VALUES ($1, $2, $3, $4, 'SOSVENEZUELA', true)
+                VALUES ($1, $2, $3, $4, 'SOSVENEZUELA', false)
                 RETURNING id
             `, [username, normEmail, hashedPassword, normPhone]);
 
             userId = newUserRes.rows[0].id;
 
-            // Acreditar Bono SOSVENEZUELA inicial si está configurado
+            // Guardar solicitud de verificación en pending_verifications
+            await client.query(`
+                INSERT INTO pending_verifications (
+                    username, email, password_hash, phone_number, referral_code,
+                    verification_code_hash, verification_attempts, resend_count, last_sent_at, expires_at
+                ) VALUES ($1, $2, $3, $4, 'SOSVENEZUELA', $5, 0, 0, NOW(), $6)
+                ON CONFLICT (email) DO UPDATE
+                SET verification_code_hash = EXCLUDED.verification_code_hash, expires_at = EXCLUDED.expires_at;
+            `, [username, normEmail, hashedPassword, normPhone, verificationCodeHash, expiresAt]);
+
+            // Acreditar Bono SOSVENEZUELA inicial
             await client.query(`
                 INSERT INTO blue_token_escrows (username, amount, unlock_at, is_released)
                 VALUES ($1, 200, NOW() + INTERVAL '30 days', false)
@@ -211,8 +227,12 @@ exports.registerVictimPublic = async (req, res) => {
 
         await client.query('COMMIT');
 
-        // 7. Enviar correo de confirmación de registro (asíncrono)
+        // 7. Enviar OTP de seguridad de 6 dígitos y correo de confirmación de expediente (asíncrono)
         try {
+            const ipRaw = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString();
+            const ip = ipRaw.split(',')[0].trim();
+            await emailService.sendOtpEmail({ toEmail: normEmail, otp: verificationCode, context: { ip, requestedAt: new Date().toISOString() } });
+
             const templateRes = await pool.query(
                 "SELECT subject, html_body FROM email_templates_sos WHERE template_key = 'victim_registration_confirm'"
             );
@@ -224,7 +244,7 @@ exports.registerVictimPublic = async (req, res) => {
                 await emailService.sendCustomEmail(normEmail, subject, html_body);
             }
         } catch (mailErr) {
-            console.error("[SOS VICTIM] Error al enviar email de confirmación:", mailErr.message);
+            console.error("[SOS VICTIM] Error al enviar emails de OTP / confirmación:", mailErr.message);
         }
 
         // 8. Auditoría
@@ -238,12 +258,63 @@ exports.registerVictimPublic = async (req, res) => {
         res.status(201).json({
             success: true,
             dossier_number: smartDossierCode,
-            message: "Solicitud de asistencia humanitaria registrada exitosamente. Se ha enviado una confirmación a tu correo."
+            email: normEmail,
+            message: "Solicitud de asistencia humanitaria registrada exitosamente. Se ha enviado un código de seguridad de 6 dígitos a tu correo."
         });
     } catch (error) {
         await client.query('ROLLBACK');
         console.error("[SOS VICTIM] Error en registro público:", error);
         res.status(500).json({ success: false, message: "Error interno al procesar la solicitud." });
+    } finally {
+        client.release();
+    }
+};
+
+// ============================================================================
+// POST /api/public/sos-venezuela/verify-otp (Público - Verificación de 6 dígitos)
+// ============================================================================
+exports.verifyVictimOtpPublic = async (req, res) => {
+    const { email, otp_code } = req.body;
+    if (!email || !otp_code) {
+        return res.status(400).json({ success: false, message: "Ingresa tu correo y el código de 6 dígitos." });
+    }
+
+    const normEmail = email.trim().toLowerCase();
+    const cleanCode = otp_code.trim();
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const pendingRes = await client.query('SELECT * FROM pending_verifications WHERE email = $1', [normEmail]);
+        if (pendingRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: "No se encontró una solicitud pendiente o ya fue verificada." });
+        }
+
+        const pending = pendingRes.rows[0];
+        const computedHash = emailService.hashOtpForEmail(normEmail, cleanCode);
+
+        if (!emailService.safeEqualHex(pending.verification_code_hash, computedHash)) {
+            await client.query('UPDATE pending_verifications SET verification_attempts = verification_attempts + 1 WHERE id = $1', [pending.id]);
+            await client.query('COMMIT');
+            return res.status(400).json({ success: false, message: "Código de verificación de 6 dígitos incorrecto." });
+        }
+
+        // Marcar usuario como verificado en la tabla users
+        await client.query('UPDATE users SET is_email_verified = true WHERE email = $1', [normEmail]);
+        await client.query('DELETE FROM pending_verifications WHERE id = $1', [pending.id]);
+
+        await client.query('COMMIT');
+
+        res.json({
+            success: true,
+            message: "¡Cuenta activada exitosamente! Tus 200 BLUE IOU han sido acreditados a tu billetera WintonCoin."
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error("[SOS OTP] Error al verificar OTP:", error);
+        res.status(500).json({ success: false, message: "Error interno del servidor." });
     } finally {
         client.release();
     }
