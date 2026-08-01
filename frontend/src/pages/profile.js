@@ -50,7 +50,7 @@ function initializeProfilePage() {
         if (!container) return;
 
         try {
-            const response = await fetch(`${API_URL}/public/sos-venezuela/my-case?username=${encodeURIComponent(userUsername)}`);
+            const response = await fetch(`${API_URL}/api/public/sos-venezuela/my-case?username=${encodeURIComponent(userUsername)}`);
             if (!response.ok) return;
 
             const data = await response.json();

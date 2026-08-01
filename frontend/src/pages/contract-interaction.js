@@ -166,7 +166,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!userUsername) return;
 
         try {
-            const response = await fetch(`${getApiUrl()}/public/sos-venezuela/my-case?username=${encodeURIComponent(userUsername)}`);
+            const response = await fetch(`${getApiUrl()}/api/public/sos-venezuela/my-case?username=${encodeURIComponent(userUsername)}`);
             if (!response.ok) return;
 
             const data = await response.json();
