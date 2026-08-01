@@ -671,3 +671,7 @@ exports.updateEmailTemplateAdmin = async (req, res) => {
         res.status(500).json({ success: false, message: "Error interno del servidor." });
     }
 };
+
+exports.calculateSmartDossierCode = calculateSmartDossierCode;
+exports.normalizeIdDocument = normalizeIdDocument;
+exports.normalizePhone = normalizePhone;
