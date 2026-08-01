@@ -12,6 +12,16 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
+### 2026-08-01 — Módulo 'Mi caso' (Censo & Ayuda SOS) y Correo Transaccional Enriquecido
+* **Cambio**: 
+  - **Correo Transaccional Enriquecido ([victimController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/victimController.js), [099](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/099_create_disaster_victims_system.js), [100](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/100_add_age_and_urgency_to_victims.js))**:
+    1. Se actualizó la plantilla `victim_registration_confirm` para incluir una tarjeta HTML destacada con el **Resumen Completo del Censo Ingresado**: Nombre, Cédula, Edad, Ubicación detallada, Censo Familiar (menores, tercera edad, discapacidad), Nivel de Gravedad y Relato del caso.
+  - **Módulo 'Mi caso' en Perfil de Usuario ([profile.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/profile.html), [profile.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/profile.js), [systemRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/systemRoutes.js))**:
+    1. Se creó la API pública `GET /api/public/sos-venezuela/my-case` que consulta el expediente SOS y el historial de desembolsos del beneficiario.
+    2. Se integró la tarjeta dinámica **`🚨 Mi caso (Censo y Asistencia Humanitaria SOS)`** en el perfil de usuario con distintivos de estado (*En Verificación*, *Aprobado*, *Desembolsado*) y tabla de historial de tokens BLUE recibidos.
+* **Evidencia**: Build de Vite y 6/6 suites de pruebas Jest pasaron al 100% (`npm run build:demo`, `npm test`).
+* **Impacto**: Transparencia total para el beneficiario y cumplimiento de estándares de privacidad de datos (GDPR / Habeas Data).
+
 ### 2026-08-01 — Alineación Estricta de Esquema SQL en Registros Automáticos (is_verified)
 * **Cambio**: 
   - **Alineación de Columnas SQL (`users`) ([victimController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/victimController.js))**:

@@ -85,6 +85,18 @@ async function up() {
                         <span style="font-size: 1.4rem; font-weight: bold; color: #db2777;">#{{expediente}}</span>
                     </div>
                     <p><strong>Estado Actual:</strong> <span style="color: #d97706; font-weight: bold;">En Proceso de Verificación Manual</span></p>
+
+                    <div style="background: #fff5f5; border: 1px solid #fecdd3; border-radius: 10px; padding: 16px; margin: 20px 0; font-size: 0.95rem; color: #1e293b;">
+                        <h4 style="margin: 0 0 12px 0; color: #9f1239; font-size: 1rem; border-bottom: 1px solid #fecdd3; padding-bottom: 6px;">📋 Resumen del Censo e Información Registrada:</h4>
+                        <p style="margin: 6px 0;"><strong>Nombre Completo:</strong> {{nombre}}</p>
+                        <p style="margin: 6px 0;"><strong>Cédula de Identidad:</strong> {{cedula}}</p>
+                        <p style="margin: 6px 0;"><strong>Edad:</strong> {{edad}} años</p>
+                        <p style="margin: 6px 0;"><strong>Ubicación:</strong> {{ubicacion}}</p>
+                        <p style="margin: 6px 0;"><strong>Censo Familiar:</strong> {{censo_familiar}}</p>
+                        <p style="margin: 6px 0;"><strong>Nivel de Afectación:</strong> {{afectacion}}</p>
+                        <p style="margin: 6px 0;"><strong>Detalles / Relato:</strong> {{descripcion}}</p>
+                    </div>
+
                     <p>Nuestro equipo de seguridad e inspección de campo está revisando los datos suministrados. Te notificaremos por este medio ante cualquier actualización o aprobación de ayuda.</p>
                     <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
                     <p style="font-size: 0.8rem; color: #94a3b8; text-align: center;">Este proceso es 100% gratuito. Nunca te solicitaremos dinero en efectivo, criptomonedas ni transferencias bancarias.</p>

@@ -16,6 +16,7 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { logAuditEvent } = require('../services/auditService');
 const emailService = require('../services/emailService');
+const notificationService = require('../services/notificationService');
 
 /**
  * OBTENER CÓDIGO DE EXPEDIENTE INTELIGENTE Y SCORE DE URGENCIA (4 DÍGITOS HIERÁRQUICOS)
@@ -276,13 +277,40 @@ exports.registerVictimPublic = async (req, res) => {
             );
             if (templateRes.rows.length > 0) {
                 let { subject, html_body } = templateRes.rows[0];
+
+                let affectationLabel = 'Necesidades Básicas Urgentes';
+                if (affectation_level === 'total_loss') affectationLabel = 'Pérdida Total de Vivienda / Enseres';
+                else if (affectation_level === 'medical_emergency') affectationLabel = 'Emergencia Médica / Lesionados';
+                else if (affectation_level === 'partial_damage') affectationLabel = 'Daño Parcial en Vivienda';
+
+                const locationStr = `${state.trim()}, ${municipality.trim()}, ${sector.trim()} (${address_details.trim()})`;
+                const familyStr = `${dependents_minors || 0} menor(es), ${dependents_elderly || 0} adulto(s) mayor(es), ${dependents_disabled || 0} persona(s) con discapacidad`;
+
                 subject = subject.replace(/{{expediente}}/g, smartDossierCode);
-                html_body = html_body.replace(/{{nombre}}/g, full_name).replace(/{{expediente}}/g, smartDossierCode);
+                html_body = html_body
+                    .replace(/{{nombre}}/g, full_name)
+                    .replace(/{{expediente}}/g, smartDossierCode)
+                    .replace(/{{cedula}}/g, normDoc)
+                    .replace(/{{edad}}/g, String(parsedAge))
+                    .replace(/{{ubicacion}}/g, locationStr)
+                    .replace(/{{censo_familiar}}/g, familyStr)
+                    .replace(/{{afectacion}}/g, affectationLabel)
+                    .replace(/{{descripcion}}/g, description.trim());
 
                 await emailService.sendCustomEmail(normEmail, subject, html_body);
             }
+
+            // Enviar notificación Push al usuario
+            if (userId) {
+                await notificationService.sendNotificationToUser(userId, {
+                    title: "🚨 Expediente SOS Registrado",
+                    body: `Tu solicitud #${smartDossierCode} ha sido recibida con éxito. Revisa 'Mi caso' en tu perfil.`,
+                    icon: "/assets/icons/icon-192x192.png",
+                    data: { url: "/profile.html" }
+                }, "HUMANITARIAN_AID");
+            }
         } catch (mailErr) {
-            console.error("[SOS VICTIM] Error al enviar emails de OTP / confirmación:", mailErr.message);
+            console.error("[SOS VICTIM] Error al enviar emails / Push de confirmación:", mailErr.message);
         }
 
         // 8. Auditoría
@@ -531,8 +559,31 @@ exports.updateVictimStatusAdmin = async (req, res) => {
                     await emailService.sendCustomEmail(victim.email, subject, html_body);
                 }
             }
+
+            // Enviar notificación Push si el expediente tiene usuario vinculado
+            if (victim.user_id) {
+                let pushTitle = "🚨 Actualización de Expediente SOS";
+                let pushBody = `Tu expediente #${victim.dossier_number} ha cambiado de estatus a: ${status}.`;
+                if (status === 'approved_for_aid') {
+                    pushTitle = "💚 ¡Ayuda Humanitaria Aprobada!";
+                    pushBody = `Tu expediente #${victim.dossier_number} ha sido APROBADO. Pronto recibirás tu acreditación.`;
+                } else if (status === 'info_requested') {
+                    pushTitle = "⚠️ Información Requerida para tu Expediente";
+                    pushBody = `Se requiere información adicional para tu expediente #${victim.dossier_number}.`;
+                } else if (status === 'rejected') {
+                    pushTitle = "📋 Notificación sobre tu Expediente SOS";
+                    pushBody = `Tu expediente #${victim.dossier_number} ha sido revisado. Consulta los detalles en 'Mi caso'.`;
+                }
+
+                await notificationService.sendNotificationToUser(victim.user_id, {
+                    title: pushTitle,
+                    body: pushBody,
+                    icon: "/assets/icons/icon-192x192.png",
+                    data: { url: "/profile.html" }
+                }, "HUMANITARIAN_AID");
+            }
         } catch (mailErr) {
-            console.error("[SOS VICTIM ADMIN] Error al enviar notificación de estado:", mailErr.message);
+            console.error("[SOS VICTIM ADMIN] Error al enviar notificación de estado (Email / Push):", mailErr.message);
         }
 
         await logAuditEvent(pool, req, {
@@ -610,8 +661,18 @@ exports.disburseVictimAidAdmin = async (req, res) => {
 
                 await emailService.sendCustomEmail(victim.email, subject, html_body);
             }
+
+            // Enviar notificación Push si el expediente tiene usuario vinculado
+            if (victim.user_id) {
+                await notificationService.sendNotificationToUser(victim.user_id, {
+                    title: "💸 ¡Ayuda Acreditada a tu Billetera!",
+                    body: `Se han acreditado +${amount} BLUE IOU a tu cuenta para tu expediente #${victim.dossier_number}.`,
+                    icon: "/assets/icons/icon-192x192.png",
+                    data: { url: "/profile.html" }
+                }, "HUMANITARIAN_AID");
+            }
         } catch (mErr) {
-            console.error("[SOS DISBURSE] Error al enviar email:", mErr.message);
+            console.error("[SOS DISBURSE] Error al enviar email / Push:", mErr.message);
         }
 
         await logAuditEvent(pool, req, {
@@ -669,6 +730,58 @@ exports.updateEmailTemplateAdmin = async (req, res) => {
     } catch (error) {
         console.error("[SOS TEMPLATES] Error al actualizar plantilla:", error);
         res.status(500).json({ success: false, message: "Error interno del servidor." });
+    }
+};
+
+// ============================================================================
+// GET /api/public/sos-venezuela/my-case (Consultar censo y expediente "Mi caso")
+// ============================================================================
+exports.getMyCasePublic = async (req, res) => {
+    try {
+        const { username, email, id_document } = req.query;
+        if (!username && !email && !id_document) {
+            return res.status(400).json({ success: false, message: "Debes especificar username, email o Cédula de Identidad." });
+        }
+
+        let query = 'SELECT * FROM disaster_victims_registry WHERE ';
+        const params = [];
+
+        if (id_document) {
+            const normDoc = normalizeIdDocument(id_document);
+            query += 'id_document = $1';
+            params.push(normDoc);
+        } else if (email) {
+            query += 'email = $1';
+            params.push(email.trim().toLowerCase());
+        } else if (username) {
+            query += 'user_id = (SELECT id FROM users WHERE username = $1)';
+            params.push(username);
+        }
+
+        query += ' ORDER BY id DESC LIMIT 1';
+
+        const result = await pool.query(query, params);
+        if (result.rows.length === 0) {
+            return res.json({ success: true, has_case: false, case: null, disbursements: [] });
+        }
+
+        const caseData = result.rows[0];
+
+        // Obtener desembolsos recibidos
+        const disbursementsRes = await pool.query(
+            'SELECT id, amount_blue, disbursed_at, notes FROM disaster_aid_disbursements WHERE victim_id = $1 ORDER BY id DESC',
+            [caseData.id]
+        );
+
+        res.json({
+            success: true,
+            has_case: true,
+            case: caseData,
+            disbursements: disbursementsRes.rows
+        });
+    } catch (error) {
+        console.error("[SOS MY CASE] Error al consultar caso:", error);
+        res.status(500).json({ success: false, message: "Error interno al consultar el caso." });
     }
 };
 

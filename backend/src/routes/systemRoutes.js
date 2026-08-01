@@ -68,9 +68,10 @@ const victimUpload = multer({
 
 const victimController = require('../controllers/victimController');
 
-// 10. Registro, Verificación OTP y Subida de Fotos de Damnificados SOS Venezuela
+// 10. Registro, Verificación OTP, Subida de Fotos y Consulta de Expediente SOS Venezuela
 router.post('/public/sos-venezuela/register-victim', victimController.registerVictimPublic);
 router.post('/public/sos-venezuela/verify-otp', victimController.verifyVictimOtpPublic);
 router.post('/public/sos-venezuela/upload-evidence', victimUpload.array('images', 5), victimController.uploadEvidencePublic);
+router.get('/public/sos-venezuela/my-case', victimController.getMyCasePublic);
 
 module.exports = router;
