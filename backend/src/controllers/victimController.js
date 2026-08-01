@@ -190,6 +190,9 @@ exports.registerVictimPublic = async (req, res) => {
         if (userCheck.rows.length > 0) {
             userId = userCheck.rows[0].id;
             username = userCheck.rows[0].username;
+            if (birth_date) {
+                await client.query('UPDATE users SET date_of_birth = $1 WHERE id = $2 AND date_of_birth IS NULL', [birth_date, userId]);
+            }
         } else {
             // Crear usuario nuevo automáticamente (con verificación pendiente)
             const tempPassword = crypto.randomBytes(6).toString('hex');
@@ -198,10 +201,10 @@ exports.registerVictimPublic = async (req, res) => {
             username = `${baseUsername}_${Math.floor(100 + Math.random() * 900)}`;
 
             const newUserRes = await client.query(`
-                INSERT INTO users (username, email, password_hash, phone_number, referral_code_used, is_email_verified)
-                VALUES ($1, $2, $3, $4, 'SOSVENEZUELA', false)
+                INSERT INTO users (username, email, password_hash, phone_number, referral_code_used, is_email_verified, date_of_birth)
+                VALUES ($1, $2, $3, $4, 'SOSVENEZUELA', false, $5)
                 RETURNING id
-            `, [username, normEmail, hashedPassword, normPhone]);
+            `, [username, normEmail, hashedPassword, normPhone, birth_date || null]);
 
             userId = newUserRes.rows[0].id;
 
@@ -209,11 +212,11 @@ exports.registerVictimPublic = async (req, res) => {
             await client.query(`
                 INSERT INTO pending_verifications (
                     username, email, password_hash, phone_number, referral_code,
-                    verification_code_hash, verification_attempts, resend_count, last_sent_at, expires_at
-                ) VALUES ($1, $2, $3, $4, 'SOSVENEZUELA', $5, 0, 0, NOW(), $6)
+                    verification_code_hash, verification_attempts, resend_count, last_sent_at, expires_at, date_of_birth
+                ) VALUES ($1, $2, $3, $4, 'SOSVENEZUELA', $5, 0, 0, NOW(), $6, $7)
                 ON CONFLICT (email) DO UPDATE
-                SET verification_code_hash = EXCLUDED.verification_code_hash, expires_at = EXCLUDED.expires_at;
-            `, [username, normEmail, hashedPassword, normPhone, verificationCodeHash, expiresAt]);
+                SET verification_code_hash = EXCLUDED.verification_code_hash, expires_at = EXCLUDED.expires_at, date_of_birth = COALESCE(EXCLUDED.date_of_birth, pending_verifications.date_of_birth);
+            `, [username, normEmail, hashedPassword, normPhone, verificationCodeHash, expiresAt, birth_date || null]);
 
             // Acreditar Bono SOSVENEZUELA inicial
             await client.query(`

@@ -21,8 +21,6 @@ async function up() {
                 user_id INT REFERENCES users(id) ON DELETE SET NULL,
                 full_name VARCHAR(255) NOT NULL,
                 id_document VARCHAR(30) UNIQUE NOT NULL,
-                birth_date DATE,
-                age INT NOT NULL DEFAULT 18,
                 gender VARCHAR(20) NOT NULL DEFAULT 'female',
                 is_head_of_family BOOLEAN NOT NULL DEFAULT FALSE,
                 email VARCHAR(255) NOT NULL,
@@ -35,7 +33,6 @@ async function up() {
                 dependents_elderly INT NOT NULL DEFAULT 0,
                 dependents_disabled INT NOT NULL DEFAULT 0,
                 affectation_level VARCHAR(50) NOT NULL DEFAULT 'essential_needs',
-                urgency_score INT NOT NULL DEFAULT 0,
                 description TEXT NOT NULL,
                 evidence_urls TEXT[] DEFAULT '{}',
                 status VARCHAR(30) NOT NULL DEFAULT 'pending_verification',
@@ -46,10 +43,6 @@ async function up() {
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
-
-            ALTER TABLE disaster_victims_registry ADD COLUMN IF NOT EXISTS birth_date DATE;
-            ALTER TABLE disaster_victims_registry ADD COLUMN IF NOT EXISTS age INT NOT NULL DEFAULT 18;
-            ALTER TABLE disaster_victims_registry ADD COLUMN IF NOT EXISTS urgency_score INT NOT NULL DEFAULT 0;
         `);
 
         // 2. Tabla de Historial de Entregas Múltiples/Recurrentes
