@@ -7,7 +7,7 @@ import { getApiUrl, showCustomAlert } from '../modules/index.js';
 function initializeProfilePage() {
     const API_URL = getApiUrl();
     const urlParams = new URLSearchParams(window.location.search);
-    const username = urlParams.get('username') || urlParams.get('user');
+    const username = urlParams.get('username') || urlParams.get('user') || localStorage.getItem('username');
 
     const elements = {
         profileHeader: document.getElementById('profile-header'),
@@ -15,7 +15,8 @@ function initializeProfilePage() {
     };
 
     if (!username) {
-        displayError("No se ha especificado un perfil de usuario.", true);
+        displayError("Debes iniciar sesión para ver tu perfil de usuario.", true);
+        setTimeout(() => { window.location.href = 'login.html'; }, 2000);
         return;
     }
 
