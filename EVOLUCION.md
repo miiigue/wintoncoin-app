@@ -12,6 +12,16 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
+### 2026-08-01 — Corrección de Endpoint API (getApiUrl), Etiqueta Cédula y Prellenado V-
+* **Cambio**: 
+  - **Corrección de API_URL ([sos-venezuela.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/sos-venezuela.js))**:
+    1. Se importó e integró la función `getApiUrl()` centralizada de la aplicación (`import { getApiUrl } from '../modules/index.js'`), solucionando el error `404 / Unexpected token '<', "<!DOCTYPE "... is not valid JSON` en Demo al redirigir las peticiones directamente a `wintoncoin-backend-demo.onrender.com`.
+  - **Campo Número de Cédula & Prefijo V- Automático ([sos-venezuela.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/sos-venezuela.html), [sos-venezuela.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/sos-venezuela.js))**:
+    1. Se cambió el nombre del campo a **`Número de Cédula:`**.
+    2. Se prellenó el campo con `V-` por defecto (`value="V-"`) y se agregaron manejadores de eventos `focus` y `blur` para asegurar que el usuario solo tenga que tipear sus números manteniendo el formato estandarizado `V-12345678`.
+* **Evidencia**: Build de Vite exitoso en 6.22s (`npm run build:demo`).
+* **Impacto**: Comunicación HTTP directa con el servidor de la Demo sin errores 404 e interactividad simplificada para usuarios móviles.
+
 ### 2026-08-01 — Jerarquía de Urgencia de 4 Dígitos, Migración 100, Sincronización y Misiones QA-13/QA-14
 * **Cambio**: 
   - **Misiones de Pruebas Manuales QA-13 y QA-14 ([QA_TEST_CATALOG.md](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/QA_TEST_CATALOG.md))**:

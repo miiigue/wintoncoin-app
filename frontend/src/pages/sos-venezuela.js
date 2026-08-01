@@ -9,6 +9,8 @@
 
 'use strict';
 
+import { getApiUrl } from '../modules/index.js';
+
 document.addEventListener('DOMContentLoaded', () => {
     const victimForm = document.getElementById('sos-victim-registration-form');
     const feedbackEl = document.getElementById('sos-victim-feedback');
@@ -17,10 +19,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!victimForm) return;
 
-    // Determinación de API_URL
-    const API_URL = window.location.origin.includes('localhost')
-        ? 'http://localhost:10000'
-        : window.location.origin;
+    // Determinación de API_URL centralizada de la aplicación
+    const API_URL = getApiUrl();
+
+    // Manejo automático de prefijo V- en la Cédula de Identidad
+    const idDocInput = document.getElementById('sos-iddocument');
+    if (idDocInput) {
+        if (!idDocInput.value.trim()) {
+            idDocInput.value = 'V-';
+        }
+        idDocInput.addEventListener('focus', () => {
+            if (!idDocInput.value.trim()) {
+                idDocInput.value = 'V-';
+            }
+        });
+        idDocInput.addEventListener('blur', () => {
+            let val = idDocInput.value.trim().toUpperCase();
+            if (val && !val.startsWith('V-') && !val.startsWith('E-') && !val.startsWith('J-') && !val.startsWith('P-')) {
+                val = 'V-' + val.replace(/^V/i, '');
+                idDocInput.value = val;
+            }
+        });
+    }
 
     // Validación en tiempo real del prefijo telefónico (+58)
     const phoneInput = document.getElementById('sos-phone');
