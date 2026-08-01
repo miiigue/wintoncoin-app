@@ -81,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Recopilación de datos
         const fullName = document.getElementById('sos-fullname').value.trim();
         const idDocument = document.getElementById('sos-iddocument').value.trim();
+        const birthDate = document.getElementById('sos-birthdate')?.value || '';
         const gender = document.getElementById('sos-gender').value;
         const isHeadOfFamily = document.getElementById('sos-headof-family').checked;
         const email = document.getElementById('sos-email').value.trim();
@@ -141,6 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({
                     full_name: fullName,
                     id_document: idDocument,
+                    birth_date: birthDate,
                     gender,
                     is_head_of_family: isHeadOfFamily,
                     email,

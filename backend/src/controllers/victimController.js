@@ -18,36 +18,60 @@ const { logAuditEvent } = require('../services/auditService');
 const emailService = require('../services/emailService');
 
 /**
- * Calcula el Código de Expediente Inteligente de 3 dígitos centrales:
- * Formato: SOS-VZLA-[D1][D2][D3]-[SECUENCIAL]
+ * OBTENER CÓDIGO DE EXPEDIENTE INTELIGENTE Y SCORE DE URGENCIA (4 DÍGITOS HIERÁRQUICOS)
+ * ═════════════════════════════════════════════════════════════════════════════════
+ * DÍGITO 1 (Gravedad del Daño 1 a 4, donde 4 es más grave):
+ *   4 = Pérdida total de vivienda / enseres
+ *   3 = Emergencia médica / lesionados
+ *   2 = Daño parcial en vivienda
+ *   1 = Necesidad urgente de alimentos / medicinas
+ * DÍGITO 2 (Personas a Cargo 0 a 9):
+ *   0 a 9 (Suma total de menores + tercera edad + discapacidad, tope 9)
+ * DÍGITO 3 (Rango Decenal de Edad 1 a 9):
+ *   1 = 10-19 años | 2 = 20-29 años | 3 = 30-39 años | 4 = 40-49 años
+ *   5 = 50-59 años | 6 = 60-69 años | 7 = 70-79 años | 8 = 80-89 años | 9 = 90+ años
+ * DÍGITO 4 (Sexo 1 a 3):
+ *   1 = Hombre | 2 = Mujer | 3 = Otro
+ * 
+ * Formato: SOS-VZLA-[D1][D2][D3][D4]-[SECUENCIAL]
  */
-function calculateSmartDossierCode(gender, isHeadOfFamily, minors, elderly, disabled, affectationLevel, sequenceId) {
-    // DÍGITO 1: Perfil y Rol
-    let d1 = 5; // Default: Joven/Otro
-    if (disabled > 0) {
-        d1 = 4; // Persona con Discapacidad
-    } else if (elderly > 0 && minors === 0) {
-        d1 = 3; // Adulto Mayor solo/a cargo
-    } else if (gender === 'female' || gender === 'f') {
-        d1 = 2; // Mujer Cabeza de Familia
-    } else if (gender === 'male' || gender === 'm') {
-        d1 = 1; // Hombre Cabeza de Familia
-    }
+function calculateSmartDossierCode(affectationLevel, minors, elderly, disabled, age, gender, sequenceId) {
+    // 1. Gravedad (1 a 4, donde 4 es el más grave)
+    let d1 = 1;
+    if (affectationLevel === 'total_loss') d1 = 4;
+    else if (affectationLevel === 'medical_emergency') d1 = 3;
+    else if (affectationLevel === 'partial_damage') d1 = 2;
+    else d1 = 1;
 
-    // DÍGITO 2: Total exacto de dependientes a cargo (0 a 9)
+    // 2. Personas a Cargo (0 a 9)
     const totalDependents = (parseInt(minors, 10) || 0) + (parseInt(elderly, 10) || 0) + (parseInt(disabled, 10) || 0);
-    const d2 = Math.min(totalDependents, 9);
+    const d2 = Math.min(Math.max(totalDependents, 0), 9);
 
-    // DÍGITO 3: Nivel de Urgencia
-    let d3 = 1; // Estándar
-    if (affectationLevel === 'total_loss' || affectationLevel === 'medical_emergency') {
-        d3 = 9; // Urgencia Máxima
-    } else if (affectationLevel === 'partial_damage') {
-        d3 = 5; // Urgencia Media
-    }
+    // 3. Rango Decenal de Edad (1 a 9)
+    const parsedAge = parseInt(age, 10) || 18;
+    let d3 = 1;
+    if (parsedAge >= 90) d3 = 9;
+    else if (parsedAge >= 80) d3 = 8;
+    else if (parsedAge >= 70) d3 = 7;
+    else if (parsedAge >= 60) d3 = 6;
+    else if (parsedAge >= 50) d3 = 5;
+    else if (parsedAge >= 40) d3 = 4;
+    else if (parsedAge >= 30) d3 = 3;
+    else if (parsedAge >= 20) d3 = 2;
+    else d3 = 1;
+
+    // 4. Sexo (1 a 3)
+    const g = (gender || '').toLowerCase();
+    let d4 = 3;
+    if (g === 'male' || g === 'm' || g === 'hombre') d4 = 1;
+    else if (g === 'female' || g === 'f' || g === 'mujer') d4 = 2;
+    else d4 = 3;
 
     const padSeq = String(sequenceId).padStart(5, '0');
-    return `SOS-VZLA-${d1}${d2}${d3}-${padSeq}`;
+    const smartCode = `SOS-VZLA-${d1}${d2}${d3}${d4}-${padSeq}`;
+    const urgencyScore = (d1 * 1000) + (d2 * 100) + (d3 * 10) + d4;
+
+    return { smartCode, urgencyScore };
 }
 
 /**
@@ -86,8 +110,10 @@ exports.registerVictimPublic = async (req, res) => {
     const {
         full_name,
         id_document,
+        birth_date,
+        age,
         gender = 'female',
-        is_head_of_family = true,
+        is_head_of_family = false,
         email,
         phone_number,
         state,
@@ -112,6 +138,15 @@ exports.registerVictimPublic = async (req, res) => {
     if (!data_consent_accepted || !sworn_declaration_accepted) {
         return res.status(400).json({ success: false, message: "Debes aceptar el consentimiento de tratamiento de datos y la declaración jurada." });
     }
+
+    // Calcular edad del solicitante a partir de birth_date si no se envió explícitamente
+    let parsedAge = parseInt(age, 10);
+    if ((!parsedAge || isNaN(parsedAge)) && birth_date) {
+        const diff = Date.now() - new Date(birth_date).getTime();
+        const ageDate = new Date(diff);
+        parsedAge = Math.abs(ageDate.getUTCFullYear() - 1970);
+    }
+    if (!parsedAge || isNaN(parsedAge)) parsedAge = 18;
 
     const normDoc = normalizeIdDocument(id_document);
     const normPhone = normalizePhone(phone_number);
@@ -192,20 +227,20 @@ exports.registerVictimPublic = async (req, res) => {
         const tempDossierCode = `TEMP-${Date.now()}`;
         const insertRes = await client.query(`
             INSERT INTO disaster_victims_registry (
-                dossier_number, user_id, full_name, id_document, gender, is_head_of_family,
+                dossier_number, user_id, full_name, id_document, birth_date, age, gender, is_head_of_family,
                 email, phone_number, state, municipality, sector, address_details,
                 dependents_minors, dependents_elderly, dependents_disabled,
-                affectation_level, description, evidence_urls, status,
+                affectation_level, urgency_score, description, evidence_urls, status,
                 data_consent_accepted, sworn_declaration_accepted
             ) VALUES (
-                $1, $2, $3, $4, $5, $6,
-                $7, $8, $9, $10, $11, $12,
-                $13, $14, $15,
-                $16, $17, $18, 'pending_verification',
-                $19, $20
+                $1, $2, $3, $4, $5, $6, $7, $8,
+                $9, $10, $11, $12, $13, $14,
+                $15, $16, $17,
+                $18, 0, $19, $20, 'pending_verification',
+                $21, $22
             ) RETURNING id;
         `, [
-            tempDossierCode, userId, full_name.trim(), normDoc, gender, Boolean(is_head_of_family),
+            tempDossierCode, userId, full_name.trim(), normDoc, birth_date || null, parsedAge, gender, Boolean(is_head_of_family),
             normEmail, normPhone, state.trim(), municipality.trim(), sector.trim(), address_details.trim(),
             parseInt(dependents_minors, 10) || 0, parseInt(dependents_elderly, 10) || 0, parseInt(dependents_disabled, 10) || 0,
             affectation_level, description.trim(), Array.isArray(evidence_urls) ? evidence_urls : [],
@@ -214,15 +249,15 @@ exports.registerVictimPublic = async (req, res) => {
 
         const victimId = insertRes.rows[0].id;
 
-        // 6. Calcular Código de Expediente Inteligente
-        const smartDossierCode = calculateSmartDossierCode(
-            gender, is_head_of_family, dependents_minors, dependents_elderly, dependents_disabled, affectation_level, victimId
+        // 6. Calcular Código de Expediente Inteligente (4 dígitos) y Urgency Score
+        const { smartCode: smartDossierCode, urgencyScore } = calculateSmartDossierCode(
+            affectation_level, dependents_minors, dependents_elderly, dependents_disabled, parsedAge, gender, victimId
         );
 
-        // Actualizar dossier_number final
+        // Actualizar dossier_number final y urgency_score
         await client.query(
-            'UPDATE disaster_victims_registry SET dossier_number = $1 WHERE id = $2',
-            [smartDossierCode, victimId]
+            'UPDATE disaster_victims_registry SET dossier_number = $1, urgency_score = $2 WHERE id = $3',
+            [smartDossierCode, urgencyScore, victimId]
         );
 
         await client.query('COMMIT');
@@ -389,6 +424,7 @@ exports.listVictimsAdmin = async (req, res) => {
                     WHEN 'disbursed' THEN 4
                     WHEN 'rejected' THEN 5
                 END,
+                r.urgency_score DESC,
                 r.created_at DESC
             LIMIT $${pIndex} OFFSET $${pIndex + 1}
         `;

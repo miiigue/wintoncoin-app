@@ -6389,10 +6389,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
                     <div><strong>Nombre:</strong> ${escapeHtml(v.full_name)}</div>
                     <div><strong>Cédula:</strong> ${escapeHtml(v.id_document)}</div>
+                    <div><strong>Edad:</strong> ${v.age ? v.age + ' años' : 'N/A'} ${v.birth_date ? '(' + new Date(v.birth_date).toLocaleDateString('es-ES') + ')' : ''}</div>
                     <div><strong>Género:</strong> ${escapeHtml(v.gender)}</div>
                     <div><strong>¿Cabeza de Familia?:</strong> ${v.is_head_of_family ? 'Sí' : 'No'}</div>
                     <div><strong>Correo:</strong> ${escapeHtml(v.email)}</div>
                     <div><strong>Teléfono:</strong> ${escapeHtml(v.phone_number)}</div>
+                    <div><strong>Puntaje Urgencia:</strong> <span style="background: rgba(236,72,153,0.2); color: #ec4899; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-family: monospace;">${v.urgency_score || 'N/A'}</span></div>
                 </div>
 
                 <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">

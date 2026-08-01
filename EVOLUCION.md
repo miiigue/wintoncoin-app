@@ -12,6 +12,22 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
+### 2026-08-01 — Jerarquía de Urgencia de 4 Dígitos, Campo de Edad y Ordenamiento por Mayor Prioridad
+* **Cambio**: 
+  - **Estructura Numérica de 4 Dígitos ([victimController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/victimController.js))**:
+    1. Se implementó la nueva función `calculateSmartDossierCode` que genera un código de 4 dígitos jerárquicos centrados: `SOS-VZLA-[D1][D2][D3][D4]-[SECUENCIAL]`.
+       - **Dígito 1 (Gravedad del Daño, 1 a 4)**: 4 = Pérdida total, 3 = Emergencia médica, 2 = Daño parcial, 1 = Insumos básicos (4 es el más grave).
+       - **Dígito 2 (Personas a Cargo, 0 a 9)**: Conteo total de dependientes (niños + adultos mayores + discapacidad), tope 9.
+       - **Dígito 3 (Rango Decenal de Edad, 1 a 9)**: 1=10-19, 2=20-29, 3=30-39, 4=40-49, 5=50-59, 6=60-69, 7=70-79, 8=80-89, 9=90+ años.
+       - **Dígito 4 (Sexo, 1 a 3)**: 1=Hombre, 2=Mujer, 3=Otro.
+    2. Se introdujo el cálculo de `urgency_score = (D1 * 1000) + (D2 * 100) + (D3 * 10) + D4` (ej: `4532` para Gravedad 4, 5 dependientes, 35 años, Mujer).
+    3. El Panel de Administración ordena automáticamente los expedientes por `urgency_score DESC` para que los casos de mayor prioridad y urgencia aparezcan al principio de la lista.
+  - **Campo Fecha de Nacimiento / Edad ([sos-venezuela.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/sos-venezuela.html), [sos-venezuela.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/sos-venezuela.js), [099_create_disaster_victims_system.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/099_create_disaster_victims_system.js))**:
+    1. Agregado el campo obligatorio `<input type="date" id="sos-birthdate">` en el formulario para capturar la edad del solicitante y alinear con el registro general.
+    2. Añadidas las columnas `birth_date`, `age` y `urgency_score` en la base de datos PostgreSQL.
+* **Evidencia**: Build de Vite exitoso en 8.39s (`npm run build:demo`).
+* **Impacto**: Clasificación inmediata, objetiva y numéricamente ordenable de los casos de mayor urgencia en desastres humanitarios.
+
 ### 2026-07-31 — Rediseño Tema Claro Formulario SOS, Fondo Continuo de Ancho Completo, Subida Directa y Admin
 * **Cambio**: 
   - **Fondo Claro Continuo de Ancho Completo & Desmarcación ([sos-venezuela.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/sos-venezuela.html))**:
