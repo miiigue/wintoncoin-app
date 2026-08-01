@@ -12,8 +12,11 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
-### 2026-08-01 — Jerarquía de Urgencia de 4 Dígitos, Campo de Edad y Ordenamiento por Mayor Prioridad
+### 2026-08-01 — Migración Incremental 100, Jerarquía de Urgencia de 4 Dígitos y Campo de Edad
 * **Cambio**: 
+  - **Migración Incremental 100 ([100_add_victim_urgency_and_birthdate.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/100_add_victim_urgency_and_birthdate.js))**:
+    1. Creada la migración incremental 100 para ejecutar `ALTER TABLE disaster_victims_registry ADD COLUMN IF NOT EXISTS birth_date DATE`, `age INT` y `urgency_score INT`.
+    2. Resuelve la compatibilidad en entornos ya desplegados (como el entorno Demo `wintoncoin-demo-db`), donde la migración `099` ya figuraba en la tabla `schema_migrations` y era omitida al reiniciar el servidor.
   - **Estructura Numérica de 4 Dígitos ([victimController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/victimController.js))**:
     1. Se implementó la nueva función `calculateSmartDossierCode` que genera un código de 4 dígitos jerárquicos centrados: `SOS-VZLA-[D1][D2][D3][D4]-[SECUENCIAL]`.
        - **Dígito 1 (Gravedad del Daño, 1 a 4)**: 4 = Pérdida total, 3 = Emergencia médica, 2 = Daño parcial, 1 = Insumos básicos (4 es el más grave).
@@ -22,7 +25,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
        - **Dígito 4 (Sexo, 1 a 3)**: 1=Hombre, 2=Mujer, 3=Otro.
     2. Se introdujo el cálculo de `urgency_score = (D1 * 1000) + (D2 * 100) + (D3 * 10) + D4` (ej: `4532` para Gravedad 4, 5 dependientes, 35 años, Mujer).
     3. El Panel de Administración ordena automáticamente los expedientes por `urgency_score DESC` para que los casos de mayor prioridad y urgencia aparezcan al principio de la lista.
-  - **Campo Fecha de Nacimiento / Edad ([sos-venezuela.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/sos-venezuela.html), [sos-venezuela.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/sos-venezuela.js), [099_create_disaster_victims_system.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/099_create_disaster_victims_system.js))**:
+  - **Campo Fecha de Nacimiento / Edad ([sos-venezuela.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/sos-venezuela.html), [sos-venezuela.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/sos-venezuela.js))**:
     1. Agregado el campo obligatorio `<input type="date" id="sos-birthdate">` en el formulario para capturar la edad del solicitante y alinear con el registro general.
     2. Añadidas las columnas `birth_date`, `age` y `urgency_score` en la base de datos PostgreSQL.
 * **Evidencia**: Build de Vite exitoso en 8.39s (`npm run build:demo`).
