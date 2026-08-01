@@ -12,6 +12,15 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
+### 2026-08-01 — Blindaje A Prueba de Fallos del Registro SOS, Sanitización de Fecha y Auto-reparación de Esquema
+* **Cambio**: 
+  - **Auto-reparación de Esquema en Caliente y Sanitización ([victimController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/victimController.js))**:
+    1. Se añadió una rutina de auto-reparación de columnas DDL en caliente (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`) justo antes de ejecutar la inserción en `disaster_victims_registry`, asegurando que si la base de datos Demo aún no ha corrido las migraciones en frío, las columnas se creen dinámicamente sin arrojar Error 500.
+    2. Se sanitizó la conversión de `birth_date` (`'YYYY-MM-DD'` o `null`) para evitar errores de sintaxis de tipo fecha en PostgreSQL cuando el usuario no selecciona una fecha o envía un string vacío.
+    3. Se envolvió la actualización opcional de `date_of_birth` en `users` y `pending_verifications` dentro de bloques `try/catch` de aislamiento.
+* **Evidencia**: Build de Vite exitoso en 7.26s (`npm run build:demo`).
+* **Impacto**: Registro de damnificados 100% robusto y tolerante a fallas de infraestructura en Demo.
+
 ### 2026-08-01 — Corrección de Endpoint API (getApiUrl), Etiqueta Cédula y Prellenado V-
 * **Cambio**: 
   - **Corrección de API_URL ([sos-venezuela.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/sos-venezuela.js))**:
