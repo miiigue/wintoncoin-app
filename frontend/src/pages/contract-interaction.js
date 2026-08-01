@@ -157,6 +157,78 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (elements.usernameDisplay) {
         elements.usernameDisplay.textContent = storedUsername;
     }
+
+    fetchMySosCaseDashboard(storedUsername);
+
+    async function fetchMySosCaseDashboard(userUsername) {
+        const dashboardContainer = document.getElementById('sos-my-case-dashboard');
+        const menuLink = document.getElementById('menuSosMyCase');
+        if (!userUsername) return;
+
+        try {
+            const response = await fetch(`${getApiUrl()}/public/sos-venezuela/my-case?username=${encodeURIComponent(userUsername)}`);
+            if (!response.ok) return;
+
+            const data = await response.json();
+            if (!data.success || !data.has_case || !data.case) {
+                if (dashboardContainer) dashboardContainer.innerHTML = '';
+                if (menuLink) menuLink.style.display = 'none';
+                return;
+            }
+
+            // Si tiene expediente registrado, mostrar el enlace en el menú desplegable
+            if (menuLink) {
+                menuLink.style.display = 'block';
+            }
+
+            const c = data.case;
+            let statusBadge = `<span style="background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 9999px; font-weight: 600; font-size: 0.85rem;">En Verificación Manual</span>`;
+            if (c.status === 'approved') {
+                statusBadge = `<span style="background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 9999px; font-weight: 600; font-size: 0.85rem;">Aprobado</span>`;
+            } else if (c.status === 'disbursed') {
+                statusBadge = `<span style="background: #e0e7ff; color: #3730a3; padding: 4px 10px; border-radius: 9999px; font-weight: 600; font-size: 0.85rem;">Ayuda Desembolsada</span>`;
+            } else if (c.status === 'rejected') {
+                statusBadge = `<span style="background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 9999px; font-weight: 600; font-size: 0.85rem;">Rechazado</span>`;
+            }
+
+            let affectationLabel = 'Necesidades Básicas Urgentes';
+            if (c.affectation_level === 'total_loss') affectationLabel = 'Pérdida Total de Vivienda / Enseres';
+            else if (c.affectation_level === 'medical_emergency') affectationLabel = 'Emergencia Médica / Lesionados';
+            else if (c.affectation_level === 'partial_damage') affectationLabel = 'Daño Parcial en Vivienda';
+
+            const familyStr = `${c.dependents_minors || 0} menor(es), ${c.dependents_elderly || 0} adulto(s) mayor(es), ${c.dependents_disabled || 0} persona(s) con discapacidad`;
+            const locationStr = `${c.state}, ${c.municipality}, ${c.sector}`;
+
+            if (dashboardContainer) {
+                dashboardContainer.innerHTML = `
+                    <div style="background: linear-gradient(135deg, rgba(219, 39, 119, 0.15) 0%, rgba(15, 23, 42, 0.7) 100%); border: 1px solid rgba(219, 39, 119, 0.4); border-radius: 14px; padding: 18px; margin-top: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 12px;">
+                            <h4 style="margin: 0; color: #f472b6; font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">
+                                🚨 Mi caso <span style="font-size: 0.85rem; color: #cbd5e1; font-weight: normal;">(#${c.dossier_number})</span>
+                            </h4>
+                            ${statusBadge}
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; font-size: 0.9rem; color: #e2e8f0;">
+                            <div><strong style="color: #94a3b8;">Cédula:</strong> ${c.id_document}</div>
+                            <div><strong style="color: #94a3b8;">Edad:</strong> ${c.age || 18} años</div>
+                            <div><strong style="color: #94a3b8;">Ubicación:</strong> ${locationStr}</div>
+                            <div><strong style="color: #94a3b8;">Censo:</strong> ${familyStr}</div>
+                            <div><strong style="color: #94a3b8;">Gravedad:</strong> ${affectationLabel}</div>
+                        </div>
+
+                        <div style="margin-top: 12px; text-align: right;">
+                            <a href="profile.html" style="display: inline-block; background: rgba(219, 39, 119, 0.25); border: 1px solid #db2777; color: #f472b6; padding: 6px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; text-decoration: none; transition: all 0.2s;">
+                                Ver Mi Expediente Completo &rarr;
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }
+        } catch (err) {
+            console.error('Error al cargar datos del dashboard de Mi caso:', err);
+        }
+    }
     function setCriticalActionButtonsDisabled(disabled) {
         const ids = ['openPublicationModalBtn', 'openQuickSaleModalBtn'];
         ids.forEach((id) => {
