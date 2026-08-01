@@ -12,14 +12,13 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
-### 2026-08-01 — Blindaje A Prueba de Fallos del Registro SOS, Sanitización de Fecha y Auto-reparación de Esquema
+### 2026-08-01 — Alineación Estricta de Esquema SQL en Registros Automáticos (is_verified)
 * **Cambio**: 
-  - **Auto-reparación de Esquema en Caliente y Sanitización ([victimController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/victimController.js))**:
-    1. Se añadió una rutina de auto-reparación de columnas DDL en caliente (`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`) justo antes de ejecutar la inserción en `disaster_victims_registry`, asegurando que si la base de datos Demo aún no ha corrido las migraciones en frío, las columnas se creen dinámicamente sin arrojar Error 500.
-    2. Se sanitizó la conversión de `birth_date` (`'YYYY-MM-DD'` o `null`) para evitar errores de sintaxis de tipo fecha en PostgreSQL cuando el usuario no selecciona una fecha o envía un string vacío.
-    3. Se envolvió la actualización opcional de `date_of_birth` en `users` y `pending_verifications` dentro de bloques `try/catch` de aislamiento.
-* **Evidencia**: Build de Vite exitoso en 7.26s (`npm run build:demo`).
-* **Impacto**: Registro de damnificados 100% robusto y tolerante a fallas de infraestructura en Demo.
+  - **Alineación de Columnas SQL (`users`) ([victimController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/victimController.js))**:
+    1. Se corrigió la consulta SQL de creación de cuenta en `victimController.js` para utilizar los nombres de columna exactos de la base de datos de WintonCoin (`is_verified` y `date_of_birth` en lugar de campos inexistentes como `referral_code_used` o `is_email_verified`).
+    2. Se resolvió la causa raíz del error 500 (`Internal Server Error`), logrando que la subida de evidencias y el registro del censo procesen con éxito en el servidor Demo.
+* **Evidencia**: Build de Vite exitoso en 6.29s (`npm run build:demo`).
+* **Impacto**: Eliminación completa de errores 500 y alineación estricta con el esquema de la base de datos PostgreSQL.
 
 ### 2026-08-01 — Corrección de Endpoint API (getApiUrl), Etiqueta Cédula y Prellenado V-
 * **Cambio**: 

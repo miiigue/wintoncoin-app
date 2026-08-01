@@ -12,14 +12,11 @@ async function up() {
     try {
         await client.query('BEGIN');
 
-        // Adicionar columnas a disaster_victims_registry, users y pending_verifications
+        // Adicionar columnas a disaster_victims_registry
         await client.query(`
             ALTER TABLE disaster_victims_registry ADD COLUMN IF NOT EXISTS birth_date DATE;
             ALTER TABLE disaster_victims_registry ADD COLUMN IF NOT EXISTS age INT NOT NULL DEFAULT 18;
             ALTER TABLE disaster_victims_registry ADD COLUMN IF NOT EXISTS urgency_score INT NOT NULL DEFAULT 0;
-
-            ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth DATE;
-            ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS date_of_birth DATE;
         `);
 
         await client.query('COMMIT');

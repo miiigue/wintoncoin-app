@@ -139,19 +139,10 @@ exports.registerVictimPublic = async (req, res) => {
         return res.status(400).json({ success: false, message: "Debes aceptar el consentimiento de tratamiento de datos y la declaración jurada." });
     }
 
-    // Sanitizar y validar fecha de nacimiento para evitar errores de sintaxis SQL
-    let validBirthDate = null;
-    if (birth_date && typeof birth_date === 'string' && birth_date.trim().length > 0) {
-        const d = new Date(birth_date.trim());
-        if (!isNaN(d.getTime())) {
-            validBirthDate = d.toISOString().split('T')[0];
-        }
-    }
-
     // Calcular edad del solicitante a partir de birth_date si no se envió explícitamente
     let parsedAge = parseInt(age, 10);
-    if ((!parsedAge || isNaN(parsedAge)) && validBirthDate) {
-        const diff = Date.now() - new Date(validBirthDate).getTime();
+    if ((!parsedAge || isNaN(parsedAge)) && birth_date) {
+        const diff = Date.now() - new Date(birth_date).getTime();
         const ageDate = new Date(diff);
         parsedAge = Math.abs(ageDate.getUTCFullYear() - 1970);
     }
@@ -169,19 +160,6 @@ exports.registerVictimPublic = async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-
-        // Auto-reparación de columnas de esquema en caliente para evitar errores de migración pendiente
-        try {
-            await client.query(`
-                ALTER TABLE disaster_victims_registry ADD COLUMN IF NOT EXISTS birth_date DATE;
-                ALTER TABLE disaster_victims_registry ADD COLUMN IF NOT EXISTS age INT NOT NULL DEFAULT 18;
-                ALTER TABLE disaster_victims_registry ADD COLUMN IF NOT EXISTS urgency_score INT NOT NULL DEFAULT 0;
-                ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth DATE;
-                ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS date_of_birth DATE;
-            `);
-        } catch (schemaErr) {
-            console.warn('[SOS VICTIM] Auto-reparación de esquema completada.');
-        }
 
         // 3. Verificar si la Cédula ya tiene un expediente
         const existingDossier = await client.query(
@@ -201,7 +179,7 @@ exports.registerVictimPublic = async (req, res) => {
         let userId = null;
         let username = null;
         const userCheck = await client.query(
-            'SELECT id, username, is_email_verified FROM users WHERE email = $1 OR phone_number = $2',
+            'SELECT id, username FROM users WHERE email = $1 OR phone_number = $2',
             [normEmail, normPhone]
         );
 
@@ -212,10 +190,8 @@ exports.registerVictimPublic = async (req, res) => {
         if (userCheck.rows.length > 0) {
             userId = userCheck.rows[0].id;
             username = userCheck.rows[0].username;
-            if (validBirthDate) {
-                try {
-                    await client.query('UPDATE users SET date_of_birth = $1 WHERE id = $2 AND date_of_birth IS NULL', [validBirthDate, userId]);
-                } catch (e) { /* ignore optional update error */ }
+            if (birth_date) {
+                await client.query('UPDATE users SET date_of_birth = $1 WHERE id = $2 AND date_of_birth IS NULL', [birth_date, userId]);
             }
         } else {
             // Crear usuario nuevo automáticamente (con verificación pendiente)
@@ -225,26 +201,22 @@ exports.registerVictimPublic = async (req, res) => {
             username = `${baseUsername}_${Math.floor(100 + Math.random() * 900)}`;
 
             const newUserRes = await client.query(`
-                INSERT INTO users (username, email, password_hash, phone_number, referral_code_used, is_email_verified, date_of_birth)
-                VALUES ($1, $2, $3, $4, 'SOSVENEZUELA', false, $5)
+                INSERT INTO users (username, email, password_hash, phone_number, is_verified, date_of_birth)
+                VALUES ($1, $2, $3, $4, false, $5)
                 RETURNING id
-            `, [username, normEmail, hashedPassword, normPhone, validBirthDate]);
+            `, [username, normEmail, hashedPassword, normPhone, birth_date || null]);
 
             userId = newUserRes.rows[0].id;
 
             // Guardar solicitud de verificación en pending_verifications
-            try {
-                await client.query(`
-                    INSERT INTO pending_verifications (
-                        username, email, password_hash, phone_number, referral_code,
-                        verification_code_hash, verification_attempts, resend_count, last_sent_at, expires_at, date_of_birth
-                    ) VALUES ($1, $2, $3, $4, 'SOSVENEZUELA', $5, 0, 0, NOW(), $6, $7)
-                    ON CONFLICT (email) DO UPDATE
-                    SET verification_code_hash = EXCLUDED.verification_code_hash, expires_at = EXCLUDED.expires_at;
-                `, [username, normEmail, hashedPassword, normPhone, verificationCodeHash, expiresAt, validBirthDate]);
-            } catch (pvErr) {
-                console.warn('[SOS VICTIM] pending_verifications save:', pvErr.message);
-            }
+            await client.query(`
+                INSERT INTO pending_verifications (
+                    username, email, password_hash, phone_number, referral_code,
+                    verification_code_hash, verification_attempts, resend_count, last_sent_at, expires_at, date_of_birth
+                ) VALUES ($1, $2, $3, $4, 'SOSVENEZUELA', $5, 0, 0, NOW(), $6, $7)
+                ON CONFLICT (email) DO UPDATE
+                SET verification_code_hash = EXCLUDED.verification_code_hash, expires_at = EXCLUDED.expires_at, date_of_birth = COALESCE(EXCLUDED.date_of_birth, pending_verifications.date_of_birth);
+            `, [username, normEmail, hashedPassword, normPhone, verificationCodeHash, expiresAt, birth_date || null]);
 
             // Acreditar Bono SOSVENEZUELA inicial
             await client.query(`
@@ -271,7 +243,7 @@ exports.registerVictimPublic = async (req, res) => {
                 $21, $22
             ) RETURNING id;
         `, [
-            tempDossierCode, userId, full_name.trim(), normDoc, validBirthDate, parsedAge, gender, Boolean(is_head_of_family),
+            tempDossierCode, userId, full_name.trim(), normDoc, birth_date || null, parsedAge, gender, Boolean(is_head_of_family),
             normEmail, normPhone, state.trim(), municipality.trim(), sector.trim(), address_details.trim(),
             parseInt(dependents_minors, 10) || 0, parseInt(dependents_elderly, 10) || 0, parseInt(dependents_disabled, 10) || 0,
             affectation_level, description.trim(), Array.isArray(evidence_urls) ? evidence_urls : [],
@@ -368,7 +340,7 @@ exports.verifyVictimOtpPublic = async (req, res) => {
         }
 
         // Marcar usuario como verificado en la tabla users
-        await client.query('UPDATE users SET is_email_verified = true WHERE email = $1', [normEmail]);
+        await client.query('UPDATE users SET is_verified = true WHERE email = $1', [normEmail]);
         await client.query('DELETE FROM pending_verifications WHERE id = $1', [pending.id]);
 
         await client.query('COMMIT');
