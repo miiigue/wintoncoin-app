@@ -149,14 +149,33 @@ PASOS:
 ---
 
 ```text
-TITULO: QA-12 - Control Administrativo y Asignación de Ayuda Recurrente a Damnificados
-DESCRIPCION: Esta prueba valida que los administradores puedan auditar los expedientes recibidos desde el panel de administración, revisar las evidencias y realizar asignaciones de ayuda en tokens BLUE de forma recurrente.
+---
+
+```text
+TITULO: QA-13 - Censo de Edad, Subida de Fotos desde Móvil y Código de Urgencia de 4 Dígitos
+DESCRIPCION: El objetivo de esta prueba es comprobar que el formulario de censo para personas afectadas permite ingresar la fecha de nacimiento y subir fotos de evidencia directamente desde la cámara o galería del teléfono. Asimismo, valida que el sistema genere el código de expediente inteligente con la nueva jerarquía de 4 dígitos (Gravedad, Cargas, Rango de Edad y Sexo) ordenando el caso según su nivel de prioridad.
 PASOS:
-2. Inicia sesión como administrador en el Panel de Administración (admin-panel.html).
-3. En el menú lateral, busca y selecciona la pestaña dedicada a "Damnificados Terremoto (SOS)".
-4. Revisa la lista de solicitudes y ubica el expediente recién creado filtrando por la Cédula o número de expediente inteligente.
-5. Presiona el expediente para abrir la ficha de detalle y comprobar que se muestren la dirección completa, el desglose del censo familiar y los enlaces a las fotos.
-6. Presiona el botón de "Asignar Ayuda" e ingresa un monto en tokens BLUE (ejemplo: 500) junto con una nota explicativa de la fase de entrega.
-7. Presiona guardar y verifica que la entrega quede registrada en el historial y que el estado del expediente se actualice a Desembolsado.
+2. Abre el navegador de tu teléfono e ingresa al portal SOS Venezuela (sos-venezuela.html).
+3. Ingresa tu Nombre, Cédula de Identidad con formato V- y selecciona tu Fecha de Nacimiento en la casilla interactiva de calendario.
+4. Selecciona tu género, indica si eres cabeza de familia e ingresa tu teléfono venezolano (+58) y tu correo electrónico.
+5. Completa los datos de tu ubicación (Estado, Municipio y Sector) e indica cuántas personas menores, adultos mayores y con discapacidad viven contigo.
+6. Selecciona el nivel de afectación (ejemplo: Pérdida Total) y presiona el botón de subir fotos de evidencia eligiendo hasta 3 imágenes desde la cámara de tu celular.
+7. Marca las casillas de consentimiento legal y declaración jurada, y presiona el botón "Enviar Solicitud de Asistencia Humanitaria".
+8. Verifica que la solicitud procese con éxito y que tu número de expediente muestre la nueva estructura de 4 dígitos centrados (ejemplo: #SOS-VZLA-4532-00001).
 ```
+
+---
+
+```text
+TITULO: QA-14 - Auditoría Administrativa de Edad y Priorización por Mayor Urgencia
+DESCRIPCION: Esta prueba garantiza que desde el Panel de Administración los gestores puedan visualizar la edad del solicitante, su fecha de nacimiento y el puntaje numérico de urgencia. Además, comprueba que la lista de expedientes se ordene automáticamente colocando los casos de mayor gravedad e impacto en la parte superior para una atención prioritaria.
+PASOS:
+2. Inicia sesión en el Panel de Administración (admin-panel.html) con tu cuenta de administrador.
+3. Navega al menú lateral y presiona la sección de "Damnificados Terremoto (SOS)".
+4. Observa la tabla de expedientes y confirma que la lista aparezca ordenada de mayor a menor según el número de urgencia asignado.
+5. Presiona el botón "Ver Ficha" en la fila del expediente creado recientemente.
+6. Revisa los datos de la ficha flotante y comprueba que se muestre la edad calculada en años, la fecha de nacimiento entre paréntesis y el recuadro destacado con el Puntaje de Urgencia.
+7. Cierra la ficha y confirma que los datos coincidan exactamente con la información enviada desde el teléfono móvil.
+```
+
 

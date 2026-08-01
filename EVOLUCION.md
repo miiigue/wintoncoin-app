@@ -12,8 +12,10 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
-### 2026-08-01 — Jerarquía de Urgencia de 4 Dígitos, Migración 100 y Sincronización con Perfil Regular
+### 2026-08-01 — Jerarquía de Urgencia de 4 Dígitos, Migración 100, Sincronización y Misiones QA-13/QA-14
 * **Cambio**: 
+  - **Misiones de Pruebas Manuales QA-13 y QA-14 ([QA_TEST_CATALOG.md](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/QA_TEST_CATALOG.md))**:
+    1. Se crearon e integraron al catálogo histórico las misiones `QA-13` (Verificación de censo de edad, fotos desde celular y código de urgencia de 4 dígitos desde el teléfono) y `QA-14` (Auditoría administrativa de edad, puntaje de urgencia y ordenamiento descendente por prioridad).
   - **Migración 100 e Inmutabilidad de Esquema ([100_add_age_and_urgency_to_victims.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/100_add_age_and_urgency_to_victims.js))**:
     1. Se creó la migración secuencial `100` siguiendo los estándares SOC 2 / ISO 27001 para añadir las columnas `birth_date`, `age` y `urgency_score` de forma automática al iniciar el backend en entornos desplegados como Demo.
   - **Sincronización con Ficha de Usuario Regular ([victimController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/victimController.js))**:
@@ -22,7 +24,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
     1. Código jerárquico `SOS-VZLA-[D1][D2][D3][D4]-[SECUENCIAL]`, donde D1=Gravedad (1-4), D2=Dependientes (0-9), D3=Rango de Edad (1-9), D4=Sexo (1-3).
     2. Ordenamiento automático de expedientes en el Panel Admin por `urgency_score DESC` para atender de primero a los casos de mayor prioridad.
 * **Evidencia**: Build de Vite exitoso en 8.25s (`npm run build:demo`).
-* **Impacto**: Continuidad perfecta en la base de datos Demo y consistencia total entre la ficha de emergencia y la cuenta de usuario principal.
+* **Impacto**: Pruebas manuales listas para ejecución en celulares y continuidad perfecta en la base de datos Demo.
 
 ### 2026-07-31 — Rediseño Tema Claro Formulario SOS, Fondo Continuo de Ancho Completo, Subida Directa y Admin
 * **Cambio**: 
