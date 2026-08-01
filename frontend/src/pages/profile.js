@@ -87,7 +87,7 @@ function initializeProfilePage() {
                                 <div style="background: #ffffff; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
                                     <div>
                                         <span style="font-weight: 600; color: #2563eb;">+${parseFloat(d.amount_blue).toFixed(2)} BLUE IOU</span>
-                                        <span style="font-size: 0.8rem; color: #64748b; margin-left: 8px;">${new Date(d.disbursed_at).toLocaleDateString()}</span>
+                                        <span style="font-size: 0.8rem; color: #64748b; margin-left: 8px;">${new Date(d.created_at).toLocaleDateString()}</span>
                                     </div>
                                     <span style="font-size: 0.85rem; color: #475569;">${d.notes || 'Acreditado'}</span>
                                 </div>

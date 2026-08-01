@@ -769,7 +769,7 @@ exports.getMyCasePublic = async (req, res) => {
 
         // Obtener desembolsos recibidos
         const disbursementsRes = await pool.query(
-            'SELECT id, amount_blue, disbursed_at, notes FROM disaster_aid_disbursements WHERE victim_id = $1 ORDER BY id DESC',
+            'SELECT id, amount_blue, created_at, notes FROM disaster_aid_disbursements WHERE victim_id = $1 ORDER BY id DESC',
             [caseData.id]
         );
 
