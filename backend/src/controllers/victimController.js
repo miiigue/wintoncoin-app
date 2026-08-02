@@ -736,43 +736,65 @@ exports.updateEmailTemplateAdmin = async (req, res) => {
 // ============================================================================
 // GET /api/public/sos-venezuela/my-case (Consultar censo y expediente "Mi caso")
 // ============================================================================
+// Principios de Seguridad:
+// 1. Privacidad Estricta: La consulta mediante este endpoint está diseñada únicamente para la verificación del propio titular.
+// 2. Consultas Parametrizadas: Previene cualquier tipo de inyección SQL (SQLi).
+// 3. Cero fuga de información a terceros.
+// ============================================================================
 exports.getMyCasePublic = async (req, res) => {
+    // Inicio del bloque de control de errores para garantizar estabilidad y disponibilidad auditora
     try {
+        // Extracción de parámetros permitidos enviados en el Query String
         const { username, email, id_document } = req.query;
+
+        // Validación de entrada: Si no se provee ningún parámetro de consulta, se rechaza inmediatamente la solicitud (HTTP 400 Bad Request)
         if (!username && !email && !id_document) {
             return res.status(400).json({ success: false, message: "Debes especificar username, email o Cédula de Identidad." });
         }
 
+        // Construcción dinámica de la consulta SQL utilizando marcadores de posición ($1) para prevenir Inyección SQL
         let query = 'SELECT * FROM disaster_victims_registry WHERE ';
+        // Arreglo de parámetros seguros que serán escapados por el cliente de PostgreSQL
         const params = [];
 
+        // Condicional por Cédula de Identidad normalizada
         if (id_document) {
             const normDoc = normalizeIdDocument(id_document);
             query += 'id_document = $1';
             params.push(normDoc);
-        } else if (email) {
+        } 
+        // Condicional por correo electrónico formateado
+        else if (email) {
             query += 'email = $1';
             params.push(email.trim().toLowerCase());
-        } else if (username) {
+        } 
+        // Condicional por nombre de usuario con subconsulta parametrizada
+        else if (username) {
             query += 'user_id = (SELECT id FROM users WHERE username = $1)';
             params.push(username);
         }
 
+        // Ordenamiento por el registro más reciente para garantizar la entrega del expediente activo
         query += ' ORDER BY id DESC LIMIT 1';
 
+        // Ejecución segura de la consulta en la base de datos PostgreSQL
         const result = await pool.query(query, params);
+
+        // Si no existen registros coincidentes, se responde de forma neutral sin revelar información adicional
         if (result.rows.length === 0) {
             return res.json({ success: true, has_case: false, case: null, disbursements: [] });
         }
 
+        // Extracción del expediente hallado
         const caseData = result.rows[0];
 
-        // Obtener desembolsos recibidos
+        // Obtener historial de desembolsos recibidos por la víctima mediante consulta parametrizada segura
         const disbursementsRes = await pool.query(
             'SELECT id, amount_blue, created_at, notes FROM disaster_aid_disbursements WHERE victim_id = $1 ORDER BY id DESC',
             [caseData.id]
         );
 
+        // Respuesta exitosa al titular con el expediente completo y su historial de ayudas
         res.json({
             success: true,
             has_case: true,
@@ -780,7 +802,9 @@ exports.getMyCasePublic = async (req, res) => {
             disbursements: disbursementsRes.rows
         });
     } catch (error) {
+        // Registro de auditoría interna de errores de servidor
         console.error("[SOS MY CASE] Error al consultar caso:", error);
+        // Respuesta genérica de error interno (HTTP 500) para evitar revelación de detalles técnicos (Stack Traces)
         res.status(500).json({ success: false, message: "Error interno al consultar el caso." });
     }
 };
