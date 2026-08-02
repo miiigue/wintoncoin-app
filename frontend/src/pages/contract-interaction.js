@@ -160,25 +160,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     fetchMySosCaseDashboard(storedUsername);
 
+    // Función encargada de renderizar la tarjeta del caso SOS en el dashboard si el usuario posee un expediente
     async function fetchMySosCaseDashboard(userUsername) {
         const dashboardContainer = document.getElementById('sos-my-case-dashboard');
-        const menuLink = document.getElementById('menuSosMyCase');
         if (!userUsername) return;
 
         try {
+            // Consulta de auditoría y verificación de expediente para el usuario autenticado
             const response = await fetch(`${getApiUrl()}/api/public/sos-venezuela/my-case?username=${encodeURIComponent(userUsername)}`);
             if (!response.ok) return;
 
             const data = await response.json();
+            // Si el usuario no posee expediente registrado, se oculta el contenedor del dashboard únicamente
             if (!data.success || !data.has_case || !data.case) {
                 if (dashboardContainer) dashboardContainer.innerHTML = '';
-                if (menuLink) menuLink.style.display = 'none';
                 return;
-            }
-
-            // Si tiene expediente registrado, mostrar el enlace en el menú desplegable
-            if (menuLink) {
-                menuLink.style.display = 'block';
             }
 
             const c = data.case;
