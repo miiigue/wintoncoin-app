@@ -6376,11 +6376,12 @@ document.addEventListener('DOMContentLoaded', () => {
             let evidenceHtml = '';
             if (v.evidence_urls && v.evidence_urls.length > 0) {
                 evidenceHtml = v.evidence_urls.map(url => {
-                    if (url.startsWith('http')) {
+                    const isGooglePhotos = url.includes('drive.google.com') || url.includes('photos.app.goo.gl') || url.includes('photos.google.com');
+                    if (isGooglePhotos) {
                         return `<a href="${escapeHtml(url)}" target="_blank" style="display: inline-block; background: rgba(236,72,153,0.15); color: #f472b6; padding: 6px 12px; border-radius: 6px; text-decoration: none; margin: 4px;">🔗 Enlace Externo / Google Fotos ↗</a>`;
                     }
-                    const fullUrl = url.startsWith('/') ? `${API_URL}${url}` : `${API_URL}/${url}`;
-                    return `<a href="${escapeHtml(fullUrl)}" target="_blank"><img src="${escapeHtml(fullUrl)}" style="width: 90px; height: 90px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); margin: 4px;"></a>`;
+                    const fullUrl = url.startsWith('http') ? url : (url.startsWith('/') ? `${API_URL}${url}` : `${API_URL}/${url}`);
+                    return `<a href="${escapeHtml(fullUrl)}" target="_blank" title="Abrir imagen completa en nueva pestaña"><img src="${escapeHtml(fullUrl)}" alt="Evidencia SOS" style="width: 90px; height: 90px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); margin: 4px; transition: transform 0.15s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"></a>`;
                 }).join('');
             } else {
                 evidenceHtml = '<p style="color: #94a3b8; font-size: 0.9rem;">Sin imágenes adjuntas.</p>';

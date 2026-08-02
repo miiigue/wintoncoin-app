@@ -4671,3 +4671,18 @@ ew_evidence_urls al endpoint PUT.
  - Se escaparon dinámicamente los campos eferred_username y eferral_code previa inserción mediante .innerHTML, neutralizando posibles vectores de inyección de código.
 
 - **Evidencia**: Archivos modificados: rontend/src/pages/profile.js, rontend/src/pages/referrals.js, rontend/contract_interaction.html, rontend/src/components/sidebar.js, ackend/src/controllers/victimController.js, EVOLUCION.md.
+
+
+### 2026-08-02 - Migración del Módulo SOS a Cloudflare R2 y Renderizado de Miniaturas
+
+**Contexto**: Las imágenes subidas en la planilla SOS se guardaban localmente en /uploads/victims/, perdiéndose al reiniciar el servidor en Render.com y mostrando pantallas en blanco al hacer clic en las miniaturas.
+
+**Cambios Realizados**:
+1. **Subida en Memoria RAM e Integración con Cloudflare R2**:
+   - Modificado ackend/src/routes/systemRoutes.js para usar multer.memoryStorage() en lugar de almacenamiento en disco local.
+   - Modificado ackend/src/controllers/victimController.js (función uploadEvidencePublic) delegando la subida a mediaController.uploadImages. Las imágenes son comprimidas en RAM a .webp con Sharp y subidas directamente a Cloudflare R2.
+2. **Renderizado de Miniaturas y Galería de Evidencias**:
+   - Modificado rontend/src/pages/admin-panel.js para diferenciar entre enlaces de albúmenes de Google Fotos (drive.google.com / photos.app.goo.gl) e imágenes directas/Cloudflare R2, renderizando el elemento <img> interactivo.
+   - Modificado rontend/src/pages/profile.js agregando la galería de evidencias a la tarjeta " Mi caso\ para que el usuario pueda previsualizar sus fotos subidas.
+
+- **Evidencia**: Archivos modificados: ackend/src/routes/systemRoutes.js, ackend/src/controllers/victimController.js, rontend/src/pages/admin-panel.js, rontend/src/pages/profile.js, EVOLUCION.md.

@@ -17,6 +17,7 @@ const crypto = require('crypto');
 const { logAuditEvent } = require('../services/auditService');
 const emailService = require('../services/emailService');
 const notificationService = require('../services/notificationService');
+const mediaController = require('./mediaController');
 
 /**
  * OBTENER CÓDIGO DE EXPEDIENTE INTELIGENTE Y SCORE DE URGENCIA (4 DÍGITOS HIERÁRQUICOS)
@@ -387,23 +388,19 @@ exports.verifyVictimOtpPublic = async (req, res) => {
 };
 
 // ============================================================================
-// POST /api/public/sos-venezuela/upload-evidence (Público - Subida de imágenes)
+// POST /api/public/sos-venezuela/upload-evidence (Público - Subida de imágenes a Cloudflare R2)
+// ============================================================================
+// Ciberseguridad & Principio DRY (Don't Repeat Yourself):
+// - Reutiliza el controlador de medios unificado (mediaController.js) que integra
+//   compresión asíncrona WebP (Sharp) y subida inmutable a Cloudflare R2.
+// - Neutraliza la ejecución remota de código (RCE) al no guardar nada en el disco local.
 // ============================================================================
 exports.uploadEvidencePublic = async (req, res) => {
     try {
-        if (!req.files || req.files.length === 0) {
-            return res.status(400).json({ success: false, message: "No se seleccionaron archivos." });
-        }
-
-        const fileUrls = req.files.map(file => `/uploads/victims/${file.filename}`);
-        res.json({
-            success: true,
-            urls: fileUrls,
-            message: "Imágenes subidas exitosamente."
-        });
+        return await mediaController.uploadImages(req, res);
     } catch (err) {
-        console.error("[SOS UPLOAD] Error subiendo fotos de evidencia:", err);
-        res.status(500).json({ success: false, message: "Error al procesar la subida de imágenes." });
+        console.error("[SOS UPLOAD] Error en infraestructura de almacenamiento Cloudflare R2:", err);
+        return res.status(500).json({ success: false, message: "Error al procesar la subida de evidencias a Cloudflare R2." });
     }
 };
 

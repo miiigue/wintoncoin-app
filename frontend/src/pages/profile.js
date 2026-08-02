@@ -139,36 +139,56 @@ function initializeProfilePage() {
                 `;
             }
 
-            // Inyección desinfectada contra ataques Stored XSS
-            container.innerHTML = `
-                <div style="background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%); border: 1px solid #fecdd3; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(219, 39, 119, 0.08); margin-bottom: 1.5rem; text-align: left;">
-                    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px; border-bottom: 1px solid #fecdd3; padding-bottom: 12px; margin-bottom: 12px;">
-                        <h3 style="margin: 0; color: #9f1239; font-size: 1.25rem; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex: 1; min-width: 240px;">
-                            <span style="white-space: nowrap;">Mi caso</span>
-                            <span style="font-size: 0.9rem; color: #db2777; font-weight: normal; white-space: nowrap;">(#${escapeHtml(c.dossier_number)})</span>
-                        </h3>
-                        <div style="flex-shrink: 0; margin-top: 2px;">
-                            ${statusBadge}
+                    let evidenceGalleryHTML = '';
+                    if (c.evidence_urls && c.evidence_urls.length > 0) {
+                        const itemsHTML = c.evidence_urls.map(url => {
+                            const isGooglePhotos = url.includes('drive.google.com') || url.includes('photos.app.goo.gl') || url.includes('photos.google.com');
+                            if (isGooglePhotos) {
+                                return `<a href="${escapeHtml(url)}" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; background: #fff1f2; color: #be123c; padding: 6px 12px; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 500;">🔗 Enlace Google Fotos ↗</a>`;
+                            }
+                            const fullUrl = url.startsWith('http') ? url : (url.startsWith('/') ? `${API_URL}${url}` : `${API_URL}/${url}`);
+                            return `<a href="${escapeHtml(fullUrl)}" target="_blank" title="Ver foto completa"><img src="${escapeHtml(fullUrl)}" alt="Evidencia SOS" style="width: 70px; height: 70px; object-fit: cover; border-radius: 8px; border: 1px solid #fecdd3; margin-right: 6px;"></a>`;
+                        }).join('');
+                        evidenceGalleryHTML = `
+                            <div style="margin-top: 10px; background: rgba(255,255,255,0.7); padding: 10px 12px; border-radius: 8px; border: 1px solid #f1f5f9;">
+                                <strong style="color: #0f172a; display: block; margin-bottom: 6px;">Fotos y Evidencias Adjuntas:</strong>
+                                <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">${itemsHTML}</div>
+                            </div>
+                        `;
+                    }
+
+                    // Inyección desinfectada contra ataques Stored XSS
+                    container.innerHTML = `
+                        <div style="background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%); border: 1px solid #fecdd3; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(219, 39, 119, 0.08); margin-bottom: 1.5rem; text-align: left;">
+                            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px; border-bottom: 1px solid #fecdd3; padding-bottom: 12px; margin-bottom: 12px;">
+                                <h3 style="margin: 0; color: #9f1239; font-size: 1.25rem; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex: 1; min-width: 240px;">
+                                    <span style="white-space: nowrap;">Mi caso</span>
+                                    <span style="font-size: 0.9rem; color: #db2777; font-weight: normal; white-space: nowrap;">(#${escapeHtml(c.dossier_number)})</span>
+                                </h3>
+                                <div style="flex-shrink: 0; margin-top: 2px;">
+                                    ${statusBadge}
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 0.95rem; color: #334155;">
+                                <div><strong>Cédula:</strong> ${escapeHtml(c.id_document)}</div>
+                                <div><strong>Edad:</strong> ${escapeHtml(String(c.age || 18))} años</div>
+                                <div><strong>Ubicación:</strong> ${locationStr}</div>
+                                <div><strong>Censo Familiar:</strong> ${familyStr}</div>
+                                <div><strong>Gravedad:</strong> ${escapeHtml(affectationLabel)}</div>
+                                <div><strong>Fecha de Registro:</strong> ${escapeHtml(new Date(c.created_at).toLocaleDateString())}</div>
+                            </div>
+
+                            <div style="margin-top: 10px; background: rgba(255,255,255,0.7); padding: 10px 12px; border-radius: 8px; border: 1px solid #f1f5f9;">
+                                <strong style="color: #0f172a; display: block; margin-bottom: 4px;">Relato / Solicitud:</strong>
+                                <p style="margin: 0; font-size: 0.9rem; color: #475569; font-style: italic;">"${escapeHtml(c.description)}"</p>
+                            </div>
+
+                            ${evidenceGalleryHTML}
+
+                            ${disbursementsHTML}
                         </div>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 0.95rem; color: #334155;">
-                        <div><strong>Cédula:</strong> ${escapeHtml(c.id_document)}</div>
-                        <div><strong>Edad:</strong> ${escapeHtml(String(c.age || 18))} años</div>
-                        <div><strong>Ubicación:</strong> ${locationStr}</div>
-                        <div><strong>Censo Familiar:</strong> ${familyStr}</div>
-                        <div><strong>Gravedad:</strong> ${escapeHtml(affectationLabel)}</div>
-                        <div><strong>Fecha de Registro:</strong> ${escapeHtml(new Date(c.created_at).toLocaleDateString())}</div>
-                    </div>
-
-                    <div style="margin-top: 10px; background: rgba(255,255,255,0.7); padding: 10px 12px; border-radius: 8px; border: 1px solid #f1f5f9;">
-                        <strong style="color: #0f172a; display: block; margin-bottom: 4px;">Relato / Solicitud:</strong>
-                        <p style="margin: 0; font-size: 0.9rem; color: #475569; font-style: italic;">"${escapeHtml(c.description)}"</p>
-                    </div>
-
-                    ${disbursementsHTML}
-                </div>
-            `;
+                    `;
         } catch (err) {
             console.error('Error al cargar datos de Mi caso SOS:', err);
         }

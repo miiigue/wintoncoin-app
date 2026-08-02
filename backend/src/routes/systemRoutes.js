@@ -44,19 +44,22 @@ if (!fs.existsSync(victimUploadDir)) {
     fs.mkdirSync(victimUploadDir, { recursive: true });
 }
 
-const victimStorage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, victimUploadDir),
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname).toLowerCase();
-        cb(null, 'evidence-' + uniqueSuffix + ext);
-    }
-});
+// ============================================================================
+// CONFIGURACIÓN DE SEGURIDAD FINTECH PARA SUBIDA DE EVIDENCIAS SOS
+// ============================================================================
+// 1. Uso exclusivo de memoria RAM (memoryStorage) para evitar RCE (Remote Code Execution)
+// 2. Filtro estricto de MIME-Types para bloquear archivos maliciosos (.php, .exe, webshells)
+// 3. Límite máximo de 10MB por archivo para prevenir ataques DoS por agotamiento de RAM
+// ============================================================================
+const victimStorage = multer.memoryStorage();
 
 const victimUpload = multer({
     storage: victimStorage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+    limits: { 
+        fileSize: 10 * 1024 * 1024 // Límite estricto de 10MB para prevenir desbordamiento de memoria (OOM)
+    },
     fileFilter: (req, file, cb) => {
+        // Lista blanca estricta de tipos de imagen permitidos
         const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'image/heic'];
         if (allowedMimes.includes(file.mimetype)) {
             cb(null, true);
@@ -71,6 +74,7 @@ const victimController = require('../controllers/victimController');
 // 10. Registro, Verificación OTP, Subida de Fotos y Consulta de Expediente SOS Venezuela
 router.post('/public/sos-venezuela/register-victim', victimController.registerVictimPublic);
 router.post('/public/sos-venezuela/verify-otp', victimController.verifyVictimOtpPublic);
+// Subida de evidencias SOS (Protegida en RAM + Transcodificación en Cloudflare R2)
 router.post('/public/sos-venezuela/upload-evidence', victimUpload.array('images', 5), victimController.uploadEvidencePublic);
 router.get('/public/sos-venezuela/my-case', victimController.getMyCasePublic);
 
