@@ -179,3 +179,27 @@ PASOS:
 ```
 
 
+
+
+```text
+TITULO: QA-15 - Verificación de Privacidad y Aislamiento del Expediente SOS en Mi Perfil
+DESCRIPCION: Esta prueba valida que los datos sensibles del expediente de ayuda humanitaria (SOS Venezuela) solo puedan ser vistos por el usuario creador dentro de su propio perfil. Se comprueba que otros usuarios no puedan ver la información personal de la víctima al visitar su perfil público.
+PASOS:
+2. Inicia sesión con la cuenta del usuario que registró la solicitud SOS y navega al menú principal.
+3. Toca la opción "👤 Mi Perfil" en el menú de navegación y confirma que aparezca la pestaña "Mi caso (SOS)" con el estado de tu expediente.
+4. Cierra sesión e inicia sesión con una cuenta de usuario distinta (ejemplo: test8 u otro usuario).
+5. Ve al menú y presiona "👤 Mi Perfil". Confirma que puedes ver tu reputación y billetera sin presentar errores.
+6. Intenta acceder al perfil público del primer usuario (profile.html?user=UsuarioSOS).
+7. Confirma que solo se visualice la reputación pública y comentarios, y que en ningún momento se muestre la información privada del expediente SOS.
+```
+
+```text
+TITULO: QA-16 - Verificación de Sanitización Anti-XSS en el Historial de Referidos
+DESCRIPCION: Esta prueba permite verificar que la página de referidos procese los códigos y nombres de usuarios referidos sin interpretar caracteres especiales ni vulnerar la seguridad del navegador.
+PASOS:
+2. Inicia sesión con tu cuenta de usuario e ingresa a la sección de Referidos.
+3. Copia tu enlace de referido y comparte tu código con un nuevo usuario.
+4. Registra una nueva cuenta usando el enlace de referido.
+5. Regresa a la cuenta principal y refresca la pantalla de Referidos.
+6. Observa la tabla de usuarios referidos y confirma que el nombre de usuario y el código de referido se muestren correctamente como texto plano sanitizado sin alteraciones en la pantalla.
+```
