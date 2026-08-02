@@ -202,19 +202,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (dashboardContainer) {
                 dashboardContainer.innerHTML = `
                     <a href="profile.html" style="display: block; text-decoration: none; background: linear-gradient(135deg, rgba(219, 39, 119, 0.15) 0%, rgba(15, 23, 42, 0.7) 100%); border: 1px solid rgba(219, 39, 119, 0.4); border-radius: 14px; padding: 18px; margin-top: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: transform 0.2s, box-shadow 0.2s;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 12px;">
-                            <h4 style="margin: 0; color: #f472b6; font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">
-                                🚨 #${c.dossier_number}
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h4 style="margin: 0; color: #f472b6; font-size: 1.15rem;">
+                                #${c.dossier_number}
                             </h4>
                             ${statusBadge}
-                        </div>
-
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; font-size: 0.9rem; color: #e2e8f0;">
-                            <div><strong style="color: #94a3b8;">Cédula:</strong> ${c.id_document}</div>
-                            <div><strong style="color: #94a3b8;">Edad:</strong> ${c.age || 18} años</div>
-                            <div><strong style="color: #94a3b8;">Ubicación:</strong> ${locationStr}</div>
-                            <div><strong style="color: #94a3b8;">Censo:</strong> ${familyStr}</div>
-                            <div><strong style="color: #94a3b8;">Gravedad:</strong> ${affectationLabel}</div>
                         </div>
                     </a>
                 `;
