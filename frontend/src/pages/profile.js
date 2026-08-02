@@ -157,6 +157,46 @@ function initializeProfilePage() {
                         `;
                     }
 
+                    // Bitácora de eventos desinfectada con fecha y hora completa (horas:minutos)
+                    let historyHTML = '';
+                    if (data.history && data.history.length > 0) {
+                        historyHTML = `
+                            <div style="margin-top: 15px; border-top: 1px dashed #cbd5e1; padding-top: 10px;">
+                                <strong style="color: #0f172a; display: block; margin-bottom: 8px;">📋 Historial y Bitácora del Expediente:</strong>
+                                <div style="display: flex; flex-direction: column; gap: 8px;">
+                                    ${data.history.map(h => {
+                                        const eventDate = new Date(h.created_at);
+                                        const day = String(eventDate.getDate()).padStart(2, '0');
+                                        const month = String(eventDate.getMonth() + 1).padStart(2, '0');
+                                        const year = eventDate.getFullYear();
+                                        const hours = String(eventDate.getHours()).padStart(2, '0');
+                                        const minutes = String(eventDate.getMinutes()).padStart(2, '0');
+                                        const dateStr = `${day}/${month}/${year} ${hours}:${minutes}`;
+                                        
+                                        // Mapeo amigable de tipos de eventos
+                                        let eventLabel = h.event_type;
+                                        let badgeColor = '#9f1239';
+                                        if (h.event_type === 'registered') { eventLabel = 'EXPEDIENTE CREADO'; badgeColor = '#0284c7'; }
+                                        else if (h.event_type === 'approved_for_aid') { eventLabel = 'APROBADO PARA AYUDA'; badgeColor = '#166534'; }
+                                        else if (h.event_type === 'disbursed') { eventLabel = 'AYUDA ENTREGADA'; badgeColor = '#6d28d9'; }
+                                        else if (h.event_type === 'info_requested') { eventLabel = 'INFORMACIÓN ADICIONAL REQUERIDA'; badgeColor = '#b45309'; }
+                                        else if (h.event_type === 'rejected') { eventLabel = 'EXPEDIENTE RECHAZADO'; badgeColor = '#991b1b'; }
+                                        
+                                        return `
+                                            <div style="background: #fafafa; padding: 10px 12px; border-radius: 8px; border-left: 4px solid ${badgeColor}; border-top: 1px solid #f1f5f9; border-right: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 4px;">
+                                                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: #64748b;">
+                                                    <span style="font-weight: bold; text-transform: uppercase; color: ${badgeColor};">${escapeHtml(eventLabel)}</span>
+                                                    <span>📅 ${dateStr}</span>
+                                                </div>
+                                                <p style="margin: 0; font-size: 0.85rem; color: #334155;">${escapeHtml(h.message)}</p>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+
                     // Inyección desinfectada contra ataques Stored XSS
                     container.innerHTML = `
                         <div style="background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%); border: 1px solid #fecdd3; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(219, 39, 119, 0.08); margin-bottom: 1.5rem; text-align: left;">
@@ -187,6 +227,8 @@ function initializeProfilePage() {
                             ${evidenceGalleryHTML}
 
                             ${disbursementsHTML}
+
+                            ${historyHTML}
                         </div>
                     `;
         } catch (err) {

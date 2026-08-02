@@ -310,6 +310,20 @@ exports.registerVictimPublic = async (req, res) => {
                     data: { url: "/profile.html" }
                 }, "HUMANITARIAN_AID");
             }
+
+            // Persistir notificación In-App en la base de datos para que sea visible en la aplicación
+            if (username) {
+                await client.query(
+                    'INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)',
+                    [username, `Tu solicitud #${smartDossierCode} ha sido recibida con éxito. Revisa 'Mi caso' en tu perfil.`]
+                );
+            }
+
+            // Registrar el evento de creación inicial en el historial/bitácora del expediente
+            await client.query(
+                'INSERT INTO disaster_victim_history (victim_id, event_type, message) VALUES ($1, $2, $3)',
+                [victimId, 'registered', `Expediente generado con número #${smartDossierCode}. Estado inicial: En Proceso de Verificación.`]
+            );
         } catch (mailErr) {
             console.error("[SOS VICTIM] Error al enviar emails / Push de confirmación:", mailErr.message);
         }
@@ -371,6 +385,17 @@ exports.verifyVictimOtpPublic = async (req, res) => {
         // Marcar usuario como verificado en la tabla users
         await client.query('UPDATE users SET is_verified = true WHERE email = $1', [normEmail]);
         await client.query('DELETE FROM pending_verifications WHERE id = $1', [pending.id]);
+
+        // Registrar la activación de contacto en el historial si tiene expediente SOS creado
+        const caseRes = await client.query('SELECT id, dossier_number FROM disaster_victims_registry WHERE email = $1 ORDER BY id DESC LIMIT 1', [normEmail]);
+        if (caseRes.rows.length > 0) {
+            const victimId = caseRes.rows[0].id;
+            const dossierNo = caseRes.rows[0].dossier_number;
+            await client.query(
+                'INSERT INTO disaster_victim_history (victim_id, event_type, message) VALUES ($1, $2, $3)',
+                [victimId, 'otp_verified', `Contacto verificado mediante OTP de 6 dígitos. Expediente #${dossierNo} validado.`]
+            );
+        }
 
         await client.query('COMMIT');
 
@@ -491,10 +516,16 @@ exports.getVictimDetailAdmin = async (req, res) => {
             [id]
         );
 
+        const historyRes = await pool.query(
+            'SELECT * FROM disaster_victim_history WHERE victim_id = $1 ORDER BY created_at DESC',
+            [id]
+        );
+
         res.json({
             success: true,
             victim,
-            disbursements: disbursementsRes.rows
+            disbursements: disbursementsRes.rows,
+            history: historyRes.rows
         });
     } catch (error) {
         console.error("[SOS VICTIM ADMIN] Error al obtener detalle:", error);
@@ -515,7 +546,10 @@ exports.updateVictimStatusAdmin = async (req, res) => {
     }
 
     try {
-        const victimRes = await pool.query('SELECT * FROM disaster_victims_registry WHERE id = $1', [id]);
+        const victimRes = await pool.query(
+            'SELECT r.*, u.username FROM disaster_victims_registry r LEFT JOIN users u ON u.id = r.user_id WHERE r.id = $1',
+            [id]
+        );
         if (victimRes.rows.length === 0) {
             return res.status(404).json({ success: false, message: "Expediente no encontrado." });
         }
@@ -557,21 +591,22 @@ exports.updateVictimStatusAdmin = async (req, res) => {
                 }
             }
 
+            // Configurar textos de notificación
+            let pushTitle = "🚨 Actualización de Expediente SOS";
+            let pushBody = `Tu expediente #${victim.dossier_number} ha cambiado de estatus a: ${status}.`;
+            if (status === 'approved_for_aid') {
+                pushTitle = "💚 ¡Ayuda Humanitaria Aprobada!";
+                pushBody = `Tu expediente #${victim.dossier_number} ha sido APROBADO para recibir asistencia.`;
+            } else if (status === 'info_requested') {
+                pushTitle = "⚠️ Información Requerida para tu Expediente";
+                pushBody = `Se requiere información adicional para tu expediente #${victim.dossier_number}.`;
+            } else if (status === 'rejected') {
+                pushTitle = "📋 Notificación sobre tu Expediente SOS";
+                pushBody = `Tu expediente #${victim.dossier_number} ha sido revisado y no cumple con los criterios de aprobación.`;
+            }
+
             // Enviar notificación Push si el expediente tiene usuario vinculado
             if (victim.user_id) {
-                let pushTitle = "🚨 Actualización de Expediente SOS";
-                let pushBody = `Tu expediente #${victim.dossier_number} ha cambiado de estatus a: ${status}.`;
-                if (status === 'approved_for_aid') {
-                    pushTitle = "💚 ¡Ayuda Humanitaria Aprobada!";
-                    pushBody = `Tu expediente #${victim.dossier_number} ha sido APROBADO. Pronto recibirás tu acreditación.`;
-                } else if (status === 'info_requested') {
-                    pushTitle = "⚠️ Información Requerida para tu Expediente";
-                    pushBody = `Se requiere información adicional para tu expediente #${victim.dossier_number}.`;
-                } else if (status === 'rejected') {
-                    pushTitle = "📋 Notificación sobre tu Expediente SOS";
-                    pushBody = `Tu expediente #${victim.dossier_number} ha sido revisado. Consulta los detalles en 'Mi caso'.`;
-                }
-
                 await notificationService.sendNotificationToUser(victim.user_id, {
                     title: pushTitle,
                     body: pushBody,
@@ -579,6 +614,21 @@ exports.updateVictimStatusAdmin = async (req, res) => {
                     data: { url: "/profile.html" }
                 }, "HUMANITARIAN_AID");
             }
+
+            // Guardar notificación In-App en la base de datos para visibilidad interna en la aplicación
+            if (victim.username) {
+                await pool.query(
+                    'INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)',
+                    [victim.username, pushBody]
+                );
+            }
+
+            // Registrar en la bitácora/historial del expediente con fecha y hora actual
+            const historyMsg = `${pushBody}${custom_message || admin_notes ? ' Notas de revisión: ' + (custom_message || admin_notes) : ''}`;
+            await pool.query(
+                'INSERT INTO disaster_victim_history (victim_id, event_type, message) VALUES ($1, $2, $3)',
+                [id, status, historyMsg]
+            );
         } catch (mailErr) {
             console.error("[SOS VICTIM ADMIN] Error al enviar notificación de estado (Email / Push):", mailErr.message);
         }
@@ -642,6 +692,21 @@ exports.disburseVictimAidAdmin = async (req, res) => {
             SET status = 'disbursed', updated_at = NOW() 
             WHERE id = $1
         `, [id]);
+
+        // Registrar en el historial/bitácora del expediente de forma transaccional
+        const disburseNotesMsg = notes ? ` Notas: ${notes}` : '';
+        await client.query(
+            'INSERT INTO disaster_victim_history (victim_id, event_type, message) VALUES ($1, $2, $3)',
+            [id, 'disbursed', `Se han acreditado +${amount} BLUE IOU para el expediente #${victim.dossier_number}.${disburseNotesMsg}`]
+        );
+
+        // Guardar notificación In-App en la base de datos de forma transaccional
+        if (victim.username) {
+            await client.query(
+                'INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)',
+                [victim.username, `Se han acreditado +${amount} BLUE IOU a tu cuenta para tu expediente #${victim.dossier_number}.`]
+            );
+        }
 
         await client.query('COMMIT');
 
@@ -791,12 +856,19 @@ exports.getMyCasePublic = async (req, res) => {
             [caseData.id]
         );
 
-        // Respuesta exitosa al titular con el expediente completo y su historial de ayudas
+        // Obtener bitácora completa de notificaciones y eventos del expediente
+        const historyRes = await pool.query(
+            'SELECT id, event_type, message, created_at FROM disaster_victim_history WHERE victim_id = $1 ORDER BY created_at DESC',
+            [caseData.id]
+        );
+
+        // Respuesta exitosa al titular con el expediente completo, historial de ayudas y bitácora de eventos
         res.json({
             success: true,
             has_case: true,
             case: caseData,
-            disbursements: disbursementsRes.rows
+            disbursements: disbursementsRes.rows,
+            history: historyRes.rows
         });
     } catch (error) {
         // Registro de auditoría interna de errores de servidor

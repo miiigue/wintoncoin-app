@@ -6316,6 +6316,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const statusBadges = {
                 'pending_verification': '<span class="status-badge pending">En Verificación</span>',
                 'info_requested': '<span class="status-badge active" style="background: #3b82f6;">Info Requerida</span>',
+                'approved_for_aid': '<span class="status-badge active" style="background: #10b981;">Aprobado</span>',
                 'verified_approved': '<span class="status-badge active" style="background: #10b981;">Aprobado</span>',
                 'disbursed': '<span class="status-badge active" style="background: #8b5cf6;">Desembolsado</span>',
                 'rejected': '<span class="status-badge inactive">Rechazado</span>'
@@ -6330,6 +6331,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const totalDependents = (parseInt(v.dependents_minors) || 0) + (parseInt(v.dependents_elderly) || 0) + (parseInt(v.dependents_disabled) || 0);
 
+            const isApproved = v.status === 'approved_for_aid';
+            const disabledAttr = isApproved ? '' : 'disabled';
+            const disabledStyle = isApproved ? '' : 'opacity: 0.5; cursor: not-allowed; pointer-events: none;';
+
             html += `
                 <tr>
                     <td><strong style="font-family: monospace; color: #ec4899;">#${escapeHtml(v.dossier_number)}</strong></td>
@@ -6342,7 +6347,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td>${statusBadges[v.status] || v.status}</td>
                     <td>
                         <button type="button" class="action-button-admin view-sos-victim-btn" data-id="${v.id}" style="padding: 4px 10px; font-size: 0.85rem; margin-right: 4px;">🔎 Ver Ficha</button>
-                        <button type="button" class="action-button-admin publish disburse-sos-victim-btn" data-id="${v.id}" data-dossier="${escapeHtml(v.dossier_number)}" style="padding: 4px 10px; font-size: 0.85rem;">💸 Asignar Ayuda</button>
+                        <button type="button" class="action-button-admin publish disburse-sos-victim-btn" data-id="${v.id}" data-dossier="${escapeHtml(v.dossier_number)}" ${disabledAttr} style="padding: 4px 10px; font-size: 0.85rem; ${disabledStyle}">💸 Asignar Ayuda</button>
                     </td>
                 </tr>
             `;
@@ -6399,6 +6404,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
             }
 
+            let historyHtml = '';
+            if (data.history && data.history.length > 0) {
+                historyHtml = `
+                    <div style="margin-top: 1rem; background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px;">
+                        <strong style="color: #ec4899; display: block; margin-bottom: 0.5rem;">📋 Bitácora Histórica de Eventos (Auditoría):</strong>
+                        <div style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; padding-right: 4px;">
+                            ${data.history.map(h => {
+                                const eventDate = new Date(h.created_at);
+                                const day = String(eventDate.getDate()).padStart(2, '0');
+                                const month = String(eventDate.getMonth() + 1).padStart(2, '0');
+                                const year = eventDate.getFullYear();
+                                const hours = String(eventDate.getHours()).padStart(2, '0');
+                                const minutes = String(eventDate.getMinutes()).padStart(2, '0');
+                                const dateStr = `${day}/${month}/${year} ${hours}:${minutes}`;
+
+                                let badgeColor = '#9f1239';
+                                let eventLabel = h.event_type;
+                                if (h.event_type === 'registered') { eventLabel = 'CREADO'; badgeColor = '#0284c7'; }
+                                else if (h.event_type === 'approved_for_aid') { eventLabel = 'APROBADO AYUDA'; badgeColor = '#10b981'; }
+                                else if (h.event_type === 'disbursed') { eventLabel = 'AYUDA ENTREGADA'; badgeColor = '#8b5cf6'; }
+                                else if (h.event_type === 'info_requested') { eventLabel = 'INFO REQUERIDA'; badgeColor = '#f59e0b'; }
+                                else if (h.event_type === 'rejected') { eventLabel = 'RECHAZADO'; badgeColor = '#ef4444'; }
+
+                                return `
+                                    <div style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 6px; border-left: 3px solid ${badgeColor}; font-size: 0.85rem;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; color: #94a3b8; font-size: 0.8rem; margin-bottom: 2px;">
+                                            <span style="font-weight: bold; color: ${badgeColor}; text-transform: uppercase;">${escapeHtml(eventLabel)}</span>
+                                            <span>📅 ${dateStr}</span>
+                                        </div>
+                                        <p style="margin: 0; color: #e2e8f0; font-size: 0.85rem;">${escapeHtml(h.message)}</p>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
             elements.sosVictimModalBody.innerHTML = `
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
                     <div><strong>Nombre:</strong> ${escapeHtml(v.full_name)}</div>
@@ -6440,13 +6483,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 ${disbursementsHtml}
 
+                ${historyHtml}
+
                 <div style="margin-top: 1.25rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
                     <label style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.4rem;">Actualizar Estado y Notificar por Correo:</label>
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <select id="sosUpdateStatusSelect" class="admin-input-dark" style="padding: 8px 12px; border-radius: 6px; background: #0f172a; color: #fff;">
                             <option value="pending_verification" ${v.status === 'pending_verification' ? 'selected' : ''}>En Verificación Manual</option>
                             <option value="info_requested" ${v.status === 'info_requested' ? 'selected' : ''}>Solicitar Información Adicional</option>
-                            <option value="verified_approved" ${v.status === 'verified_approved' ? 'selected' : ''}>Aprobar Expediente</option>
+                            <option value="approved_for_aid" ${v.status === 'approved_for_aid' ? 'selected' : ''}>Aprobar para Ayuda</option>
                             <option value="disbursed" ${v.status === 'disbursed' ? 'selected' : ''}>Marcar Desembolsado</option>
                             <option value="rejected" ${v.status === 'rejected' ? 'selected' : ''}>Rechazar Expediente</option>
                         </select>

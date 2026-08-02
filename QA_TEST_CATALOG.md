@@ -193,6 +193,8 @@ PASOS:
 7. Confirma que solo se visualice la reputación pública y comentarios, y que en ningún momento se muestre la información privada del expediente SOS.
 ```
 
+---
+
 ```text
 TITULO: QA-16 - Verificación de Sanitización Anti-XSS en el Historial de Referidos
 DESCRIPCION: Esta prueba permite verificar que la página de referidos procese los códigos y nombres de usuarios referidos sin interpretar caracteres especiales ni vulnerar la seguridad del navegador.
@@ -202,4 +204,32 @@ PASOS:
 4. Registra una nueva cuenta usando el enlace de referido.
 5. Regresa a la cuenta principal y refresca la pantalla de Referidos.
 6. Observa la tabla de usuarios referidos y confirma que el nombre de usuario y el código de referido se muestren correctamente como texto plano sanitizado sin alteraciones en la pantalla.
+```
+
+---
+
+```text
+TITULO: QA-17 - Trazabilidad y Bitácora del Expediente SOS en el Historial de Mi Perfil
+DESCRIPCION: Esta prueba garantiza que los usuarios puedan ver el historial detallado de su expediente de ayuda humanitaria (registro, verificación de contacto, aprobación y entregas de fondos) en forma de bitácora cronológica con la fecha, hora y minutos exactos de cada evento desde su perfil.
+PASOS:
+2. Inicia sesión con la cuenta de usuario que registró la solicitud de asistencia humanitaria SOS.
+3. Navega al menú principal y haz clic en "Mi Perfil".
+4. Baja hasta la sección "Mi caso" y localiza la tarjeta destacada de tu expediente.
+5. Confirma que aparezca una sección titulada "📋 Historial y Bitácora del Expediente".
+6. Verifica que se muestre el evento de creación inicial "EXPEDIENTE CREADO" detallando la fecha y hora con precisión de minutos (ejemplo: 02/08/2026 14:32).
+7. Simula un cambio de estado en el panel de administración a "Aprobado para Ayuda" y confirma que al refrescar tu perfil se añada de forma instantánea el evento "APROBADO PARA AYUDA" con su respectiva fecha y hora exacta.
+```
+
+---
+
+```text
+TITULO: QA-18 - Restricción del Desembolso de Ayuda SOS en el Panel de Administración
+DESCRIPCION: Esta prueba valida que los administradores no puedan hacer clic ni activar el botón "Asignar Ayuda" para asignar fondos (BLUE IOU) a una víctima si su expediente no se encuentra previamente en el estado de aprobado (Aprobado para Ayuda).
+PASOS:
+2. Inicia sesión en el Panel de Administración (admin-panel.html) con tu cuenta de administrador.
+3. Dirígete al menú lateral y abre la sección de "Damnificados Terremoto (SOS)".
+4. Busca un expediente que se encuentre en estado "En Verificación" o "Info Requerida".
+5. Localiza el botón "Asignar Ayuda" en la columna de acciones para dicha fila.
+6. Confirma que el botón esté deshabilitado visualmente (opacidad reducida) y que no responda a clics del cursor (no se abre el formulario de asignación).
+7. Selecciona un expediente en estado "Aprobado" y confirma que el botón "Asignar Ayuda" para esta fila sí esté habilitado y permita abrir el formulario al hacer clic.
 ```
