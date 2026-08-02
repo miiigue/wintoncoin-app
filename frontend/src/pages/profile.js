@@ -99,11 +99,14 @@ function initializeProfilePage() {
 
             container.innerHTML = `
                 <div style="background: linear-gradient(135deg, #fff5f5 0%, #ffffff 100%); border: 1px solid #fecdd3; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(219, 39, 119, 0.08); margin-bottom: 1.5rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #fecdd3; padding-bottom: 10px; margin-bottom: 12px;">
-                        <h3 style="margin: 0; color: #9f1239; font-size: 1.25rem; display: flex; align-items: center; gap: 8px;">
-                            🚨 Mi caso <span style="font-size: 0.9rem; color: #db2777; font-weight: normal;">(#${c.dossier_number})</span>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px; border-bottom: 1px solid #fecdd3; padding-bottom: 12px; margin-bottom: 12px;">
+                        <h3 style="margin: 0; color: #9f1239; font-size: 1.25rem; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex: 1; min-width: 240px;">
+                            <span style="white-space: nowrap;">🚨 Mi caso</span>
+                            <span style="font-size: 0.9rem; color: #db2777; font-weight: normal; white-space: nowrap;">(#${c.dossier_number})</span>
                         </h3>
-                        ${statusBadge}
+                        <div style="flex-shrink: 0; margin-top: 2px;">
+                            ${statusBadge}
+                        </div>
                     </div>
 
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 0.95rem; color: #334155;">
