@@ -12,6 +12,16 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
+### 2026-08-01 — Autocorrección Inteligente y Validación Segura de Enlace LinkedIn (Trabaja con Nosotros)
+* **Cambio**:
+  - **Experiencia de Usuario (UX) & Validación ([trabaja-con-nosotros.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/trabaja-con-nosotros.html))**:
+    1. Se modificó el campo `linkedin_url` de `type="url"` a `type="text"` para evitar que la validación nativa del navegador arroje alertas crípticas a usuarios móviles al omitir el esquema.
+    2. Se inyectó un mensaje de ayuda interactivo `<span class="form-helper">` con estilos fluidos que da retroalimentación visual al usuario en tiempo real.
+    3. Se implementó una lógica de autocompletado en JavaScript que se ejecuta al salir del campo (`blur` event) o en la escritura: si el usuario escribe el link sin protocolo, o usa `http://` (inseguro), el sistema lo actualiza forzando automáticamente `https://` (estándar seguro de la industria/FinTech).
+    4. Se añadió validación en el evento `'submit'` que bloquea el envío y enfoca el campo si el usuario introduce un texto que no contenga una estructura válida de `linkedin.com/`.
+* **Evidencia**: Pruebas en el frontend y verificación de flujo de datos del payload.
+* **Impacto**: Cero fricción para el candidato al copiar y pegar su perfil, garantizando que el backend siempre reciba enlaces seguros `https://` inalterados.
+
 ### 2026-08-01 — Módulo 'Mi caso' (Censo & Ayuda SOS) y Correo Transaccional Enriquecido
 * **Cambio**: 
   - **Correo Transaccional Enriquecido ([victimController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/victimController.js), [099](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/099_create_disaster_victims_system.js), [100](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/100_add_age_and_urgency_to_victims.js))**:
@@ -4657,4 +4667,5 @@ ew_evidence_urls del cuerpo del request.
    - Modificado rontend/src/pages/causa-solidaria.js inicializando los manejadores de eventos (drag/drop e input file), realizando la subida inmediata en segundo plano a la API de R2 /api/media/upload, limitando en cliente a un máximo de 3 imágenes nuevas, renderizando previsualizaciones de la sesión con botón de remoción rápida, y transmitiendo 
 ew_evidence_urls al endpoint PUT.
 
-- **Evidencia**: Archivos modificados: ackend/src/services/humanitarianService.js, ackend/src/routes/humanitarianUserRoutes.js, rontend/causa-solidaria.html, rontend/src/pages/causa-solidaria.js, EVOLUCION.md.
+- **Evidencia**: Archivos modificados: ackend/src/services/humanitarianService.js, ackend/src/routes/humanitarianUserRoutes.js, rontend/causa-solidaria.html, rontend/src/pages/causa-solidaria.js, EVOLUCION.md.\ n -   C o r r e c c i � n   d e   e r r o r   5 0 0   e n   b a c k e n d   ( v i c t i m C o n t r o l l e r . j s ) :   s e   c a m b i �   d i s b u r s e d _ a t   a   c r e a t e d _ a t . \ n -   D i s e � o   d e   t a r j e t a   S O S   a c t u a l i z a d o   e n   d a s h b o a r d :   a h o r a   e s   u n   e n l a c e   i n t e r a c t i v o   d i r e c t o   s i n   t e x t o   r e d u n d a n t e .  
+ 
