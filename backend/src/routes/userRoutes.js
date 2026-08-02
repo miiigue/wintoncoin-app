@@ -15,6 +15,9 @@ const { requireAcceptedLegalByUsernameField } = require('../middleware/legalAcce
 // 1. Obtener balance consolidado del usuario autenticado
 router.get('/api/me/balance', authenticateToken, UserController.getMyBalance);
 
+// 1b. Registrar depósito/retiro de garantía en la Bóveda (Collateral Vault)
+router.post('/api/me/collateral/sync', authenticateToken, UserController.syncCollateral);
+
 // 2. Obtener saldos por username (Legacy para perfiles y operaciones admin-user)
 router.get('/users/:username/balance', authenticateToken, UserController.getUserBalanceLegacy);
 

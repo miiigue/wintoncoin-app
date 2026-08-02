@@ -56,6 +56,12 @@
                             <span class="nav-badge" id="humanitarianBadge" aria-label="Pendientes"></span>
                         </a>
                     </li>
+                    <li>
+                        <a href="#sos-victims" class="nav-link" data-section="sos-victims" style="color: #EC4899;">🚨
+                            Damnificados (SOS)
+                            <span class="nav-badge" id="sosVictimsBadge" aria-label="Pendientes"></span>
+                        </a>
+                    </li>
                     <li><a href="admin-recruitment.html" class="nav-link" style="color: #60A5FA;">🎯 Talento</a></li>
                 </ul>
             </nav>
@@ -95,6 +101,39 @@
                     <h2>Configuración General</h2>
                     <div id="settings-switches" class="settings-container">
                         <!-- Los interruptores generales se cargarán aquí -->
+                    </div>
+                </div>
+
+                <!-- AUDITORÍA FINTECH: Restricción por Prefijo Telefónico (+58 Venezuela) -->
+                <div class="settings-group" style="margin-top: 2rem;">
+                    <div class="settings-header">
+                        <h2>Restricción de Registro por País (+58 Venezuela)</h2>
+                        <p class="section-description">Controla si el formulario de registro está restringido a ciertos prefijos telefónicos de país y configura la nota informativa.</p>
+                    </div>
+                    <div class="admin-card" style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 1.5rem; margin-top: 1rem;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                            <div>
+                                <strong style="font-size: 1.05rem; color: #f8fafc; display: block;">Activar Restricción por País</strong>
+                                <small style="color: #94a3b8;">Si está activado, solo se aceptarán registros de números telefónicos con los prefijos autorizados.</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="registrationCountryRestrictionToggle" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+
+                        <div class="form-group-admin" style="margin-bottom: 1.25rem;">
+                            <label for="registrationAllowedPrefixesInput" style="font-weight: 600; color: #e2e8f0; display: block; margin-bottom: 0.5rem;">Prefijos de País Permitidos (separados por comas):</label>
+                            <input type="text" id="registrationAllowedPrefixesInput" class="admin-input-dark" value="+58" placeholder="Ej: +58, +57" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: #fff;">
+                            <small style="color: #64748b; margin-top: 4px; display: block;">Auto-guardado al cambiar de campo (blur).</small>
+                        </div>
+
+                        <div class="form-group-admin" style="margin-bottom: 0.5rem;">
+                            <label for="registrationNoticeTextInput" style="font-weight: 600; color: #e2e8f0; display: block; margin-bottom: 0.5rem;">Texto de la Nota Informativa en el Formulario:</label>
+                            <input type="text" id="registrationNoticeTextInput" class="admin-input-dark" value="Por el momento solo se aceptan registros de personas residentes en Venezuela (+58)." style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: #fff;">
+                            <small style="color: #64748b; margin-top: 4px; display: block;">Auto-guardado al cambiar de campo (blur).</small>
+                        </div>
+                        <div id="registration-country-admin-feedback" style="display: none; margin-top: 1rem; color: #10b981; font-weight: 600; font-size: 0.9rem;"></div>
                     </div>
                 </div>
 
@@ -595,6 +634,15 @@
                         <span class="accordion-icon">▼</span>
                     </div>
                     <div class="admin-accordion-content" id="platformFormContent" style="display: none;">
+                        
+                        <!-- GENERADOR QA IA -->
+                        <div id="qaGeneratorContainer" style="background: rgba(30,30,40,0.8); border: 1px dashed #00ffd5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                            <h3 style="color: #00ffd5; margin-top: 0; font-size: 1rem; margin-bottom: 10px;">🤖 Autocompletar Misión de Pruebas (QA)</h3>
+                            <p style="font-size: 0.85rem; color: #a0a0b0; margin-bottom: 10px;">Pega aquí el texto generado por la IA (modelo estricto con TITULO: y DESCRIPCION:) para autocompletar el formulario.</p>
+                            <textarea id="qaMarkdownInput" rows="4" style="width: 100%; background: #111; border: 1px solid #333; color: white; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; margin-bottom: 10px;" placeholder="TITULO: ...&#10;DESCRIPCION: ..."></textarea>
+                            <button type="button" id="btnAutoFillQA" class="btn-primary" style="width: 100%; padding: 8px; font-size: 0.9rem;">Pegar Prueba y Autocompletar</button>
+                        </div>
+
                         <form id="platformPublicationForm" class="admin-form">
                             <div id="platformEditNotice" class="admin-edit-notice" style="display: none;"></div>
                             <div class="form-group-admin">
@@ -1091,6 +1139,75 @@
                     <h2 id="humanitarianModalTitle" style="margin-bottom: 1rem;">Detalle de Causa</h2>
                     <div id="humanitarianModalBody"></div>
                     <div id="humanitarianModalActions" class="modal-actions" style="margin-top: 1.5rem;"></div>
+                </div>
+            </div>
+
+            <!-- Sección Damnificados Terremoto (SOS Venezuela) -->
+            <section id="sos-victims-section" class="admin-section">
+                <h1>🚨 Damnificados Terremoto (SOS Venezuela)</h1>
+                <p>Gestión y auditoría de expedientes de censo, verificación de estado y asignación de ayuda en tokens BLUE.</p>
+
+                <div class="table-controls" style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem;">
+                    <input type="text" id="sosVictimsSearchInput" class="admin-input-dark" placeholder="Buscar por expediente, nombre o cédula..." style="flex: 1; min-width: 250px; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: #fff;">
+                    <select id="sosVictimsStatusFilter" class="admin-input-dark" style="padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: #0f172a; color: #fff;">
+                        <option value="all">Todos los estados</option>
+                        <option value="pending_verification" selected>En Verificación Manual</option>
+                        <option value="info_requested">Información Requerida</option>
+                        <option value="verified_approved">Aprobados</option>
+                        <option value="disbursed">Desembolsados</option>
+                        <option value="rejected">Rechazados</option>
+                    </select>
+                    <button type="button" id="sosEditEmailTemplatesBtn" class="action-button-admin publish" style="padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        ✉️ Plantillas de Correo SOS
+                    </button>
+                </div>
+
+                <!-- Tabla de Expedientes SOS -->
+                <div id="sos-victims-table-container" class="table-container-admin">
+                    <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- Modal de Detalle de Expediente SOS -->
+            <div id="sosVictimDetailModal" class="modal">
+                <div class="modal-content" style="max-width: 700px; max-height: 90vh; overflow-y: auto; position: relative;">
+                    <span class="close-button sos-victim-modal-close">&times;</span>
+                    <h2 id="sosVictimModalTitle" style="margin-bottom: 1rem; color: #ec4899;">Expediente de Censo</h2>
+                    <div id="sosVictimModalBody"></div>
+                    <div id="sosVictimModalActions" class="modal-actions" style="margin-top: 1.5rem; display: flex; gap: 0.8rem; justify-content: flex-end; flex-wrap: wrap;"></div>
+                </div>
+            </div>
+
+            <!-- Modal de Asignación de Ayuda SOS -->
+            <div id="sosVictimDisburseModal" class="modal">
+                <div class="modal-content" style="max-width: 500px;">
+                    <span class="close-button sos-disburse-modal-close">&times;</span>
+                    <h2 style="margin-bottom: 1rem; color: #10b981;">💸 Asignar Ayuda Humanitaria</h2>
+                    <form id="sosDisburseForm">
+                        <input type="hidden" id="sosDisburseVictimId">
+                        <div style="margin-bottom: 1rem;">
+                            <label style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.4rem;">Monto en Tokens BLUE IOU:</label>
+                            <input type="number" id="sosDisburseAmount" required min="1" step="any" placeholder="Ej: 500" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff;">
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <label style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.4rem;">Fase / Periodo de Entrega:</label>
+                            <input type="text" id="sosDisbursePeriod" required value="Fase 1 - Asistencia Inicial" placeholder="Ej: Entrega Mensual Agosto" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff;">
+                        </div>
+                        <div style="margin-bottom: 1.25rem;">
+                            <label style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.4rem;">Notas Auditables:</label>
+                            <textarea id="sosDisburseNotes" rows="3" placeholder="Detalles de inspección o concepto de entrega..." style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff;"></textarea>
+                        </div>
+                        <button type="submit" class="action-button-admin publish" style="width: 100%; padding: 12px; font-weight: 700;">Confirmar Asignación de Tokens</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Modal de Plantillas de Correo SOS -->
+            <div id="sosEmailTemplatesModal" class="modal">
+                <div class="modal-content" style="max-width: 750px;">
+                    <span class="close-button sos-templates-modal-close">&times;</span>
+                    <h2 style="margin-bottom: 1rem; color: #ec4899;">✉️ Configuración de Plantillas de Correo SOS</h2>
+                    <div id="sosEmailTemplatesBody"></div>
                 </div>
             </div>
 

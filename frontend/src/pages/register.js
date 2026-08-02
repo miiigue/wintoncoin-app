@@ -301,14 +301,96 @@ function setupFieldValidation(API_URL, checkAgreements) {
         });
     }
 
+    // AUDITORÍA FINTECH: Carga de configuración de restricción de país por prefijo telefónico (+58)
+    let allowedPrefixes = ['+58'];
+    let isCountryRestrictionEnabled = true;
+
+    try {
+        fetch(`${API_URL}/api/public-settings`)
+            .then(res => res.json())
+            .then(data => {
+                const bannerEl = document.getElementById('country-restriction-banner');
+                const bannerTextEl = document.getElementById('country-restriction-banner-text');
+
+                isCountryRestrictionEnabled = data.registration_country_restriction_enabled !== false && data.registration_country_restriction_enabled !== 'false';
+                if (data.registration_allowed_country_prefixes) {
+                    allowedPrefixes = data.registration_allowed_country_prefixes.split(',').map(p => p.trim()).filter(Boolean);
+                }
+
+                if (isCountryRestrictionEnabled && bannerEl && bannerTextEl) {
+                    bannerTextEl.textContent = data.registration_country_restriction_notice_text || 'Por el momento solo se aceptan registros de personas residentes en Venezuela (+58).';
+                    bannerEl.style.display = 'flex';
+                }
+
+                if (phoneInput && isCountryRestrictionEnabled) {
+                    phoneInput.placeholder = `${allowedPrefixes[0] || '+58'} 414 123 4567`;
+                    phoneInput.addEventListener('focus', () => {
+                        if (!phoneInput.value.trim()) {
+                            phoneInput.value = `${allowedPrefixes[0] || '+58'} `;
+                        }
+                    });
+                }
+            }).catch(err => console.error("Error al cargar ajustes de restricción de país:", err));
+    } catch (e) {
+        console.error(e);
+    }
+
     // Validación de teléfono
     if (phoneInput && phoneFeedback) {
+        const validatePhonePrefix = () => {
+            const step2NextBtn = document.querySelector('.next-step-btn[data-next="3"]');
+            if (!isCountryRestrictionEnabled) {
+                if (step2NextBtn) {
+                    step2NextBtn.disabled = false;
+                    step2NextBtn.style.opacity = '1';
+                    step2NextBtn.style.cursor = 'pointer';
+                }
+                return true;
+            }
+            const val = phoneInput.value.trim().replace(/[\s\-\(\)]/g, '');
+            if (!val) {
+                if (step2NextBtn) {
+                    step2NextBtn.disabled = false;
+                    step2NextBtn.style.opacity = '1';
+                    step2NextBtn.style.cursor = 'pointer';
+                }
+                return true;
+            }
+
+            const isAllowed = allowedPrefixes.some(prefix => val.startsWith(prefix));
+            if (!isAllowed) {
+                phoneFeedback.textContent = `Por el momento solo se aceptan registros con prefijo ${allowedPrefixes.join(' o ')}.`;
+                phoneFeedback.style.color = '#dc3545';
+                phoneFeedback.style.display = 'block';
+                phoneFeedback.style.fontWeight = 'bold';
+                phoneInput.style.borderColor = '#dc3545';
+                if (step2NextBtn) {
+                    step2NextBtn.disabled = true;
+                    step2NextBtn.style.opacity = '0.5';
+                    step2NextBtn.style.cursor = 'not-allowed';
+                }
+                return false;
+            }
+
+            if (step2NextBtn) {
+                step2NextBtn.disabled = false;
+                step2NextBtn.style.opacity = '1';
+                step2NextBtn.style.cursor = 'pointer';
+            }
+            return true;
+        };
+
         phoneInput.addEventListener('blur', async () => {
             const phone = phoneInput.value.trim();
             phoneFeedback.style.display = 'none';
             phoneInput.style.borderColor = '';
 
             if (!phone) return;
+
+            // Validar restricción por prefijo de país
+            if (!validatePhonePrefix()) {
+                return;
+            }
 
             if (phone.length < 7) {
                 phoneFeedback.textContent = 'El teléfono parece demasiado corto.';
@@ -345,6 +427,7 @@ function setupFieldValidation(API_URL, checkAgreements) {
         });
 
         phoneInput.addEventListener('input', () => {
+            validatePhonePrefix();
             if (isPhoneTaken) {
                 isPhoneTaken = false;
                 phoneFeedback.style.display = 'none';
@@ -745,6 +828,11 @@ async function initializeRegisterPage() {
 
             if (!username || !phone || !dob) {
                 showCustomAlert('Por favor completa todos los campos de tu perfil.');
+                return false;
+            }
+
+            if (typeof validatePhonePrefix === 'function' && !validatePhonePrefix()) {
+                showCustomAlert('El número telefónico no tiene un prefijo de país permitido (+58).');
                 return false;
             }
 

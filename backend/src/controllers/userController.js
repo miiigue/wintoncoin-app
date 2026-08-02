@@ -226,6 +226,16 @@ const UserController = {
                 isKycVerified = true;
             }
 
+            // Consultar el saldo neto de garantía depositada en la Bóveda (Collateral Vault)
+            // Este valor se suma al creditLimit orgánico para dar el Límite RED total al usuario.
+            const collateralRes = await client.query(
+                `SELECT COALESCE(SUM(amount), 0) AS net_collateral
+                 FROM collateral_deposits
+                 WHERE user_id = $1`,
+                [userId]
+            );
+            const collateralBalance = parseFloat(collateralRes.rows[0].net_collateral) || 0;
+
             const responseData = {
                 blue_balance: userResult.rows[0].liquid_blue_balance,
                 escrow_blue_balance: userResult.rows[0].escrow_blue_balance,
@@ -233,6 +243,7 @@ const UserController = {
                 web3_wallet_address: userResult.rows[0].web3_wallet_address,
                 kyc_verified: isKycVerified,
                 credit_limit: creditLimit,
+                collateral_balance: collateralBalance,
                 debt_30_days: debt30Result.rows[0].total,
                 debt_end_month: debtEndMonthResult.rows[0].total,
                 next_due_at: debtResult.rows[0]?.due_at || null,
@@ -246,6 +257,117 @@ const UserController = {
         } catch (err) {
             console.error("Error al obtener balance (me):", err);
             return res.status(500).json({ message: "Error interno del servidor." });
+        } finally {
+            client.release();
+        }
+    },
+
+    // ------------------------------------------------------------------------
+    // Registrar un depósito o retiro de garantía en la Bóveda (Collateral Vault)
+    // Endpoint: POST /api/me/collateral/sync
+    // Recibe: { operation_type, amount, token_symbol, token_contract_address, tx_hash, balance_after }
+    // Seguridad: Solo usuarios autenticados pueden registrar operaciones propias.
+    // Auditoría: Cada registro es inmutable (trigger SOC 2 en PostgreSQL).
+    // ------------------------------------------------------------------------
+    syncCollateral: async (req, res) => {
+        const userId = req.user?.userId;
+        if (!userId) {
+            return res.status(401).json({ message: "No autenticado." });
+        }
+
+        const client = await pool.connect();
+        try {
+            // Extraer y validar los campos del cuerpo de la petición
+            const { operation_type, amount, token_symbol, token_contract_address, tx_hash, balance_after } = req.body;
+
+            // Validación Zero-Trust: Todos los campos son obligatorios
+            if (!operation_type || !amount || !token_symbol || !token_contract_address || !tx_hash) {
+                return res.status(400).json({ message: "Faltan campos obligatorios (operation_type, amount, token_symbol, token_contract_address, tx_hash)." });
+            }
+
+            // Validar tipo de operación permitido (whitelist estricta)
+            const allowedOps = ['deposit', 'withdraw'];
+            if (!allowedOps.includes(operation_type)) {
+                return res.status(400).json({ message: "Tipo de operación no permitido. Solo: deposit, withdraw." });
+            }
+
+            // Validar que el monto sea un número positivo
+            const numAmount = parseFloat(amount);
+            if (isNaN(numAmount) || numAmount <= 0) {
+                return res.status(400).json({ message: "El monto debe ser un número mayor a 0." });
+            }
+
+            // Validar tokens permitidos (whitelist de Stablecoins aprobadas)
+            const allowedTokens = ['USDT', 'USDC', 'DAI'];
+            if (!allowedTokens.includes(token_symbol.toUpperCase())) {
+                return res.status(400).json({ message: "Token no permitido. Solo: USDT, USDC, DAI." });
+            }
+
+            // Validar formato de dirección de contrato (debe ser una dirección Ethereum válida)
+            const addressRegex = /^0x[a-fA-F0-9]{40}$/;
+            if (!addressRegex.test(token_contract_address)) {
+                return res.status(400).json({ message: "Dirección de contrato del token inválida." });
+            }
+
+            // Validar formato de hash de transacción (debe ser un hash Ethereum válido)
+            const txHashRegex = /^0x[a-fA-F0-9]{64}$/;
+            if (!txHashRegex.test(tx_hash)) {
+                return res.status(400).json({ message: "Hash de transacción inválido." });
+            }
+
+            // Prevenir duplicados: verificar que el tx_hash no exista ya en la tabla
+            const duplicateCheck = await client.query(
+                'SELECT id FROM collateral_deposits WHERE tx_hash = $1',
+                [tx_hash]
+            );
+            if (duplicateCheck.rows.length > 0) {
+                return res.status(409).json({ message: "Esta transacción ya fue registrada previamente." });
+            }
+
+            // Obtener la billetera del usuario para el registro auditable
+            const userRes = await client.query(
+                'SELECT web3_wallet_address FROM users WHERE id = $1',
+                [userId]
+            );
+            const walletAddress = userRes.rows[0]?.web3_wallet_address || '';
+
+            // Calcular el monto con signo correcto para el registro en la tabla
+            // Depósitos son positivos (+), Retiros son negativos (-)
+            const signedAmount = operation_type === 'deposit' ? numAmount : -numAmount;
+
+            // Insertar el registro inmutable en la tabla collateral_deposits
+            // (El trigger SOC 2 prohíbe UPDATE y DELETE sobre esta tabla)
+            await client.query(
+                `INSERT INTO collateral_deposits 
+                 (user_id, wallet_address, operation_type, token_symbol, token_contract_address, amount, balance_after, tx_hash, audit_metadata)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                [
+                    userId,
+                    walletAddress,
+                    operation_type,
+                    token_symbol.toUpperCase(),
+                    token_contract_address,
+                    signedAmount,
+                    balance_after || 0,
+                    tx_hash,
+                    JSON.stringify({ source: 'frontend_sync', timestamp: new Date().toISOString() })
+                ]
+            );
+
+            // Recalcular el Límite RED del usuario con el nuevo colateral
+            const creditScoringService = require('../services/creditScoringService');
+            const newCreditLimit = await creditScoringService.calculateUserScore(userId);
+
+            console.log(`[COLLATERAL] ✅ ${operation_type.toUpperCase()} de ${numAmount} ${token_symbol} registrado para usuario #${userId}. Nuevo Límite RED: ${newCreditLimit}`);
+
+            res.status(200).json({
+                message: `${operation_type === 'deposit' ? 'Depósito' : 'Retiro'} registrado exitosamente.`,
+                new_credit_limit: newCreditLimit
+            });
+
+        } catch (err) {
+            console.error('[COLLATERAL] Error al sincronizar colateral:', err.message);
+            return res.status(500).json({ message: "Error interno al registrar la operación de garantía." });
         } finally {
             client.release();
         }

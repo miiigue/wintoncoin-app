@@ -124,6 +124,20 @@ document.addEventListener('DOMContentLoaded', () => {
         humanitarianModalTitle: document.getElementById('humanitarianModalTitle'),
         humanitarianModalBody: document.getElementById('humanitarianModalBody'),
         humanitarianModalActions: document.getElementById('humanitarianModalActions'),
+        // --- DAMNIFICADOS TERREMOTO (SOS VENEZUELA) ---
+        sosVictimsTableContainer: document.getElementById('sos-victims-table-container'),
+        sosVictimsSearchInput: document.getElementById('sosVictimsSearchInput'),
+        sosVictimsStatusFilter: document.getElementById('sosVictimsStatusFilter'),
+        sosVictimsBadge: document.getElementById('sosVictimsBadge'),
+        sosVictimDetailModal: document.getElementById('sosVictimDetailModal'),
+        sosVictimModalTitle: document.getElementById('sosVictimModalTitle'),
+        sosVictimModalBody: document.getElementById('sosVictimModalBody'),
+        sosVictimModalActions: document.getElementById('sosVictimModalActions'),
+        sosVictimDisburseModal: document.getElementById('sosVictimDisburseModal'),
+        sosDisburseForm: document.getElementById('sosDisburseForm'),
+        sosEditEmailTemplatesBtn: document.getElementById('sosEditEmailTemplatesBtn'),
+        sosEmailTemplatesModal: document.getElementById('sosEmailTemplatesModal'),
+        sosEmailTemplatesBody: document.getElementById('sosEmailTemplatesBody'),
         // --- RECOMPENSAS DE GOBERNANZA ---
         govRewardsStats: document.getElementById('gov-rewards-stats'),
         govRewardsAction: document.getElementById('gov-rewards-action'),
@@ -743,6 +757,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (sectionId === 'audit-log') loadAuditLog();
         else if (sectionId === 'academy') loadAcademyVideos();
         else if (sectionId === 'humanitarian') loadHumanitarianCauses();
+        else if (sectionId === 'sos-victims') loadSosVictims();
         else if (sectionId === 'gov-rewards') loadGovRewardsSection();
         else if (sectionId === 'kyc-compliance') initKycSection();
         else if (sectionId === 'team') {
@@ -1088,6 +1103,8 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const settings = await apiFetch('/api/admin/settings');
             renderSettings(settings);
+            loadRegistrationCountrySettings(settings);
+            setupRegistrationCountryListeners();
         } catch (error) {
             showCustomAlert(error.message);
         }
@@ -1285,7 +1302,11 @@ document.addEventListener('DOMContentLoaded', () => {
             'red_credit_early_payment': { title: 'Scoring — Bono por Amortización Anticipada (RED)', description: 'Aumento del límite por amortizar compromisos en los primeros 5 días del ciclo.' },
             // Winton Solidario (Causas Humanitarias y Reembolsos)
             'donation_refund_enabled': { title: 'Reembolso Automático de Donaciones', description: 'Activa o desactiva el demonio que devuelve automáticamente las donaciones en espera (on_hold) si el donante no verifica su KYC Web3.' },
-            'donation_escrow_expiration_days': { title: 'Días de Retención de Donaciones', description: 'Cantidad de días que una donación permanece en espera antes de ser devuelta automáticamente al donante si este no completa su KYC.' }
+            'donation_escrow_expiration_days': { title: 'Días de Retención de Donaciones', description: 'Cantidad de días que una donación permanece en espera antes de ser devuelta automáticamente al donante si este no completa su KYC.' },
+            // Restricción por País
+            'registration_country_restriction_enabled': { title: 'Activar Restricción por País', description: 'Controla si el formulario de registro está restringido a ciertos prefijos telefónicos.' },
+            'registration_allowed_country_prefixes': { title: 'Prefijos de País Permitidos', description: 'Prefijos telefónicos autorizados para el registro.' },
+            'registration_country_restriction_notice_text': { title: 'Texto de la Nota Informativa', description: 'Mensaje descriptivo mostrado en el formulario de registro.' }
         };
         return map[key] || { title: key, description: 'Sin descripción.' };
     }
@@ -1304,10 +1325,16 @@ document.addEventListener('DOMContentLoaded', () => {
             'welcome_bonus_enabled', 'welcome_bonus_amount',
             'referral_bonus_enabled', 'referral_bonus_amount'
         ];
+        const countryRestrictionKeys = [
+            'registration_country_restriction_enabled',
+            'registration_allowed_country_prefixes',
+            'registration_country_restriction_notice_text'
+        ];
         const generalSettings = settings.filter(s =>
             !phaseSettings.includes(s) &&
             !timeSettingsRaw.includes(s) &&
-            !referralKeys.includes(s.setting_key)
+            !referralKeys.includes(s.setting_key) &&
+            !countryRestrictionKeys.includes(s.setting_key)
         );
 
         if (elements.phaseManagementContainer) {
@@ -3775,6 +3802,78 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- AUDITORÍA FINTECH: Lógica de Restricción de Registro por País (+58 Venezuela) con Auto-Guardado en Blur/Change ---
+    function loadRegistrationCountrySettings(settingsList) {
+        const toggle = document.getElementById('registrationCountryRestrictionToggle');
+        const prefixesInput = document.getElementById('registrationAllowedPrefixesInput');
+        const noticeInput = document.getElementById('registrationNoticeTextInput');
+
+        if (!settingsList || !Array.isArray(settingsList)) return;
+
+        if (toggle) {
+            const setting = settingsList.find(s => s.setting_key === 'registration_country_restriction_enabled');
+            toggle.checked = setting ? setting.setting_value !== 'false' : true;
+        }
+        if (prefixesInput) {
+            const setting = settingsList.find(s => s.setting_key === 'registration_allowed_country_prefixes');
+            prefixesInput.value = setting ? setting.setting_value : '+58';
+        }
+        if (noticeInput) {
+            const setting = settingsList.find(s => s.setting_key === 'registration_country_restriction_notice_text');
+            noticeInput.value = setting ? setting.setting_value : 'Por el momento solo se aceptan registros de personas residentes en Venezuela (+58).';
+        }
+    }
+
+    function setupRegistrationCountryListeners() {
+        const toggle = document.getElementById('registrationCountryRestrictionToggle');
+        const prefixesInput = document.getElementById('registrationAllowedPrefixesInput');
+        const noticeInput = document.getElementById('registrationNoticeTextInput');
+        const feedbackEl = document.getElementById('registration-country-admin-feedback');
+
+        if (!toggle && !prefixesInput && !noticeInput) return;
+        if (toggle && toggle.dataset.listenerAttached) return;
+        if (toggle) toggle.dataset.listenerAttached = 'true';
+
+        const showFeedback = (msg) => {
+            if (feedbackEl) {
+                feedbackEl.textContent = msg;
+                feedbackEl.style.display = 'block';
+                setTimeout(() => { feedbackEl.style.display = 'none'; }, 3000);
+            }
+        };
+
+        const saveSingleSetting = async (key, value) => {
+            try {
+                await apiFetch('/api/admin/settings', {
+                    method: 'POST',
+                    body: JSON.stringify({ key, value: String(value) })
+                });
+                showFeedback('✓ Configuración guardada automáticamente');
+            } catch (err) {
+                console.error("Error al guardar ajuste:", err);
+                showCustomAlert("Error al guardar la configuración de restricción por país: " + err.message);
+            }
+        };
+
+        if (toggle) {
+            toggle.addEventListener('change', () => {
+                saveSingleSetting('registration_country_restriction_enabled', toggle.checked ? 'true' : 'false');
+            });
+        }
+
+        if (prefixesInput) {
+            prefixesInput.addEventListener('blur', () => {
+                saveSingleSetting('registration_allowed_country_prefixes', prefixesInput.value.trim() || '+58');
+            });
+        }
+
+        if (noticeInput) {
+            noticeInput.addEventListener('blur', () => {
+                saveSingleSetting('registration_country_restriction_notice_text', noticeInput.value.trim());
+            });
+        }
+    }
+
     function renderPublicationsTable(publications) {
         if (!elements.publicationsTableContainer) return;
         if (publications.length === 0) {
@@ -5958,6 +6057,530 @@ document.addEventListener('DOMContentLoaded', () => {
             
         } catch (err) {
             container.innerHTML = `<p class="error-message">Error al cargar el equipo administrativo: ${escapeHtml(err.message)}</p>`;
+        }
+    }
+
+    // ========================================================================
+    // GENERADOR AUTOMÁTICO DE TAREAS QA
+    // ========================================================================
+    const btnAutoFillQA = document.getElementById('btnAutoFillQA');
+    if (btnAutoFillQA) {
+        btnAutoFillQA.addEventListener('click', () => {
+            const qaInput = document.getElementById('qaMarkdownInput');
+            const text = qaInput ? qaInput.value.trim() : '';
+            
+            if (!text) {
+                showCustomAlert("Por favor, pega el texto de la prueba generado por la IA.");
+                return;
+            }
+
+            // 1. Extraer Título, Descripción y Pasos usando el Modelo Estricto
+            const titleMatch = text.match(/TITULO:\s*(.*)/i);
+            const descMatch = text.match(/DESCRIPCION:\s*([\s\S]*?)(?=PASOS:|$)/i);
+            const pasosMatch = text.match(/PASOS:\s*([\s\S]*)/i);
+
+            if (!titleMatch || !descMatch || !pasosMatch) {
+                showCustomAlert("Error de formato. Asegúrate de incluir 'TITULO:', 'DESCRIPCION:' y 'PASOS:' exactamente como indica el modelo estricto.");
+                return;
+            }
+
+            const extractedTitle = titleMatch[1].trim();
+            const extractedDesc = descMatch[1].trim();
+            const extractedPasos = pasosMatch[1].trim();
+
+            // 2. Inyectar Paso 1 obligatorio y dividir los demás pasos
+            const rawSteps = extractedPasos.split('\n').filter(s => s.trim().length > 0);
+            
+            // Extraer texto limpio de los pasos, removiendo "2.", "3.", etc.
+            const cleanSteps = rawSteps.map(s => s.replace(/^\d+\.\s*/, '').trim());
+            
+            const finalSteps = [
+                "Aceptar tarea y grabar pantalla",
+                ...cleanSteps
+            ];
+
+            // 3. Autocompletar Título y Descripción General
+            const pubTitleInput = document.getElementById('platformPubTitle');
+            if (pubTitleInput) pubTitleInput.value = extractedTitle;
+
+            const pubDescInput = document.getElementById('platformPubDescription');
+            if (pubDescInput) pubDescInput.value = extractedDesc;
+
+            // 4. Configurar Switches y Costo
+            const pubCostInput = document.getElementById('platformPubCost');
+            if (pubCostInput) pubCostInput.value = "1";
+            
+            const pubSlotsInput = document.getElementById('platformPubSlots');
+            if (pubSlotsInput) pubSlotsInput.value = "10";
+
+            const autoApproveSwitch = document.getElementById('platformAutoApprove');
+            if (autoApproveSwitch) autoApproveSwitch.checked = true;
+
+            const requiresEvidenceSwitch = document.getElementById('platformRequiresEvidence');
+            if (requiresEvidenceSwitch) requiresEvidenceSwitch.checked = true;
+
+            // Habilitar repetición de la tarea 10 veces
+            const repeatSwitch = document.getElementById('platformAllowRepeatParticipation');
+            if (repeatSwitch) {
+                repeatSwitch.checked = true;
+                repeatSwitch.dispatchEvent(new Event('change'));
+            }
+            const repeatLimit = document.getElementById('platformRepeatLimit');
+            if (repeatLimit) repeatLimit.value = "10";
+
+            // 5. Configurar Pasos Dinámicos en la UI (platformStepX)
+            // Asegurarnos de que haya suficientes contenedores haciendo click en el botón "Agregar más pasos" si hace falta
+            const addStepBtn = document.getElementById('platformAddStepBtn');
+            if (addStepBtn) {
+                while (document.querySelectorAll('.admin-step-input').length < finalSteps.length) {
+                    addStepBtn.click();
+                }
+            }
+
+            const stepContainers = document.querySelectorAll('.admin-step-input');
+            stepContainers.forEach((container, index) => {
+                const stepNum = index + 1;
+                const stepTextInput = container.querySelector(`input[id="platformStep${stepNum}"]`);
+                const checkbox = container.querySelector('.step-form-checkbox');
+                const formFieldsContainer = container.querySelector('.step-form-fields');
+                const formInputsContainer = container.querySelector('.step-form-inputs');
+                
+                if (!stepTextInput) return;
+
+                if (index < finalSteps.length) {
+                    // Hay un paso real para este índice
+                    stepTextInput.value = finalSteps[index];
+                    
+                    // Activar el formulario de QA SOLO en el ÚLTIMO paso de la prueba
+                    if (index === finalSteps.length - 1) {
+                        if (checkbox) {
+                            checkbox.checked = true;
+                        }
+                        if (formFieldsContainer) {
+                            formFieldsContainer.style.display = 'block';
+                        }
+                        if (formInputsContainer) {
+                            // Limpiar campos actuales e inyectar los 3 campos obligatorios de QA
+                            formInputsContainer.innerHTML = `
+                                <input type="text" class="step-form-field" value="¿Pasó la prueba?">
+                                <input type="text" class="step-form-field" value="Enlace de evidencia">
+                                <input type="text" class="step-form-field" value="Si dio error, detalla lo ocurrido">
+                            `;
+                        }
+                    } else {
+                        // Si no es el último paso, nos aseguramos de que el formulario esté desactivado
+                        if (checkbox) checkbox.checked = false;
+                        if (formFieldsContainer) formFieldsContainer.style.display = 'none';
+                        if (formInputsContainer) formInputsContainer.innerHTML = `
+                            <input type="text" class="step-form-field" placeholder="Campo 1">
+                            <input type="text" class="step-form-field" placeholder="Campo 2">
+                            <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
+                        `;
+                    }
+                } else {
+                    // Limpiar pasos vacíos restantes
+                    stepTextInput.value = '';
+                    if (checkbox) checkbox.checked = false;
+                    if (formFieldsContainer) formFieldsContainer.style.display = 'none';
+                    if (formInputsContainer) formInputsContainer.innerHTML = `
+                        <input type="text" class="step-form-field" placeholder="Campo 1">
+                        <input type="text" class="step-form-field" placeholder="Campo 2">
+                        <input type="text" class="step-form-field" placeholder="Campo 3 (opcional)">
+                    `;
+                }
+            });
+
+            showCustomAlert("¡Formulario de prueba autocompletado exitosamente! Revisa los datos y haz clic en Publicar.");
+        });
+    }
+
+    // ============================================================================
+    // MÓDULO ADMINISTRATIVO: DAMNIFICADOS TERREMOTO (SOS VENEZUELA)
+    // ============================================================================
+
+    if (elements.sosVictimsSearchInput) {
+        let searchTimeout;
+        elements.sosVictimsSearchInput.addEventListener('keyup', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => loadSosVictims(), 300);
+        });
+    }
+
+    if (elements.sosVictimsStatusFilter) {
+        elements.sosVictimsStatusFilter.addEventListener('change', () => loadSosVictims());
+    }
+
+    if (elements.sosEditEmailTemplatesBtn) {
+        elements.sosEditEmailTemplatesBtn.addEventListener('click', () => openSosEmailTemplatesModal());
+    }
+
+    document.querySelectorAll('.sos-victim-modal-close').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (elements.sosVictimDetailModal) elements.sosVictimDetailModal.style.display = 'none';
+        });
+    });
+
+    document.querySelectorAll('.sos-disburse-modal-close').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (elements.sosVictimDisburseModal) elements.sosVictimDisburseModal.style.display = 'none';
+        });
+    });
+
+    document.querySelectorAll('.sos-templates-modal-close').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (elements.sosEmailTemplatesModal) elements.sosEmailTemplatesModal.style.display = 'none';
+        });
+    });
+
+    window.addEventListener('click', (event) => {
+        if (elements.sosVictimDetailModal && event.target === elements.sosVictimDetailModal) {
+            elements.sosVictimDetailModal.style.display = 'none';
+        }
+        if (elements.sosVictimDisburseModal && event.target === elements.sosVictimDisburseModal) {
+            elements.sosVictimDisburseModal.style.display = 'none';
+        }
+        if (elements.sosEmailTemplatesModal && event.target === elements.sosEmailTemplatesModal) {
+            elements.sosEmailTemplatesModal.style.display = 'none';
+        }
+    });
+
+    if (elements.sosDisburseForm) {
+        elements.sosDisburseForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const victimId = document.getElementById('sosDisburseVictimId').value;
+            const amount = document.getElementById('sosDisburseAmount').value;
+            const period = document.getElementById('sosDisbursePeriod').value;
+            const notes = document.getElementById('sosDisburseNotes').value;
+
+            try {
+                const res = await apiFetch(`/api/admin/sos-venezuela/victims/${victimId}/disburse`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount_blue: parseFloat(amount), disbursement_period: period, notes })
+                });
+
+                showCustomAlert(res.message || "¡Entrega de ayuda asignada exitosamente!");
+                if (elements.sosVictimDisburseModal) elements.sosVictimDisburseModal.style.display = 'none';
+                loadSosVictims();
+            } catch (err) {
+                showCustomAlert(`Error al asignar ayuda: ${err.message}`);
+            }
+        });
+    }
+
+    async function loadSosVictims() {
+        if (!elements.sosVictimsTableContainer) return;
+        elements.sosVictimsTableContainer.innerHTML = '<div class="loading-spinner"></div>';
+
+        const status = elements.sosVictimsStatusFilter?.value || 'pending_verification';
+        const search = elements.sosVictimsSearchInput?.value || '';
+
+        try {
+            const data = await apiFetch(`/api/admin/sos-venezuela/victims?status=${encodeURIComponent(status)}&search=${encodeURIComponent(search)}`);
+            renderSosVictimsTable(data.victims || []);
+            if (elements.sosVictimsBadge) {
+                const pendingCount = (data.victims || []).filter(v => v.status === 'pending_verification').length;
+                elements.sosVictimsBadge.textContent = pendingCount > 0 ? pendingCount : '';
+            }
+        } catch (err) {
+            console.error('[SOS ADMIN] Error al cargar expedientes:', err);
+            elements.sosVictimsTableContainer.innerHTML = `<p class="error-message">Error al cargar expedientes: ${escapeHtml(err.message)}</p>`;
+        }
+    }
+
+    function renderSosVictimsTable(victims) {
+        if (!victims || victims.length === 0) {
+            elements.sosVictimsTableContainer.innerHTML = '<p class="no-data-message">No se encontraron expedientes con los filtros seleccionados.</p>';
+            return;
+        }
+
+        let html = `
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Expediente</th>
+                        <th>Nombre</th>
+                        <th>Cédula</th>
+                        <th>Teléfono</th>
+                        <th>Ubicación</th>
+                        <th>Dependientes</th>
+                        <th>Afectación</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        victims.forEach(v => {
+            const statusBadges = {
+                'pending_verification': '<span class="status-badge pending">En Verificación</span>',
+                'info_requested': '<span class="status-badge active" style="background: #3b82f6;">Info Requerida</span>',
+                'approved_for_aid': '<span class="status-badge active" style="background: #10b981;">Aprobado</span>',
+                'verified_approved': '<span class="status-badge active" style="background: #10b981;">Aprobado</span>',
+                'disbursed': '<span class="status-badge active" style="background: #8b5cf6;">Desembolsado</span>',
+                'rejected': '<span class="status-badge inactive">Rechazado</span>'
+            };
+
+            const affectationLabels = {
+                'total_loss': '🚨 Pérdida Total',
+                'medical_emergency': '🚑 Emergencia Médica',
+                'partial_damage': '🏚️ Daño Parcial',
+                'essential_needs': '📦 Insumos Básicos'
+            };
+
+            const totalDependents = (parseInt(v.dependents_minors) || 0) + (parseInt(v.dependents_elderly) || 0) + (parseInt(v.dependents_disabled) || 0);
+
+            const isApproved = v.status === 'approved_for_aid';
+            const disabledAttr = isApproved ? '' : 'disabled';
+            const disabledStyle = isApproved ? '' : 'opacity: 0.5; cursor: not-allowed; pointer-events: none;';
+
+            html += `
+                <tr>
+                    <td><strong style="font-family: monospace; color: #ec4899;">#${escapeHtml(v.dossier_number)}</strong></td>
+                    <td>${escapeHtml(v.full_name)}</td>
+                    <td>${escapeHtml(v.id_document)}</td>
+                    <td>${escapeHtml(v.phone_number)}</td>
+                    <td>${escapeHtml(v.state)} / ${escapeHtml(v.municipality)}</td>
+                    <td><strong>${totalDependents}</strong> (👨‍👩‍👧 ${v.dependents_minors} | 👴 ${v.dependents_elderly} | ♿ ${v.dependents_disabled})</td>
+                    <td>${affectationLabels[v.affectation_level] || v.affectation_level}</td>
+                    <td>${statusBadges[v.status] || v.status}</td>
+                    <td>
+                        <button type="button" class="action-button-admin view-sos-victim-btn" data-id="${v.id}" style="padding: 4px 10px; font-size: 0.85rem; margin-right: 4px;">🔎 Ver Ficha</button>
+                        <button type="button" class="action-button-admin publish disburse-sos-victim-btn" data-id="${v.id}" data-dossier="${escapeHtml(v.dossier_number)}" ${disabledAttr} style="padding: 4px 10px; font-size: 0.85rem; ${disabledStyle}">💸 Asignar Ayuda</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table>';
+        elements.sosVictimsTableContainer.innerHTML = html;
+
+        elements.sosVictimsTableContainer.querySelectorAll('.view-sos-victim-btn').forEach(btn => {
+            btn.addEventListener('click', () => openSosVictimDetailModal(btn.getAttribute('data-id')));
+        });
+
+        elements.sosVictimsTableContainer.querySelectorAll('.disburse-sos-victim-btn').forEach(btn => {
+            btn.addEventListener('click', () => openSosDisburseModal(btn.getAttribute('data-id'), btn.getAttribute('data-dossier')));
+        });
+    }
+
+    async function openSosVictimDetailModal(victimId) {
+        if (!elements.sosVictimDetailModal) return;
+        elements.sosVictimModalTitle.textContent = 'Cargando Expediente...';
+        elements.sosVictimModalBody.innerHTML = '<div class="loading-spinner"></div>';
+        elements.sosVictimModalActions.innerHTML = '';
+        elements.sosVictimDetailModal.style.display = 'flex';
+
+        try {
+            const data = await apiFetch(`/api/admin/sos-venezuela/victims/${victimId}`);
+            const v = data.victim;
+
+            elements.sosVictimModalTitle.textContent = `Expediente #${v.dossier_number}`;
+
+            let evidenceHtml = '';
+            if (v.evidence_urls && v.evidence_urls.length > 0) {
+                evidenceHtml = v.evidence_urls.map(url => {
+                    const isGooglePhotos = url.includes('drive.google.com') || url.includes('photos.app.goo.gl') || url.includes('photos.google.com');
+                    if (isGooglePhotos) {
+                        return `<a href="${escapeHtml(url)}" target="_blank" style="display: inline-block; background: rgba(236,72,153,0.15); color: #f472b6; padding: 6px 12px; border-radius: 6px; text-decoration: none; margin: 4px;">🔗 Enlace Externo / Google Fotos ↗</a>`;
+                    }
+                    const fullUrl = url.startsWith('http') ? url : (url.startsWith('/') ? `${API_URL}${url}` : `${API_URL}/${url}`);
+                    return `<a href="${escapeHtml(fullUrl)}" target="_blank" title="Abrir imagen completa en nueva pestaña"><img src="${escapeHtml(fullUrl)}" alt="Evidencia SOS" style="width: 90px; height: 90px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); margin: 4px; transition: transform 0.15s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'"></a>`;
+                }).join('');
+            } else {
+                evidenceHtml = '<p style="color: #94a3b8; font-size: 0.9rem;">Sin imágenes adjuntas.</p>';
+            }
+
+            let disbursementsHtml = '';
+            if (data.disbursements && data.disbursements.length > 0) {
+                disbursementsHtml = `
+                    <div style="margin-top: 1rem; background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px;">
+                        <strong style="color: #8b5cf6; display: block; margin-bottom: 0.5rem;">📜 Historial de Entregas Realizadas:</strong>
+                        <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.9rem; color: #cbd5e1;">
+                            ${data.disbursements.map(d => `<li><strong>${d.amount_blue} BLUE</strong> (${escapeHtml(d.disbursement_period)}) - ${new Date(d.created_at).toLocaleDateString()} ${d.notes ? '- ' + escapeHtml(d.notes) : ''}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            let historyHtml = '';
+            if (data.history && data.history.length > 0) {
+                historyHtml = `
+                    <div style="margin-top: 1rem; background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px;">
+                        <strong style="color: #ec4899; display: block; margin-bottom: 0.5rem;">📋 Bitácora Histórica de Eventos (Auditoría):</strong>
+                        <div style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; padding-right: 4px;">
+                            ${data.history.map(h => {
+                                const eventDate = new Date(h.created_at);
+                                const day = String(eventDate.getDate()).padStart(2, '0');
+                                const month = String(eventDate.getMonth() + 1).padStart(2, '0');
+                                const year = eventDate.getFullYear();
+                                const hours = String(eventDate.getHours()).padStart(2, '0');
+                                const minutes = String(eventDate.getMinutes()).padStart(2, '0');
+                                const dateStr = `${day}/${month}/${year} ${hours}:${minutes}`;
+
+                                let badgeColor = '#9f1239';
+                                let eventLabel = h.event_type;
+                                if (h.event_type === 'registered') { eventLabel = 'CREADO'; badgeColor = '#0284c7'; }
+                                else if (h.event_type === 'approved_for_aid') { eventLabel = 'APROBADO AYUDA'; badgeColor = '#10b981'; }
+                                else if (h.event_type === 'disbursed') { eventLabel = 'AYUDA ENTREGADA'; badgeColor = '#8b5cf6'; }
+                                else if (h.event_type === 'info_requested') { eventLabel = 'INFO REQUERIDA'; badgeColor = '#f59e0b'; }
+                                else if (h.event_type === 'rejected') { eventLabel = 'RECHAZADO'; badgeColor = '#ef4444'; }
+
+                                return `
+                                    <div style="background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 6px; border-left: 3px solid ${badgeColor}; font-size: 0.85rem;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; color: #94a3b8; font-size: 0.8rem; margin-bottom: 2px;">
+                                            <span style="font-weight: bold; color: ${badgeColor}; text-transform: uppercase;">${escapeHtml(eventLabel)}</span>
+                                            <span>📅 ${dateStr}</span>
+                                        </div>
+                                        <p style="margin: 0; color: #e2e8f0; font-size: 0.85rem;">${escapeHtml(h.message)}</p>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            elements.sosVictimModalBody.innerHTML = `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div><strong>Nombre:</strong> ${escapeHtml(v.full_name)}</div>
+                    <div><strong>Cédula:</strong> ${escapeHtml(v.id_document)}</div>
+                    <div><strong>Edad:</strong> ${v.age ? v.age + ' años' : 'N/A'} ${v.birth_date ? '(' + new Date(v.birth_date).toLocaleDateString('es-ES') + ')' : ''}</div>
+                    <div><strong>Género:</strong> ${escapeHtml(v.gender)}</div>
+                    <div><strong>¿Cabeza de Familia?:</strong> ${v.is_head_of_family ? 'Sí' : 'No'}</div>
+                    <div><strong>Correo:</strong> ${escapeHtml(v.email)}</div>
+                    <div><strong>Teléfono:</strong> ${escapeHtml(v.phone_number)}</div>
+                    <div><strong>Puntaje Urgencia:</strong> <span style="background: rgba(236,72,153,0.2); color: #ec4899; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-family: monospace;">${v.urgency_score || 'N/A'}</span></div>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <strong style="color: #ec4899; display: block; margin-bottom: 0.4rem;">📍 Ubicación Geográfica:</strong>
+                    <p style="margin: 0; font-size: 0.95rem; color: #cbd5e1;">
+                        Estado: <strong>${escapeHtml(v.state)}</strong> | Municipio: <strong>${escapeHtml(v.municipality)}</strong> | Sector: <strong>${escapeHtml(v.sector)}</strong><br>
+                        Dirección: ${escapeHtml(v.address_details)}
+                    </p>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+                    <strong style="color: #ec4899; display: block; margin-bottom: 0.4rem;">👨‍👩‍👧‍👦 Censo de Dependientes:</strong>
+                    <p style="margin: 0; font-size: 0.95rem; color: #cbd5e1;">
+                        Menores de edad: <strong>${v.dependents_minors}</strong> | Adultos mayores: <strong>${v.dependents_elderly}</strong> | Personas con discapacidad: <strong>${v.dependents_disabled}</strong>
+                    </p>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <strong style="color: #ec4899; display: block; margin-bottom: 0.4rem;">📝 Relato del Daño:</strong>
+                    <p style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; font-size: 0.95rem; color: #e2e8f0; line-height: 1.5; margin: 0;">
+                        ${escapeHtml(v.description)}
+                    </p>
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <strong style="color: #ec4899; display: block; margin-bottom: 0.4rem;">📷 Fotos y Evidencias:</strong>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">${evidenceHtml}</div>
+                </div>
+
+                ${disbursementsHtml}
+
+                ${historyHtml}
+
+                <div style="margin-top: 1.25rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
+                    <label style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.4rem;">Actualizar Estado y Notificar por Correo:</label>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <select id="sosUpdateStatusSelect" class="admin-input-dark" style="padding: 8px 12px; border-radius: 6px; background: #0f172a; color: #fff;">
+                            <option value="pending_verification" ${v.status === 'pending_verification' ? 'selected' : ''}>En Verificación Manual</option>
+                            <option value="info_requested" ${v.status === 'info_requested' ? 'selected' : ''}>Solicitar Información Adicional</option>
+                            <option value="approved_for_aid" ${v.status === 'approved_for_aid' ? 'selected' : ''}>Aprobar para Ayuda</option>
+                            <option value="disbursed" ${v.status === 'disbursed' ? 'selected' : ''}>Marcar Desembolsado</option>
+                            <option value="rejected" ${v.status === 'rejected' ? 'selected' : ''}>Rechazar Expediente</option>
+                        </select>
+                        <input type="text" id="sosUpdateCustomMsg" class="admin-input-dark" placeholder="Mensaje personalizado o información requerida..." style="flex: 1; min-width: 200px; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.3); color: #fff;">
+                        <button type="button" id="sosSaveStatusBtn" class="action-button-admin publish" style="padding: 8px 16px; border-radius: 6px;">Guardar y Notificar</button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('sosSaveStatusBtn')?.addEventListener('click', async () => {
+                const newStatus = document.getElementById('sosUpdateStatusSelect').value;
+                const customMsg = document.getElementById('sosUpdateCustomMsg').value;
+
+                try {
+                    const updateRes = await apiFetch(`/api/admin/sos-venezuela/victims/${victimId}/update-status`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: newStatus, custom_message: customMsg })
+                    });
+                    showCustomAlert(updateRes.message || "Estado actualizado exitosamente.");
+                    elements.sosVictimDetailModal.style.display = 'none';
+                    loadSosVictims();
+                } catch (err) {
+                    showCustomAlert(`Error al actualizar estado: ${err.message}`);
+                }
+            });
+        } catch (err) {
+            elements.sosVictimModalBody.innerHTML = `<p class="error-message">Error al cargar detalle: ${escapeHtml(err.message)}</p>`;
+        }
+    }
+
+    function openSosDisburseModal(victimId, dossierNumber) {
+        if (!elements.sosVictimDisburseModal) return;
+        document.getElementById('sosDisburseVictimId').value = victimId;
+        document.getElementById('sosDisburseAmount').value = '';
+        document.getElementById('sosDisburseNotes').value = '';
+        elements.sosVictimDisburseModal.style.display = 'flex';
+    }
+
+    async function openSosEmailTemplatesModal() {
+        if (!elements.sosEmailTemplatesModal) return;
+        elements.sosEmailTemplatesBody.innerHTML = '<div class="loading-spinner"></div>';
+        elements.sosEmailTemplatesModal.style.display = 'flex';
+
+        try {
+            const data = await apiFetch('/api/admin/sos-venezuela/email-templates');
+            const templates = data.templates || [];
+
+            let html = '<div style="display: flex; flex-direction: column; gap: 1.5rem;">';
+            templates.forEach(t => {
+                html += `
+                    <div style="background: rgba(15,23,42,0.6); padding: 1.25rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
+                        <strong style="color: #ec4899; display: block; margin-bottom: 0.5rem;">Plantilla: ${escapeHtml(t.template_key)}</strong>
+                        <div style="margin-bottom: 0.8rem;">
+                            <label style="font-size: 0.85rem; color: #cbd5e1;">Asunto del Correo:</label>
+                            <input type="text" id="tpl_subj_${t.template_key}" class="admin-input-dark" value="${escapeHtml(t.subject)}" style="width: 100%; padding: 8px; border-radius: 6px; background: rgba(0,0,0,0.3); color: #fff;">
+                        </div>
+                        <div>
+                            <label style="font-size: 0.85rem; color: #cbd5e1;">Cuerpo HTML:</label>
+                            <textarea id="tpl_body_${t.template_key}" rows="5" style="width: 100%; padding: 8px; border-radius: 6px; background: rgba(0,0,0,0.3); color: #fff; font-family: monospace; font-size: 0.85rem; line-height: 1.4;">${escapeHtml(t.html_body)}</textarea>
+                        </div>
+                        <button type="button" class="action-button-admin publish save-template-btn" data-key="${t.template_key}" style="margin-top: 0.8rem; padding: 6px 14px; font-size: 0.9rem;">Guardar Plantilla</button>
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            elements.sosEmailTemplatesBody.innerHTML = html;
+
+            elements.sosEmailTemplatesBody.querySelectorAll('.save-template-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const key = btn.getAttribute('data-key');
+                    const subject = document.getElementById(`tpl_subj_${key}`).value;
+                    const htmlBody = document.getElementById(`tpl_body_${key}`).value;
+
+                    try {
+                        const saveRes = await apiFetch('/api/admin/sos-venezuela/email-templates', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ template_key: key, subject, html_body: htmlBody })
+                        });
+                        showCustomAlert(saveRes.message || "Plantilla guardada exitosamente.");
+                    } catch (err) {
+                        showCustomAlert(`Error al guardar plantilla: ${err.message}`);
+                    }
+                });
+            });
+        } catch (err) {
+            elements.sosEmailTemplatesBody.innerHTML = `<p class="error-message">Error al cargar plantillas: ${escapeHtml(err.message)}</p>`;
         }
     }
 

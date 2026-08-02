@@ -157,6 +157,60 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (elements.usernameDisplay) {
         elements.usernameDisplay.textContent = storedUsername;
     }
+
+    fetchMySosCaseDashboard(storedUsername);
+
+    // Función encargada de renderizar la tarjeta del caso SOS en el dashboard si el usuario posee un expediente
+    async function fetchMySosCaseDashboard(userUsername) {
+        const dashboardContainer = document.getElementById('sos-my-case-dashboard');
+        if (!userUsername) return;
+
+        try {
+            // Consulta de auditoría y verificación de expediente para el usuario autenticado
+            const response = await fetch(`${getApiUrl()}/api/public/sos-venezuela/my-case?username=${encodeURIComponent(userUsername)}`);
+            if (!response.ok) return;
+
+            const data = await response.json();
+            // Si el usuario no posee expediente registrado, se oculta el contenedor del dashboard únicamente
+            if (!data.success || !data.has_case || !data.case) {
+                if (dashboardContainer) dashboardContainer.innerHTML = '';
+                return;
+            }
+
+            const c = data.case;
+            let statusBadge = `<span style="background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 9999px; font-weight: 600; font-size: 0.85rem;">En Verificación Manual</span>`;
+            if (c.status === 'approved') {
+                statusBadge = `<span style="background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 9999px; font-weight: 600; font-size: 0.85rem;">Aprobado</span>`;
+            } else if (c.status === 'disbursed') {
+                statusBadge = `<span style="background: #e0e7ff; color: #3730a3; padding: 4px 10px; border-radius: 9999px; font-weight: 600; font-size: 0.85rem;">Ayuda Desembolsada</span>`;
+            } else if (c.status === 'rejected') {
+                statusBadge = `<span style="background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 9999px; font-weight: 600; font-size: 0.85rem;">Rechazado</span>`;
+            }
+
+            let affectationLabel = 'Necesidades Básicas Urgentes';
+            if (c.affectation_level === 'total_loss') affectationLabel = 'Pérdida Total de Vivienda / Enseres';
+            else if (c.affectation_level === 'medical_emergency') affectationLabel = 'Emergencia Médica / Lesionados';
+            else if (c.affectation_level === 'partial_damage') affectationLabel = 'Daño Parcial en Vivienda';
+
+            const familyStr = `${c.dependents_minors || 0} menor(es), ${c.dependents_elderly || 0} adulto(s) mayor(es), ${c.dependents_disabled || 0} persona(s) con discapacidad`;
+            const locationStr = `${c.state}, ${c.municipality}, ${c.sector}`;
+
+            if (dashboardContainer) {
+                dashboardContainer.innerHTML = `
+                    <a href="profile.html" style="display: block; text-decoration: none; background: linear-gradient(135deg, rgba(219, 39, 119, 0.15) 0%, rgba(15, 23, 42, 0.7) 100%); border: 1px solid rgba(219, 39, 119, 0.4); border-radius: 14px; padding: 18px; margin-top: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: transform 0.2s, box-shadow 0.2s;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h4 style="margin: 0; color: #f472b6; font-size: 1.15rem;">
+                                #${c.dossier_number}
+                            </h4>
+                            ${statusBadge}
+                        </div>
+                    </a>
+                `;
+            }
+        } catch (err) {
+            console.error('Error al cargar datos del dashboard de Mi caso:', err);
+        }
+    }
     function setCriticalActionButtonsDisabled(disabled) {
         const ids = ['openPublicationModalBtn', 'openQuickSaleModalBtn'];
         ids.forEach((id) => {

@@ -182,10 +182,6 @@ export default defineConfig(({ mode }) => ({
 
       // Assets que se incluyen siempre
       includeAssets: [
-        'assets/icons/*.png',
-        'assets/icons/*.svg',
-        'assets/*.png',
-        'assets/*.svg',
         'manifest.json'
       ],
 

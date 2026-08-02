@@ -770,6 +770,30 @@ async function sendGovernanceEmail({ toEmail, subject, title, body, actionUrl, a
   await getSesClient().send(cmd);
 }
 
+/**
+ * Envía un correo HTML personalizado (utilizado por el módulo SOS Venezuela)
+ */
+async function sendCustomEmail(toEmail, subject, htmlBody) {
+  const email = normalizeEmail(toEmail);
+  if (!AWS_REGION || !SES_FROM_EMAIL) {
+    console.warn(`[DEV MAIL] To: ${email} | Subject: ${subject} (SES no configurado)`);
+    return;
+  }
+
+  const cmd = new SendEmailCommand({
+    Source: `${SES_FROM_NAME} <${SES_FROM_EMAIL}>`,
+    Destination: { ToAddresses: [email] },
+    Message: {
+      Subject: { Data: subject, Charset: 'UTF-8' },
+      Body: {
+        Html: { Data: htmlBody, Charset: 'UTF-8' },
+      },
+    },
+  });
+
+  await getSesClient().send(cmd);
+}
+
 module.exports = {
   generateOtp6,
   hashOtpForEmail,
@@ -778,6 +802,7 @@ module.exports = {
   sendTransactionEmail,
   sendAnnouncementEmail,
   sendGovernanceEmail,
+  sendCustomEmail,
   processPendingBroadcasts,
   normalizeEmail
 };

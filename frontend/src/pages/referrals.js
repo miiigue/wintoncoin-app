@@ -19,6 +19,17 @@ function initializeReferralsPage() {
         return;
     }
 
+    // --- Función de Utilidad para Escapar HTML (Sanitización) ---
+    function escapeHtml(text) {
+        if (text === null || text === undefined) return '';
+        return String(text)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
     fetchReferralInfo();
 
     async function fetchReferralInfo() {
@@ -48,13 +59,14 @@ function initializeReferralsPage() {
             return;
         }
 
-        const referralLink = `${window.location.origin}/register.html?ref=${code}`;
+        const safeCode = escapeHtml(code);
+        const referralLink = `${window.location.origin}/register.html?ref=${safeCode}`;
 
         elements.codeSection.innerHTML = `
             <h4>Tu Código de Referido</h4>
             <div style="text-align: center; margin: 1.5rem 0;">
                 <p class="referral-code-display" style="font-size: 2rem; font-weight: 800; color: #4F46E5; margin: 0; letter-spacing: 2px; line-height: 1.2;">
-                    ${code}
+                    ${safeCode}
                 </p>
                 <button id="copyCodeBtn" class="action-button" style="margin-top: 1rem;">
                     Copiar Código
@@ -150,9 +162,10 @@ function initializeReferralsPage() {
         const registrationDate = formatShortDate(user.created_at);
         const totalBoosterBlue = formatBlueAmount(user.total_booster_blue);
 
+        const userNameStr = escapeHtml(user.referred_username);
         const userNameHTML = window.appSettings?.public_profiles_enabled
-            ? `<a href="profile.html?user=${user.referred_username}" class="profile-link">${user.referred_username}</a>`
-            : user.referred_username;
+            ? `<a href="profile.html?user=${userNameStr}" class="profile-link">${userNameStr}</a>`
+            : userNameStr;
 
         // Indicador visual de KYC
         const kycIndicator = user.kyc_verified

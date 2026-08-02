@@ -689,24 +689,31 @@
 .emergency-banner-cta {
     display: flex;
     justify-content: center;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
 }
 
 .btn-primary-campaign {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
     color: #ffffff !important;
     text-decoration: none;
-    font-weight: 800;
-    font-size: 1.1rem;
-    padding: 1.2rem 3rem;
+    font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+    font-weight: 600;
+    font-size: 1.15rem;
+    padding: 1.05rem 2.25rem;
     border-radius: 50px;
     box-shadow: 0 8px 25px rgba(236, 72, 153, 0.4);
     transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    letter-spacing: 0.5px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    letter-spacing: 0.3px;
     position: relative;
     overflow: hidden;
     z-index: 2;
+    text-align: center;
 }
 
 .btn-primary-campaign:hover {

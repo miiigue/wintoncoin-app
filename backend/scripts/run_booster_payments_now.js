@@ -6,11 +6,10 @@
 
 const path = require('path');
 const bcrypt = require('bcrypt'); // Importamos bcrypt para hashear de forma segura la contraseña de login
-// Cargar dotenv desde la carpeta raíz local
-require('dotenv').config({ path: path.join(__dirname, '../.env.development') });
+require('../config'); // Cargar configuración dinámica de entorno (Zero-Trust)
 
-const pool = require('./src/config/db');
-const { logAuditEvent } = require('./src/services/auditService');
+const pool = require('../src/config/db');
+const { logAuditEvent } = require('../src/services/auditService');
 
 async function executeManualBoosterPayments() {
     console.log('--- MÓDULO DE PRUEBA MANUAL: INICIANDO CICLO DE PAGOS ---');

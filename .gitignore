@@ -96,6 +96,11 @@ frontend/dist/
 frontend/vite.config.js.timestamp-*.mjs
 frontend/vite.config.js.timestamp-*.js
 
+# Database backups & sensitive exports (SOC 2 / Zero-Trust Compliance)
+demo_audit_backup_genesis.json
+*_backup_*.json
+*.dump
+
 # Local Developer Debug/Scratch Directories
 backend/scratch/
 frontend/scratch/

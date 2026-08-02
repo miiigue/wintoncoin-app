@@ -70,7 +70,10 @@ describe('Admin Form Fields Processor Tests', () => {
         // 2. Consulta de configuración máxima de imágenes
         mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ setting_value: '3' }] });
 
-        // 3. Inserción de la publicación (RETURNING id)
+        // 3. Consulta del multiplicador activo (boosterService)
+        mockPool.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+
+        // 4. Inserción de la publicación (RETURNING id)
         mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 999 }] });
 
         const payload = {
@@ -99,7 +102,7 @@ describe('Admin Form Fields Processor Tests', () => {
         expect(res.body.message).toMatch(/Publicación de la plataforma creada/);
 
         // EXTRAER LA CONSULTA REALIZADA A LA BASE DE DATOS
-        const insertQueryCall = mockPool.query.mock.calls[2]; // La tercera llamada debe ser el INSERT
+        const insertQueryCall = mockPool.query.mock.calls[3]; // El insert es la 4ta consulta
 
         // Verificar que formFields se convirtió de strings a objetos {label, type}
         expect(insertQueryCall).toBeDefined();
@@ -120,7 +123,9 @@ describe('Admin Form Fields Processor Tests', () => {
         mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 100 }] });
         // 2. Consulta de configuración máxima de imágenes
         mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ setting_value: '3' }] });
-        // 3. Inserción de la publicación (RETURNING id)
+        // 3. Consulta del multiplicador activo (boosterService)
+        mockPool.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+        // 4. Inserción de la publicación (RETURNING id)
         mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 1001 }] });
 
         const payload = {
@@ -148,7 +153,7 @@ describe('Admin Form Fields Processor Tests', () => {
 
         expect(res.statusCode).toEqual(201);
 
-        const insertQueryCall = mockPool.query.mock.calls[2];
+        const insertQueryCall = mockPool.query.mock.calls[3];
         const passedFormFields = insertQueryCall[1][13];
 
         expect(passedFormFields).toBeDefined();
@@ -164,7 +169,9 @@ describe('Admin Form Fields Processor Tests', () => {
         mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 100 }] });
         // 2. Consulta de configuración máxima de imágenes
         mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ setting_value: '3' }] });
-        // 3. Inserción de la publicación (RETURNING id)
+        // 3. Consulta del multiplicador activo (boosterService)
+        mockPool.query.mockResolvedValueOnce({ rowCount: 0, rows: [] });
+        // 4. Inserción de la publicación (RETURNING id)
         mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 1002 }] });
 
         const payload = {
@@ -192,7 +199,7 @@ describe('Admin Form Fields Processor Tests', () => {
 
         expect(res.statusCode).toEqual(201);
 
-        const insertQueryCall = mockPool.query.mock.calls[2];
+        const insertQueryCall = mockPool.query.mock.calls[3]; // El insert es la 4ta consulta
         const passedFormFields = insertQueryCall[1][13];
 
         // Todos los tipos inválidos deben caer a 'text' (whitelist)

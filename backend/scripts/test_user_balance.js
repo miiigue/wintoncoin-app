@@ -1,4 +1,4 @@
-require('./config');
+require('../config');
 const jwt = require('jsonwebtoken');
 const http = require('http');
 
@@ -12,7 +12,7 @@ const testToken = jwt.sign(
 
 // 2. Levantar el Servidor
 process.env.PORT = 4004;
-const { startServer } = require('./server.js');
+const { startServer } = require('../server.js');
 
 let server;
 

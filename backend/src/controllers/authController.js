@@ -67,7 +67,33 @@ exports.registerRequest = async (req, res) => {
     }
 
     const isMinor = age >= 13 && age < 18;
-    // Puedes añadir una validación más robusta para el número de teléfono aquí si lo deseas
+
+    // --- AUDITORÍA DE CIBERSEGURIDAD FINTECH (Zero-Trust): Restricción por Prefijo Telefónico de País ---
+    try {
+        const countryCheckRes = await pool.query(`
+            SELECT setting_key, setting_value FROM app_settings 
+            WHERE setting_key IN ('registration_country_restriction_enabled', 'registration_allowed_country_prefixes', 'registration_country_restriction_notice_text')
+        `);
+        const countrySettings = countryCheckRes.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
+        const isCountryRestrictionEnabled = countrySettings.registration_country_restriction_enabled !== 'false';
+        const allowedPrefixes = (countrySettings.registration_allowed_country_prefixes || '+58').split(',').map(p => p.trim()).filter(Boolean);
+        const noticeMsg = countrySettings.registration_country_restriction_notice_text || 'Por el momento solo se aceptan registros de personas residentes en Venezuela (+58).';
+
+        if (isCountryRestrictionEnabled) {
+            const cleanedPhone = (phone || '').replace(/[\s\-\(\)]/g, '');
+            const isAllowed = allowedPrefixes.some(prefix => cleanedPhone.startsWith(prefix));
+            if (!isAllowed) {
+                return res.status(400).json({ message: noticeMsg });
+            }
+        }
+    } catch (prefixErr) {
+        // AUDITORÍA ZERO-TRUST (fail-closed): Si la consulta a app_settings falla,
+        // RECHAZAR el registro en lugar de dejarlo pasar silenciosamente.
+        // Analogía: Si el guardia de seguridad no puede verificar tu identificación,
+        // la puerta permanece cerrada — no se abre por defecto.
+        console.error("[AUTH SEC] Error al verificar restricción por prefijo telefónico:", prefixErr.message);
+        return res.status(503).json({ message: "No se pudo verificar la elegibilidad de registro. Intenta nuevamente en unos minutos." });
+    }
 
     const client = await pool.connect();
     try {

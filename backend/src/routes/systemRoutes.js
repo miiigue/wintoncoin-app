@@ -35,7 +35,47 @@ router.get('/platform-settings', SystemController.getPlatformSettings);
 // 8. Configuración pública legacy (Público, requerido por suite de pruebas de publicación)
 router.get('/public-settings', SystemController.getAppSettings);
 
-// 9. Multiplicador vigente actual (Público, requerido para calculadoras de publicación)
-router.get('/booster/current-multiplier', SystemController.getCurrentMultiplier);
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+const victimUploadDir = path.join(__dirname, '../../public/uploads/victims');
+if (!fs.existsSync(victimUploadDir)) {
+    fs.mkdirSync(victimUploadDir, { recursive: true });
+}
+
+// ============================================================================
+// CONFIGURACIÓN DE SEGURIDAD FINTECH PARA SUBIDA DE EVIDENCIAS SOS
+// ============================================================================
+// 1. Uso exclusivo de memoria RAM (memoryStorage) para evitar RCE (Remote Code Execution)
+// 2. Filtro estricto de MIME-Types para bloquear archivos maliciosos (.php, .exe, webshells)
+// 3. Límite máximo de 10MB por archivo para prevenir ataques DoS por agotamiento de RAM
+// ============================================================================
+const victimStorage = multer.memoryStorage();
+
+const victimUpload = multer({
+    storage: victimStorage,
+    limits: { 
+        fileSize: 10 * 1024 * 1024 // Límite estricto de 10MB para prevenir desbordamiento de memoria (OOM)
+    },
+    fileFilter: (req, file, cb) => {
+        // Lista blanca estricta de tipos de imagen permitidos
+        const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'image/heic'];
+        if (allowedMimes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Formato de imagen no soportado. Permite JPG, PNG, WebP o HEIC.'));
+        }
+    }
+});
+
+const victimController = require('../controllers/victimController');
+
+// 10. Registro, Verificación OTP, Subida de Fotos y Consulta de Expediente SOS Venezuela
+router.post('/public/sos-venezuela/register-victim', victimController.registerVictimPublic);
+router.post('/public/sos-venezuela/verify-otp', victimController.verifyVictimOtpPublic);
+// Subida de evidencias SOS (Protegida en RAM + Transcodificación en Cloudflare R2)
+router.post('/public/sos-venezuela/upload-evidence', victimUpload.array('images', 5), victimController.uploadEvidencePublic);
+router.get('/public/sos-venezuela/my-case', victimController.getMyCasePublic);
 
 module.exports = router;

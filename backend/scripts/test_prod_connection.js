@@ -1,9 +1,9 @@
+require('../config');
 const { Pool } = require('pg');
-const connectionString = 'postgresql://wintoncoin_7osz_user:xJ5VTRBcJB2CATETmchGhRa57EzmlY44@dpg-d206cfndiees73952i50-a.ohio-postgres.render.com/wintoncoin_prod';
 
 const pool = new Pool({
-    connectionString,
-    ssl: { rejectUnauthorized: false }
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
 async function test() {

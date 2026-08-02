@@ -80,9 +80,15 @@ contract WintonProtocol is Ownable, ReentrancyGuard, Pausable {
     /// @notice Muro KYC On-Chain: solo billeteras verificadas pueden operar.
     mapping(address => bool) public isKYCVerified;
 
+    /// @notice Límites de compromiso RED por usuario (Winton Trust Score on-chain).
+    mapping(address => uint256) public redCreditLimits;
+
     // ========================================================================
     // EVENTOS: Registro inmutable en la blockchain para auditoría total.
     // ========================================================================
+
+    /// @notice Emitido cuando se actualiza el score/límite de compromiso RED de un usuario.
+    event UserTrustScoreUpdated(address indexed userWallet, uint256 newScoreLimit);
 
     /// @notice Emitido cuando se procesa un pago exitosamente.
     event PaymentProcessed(
@@ -190,6 +196,18 @@ contract WintonProtocol is Ownable, ReentrancyGuard, Pausable {
         require(_newRelayer != address(0), "WintonProtocol: Invalid zero address");
         emit RelayerUpdated(relayer, _newRelayer);
         relayer = _newRelayer;
+    }
+
+    /**
+     * @notice Actualiza el límite de compromiso RED de un usuario basado en su Winton Trust Score.
+     * @dev Solo el Relayer (backend) o el Owner pueden ejecutar.
+     * @param userWallet Dirección de la billetera del usuario.
+     * @param newScoreLimit Nuevo límite de compromiso asignado (en wei, 18 decimales).
+     */
+    function updateUserTrustScore(address userWallet, uint256 newScoreLimit) external onlyRelayerOrOwner {
+        require(userWallet != address(0), "WintonProtocol: Invalid zero address");
+        redCreditLimits[userWallet] = newScoreLimit;
+        emit UserTrustScoreUpdated(userWallet, newScoreLimit);
     }
 
     /**
@@ -305,6 +323,14 @@ contract WintonProtocol is Ownable, ReentrancyGuard, Pausable {
 
         // SEGURIDAD: Circuit Breaker - limitar monto máximo por transacción.
         require(amountBlue <= maxTransactionAmount, "WintonProtocol: Amount exceeds max per transaction");
+
+        // SEGURIDAD: Verificar que el compromiso acumulado no exceda el límite otorgado (WTS Score).
+        uint256 currentRedBalance = redToken.balanceOf(payer);
+        uint256 userLimit = redCreditLimits[payer];
+        if (userLimit > 0) {
+            require(currentRedBalance + (amountBlue + (amountBlue * commissionRate) / 100) <= userLimit, 
+                "WintonProtocol: Amount exceeds user RED commitment limit");
+        }
 
         // --- BLOQUE DE CÁLCULO ECONÓMICO ---
 
