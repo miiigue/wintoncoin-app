@@ -6232,6 +6232,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    window.addEventListener('click', (event) => {
+        if (elements.sosVictimDetailModal && event.target === elements.sosVictimDetailModal) {
+            elements.sosVictimDetailModal.style.display = 'none';
+        }
+        if (elements.sosVictimDisburseModal && event.target === elements.sosVictimDisburseModal) {
+            elements.sosVictimDisburseModal.style.display = 'none';
+        }
+        if (elements.sosEmailTemplatesModal && event.target === elements.sosEmailTemplatesModal) {
+            elements.sosEmailTemplatesModal.style.display = 'none';
+        }
+    });
+
     if (elements.sosDisburseForm) {
         elements.sosDisburseForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -6367,7 +6379,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (url.startsWith('http')) {
                         return `<a href="${escapeHtml(url)}" target="_blank" style="display: inline-block; background: rgba(236,72,153,0.15); color: #f472b6; padding: 6px 12px; border-radius: 6px; text-decoration: none; margin: 4px;">🔗 Enlace Externo / Google Fotos ↗</a>`;
                     }
-                    return `<a href="${escapeHtml(url)}" target="_blank"><img src="${escapeHtml(url)}" style="width: 90px; height: 90px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); margin: 4px;"></a>`;
+                    const fullUrl = url.startsWith('/') ? `${API_URL}${url}` : `${API_URL}/${url}`;
+                    return `<a href="${escapeHtml(fullUrl)}" target="_blank"><img src="${escapeHtml(fullUrl)}" style="width: 90px; height: 90px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); margin: 4px;"></a>`;
                 }).join('');
             } else {
                 evidenceHtml = '<p style="color: #94a3b8; font-size: 0.9rem;">Sin imágenes adjuntas.</p>';
