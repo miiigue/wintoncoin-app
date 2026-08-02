@@ -214,6 +214,22 @@
         }
 
         .back-link:hover { color: white; }
+
+        /* Estilos del mensaje de ayuda/tooltip de validación */
+        .form-helper {
+            display: block;
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            color: #94A3B8;
+            line-height: 1.4;
+            transition: color 0.3s ease;
+        }
+        .form-helper.valid {
+            color: #4ADE80;
+        }
+        .form-helper.invalid {
+            color: #F87171;
+        }
     </style>
 </head>
 
@@ -252,7 +268,9 @@
 
             <div class="form-group">
                 <label for="linkedin_url">Enlace LinkedIn (Opcional)</label>
-                <input type="url" id="linkedin_url" name="linkedin_url" placeholder="https://linkedin.com/in/tuperfil">
+                <!-- Usamos type="text" en lugar de type="url" para evitar que el navegador bloquee la validación nativa y permitir nuestra autocompletación inteligente -->
+                <input type="text" id="linkedin_url" name="linkedin_url" placeholder="linkedin.com/in/tuperfil">
+                <span class="form-helper" id="linkedinHelper">El enlace debe ser seguro (https://). Si no lo incluyes, se agregará automáticamente.</span>
             </div>
 
             <div class="form-group">
@@ -355,9 +373,86 @@
             }
         }
 
+        // Elementos de LinkedIn para validación interactiva
+        const linkedinInput = document.getElementById('linkedin_url');
+        const linkedinHelper = document.getElementById('linkedinHelper');
+
+        // Formatea y valida el enlace de LinkedIn
+        function formatAndValidateLinkedinUrl() {
+            if (!linkedinInput || !linkedinHelper) return true; // Guardia de seguridad (fail-safe)
+
+            let val = linkedinInput.value.trim();
+            if (!val) {
+                // Si está vacío, es opcional. Limpiamos cualquier estilo de error
+                linkedinHelper.textContent = 'El enlace debe ser seguro (https://). Si no lo incluyes, se agregará automáticamente.';
+                linkedinHelper.className = 'form-helper';
+                return true;
+            }
+
+            // Si empieza con http://, forzamos https:// (estándar de seguridad de la industria)
+            if (val.toLowerCase().startsWith('http://')) {
+                val = 'https://' + val.substring(7);
+            }
+
+            // Si no tiene esquema HTTP/HTTPS, lo añadimos de forma inteligente
+            if (!/^https?:\/\//i.test(val)) {
+                val = 'https://' + val;
+            }
+
+            try {
+                // Utilizamos el objeto URL nativo para evitar vulnerabilidades de validación (Regex Bypass)
+                const parsedUrl = new URL(val);
+                
+                // Forzamos que siempre sea HTTPS
+                if (parsedUrl.protocol !== 'https:') {
+                    parsedUrl.protocol = 'https:';
+                }
+
+                const hostname = parsedUrl.hostname.toLowerCase();
+                
+                // Validación estricta del dominio para evitar ataques tipo https://malicious.com/?redirect=linkedin.com
+                if (hostname === 'linkedin.com' || hostname.endsWith('.linkedin.com')) {
+                    linkedinInput.value = parsedUrl.toString();
+                    linkedinHelper.textContent = '✅ Enlace de LinkedIn verificado de forma segura.';
+                    linkedinHelper.className = 'form-helper valid';
+                    return true;
+                } else {
+                    linkedinHelper.textContent = '❌ Por seguridad, el dominio debe ser estrictamente linkedin.com.';
+                    linkedinHelper.className = 'form-helper invalid';
+                    return false;
+                }
+            } catch (error) {
+                // Si el objeto URL lanza error, es una URL sintácticamente inválida
+                linkedinHelper.textContent = '❌ El formato del enlace proporcionado no es válido.';
+                linkedinHelper.className = 'form-helper invalid';
+                return false;
+            }
+        }
+
+        // Registrar manejadores de eventos si los elementos existen (Null-Safety)
+        if (linkedinInput && linkedinHelper) {
+            // Formatear al salir del input (on blur) para máxima fluidez y retroalimentación
+            linkedinInput.addEventListener('blur', formatAndValidateLinkedinUrl);
+
+            // Previene la escritura directa de http:// transformándola inmediatamente en https://
+            linkedinInput.addEventListener('input', () => {
+                const val = linkedinInput.value.trim();
+                if (val.toLowerCase().startsWith('http://')) {
+                    linkedinInput.value = 'https://' + val.substring(7);
+                }
+            });
+        }
+
         // Envío del formulario
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            // Validamos e integramos el formato final antes del envío
+            const isLinkedinValid = formatAndValidateLinkedinUrl();
+            if (!isLinkedinValid) {
+                if (linkedinInput) linkedinInput.focus();
+                return;
+            }
             
             submitBtn.disabled = true;
             submitBtn.innerText = 'Enviando...';
