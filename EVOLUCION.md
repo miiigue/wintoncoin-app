@@ -13,6 +13,22 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: quÃƒÂ© problema resolviÃƒÂ³ y quÃƒÂ© habilita hacia adelante.
 
+### 2026-08-03 — Resolución de Self-Inflicted DoS en Conexiones Inactivas (Alta Disponibilidad)
+* **Cambio**:
+  - **Node.js PostgreSQL Pool ([db.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/config/db.js))**:
+    - Se eliminó el comando `process.exit(-1)` del listener de eventos de error global del Pool de PostgreSQL.
+    - Se implementó un registro auditable del evento en caso de caídas de red o cierres forzados por la infraestructura cloud (`ECONNABORTED`).
+* **Evidencia**: Eliminación del Anti-Patrón que tumbaba el servidor local y en Render.
+* **Impacto**: Dota al backend de Alta Disponibilidad (High Availability - HA) y Tolerancia a Fallos (Self-Healing). Previene la interrupción total del servicio ante caídas rutinarias de conexiones inactivas administradas por Render.
+
+### 2026-08-03 — Actualización del Botón de Registro de Damnificados SOS
+* **Cambio**:
+  - **Texto de Enlace ([index.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/index.html), [sos-venezuela.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/sos-venezuela.html))**:
+    - Se actualizó el título del botón de registro de la campaña SOS para las personas afectadas por el terremoto.
+    - Se cambió el texto de "Soy una persona afectada, quiero registrarme" por "¿Fuiste afectado? Regístrate" para un tono más directo, claro y orientado a conversión (CTA).
+* **Evidencia**: Compilación de Vite exitosa.
+* **Impacto**: Optimiza el CTR y la experiencia de usuario (UX) simplificando el texto en dispositivos móviles sin desbordar el botón de la cabecera.
+
 ### 2026-08-03 — Rediseño del Modal "Aviso Importante" (Alineación Estética de Intersticiales)
 * **Cambio**:
   - **Estructura HTML & Estilos ([register.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/register.html), [login.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/login.html), [style.css](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/style.css))**:

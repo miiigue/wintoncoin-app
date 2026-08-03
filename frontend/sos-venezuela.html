@@ -95,7 +95,8 @@
                 </p>
                 <div class="sos-cta-group" style="display: flex; gap: 1.25rem; justify-content: center; flex-wrap: wrap; align-items: center;">
                     <a href="register.html?ref=SOSVENEZUELA" class="btn-primary-campaign">Registrarse y Apoyar Causa</a>
-                    <a href="#registro-damnificados" class="btn-primary-campaign">Soy una persona afectada, quiero registrarme</a>
+                    <a href="#registro-damnificados" class="btn-primary-campaign">¿Fuiste afectado? Regístrate</a>
+                    <a href="#voluntariado" class="btn-primary-campaign">Quiero ser voluntario</a>
                 </div>
             </div>
         </div>
@@ -106,7 +107,6 @@
         <div class="container">
             <div class="compliance-box vzla-flag-bg" style="text-align: center;">
                 <div class="compliance-header" style="margin-bottom: 0;">
-                    <div class="shield-icon">❤️</div>
                     <h2 style="font-size: clamp(1.8rem, 4vw, 2.3rem); font-weight: 800; color: #0f172a; margin-bottom: 1rem; font-family: 'Outfit', sans-serif;">Nuestro Compromiso: Cero Margen de Lucro</h2>
                     <p style="color: #334155; font-size: clamp(1.05rem, 2.2vw, 1.2rem); font-weight: 500; max-width: 800px; margin: 0 auto; line-height: 1.6;">
                         WintonCoin es una plataforma comercial sustentada por comisiones de red. Sin embargo, ante la gravedad de la catástrofe en Venezuela, WintonCoin <strong>destinará la totalidad de las ganancias (comisiones) en tokens BLUE a la reconstrucción y ayuda humanitaria</strong> de las víctimas del terremoto.
@@ -121,7 +121,6 @@
         <div class="container">
             <div class="compliance-box vzla-flag-bg" style="background: #ffffff !important; color: #0f172a; padding: 2.5rem; border-radius: 24px; border: 1px solid rgba(219, 39, 119, 0.25); box-shadow: 0 15px 45px rgba(0,0,0,0.06);">
                 <div style="text-align: center; margin-bottom: 2rem;">
-                    <span style="font-size: 2.5rem; display: block; margin-bottom: 0.5rem;">🚨</span>
                     <h2 style="font-size: clamp(1.8rem, 4vw, 2.3rem); font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif; margin-bottom: 0.5rem;">
                         Censo y Registro de Asistencia para Damnificados
                     </h2>
@@ -265,7 +264,7 @@
                 <div id="sos-victim-feedback" style="display: none;"></div>
 
                 <button type="submit" class="btn-primary-campaign" style="width: 100%; padding: 16px; font-size: 1.15rem; font-weight: 600; margin-top: 1rem; border-radius: 50px; cursor: pointer;">
-                    Enviar Solicitud de Asistencia Humanitaria &rarr;
+                    Enviar Solicitud
                 </button>
             </form>
 
@@ -410,7 +409,7 @@
     </section>
 
     <!-- Sección de Convocatoria de Voluntarios y Difusión (Bandera de Venezuela de Fondo & Sin Íconos/Fondo Oscuro) -->
-    <section class="sos-compliance-section" style="padding-top: 1rem; padding-bottom: 3rem;">
+    <section id="voluntariado" class="sos-compliance-section" style="padding-top: 1rem; padding-bottom: 3rem;">
         <div class="container">
             <div class="compliance-box vzla-flag-bg" style="border-radius: 24px; padding: 3rem 1.8rem; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.06); text-align: center;">
 
@@ -425,26 +424,21 @@
                         <strong>No importa en qué parte del mundo te encuentres.</strong> Tu apoyo ayuda a auditar los avances y hacer llegar los beneficios directamente a las familias afectadas.
                     </p>
 
-                    <!-- Mensaje Elegante de Alianzas y Propuestas (Diseño Limpio en Píldora) -->
-                    <div style="display: inline-block; background: rgba(14, 165, 233, 0.06); border: 1px solid rgba(14, 165, 233, 0.25); border-radius: 50px; padding: 0.6rem 1.6rem; margin-bottom: 2.2rem; color: #0369a1; font-size: clamp(0.92rem, 1.8vw, 1.05rem); font-weight: 700; line-height: 1.4; text-align: center; box-shadow: 0 2px 10px rgba(14, 165, 233, 0.04);">
-                        Aún queda mucho por hacer: cualquier asociación, organización o propuesta es bienvenida para sumar esfuerzos.
-                    </div>
-
-                    <!-- Rejilla de Tarjetas Resumidas SIN ÍCONOS -->
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.2rem; margin-bottom: 2.2rem; text-align: left;">
+                    <!-- Rejilla de Tarjetas Resumidas SIN ÍCONOS con Diseño Glassmorphism -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 2.2rem; text-align: left;">
                         
                         <!-- Tarjeta 1: Voluntariado -->
-                        <div style="background: #ffffff; border: 1px solid rgba(226, 232, 240, 0.9); border-left: 5px solid #0284c7; border-radius: 18px; padding: 1.5rem 1.6rem; box-shadow: 0 4px 15px rgba(15, 23, 42, 0.04);">
-                            <h4 style="font-size: clamp(1.1rem, 2vw, 1.25rem); color: #0f172a; margin: 0 0 0.4rem; font-weight: 800;">Voluntariado Global</h4>
-                            <p style="color: #475569; font-size: clamp(0.95rem, 1.8vw, 1.05rem); line-height: 1.55; margin: 0;">
+                        <div class="volunteers-glass-card" style="background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.45); border-left: 5px solid #0284c7; border-radius: 18px; padding: 1.75rem; box-shadow: 0 8px 32px rgba(15, 23, 42, 0.05); transition: all 0.3s ease;">
+                            <h4 style="font-size: clamp(1.15rem, 2vw, 1.3rem); color: #0f2d5c; margin: 0 0 0.5rem; font-weight: 800; font-family: 'Outfit', sans-serif;">Voluntariado</h4>
+                            <p style="color: #334155; font-size: clamp(0.95rem, 1.8vw, 1.05rem); line-height: 1.6; margin: 0;">
                                 Apoya desde cualquier país en evaluación de proyectos, auditoría y logística remota.
                             </p>
                         </div>
 
                         <!-- Tarjeta 2: Difusión -->
-                        <div style="background: #ffffff; border: 1px solid rgba(226, 232, 240, 0.9); border-left: 5px solid #dc2626; border-radius: 18px; padding: 1.5rem 1.6rem; box-shadow: 0 4px 15px rgba(15, 23, 42, 0.04);">
-                            <h4 style="font-size: clamp(1.1rem, 2vw, 1.25rem); color: #0f172a; margin: 0 0 0.4rem; font-weight: 800;">Difusión Directa</h4>
-                            <p style="color: #475569; font-size: clamp(0.95rem, 1.8vw, 1.05rem); line-height: 1.55; margin: 0;">
+                        <div class="volunteers-glass-card" style="background: rgba(255, 255, 255, 0.65); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.45); border-left: 5px solid #dc2626; border-radius: 18px; padding: 1.75rem; box-shadow: 0 8px 32px rgba(15, 23, 42, 0.05); transition: all 0.3s ease;">
+                            <h4 style="font-size: clamp(1.15rem, 2vw, 1.3rem); color: #0f2d5c; margin: 0 0 0.5rem; font-weight: 800; font-family: 'Outfit', sans-serif;">Difusión</h4>
+                            <p style="color: #334155; font-size: clamp(0.95rem, 1.8vw, 1.05rem); line-height: 1.6; margin: 0;">
                                 Comparte la campaña para que las familias afectadas aprovechen y obtengan el bono por registrarse.
                             </p>
                         </div>
@@ -479,23 +473,35 @@
                     <h2>Preguntas Frecuentes de la Campaña</h2>
                     <p>Todo lo que necesitas saber para unirte y apoyar a Venezuela.</p>
                 </div>
-                <div class="compliance-grid">
-                    <div class="compliance-card">
-                        <h4>¿Tengo que pagar algo de mi dinero?</h4>
-                        <p>No, es completamente gratis. El bono de registro lo otorga la plataforma por tu compromiso.</p>
-                    </div>
-                    <div class="compliance-card">
-                        <h4>¿Cómo ayuda mi registro a la causa?</h4>
-                        <p>Al registrarte con el código, WintonCoin destina de forma automática el valor en BLUE IOU del bono a la cuenta receptora.</p>
-                    </div>
-                    <div class="compliance-card">
-                        <h4>¿Cuáles son los cupos y bonos?</h4>
-                        <p>Según los TyC, se asignan 200 BLUE IOU para los primeros 10,000 usuarios, 100 BLUE IOU para los siguientes 300,000, y 75 BLUE IOU para los siguientes 700,000 registrados.</p>
-                    </div>
-                    <div class="compliance-card">
-                        <h4>¿Cómo se convierte en ayuda real?</h4>
-                        <p>Los BLUE IOU acumulados serán canjeados por tokens BLUE y estos se usan para pagar por medicinas, vivienda y alimentos para las familias afectadas.</p>
-                    </div>
+                <div class="faq-accordion-container">
+                    <details class="faq-accordion-item">
+                        <summary><h4>¿Tengo que pagar algo para registrarme?</h4></summary>
+                        <p>No, es completamente gratis. La plataforma otorga el bono para incentivar la participación y apoyar la reconstrucción.</p>
+                    </details>
+                    <details class="faq-accordion-item">
+                        <summary><h4>¿Cómo ayudo si no fui afectado por el terremoto?</h4></summary>
+                        <p>Registrándote con el código <strong>SOSVENEZUELA</strong>. WintonCoin donará automáticamente tu bono de registro de BLUE IOU a la cuenta de la campaña para financiar la reconstrucción.</p>
+                    </details>
+                    <details class="faq-accordion-item">
+                        <summary><h4>¿Quién califica como persona afectada?</h4></summary>
+                        <p>Residentes de las zonas declaradas en emergencia que sufrieron daños materiales en sus viviendas o lesiones físicas.</p>
+                    </details>
+                    <details class="faq-accordion-item">
+                        <summary><h4>¿Qué pruebas debo subir si soy afectado?</h4></summary>
+                        <p>Necesitas subir fotos claras de los daños, tu documento de identidad y cualquier otro documento verificable que permita a los validadores constatar tu situación real.</p>
+                    </details>
+                    <details class="faq-accordion-item">
+                        <summary><h4>¿Cuál es el rol de los voluntarios?</h4></summary>
+                        <p>Verifican físicamente los reportes en el terreno y asisten a personas sin internet, asegurando que la ayuda llegue a quienes la necesitan.</p>
+                    </details>
+                    <details class="faq-accordion-item">
+                        <summary><h4>¿Reciben los voluntarios alguna compensación?</h4></summary>
+                        <p>El voluntariado es humanitario, pero la plataforma otorga incentivos en BLUE IOU como reconocimiento al trabajo de campo realizado.</p>
+                    </details>
+                    <details class="faq-accordion-item">
+                        <summary><h4>¿Cómo se protege mi privacidad?</h4></summary>
+                        <p>Tus datos sensibles están cifrados bajo cumplimiento SOC 2 y solo se usan estrictamente para auditar y entregar la ayuda económica.</p>
+                    </details>
                 </div>
                 <div class="compliance-footer" style="text-align: center; margin-top: 3.5rem;">
                     <a href="legales-campana.html" class="btn-secondary-campaign" style="font-size: 0.95rem; padding: 1rem 2.5rem; border-color: rgba(14, 165, 233, 0.25);">Términos y Cumplimiento Legal de la Campaña</a>
