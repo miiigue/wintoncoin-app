@@ -73,10 +73,11 @@ function initializeProfilePage() {
         renderRatings(data.ratings);
         
         // 3. REGLA DE SEGURIDAD ZERO-TRUST:
-        // Solo consultar y renderizar el expediente SOS si el usuario autenticado está viendo su PROPIO perfil.
-        // Esto evita que terceros inspeccionen la cédula, teléfono o dirección física de otros usuarios.
+        // Solo consultar y renderizar el expediente SOS y Controles Parentales si el usuario autenticado está viendo su PROPIO perfil.
         if (sessionUsername && sessionUsername === data.user.username) {
             fetchMySosCase(data.user.username);
+            fetchPendingTutorRequests();
+            fetchTutorChildrenControls();
         }
     }
 
@@ -331,6 +332,264 @@ function initializeProfilePage() {
             <span class="stars" title="${avgRating} de 5 estrellas">${stars}</span> 
             <span class="rating-summary"><strong>${avgRating}</strong> de 5 (${count} calificaciones)</span>
         `;
+    }
+
+    // -------------------------------------------------------------------------
+    // RENDERIZADO Y LÓGICA DE SOLICITUDES DE TUTELA PENDIENTES (MAKER-CHECKER)
+    // -------------------------------------------------------------------------
+    async function fetchPendingTutorRequests() {
+        const container = document.getElementById('tutor-pending-requests-section');
+        if (!container) return;
+
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        try {
+            const res = await fetch(`${API_URL}/api/minor/tutor-requests/pending`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) return;
+
+            const data = await res.json();
+            if (!data.pending_requests || data.pending_requests.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="tutor-pending-card" style="background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%); border: 1px solid #bfdbfe; border-radius: 12px; padding: 18px; margin-bottom: 1.5rem; text-align: left;">
+                    <h3 style="margin: 0 0 12px 0; color: #1e40af; font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">
+                        <span>⚖️ Solicitudes de Tutela Legal Pendientes</span>
+                        <span style="background: #2563eb; color: #fff; font-size: 0.75rem; padding: 2px 8px; border-radius: 999px;">${data.pending_requests.length}</span>
+                    </h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        ${data.pending_requests.map(r => `
+                            <div style="background: #ffffff; padding: 12px; border-radius: 8px; border: 1px solid #dbeafe; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px;">
+                                <div>
+                                    <strong style="color: #0f172a; font-size: 1rem;">@${escapeHtml(r.minor_username)}</strong>
+                                    <span style="color: #64748b; font-size: 0.85rem; margin-left: 6px;">(${escapeHtml(r.minor_email || '')})</span>
+                                    <div style="font-size: 0.8rem; color: #475569; margin-top: 2px;">Solicitado el: ${escapeHtml(new Date(r.created_at).toLocaleDateString())}</div>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn-tutor-approve" data-id="${r.request_id}" data-username="${escapeHtml(r.minor_username)}" style="background: #059669; color: #fff; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer;">Aprobar Tutela</button>
+                                    <button class="btn-tutor-reject" data-id="${r.request_id}" data-username="${escapeHtml(r.minor_username)}" style="background: #dc2626; color: #fff; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer;">Rechazar</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            // Event Listeners para modal legal de aprobación y botón de rechazo
+            container.querySelectorAll('.btn-tutor-approve').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    openLegalApprovalModal(this.dataset.id, this.dataset.username);
+                });
+            });
+
+            container.querySelectorAll('.btn-tutor-reject').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    respondTutorRequest(this.dataset.id, 'reject', false);
+                });
+            });
+
+        } catch (err) {
+            console.error('Error al cargar solicitudes de tutela:', err);
+        }
+    }
+
+    // Modal de Aprobación Legal
+    let currentPendingRequestId = null;
+    function openLegalApprovalModal(requestId, minorUsername) {
+        currentPendingRequestId = requestId;
+        const modal = document.getElementById('tutorLegalApprovalModal');
+        const chk = document.getElementById('chkAcceptTutorTerms');
+        const btnApprove = document.getElementById('btnConfirmTutorApprove');
+        if (!modal) return;
+
+        chk.checked = false;
+        btnApprove.disabled = true;
+        modal.style.display = 'flex';
+
+        chk.onchange = function() {
+            btnApprove.disabled = !this.checked;
+        };
+
+        document.getElementById('closeTutorLegalModal').onclick = () => modal.style.display = 'none';
+        document.getElementById('btnCancelTutorApprove').onclick = () => modal.style.display = 'none';
+
+        btnApprove.onclick = function() {
+            modal.style.display = 'none';
+            respondTutorRequest(currentPendingRequestId, 'approve', true);
+        };
+    }
+
+    async function respondTutorRequest(requestId, action, termsAccepted) {
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`${API_URL}/api/minor/tutor-requests/${requestId}/respond`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ action, termsAccepted })
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                showCustomAlert(data.message || 'Error al procesar respuesta.');
+                return;
+            }
+            showCustomAlert(data.message);
+            fetchPendingTutorRequests();
+            fetchTutorChildrenControls();
+        } catch (err) {
+            console.error('Error al responder tutela:', err);
+            showCustomAlert('Error de red al procesar la respuesta.');
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // CONTROLES PARENTALES DE MENORES A CARGO (TUTOR DASHBOARD)
+    // -------------------------------------------------------------------------
+    async function fetchTutorChildrenControls() {
+        const container = document.getElementById('tutor-parental-controls-section');
+        if (!container) return;
+
+        const token = localStorage.getItem('token');
+        if (!token) return;
+
+        try {
+            const res = await fetch(`${API_URL}/api/minor/children`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) return;
+
+            const data = await res.json();
+            if (!data.children || data.children.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="tutor-children-card" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 1.5rem; text-align: left;">
+                    <h3 style="margin: 0 0 16px 0; color: #0f172a; font-size: 1.2rem; display: flex; align-items: center; justify-content: space-between;">
+                        <span>👨‍👩‍👧‍👦 Controles Parentales (Menores a Cargo)</span>
+                        <span style="font-size: 0.85rem; color: #64748b; font-weight: normal;">${data.children.length} menor(es) vinculado(s)</span>
+                    </h3>
+
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                        ${data.children.map(child => {
+                            const isSuspended = child.is_suspended_by_tutor;
+                            const perms = typeof child.tutor_permissions === 'string'
+                                ? JSON.parse(child.tutor_permissions)
+                                : (child.tutor_permissions || {});
+
+                            return `
+                                <div style="background: ${isSuspended ? '#fef2f2' : '#f8fafc'}; border: 1px solid ${isSuspended ? '#fecdd3' : '#e2e8f0'}; border-radius: 10px; padding: 16px;">
+                                    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 1px solid #cbd5e1; padding-bottom: 10px; margin-bottom: 12px;">
+                                        <div>
+                                            <strong style="font-size: 1.1rem; color: #0f172a;">@${escapeHtml(child.username)}</strong>
+                                            <span style="margin-left: 8px; font-size: 0.8rem; padding: 2px 8px; border-radius: 999px; font-weight: 600; background: ${isSuspended ? '#fee2e2; color: #991b1b;' : '#dcfce7; color: #166534;'};">
+                                                ${isSuspended ? '⏸️ Cuenta Pausada' : '✅ Cuenta Activa'}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <button class="btn-toggle-pause" data-id="${child.id}" data-suspended="${!isSuspended}" style="background: ${isSuspended ? '#059669' : '#dc2626'}; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.85rem;">
+                                                ${isSuspended ? '▶️ Reanudar Cuenta' : '⏸️ Congelar Acceso'}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 12px;">
+                                        <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #334155;">
+                                            <input type="checkbox" class="chk-perm" data-child-id="${child.id}" data-perm="allow_contracting" ${perms.allow_contracting ? 'checked' : ''} ${isSuspended ? 'disabled' : ''}>
+                                            <span>Contratar Tareas (RED)</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #334155;">
+                                            <input type="checkbox" class="chk-perm" data-child-id="${child.id}" data-perm="allow_selling" ${perms.allow_selling ? 'checked' : ''} ${isSuspended ? 'disabled' : ''}>
+                                            <span>Publicar Ventas</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #334155;">
+                                            <input type="checkbox" class="chk-perm" data-child-id="${child.id}" data-perm="allow_donations" ${perms.allow_donations ? 'checked' : ''} ${isSuspended ? 'disabled' : ''}>
+                                            <span>Realizar Donaciones</span>
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: #334155;">
+                                            <input type="checkbox" class="chk-perm" data-child-id="${child.id}" data-perm="allow_p2p" ${perms.allow_p2p ? 'checked' : ''} ${isSuspended ? 'disabled' : ''}>
+                                            <span>Operaciones P2P</span>
+                                        </label>
+                                    </div>
+
+                                    <div style="display: flex; align-items: center; gap: 10px; background: #ffffff; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0;">
+                                        <span style="font-size: 0.85rem; color: #475569; font-weight: 600;">Límite de Deuda RED Máximo:</span>
+                                        <input type="number" class="input-max-debt" data-child-id="${child.id}" value="${parseFloat(perms.max_red_debt || 20).toFixed(2)}" step="5" min="0" max="500" style="width: 90px; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px;" ${isSuspended ? 'disabled' : ''}>
+                                        <span style="font-size: 0.85rem; color: #64748b;">RED</span>
+                                        <button class="btn-save-debt" data-child-id="${child.id}" style="background: #2563eb; color: #fff; border: none; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; cursor: pointer;" ${isSuspended ? 'disabled' : ''}>Guardar Límite</button>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+
+            // Handlers para pausar/reanudar
+            container.querySelectorAll('.btn-toggle-pause').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const childId = this.dataset.id;
+                    const isSuspended = this.dataset.suspended === 'true';
+                    updateChildControls(childId, { is_suspended_by_tutor: isSuspended });
+                });
+            });
+
+            // Handlers para cambiar permisos
+            container.querySelectorAll('.chk-perm').forEach(chk => {
+                chk.addEventListener('change', function() {
+                    const childId = this.dataset.childId;
+                    const permKey = this.dataset.perm;
+                    updateChildControls(childId, { permissions: { [permKey]: this.checked } });
+                });
+            });
+
+            // Handlers para guardar límite de deuda
+            container.querySelectorAll('.btn-save-debt').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const childId = this.dataset.childId;
+                    const input = container.querySelector(`.input-max-debt[data-child-id="${childId}"]`);
+                    const maxDebt = parseFloat(input.value);
+                    if (isNaN(maxDebt) || maxDebt < 0) {
+                        showCustomAlert('Ingresa un monto de deuda válido.');
+                        return;
+                    }
+                    updateChildControls(childId, { permissions: { max_red_debt: maxDebt } });
+                });
+            });
+
+        } catch (err) {
+            console.error('Error al cargar controles parentales:', err);
+        }
+    }
+
+    async function updateChildControls(childId, bodyData) {
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`${API_URL}/api/minor/children/${childId}/controls`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(bodyData)
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                showCustomAlert(data.message || 'Error al actualizar controles.');
+                return;
+            }
+            fetchTutorChildrenControls();
+        } catch (err) {
+            console.error('Error al actualizar controles parentales:', err);
+        }
     }
 }
 

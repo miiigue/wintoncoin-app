@@ -4232,7 +4232,7 @@ Se asienta en auditorÃƒÆ’Ã‚Â­a la remociÃƒÆ’Ã‚Â³n fÃƒÆ’
   - **Advertencia contra Estafas Centrada (`sos-venezuela.html`)**: Para mejorar la estÃƒÂ©tica y simetrÃƒÂ­a, reubicamos el aviso contra estafas (que alerta sobre no recibir dinero fiat ni criptos) en la zona media, entre el Compromiso Solidario y el Timeline, dÃƒÂ¡ndole un fondo blanco puro con sombra flotante y un borde rojo carmesÃƒÂ­ delgado.
   - **Timeline con TÃƒÂ­tulos de Una Palabra (`sos-venezuela.html`)**: Se reestructurÃƒÂ³ la lÃƒÂ­nea temporal en 6 pasos concretos y con tÃƒÂ­tulos de una sola palabra (**CreaciÃƒÂ³n**, **AcumulaciÃƒÂ³n**, **AuditorÃƒÂ­a**, **EvaluaciÃƒÂ³n**, **AsignaciÃƒÂ³n**, **Canje**).
   - **OptimizaciÃƒÂ³n de SimetrÃƒÂ­a y MÃƒÂ¡rgenes en MÃƒÂ³viles (`landing-fomo.css`)**: Implementamos un rediseÃƒÂ±o completo de la consulta de medios mÃƒÂ³vil (`@media (max-width: 768px)`) ajustando los rellenos de secciones (`sos-hero`, `sos-commitment-section`, `sos-timeline-section`, `sos-compliance-section`), reduciendo la separaciÃƒÂ³n de las tarjetas de lÃƒÂ­nea temporal (`padding-right: 0.5rem`) para evitar que toquen el borde derecho y ajustando las celdas del FAQ (`gap: 1.2rem`) para asegurar simetrÃƒÂ­a total en celulares.
-  - **Enlaces de Redes del Footer (`sos-venezuela.html` & `legales-campana.html`)**: Se incorporÃƒÂ³ el botÃƒÂ³n oficial de Instagram de @CadenaSOSVenezuela en el footer, posicionado al lado de Twitter/X.
+- **Enlaces de Redes del Footer (`sos-venezuela.html` & `legales-campana.html`)**: Se incorporÃƒÂ³ el botÃƒÂ³n oficial de Instagram de @CadenaSOSVenezuela en el footer, posicionado al lado de Twitter/X.
   - **Sub-PÃƒÂ¡gina Legal de CampaÃƒÂ±a (`legales-campana.html` & `vite.config.js`)**: Se creÃƒÂ³ una sub-pÃƒÂ¡gina formal para exenciones de responsabilidad civil y fiscal enfocada en Venezuela y se registrÃƒÂ³ como entrypoint en la configuraciÃƒÂ³n de Vite, enlazÃƒÂ¡ndola mediante un botÃƒÂ³n secundario al pie de las preguntas frecuentes.
 - **Impacto**:
   - **Visual de Alta Fidelidad**: El scroll sobre la bandera de fondo fijo con capas claras superpuestas crea un efecto visual inmersivo premium.
@@ -4240,7 +4240,7 @@ Se asienta en auditorÃƒÆ’Ã‚Â­a la remociÃƒÆ’Ã‚Â³n fÃƒÆ’
   - **Seguridad JurÃƒÂ­dica**: La sub-pÃƒÂ¡gina legal de tÃƒÂ©rminos salvaguarda a WTN Solutions LLC ante reclamos de valores (Securities), transmisiÃƒÂ³n financiera o falsas deducciones impositivas locales.
 - **Evidencia**: Archivos creados/modificados: `frontend/sos-venezuela.html`, `frontend/legales-campana.html`, `frontend/landing-fomo.css`, `frontend/vite.config.js`, `frontend/index.html`, `EVOLUCION.md`.
 
-### 2026-07-10 Ã¢â‚¬â€� Consistencia de TÃƒÂ©rminos y PrecisiÃƒÂ³n de BLUE IOU en Portal Humanitario
+### 2026-07-10 Ã¢â‚¬â€ Consistencia de TÃƒÂ©rminos y PrecisiÃƒÂ³n de BLUE IOU en Portal Humanitario
 
 - **Contexto**: Para mejorar la coherencia de cara al usuario final y evitar confusiones, se requerÃƒÂ­a utilizar de forma uniforme el nombre comercial "WintonCoin" en el Compromiso Solidario y precisar de forma explÃƒÂ­cita el alcance de los tokens "BLUE IOU" en las etapas del timeline y la distribuciÃƒÂ³n del FAQ.
 - **DecisiÃƒÂ³n de IngenierÃƒÂ­a**:

@@ -24,11 +24,42 @@
         <!-- Sección 'Mi caso' para Expediente SOS Venezuela -->
         <div id="sos-my-case-section"></div>
 
+        <!-- Sección de Solicitudes de Tutela Pendientes (Maker-Checker) -->
+        <div id="tutor-pending-requests-section"></div>
+
+        <!-- Sección de Controles Parentales FinTech para Tutores Legalmente Aprobados -->
+        <div id="tutor-parental-controls-section"></div>
+
         <div class="profile-section">
             <h2>Calificaciones y Comentarios</h2>
             <div id="ratings-list" class="ratings-list">
                 <!-- Las calificaciones se cargarán aquí -->
                 <p class="loading-text">Cargando calificaciones...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Aprobación Legal de Tutela (Maker-Checker) -->
+    <div id="tutorLegalApprovalModal" class="modal" style="display: none;">
+        <div class="modal-content legal-modal-content">
+            <span class="close-button" id="closeTutorLegalModal">&times;</span>
+            <h2 class="modal-title">⚖️ Acuerdo de Tutela Legal y Responsabilidad Financiera</h2>
+            <div class="legal-terms-scroll">
+                <p>Al aceptar esta solicitud de tutela, usted declara y acuerda formalmente bajo las leyes vigentes de servicios financieros:</p>
+                <ul>
+                    <li>Asumir la responsabilidad legal y financiera de las obligaciones y deudas RED que el menor genere en la plataforma WintonCoin.</li>
+                    <li>Garantizar el cumplimiento de las políticas de uso y normativas de convivencia.</li>
+                    <li>Utilizar las herramientas de Control Parental para supervisar o pausar el acceso del menor en caso de requerirse.</li>
+                </ul>
+                <p class="legal-signature-notice">Su aprobación será registrada con la versión de términos <strong>v1.0-legal-tutor</strong>, sello de tiempo e dirección IP por motivos de auditoría SOC 2.</p>
+            </div>
+            <div class="legal-checkbox-row">
+                <input type="checkbox" id="chkAcceptTutorTerms">
+                <label for="chkAcceptTutorTerms">Declaro que soy mayor de edad y acepto formalmente asumir la tutela legal y financiera.</label>
+            </div>
+            <div class="modal-actions-row">
+                <button id="btnConfirmTutorApprove" class="btn-action btn-success" disabled>Aprobar y Activar Cuenta</button>
+                <button id="btnCancelTutorApprove" class="btn-action btn-secondary">Cancelar</button>
             </div>
         </div>
     </div>
