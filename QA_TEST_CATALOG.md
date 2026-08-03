@@ -233,3 +233,17 @@ PASOS:
 6. Confirma que el botón esté deshabilitado visualmente (opacidad reducida) y que no responda a clics del cursor (no se abre el formulario de asignación).
 7. Selecciona un expediente en estado "Aprobado" y confirma que el botón "Asignar Ayuda" para esta fila sí esté habilitado y permita abrir el formulario al hacer clic.
 ```
+
+---
+
+```text
+TITULO: QA-19 - Navegación e Integración Visual de la Sección de Talentos (Careers)
+DESCRIPCION: Esta prueba comprueba la correcta visualización de la sección de Reclutamiento (Talento & Innovación) colocada en la página principal, asegurando que se muestren los beneficios de compensación y las vacantes técnicas, y que el botón de postulación redirija correctamente al formulario de talentos.
+PASOS:
+2. Ingresa a la página principal de WintonCoin (index.html) desde tu navegador.
+3. Baja por el contenido de la landing page hasta pasar la sección de "Seguridad e Integridad".
+4. Confirma que visualizas una sección premium titulada "Talento & Innovación" con un fondo degradado azul sutil.
+5. Verifica que se muestren las tres tarjetas de beneficios (Compensación Elite, Retos Web3 E2E y Cultura de Impacto).
+6. Confirma que la sección liste las vacantes técnicas destacadas ("Senior Solidity / Rust Engineer" y "Full-Stack Web3 Developer") y que tengan su insignia verde de "Remoto".
+7. Toca el botón "Ver Vacantes y Postularse ↗" y confirma que el navegador abra limpiamente la pantalla del formulario de postulación (trabaja-con-nosotros.html).
+```

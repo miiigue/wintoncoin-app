@@ -13,6 +13,18 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: quÃƒÂ© problema resolviÃƒÂ³ y quÃƒÂ© habilita hacia adelante.
 
+### 2026-08-03 — Integración de Sección de Reclutamiento (Careers) en Landing Page
+* **Cambio**:
+  - **Inyección Visual & HTML ([index.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/index.html))**:
+    - Se incorporó la sección `careers-landing-section` (Talento & Innovación) de forma estratégica justo después de la sección de Seguridad e Integridad y antes del Marketplace, alineándose con las tendencias de las principales fintechs de la industria (Stripe, Coinbase).
+  - **Estilos Premium Adaptables ([style.css](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/style.css))**:
+    - Se agregaron las reglas CSS con degradados en HSL, bordes semitransparentes en hover (efecto de brillo glassmorphism), y un botón de acción premium de alto impacto para postularse.
+    - Se aseguró la adaptabilidad en dispositivos móviles mediante media queries dedicadas.
+  - **Misión de Pruebas**:
+    - Se registró la misión `QA-19` en el catálogo de pruebas manuales para auditar visualmente el flujo de talentos.
+* **Evidencia**: Compilación de Vite limpia y exitosa para producción y demo.
+* **Impacto**: Aumenta la conversión orgánica de candidatos técnicos y comerciales de primer nivel, mejorando la imagen institucional del proyecto con una sección de carreras integrada en la narrativa central de la landing page.
+
 ### 2026-08-02 — Bitácora de Eventos, Historial SOS y Notificaciones In-App
 * **Cambio**:
   - **Base de Datos & Migración ([101_create_disaster_victim_history.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/101_create_disaster_victim_history.js))**:
