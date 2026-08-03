@@ -3370,3 +3370,91 @@ footer {
         max-width: 100%; /* Sin límites de ancho en móvil */
     }
 }
+
+
+/* ==========================================================================
+   SECCIÓN TALENTO & RECLUTAMIENTO (CAREERS) - PREMIUM STYLING
+   ========================================================================== */
+.careers-landing-section {
+    padding: 100px 0;
+    background: radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.08) 0%, rgba(5, 5, 10, 0) 75%), #030308;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    position: relative;
+    overflow: hidden;
+}
+
+.careers-landing-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.25), transparent);
+}
+
+.section-header-center {
+    text-align: center;
+    max-width: 750px;
+    margin: 0 auto 35px auto;
+}
+
+.section-header-center h2 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2.8rem;
+    color: #fff;
+    margin: 0 0 20px 0;
+    line-height: 1.15;
+    background: linear-gradient(135deg, #ffffff 40%, #94a3b8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+}
+
+.section-header-center p {
+    color: #94a3b8;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* BOTÓN PREMIUM ACCIÓN */
+.careers-action-center {
+    text-align: center;
+}
+
+.btn-careers-premium {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: #fff;
+    padding: 16px 38px;
+    border-radius: 14px;
+    font-weight: 600;
+    font-size: 1rem;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    box-shadow: 0 10px 30px rgba(37, 99, 235, 0.2);
+    letter-spacing: 0.02em;
+}
+
+.btn-careers-premium:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 35px rgba(37, 99, 235, 0.35), 0 0 20px rgba(96, 165, 250, 0.15);
+    border-color: rgba(96, 165, 250, 0.5);
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.btn-careers-premium:active {
+    transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+    .section-header-center h2 {
+        font-size: 2.2rem;
+    }
+    .careers-landing-section {
+        padding: 60px 0;
+    }
+}

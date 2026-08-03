@@ -13,6 +13,51 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: quÃƒÂ© problema resolviÃƒÂ³ y quÃƒÂ© habilita hacia adelante.
 
+### 2026-08-03 — Simplificación del Título del Censo SOS Venezuela
+* **Cambio**:
+  - **Estructura HTML ([sos-venezuela.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/sos-venezuela.html))**:
+    - Se actualizó el título de la cabecera del censo de damnificados para remover la palabra "Registro".
+    - El título pasó de "Censo y Registro de Asistencia para Damnificados" a "Censo para Asistencia a Damnificados".
+* **Evidencia**: Compilación de Vite limpia y exitosa.
+* **Impacto**: Unifica la semántica del flujo evitando confusiones lingüísticas con el registro general de usuarios.
+
+### 2026-08-03 — Resolución de Self-Inflicted DoS en Conexiones Inactivas (Alta Disponibilidad)
+* **Cambio**:
+  - **Node.js PostgreSQL Pool ([db.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/config/db.js))**:
+    - Se eliminó el comando `process.exit(-1)` del listener de eventos de error global del Pool de PostgreSQL.
+    - Se implementó un registro auditable del evento en caso de caídas de red o cierres forzados por la infraestructura cloud (`ECONNABORTED`).
+* **Evidencia**: Eliminación del Anti-Patrón que tumbaba el servidor local y en Render.
+* **Impacto**: Dota al backend de Alta Disponibilidad (High Availability - HA) y Tolerancia a Fallos (Self-Healing). Previene la interrupción total del servicio ante caídas rutinarias de conexiones inactivas administradas por Render.
+
+### 2026-08-03 — Actualización del Botón de Registro de Damnificados SOS
+* **Cambio**:
+  - **Texto de Enlace ([index.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/index.html), [sos-venezuela.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/sos-venezuela.html))**:
+    - Se actualizó el título del botón de registro de la campaña SOS para las personas afectadas por el terremoto.
+    - Se cambió el texto de "Soy una persona afectada, quiero registrarme" por "¿Fuiste afectado? Regístrate" para un tono más directo, claro y orientado a conversión (CTA).
+* **Evidencia**: Compilación de Vite exitosa.
+* **Impacto**: Optimiza el CTR y la experiencia de usuario (UX) simplificando el texto en dispositivos móviles sin desbordar el botón de la cabecera.
+
+### 2026-08-03 — Rediseño del Modal "Aviso Importante" (Alineación Estética de Intersticiales)
+* **Cambio**:
+  - **Estructura HTML & Estilos ([register.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/register.html), [login.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/login.html), [style.css](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/style.css))**:
+    - Se rediseñó el modal de advertencia de cuenta única (`#oneAccountPolicyModal`) en las pantallas de Login y Registro para heredar exactamente la estética premium del modal de inicio "Sabías?" (intersticial global).
+    - Se implementó la tarjeta con fondo `#121926`, bordes con efectos translúcidos y sutiles brillos, el badge de la bombilla `💡`, y un botón de acción "Entendido" a todo lo ancho con tonos de azul eléctrico `#0B5FFF`.
+    - Se añadió un efecto de desenfoque de fondo (`backdrop-filter: blur(8px)`) sobre el overlay para una inmersión visual superior.
+* **Evidencia**: Compilación de Vite exitosa y validación visual completada.
+* **Impacto**: Unifica la consistencia visual y la experiencia de usuario (UI/UX) a lo largo del flujo de registro e inicio de sesión de WintonCoin.
+
+### 2026-08-03 — Integración de Sección de Reclutamiento (Careers) en Landing Page
+* **Cambio**:
+  - **Inyección Visual & HTML ([index.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/index.html))**:
+    - Se incorporó la sección `careers-landing-section` (Talento & Innovación) de forma estratégica justo después de la sección de Seguridad e Integridad y antes del Marketplace, alineándose con las tendencias de las principales fintechs de la industria (Stripe, Coinbase).
+  - **Estilos Premium Adaptables ([style.css](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/style.css))**:
+    - Se agregaron las reglas CSS con degradados en HSL, bordes semitransparentes en hover (efecto de brillo glassmorphism), y un botón de acción premium de alto impacto para postularse.
+    - Se aseguró la adaptabilidad en dispositivos móviles mediante media queries dedicadas.
+  - **Misión de Pruebas**:
+    - Se registró la misión `QA-19` en el catálogo de pruebas manuales para auditar visualmente el flujo de talentos.
+* **Evidencia**: Compilación de Vite limpia y exitosa para producción y demo.
+* **Impacto**: Aumenta la conversión orgánica de candidatos técnicos y comerciales de primer nivel, mejorando la imagen institucional del proyecto con una sección de carreras integrada en la narrativa central de la landing page.
+
 ### 2026-08-02 — Bitácora de Eventos, Historial SOS y Notificaciones In-App
 * **Cambio**:
   - **Base de Datos & Migración ([101_create_disaster_victim_history.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/101_create_disaster_victim_history.js))**:
@@ -4232,7 +4277,7 @@ Se asienta en auditorÃƒÆ’Ã‚Â­a la remociÃƒÆ’Ã‚Â³n fÃƒÆ’
   - **Advertencia contra Estafas Centrada (`sos-venezuela.html`)**: Para mejorar la estÃƒÂ©tica y simetrÃƒÂ­a, reubicamos el aviso contra estafas (que alerta sobre no recibir dinero fiat ni criptos) en la zona media, entre el Compromiso Solidario y el Timeline, dÃƒÂ¡ndole un fondo blanco puro con sombra flotante y un borde rojo carmesÃƒÂ­ delgado.
   - **Timeline con TÃƒÂ­tulos de Una Palabra (`sos-venezuela.html`)**: Se reestructurÃƒÂ³ la lÃƒÂ­nea temporal en 6 pasos concretos y con tÃƒÂ­tulos de una sola palabra (**CreaciÃƒÂ³n**, **AcumulaciÃƒÂ³n**, **AuditorÃƒÂ­a**, **EvaluaciÃƒÂ³n**, **AsignaciÃƒÂ³n**, **Canje**).
   - **OptimizaciÃƒÂ³n de SimetrÃƒÂ­a y MÃƒÂ¡rgenes en MÃƒÂ³viles (`landing-fomo.css`)**: Implementamos un rediseÃƒÂ±o completo de la consulta de medios mÃƒÂ³vil (`@media (max-width: 768px)`) ajustando los rellenos de secciones (`sos-hero`, `sos-commitment-section`, `sos-timeline-section`, `sos-compliance-section`), reduciendo la separaciÃƒÂ³n de las tarjetas de lÃƒÂ­nea temporal (`padding-right: 0.5rem`) para evitar que toquen el borde derecho y ajustando las celdas del FAQ (`gap: 1.2rem`) para asegurar simetrÃƒÂ­a total en celulares.
-  - **Enlaces de Redes del Footer (`sos-venezuela.html` & `legales-campana.html`)**: Se incorporÃƒÂ³ el botÃƒÂ³n oficial de Instagram de @CadenaSOSVenezuela en el footer, posicionado al lado de Twitter/X.
+- **Enlaces de Redes del Footer (`sos-venezuela.html` & `legales-campana.html`)**: Se incorporÃƒÂ³ el botÃƒÂ³n oficial de Instagram de @CadenaSOSVenezuela en el footer, posicionado al lado de Twitter/X.
   - **Sub-PÃƒÂ¡gina Legal de CampaÃƒÂ±a (`legales-campana.html` & `vite.config.js`)**: Se creÃƒÂ³ una sub-pÃƒÂ¡gina formal para exenciones de responsabilidad civil y fiscal enfocada en Venezuela y se registrÃƒÂ³ como entrypoint en la configuraciÃƒÂ³n de Vite, enlazÃƒÂ¡ndola mediante un botÃƒÂ³n secundario al pie de las preguntas frecuentes.
 - **Impacto**:
   - **Visual de Alta Fidelidad**: El scroll sobre la bandera de fondo fijo con capas claras superpuestas crea un efecto visual inmersivo premium.
@@ -4240,7 +4285,7 @@ Se asienta en auditorÃƒÆ’Ã‚Â­a la remociÃƒÆ’Ã‚Â³n fÃƒÆ’
   - **Seguridad JurÃƒÂ­dica**: La sub-pÃƒÂ¡gina legal de tÃƒÂ©rminos salvaguarda a WTN Solutions LLC ante reclamos de valores (Securities), transmisiÃƒÂ³n financiera o falsas deducciones impositivas locales.
 - **Evidencia**: Archivos creados/modificados: `frontend/sos-venezuela.html`, `frontend/legales-campana.html`, `frontend/landing-fomo.css`, `frontend/vite.config.js`, `frontend/index.html`, `EVOLUCION.md`.
 
-### 2026-07-10 Ã¢â‚¬â€� Consistencia de TÃƒÂ©rminos y PrecisiÃƒÂ³n de BLUE IOU en Portal Humanitario
+### 2026-07-10 Ã¢â‚¬â€ Consistencia de TÃƒÂ©rminos y PrecisiÃƒÂ³n de BLUE IOU en Portal Humanitario
 
 - **Contexto**: Para mejorar la coherencia de cara al usuario final y evitar confusiones, se requerÃƒÂ­a utilizar de forma uniforme el nombre comercial "WintonCoin" en el Compromiso Solidario y precisar de forma explÃƒÂ­cita el alcance de los tokens "BLUE IOU" en las etapas del timeline y la distribuciÃƒÂ³n del FAQ.
 - **DecisiÃƒÂ³n de IngenierÃƒÂ­a**:

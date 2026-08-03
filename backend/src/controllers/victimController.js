@@ -220,12 +220,12 @@ exports.registerVictimPublic = async (req, res) => {
                 SET verification_code_hash = EXCLUDED.verification_code_hash, expires_at = EXCLUDED.expires_at, date_of_birth = COALESCE(EXCLUDED.date_of_birth, pending_verifications.date_of_birth);
             `, [username, normEmail, hashedPassword, normPhone, verificationCodeHash, expiresAt, birth_date || null]);
 
-            // Acreditar Bono SOSVENEZUELA inicial
+            // Acreditar Bono SOSVENEZUELA inicial (con user_id obligatorio)
             await client.query(`
-                INSERT INTO blue_token_escrows (username, amount, unlock_at, is_released)
-                VALUES ($1, 200, NOW() + INTERVAL '30 days', false)
+                INSERT INTO blue_token_escrows (user_id, username, amount, unlock_at, is_released)
+                VALUES ($1, $2, 200, NOW() + INTERVAL '30 days', false)
                 ON CONFLICT DO NOTHING;
-            `, [username]);
+            `, [userId, username]);
         }
 
         // 5. Insertar Registro Temporal para obtener ID secuencial
@@ -679,11 +679,18 @@ exports.disburseVictimAidAdmin = async (req, res) => {
         `, [id, amount, period, adminId, notes || '']);
 
         // 2. Acreditar tokens BLUE al usuario en la plataforma si tiene usuario vinculado
-        if (victim.username) {
+        if (victim.user_id && victim.username) {
+            // Inserción en escrows respetando la restricción NOT NULL de user_id
             await client.query(`
-                INSERT INTO blue_token_escrows (username, amount, unlock_at, is_released)
-                VALUES ($1, $2, NOW(), true);
-            `, [victim.username, amount]);
+                INSERT INTO blue_token_escrows (user_id, username, amount, unlock_at, is_released)
+                VALUES ($1, $2, $3, NOW(), true);
+            `, [victim.user_id, victim.username, amount]);
+
+            // Acreditar transaccionalmente los tokens al saldo líquido del usuario
+            await client.query(
+                "SELECT record_balance_event($1::INTEGER, 'deposit'::TEXT, 'liquid_blue'::TEXT, $2::NUMERIC, NULL::JSONB)",
+                [victim.user_id, amount]
+            );
         }
 
         // 3. Actualizar estado a 'disbursed'

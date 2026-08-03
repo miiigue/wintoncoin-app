@@ -25,8 +25,9 @@ const pool = new Pool({
 
 // Event listener para errores del pool inesperados (evita que la app crashee)
 pool.on('error', (err, client) => {
-    console.error('Error inesperado en el cliente de PostgreSQL:', err);
-    process.exit(-1);
+    console.error('[DATABASE POOL ERROR] Conexión inactiva cerrada por el servidor remoto:', err.message);
+    // El process.exit(-1) ha sido eliminado intencionalmente. 
+    // PostgreSQL Pool se auto-recuperará creando una nueva conexión cuando sea necesario (Self-Healing).
 });
 
 module.exports = pool;

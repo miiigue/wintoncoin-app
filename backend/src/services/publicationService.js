@@ -43,12 +43,12 @@ async function updateUserBoosterLevel(client, userId) {
 }
 
 /**
- * Helper para determinar el usuario responsable de la deuda RED
- * Si es menor, la deuda se asigna al tutor; si no, al usuario mismo
+ * Helper para determinar el usuario responsable de la deuda RED por username.
+ * Valida controles parentales FinTech si el usuario es menor de edad.
  */
 async function getDebtResponsibleUser(client, username) {
     const userResult = await client.query(
-        `SELECT id, username, is_minor, tutor_user_id FROM users WHERE username = $1`,
+        `SELECT id, username, is_minor, tutor_user_id, is_suspended_by_tutor, tutor_permissions FROM users WHERE username = $1`,
         [username]
     );
 
@@ -58,7 +58,24 @@ async function getDebtResponsibleUser(client, username) {
 
     const user = userResult.rows[0];
 
-    // Si es menor y tiene tutor, la deuda es del tutor
+    // Validación de controles parentales FinTech si es menor de edad
+    if (user.is_minor) {
+        // 1. Freno de mano de emergencia: verificar si la cuenta fue congelada por el tutor
+        if (user.is_suspended_by_tutor === true) {
+            throw { status: 403, message: 'Operación denegada: Tu cuenta ha sido congelada temporalmente por tu tutor legal.' };
+        }
+
+        // 2. Permisos granulares JSONB: verificar si el tutor habilitó la contratación
+        const perms = typeof user.tutor_permissions === 'string' 
+            ? JSON.parse(user.tutor_permissions) 
+            : (user.tutor_permissions || {});
+
+        if (perms.allow_contracting === false) {
+            throw { status: 403, message: 'Operación denegada: Tu tutor legal no ha habilitado el permiso para contratar tareas.' };
+        }
+    }
+
+    // Si es menor y tiene tutor legal aprobado, la deuda se asigna al tutor
     if (user.is_minor && user.tutor_user_id) {
         const tutorResult = await client.query(
             `SELECT id, username FROM users WHERE id = $1`,
@@ -88,11 +105,11 @@ async function getDebtResponsibleUser(client, username) {
 
 /**
  * Helper para determinar el usuario responsable de la deuda RED por user_id.
- * Preferido en flujos críticos (evita errores por username).
+ * Valida controles parentales FinTech si el usuario es menor de edad.
  */
 async function getDebtResponsibleUserById(client, userId, { useTutor = true } = {}) {
     const userResult = await client.query(
-        `SELECT id, username, is_minor, tutor_user_id FROM users WHERE id = $1`,
+        `SELECT id, username, is_minor, tutor_user_id, is_suspended_by_tutor, tutor_permissions FROM users WHERE id = $1`,
         [userId]
     );
 
@@ -101,6 +118,23 @@ async function getDebtResponsibleUserById(client, userId, { useTutor = true } = 
     }
 
     const user = userResult.rows[0];
+
+    // Validación de controles parentales FinTech si es menor de edad
+    if (user.is_minor) {
+        // 1. Freno de mano de emergencia: verificar si la cuenta fue congelada por el tutor
+        if (user.is_suspended_by_tutor === true) {
+            throw { status: 403, message: 'Operación denegada: Tu cuenta ha sido congelada temporalmente por tu tutor legal.' };
+        }
+
+        // 2. Permisos granulares JSONB: verificar si el tutor habilitó la contratación
+        const perms = typeof user.tutor_permissions === 'string' 
+            ? JSON.parse(user.tutor_permissions) 
+            : (user.tutor_permissions || {});
+
+        if (perms.allow_contracting === false) {
+            throw { status: 403, message: 'Operación denegada: Tu tutor legal no ha habilitado el permiso para contratar tareas.' };
+        }
+    }
 
     // Si no usamos tutor (regla económica estricta), la deuda es del autor.
     if (!useTutor) {
@@ -208,8 +242,14 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
             throw { status: 503, message: 'El protocolo financiero está pausado por gobernanza. Las transacciones reales están suspendidas temporalmente. Intenta más tarde.' };
         }
 
-        const debtInterval = `${settings.debt_cycle_days || 30} days ${settings.debt_cycle_hours || 0} hours ${settings.debt_cycle_minutes || 0} minutes`;
-        const escrowInterval = `${settings.blue_escrow_days || 1} days ${settings.blue_escrow_hours || 0} hours ${settings.blue_escrow_minutes || 0} minutes`;
+        const debtDays = Math.max(0, parseInt(settings.debt_cycle_days, 10) || 30);
+        const debtHours = Math.max(0, parseInt(settings.debt_cycle_hours, 10) || 0);
+        const debtMins = Math.max(0, parseInt(settings.debt_cycle_minutes, 10) || 0);
+
+        const escrowDays = Math.max(0, parseInt(settings.blue_escrow_days, 10) || 1);
+        const escrowHours = Math.max(0, parseInt(settings.blue_escrow_hours, 10) || 0);
+        const escrowMins = Math.max(0, parseInt(settings.blue_escrow_minutes, 10) || 0);
+
         const commissionPercentage = parseFloat(settings.platform_commission_percentage || '0');
         const commissionAmount = cost * (commissionPercentage / 100);
         const redForAuthor = cost + commissionAmount;
@@ -254,8 +294,14 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         // Actualizar saldo RED del responsable (tutor si es menor, autor si no)
         // Usamos 'credit' para AUMENTAR el balance de deuda (RED)
         await client.query(`SELECT record_balance_event($1::INTEGER, 'credit'::TEXT, 'red'::TEXT, $2::NUMERIC, NULL::JSONB)`, [debtResponsible.user_id, redForAuthor]);
-        await client.query(`INSERT INTO red_token_debts (user_id, username, amount, due_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${debtInterval}')`, [debtResponsible.user_id, debtResponsible.username, redForAuthor]);
-        console.log('[DEBUG] processRequestPayment: Deuda RED registrada');
+        
+        // Cero SQL Injection: Parametrización segura de enteros para cálculo de intervalos
+        await client.query(
+            `INSERT INTO red_token_debts (user_id, username, amount, due_at) 
+             VALUES ($1, $2, $3, NOW() + ($4 * INTERVAL '1 day' + $5 * INTERVAL '1 hour' + $6 * INTERVAL '1 minute'))`,
+            [debtResponsible.user_id, debtResponsible.username, redForAuthor, debtDays, debtHours, debtMins]
+        );
+        console.log('[DEBUG] processRequestPayment: Deuda RED registrada de forma 100% parametrizada');
 
         // Si la deuda es del tutor (menor con tutor), notificar al tutor
         if (debtResponsible.is_tutor) {
@@ -280,8 +326,14 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
 
         // Usamos 'payment_received' para AUMENTAR el balance en escrow (BLUE)
         await client.query(`SELECT record_balance_event($1::INTEGER, 'payment_received'::TEXT, 'escrow_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`, [workerId, cost]);
-        await client.query(`INSERT INTO blue_token_escrows (user_id, username, amount, unlock_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${escrowInterval}')`, [workerId, workerUsername, cost]);
-        console.log('[DEBUG] processRequestPayment: Escrow BLUE registrado');
+        
+        // Cero SQL Injection: Parametrización segura de enteros para cálculo de intervalos de escrow
+        await client.query(
+            `INSERT INTO blue_token_escrows (user_id, username, amount, unlock_at) 
+             VALUES ($1, $2, $3, NOW() + ($4 * INTERVAL '1 day' + $5 * INTERVAL '1 hour' + $6 * INTERVAL '1 minute'))`,
+            [workerId, workerUsername, cost, escrowDays, escrowHours, escrowMins]
+        );
+        console.log('[DEBUG] processRequestPayment: Escrow BLUE registrado de forma 100% parametrizada');
 
         // Asignar comisión a la plataforma como tokens BLUE reales (cumple reglas económicas)
         const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
@@ -532,8 +584,14 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
             throw { status: 503, message: 'El protocolo financiero está pausado por gobernanza. Las transacciones reales están suspendidas temporalmente. Intenta más tarde.' };
         }
 
-        const debtInterval = `${settings.debt_cycle_days || 30} days ${settings.debt_cycle_hours || 0} hours ${settings.debt_cycle_minutes || 0} minutes`;
-        const escrowInterval = `${settings.blue_escrow_days || 1} days ${settings.blue_escrow_hours || 0} hours ${settings.blue_escrow_minutes || 0} minutes`;
+        const debtDays = Math.max(0, parseInt(settings.debt_cycle_days, 10) || 30);
+        const debtHours = Math.max(0, parseInt(settings.debt_cycle_hours, 10) || 0);
+        const debtMins = Math.max(0, parseInt(settings.debt_cycle_minutes, 10) || 0);
+
+        const escrowDays = Math.max(0, parseInt(settings.blue_escrow_days, 10) || 1);
+        const escrowHours = Math.max(0, parseInt(settings.blue_escrow_hours, 10) || 0);
+        const escrowMins = Math.max(0, parseInt(settings.blue_escrow_minutes, 10) || 0);
+
         const commissionPercentage = parseFloat(settings.platform_commission_percentage || '0');
         const commissionAmount = cost * (commissionPercentage / 100);
         const redForPayer = cost + commissionAmount;
@@ -556,7 +614,13 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         // Actualizar saldo RED del responsable (tutor si es menor, pagador si no)
         // Usamos 'credit' para AUMENTAR el balance de deuda (RED)
         await client.query(`SELECT record_balance_event($1::INTEGER, 'credit'::TEXT, 'red'::TEXT, $2::NUMERIC, NULL::JSONB)`, [debtResponsible.user_id, redForPayer]);
-        await client.query(`INSERT INTO red_token_debts (user_id, username, amount, due_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${debtInterval}')`, [debtResponsible.user_id, debtResponsible.username, redForPayer]);
+        
+        // Cero SQL Injection: Parametrización segura de enteros para cálculo de intervalos
+        await client.query(
+            `INSERT INTO red_token_debts (user_id, username, amount, due_at) 
+             VALUES ($1, $2, $3, NOW() + ($4 * INTERVAL '1 day' + $5 * INTERVAL '1 hour' + $6 * INTERVAL '1 minute'))`,
+            [debtResponsible.user_id, debtResponsible.username, redForPayer, debtDays, debtHours, debtMins]
+        );
 
         // Si la deuda es del tutor (menor con tutor), notificar al tutor
         if (debtResponsible.is_tutor) {
@@ -575,7 +639,13 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
 
         // Usamos 'payment_received' para AUMENTAR el balance en escrow (BLUE)
         await client.query(`SELECT record_balance_event($1::INTEGER, 'payment_received'::TEXT, 'escrow_blue'::TEXT, $2::NUMERIC, NULL::JSONB)`, [recipientId, cost]);
-        await client.query(`INSERT INTO blue_token_escrows (user_id, username, amount, unlock_at) VALUES ($1, $2, $3, NOW() + INTERVAL '${escrowInterval}')`, [recipientId, recipient, cost]);
+        
+        // Cero SQL Injection: Parametrización segura de enteros para cálculo de intervalos de escrow
+        await client.query(
+            `INSERT INTO blue_token_escrows (user_id, username, amount, unlock_at) 
+             VALUES ($1, $2, $3, NOW() + ($4 * INTERVAL '1 day' + $5 * INTERVAL '1 hour' + $6 * INTERVAL '1 minute'))`,
+            [recipientId, recipient, cost, escrowDays, escrowHours, escrowMins]
+        );
 
         // Asignar comisión a la plataforma como tokens BLUE reales (cumple reglas económicas)
         const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';

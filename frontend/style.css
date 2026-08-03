@@ -3603,41 +3603,76 @@ body.love-page {
     margin-top: 1rem;
 }
 
-/* --- Estilos para el Modal de Política de Cuenta Única (NUEVO) --- */
+/* --- Estilos para el Modal de Política de Cuenta Única (Alineado con Interstitial) --- */
+.policy-modal {
+    backdrop-filter: blur(8px) !important;
+    background-color: rgba(0, 0, 0, 0.8) !important;
+}
+
 .policy-modal .modal-content {
-    border-left: 5px solid #f39c12;
-    /* Un borde naranja para indicar advertencia/información */
-    padding: 2rem;
-    text-align: center;
+    background: #121926 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 24px !important;
+    padding: 32px !important;
+    max-width: 450px !important;
+    text-align: center !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+    border-left: none !important;
+}
+
+.policy-modal .close-button {
+    display: none !important;
 }
 
 .policy-modal h3 {
-    margin-top: 0;
-    margin-bottom: 1rem;
-    color: #f39c12;
-    /* Naranja */
-    font-size: 1.4rem;
+    color: #fff !important;
+    margin: 16px 0 8px 0 !important;
+    font-size: 24px !important;
+    font-weight: 800 !important;
+    font-family: 'Inter', sans-serif !important;
 }
 
 .policy-modal p {
-    margin-bottom: 1.5rem;
-    font-size: 1.1rem;
-    line-height: 1.6;
-    color: var(--text-color);
+    color: #94a3b8 !important;
+    font-size: 16px !important;
+    line-height: 1.6 !important;
+    margin-bottom: 32px !important;
 }
 
 .policy-modal .action-button {
-    width: auto;
-    padding: 10px 30px;
-    margin-top: 1rem;
-    background-color: #f39c12;
-    /* Botón naranja */
-    color: #111;
-    /* Texto oscuro para contraste */
+    width: 100% !important;
+    padding: 16px !important;
+    background: #0B5FFF !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 14px !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    margin-top: 0 !important;
 }
 
 .policy-modal .action-button:hover {
-    background-color: #e68e0b;
+    background: #004ecc !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 10px 15px -3px rgba(11, 95, 255, 0.4) !important;
+}
+
+/* Círculo e Icono del Modal */
+.policy-icon-circle {
+    width: 64px;
+    height: 64px;
+    background: rgba(11, 95, 255, 0.15);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+
+.policy-icon {
+    font-size: 32px;
 }
 
 
