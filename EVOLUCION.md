@@ -13,6 +13,15 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: quÃƒÂ© problema resolviÃƒÂ³ y quÃƒÂ© habilita hacia adelante.
 
+### 2026-08-03 — Rediseño del Modal "Aviso Importante" (Alineación Estética de Intersticiales)
+* **Cambio**:
+  - **Estructura HTML & Estilos ([register.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/register.html), [login.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/login.html), [style.css](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/style.css))**:
+    - Se rediseñó el modal de advertencia de cuenta única (`#oneAccountPolicyModal`) en las pantallas de Login y Registro para heredar exactamente la estética premium del modal de inicio "Sabías?" (intersticial global).
+    - Se implementó la tarjeta con fondo `#121926`, bordes con efectos translúcidos y sutiles brillos, el badge de la bombilla `💡`, y un botón de acción "Entendido" a todo lo ancho con tonos de azul eléctrico `#0B5FFF`.
+    - Se añadió un efecto de desenfoque de fondo (`backdrop-filter: blur(8px)`) sobre el overlay para una inmersión visual superior.
+* **Evidencia**: Compilación de Vite exitosa y validación visual completada.
+* **Impacto**: Unifica la consistencia visual y la experiencia de usuario (UI/UX) a lo largo del flujo de registro e inicio de sesión de WintonCoin.
+
 ### 2026-08-03 — Integración de Sección de Reclutamiento (Careers) en Landing Page
 * **Cambio**:
   - **Inyección Visual & HTML ([index.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/index.html))**:

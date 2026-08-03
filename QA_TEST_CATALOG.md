@@ -247,3 +247,18 @@ PASOS:
 6. Confirma que la sección liste las vacantes técnicas destacadas ("Senior Solidity / Rust Engineer" y "Full-Stack Web3 Developer") y que tengan su insignia verde de "Remoto".
 7. Toca el botón "Ver Vacantes y Postularse ↗" y confirma que el navegador abra limpiamente la pantalla del formulario de postulación (trabaja-con-nosotros.html).
 ```
+
+---
+
+```text
+TITULO: QA-20 - Rediseño del Modal de Cuenta Única en Login y Registro
+DESCRIPCION: Esta prueba valida que el modal "Aviso Importante" (sobre política de una cuenta por persona) en las vistas de inicio de sesión y registro se renderice con la misma estética premium del modal global "Sabías?", incluyendo el fondo degradado oscuro, la bombilla indicadora, y el botón de acción a todo lo ancho.
+PASOS:
+2. Abre la página de Login (login.html) o de Registro (register.html) en tu navegador.
+3. Provoca o espera la apertura del modal "Aviso Importante" correspondiente a la política de cuenta única.
+4. Confirma que el fondo detrás del modal tenga un desenfoque (backdrop blur) sutil.
+5. Verifica que en el cuerpo del modal aparezca una tarjeta oscura con un icono de bombilla 💡 en un badge azul redondeado al principio.
+6. Confirma que el título "Aviso Importante" esté centrado y en color blanco.
+7. Comprueba que el botón "Entendido" a todo lo ancho de la tarjeta sea de color azul eléctrico brillante y responda visualmente al pasar el cursor (hover).
+8. Haz clic en el botón "Entendido" y confirma que el modal se cierre suavemente de la pantalla.
+```
