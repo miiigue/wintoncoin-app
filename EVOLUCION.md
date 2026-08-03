@@ -13,6 +13,14 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: quÃƒÂ© problema resolviÃƒÂ³ y quÃƒÂ© habilita hacia adelante.
 
+### 2026-08-03 — Simplificación del Título del Censo SOS Venezuela
+* **Cambio**:
+  - **Estructura HTML ([sos-venezuela.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/sos-venezuela.html))**:
+    - Se actualizó el título de la cabecera del censo de damnificados para remover la palabra "Registro".
+    - El título pasó de "Censo y Registro de Asistencia para Damnificados" a "Censo para Asistencia a Damnificados".
+* **Evidencia**: Compilación de Vite limpia y exitosa.
+* **Impacto**: Unifica la semántica del flujo evitando confusiones lingüísticas con el registro general de usuarios.
+
 ### 2026-08-03 — Resolución de Self-Inflicted DoS en Conexiones Inactivas (Alta Disponibilidad)
 * **Cambio**:
   - **Node.js PostgreSQL Pool ([db.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/config/db.js))**:
