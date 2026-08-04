@@ -13,16 +13,15 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: quÃƒÂ© problema resolviÃƒÂ³ y quÃƒÂ© habilita hacia adelante.
 
-### 2026-08-03 — Optimización de Textos de Conversión (CTAs) y Unificación Estética de Voluntariado
+### 2026-08-03 — Implementación de Edición de Campañas en Panel Momentum Admin
 * **Cambio**:
-  - **Textos de Cabecera (CTAs) ([sos-venezuela.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/sos-venezuela.html))**:
-    - Se redujeron y simplificaron los textos de los botones principales en el banner hero: de "Registrarse y Apoyar Causa" a **"Apoyar causa"**, y de "¿Fuiste afectado? Regístrate" a **"Soy afectado"**.
-  - **Unificación Visual de Tarjetas (Glassmorphism a Minimalismo)**:
-    - Las tarjetas de "Voluntariado" y "Difusión" adoptaron exactamente el mismo formato visual que los elementos del acordeón FAQ (fondo `rgba(15, 23, 42, 0.03)`, bordes suaves sutiles, eliminando estilos recargados de marcos gruesos y filtros de desenfoque pesados).
-    - Se eliminó el texto redundante del hero de voluntarios para mantener la atención directa en las cajas de acción.
-    - Se eliminó el ícono emoji de bombillo (`💡`) en la sección del FAQ para mantener un tono más formal y limpio.
-* **Evidencia**: Compilación de Vite exitosa en entorno de demo.
-* **Impacto**: Mejora sustancial en la claridad del llamado a la acción (UX/UI), unifica el lenguaje de diseño reduciendo la carga cognitiva visual y agiliza la toma de decisión del usuario ante una emergencia.
+  - **Estructura HTML & Estilos ([momentum-admin.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/momentum-admin.html))**:
+    - Se agregó el modal de edición `#mmaEditCampaignModal` con todos los campos necesarios (título, descripción, recompensas base por nivel y switch de campaña repetible).
+  - **Lógica Frontend ([momentum-admin.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/momentum-admin.js))**:
+    - Se incorporó el botón **"✏️ Editar"** dinámico a la tabla de campañas.
+    - Se agregaron las funciones `openEditCampaignModal`, `closeEditCampaignModal`, y `saveEditCampaign` para manipular el estado, abrir el formulario prellenado y enviar la petición `PUT` al backend de forma asíncrona.
+* **Evidencia**: Compilación de Vite exitosa en entorno de demo y validación visual.
+* **Impacto**: Se habilita una función crítica del panel de administración permitiendo a los administradores ajustar títulos, descripciones y pagos de las misiones Momentum en tiempo real, sin depender de modificaciones manuales en base de datos.
 
 ### 2026-08-03 — Simplificación del Título del Censo SOS Venezuela
 * **Cambio**:

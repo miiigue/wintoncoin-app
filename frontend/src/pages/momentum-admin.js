@@ -340,6 +340,7 @@ async function loadProfiles() {
 // ============================================================================
 // TAB: CAMPAÑAS
 // ============================================================================
+let allCampaignsCache = [];
 
 async function loadCampaigns() {
     const listEl = document.getElementById('mma-campaigns-list');
@@ -351,6 +352,7 @@ async function loadCampaigns() {
         if (!response.ok) throw new Error('Error');
 
         const campaigns = await response.json();
+        allCampaignsCache = campaigns;
 
         if (campaigns.length === 0) {
             listEl.innerHTML = '<div class="mmd-empty">No hay campañas creadas. ¡Crea la primera arriba!</div>';
@@ -400,6 +402,9 @@ async function loadCampaigns() {
                                                 data-id="${c.id}" data-active="${active}">
                                             ${active ? '⏸️ Pausar' : '▶️ Activar'}
                                         </button>
+                                        <button class="mmd-btn mmd-btn--ghost mmd-btn--small mma-edit-campaign-btn" style="margin-left: 5px;" data-id="${c.id}">
+                                            ✏️ Editar
+                                        </button>
                                     </td>
                                 </tr>
                             `;
@@ -412,6 +417,11 @@ async function loadCampaigns() {
         // Listeners: pausar/activar campaña
         listEl.querySelectorAll('.mma-toggle-status-btn').forEach(btn => {
             btn.addEventListener('click', () => toggleCampaignStatus(btn.dataset.id, btn.dataset.active === 'true'));
+        });
+
+        // Listeners: editar campaña
+        listEl.querySelectorAll('.mma-edit-campaign-btn').forEach(btn => {
+            btn.addEventListener('click', () => openEditCampaignModal(btn.dataset.id));
         });
     } catch (error) {
         console.error('[MOMENTUM ADMIN] Error cargando campañas:', error);
