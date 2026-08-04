@@ -13,6 +13,13 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: quÃƒÂ© problema resolviÃƒÂ³ y quÃƒÂ© habilita hacia adelante.
 
+### 2026-08-04 — Corrección de Preservación de Parámetros Query String en Redirecciones de Retorno
+* **Cambio**:
+  - **Lógica de Autenticación & Enrutamiento ([register.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/register.js))**:
+    - Se corrigió la función sanitizadora `_getSafeReturnTo(raw)` para que devuelva la URL completa validada `return value;` conservando los parámetros `?id=...` en lugar de cercenarlos con `value.split('?')[0]`.
+* **Evidencia**: Eliminación de la regresión que redirigía a la landing page (`index.html`) cuando un usuario hacía clic en una publicación o causa solidaria.
+* **Impacto**: Se restaura el flujo continuo de navegación directa a las publicaciones y campañas, garantizando que el usuario regrese a la publicación exacta que seleccionó.
+
 ### 2026-08-03 — Implementación de Edición de Campañas en Panel Momentum Admin
 * **Cambio**:
   - **Estructura HTML & Estilos ([momentum-admin.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/momentum-admin.html))**:

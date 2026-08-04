@@ -62,11 +62,9 @@ function _getSafeReturnTo(raw) {
     const pagePart = value.split('?')[0].replace(/^\//, '');
     if (!ALLOWED_PAGES.includes(pagePart)) return null;
 
-    // [SEGURIDAD HARDENED] Retornar SOLO el pagePart validado contra la whitelist,
-    // descartando cualquier query param que el atacante pudiera haber concatenado.
-    // Antes se retornaba 'value' (el input original con query params), lo cual permitía
-    // que un atacante encadenara parámetros como ?redirect=https://evil.com
-    return pagePart;
+    // [SEGURIDAD HARDENED] Retornar la URL completa validada (preservando query params como ?id=XXX)
+    // una vez que se ha verificado que la página de destino pertenece a la whitelist estricta.
+    return value;
 }
 
 function clearRegisterClientState() {
