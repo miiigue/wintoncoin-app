@@ -46,7 +46,8 @@ import {
     logout,
     getAuthToken,
     setAuthToken,
-    handleSessionExpired
+    handleSessionExpired,
+    getSafeReturnTo
 } from './auth.js';
 
 import {
@@ -83,6 +84,7 @@ if (typeof window !== 'undefined') {
     // --- Autenticación ---
     window.userSession = userSession;
     window.checkAuthStatus = checkAuthStatus;
+    window.getSafeReturnTo = getSafeReturnTo;
 
     // --- Utilidades ---
     window.linkify = linkify;
