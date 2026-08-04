@@ -25,16 +25,6 @@ precacheAndRoute(self.__WB_MANIFEST);
 cleanupOutdatedCaches();
 
 // ============================================================================
-// NAVIGATION FALLBACK
-// ============================================================================
-registerRoute(
-    new NavigationRoute(
-        createHandlerBoundToURL('index.html'),
-        { denylist: [/^\/api\//] }
-    )
-);
-
-// ============================================================================
 // RUNTIME CACHING STRATEGIES
 // ============================================================================
 

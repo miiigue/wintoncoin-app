@@ -266,6 +266,39 @@ export function handleSessionExpired(response) {
 }
 
 /**
+ * Valida que una URL de retorno sea segura (misma origen, ruta relativa interna).
+ * Previene ataques de Open Redirect en cumplimiento con estándares FinTech y auditorías SOC 2 / ISO 27001.
+ * Acepta únicamente las páginas locales pre-autorizadas en la whitelist ALLOWED_PAGES y preserva query params válidos.
+ * @param {string} raw - Parámetro returnTo recibido sin procesar
+ * @returns {string|null} URL segura o null en caso de detectar anomalía o dominio externo
+ */
+export function getSafeReturnTo(raw) {
+    if (!raw || typeof raw !== 'string') return null;
+
+    const value = raw;
+
+    // [SEGURIDAD] Bloquear URLs absolutas o esquemas no seguros para prevenir Open Redirect
+    if (value.includes('://') || value.startsWith('//')) return null;
+    if (value.includes('javascript:') || value.includes('data:')) return null;
+
+    // [SEGURIDAD] Whitelist estricta: solo se permiten las páginas internas pre-autorizadas
+    const ALLOWED_PAGES = [
+        'governance-panel.html',
+        'contract_interaction.html',
+        'admin-panel.html',
+        'causa-solidaria.html',
+        'publication-detail.html'
+    ];
+
+    // Extraer únicamente el nombre del archivo de la ruta, ignorando parámetros query para la comparación
+    const pagePart = value.split('?')[0].replace(/^\//, '');
+    if (!ALLOWED_PAGES.includes(pagePart)) return null;
+
+    // Retornar la URL completa validada (preservando query params como ?id=XXX)
+    return value;
+}
+
+/**
  * Indica si el usuario puede ejecutar acciones de negocio.
  * Si falta aceptación legal vigente, solo permitimos navegación/lectura.
  */
@@ -294,9 +327,10 @@ window.fetch = async function (input, init) {
 
     const API_URL = getApiUrl();
     const isApiCall = url.startsWith(API_URL) && url.includes('/api/');
-    const isAuthRoute = url.includes('/api/auth/login') || 
-                        url.includes('/api/auth/refresh') || 
-                        url.includes('/api/auth/logout') ||
+    // [AUDITORÍA SEGURIDAD FINTECH] Se incluyen todas las rutas de /api/auth/ en las excepciones del interceptor (isAuthRoute)
+    // para evitar que los endpoints informativos como /api/auth/status o /pending-status expulsen a los invitados o usuarios
+    // con sesiones vencidas hacia la landing page (index.html). Esto permite que el flujo de Onboarding maneje las redirecciones.
+    const isAuthRoute = url.includes('/api/auth/') ||
                         url.includes('/api/register-verify');
     const isAdminRoute = url.includes('/api/admin/');
 

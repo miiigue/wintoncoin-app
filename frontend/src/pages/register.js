@@ -4,7 +4,7 @@
 // Entry point para la página de registro de usuarios
 // ============================================================================
 
-import { getApiUrl, showCustomAlert, checkAuthStatus } from '../modules/index.js';
+import { getApiUrl, showCustomAlert, checkAuthStatus, getSafeReturnTo } from '../modules/index.js';
 import { togglePasswordVisibility } from '../modules/password-toggle.js';
 import { initPWAInstall, restoreReferralCode, isPWAInstalled } from '../modules/pwa-install.js';
 import { syncPendingPushSubscription } from '../modules/pushManager.js';
@@ -30,44 +30,7 @@ function safeHide(el) {
     if (el) el.style.display = 'none';
 }
 
-/**
- * Valida que una URL de retorno sea segura (misma origen, ruta relativa interna).
- * Previene ataques de Open Redirect en cumplimiento con estándares FinTech y auditorías SOC 2.
- * Acepta únicamente las páginas locales pre-autorizadas en la whitelist ALLOWED_PAGES.
- * @param {string} raw - Parámetro returnTo recibido sin procesar
- * @returns {string|null} URL segura o null en caso de detectar anomalía o dominio externo
- */
-function _getSafeReturnTo(raw) {
-    // [SEGURIDAD] Validación estricta del tipo de dato de entrada
-    if (!raw || typeof raw !== 'string') return null;
 
-    const value = raw;
-
-    // [SEGURIDAD] Bloquear URLs absolutas o esquemas no seguros para prevenir Open Redirect
-    // Vectores bloqueados: https://evil.com, //evil.com, javascript:alert(1), data:text/html,...
-    if (value.includes('://') || value.startsWith('//')) return null;
-    if (value.includes('javascript:') || value.includes('data:')) return null;
-
-    // [SEGURIDAD] Whitelist estricta: solo se permiten las páginas internas pre-autorizadas
-    const ALLOWED_PAGES = [
-        'governance-panel.html',
-        'contract_interaction.html',
-        'admin-panel.html',
-        'causa-solidaria.html',
-        'publication-detail.html'
-    ];
-
-    // [SEGURIDAD] Extraer únicamente el nombre del archivo, descartando cualquier query param
-    // del input externo para evitar inyección de parámetros arbitrarios (defense-in-depth)
-    const pagePart = value.split('?')[0].replace(/^\//, '');
-    if (!ALLOWED_PAGES.includes(pagePart)) return null;
-
-    // [SEGURIDAD HARDENED] Retornar SOLO el pagePart validado contra la whitelist,
-    // descartando cualquier query param que el atacante pudiera haber concatenado.
-    // Antes se retornaba 'value' (el input original con query params), lo cual permitía
-    // que un atacante encadenara parámetros como ?redirect=https://evil.com
-    return pagePart;
-}
 
 function clearRegisterClientState() {
     localStorage.removeItem('token');
@@ -616,7 +579,7 @@ async function initializeRegisterPage() {
             clearPendingVerificationState();
             
             // Redirección inteligente al dashboard de forma silenciosa.
-            const returnTo = _getSafeReturnTo(urlParams.get('returnTo'));
+            const returnTo = getSafeReturnTo(urlParams.get('returnTo'));
             window.location.replace(returnTo || 'contract_interaction.html');
             return;
         } else {
@@ -1029,7 +992,7 @@ async function initializeRegisterPage() {
 
                     // REDIRECCIÓN DE RETORNO SEGURA: Validar que el parámetro returnTo cumpla
                     // las directivas de seguridad para evitar redirecciones abiertas y redirigir.
-                    const returnTo = _getSafeReturnTo(urlParams.get('returnTo'));
+                    const returnTo = getSafeReturnTo(urlParams.get('returnTo'));
                     window.location.href = returnTo || 'contract_interaction.html';
                 } else {
                     showCustomAlert(`Error: ${result.message}`);

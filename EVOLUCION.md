@@ -11,7 +11,15 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
-- **Impacto**: quÃƒÂ© problema resolviÃƒÂ³ y quÃƒÂ© habilita hacia adelante.
+- **Impacto**: qué problema resolvió y qué habilita hacia adelante.
+
+### 2026-08-04 — Corrección de Enrutamiento PWA (Multi-Page vs Single-Page)
+* **Cambio**:
+  - **Service Worker ([sw-source.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/sw-source.js))**:
+    - Se eliminó el bloque `NavigationRoute` con fallback a `index.html` inyectado por Workbox.
+    - Se preservó la estrategia `NetworkFirst` explícita para archivos `.html`.
+* **Evidencia**: Eliminación del código SPA-fallback incompatible con la arquitectura MPA de WintonCoin.
+* **Impacto**: Resuelve el bug crítico donde las navegaciones a enlaces con parámetros (ej. `?id=XXX` o `?ref=SOSVENEZUELA`) redirigían a la landing page en entornos PWA instalados o cacheados, garantizando accesibilidad total a los detalles de publicaciones y la campaña SOS.
 
 ### 2026-08-03 — Implementación de Edición de Campañas en Panel Momentum Admin
 * **Cambio**:
@@ -4637,7 +4645,8 @@ Se asienta en auditorÃƒÆ’Ã‚Â­a la remociÃƒÆ’Ã‚Â³n fÃƒÆ’
 
 **Cambios Realizados**:
 1. **RediseÃ¯Â¿Â½o de Publicaciones (Premium UI)**: Modificado contract-interaction.js y publication-detail.js para renderizar un carrusel interactivo y responsivo bajo el tÃ¯Â¿Â½tulo de las publicaciones que contengan imÃ¯Â¿Â½genes adjuntas.
-2. **Modal Finalizar Tarea con Dropzone**: Se inyectÃ¯Â¿Â½ un nuevo modal de confirmaciÃ¯Â¿Â½n en publication-detail.html que impide enviar la tarea como culminada si el creador ha exigido evidencias (equires_evidence=true) y no se ha cargado ninguna. Se maneja la carga mÃ¯Â¿Â½ltiple visual mediante Drag & Drop y se suben directo al backend a travÃ¯Â¿Â½s de la ruta /api/media/upload.
+2. **Modal Finalizar Tarea con Dropzone**: Se inyectÃ¯Â¿Â½ un nuevo modal de confirmaciÃ¯Â¿Â½n en publication-detail.html que impide enviar la tarea como culminada si el creador ha exigido evidencias (
+equires_evidence=true) y no se ha cargado ninguna. Se maneja la carga mÃ¯Â¿Â½ltiple visual mediante Drag & Drop y se suben directo al backend a travÃ¯Â¿Â½s de la ruta /api/media/upload.
 3. **Visor Lightbox de Evidencias**: Modificada la vista detallada para aÃ¯Â¿Â½adir un botÃ¯Â¿Â½n "Ver Evidencias" a cada participante que completÃ¯Â¿Â½ la tarea enviando imÃ¯Â¿Â½genes. Se configurÃ¯Â¿Â½ un modal Lightbox oscuro e inmersivo en publication-detail.js para examinar el trabajo entregado.
 
 - **Evidencia**: Archivos modificados: rontend/src/pages/contract-interaction.js, rontend/src/pages/publication-detail.js, rontend/publication-detail.html, rontend/style.css, EVOLUCION.md.
@@ -4725,7 +4734,8 @@ ew_evidence_urls del cuerpo del request.
    - Modificado rontend/src/pages/causa-solidaria.js inicializando los manejadores de eventos (drag/drop e input file), realizando la subida inmediata en segundo plano a la API de R2 /api/media/upload, limitando en cliente a un mÃƒÂ¡ximo de 3 imÃƒÂ¡genes nuevas, renderizando previsualizaciones de la sesiÃƒÂ³n con botÃƒÂ³n de remociÃƒÂ³n rÃƒÂ¡pida, y transmitiendo 
 ew_evidence_urls al endpoint PUT.
 
-- **Evidencia**: Archivos modificados: ackend/src/services/humanitarianService.js, ackend/src/routes/humanitarianUserRoutes.js, rontend/causa-solidaria.html, rontend/src/pages/causa-solidaria.js, EVOLUCION.md.\ n -   C o r r e c c i Ã³ n   d e   e r r o r   5 0 0   e n   b a c k e n d   ( v i c t i m C o n t r o l l e r . j s ) :   s e   c a m b i Ã³   d i s b u r s e d _ a t   a   c r e a t e d _ a t . \ n -   D i s e Ã± o   d e   t a r j e t a   S O S   a c t u a l i z a d o   e n   d a s h b o a r d :   a h o r a   e s   u n   e n l a c e   i n t e r a c t i v o   d i r e c t o   s i n   t e x t o   r e d u n d a n t e .  
+- **Evidencia**: Archivos modificados: ackend/src/services/humanitarianService.js, ackend/src/routes/humanitarianUserRoutes.js, rontend/causa-solidaria.html, rontend/src/pages/causa-solidaria.js, EVOLUCION.md.\ n -   C o r r e c c i Ã³ n   d e   e r r o r   5 0 0   e n   b a c k e n d   ( v i c t i m C o n t r o l l e r . j s ) :   s e   c a m b i Ã³   d i s b u r s e d _ a t   a   c r e a t e d _ a t . \ n -   D i s e Ã± o   d e   t a r j e t a   S O S   a c t u a l i z a d o   e n   d a s h b o a r d :   a h o r a   e s   u n   e n l a c e   i n t e r a c t i v o   d i r e c t o   s i n   t e x t o   r e d u n d a n t e . 
+ 
  
 
 ### 2026-08-01 - Auditoría de Seguridad Profunda, Estandarización de Privacidad SOS y Sanitización Anti-XSS
@@ -4739,7 +4749,9 @@ ew_evidence_urls al endpoint PUT.
  - Reforzado el backend ictimController.js para asegurar consultas parametrizadas en PostgreSQL (, ) y protección total contra filtraciones de PII.
 2. **Mitigación XSS en Módulo de Referidos**:
  - Modificado rontend/src/pages/referrals.js incorporando la función de sanitización de entidades HTML escapeHtml.
- - Se escaparon dinámicamente los campos eferred_username y eferral_code previa inserción mediante .innerHTML, neutralizando posibles vectores de inyección de código.
+ - Se escaparon dinámicamente los campos 
+eferred_username y 
+eferral_code previa inserción mediante .innerHTML, neutralizando posibles vectores de inyección de código.
 
 - **Evidencia**: Archivos modificados: rontend/src/pages/profile.js, rontend/src/pages/referrals.js, rontend/contract_interaction.html, rontend/src/components/sidebar.js, ackend/src/controllers/victimController.js, EVOLUCION.md.
 
