@@ -11,22 +11,15 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
-- **Impacto**: quÃƒÂ© problema resolviÃƒÂ³ y quÃƒÂ© habilita hacia adelante.
+- **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
-### 2026-08-04 — Restauración del Acceso a Publicaciones para Invitados y Redirección en Acciones
+### 2026-08-04 — Corrección Crítica del Interceptor de Seguridad Global (Zero Trust)
 * **Cambio**:
-  - **Lógica de Publicaciones y Causas Solidarias ([publication-detail.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/publication-detail.js), [causa-solidaria.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/causa-solidaria.js))**:
-    - Se eliminó el bloque de redirección estricta que forzaba a los usuarios no autenticados a ir al formulario de registro apenas cargaba la página.
-    - Se interceptaron los clics en los botones de acción principales ("Apoyar causa", "Participar", "Donar Ahora") para verificar la autenticación `(!storedUsername || !storedToken)`. En caso de no existir sesión, se realiza una redirección segura hacia `register.html` conservando el `returnTo` y el código de referido correspondiente.
-* **Evidencia**: Se restauró la capacidad de ver publicaciones y páginas SOS sin estar logueado, y los botones de acción redireccionan al registro de forma controlada.
-* **Impacto**: Optimiza el flujo de onboarding permitiendo que los invitados consuman información de valor (como el detalle de una causa o publicación) y solo sean redirigidos al formulario de registro cuando deciden interactuar, devolviéndole a la plataforma el comportamiento nativo previo al modo público estricto.
-
-### 2026-08-04 — Solución de Bucle de Redirección en Formularios de Registro y Login
-* **Cambio**:
-  - **Lógica de Manejo de Sesiones ([auth.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/modules/auth.js))**:
-    - Se modificó la función `handleSessionExpired` para detectar si el usuario se encuentra actualmente en `register.html` o `login.html`. En caso afirmativo, la función detiene la ejecución (retorna `true`) sin ejecutar `window.location.href = 'index.html'`.
-* **Evidencia**: Los invitados o usuarios con tokens expirados ya no son expulsados inmediatamente hacia la landing page (`index.html`) al intentar abrir publicaciones que requieren registro (como "Apoyar Causa").
-* **Impacto**: Se restaura el correcto funcionamiento del flujo de registro. Antes de este cambio, un token expirado en `localStorage` (o una petición de actualización fallida) disparaba un 401 que era interceptado globalmente, forzando un retorno a `index.html` e impidiendo al usuario ver el formulario de registro.
+  - **Lógica de Seguridad Frontend ([auth.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/modules/auth.js))**:
+    - Se ajustó la regla de excepción `isAuthRoute` del interceptor global `window.fetch`.
+    - Se excluyeron explícitamente los endpoints informativos de autenticación (`/api/auth/status` y derivados) para evitar que respuestas `401 Unauthorized` (normales en invitados o sesiones vencidas) dispararan el protocolo de expulsión forzada hacia la Landing Page (`index.html`).
+* **Evidencia**: Eliminación del bucle de redirección en invitados que intentaban registrarse desde la página SOS ("Apoyar causa") o usuarios logueados accediendo a publicaciones con un token caducado.
+* **Impacto**: Mantiene la seguridad Zero Trust intacta para rutas protegidas, pero delega el enrutamiento de estado a la lógica nativa del Onboarding, garantizando que los usuarios sean redirigidos correctamente al formulario de registro en lugar de ser expulsados a la página principal.
 
 ### 2026-08-04 — Corrección de Preservación de Parámetros Query String en Redirecciones de Retorno
 * **Cambio**:
