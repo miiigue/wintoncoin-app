@@ -73,21 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const publication = await publicationResponse.json();
 
-            // --- REDIRECCIÓN DE ONBOARDING PARA INVITADOS ---
-            // Si el visitante es un invitado (no autenticado), procedemos de la siguiente manera:
-            if (!activeUsername || !activeToken) {
-                const currentPath = 'publication-detail.html' + window.location.search;
-                if (publication.category === 'donation') {
-                    // Campaña de Donación: Redirigir al registro inyectando el código de referido del beneficiario
-                    const refParam = publication.beneficiary_referral_code ? `&ref=${encodeURIComponent(publication.beneficiary_referral_code)}` : '';
-                    window.location.href = `register.html?returnTo=${encodeURIComponent(currentPath)}${refParam}`;
-                    return;
-                } else {
-                    // Otra publicación: Redirigir al registro estándar
-                    window.location.href = `register.html?returnTo=${encodeURIComponent(currentPath)}`;
-                    return;
-                }
-            }
+
 
             // --- NUEVO: Mostrar Modal Intersticial si es necesario ---
             if (publication.preflight_modal && !modalDismissed) {
@@ -863,6 +849,13 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleActionClick(event) {
         const button = event.target.closest('[data-action]');
         if (!button) return;
+
+        if (!storedUsername || !storedToken) {
+            const currentPath = 'publication-detail.html' + window.location.search;
+            const refParam = publication && publication.beneficiary_referral_code ? `&ref=${encodeURIComponent(publication.beneficiary_referral_code)}` : '';
+            window.location.href = `register.html?returnTo=${encodeURIComponent(currentPath)}${refParam}`;
+            return;
+        }
 
         const action = button.dataset.action;
         const userInAction = button.dataset.user;

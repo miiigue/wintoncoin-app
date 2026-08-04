@@ -118,15 +118,7 @@ async function loadCauseData(causeId) {
         const storedUsername = localStorage.getItem('username');
         const isOwner = cause.creator_username === storedUsername;
 
-        // --- REDIRECCIÓN DE ONBOARDING PARA INVITADOS ---
-        // Si el usuario no está autenticado (no hay token), lo redirigimos al registro
-        // pre-llenando el código de referido del beneficiario de la causa.
-        if (!token) {
-            const currentPath = 'causa-solidaria.html' + window.location.search;
-            const refParam = cause.beneficiary_referral_code ? `&ref=${encodeURIComponent(cause.beneficiary_referral_code)}` : '';
-            window.location.href = `register.html?returnTo=${encodeURIComponent(currentPath)}${refParam}`;
-            return;
-        }
+
 
         const donations = data.donations || { donations: [], summary: {} };
 
@@ -409,7 +401,9 @@ function initDonateButton(cause) {
             const username = localStorage.getItem('username');
 
             if (!token || !username) {
-                showCustomAlert('Debes iniciar sesión para donar.');
+                const currentPath = 'causa-solidaria.html' + window.location.search;
+                const refParam = cause.beneficiary_referral_code ? `&ref=${encodeURIComponent(cause.beneficiary_referral_code)}` : '';
+                window.location.href = `register.html?returnTo=${encodeURIComponent(currentPath)}${refParam}`;
                 return;
             }
 

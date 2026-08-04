@@ -13,6 +13,14 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: quÃƒÂ© problema resolviÃƒÂ³ y quÃƒÂ© habilita hacia adelante.
 
+### 2026-08-04 — Restauración del Acceso a Publicaciones para Invitados y Redirección en Acciones
+* **Cambio**:
+  - **Lógica de Publicaciones y Causas Solidarias ([publication-detail.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/publication-detail.js), [causa-solidaria.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/causa-solidaria.js))**:
+    - Se eliminó el bloque de redirección estricta que forzaba a los usuarios no autenticados a ir al formulario de registro apenas cargaba la página.
+    - Se interceptaron los clics en los botones de acción principales ("Apoyar causa", "Participar", "Donar Ahora") para verificar la autenticación `(!storedUsername || !storedToken)`. En caso de no existir sesión, se realiza una redirección segura hacia `register.html` conservando el `returnTo` y el código de referido correspondiente.
+* **Evidencia**: Se restauró la capacidad de ver publicaciones y páginas SOS sin estar logueado, y los botones de acción redireccionan al registro de forma controlada.
+* **Impacto**: Optimiza el flujo de onboarding permitiendo que los invitados consuman información de valor (como el detalle de una causa o publicación) y solo sean redirigidos al formulario de registro cuando deciden interactuar, devolviéndole a la plataforma el comportamiento nativo previo al modo público estricto.
+
 ### 2026-08-04 — Solución de Bucle de Redirección en Formularios de Registro y Login
 * **Cambio**:
   - **Lógica de Manejo de Sesiones ([auth.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/modules/auth.js))**:
