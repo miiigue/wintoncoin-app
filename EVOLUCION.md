@@ -13,20 +13,13 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
-### 2026-08-04 — Corrección Crítica del Interceptor de Seguridad Global (Zero Trust)
+### 2026-08-04 — Corrección de Enrutamiento PWA (Multi-Page vs Single-Page)
 * **Cambio**:
-  - **Lógica de Seguridad Frontend ([auth.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/modules/auth.js))**:
-    - Se ajustó la regla de excepción `isAuthRoute` del interceptor global `window.fetch`.
-    - Se excluyeron explícitamente los endpoints informativos de autenticación (`/api/auth/status` y derivados) para evitar que respuestas `401 Unauthorized` (normales en invitados o sesiones vencidas) dispararan el protocolo de expulsión forzada hacia la Landing Page (`index.html`).
-* **Evidencia**: Eliminación del bucle de redirección en invitados que intentaban registrarse desde la página SOS ("Apoyar causa") o usuarios logueados accediendo a publicaciones con un token caducado.
-* **Impacto**: Mantiene la seguridad Zero Trust intacta para rutas protegidas, pero delega el enrutamiento de estado a la lógica nativa del Onboarding, garantizando que los usuarios sean redirigidos correctamente al formulario de registro en lugar de ser expulsados a la página principal.
-
-### 2026-08-04 — Corrección de Preservación de Parámetros Query String en Redirecciones de Retorno
-* **Cambio**:
-  - **Lógica de Autenticación & Enrutamiento ([register.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/register.js))**:
-    - Se corrigió la función sanitizadora `_getSafeReturnTo(raw)` para que devuelva la URL completa validada `return value;` conservando los parámetros `?id=...` en lugar de cercenarlos con `value.split('?')[0]`.
-* **Evidencia**: Eliminación de la regresión que redirigía a la landing page (`index.html`) cuando un usuario hacía clic en una publicación o causa solidaria.
-* **Impacto**: Se restaura el flujo continuo de navegación directa a las publicaciones y campañas, garantizando que el usuario regrese a la publicación exacta que seleccionó.
+  - **Service Worker ([sw-source.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/sw-source.js))**:
+    - Se eliminó el bloque `NavigationRoute` con fallback a `index.html` inyectado por Workbox.
+    - Se preservó la estrategia `NetworkFirst` explícita para archivos `.html`.
+* **Evidencia**: Eliminación del código SPA-fallback incompatible con la arquitectura MPA de WintonCoin.
+* **Impacto**: Resuelve el bug crítico donde las navegaciones a enlaces con parámetros (ej. `?id=XXX` o `?ref=SOSVENEZUELA`) redirigían a la landing page en entornos PWA instalados o cacheados, garantizando accesibilidad total a los detalles de publicaciones y la campaña SOS.
 
 ### 2026-08-03 — Implementación de Edición de Campañas en Panel Momentum Admin
 * **Cambio**:
@@ -4652,7 +4645,8 @@ Se asienta en auditorÃƒÆ’Ã‚Â­a la remociÃƒÆ’Ã‚Â³n fÃƒÆ’
 
 **Cambios Realizados**:
 1. **RediseÃ¯Â¿Â½o de Publicaciones (Premium UI)**: Modificado contract-interaction.js y publication-detail.js para renderizar un carrusel interactivo y responsivo bajo el tÃ¯Â¿Â½tulo de las publicaciones que contengan imÃ¯Â¿Â½genes adjuntas.
-2. **Modal Finalizar Tarea con Dropzone**: Se inyectÃ¯Â¿Â½ un nuevo modal de confirmaciÃ¯Â¿Â½n en publication-detail.html que impide enviar la tarea como culminada si el creador ha exigido evidencias (equires_evidence=true) y no se ha cargado ninguna. Se maneja la carga mÃ¯Â¿Â½ltiple visual mediante Drag & Drop y se suben directo al backend a travÃ¯Â¿Â½s de la ruta /api/media/upload.
+2. **Modal Finalizar Tarea con Dropzone**: Se inyectÃ¯Â¿Â½ un nuevo modal de confirmaciÃ¯Â¿Â½n en publication-detail.html que impide enviar la tarea como culminada si el creador ha exigido evidencias (
+equires_evidence=true) y no se ha cargado ninguna. Se maneja la carga mÃ¯Â¿Â½ltiple visual mediante Drag & Drop y se suben directo al backend a travÃ¯Â¿Â½s de la ruta /api/media/upload.
 3. **Visor Lightbox de Evidencias**: Modificada la vista detallada para aÃ¯Â¿Â½adir un botÃ¯Â¿Â½n "Ver Evidencias" a cada participante que completÃ¯Â¿Â½ la tarea enviando imÃ¯Â¿Â½genes. Se configurÃ¯Â¿Â½ un modal Lightbox oscuro e inmersivo en publication-detail.js para examinar el trabajo entregado.
 
 - **Evidencia**: Archivos modificados: rontend/src/pages/contract-interaction.js, rontend/src/pages/publication-detail.js, rontend/publication-detail.html, rontend/style.css, EVOLUCION.md.
@@ -4740,7 +4734,8 @@ ew_evidence_urls del cuerpo del request.
    - Modificado rontend/src/pages/causa-solidaria.js inicializando los manejadores de eventos (drag/drop e input file), realizando la subida inmediata en segundo plano a la API de R2 /api/media/upload, limitando en cliente a un mÃƒÂ¡ximo de 3 imÃƒÂ¡genes nuevas, renderizando previsualizaciones de la sesiÃƒÂ³n con botÃƒÂ³n de remociÃƒÂ³n rÃƒÂ¡pida, y transmitiendo 
 ew_evidence_urls al endpoint PUT.
 
-- **Evidencia**: Archivos modificados: ackend/src/services/humanitarianService.js, ackend/src/routes/humanitarianUserRoutes.js, rontend/causa-solidaria.html, rontend/src/pages/causa-solidaria.js, EVOLUCION.md.\ n -   C o r r e c c i Ã³ n   d e   e r r o r   5 0 0   e n   b a c k e n d   ( v i c t i m C o n t r o l l e r . j s ) :   s e   c a m b i Ã³   d i s b u r s e d _ a t   a   c r e a t e d _ a t . \ n -   D i s e Ã± o   d e   t a r j e t a   S O S   a c t u a l i z a d o   e n   d a s h b o a r d :   a h o r a   e s   u n   e n l a c e   i n t e r a c t i v o   d i r e c t o   s i n   t e x t o   r e d u n d a n t e .  
+- **Evidencia**: Archivos modificados: ackend/src/services/humanitarianService.js, ackend/src/routes/humanitarianUserRoutes.js, rontend/causa-solidaria.html, rontend/src/pages/causa-solidaria.js, EVOLUCION.md.\ n -   C o r r e c c i Ã³ n   d e   e r r o r   5 0 0   e n   b a c k e n d   ( v i c t i m C o n t r o l l e r . j s ) :   s e   c a m b i Ã³   d i s b u r s e d _ a t   a   c r e a t e d _ a t . \ n -   D i s e Ã± o   d e   t a r j e t a   S O S   a c t u a l i z a d o   e n   d a s h b o a r d :   a h o r a   e s   u n   e n l a c e   i n t e r a c t i v o   d i r e c t o   s i n   t e x t o   r e d u n d a n t e . 
+ 
  
 
 ### 2026-08-01 - Auditoría de Seguridad Profunda, Estandarización de Privacidad SOS y Sanitización Anti-XSS
@@ -4754,7 +4749,9 @@ ew_evidence_urls al endpoint PUT.
  - Reforzado el backend ictimController.js para asegurar consultas parametrizadas en PostgreSQL (, ) y protección total contra filtraciones de PII.
 2. **Mitigación XSS en Módulo de Referidos**:
  - Modificado rontend/src/pages/referrals.js incorporando la función de sanitización de entidades HTML escapeHtml.
- - Se escaparon dinámicamente los campos eferred_username y eferral_code previa inserción mediante .innerHTML, neutralizando posibles vectores de inyección de código.
+ - Se escaparon dinámicamente los campos 
+eferred_username y 
+eferral_code previa inserción mediante .innerHTML, neutralizando posibles vectores de inyección de código.
 
 - **Evidencia**: Archivos modificados: rontend/src/pages/profile.js, rontend/src/pages/referrals.js, rontend/contract_interaction.html, rontend/src/components/sidebar.js, ackend/src/controllers/victimController.js, EVOLUCION.md.
 
