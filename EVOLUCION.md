@@ -13,6 +13,16 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: quÃƒÂ© problema resolviÃƒÂ³ y quÃƒÂ© habilita hacia adelante.
 
+### 2026-08-03 — Implementación de Edición de Campañas en Panel Momentum Admin
+* **Cambio**:
+  - **Estructura HTML & Estilos ([momentum-admin.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/momentum-admin.html))**:
+    - Se agregó el modal de edición `#mmaEditCampaignModal` con todos los campos necesarios (título, descripción, recompensas base por nivel y switch de campaña repetible).
+  - **Lógica Frontend ([momentum-admin.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/momentum-admin.js))**:
+    - Se incorporó el botón **"✏️ Editar"** dinámico a la tabla de campañas.
+    - Se agregaron las funciones `openEditCampaignModal`, `closeEditCampaignModal`, y `saveEditCampaign` para manipular el estado, abrir el formulario prellenado y enviar la petición `PUT` al backend de forma asíncrona.
+* **Evidencia**: Compilación de Vite exitosa en entorno de demo y validación visual.
+* **Impacto**: Se habilita una función crítica del panel de administración permitiendo a los administradores ajustar títulos, descripciones y pagos de las misiones Momentum en tiempo real, sin depender de modificaciones manuales en base de datos.
+
 ### 2026-08-03 — Simplificación del Título del Censo SOS Venezuela
 * **Cambio**:
   - **Estructura HTML ([sos-venezuela.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/sos-venezuela.html))**:

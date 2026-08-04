@@ -340,6 +340,7 @@ async function loadProfiles() {
 // ============================================================================
 // TAB: CAMPAÑAS
 // ============================================================================
+let allCampaignsCache = [];
 
 async function loadCampaigns() {
     const listEl = document.getElementById('mma-campaigns-list');
@@ -351,6 +352,7 @@ async function loadCampaigns() {
         if (!response.ok) throw new Error('Error');
 
         const campaigns = await response.json();
+        allCampaignsCache = campaigns;
 
         if (campaigns.length === 0) {
             listEl.innerHTML = '<div class="mmd-empty">No hay campañas creadas. ¡Crea la primera arriba!</div>';
@@ -400,6 +402,9 @@ async function loadCampaigns() {
                                                 data-id="${c.id}" data-active="${active}">
                                             ${active ? '⏸️ Pausar' : '▶️ Activar'}
                                         </button>
+                                        <button class="mmd-btn mmd-btn--ghost mmd-btn--small mma-edit-campaign-btn" style="margin-left: 5px;" data-id="${c.id}">
+                                            ✏️ Editar
+                                        </button>
                                     </td>
                                 </tr>
                             `;
@@ -412,6 +417,11 @@ async function loadCampaigns() {
         // Listeners: pausar/activar campaña
         listEl.querySelectorAll('.mma-toggle-status-btn').forEach(btn => {
             btn.addEventListener('click', () => toggleCampaignStatus(btn.dataset.id, btn.dataset.active === 'true'));
+        });
+
+        // Listeners: editar campaña
+        listEl.querySelectorAll('.mma-edit-campaign-btn').forEach(btn => {
+            btn.addEventListener('click', () => openEditCampaignModal(btn.dataset.id));
         });
     } catch (error) {
         console.error('[MOMENTUM ADMIN] Error cargando campañas:', error);
@@ -711,3 +721,90 @@ function escapeAttr(str) {
     if (!str) return '';
     return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+/**
+ * Lógica para Modal de Edición de Campañas
+ */
+function openEditCampaignModal(campaignId) {
+    const campaign = allCampaignsCache.find(c => c.id == campaignId);
+    if (!campaign) return;
+
+    document.getElementById('edit-camp-id').value = campaign.id;
+    document.getElementById('edit-camp-title').value = campaign.title || '';
+    document.getElementById('edit-camp-desc').value = campaign.description || '';
+    document.getElementById('edit-camp-visionario').value = parseFloat(campaign.base_pay_visionario || 0);
+    document.getElementById('edit-camp-bronce').value = parseFloat(campaign.base_pay_bronce || 0);
+    document.getElementById('edit-camp-plata').value = parseFloat(campaign.base_pay_plata || 0);
+    document.getElementById('edit-camp-oro').value = parseFloat(campaign.base_pay_oro || 0);
+    document.getElementById('edit-camp-platino').value = parseFloat(campaign.base_pay_platino || 0);
+    if (document.getElementById('edit-camp-multiple')) {
+        document.getElementById('edit-camp-multiple').checked = !!campaign.allow_multiple;
+    }
+
+    const modal = document.getElementById('mmaEditCampaignModal');
+    if (modal) {
+        modal.style.display = 'block';
+    }
+}
+
+function closeEditCampaignModal() {
+    const modal = document.getElementById('mmaEditCampaignModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+async function saveEditCampaign() {
+    const id = document.getElementById('edit-camp-id').value;
+    const title = document.getElementById('edit-camp-title').value.trim();
+    const description = document.getElementById('edit-camp-desc').value.trim();
+    const base_pay_visionario = parseFloat(document.getElementById('edit-camp-visionario').value) || 0;
+    const base_pay_bronce = parseFloat(document.getElementById('edit-camp-bronce').value) || 0;
+    const base_pay_plata = parseFloat(document.getElementById('edit-camp-plata').value) || 0;
+    const base_pay_oro = parseFloat(document.getElementById('edit-camp-oro').value) || 0;
+    const base_pay_platino = parseFloat(document.getElementById('edit-camp-platino').value) || 0;
+    const allow_multiple = document.getElementById('edit-camp-multiple')?.checked || false;
+
+    if (!title) {
+        showToast('El título de la campaña es obligatorio.', 'error');
+        return;
+    }
+
+    try {
+        const response = await adminFetch(`/api/momentum/admin/campaigns/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                title, description, 
+                base_pay_visionario, base_pay_bronce, base_pay_plata, base_pay_oro, base_pay_platino, 
+                allow_multiple 
+            })
+        });
+
+        const result = await response.json();
+        if (response.ok) {
+            showToast('Campaña actualizada exitosamente.', 'success');
+            closeEditCampaignModal();
+            loadCampaigns();
+        } else {
+            showToast(result.message || 'Error al actualizar la campaña.', 'error');
+        }
+    } catch (error) {
+        console.error('[MOMENTUM ADMIN] Error actualizando campaña:', error);
+        showToast('Error de red o servidor.', 'error');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Escuchar el botón de guardar en el modal
+    const saveBtn = document.getElementById('btn-save-edit-campaign');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveEditCampaign);
+    }
+
+    // Escuchar el botón de cerrar en el modal
+    const closeBtn = document.getElementById('closeEditCampaignModal');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeEditCampaignModal);
+    }
+});
