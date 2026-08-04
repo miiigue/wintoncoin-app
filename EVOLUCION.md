@@ -13,6 +13,13 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: quÃƒÂ© problema resolviÃƒÂ³ y quÃƒÂ© habilita hacia adelante.
 
+### 2026-08-04 — Solución de Bucle de Redirección en Formularios de Registro y Login
+* **Cambio**:
+  - **Lógica de Manejo de Sesiones ([auth.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/modules/auth.js))**:
+    - Se modificó la función `handleSessionExpired` para detectar si el usuario se encuentra actualmente en `register.html` o `login.html`. En caso afirmativo, la función detiene la ejecución (retorna `true`) sin ejecutar `window.location.href = 'index.html'`.
+* **Evidencia**: Los invitados o usuarios con tokens expirados ya no son expulsados inmediatamente hacia la landing page (`index.html`) al intentar abrir publicaciones que requieren registro (como "Apoyar Causa").
+* **Impacto**: Se restaura el correcto funcionamiento del flujo de registro. Antes de este cambio, un token expirado en `localStorage` (o una petición de actualización fallida) disparaba un 401 que era interceptado globalmente, forzando un retorno a `index.html` e impidiendo al usuario ver el formulario de registro.
+
 ### 2026-08-04 — Corrección de Preservación de Parámetros Query String en Redirecciones de Retorno
 * **Cambio**:
   - **Lógica de Autenticación & Enrutamiento ([register.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/register.js))**:

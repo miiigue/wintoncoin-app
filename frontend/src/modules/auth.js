@@ -242,10 +242,17 @@ export function handleSessionExpired(response) {
     if (response.status === 401) {
         // [SEGURIDAD FINTECH] Guardamos el estado de si el usuario ya estaba logueado
         const wasLoggedIn = !!localStorage.getItem('username');
+        const currentPath = window.location.pathname.toLowerCase();
+        const isAuthPage = currentPath.includes('login.html') || currentPath.includes('register.html');
 
         // Cierra sesión destruyendo datos del storage local y cookies de refresco
         logout();
         
+        // Si ya estamos en la página de login o registro, no redirigir de nuevo para evitar un ciclo o sacarlos del formulario
+        if (isAuthPage) {
+            return true;
+        }
+
         // [MEJORA UX/UI] Si el usuario estaba logueado, mostrar la alerta de sesión expirada amigable y premium.
         // Si era un invitado que intentó entrar a una ruta privada de forma directa, lo redirigimos silenciosamente.
         if (wasLoggedIn) {
