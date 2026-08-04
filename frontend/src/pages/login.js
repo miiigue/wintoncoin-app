@@ -4,7 +4,7 @@
 // Entry point para la página de inicio de sesión
 // ============================================================================
 
-import { getApiUrl, showCustomAlert } from '../modules/index.js';
+import { getApiUrl, showCustomAlert, getSafeReturnTo } from '../modules/index.js';
 import { togglePasswordVisibility } from '../modules/password-toggle.js';
 import { initPWAInstall, isPWAInstalled } from '../modules/pwa-install.js';
 import { syncPendingPushSubscription } from '../modules/pushManager.js';
@@ -72,37 +72,6 @@ function initializePolicyModal() {
 }
 
 /**
- * Valida que una URL de retorno sea segura (misma origen, ruta relativa interna).
- * Previene ataques de Open Redirect aceptando solo rutas .html del propio sitio.
- * @param {string} raw - Valor crudo del parámetro returnTo
- * @returns {string|null} Ruta segura o null si es inválida
- */
-function _getSafeReturnTo(raw) {
-    if (!raw || typeof raw !== 'string') return null;
-
-    // URLSearchParams.get() ya decodifica, así que raw llega como texto plano.
-    const value = raw;
-
-    if (value.includes('://') || value.startsWith('//')) return null;
-    if (value.includes('javascript:') || value.includes('data:')) return null;
-
-    // SEGURIDAD FINTECH (SOC 2): Whitelist estricta de páginas internas permitidas para redirección segura
-    // previniendo cualquier ataque de redirección abierta (Open Redirect) hacia dominios externos maliciosos.
-    const ALLOWED_PAGES = [
-        'governance-panel.html',
-        'contract_interaction.html',
-        'admin-panel.html',
-        'causa-solidaria.html',
-        'publication-detail.html'
-    ];
-
-    const pagePart = value.split('?')[0].replace(/^\//, '');
-    if (!ALLOWED_PAGES.includes(pagePart)) return null;
-
-    return value;
-}
-
-/**
  * Inicializa el formulario de login
  */
 function initializeLoginForm() {
@@ -115,7 +84,7 @@ function initializeLoginForm() {
     }
 
     const urlParams = new URLSearchParams(window.location.search);
-    const returnTo = _getSafeReturnTo(urlParams.get('returnTo'));
+    const returnTo = getSafeReturnTo(urlParams.get('returnTo'));
 
     loginForm.addEventListener('submit', async function (event) {
         event.preventDefault();
