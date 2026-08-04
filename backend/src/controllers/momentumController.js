@@ -668,6 +668,14 @@ async function createCampaign(req, res) {
     }
 
     try {
+        // Validación de seguridad para prevenir valores negativos si se envían desde la API (Zero Trust)
+        const pays = [base_pay_visionario, base_pay_bronce, base_pay_plata, base_pay_oro, base_pay_platino];
+        for (let pay of pays) {
+            if (pay !== undefined && pay !== null && parseFloat(pay) < 0) {
+                return res.status(400).json({ message: 'Las recompensas base no pueden ser negativas.' });
+            }
+        }
+
         await client.query('BEGIN');
 
         const campaign = await momentumService.createCampaign(client, {
@@ -734,6 +742,14 @@ async function updateCampaign(req, res) {
     const client = await pool.connect();
 
     try {
+        // Validación de seguridad para prevenir valores negativos si se envían desde la API (Zero Trust)
+        const pays = [req.body.base_pay_visionario, req.body.base_pay_bronce, req.body.base_pay_plata, req.body.base_pay_oro, req.body.base_pay_platino];
+        for (let pay of pays) {
+            if (pay !== undefined && pay !== null && parseFloat(pay) < 0) {
+                return res.status(400).json({ message: 'Las recompensas base no pueden ser negativas.' });
+            }
+        }
+
         await client.query('BEGIN');
 
         const campaign = await momentumService.updateCampaign(client, campaignId, {
