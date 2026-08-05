@@ -3,8 +3,10 @@
  * ════════════════════════════════════════════════════════════════════
  * Maneja la interacción del formulario de registro de víctimas,
  * validación de prefijo telefónico (+58), Cédula de identidad,
- * carga dual de fotos/enlaces de Google Fotos y presentación del
- * expediente inteligente generado (#SOS-VZLA-XXX-XXXXX).
+ * carga dual de fotos/enlaces de Google Fotos, validación en tiempo real
+ * del formulario para activar/desactivar el botón de envío,
+ * definición de contraseña en la verificación OTP (Opción A),
+ * y presentación del expediente inteligente generado (#SOS-VZLA-XXX-XXXXX).
  */
 
 'use strict';
@@ -12,27 +14,104 @@
 import { getApiUrl } from '../modules/index.js';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // ── Referencias del DOM (Formulario Principal) ────────────────────────
     const victimForm = document.getElementById('sos-victim-registration-form');
     const feedbackEl = document.getElementById('sos-victim-feedback');
     const resultCard = document.getElementById('sos-victim-result-card');
     const dossierNumberEl = document.getElementById('sos-dossier-number-display');
+    const submitBtn = document.getElementById('sos-submit-btn');
 
+    // Si no existe el formulario en la página, no ejecutar nada (guard clause)
     if (!victimForm) return;
 
     // Determinación de API_URL centralizada de la aplicación
     const API_URL = getApiUrl();
 
-    // Manejo automático de prefijo V- en la Cédula de Identidad
+    // ═══════════════════════════════════════════════════════════════════════
+    // SECCIÓN 1: VALIDACIÓN EN TIEMPO REAL Y ACTIVACIÓN DEL BOTÓN DE ENVÍO
+    // ═══════════════════════════════════════════════════════════════════════
+
+    // Lista de IDs de los campos obligatorios del formulario de censo
+    const requiredFieldIds = [
+        'sos-fullname', 'sos-iddocument', 'sos-birthdate', 'sos-email',
+        'sos-phone', 'sos-state', 'sos-municipality', 'sos-sector',
+        'sos-address', 'sos-description'
+    ];
+    // IDs de los checkboxes legales obligatorios (Habeas Data y Declaración Jurada)
+    const requiredCheckboxIds = ['sos-data-consent', 'sos-sworn-declaration'];
+
+    /**
+     * Evalúa si TODOS los campos obligatorios tienen contenido y
+     * AMBOS checkboxes legales están marcados. Activa o desactiva
+     * el botón de envío en consecuencia con feedback visual.
+     * 
+     * Analogía: Es como una puerta de seguridad que solo se abre
+     * cuando todas las llaves (campos) están en su lugar.
+     */
+    function evaluateFormCompleteness() {
+        // Verificar que todos los campos de texto tengan contenido (no vacío)
+        const allFieldsFilled = requiredFieldIds.every(id => {
+            const el = document.getElementById(id);
+            return el && el.value.trim() !== '';
+        });
+
+        // Verificar que todos los checkboxes legales estén marcados (checked)
+        const allCheckboxesChecked = requiredCheckboxIds.every(id => {
+            const el = document.getElementById(id);
+            return el && el.checked;
+        });
+
+        // Solo habilitar el botón si AMBAS condiciones se cumplen
+        const isComplete = allFieldsFilled && allCheckboxesChecked;
+
+        if (submitBtn) {
+            // Activar/Desactivar el botón de envío con feedback visual
+            submitBtn.disabled = !isComplete;
+            submitBtn.style.opacity = isComplete ? '1' : '0.5';
+            submitBtn.style.cursor = isComplete ? 'pointer' : 'not-allowed';
+        }
+    }
+
+    // Registrar listeners de validación en tiempo real para cada campo obligatorio
+    requiredFieldIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            // 'input' se dispara con cada caracter escrito (feedback inmediato)
+            el.addEventListener('input', evaluateFormCompleteness);
+            // 'change' se dispara al seleccionar una opción (selects, dates)
+            el.addEventListener('change', evaluateFormCompleteness);
+        }
+    });
+
+    // Registrar listeners para los checkboxes legales
+    requiredCheckboxIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            // 'change' se dispara cuando el usuario marca/desmarca el checkbox
+            el.addEventListener('change', evaluateFormCompleteness);
+        }
+    });
+
+    // Ejecutar evaluación inicial por si el navegador autocompleta campos
+    evaluateFormCompleteness();
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // SECCIÓN 2: MANEJO AUTOMÁTICO DE PREFIJO EN CÉDULA DE IDENTIDAD
+    // ═══════════════════════════════════════════════════════════════════════
+
     const idDocInput = document.getElementById('sos-iddocument');
     if (idDocInput) {
+        // Prellenar con "V-" si está vacío (formato estándar de Venezuela)
         if (!idDocInput.value.trim()) {
             idDocInput.value = 'V-';
         }
+        // Al enfocar: prellenar si está vacío
         idDocInput.addEventListener('focus', () => {
             if (!idDocInput.value.trim()) {
                 idDocInput.value = 'V-';
             }
         });
+        // Al salir del campo: normalizar el prefijo (V-, E-, J-, P-)
         idDocInput.addEventListener('blur', () => {
             let val = idDocInput.value.trim().toUpperCase();
             if (val && !val.startsWith('V-') && !val.startsWith('E-') && !val.startsWith('J-') && !val.startsWith('P-')) {
@@ -42,36 +121,46 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Validación en tiempo real del prefijo telefónico (+58)
+    // ═══════════════════════════════════════════════════════════════════════
+    // SECCIÓN 3: VALIDACIÓN EN TIEMPO REAL DEL PREFIJO TELEFÓNICO (+58)
+    // ═══════════════════════════════════════════════════════════════════════
+
     const phoneInput = document.getElementById('sos-phone');
     if (phoneInput) {
+        // Al enfocar: prellenar con "+58 " si está vacío (formato Venezuela)
         phoneInput.addEventListener('focus', () => {
             if (!phoneInput.value.trim()) {
                 phoneInput.value = '+58 ';
             }
         });
-
+        // Al salir del campo: feedback visual si no tiene prefijo +58
         phoneInput.addEventListener('blur', () => {
             let val = phoneInput.value.trim().replace(/[\s\-\(\)]/g, '');
             if (val && !val.startsWith('+58')) {
-                phoneInput.style.borderColor = '#ef4444';
+                phoneInput.style.borderColor = '#ef4444'; // Borde rojo = error
             } else {
-                phoneInput.style.borderColor = '';
+                phoneInput.style.borderColor = ''; // Restaurar borde normal
             }
         });
     }
 
-    // Vista previa de archivos de evidencia seleccionados
+    // ═══════════════════════════════════════════════════════════════════════
+    // SECCIÓN 4: VISTA PREVIA DE ARCHIVOS DE EVIDENCIA SELECCIONADOS
+    // ═══════════════════════════════════════════════════════════════════════
+
     const photoFilesInput = document.getElementById('sos-photo-files');
     const photoPreviewsContainer = document.getElementById('sos-photo-previews');
 
     if (photoFilesInput && photoPreviewsContainer) {
         photoFilesInput.addEventListener('change', () => {
+            // Limpiar previews anteriores
             photoPreviewsContainer.innerHTML = '';
+            // Limitar a 5 archivos máximo
             const files = Array.from(photoFilesInput.files).slice(0, 5);
             files.forEach(file => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
+                    // Crear miniatura de preview para cada foto seleccionada
                     const img = document.createElement('img');
                     img.src = e.target.result;
                     img.style.width = '60px';
@@ -86,19 +175,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Manejo de envío del formulario
-    victimForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
+    // ═══════════════════════════════════════════════════════════════════════
+    // SECCIÓN 5: MANEJO DE ENVÍO DEL FORMULARIO DE CENSO
+    // ═══════════════════════════════════════════════════════════════════════
 
-        const submitBtn = victimForm.querySelector('button[type="submit"]');
+    victimForm.addEventListener('submit', async (e) => {
+        e.preventDefault(); // Prevenir envío nativo del formulario
+
         const originalText = submitBtn ? submitBtn.textContent : 'Enviar';
 
+        // Limpiar feedback anterior
         if (feedbackEl) {
             feedbackEl.style.display = 'none';
             feedbackEl.className = 'sos-feedback';
         }
 
-        // Recopilación de datos
+        // ── 5.1 Recopilación de todos los datos del formulario ─────────────
         const fullName = document.getElementById('sos-fullname').value.trim();
         const idDocument = document.getElementById('sos-iddocument').value.trim();
         const birthDate = document.getElementById('sos-birthdate')?.value || '';
@@ -120,11 +212,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const dataConsent = document.getElementById('sos-data-consent').checked;
         const swornDeclaration = document.getElementById('sos-sworn-declaration').checked;
 
+        // ── 5.2 Validación Final de Checkboxes (Defensa en profundidad) ────
+        // Aunque el botón esté deshabilitado, se valida de nuevo por seguridad
         if (!dataConsent || !swornDeclaration) {
             showError('Debes marcar las casillas de consentimiento legal y declaración jurada.');
             return;
         }
 
+        // ── 5.3 Indicador de Carga en el Botón ────────────────────────────
         if (submitBtn) {
             submitBtn.disabled = true;
             submitBtn.textContent = 'Subiendo Evidencias e Iniciando Expediente...';
@@ -132,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let evidenceUrls = [];
 
-        // 1. Subida directa de archivos desde teléfono/computadora
+        // ── 5.4 Subida Directa de Archivos (Fotos desde teléfono/PC) ──────
         if (photoFilesInput && photoFilesInput.files.length > 0) {
             const formData = new FormData();
             Array.from(photoFilesInput.files).slice(0, 5).forEach(f => formData.append('images', f));
@@ -147,14 +242,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     evidenceUrls.push(...upData.urls);
                 }
             } catch (upErr) {
+                // No bloquear el envío si falla la subida de fotos
                 console.warn('[SOS UPLOAD] No se pudieron subir algunos archivos:', upErr);
             }
         }
 
+        // Agregar enlace manual de Google Fotos/Drive si fue proporcionado
         if (photoLink) {
             evidenceUrls.push(photoLink);
         }
 
+        // ── 5.5 Envío del Registro al API Backend ──────────────────────────
         try {
             const response = await fetch(`${API_URL}/api/public/sos-venezuela/register-victim`, {
                 method: 'POST',
@@ -191,7 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Guardar email registrado para la verificación OTP
             window._registeredVictimEmail = email;
 
-            // Mostrar resultado exitoso
+            // Mostrar resultado exitoso y ocultar formulario
             victimForm.style.display = 'none';
             if (resultCard && dossierNumberEl) {
                 dossierNumberEl.textContent = `#${data.dossier_number}`;
@@ -205,33 +303,64 @@ document.addEventListener('DOMContentLoaded', () => {
             if (submitBtn) {
                 submitBtn.disabled = false;
                 submitBtn.textContent = originalText;
+                submitBtn.style.opacity = '1';
+                submitBtn.style.cursor = 'pointer';
             }
         }
     });
 
-    // Manejo de la Verificación OTP de 6 dígitos
+    // ═══════════════════════════════════════════════════════════════════════
+    // SECCIÓN 6: VERIFICACIÓN OTP + DEFINICIÓN DE CONTRASEÑA (Opción A)
+    // ═══════════════════════════════════════════════════════════════════════
+
     const btnVerifyOtp = document.getElementById('sos-btn-verify-otp');
     const otpInput = document.getElementById('sos-otp-code-input');
     const otpFeedback = document.getElementById('sos-otp-feedback-msg');
+    const newPasswordInput = document.getElementById('sos-new-password');
+    const confirmPasswordInput = document.getElementById('sos-confirm-password');
 
     if (btnVerifyOtp && otpInput) {
         btnVerifyOtp.addEventListener('click', async () => {
             const code = otpInput.value.trim();
             const email = window._registeredVictimEmail || document.getElementById('sos-email').value.trim();
+            const password = newPasswordInput ? newPasswordInput.value : '';
+            const passwordConfirm = confirmPasswordInput ? confirmPasswordInput.value : '';
 
+            // ── 6.1 Validaciones del Cliente ───────────────────────────────
+            // Validar OTP (mínimo 6 dígitos)
             if (!code || code.length < 6) {
                 showOtpMsg('Por favor ingresa los 6 dígitos del código enviado a tu correo.', '#ef4444');
                 return;
             }
 
-            btnVerifyOtp.disabled = true;
-            btnVerifyOtp.textContent = 'Verificando...';
+            // Validar contraseña (mínimo 8 caracteres)
+            if (!password || password.length < 8) {
+                showOtpMsg('La contraseña debe tener al menos 8 caracteres.', '#ef4444');
+                return;
+            }
 
+            // Validar que ambas contraseñas coincidan
+            if (password !== passwordConfirm) {
+                showOtpMsg('Las contraseñas no coinciden. Por favor verifica.', '#ef4444');
+                return;
+            }
+
+            // ── 6.2 Indicador de Carga ─────────────────────────────────────
+            btnVerifyOtp.disabled = true;
+            btnVerifyOtp.textContent = 'Verificando y Activando...';
+
+            // ── 6.3 Envío al Endpoint de Verificación OTP ──────────────────
             try {
                 const res = await fetch(`${API_URL}/api/public/sos-venezuela/verify-otp`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, otp_code: code })
+                    credentials: 'include', // Necesario para recibir la cookie HttpOnly del Refresh Token
+                    body: JSON.stringify({
+                        email,
+                        otp_code: code,
+                        password: password,
+                        password_confirm: passwordConfirm
+                    })
                 });
 
                 const data = await res.json();
@@ -239,21 +368,46 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error(data.message || 'Código incorrecto.');
                 }
 
+                // ── 6.4 Sesión JWT: Guardar Token de Acceso ────────────────
+                // Almacenar el Access Token para uso inmediato en la plataforma
+                if (data.token) {
+                    localStorage.setItem('token', data.token);
+                }
+                if (data.username) {
+                    localStorage.setItem('username', data.username);
+                }
+
+                // ── 6.5 Feedback Visual de Éxito ──────────────────────────
                 showOtpMsg('¡Cuenta y Billetera Activadas Exitosamente! Tus 200 BLUE IOU están disponibles.', '#10b981');
                 const otpCard = document.getElementById('sos-otp-verification-card');
                 if (otpCard) {
                     otpCard.style.borderColor = '#10b981';
                     otpCard.style.background = 'rgba(16, 185, 129, 0.1)';
                 }
+
+                // Desactivar campos de contraseña para evitar re-envío
+                if (newPasswordInput) newPasswordInput.disabled = true;
+                if (confirmPasswordInput) confirmPasswordInput.disabled = true;
+                otpInput.disabled = true;
+
             } catch (err) {
                 showOtpMsg(err.message, '#ef4444');
             } finally {
                 btnVerifyOtp.disabled = false;
-                btnVerifyOtp.textContent = 'Confirmar Código';
+                btnVerifyOtp.textContent = 'Activar mi Cuenta y Billetera';
             }
         });
     }
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // SECCIÓN 7: FUNCIONES AUXILIARES DE FEEDBACK VISUAL
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /**
+     * Muestra un mensaje en la sección de OTP con color indicativo.
+     * @param {string} msg - Mensaje a mostrar
+     * @param {string} color - Color hexadecimal (#10b981 = verde éxito, #ef4444 = rojo error)
+     */
     function showOtpMsg(msg, color) {
         if (otpFeedback) {
             otpFeedback.textContent = msg;
@@ -263,6 +417,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    /**
+     * Muestra un mensaje de error en la sección principal del formulario.
+     * @param {string} msg - Mensaje de error a mostrar al usuario
+     */
     function showError(msg) {
         if (feedbackEl) {
             feedbackEl.textContent = msg;

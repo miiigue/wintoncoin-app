@@ -13,6 +13,33 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-05 — Refactorización Integral Censo SOS Venezuela, Zero-Trust y Opción A (Contraseña en OTP)
+* **Cambio**:
+  - **Refactorización Backend de Registro (`registerVictimPublic`)**:
+    1. Se implementó validación booleana estricta (Zero-Trust) nativa para el consentimiento de Habeas Data y la Declaración Jurada, evitando ataques de inyección y bypass.
+    2. Modificación de la lógica para usuarios existentes implementando un `UPSERT` en `pending_verifications`, eliminando el bloqueo crítico que impedía a usuarios de WintonCoin enviar sus censos de ayuda humanitaria (Falla Crítica resuelta).
+    3. Reemplazo del uso inseguro de `Date.now()` para la asignación temporal de expedientes por `crypto.randomUUID()`, previniendo colisiones de ID bajo alta concurrencia o ataques de bots.
+    4. Eliminación de las inserciones prematuras y erróneas en `blue_token_escrows`, garantizando la integridad transaccional de los tokens.
+  - **Flujo de Activación y Contraseña Opción A (`verifyVictimOtpPublic`)**:
+    1. Se migró a la "Opción A" (Estándar de Industria), donde la contraseña nunca viaja por correo. El damnificado define su contraseña en la misma pantalla donde ingresa el OTP de 6 dígitos.
+    2. Integración idéntica y estandarizada (DRY) del motor de acreditación de referidos (`authController.js`), utilizando `record_booster_event` y dejando un registro inmutable en el Ledger del Impulsor para los 200 BLUE IOU otorgados en el programa SOSVENEZUELA.
+    3. Retorno inmediato de tokens JWT (Access de 15 min + Refresh HttpOnly de 7 días) al validar el OTP, activando automáticamente la sesión segura.
+    4. Mantenimiento correcto del estatus del expediente en `pending_verification`, supeditando la asignación de ayuda a la revisión humana de los administradores.
+  - **Protección Anti-Fricción en Frontend (`sos-venezuela.js` / `sos-venezuela.html`)**:
+    1. Reestructuración de la Card OTP para inyectar dinámicamente los campos requeridos de `Define tu Contraseña` y `Confirma tu Contraseña` con doble verificación de coincidencia en el cliente.
+    2. Implementación de una validación exhaustiva de formulario en tiempo real (eventos `input` y `change`). El botón "Enviar Solicitud" inicia visualmente deshabilitado (opacidad al 50%) y solo se activa como CTA interactivo cuando se han llenado *todos* los campos obligatorios y *ambas* casillas legales están marcadas.
+* **Impacto**: Se sanea la deuda técnica (códigos duplicados residuales) y se blinda el Censo de Ayuda Humanitaria contra ataques masivos. Se mejora drásticamente la Experiencia de Usuario (UX) dando feedback visual en el formulario y entregando el control de la contraseña al damnificado. Todo alineado bajo normativas de Zero-Trust, inmutabilidad y SOC 2.
+
+### 2026-08-05 — Incorporación del Plan de Refactorización de Base de Datos en Technical Improvements
+* **Cambio**:
+  - **Documentación ([TECHNICAL_IMPROVEMENTS.md](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/docs/TECHNICAL_IMPROVEMENTS.md))**:
+    - Se incorporó la **Sección 13 (Plan de Refactorización y Auditoría de la Base de Datos, Migraciones y Auditoría Bancaria)** ordenando los problemas por severidad:
+      1. **Severidad Crítica / Urgente**: Desacoplamiento de `databaseInit.js` de `server.js` para evitar DDLs duplicados y condiciones de carrera al arrancar.
+      2. **Severidad Crítica / SOC 2**: Unificación de las tablas de auditoría (`audit_log` singular vs `audit_logs` plural) y canalización vía `auditService.js`.
+      3. **Severidad Alta**: Corrección de colisiones en prefijos numéricos de migración (`050_`), refactorización del parche `MockPool` e instanciación duplicada de `pg.Pool`.
+      4. **Severidad Media**: Sanitización estricta de construcciones SQL dinámicas (`victimController.js`) y deprecación de columnas legacy duplicadas (`users.phone` vs `users.phone_number`).
+* **Impacto**: Proporciona una hoja de ruta priorizada y categorizada para guiar la refactorización defensiva y la homologación del subsistema de persistencia hacia estándares FinTech / SOC 2.
+
 ### 2026-08-04 — Sistema de Notificaciones (Badges) Centralizadas en Panel Admin
 * **Cambio**:
   - **Backend**: Se implementó `adminMetricsController.js` con un endpoint unificado (`GET /api/admin/metrics/badges`) que agrega conteos (SQL `COUNT(*)`) concurrentes de múltiples tablas (`disaster_victims_registry`, `humanitarian_causes`, `publications`, etc.) previniendo vulnerabilidades DoS por múltiples llamadas.
