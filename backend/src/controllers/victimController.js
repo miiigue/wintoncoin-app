@@ -251,7 +251,16 @@ exports.registerVictimPublic = async (req, res) => {
             const tempPassword = crypto.randomBytes(12).toString('hex'); // 24 chars de alta entropía
             const hashedPassword = await bcrypt.hash(tempPassword, 10); // 10 salt rounds (estándar industria)
             const baseUsername = normEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').substring(0, 20);
-            username = `${baseUsername}_${Math.floor(100 + Math.random() * 900)}`;
+            
+            // Bucle de Resolución de Colisiones (Garantiza Username Único)
+            let isUsernameUnique = false;
+            while (!isUsernameUnique) {
+                username = `${baseUsername}_${Math.floor(100 + Math.random() * 900)}`;
+                const collisionCheck = await client.query('SELECT id FROM users WHERE username = $1', [username]);
+                if (collisionCheck.rows.length === 0) {
+                    isUsernameUnique = true;
+                }
+            }
 
             const newUserRes = await client.query(`
                 INSERT INTO users (username, email, password_hash, phone_number, is_verified, date_of_birth)

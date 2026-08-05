@@ -20,4 +20,7 @@ demo_audit_backup_genesis.json
 .env.backup
 
 # Logs y archivos de debug
-*.log 
+*.log
+
+# Scripts utilitarios destructivos
+scripts/delete_last_sos_user.js

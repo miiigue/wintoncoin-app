@@ -319,6 +319,48 @@ document.addEventListener('DOMContentLoaded', () => {
     const newPasswordInput = document.getElementById('sos-new-password');
     const confirmPasswordInput = document.getElementById('sos-confirm-password');
 
+    // Elementos de UI de éxito y ocultamiento
+    const otpCard = document.getElementById('sos-otp-verification-card');
+    const successCard = document.getElementById('sos-activation-success');
+
+    // ── 6.0 Toggle de Mostrar/Ocultar Contraseñas ──────────────────────────
+    const toggleNewPwd = document.getElementById('toggle-new-password');
+    const toggleConfirmPwd = document.getElementById('toggle-confirm-password');
+
+    if (toggleNewPwd && newPasswordInput) {
+        toggleNewPwd.addEventListener('click', () => {
+            const type = newPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            newPasswordInput.setAttribute('type', type);
+            // Si el ojito estuviera tachado, se puede cambiar aquí. En este caso mantenemos el emoji
+        });
+    }
+
+    if (toggleConfirmPwd && confirmPasswordInput) {
+        toggleConfirmPwd.addEventListener('click', () => {
+            const type = confirmPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            confirmPasswordInput.setAttribute('type', type);
+        });
+    }
+
+    // ── 6.1 Validación en Tiempo Real para Habilitar Botón ──────────────────
+    const validateOtpForm = () => {
+        if (!btnVerifyOtp || !otpInput || !newPasswordInput || !confirmPasswordInput) return;
+
+        const code = otpInput.value.trim();
+        const pwd = newPasswordInput.value;
+        const confirm = confirmPasswordInput.value;
+
+        const isValid = code.length === 6 && pwd.length >= 8 && pwd === confirm;
+
+        btnVerifyOtp.disabled = !isValid;
+        btnVerifyOtp.style.opacity = isValid ? '1' : '0.5';
+        btnVerifyOtp.style.cursor = isValid ? 'pointer' : 'not-allowed';
+    };
+
+    if (otpInput) otpInput.addEventListener('input', validateOtpForm);
+    if (newPasswordInput) newPasswordInput.addEventListener('input', validateOtpForm);
+    if (confirmPasswordInput) confirmPasswordInput.addEventListener('input', validateOtpForm);
+
     if (btnVerifyOtp && otpInput) {
         btnVerifyOtp.addEventListener('click', async () => {
             const code = otpInput.value.trim();
@@ -326,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const password = newPasswordInput ? newPasswordInput.value : '';
             const passwordConfirm = confirmPasswordInput ? confirmPasswordInput.value : '';
 
-            // ── 6.1 Validaciones del Cliente ───────────────────────────────
+            // ── 6.2 Validaciones del Cliente ───────────────────────────────
             // Validar OTP (mínimo 6 dígitos)
             if (!code || code.length < 6) {
                 showOtpMsg('Por favor ingresa los 6 dígitos del código enviado a tu correo.', '#ef4444');
@@ -345,9 +387,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // ── 6.2 Indicador de Carga ─────────────────────────────────────
+            // ── 6.3 Indicador de Carga ─────────────────────────────────────
             btnVerifyOtp.disabled = true;
-            btnVerifyOtp.textContent = 'Verificando y Activando...';
+            btnVerifyOtp.textContent = 'Activando cuenta...';
 
             // ── 6.3 Envío al Endpoint de Verificación OTP ──────────────────
             try {
@@ -378,23 +420,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // ── 6.5 Feedback Visual de Éxito ──────────────────────────
-                showOtpMsg('¡Cuenta y Billetera Activadas Exitosamente! Tus 200 BLUE IOU están disponibles.', '#10b981');
-                const otpCard = document.getElementById('sos-otp-verification-card');
+                // Ocultar la UI de código OTP / contraseñas
                 if (otpCard) {
-                    otpCard.style.borderColor = '#10b981';
-                    otpCard.style.background = 'rgba(16, 185, 129, 0.1)';
+                    otpCard.style.display = 'none';
                 }
-
-                // Desactivar campos de contraseña para evitar re-envío
-                if (newPasswordInput) newPasswordInput.disabled = true;
-                if (confirmPasswordInput) confirmPasswordInput.disabled = true;
-                otpInput.disabled = true;
+                
+                // Mostrar la tarjeta de éxito
+                if (successCard) {
+                    successCard.style.display = 'block';
+                }
 
             } catch (err) {
                 showOtpMsg(err.message, '#ef4444');
-            } finally {
                 btnVerifyOtp.disabled = false;
-                btnVerifyOtp.textContent = 'Activar mi Cuenta y Billetera';
+                btnVerifyOtp.textContent = 'Activar mi Cuenta';
             }
         });
     }
