@@ -43,6 +43,14 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 ### 2026-08-04 — Sistema de Notificaciones (Badges) Centralizadas en Panel Admin
 * **Cambio**:
   - **Backend**: Se implementó `adminMetricsController.js` con un endpoint unificado (`GET /api/admin/metrics/badges`) que agrega conteos (SQL `COUNT(*)`) concurrentes de múltiples tablas (`disaster_victims_registry`, `humanitarian_causes`, `publications`, etc.) previniendo vulnerabilidades DoS por múltiples llamadas.
+  - **Modularización DRY de Acreditación de Referidos (`referralRewardService.js`):**
+    - Se extrajo toda la lógica de bonos, notificaciones, envíos de correo transaccional y derivación a Causas Humanitarias a un servicio centralizado.
+    - Tanto los registros normales como los registros del Censo SOS Venezuela ejecutan exactamente el mismo flujo de acreditación.
+    - Si el referente (ej. `@CadenaSOSVenezuela`) tiene una Causa Humanitaria Activa y Aprobada, los bonos generados por referidos se desvían de forma segura y auditable como donación `on_hold` a la causa.
+  - **Validación en Tiempo Real de Código Especial en Admin (`admin-panel.js` & `systemController.js`):**
+    - Se agregó el endpoint `/api/system/verify-referral-code` que comprueba si un código existe en la BD y muestra el usuario al que pertenece.
+    - En el Panel Admin, se muestra `✅ Pertenece a @username` o `❌ Código no encontrado` al escribir en el campo de Código de Referido Especial.
+    - Si el código ingresado no existe, el switch de habilitación se desactiva y bloquea automáticamente.
   - **Frontend**: Se inyectaron `nav-badge` y `nav-badge-blue` en `admin-panel.html` y se implementó `startBadgesPolling()` en `admin-panel.js` para una sincronización en tiempo real cada 60 segundos (arquitectura polling unificado).
 * **Impacto**: Incrementa dramáticamente la eficiencia operativa de los administradores al saber exactamente qué flujos (SOS, Solidario, Talento, Momentum, Publicaciones) requieren su atención, garantizando seguridad y nulo impacto al rendimiento de la DB.
 

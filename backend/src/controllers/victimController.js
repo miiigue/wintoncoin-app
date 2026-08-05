@@ -22,6 +22,7 @@ const { logAuditEvent } = require('../services/auditService'); // Registro inmut
 const emailService = require('../services/emailService'); // OTP, correos transaccionales, hash de verificación
 const notificationService = require('../services/notificationService'); // Push Notifications (FCM/WebPush)
 const mediaController = require('./mediaController'); // Compresión WebP + Subida a Cloudflare R2
+const referralRewardService = require('../services/referralRewardService');
 
 // ── Secreto JWT para firma de tokens (Zero Hardcoded Secrets) ──────────────────
 const jwtSecret = process.env.JWT_SECRET; // Se lee exclusivamente desde variable de entorno
@@ -280,18 +281,23 @@ exports.registerVictimPublic = async (req, res) => {
         const verificationCodeHash = emailService.hashOtpForEmail(normEmail, verificationCode);
         const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos de vigencia
 
+        // Consultar dinámicamente el Código de Referido Especial desde app_settings (Principio DRY)
+        const customCodeRes = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'referral_custom_share_code'`);
+        const specialReferralCode = (customCodeRes.rows.length > 0 && customCodeRes.rows[0].setting_value) ? customCodeRes.rows[0].setting_value.trim() : 'SOSVENEZUELA';
+
         await client.query(`
             INSERT INTO pending_verifications (
                 username, email, password_hash, phone_number, referral_code,
                 verification_code_hash, verification_attempts, resend_count, last_sent_at, expires_at, date_of_birth
-            ) VALUES ($1, $2, '', $3, 'SOSVENEZUELA', $4, 0, 0, NOW(), $5, $6)
+            ) VALUES ($1, $2, '', $3, $4, $5, 0, 0, NOW(), $6, $7)
             ON CONFLICT (email) DO UPDATE
-            SET verification_code_hash = EXCLUDED.verification_code_hash,
+            SET referral_code = EXCLUDED.referral_code,
+                verification_code_hash = EXCLUDED.verification_code_hash,
                 expires_at = EXCLUDED.expires_at,
                 verification_attempts = 0,
                 resend_count = pending_verifications.resend_count + 1,
                 last_sent_at = NOW()
-        `, [username, normEmail, normPhone, verificationCodeHash, expiresAt, birth_date || null]);
+        `, [username, normEmail, normPhone, specialReferralCode, verificationCodeHash, expiresAt, birth_date || null]);
 
         // ── 6. Insertar Registro de Expediente (Paso 1: Código Temporal) ───
         // Se usa crypto.randomUUID() en lugar de Date.now() para evitar colisiones
@@ -515,37 +521,25 @@ exports.verifyVictimOtpPublic = async (req, res) => {
 
         const user = userRes.rows[0];
 
-        // ── 5. Acreditación DRY de 200 BLUE IOU (Principio DRY) ────────────
-        // Se replica EXACTAMENTE el mecanismo de authController.js para referidos:
-        // record_booster_event → booster_transactions → transactions → notifications
-        const rewardAmount = 200; // Monto fijo del bono SOSVENEZUELA (igual al bono por referido)
+        // ── 5. Acreditación Centralizada de 200 BLUE IOU (Principio DRY) ────────────
+        // Se ejecuta exactamente el mismo servicio de referidos que en authController.js:
+        // Si el referente tiene una causa humanitaria activa aprobada (ej: CadenaSOSVenezuela),
+        // el bono se destina automáticamente como donación en espera para la causa.
+        const pendingRefRes = await client.query('SELECT referral_code FROM pending_verifications WHERE email = $1', [normEmail]);
+        const customCodeRes2 = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'referral_custom_share_code'`);
+        
+        let refCodeToUse = 'SOSVENEZUELA';
+        if (pendingRefRes.rows.length > 0 && pendingRefRes.rows[0].referral_code) {
+            refCodeToUse = pendingRefRes.rows[0].referral_code;
+        } else if (customCodeRes2.rows.length > 0 && customCodeRes2.rows[0].setting_value) {
+            refCodeToUse = customCodeRes2.rows[0].setting_value;
+        }
 
-        // 5.1 Registrar en el Ledger Inmutable del Impulsor (booster_blue_ledger)
-        await client.query(
-            "SELECT record_booster_event($1, 'referral_reward', $2, NULL, NULL)",
-            [user.id, rewardAmount]
-        );
-
-        // 5.2 Activar perfil impulsor del usuario
-        await client.query('UPDATE users SET is_booster = true WHERE id = $1', [user.id]);
-
-        // 5.3 Registrar en historial de transacciones del impulsor
-        await client.query(
-            `INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_received', $2, $3)`,
-            [user.id, rewardAmount, 'Bono de bienvenida por registro SOS Venezuela (código SOSVENEZUELA)']
-        );
-
-        // 5.4 Registrar en historial de transacciones global de la plataforma
-        await client.query(
-            `INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`,
-            [user.id, 'Bono de bienvenida (perfil impulsor) por registro con código SOSVENEZUELA', rewardAmount]
-        );
-
-        // 5.5 Notificación In-App del bono acreditado
-        await client.query(
-            `INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`,
-            [user.username, `¡Bienvenido! Por registrarte en el Censo SOS Venezuela has recibido ${rewardAmount.toFixed(4)} BLUE IOU en tu perfil de impulsor.`]
-        );
+        await referralRewardService.processReferralReward({
+            client,
+            newUser: user,
+            referralCode: refCodeToUse
+        });
 
         // ── 5.6 Registrar en historial del expediente SOS ──────────────────
         const caseRes = await client.query(
