@@ -177,8 +177,11 @@ document.addEventListener('DOMContentLoaded', () => {
     showSection('dashboard');
     refreshPlatformPendingBadge();
     refreshHumanitarianBadge();
-    setInterval(refreshPlatformPendingBadge, 30000);
-    setInterval(refreshHumanitarianBadge, 30000);
+    startBadgesPolling();
+    
+    // El polling centralizado reemplaza a los setInterval individuales para optimización
+    // setInterval(refreshPlatformPendingBadge, 30000); // (Reemplazado por startBadgesPolling)
+    // setInterval(refreshHumanitarianBadge, 30000); // (Reemplazado por startBadgesPolling)
 
     // --- Módulo: Renderizar Administrador Conectado ---
     function renderConnectedUser() {
@@ -966,6 +969,43 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.warn('No se pudo actualizar el badge de pendientes:', error.message);
         }
+    }
+
+    async function startBadgesPolling() {
+        async function fetchBadges() {
+            try {
+                const badges = await apiFetch('/api/admin/metrics/badges');
+                
+                // Función auxiliar para actualizar un badge específico
+                const updateBadge = (id, count) => {
+                    const badge = document.getElementById(id);
+                    if (badge) {
+                        badge.textContent = count > 0 ? count : '';
+                        badge.style.display = count > 0 ? 'inline-block' : 'none';
+                    }
+                };
+
+                updateBadge('sosVictimsBadge', badges.sos);
+                updateBadge('talentBadge', badges.talent);
+                updateBadge('humanitarianBadge', badges.humanitarian);
+                updateBadge('momentumBadge', badges.momentum);
+                updateBadge('platformPublicationsBadge', badges.publications);
+                updateBadge('governanceBadge', badges.governance);
+                updateBadge('kycBadge', badges.kyc);
+                updateBadge('crmBadge', badges.crm);
+                updateBadge('teamBadge', 0); // No hay endpoint para esto actualmente
+                updateBadge('referralsBadge', 0);
+                updateBadge('boostersBadge', 0);
+
+            } catch (error) {
+                console.warn('No se pudieron actualizar los badges globales:', error.message);
+            }
+        }
+
+        // Ejecutar inmediatamente
+        fetchBadges();
+        // Configurar polling cada 60 segundos
+        setInterval(fetchBadges, 60000);
     }
 
     async function setupPlatformMediaDropzone() {

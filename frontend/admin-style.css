@@ -110,6 +110,11 @@
     display: inline-flex;
 }
 
+.nav-badge-blue {
+    background: #3B82F6; /* Azul brillante */
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+}
+
 .sidebar-footer {
     margin-top: auto;
     /* Empuja el footer hacia abajo */

@@ -13,6 +13,12 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-04 — Sistema de Notificaciones (Badges) Centralizadas en Panel Admin
+* **Cambio**:
+  - **Backend**: Se implementó `adminMetricsController.js` con un endpoint unificado (`GET /api/admin/metrics/badges`) que agrega conteos (SQL `COUNT(*)`) concurrentes de múltiples tablas (`disaster_victims_registry`, `humanitarian_causes`, `publications`, etc.) previniendo vulnerabilidades DoS por múltiples llamadas.
+  - **Frontend**: Se inyectaron `nav-badge` y `nav-badge-blue` en `admin-panel.html` y se implementó `startBadgesPolling()` en `admin-panel.js` para una sincronización en tiempo real cada 60 segundos (arquitectura polling unificado).
+* **Impacto**: Incrementa dramáticamente la eficiencia operativa de los administradores al saber exactamente qué flujos (SOS, Solidario, Talento, Momentum, Publicaciones) requieren su atención, garantizando seguridad y nulo impacto al rendimiento de la DB.
+
 ### 2026-08-04 — Corrección de Enrutamiento PWA (Multi-Page vs Single-Page)
 * **Cambio**:
   - **Service Worker ([sw-source.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/sw-source.js))**:
