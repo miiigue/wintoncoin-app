@@ -20,8 +20,9 @@ router.get('/referral-settings', SystemController.getReferralSettings);
 // 3. Obtener fecha de vigencia de códigos de referido (Público)
 router.get('/referral-expiry-date', SystemController.getReferralExpiryDate);
 
-// 3.1 Verificar código de referido en tiempo real (Público/Admin)
+// 3.1 Verificar código de referido en tiempo real (Público/Admin - Soporta ambos prefijos por compatibilidad)
 router.get('/verify-referral-code', SystemController.verifyReferralCode);
+router.get('/system/verify-referral-code', SystemController.verifyReferralCode);
 
 // 4. Lista de Obligaciones Vencidas (LOVE) (Público)
 router.get('/love-list', SystemController.getLoveList);

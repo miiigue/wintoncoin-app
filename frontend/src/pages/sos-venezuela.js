@@ -472,4 +472,38 @@ document.addEventListener('DOMContentLoaded', () => {
             feedbackEl.style.marginTop = '1rem';
         }
     }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // SECCIÓN 8: CARGA DINÁMICA DEL CÓDIGO ESPECIAL DE REFERIDOS (ADMIN CONFIG)
+    // ═══════════════════════════════════════════════════════════════════════
+    /**
+     * Consulta la API pública de referidos para obtener el código especial activo
+     * (ej: SOSVENEZUELADEMO) y actualizar dinámicamente todos los elementos de la interfaz.
+     */
+    async function loadDynamicSpecialCode() {
+        try {
+            const res = await fetch(`${API_URL}/api/referral-settings`);
+            if (res.ok) {
+                const data = await res.json();
+                const code = data.referral_custom_share_code || 'SOSVENEZUELA';
+                
+                // Actualizar todos los elementos con la clase dynamic-special-code
+                const codeElements = document.querySelectorAll('.dynamic-special-code');
+                codeElements.forEach(el => {
+                    el.textContent = code;
+                });
+
+                // Actualizar el botón enlace para referir con el código real
+                const registerLink = document.getElementById('sos-register-ref-link');
+                if (registerLink) {
+                    registerLink.href = `register.html?ref=${encodeURIComponent(code)}`;
+                }
+            }
+        } catch (err) {
+            console.warn("[SOS DYNAMIC CODE] Error al obtener la configuración pública de referidos:", err);
+        }
+    }
+
+    // Cargar el código dinámico al inicializar la página
+    loadDynamicSpecialCode();
 });

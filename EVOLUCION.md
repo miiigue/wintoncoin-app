@@ -13,6 +13,16 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-05 — Corrección Crítica en Activación SOS Venezuela y Verificación de Código Especial Admin
+* **Cambio**:
+  - **Corrección de ReferenceError en `victimController.js` (`verifyVictimOtpPublic`)**:
+    - Se resolvió un error crítico `ReferenceError: rewardAmount is not defined` que ocurría al activar la cuenta tras ingresar el OTP en el formulario SOS Venezuela.
+    - La variable `rewardAmount` ahora se retorna de forma limpia desde `referralRewardService.processReferralReward`, evitando que la función arroje un error interno del servidor (500) y se revierta la transacción.
+  - **Fix de Enrutamiento en Verificación de Código de Referido Especial (`systemRoutes.js` y `admin-panel.js`)**:
+    - Se solucionó el error `404 Not Found` en la consola de Chrome (`/api/system/verify-referral-code`) mediante la adición de una ruta alias explícita en `systemRoutes.js` (`router.get('/system/verify-referral-code', ...)`).
+    - Se actualizó el fetch en `admin-panel.js` con un patrón de respaldo resiliente que intenta la ruta primaria `/api/verify-referral-code` y cae a `/api/system/verify-referral-code`, garantizando retrocompatibilidad y eliminado el mensaje "Error al verificar código".
+* **Impacto**: Se restaura la operatividad total del Censo SOS Venezuela en el flujo de activación de cuenta y se garantiza que el Panel de Administración pueda verificar y validar en tiempo real la existencia de cualquier código de referido especial asignado a causas humanitarias (como `@CadenaSOSVenezuela`).
+
 ### 2026-08-05 — Refactorización Integral Censo SOS Venezuela, Zero-Trust y Opción A (Contraseña en OTP)
 * **Cambio**:
   - **Refactorización Backend de Registro (`registerVictimPublic`)**:

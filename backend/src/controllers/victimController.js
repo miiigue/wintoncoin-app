@@ -535,11 +535,14 @@ exports.verifyVictimOtpPublic = async (req, res) => {
             refCodeToUse = customCodeRes2.rows[0].setting_value;
         }
 
-        await referralRewardService.processReferralReward({
+        const rewardResult = await referralRewardService.processReferralReward({
             client,
             newUser: user,
             referralCode: refCodeToUse
         });
+
+        // Monto de recompensa procesado (con respaldo por defecto de 200 BLUE IOU)
+        const rewardAmount = (rewardResult && rewardResult.rewardAmount) ? rewardResult.rewardAmount : 200;
 
         // ── 5.6 Registrar en historial del expediente SOS ──────────────────
         const caseRes = await client.query(

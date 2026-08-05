@@ -1684,7 +1684,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const res = await fetch(`${API_URL}/api/system/verify-referral-code?code=${encodeURIComponent(codeVal)}`);
+                let res = await fetch(`${API_URL}/api/verify-referral-code?code=${encodeURIComponent(codeVal)}`);
+                if (!res.ok) {
+                    res = await fetch(`${API_URL}/api/system/verify-referral-code?code=${encodeURIComponent(codeVal)}`);
+                }
                 const data = await res.json();
                 if (data.valid) {
                     statusMsg.innerHTML = `<span style="color: #2ecc71;">✅ Pertenece al usuario: <strong>@${data.username}</strong></span>`;

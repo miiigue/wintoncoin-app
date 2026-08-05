@@ -239,7 +239,7 @@ async function processReferralReward({ client, newUser, referralCode }) {
         }
     }
 
-    return { success: true, referrer: referrer ? referrer.username : null };
+    return { success: true, referrer: referrer ? referrer.username : null, rewardAmount: rewardAmount || welcomeBonusAmount || 200 };
 }
 
 module.exports = {
