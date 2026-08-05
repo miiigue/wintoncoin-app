@@ -17,8 +17,10 @@ const notificationService = require('./notificationService');
 const { sendTransactionEmail } = require('./emailService');
 
 async function processReferralReward({ client, newUser, referralCode }) {
+    let allocatedRewardAmount = 0;
+
     if (!referralCode || typeof referralCode !== 'string') {
-        return { success: false, reason: 'NO_CODE' };
+        return { success: false, reason: 'NO_CODE', rewardAmount: 200 };
     }
 
     const cleanCode = referralCode.trim().toUpperCase();
@@ -105,14 +107,13 @@ async function processReferralReward({ client, newUser, referralCode }) {
             LIMIT 1
         `, [totalUsers]);
 
-        let rewardAmount = 0;
         if (tierRes.rowCount > 0) {
-            rewardAmount = parseFloat(tierRes.rows[0].reward_amount) || 0;
+            allocatedRewardAmount = parseFloat(tierRes.rows[0].reward_amount) || 0;
         } else {
-            rewardAmount = parseFloat(settings.referral_reward_after_expiry) || 0;
+            allocatedRewardAmount = parseFloat(settings.referral_reward_after_expiry) || 0;
         }
 
-        if (rewardAmount > 0) {
+        if (allocatedRewardAmount > 0) {
             // Consultar si el referente tiene una causa humanitaria activa aprobada
             const causeCheck = await client.query(`
                 SELECT id, title, evidence_urls, beneficiary_socials FROM humanitarian_causes 
@@ -132,13 +133,13 @@ async function processReferralReward({ client, newUser, referralCode }) {
                     INSERT INTO humanitarian_donations 
                         (cause_id, donor_id, recipient_id, amount, status, donation_type)
                     VALUES ($1, $2, $3, $4, $5, $6)
-                `, [activeCause.id, newUser.id, referrer.id, rewardAmount, 'on_hold', 'referral']);
+                `, [activeCause.id, newUser.id, referrer.id, allocatedRewardAmount, 'on_hold', 'referral']);
 
                 await client.query(`
                     UPDATE humanitarian_causes 
                     SET pending_amount = pending_amount + $1 
                     WHERE id = $2
-                `, [rewardAmount, activeCause.id]);
+                `, [allocatedRewardAmount, activeCause.id]);
 
                 await client.query('UPDATE users SET is_booster = true WHERE id = $1', [referrer.id]);
 
@@ -147,12 +148,12 @@ async function processReferralReward({ client, newUser, referralCode }) {
                     VALUES ($1, $2)
                 `, [
                     referrer.username, 
-                    `⚡ ¡Nuevo Referido! Tu bono de ${rewardAmount.toFixed(4)} BLUE por invitar a ${newUser.username} se ha destinado automáticamente como donación en espera para tu causa "${activeCause.title}". Estará disponible cuando el usuario verifique su KYC.`
+                    `⚡ ¡Nuevo Referido! Tu bono de ${allocatedRewardAmount.toFixed(4)} BLUE por invitar a ${newUser.username} se ha destinado automáticamente como donación en espera para tu causa "${activeCause.title}". Estará disponible cuando el usuario verifique su KYC.`
                 ]);
 
                 await notificationService.sendNotificationToUser(referrer.id, {
                     title: 'Bono destinado a tu Causa 💙',
-                    body: `${newUser.username} se unió con tu código. +${rewardAmount.toFixed(2)} BLUE IOU asignados en espera para tu causa.`,
+                    body: `${newUser.username} se unió con tu código. +${allocatedRewardAmount.toFixed(2)} BLUE IOU asignados en espera para tu causa.`,
                     icon: '/assets/icons/icon-192x192.png',
                     data: { url: `/causa-solidaria.html?id=${activeCause.id}` }
                 }, 'TRANSACTIONAL');
@@ -175,8 +176,8 @@ async function processReferralReward({ client, newUser, referralCode }) {
                         toEmail: newUser.email,
                         subject: '🎁 ¡Gracias por unirte! Tu registro apoya una causa — Winton Solidario',
                         title: 'Aporte Solidario por Registro',
-                        message: `¡Bienvenido a Wintoncoin! Nos emociona mucho que te unas a nuestra comunidad. Queremos agradecerte de todo corazón porque al registrarte usando el código de referido de @${referrer.username}, has destinado tu bono de bienvenida de ${rewardAmount.toFixed(4)} BLUE IOU para apoyar la causa "${activeCause.title}". Tu granito de arena hace una gran diferencia.\n\nTu aporte está en resguardo seguro temporalmente. Para que este hermoso gesto se haga efectivo y sea liberado para la causa, solo debes completar tu verificación KYC Web3 en tu panel.`,
-                        amount: `${rewardAmount.toFixed(4)} BLUE IOU`,
+                        message: `¡Bienvenido a Wintoncoin! Nos emociona mucho que te unas a nuestra comunidad. Queremos agradecerte de todo corazón porque al registrarte usando el código de referido de @${referrer.username}, has destinado tu bono de bienvenida de ${allocatedRewardAmount.toFixed(4)} BLUE IOU para apoyar la causa "${activeCause.title}". Tu granito de arena hace una gran diferencia.\n\nTu aporte está en resguardo seguro temporalmente. Para que este hermoso gesto se haga efectivo y sea liberado para la causa, solo debes completar tu verificación KYC Web3 en tu panel.`,
+                        amount: `${allocatedRewardAmount.toFixed(4)} BLUE IOU`,
                         details: [
                             { label: 'Causa Solidaria', value: activeCause.title },
                             { label: 'Invitado por', value: `@${referrer.username}` },
@@ -191,55 +192,56 @@ async function processReferralReward({ client, newUser, referralCode }) {
 
             } else {
                 // CASO TRADICIONAL (Sin causa activa)
-                await client.query("SELECT record_booster_event($1, 'referral_reward', $2, NULL, $3)", [referrer.id, rewardAmount, newUser.id]);
+                await client.query("SELECT record_booster_event($1, 'referral_reward', $2, NULL, $3)", [referrer.id, allocatedRewardAmount, newUser.id]);
                 await client.query('UPDATE users SET is_booster = true WHERE id = $1', [referrer.id]);
 
-                await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_sent', $2, $3)`, [referrer.id, rewardAmount, `Bono por referir a ${newUser.username}`]);
-                await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [referrer.id, `Recompensa (perfil impulsor) por referir a ${newUser.username}`, rewardAmount]);
-                await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [referrer.username, `¡Felicidades! Has ganado ${rewardAmount.toFixed(4)} BLUE en tu perfil de impulsor porque ${newUser.username} se registró con tu código.`]);
+                await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_sent', $2, $3)`, [referrer.id, allocatedRewardAmount, `Bono por referir a ${newUser.username}`]);
+                await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [referrer.id, `Recompensa (perfil impulsor) por referir a ${newUser.username}`, allocatedRewardAmount]);
+                await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [referrer.username, `¡Felicidades! Has ganado ${allocatedRewardAmount.toFixed(4)} BLUE en tu perfil de impulsor porque ${newUser.username} se registró con tu código.`]);
 
                 await notificationService.sendNotificationToUser(referrer.id, {
                     title: '¡Nuevo Referido! ⚡',
-                    body: `${newUser.username} se unió con tu código. +${rewardAmount.toFixed(2)} BLUE IOU acreditados.`,
+                    body: `${newUser.username} se unió con tu código. +${allocatedRewardAmount.toFixed(2)} BLUE IOU acreditados.`,
                     icon: '/assets/icons/icon-192x192.png',
                     data: { url: '/history.html' }
                 }, 'TRANSACTIONAL');
             }
 
             // Bono para el nuevo usuario (referred)
-            await client.query("SELECT record_booster_event($1, 'referral_reward', $2, NULL, $3)", [newUser.id, rewardAmount, referrer.id]);
+            await client.query("SELECT record_booster_event($1, 'referral_reward', $2, NULL, $3)", [newUser.id, allocatedRewardAmount, referrer.id]);
             await client.query('UPDATE users SET is_booster = true WHERE id = $1', [newUser.id]);
-            await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_received', $2, $3)`, [newUser.id, rewardAmount, `Bono por usar el código de ${referrer.username}`]);
-            await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [newUser.id, `Recompensa (perfil impulsor) por usar el código de ${referrer.username}`, rewardAmount]);
-            await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Por usar un código de referido, has ganado ${rewardAmount.toFixed(4)} BLUE en tu perfil de impulsor.`]);
+            await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_received', $2, $3)`, [newUser.id, allocatedRewardAmount, `Bono por usar el código de ${referrer.username}`]);
+            await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [newUser.id, `Recompensa (perfil impulsor) por usar el código de ${referrer.username}`, allocatedRewardAmount]);
+            await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Por usar un código de referido, has ganado ${allocatedRewardAmount.toFixed(4)} BLUE en tu perfil de impulsor.`]);
 
             await notificationService.sendNotificationToUser(newUser.id, {
                 title: '¡Bienvenido a la Familia! 🎁',
-                body: `Has recibido ${rewardAmount.toFixed(2)} BLUE IOU de regalo por usar referido.`,
+                body: `Has recibido ${allocatedRewardAmount.toFixed(2)} BLUE IOU de regalo por usar referido.`,
                 icon: '/assets/icons/icon-192x192.png',
                 data: { url: '/history.html' }
             }, 'TRANSACTIONAL');
         }
     } else if (preLaunchMode && welcomeBonusEnabled) {
         // Bono de bienvenida general si no hay referente
-        const welcomeBonusAmount = parseFloat(settings.welcome_bonus_amount) || 0;
-        if (welcomeBonusAmount > 0) {
-            await client.query('SELECT record_booster_event($1, \'welcome_bonus\', $2, NULL)', [newUser.id, welcomeBonusAmount]);
+        allocatedRewardAmount = parseFloat(settings.welcome_bonus_amount) || 0;
+        if (allocatedRewardAmount > 0) {
+            await client.query('SELECT record_booster_event($1, \'welcome_bonus\', $2, NULL)', [newUser.id, allocatedRewardAmount]);
             await client.query('UPDATE users SET is_booster = true WHERE id = $1', [newUser.id]);
-            await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, welcomeBonusAmount, 'Bono de Bienvenida por registro']);
-            await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, 'Bono de bienvenida (perfil impulsor)', welcomeBonusAmount]);
-            await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Has recibido ${welcomeBonusAmount.toFixed(4)} BLUE en tu perfil de impulsor como bono de bienvenida.`]);
+            await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, allocatedRewardAmount, 'Bono de Bienvenida por registro']);
+            await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, 'Bono de bienvenida (perfil impulsor)', allocatedRewardAmount]);
+            await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Has recibido ${allocatedRewardAmount.toFixed(4)} BLUE en tu perfil de impulsor como bono de bienvenida.`]);
 
             await notificationService.sendNotificationToUser(newUser.id, {
                 title: '¡Bienvenido! 🚀',
-                body: `Recibiste ${welcomeBonusAmount.toFixed(2)} BLUE IOU de regalo por tu registro.`,
+                body: `Recibiste ${allocatedRewardAmount.toFixed(2)} BLUE IOU de regalo por tu registro.`,
                 icon: '/assets/icons/icon-192x192.png',
                 data: { url: '/history.html' }
             }, 'TRANSACTIONAL');
         }
     }
 
-    return { success: true, referrer: referrer ? referrer.username : null, rewardAmount: rewardAmount || welcomeBonusAmount || 200 };
+    const finalAmount = allocatedRewardAmount > 0 ? allocatedRewardAmount : 200;
+    return { success: true, referrer: referrer ? referrer.username : null, rewardAmount: finalAmount };
 }
 
 module.exports = {
