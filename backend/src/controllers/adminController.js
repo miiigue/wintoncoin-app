@@ -26,6 +26,7 @@ const adminUserController           = require('./admin/adminUserController');
 const adminPublicationsController   = require('./admin/adminPublicationsController');
 const adminSystemSettingsController = require('./admin/adminSystemSettingsController');
 const adminAuditStatsController     = require('./admin/adminAuditStatsController');
+const adminMetricsController        = require('./admin/adminMetricsController');
 
 // 2. Re-exportación Unificada Inmutable (Patrón Fachada)
 module.exports = {
@@ -33,5 +34,6 @@ module.exports = {
     ...adminUserController,
     ...adminPublicationsController,
     ...adminSystemSettingsController,
-    ...adminAuditStatsController
+    ...adminAuditStatsController,
+    ...adminMetricsController
 };

@@ -45,6 +45,7 @@ router.delete('/publications/:id', verifyAdminToken, adminController.deletePubli
 
 // Dashboard y Estadísticas
 router.get('/dashboard-stats', verifyAdminToken, adminController.getDashboardStats);
+router.get('/metrics/badges', verifyAdminToken, adminController.getAdminBadges);
 
 // Billetera de Plataforma
 router.get('/platform-wallet/balance', verifyAdminToken, adminController.getPlatformWalletBalance);

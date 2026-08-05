@@ -35,6 +35,7 @@ const adminUserController = require('../src/controllers/admin/adminUserControlle
 const adminPublicationsController = require('../src/controllers/admin/adminPublicationsController');
 const adminSystemSettingsController = require('../src/controllers/admin/adminSystemSettingsController');
 const adminAuditStatsController = require('../src/controllers/admin/adminAuditStatsController');
+const adminMetricsController = require('../src/controllers/admin/adminMetricsController');
 
 describe('Pruebas de Integridad de Submódulos Administrativos', () => {
 
@@ -78,9 +79,17 @@ describe('Pruebas de Integridad de Submódulos Administrativos', () => {
         });
     });
 
-    it('6. Fachada adminController — Debe consolidar exactamente 56 funciones (12+6+6+8+24)', () => {
+    it('5.1. Submódulo Métricas Badges — Debe exportar 1 función válida', () => {
+        const keys = Object.keys(adminMetricsController);
+        expect(keys.length).toBe(1);
+        keys.forEach(key => {
+            expect(typeof adminMetricsController[key]).toBe('function');
+        });
+    });
+
+    it('6. Fachada adminController — Debe consolidar exactamente 57 funciones (12+6+6+8+24+1)', () => {
         const facadeKeys = Object.keys(adminFacade);
-        expect(facadeKeys.length).toBe(56);
+        expect(facadeKeys.length).toBe(57);
         facadeKeys.forEach(key => {
             expect(typeof adminFacade[key]).toBe('function');
         });
