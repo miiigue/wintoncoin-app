@@ -401,11 +401,19 @@ function setupFieldValidation(API_URL, checkAgreements) {
     }
 }
 
+function escapeHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 // --- Manejo de modales ---
-function setupModals() {
+function setupModals(API_URL) {
     const referralModal = document.getElementById('referralCodeModal');
-    const referralCloseButtons = document.querySelectorAll('.referral-close-button');
-    const getReferralCodeBtn = document.getElementById('getReferralCodeBtn');
+    const referralModalContent = document.querySelector('#referralCodeModal .modal-content');
     const policyModal = document.getElementById('oneAccountPolicyModal');
     const policyCloseButtons = document.querySelectorAll('.policy-close-button');
 
@@ -445,15 +453,94 @@ function setupModals() {
         }
     };
 
-    // Event listeners para modal de referido
-    if (getReferralCodeBtn) {
-        getReferralCodeBtn.addEventListener('click', () => {
-            window.open('/', '_blank', 'noopener,noreferrer');
-            closeReferralModal();
-        });
+    // Configuración dinámica del contenido del modal desde la API
+    async function fetchAndRenderReferralModal() {
+        if (!referralModalContent) return;
+        try {
+            const endpoint = API_URL ? `${API_URL}/api/referral-settings` : '/api/referral-settings';
+            const res = await fetch(endpoint);
+            if (!res.ok) return;
+            const data = await res.json();
+
+            const isSpecialEnabled = !!data.referral_custom_share_code_enabled;
+            const specialCode = data.referral_custom_share_code || 'SOSVENEZUELA';
+            const causeTitle = data.referral_custom_share_code_cause_title || 'Censo Humanitario SOS Venezuela';
+            const rewardAmount = Math.round(parseFloat(data.referral_reward_amount || '200'));
+
+            if (isSpecialEnabled) {
+                // --- CASO 1: CÓDIGO ESPECIAL ACTIVADO ---
+                referralModalContent.innerHTML = `
+                    <span class="close-button referral-close-button">&times;</span>
+                    <div style="text-align: center; margin-bottom: 14px;">
+                        <span style="font-size: 2.2rem;">🤝</span>
+                        <h3 style="margin-top: 6px; color: var(--primary-light, #00d2ff); font-size: 1.25rem;">¡Campaña Especial Activa!</h3>
+                    </div>
+                    <p style="text-align: center; line-height: 1.5; font-size: 0.95rem; margin-bottom: 14px; color: #e2e8f0;">
+                        ¿Quieres usar el código <strong style="color: #ffd700; font-family: monospace; font-size: 1.1rem; letter-spacing: 1px;">${escapeHtml(specialCode)}</strong> de la causa humanitaria <strong style="color: #00d2ff;">"${escapeHtml(causeTitle)}"</strong>?
+                    </p>
+                    <p style="text-align: center; line-height: 1.5; font-size: 0.9rem; background: rgba(0, 210, 255, 0.08); padding: 12px 14px; border-radius: 8px; border: 1px solid rgba(0, 210, 255, 0.2); margin-bottom: 20px; color: #cbd5e1;">
+                        🎁 Al aceptar recibes <strong style="color: #00ff87;">${rewardAmount} BLUE IOU</strong> de recompensa y se depositan <strong style="color: #00ff87;">${rewardAmount} BLUE IOU</strong> a la causa.
+                    </p>
+                    <div style="display: flex; justify-content: center;">
+                        <button id="acceptSpecialCodeBtn" class="action-button" style="width: 100%; max-width: 340px; font-weight: bold; background: linear-gradient(135deg, #00d2ff 0%, #0072ff 100%); padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3); border: none; color: #fff; font-size: 1rem; cursor: pointer;">
+                            Quiero mis ${rewardAmount} BLUE IOU
+                        </button>
+                    </div>
+                `;
+
+                const acceptBtn = document.getElementById('acceptSpecialCodeBtn');
+                if (acceptBtn) {
+                    acceptBtn.addEventListener('click', () => {
+                        const refInput = document.getElementById('referral_code');
+                        if (refInput) {
+                            refInput.value = specialCode;
+                            refInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            refInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        closeReferralModal();
+                    });
+                }
+            } else {
+                // --- CASO 2: CÓDIGO ESPECIAL DESACTIVADO (Modal Estándar Resumido y Breve) ---
+                referralModalContent.innerHTML = `
+                    <span class="close-button referral-close-button">&times;</span>
+                    <div style="text-align: center; margin-bottom: 12px;">
+                        <span style="font-size: 2.2rem;">🎁</span>
+                        <h3 style="margin-top: 6px; color: #fff; font-size: 1.25rem;">¿No tienes código de referido?</h3>
+                    </div>
+                    <p style="text-align: center; line-height: 1.5; font-size: 0.95rem; margin-bottom: 14px; color: #e2e8f0;">
+                        Al registrarte con un código de referido obtienes <strong style="color: #00ff87;">${rewardAmount} BLUE IOU</strong> de recompensa en tu Perfil de Impulsor.
+                    </p>
+                    <p style="text-align: center; font-size: 0.85rem; color: #a0aec0; margin-bottom: 20px;">
+                        💡 Puedes conseguir códigos oficiales en nuestras redes sociales o sitio web:
+                        <br>
+                        <a href="https://www.wintoncoin.com" target="_blank" rel="noopener noreferrer" style="color: #00d2ff; text-decoration: underline; font-weight: 500;">www.wintoncoin.com</a>
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 10px; align-items: center;">
+                        <button id="getReferralCodeBtn" class="action-button" style="width: 100%; background: #28a745; border: none; padding: 12px; font-weight: bold; border-radius: 8px; color: #fff; cursor: pointer;">Conseguir Código</button>
+                        <button class="action-button referral-close-button" style="width: 100%; background: #6c757d; border: none; padding: 10px; font-size: 0.9rem; border-radius: 8px; color: #fff; cursor: pointer;">Continuar sin Código</button>
+                    </div>
+                `;
+
+                const getCodeBtn = document.getElementById('getReferralCodeBtn');
+                if (getCodeBtn) {
+                    getCodeBtn.addEventListener('click', () => {
+                        window.open('https://www.wintoncoin.com', '_blank', 'noopener,noreferrer');
+                        closeReferralModal();
+                    });
+                }
+            }
+
+            // Re-adjuntar manejadores de cierre de modal a botones de cierre
+            document.querySelectorAll('.referral-close-button').forEach(button => {
+                button.addEventListener('click', closeReferralModal);
+            });
+        } catch (err) {
+            console.error("Error al configurar modal de referidos:", err);
+        }
     }
 
-    referralCloseButtons.forEach(button => button.addEventListener('click', closeReferralModal));
+    fetchAndRenderReferralModal();
 
     if (referralModal) {
         window.addEventListener('click', (event) => {
@@ -657,7 +744,7 @@ async function initializeRegisterPage() {
     }
 
     // Configurar modales
-    const { showReferralModal, showPolicyModal } = setupModals();
+    const { showReferralModal, showPolicyModal } = setupModals(API_URL);
 
     // Nota: El código de referido en la URL ya se verificó y guardó de inmediato al inicio del módulo
 
