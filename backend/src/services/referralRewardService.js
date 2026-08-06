@@ -193,7 +193,7 @@ async function processReferralReward({ client, newUser, referralCode }) {
 
                 await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_sent', $2, $3)`, [referrer.id, allocatedRewardAmount, `Bono por referir a ${newUser.username}`]);
                 await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [referrer.id, `Recompensa (perfil impulsor) por referir a ${newUser.username}`, allocatedRewardAmount]);
-                await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [referrer.username, `¡Felicidades! Has ganado ${allocatedRewardAmount.toFixed(4)} BLUE en tu perfil de impulsor porque ${newUser.username} se registró con tu código.`]);
+                await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [referrer.username, `¡Felicidades! Has ganado ${allocatedRewardAmount.toFixed(4)} BLUE IOU en tu perfil de impulsor porque ${newUser.username} se registró con tu código.`]);
 
                 await notificationService.sendNotificationToUser(referrer.id, {
                     title: '¡Nuevo Referido! ⚡',
@@ -208,7 +208,7 @@ async function processReferralReward({ client, newUser, referralCode }) {
             await client.query('UPDATE users SET is_booster = true WHERE id = $1', [newUser.id]);
             await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_received', $2, $3)`, [newUser.id, allocatedRewardAmount, `Bono por usar el código de ${referrer.username}`]);
             await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [newUser.id, `Recompensa (perfil impulsor) por usar el código de ${referrer.username}`, allocatedRewardAmount]);
-            await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Por usar un código de referido, has ganado ${allocatedRewardAmount.toFixed(4)} BLUE en tu perfil de impulsor.`]);
+            await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Por usar un código de referido, has ganado ${allocatedRewardAmount.toFixed(4)} BLUE IOU en tu perfil de impulsor.`]);
 
             await notificationService.sendNotificationToUser(newUser.id, {
                 title: '¡Bienvenido a la Familia! 🎁',
@@ -229,7 +229,7 @@ async function processReferralReward({ client, newUser, referralCode }) {
             await client.query('UPDATE users SET is_booster = true WHERE id = $1', [newUser.id]);
             await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, allocatedRewardAmount, 'Bono de Bienvenida por registro']);
             await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, 'Bono de bienvenida (perfil impulsor)', allocatedRewardAmount]);
-            await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Has recibido ${allocatedRewardAmount.toFixed(4)} BLUE en tu perfil de impulsor como bono de bienvenida.`]);
+            await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [newUser.username, `¡Bienvenido! Has recibido ${allocatedRewardAmount.toFixed(4)} BLUE IOU en tu perfil de impulsor como bono de bienvenida.`]);
 
             await notificationService.sendNotificationToUser(newUser.id, {
                 title: '¡Bienvenido! 🚀',
