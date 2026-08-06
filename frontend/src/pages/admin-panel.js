@@ -980,8 +980,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const updateBadge = (id, count) => {
                     const badge = document.getElementById(id);
                     if (badge) {
-                        badge.textContent = count > 0 ? count : '';
-                        badge.style.display = count > 0 ? 'inline-block' : 'none';
+                        const numericCount = parseInt(count, 10) || 0;
+                        if (numericCount > 0) {
+                            badge.textContent = numericCount;
+                            badge.style.display = 'inline-flex';
+                            badge.classList.add('is-visible');
+                        } else {
+                            badge.textContent = '';
+                            badge.style.display = 'none';
+                            badge.classList.remove('is-visible');
+                        }
                     }
                 };
 
@@ -3068,11 +3076,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updatePlatformPublicationsBadge(totalPending) {
         if (!elements.platformPublicationsBadge) return;
-        if (totalPending > 0) {
-            elements.platformPublicationsBadge.textContent = totalPending;
+        const numericCount = parseInt(totalPending, 10) || 0;
+        if (numericCount > 0) {
+            elements.platformPublicationsBadge.textContent = numericCount;
+            elements.platformPublicationsBadge.style.display = 'inline-flex';
             elements.platformPublicationsBadge.classList.add('is-visible');
         } else {
             elements.platformPublicationsBadge.textContent = '';
+            elements.platformPublicationsBadge.style.display = 'none';
             elements.platformPublicationsBadge.classList.remove('is-visible');
         }
     }
