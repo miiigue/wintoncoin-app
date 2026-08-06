@@ -933,7 +933,13 @@ const UserController = {
                 return res.status(404).json({ message: 'Usuario no encontrado.' });
             }
 
-            const referralCode = userResult.rows[0].referral_code;
+            let referralCode = userResult.rows[0].referral_code;
+            if (!referralCode) {
+                const { generateUniqueReferralCode } = require('../config/databaseInit');
+                referralCode = await generateUniqueReferralCode(client, username);
+                await client.query('UPDATE users SET referral_code = $1 WHERE id = $2', [referralCode, userResult.rows[0].id]);
+            }
+
             const referredUsers = referredUsersResult.rows;
 
             res.status(200).json({

@@ -263,11 +263,14 @@ exports.registerVictimPublic = async (req, res) => {
                 }
             }
 
+            const { generateUniqueReferralCode } = require('../config/databaseInit');
+            const ownReferralCode = await generateUniqueReferralCode(client, username);
+
             const newUserRes = await client.query(`
-                INSERT INTO users (username, email, password_hash, phone_number, is_verified, date_of_birth)
-                VALUES ($1, $2, $3, $4, false, $5)
+                INSERT INTO users (username, email, password_hash, phone_number, is_verified, date_of_birth, referral_code)
+                VALUES ($1, $2, $3, $4, false, $5, $6)
                 RETURNING id
-            `, [username, normEmail, hashedPassword, normPhone, birth_date || null]);
+            `, [username, normEmail, hashedPassword, normPhone, birth_date || null, ownReferralCode]);
 
             userId = newUserRes.rows[0].id;
         }
