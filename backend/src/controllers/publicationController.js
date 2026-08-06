@@ -352,7 +352,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                     title: '🚀 Nueva Tarea Disponible',
                     body: `${title}. ¡Participa ahora y gana BLUE IOU en tu perfil de impulsor!`,
                     icon: '/assets/icons/icon-192x192.png',
-                    data: { url: '/momentum-dashboard.html' }
+                    data: { url: `/publication-detail.html?id=${result.rows[0].id}` }
                 }, 'SOCIAL');
             } catch (pushErr) {
                 console.error("[PUSH DIAGNOSTIC] Error al disparar broadcast:", pushErr.message);
@@ -1099,7 +1099,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                     title: '¡Tarea Aprobada! ✅',
                     body: `Has sido aprobado automáticamente para: ${pub.title}. ¡Empieza ahora!`,
                     icon: '/assets/icons/icon-192x192.png',
-                    data: { url: '/momentum-dashboard.html' }
+                    data: { url: `/publication-detail.html?id=${id}` }
                 }, 'SOCIAL');
 
                 await logAuditEvent(client, req, {
@@ -1121,7 +1121,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                     title: 'Nueva Solicitud 📩',
                     body: `${acceptorUsername} quiere participar en: ${pub.title}`,
                     icon: '/assets/icons/icon-192x192.png',
-                    data: { url: '/momentum-dashboard.html' }
+                    data: { url: `/publication-detail.html?id=${id}` }
                 }, 'SOCIAL');
 
                 await logAuditEvent(client, req, {
@@ -1212,7 +1212,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                     title: 'Participante Desistió ↩️',
                     body: `@${acceptorUsername} ha desistido de tu tarea: ${pub.title}`,
                     icon: '/assets/icons/icon-192x192.png',
-                    data: { url: '/momentum-dashboard.html' }
+                    data: { url: `/publication-detail.html?id=${id}` }
                 }, 'TRANSACTIONAL');
             } catch (pushErr) {
                 console.error("[DESIST PUSH] Falló el envío de push notification:", pushErr.message);
@@ -1309,7 +1309,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                         title: 'Tarea Rechazada ❌',
                         body: `Tu participación en "${pub.title}" ha sido rechazada. Revisa los detalles en tu perfil.`,
                         icon: '/assets/icons/icon-192x192.png',
-                        data: { url: '/momentum-dashboard.html' }
+                        data: { url: `/publication-detail.html?id=${id}` }
                     }, 'TRANSACTIONAL');
                 }
             } catch (pushErr) {
@@ -1382,7 +1382,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                     title: 'Solicitud Aprobada ✅',
                     body: `El autor ha aprobado tu participación en: ${pub.title}`,
                     icon: '/assets/icons/icon-192x192.png',
-                    data: { url: '/momentum-dashboard.html' }
+                    data: { url: `/publication-detail.html?id=${id}` }
                 }, 'SOCIAL');
             }
 
@@ -1568,7 +1568,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                     title: '¡Tarea Terminada! 🚨',
                     body: `${completerUsername} ha culminado: ${acceptance.title}. Revísala ahora.`,
                     icon: '/assets/icons/icon-192x192.png',
-                    data: { url: '/momentum-dashboard.html' }
+                    data: { url: `/publication-detail.html?id=${pubId}` }
                 }, 'SOCIAL');
             }
 

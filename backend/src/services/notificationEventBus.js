@@ -255,7 +255,7 @@ eventBus.on('PARTICIPATION_REQUESTED', async ({ publicationId, publicationTitle,
             title: 'Nueva Solicitud',
             body: `${applicantUsername} quiere realizar tu tarea: "${publicationTitle}"`,
             icon: '/assets/icons/icon-192x192.png',
-            data: { url: `/publication.html?id=${publicationId}` }
+            data: { url: `/publication-detail.html?id=${publicationId}` }
         });
     } catch (err) {
         console.error('[EVENT-BUS] Error en PARTICIPATION_REQUESTED:', err);
@@ -270,7 +270,7 @@ eventBus.on('PARTICIPATION_ACCEPTED', async ({ publicationId, publicationTitle, 
             title: '¡Solicitud Aceptada!',
             body: `Puedes comenzar la tarea: "${publicationTitle}"`,
             icon: '/assets/icons/icon-192x192.png',
-            data: { url: `/publication.html?id=${publicationId}` }
+            data: { url: `/publication-detail.html?id=${publicationId}` }
         });
     } catch (err) {
         console.error('[EVENT-BUS] Error en PARTICIPATION_ACCEPTED:', err);
@@ -285,7 +285,7 @@ eventBus.on('TASK_DELIVERED', async ({ publicationId, publicationTitle, ownerId,
             title: 'Tarea Entregada',
             body: `${participantUsername} ha marcado "${publicationTitle}" como completada. ¡Revisa y paga!`,
             icon: '/assets/icons/icon-192x192.png',
-            data: { url: `/publication.html?id=${publicationId}` }
+            data: { url: `/publication-detail.html?id=${publicationId}` }
         });
     } catch (err) {
         console.error('[EVENT-BUS] Error en TASK_DELIVERED:', err);
@@ -301,7 +301,7 @@ eventBus.on('TASK_PAID', async ({ publicationId, publicationTitle, participantId
             title: '¡Pago Recibido!',
             body: `Has recibido ${amount} BLUE por la tarea "${publicationTitle}".`,
             icon: '/assets/icons/icon-192x192.png',
-            data: { url: '/contract_interaction.html' }
+            data: { url: '/history.html' }
         }, 'TRANSACTIONAL');
     } catch (err) {
         console.error('[EVENT-BUS] Error en TASK_PAID:', err);
@@ -316,7 +316,7 @@ eventBus.on('P2P_MESSAGE_RECEIVED', async ({ orderId, receiverId, senderUsername
             title: `Mensaje de ${senderUsername}`,
             body: messagePreview || 'Tienes un nuevo mensaje en la orden P2P.',
             icon: '/assets/icons/icon-192x192.png',
-            data: { url: `/p2p/orders/${orderId}` }
+            data: { url: `/p2p-order.html?id=${orderId}` }
         });
     } catch (err) {
         console.error('[EVENT-BUS] Error en P2P_MESSAGE_RECEIVED:', err);

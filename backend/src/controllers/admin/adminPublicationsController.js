@@ -318,15 +318,30 @@ async function createPlatformPublication(req, res) {
         res.status(201).json({ message, publicationId: newPubId });
 
         try {
-            await notificationService.sendNotificationToAll({
-                title: '🚀 Nueva Tarea Oficial',
-                body: `¡Nueva oportunidad! 📝 ${title}. Participa ahora para ganar BLUE IOU.`,
-                icon: '/assets/icons/icon-192x192.png',
-                badge: '/assets/icons/icon-72x72.png',
-                data: { url: '/dashboard.html' }
-            }, 'SOCIAL');
+            if (sanitizedTargetUsername) {
+                // Notificar exclusivamente al usuario objetivo
+                const targetUserRes = await pool.query('SELECT id FROM users WHERE username = $1', [sanitizedTargetUsername]);
+                if (targetUserRes.rowCount > 0) {
+                    await notificationService.sendNotificationToUser(targetUserRes.rows[0].id, {
+                        title: '🎯 Tarea Asignada',
+                        body: `¡Tienes una nueva tarea personalizada! 📝 ${title}.`,
+                        icon: '/assets/icons/icon-192x192.png',
+                        badge: '/assets/icons/icon-72x72.png',
+                        data: { url: `/publication-detail.html?id=${newPubId}` }
+                    }, 'SOCIAL');
+                }
+            } else {
+                // Tarea pública: Broadcast global
+                await notificationService.sendNotificationToAll({
+                    title: '🚀 Nueva Tarea Oficial',
+                    body: `¡Nueva oportunidad! 📝 ${title}. Participa ahora para ganar BLUE IOU.`,
+                    icon: '/assets/icons/icon-192x192.png',
+                    badge: '/assets/icons/icon-72x72.png',
+                    data: { url: `/publication-detail.html?id=${newPubId}` }
+                }, 'SOCIAL');
+            }
         } catch (pushErr) {
-            console.error("[AdminPublicationsController] Error al disparar broadcast oficial:", pushErr.message);
+            console.error("[AdminPublicationsController] Error al disparar notificación:", pushErr.message);
         }
 
     } catch (error) {
