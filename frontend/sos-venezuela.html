@@ -268,30 +268,24 @@
                 </button>
             </form>
 
-            <!-- Card de Resultado de Expediente Generado y Verificación OTP (Tema Claro) -->
+            <!-- Card de Verificación OTP y Resultado de Registro (Tema Claro) -->
             <div id="sos-victim-result-card" style="display: none; text-align: center; padding: 2rem 1rem;">
-                <div style="font-size: 3.5rem; margin-bottom: 1rem;">✅</div>
-                <h3 style="font-size: 1.8rem; font-weight: 800; color: #10b981; font-family: 'Outfit', sans-serif; margin-bottom: 0.5rem;">
-                    ¡Solicitud Registrada Exitosamente!
-                </h3>
-                <p style="color: #334155; font-size: 1.05rem; max-width: 650px; margin: 0 auto 1.25rem; line-height: 1.6;">
-                    Se ha generado tu expediente de censo de emergencia con el correlativo <strong id="sos-dossier-number-display" style="color: #0f172a; font-weight: 700;">#SOS-VZLA-000-00000</strong>. Tu solicitud ha entrado directamente en <strong>Proceso de Verificación Manual</strong>.
-                </p>
-
-                <!-- Contenedor del formulario de activación (ahora sin estilos de caja para ocupar el espacio del padre) -->
-                <div id="sos-otp-verification-card" style="margin: 1.5rem auto 1.5rem; text-align: center;">
-                    <h4 id="sos-activation-title" style="color: #0f172a; font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; font-family: 'Outfit', sans-serif;">
-                        🔐 Activa tu Billetera de Ayuda Humanitaria
-                    </h4>
-                    <p id="sos-activation-desc" style="color: #475569; font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.25rem;">
-                        Hemos creado tu cuenta WintonCoin con el código especial <strong class="dynamic-special-code">SOSVENEZUELA</strong> y enviado un <strong>Código de Verificación de 6 dígitos</strong> a tu correo electrónico. Ingrésalo a continuación y define tu contraseña para activar tus 200 BLUE IOU iniciales:
+                
+                <!-- PASO 1: Formulario de Verificación OTP + Contraseñas (Paso Intermedio) -->
+                <div id="sos-otp-verification-card" style="margin: 0 auto; text-align: center;">
+                    <div style="font-size: 3.5rem; margin-bottom: 0.5rem;">🔐</div>
+                    <h3 style="font-size: 1.8rem; font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif; margin-bottom: 0.5rem;">
+                        ¡Solo falta un paso más!
+                    </h3>
+                    <p id="sos-activation-desc" style="color: #475569; font-size: 0.95rem; line-height: 1.5; margin: 0 auto 1.5rem; max-width: 600px;">
+                        Para completar tu solicitud, ingresa el código de verificación de 6 dígitos que enviamos a tu correo electrónico y crea una contraseña para tu cuenta.
                     </p>
 
                     <!-- Campo de Código OTP -->
                     <div style="margin-bottom: 1rem;">
                         <label for="sos-otp-code-input" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Código de 6 dígitos:</label>
                         <input type="text" id="sos-otp-code-input" maxlength="6" placeholder="849201" style="width: 180px; padding: 12px; font-size: 1.4rem; font-weight: 800; text-align: center; letter-spacing: 4px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
-                        <small style="color: #64748b; display: block; font-size: 0.82rem; margin-top: 0.4rem;">Nota: Clave de seguridad enviada al correo.</small>
+                        <small style="color: #64748b; display: block; font-size: 0.82rem; margin-top: 0.4rem;">Nota: Código de verificación enviado al correo.</small>
                     </div>
 
                     <!-- Campo de Nueva Contraseña -->
@@ -313,19 +307,30 @@
                     </div>
 
                     <!-- Botón de Activación -->
-                    <button type="button" id="sos-btn-verify-otp" class="btn-primary-campaign" disabled style="padding: 12px 22px; font-size: 1rem; font-weight: 600; border-radius: 50px; cursor: not-allowed; opacity: 0.5; width: 100%;">
+                    <button type="button" id="sos-btn-verify-otp" class="btn-primary-campaign" disabled style="padding: 14px 22px; font-size: 1.05rem; font-weight: 600; border-radius: 50px; cursor: not-allowed; opacity: 0.5; width: 100%;">
                         Activar mi Cuenta
                     </button>
 
                     <div id="sos-otp-feedback-msg" style="display: none; margin-top: 10px; font-size: 0.9rem; padding: 8px; border-radius: 6px;"></div>
                 </div>
 
-                <!-- Mensaje de Activación Exitosa (Oculto por defecto) -->
-                <div id="sos-activation-success" style="display: none; background: #ecfdf5; border: 1px solid #34d399; padding: 1.5rem; border-radius: 14px; margin-top: 1.5rem;">
-                    <strong style="color: #059669; font-size: 1.1rem; display: block; margin-bottom: 0.5rem;">¡Cuenta y Billetera Activadas Exitosamente!</strong>
-                    <span style="color: #047857;">Tus 200 BLUE IOU están asignados.</span>
-                    <a href="login.html" class="btn-primary-campaign" style="display: inline-block; margin-top: 1rem; text-decoration: none; padding: 10px 20px; border-radius: 50px; font-size: 0.95rem;">Continuar a mi Perfil</a>
+                <!-- PASO 2: Mensaje de Éxito Final (Post-Activación) -->
+                <div id="sos-activation-success" style="display: none; text-align: center; padding: 1rem;">
+                    <div style="font-size: 3.5rem; margin-bottom: 1rem;">✅</div>
+                    <h3 style="font-size: 1.8rem; font-weight: 800; color: #10b981; font-family: 'Outfit', sans-serif; margin-bottom: 0.5rem;">
+                        ¡Solicitud Registrada Exitosamente!
+                    </h3>
+                    <p style="color: #334155; font-size: 1.05rem; max-width: 650px; margin: 0 auto 1.25rem; line-height: 1.6;">
+                        Se ha generado tu expediente de censo de emergencia con el correlativo <strong id="sos-dossier-number-display" style="color: #0f172a; font-weight: 700;">#SOS-VZLA-000-00000</strong>. Tu solicitud ha entrado directamente en <strong>Proceso de Verificación Manual</strong>.
+                    </p>
+                    <p id="sos-success-reward-msg" style="color: #047857; font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.5rem; background: #ecfdf5; border: 1px solid #34d399; padding: 1rem; border-radius: 12px;">
+                        Tu cuenta ha sido activada exitosamente y tus <strong id="sos-success-reward-amount">BLUE IOU</strong> han sido acreditados a tu billetera WintonCoin.
+                    </p>
+                    <a href="profile.html" id="sos-btn-go-to-account" class="btn-primary-campaign" style="display: inline-block; text-decoration: none; padding: 14px 32px; border-radius: 50px; font-size: 1.05rem; font-weight: 700;">
+                        Ir a mi cuenta
+                    </a>
                 </div>
+
             </div>
         </div>
     </section>

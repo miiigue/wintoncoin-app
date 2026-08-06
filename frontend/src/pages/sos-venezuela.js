@@ -286,13 +286,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(data.message || 'Error al registrar la solicitud.');
             }
 
-            // Guardar email registrado para la verificación OTP
+            // Guardar email y expediente registrado para la verificación OTP y en sessionStorage
             window._registeredVictimEmail = email;
+            window._registeredDossierNumber = data.dossier_number;
 
-            // Mostrar resultado exitoso y ocultar formulario
+            try {
+                sessionStorage.setItem('sos_pending_otp', JSON.stringify({
+                    email: email,
+                    dossier_number: data.dossier_number,
+                    timestamp: Date.now()
+                }));
+            } catch (sErr) {}
+
+            // Mostrar Paso 1 (Formulario OTP) y ocultar planilla de registro
             victimForm.style.display = 'none';
-            if (resultCard && dossierNumberEl) {
-                dossierNumberEl.textContent = `#${data.dossier_number}`;
+            if (resultCard) {
                 resultCard.style.display = 'block';
                 resultCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
@@ -308,6 +316,27 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
+    // ── 5.6 Restaurar Estado de OTP Pendiente al Recargar (sessionStorage) ──
+    try {
+        const savedOtpState = sessionStorage.getItem('sos_pending_otp');
+        if (savedOtpState) {
+            const parsed = JSON.parse(savedOtpState);
+            // Expiración a los 15 minutos (900,000 ms)
+            if (parsed.email && parsed.dossier_number && (Date.now() - parsed.timestamp < 15 * 60 * 1000)) {
+                window._registeredVictimEmail = parsed.email;
+                window._registeredDossierNumber = parsed.dossier_number;
+                victimForm.style.display = 'none';
+                if (resultCard) {
+                    resultCard.style.display = 'block';
+                }
+            } else {
+                sessionStorage.removeItem('sos_pending_otp');
+            }
+        }
+    } catch (e) {
+        sessionStorage.removeItem('sos_pending_otp');
+    }
 
     // ═══════════════════════════════════════════════════════════════════════
     // SECCIÓN 6: VERIFICACIÓN OTP + DEFINICIÓN DE CONTRASEÑA (Opción A)
@@ -331,7 +360,6 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleNewPwd.addEventListener('click', () => {
             const type = newPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
             newPasswordInput.setAttribute('type', type);
-            // Si el ojito estuviera tachado, se puede cambiar aquí. En este caso mantenemos el emoji
         });
     }
 
@@ -369,19 +397,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const passwordConfirm = confirmPasswordInput ? confirmPasswordInput.value : '';
 
             // ── 6.2 Validaciones del Cliente ───────────────────────────────
-            // Validar OTP (mínimo 6 dígitos)
             if (!code || code.length < 6) {
                 showOtpMsg('Por favor ingresa los 6 dígitos del código enviado a tu correo.', '#ef4444');
                 return;
             }
 
-            // Validar contraseña (mínimo 8 caracteres)
             if (!password || password.length < 8) {
                 showOtpMsg('La contraseña debe tener al menos 8 caracteres.', '#ef4444');
                 return;
             }
 
-            // Validar que ambas contraseñas coincidan
             if (password !== passwordConfirm) {
                 showOtpMsg('Las contraseñas no coinciden. Por favor verifica.', '#ef4444');
                 return;
@@ -396,7 +421,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const res = await fetch(`${API_URL}/api/public/sos-venezuela/verify-otp`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include', // Necesario para recibir la cookie HttpOnly del Refresh Token
+                    credentials: 'include',
                     body: JSON.stringify({
                         email,
                         otp_code: code,
@@ -410,8 +435,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error(data.message || 'Código incorrecto.');
                 }
 
+                // Limpiar estado de OTP pendiente en sessionStorage
+                sessionStorage.removeItem('sos_pending_otp');
+
                 // ── 6.4 Sesión JWT: Guardar Token de Acceso ────────────────
-                // Almacenar el Access Token para uso inmediato en la plataforma
                 if (data.token) {
                     localStorage.setItem('token', data.token);
                 }
@@ -419,15 +446,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     localStorage.setItem('username', data.username);
                 }
 
-                // ── 6.5 Feedback Visual de Éxito ──────────────────────────
-                // Ocultar la UI de código OTP / contraseñas
+                // ── 6.5 Feedback Visual de Éxito (PASO 2) ──────────────────
+                // Actualizar número de expediente generado en la tarjeta final
+                if (dossierNumberEl) {
+                    const dossierNo = window._registeredDossierNumber || data.dossier_number || '';
+                    if (dossierNo) {
+                        dossierNumberEl.textContent = `#${dossierNo}`;
+                    }
+                }
+
+                // Ocultar la UI de código OTP / contraseñas (PASO 1)
                 if (otpCard) {
                     otpCard.style.display = 'none';
                 }
                 
-                // Mostrar la tarjeta de éxito
+                // Mostrar la tarjeta final de éxito completo (PASO 2)
                 if (successCard) {
                     successCard.style.display = 'block';
+                    successCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
 
             } catch (err) {
