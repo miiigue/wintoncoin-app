@@ -541,8 +541,8 @@ exports.verifyVictimOtpPublic = async (req, res) => {
             referralCode: refCodeToUse
         });
 
-        // Monto de recompensa procesado (con respaldo por defecto de 200 BLUE IOU)
-        const rewardAmount = parseFloat((rewardResult && rewardResult.rewardAmount) ? rewardResult.rewardAmount : 200) || 200;
+        // Monto de recompensa procesado dinámicamente según configuración de app_settings
+        const rewardAmount = parseFloat(rewardResult?.rewardAmount || 0);
 
         // ── 5.6 Registrar en historial del expediente SOS ──────────────────
         const caseRes = await client.query(

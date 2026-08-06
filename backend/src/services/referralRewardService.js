@@ -18,14 +18,9 @@ const { sendTransactionEmail } = require('./emailService');
 
 async function processReferralReward({ client, newUser, referralCode }) {
     let allocatedRewardAmount = 0;
+    const cleanCode = (referralCode && typeof referralCode === 'string') ? referralCode.trim().toUpperCase() : '';
 
-    if (!referralCode || typeof referralCode !== 'string') {
-        return { success: false, reason: 'NO_CODE', rewardAmount: 200 };
-    }
-
-    const cleanCode = referralCode.trim().toUpperCase();
-
-    // 1. Consultar configuraciones del sistema
+    // 1. Consultar configuraciones dinámicas de la plataforma desde app_settings
     const settingKeys = [
         'referral_system_enabled',
         'referral_reward_amount',
@@ -48,6 +43,7 @@ async function processReferralReward({ client, newUser, referralCode }) {
     let referrer = null;
     let referralCodeExpired = false;
 
+    // 2. Si se proporcionó un código de referido y el sistema de referidos está activo, buscar referente
     if (referralsEnabled && cleanCode) {
         const referrerResult = await client.query('SELECT * FROM users WHERE UPPER(referral_code) = $1', [cleanCode]);
         if (referrerResult.rowCount > 0) {
@@ -73,10 +69,10 @@ async function processReferralReward({ client, newUser, referralCode }) {
         }
     }
 
-    // Notificar si el código de referido estaba expirado
+    // Notificar si el código de referido ingresado estaba expirado
     if (referralCodeExpired && cleanCode) {
         const expiryDateStr = settings.referral_codes_expiry_date;
-        let expiryMsg = 'El código de referido que usaste ha expirado. Te has registrado exitosamente y recibirás el bono de bienvenida.';
+        let expiryMsg = 'El código de referido que usaste ha expirado. Te has registrado exitosamente y recibirás el bono de bienvenida si está disponible.';
         if (expiryDateStr) {
             const expiryDate = new Date(expiryDateStr);
             if (!isNaN(expiryDate.getTime())) {
@@ -85,7 +81,7 @@ async function processReferralReward({ client, newUser, referralCode }) {
                     month: 'long',
                     day: 'numeric'
                 });
-                expiryMsg = `El código de referido que usaste expiró el ${formattedDate}. Te has registrado exitosamente y recibirás el bono de bienvenida.`;
+                expiryMsg = `El código de referido que usaste expiró el ${formattedDate}. Te has registrado exitosamente y recibirás el bono de bienvenida si está disponible.`;
             }
         }
         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [
@@ -94,7 +90,7 @@ async function processReferralReward({ client, newUser, referralCode }) {
         ]);
     }
 
-    // 2. Procesar bonos si hay referente y el modo pre-lanzamiento está activo
+    // 3. CASO A: Hay un referente válido y el modo pre-lanzamiento está activo
     if (preLaunchMode && referrer) {
         const userCountRes = await client.query('SELECT COUNT(*) as count FROM users');
         const totalUsers = parseInt(userCountRes.rows[0].count, 10);
@@ -121,7 +117,7 @@ async function processReferralReward({ client, newUser, referralCode }) {
                 LIMIT 1
             `, [referrer.id]);
 
-            // VINCULACIÓN DE DATOS (GENEALOGÍA)
+            // VINCULACIÓN DE DATOS DE GENEALOGÍA
             await client.query('UPDATE users SET referrer_id = $1 WHERE id = $2', [referrer.id, newUser.id]);
             await client.query('INSERT INTO referral_log (referrer_user_id, referred_user_id) VALUES ($1, $2)', [referrer.id, newUser.id]);
 
@@ -221,10 +217,14 @@ async function processReferralReward({ client, newUser, referralCode }) {
                 data: { url: '/history.html' }
             }, 'TRANSACTIONAL');
         }
-    } else if (preLaunchMode && welcomeBonusEnabled) {
-        // Bono de bienvenida general si no hay referente
-        allocatedRewardAmount = parseFloat(settings.welcome_bonus_amount) || 0;
-        if (allocatedRewardAmount > 0) {
+
+        return { success: true, referrer: referrer.username, rewardAmount: allocatedRewardAmount };
+
+    } else if (welcomeBonusEnabled) {
+        // 4. CASO B: Registro sin código de referido (o código no encontrado/expirado) + Bono de Bienvenida Activo en Admin
+        const welcomeBonusAmount = parseFloat(settings.welcome_bonus_amount) || 0;
+        if (welcomeBonusAmount > 0) {
+            allocatedRewardAmount = welcomeBonusAmount;
             await client.query('SELECT record_booster_event($1, \'welcome_bonus\', $2, NULL)', [newUser.id, allocatedRewardAmount]);
             await client.query('UPDATE users SET is_booster = true WHERE id = $1', [newUser.id]);
             await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, allocatedRewardAmount, 'Bono de Bienvenida por registro']);
@@ -238,10 +238,12 @@ async function processReferralReward({ client, newUser, referralCode }) {
                 data: { url: '/history.html' }
             }, 'TRANSACTIONAL');
         }
+
+        return { success: true, referrer: null, rewardAmount: allocatedRewardAmount };
     }
 
-    const finalAmount = allocatedRewardAmount > 0 ? allocatedRewardAmount : 200;
-    return { success: true, referrer: referrer ? referrer.username : null, rewardAmount: finalAmount };
+    // 5. CASO C: Registro sin referido y Bono de Bienvenida desactivado en Admin
+    return { success: true, referrer: null, rewardAmount: 0 };
 }
 
 module.exports = {
