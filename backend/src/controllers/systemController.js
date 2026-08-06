@@ -132,6 +132,25 @@ const SystemController = {
                 remainingSlots = 0;
             }
             
+            let customCodeCauseTitle = 'Censo Humanitario SOS Venezuela';
+            if (settings['referral_custom_share_code']) {
+                try {
+                    const causeRes = await pool.query(`
+                        SELECT hc.title
+                        FROM users u
+                        JOIN humanitarian_causes hc ON hc.user_id = u.id
+                        WHERE UPPER(u.referral_code) = UPPER($1) AND hc.status = 'approved'
+                        ORDER BY hc.id DESC
+                        LIMIT 1
+                    `, [settings['referral_custom_share_code']]);
+                    if (causeRes.rows.length > 0 && causeRes.rows[0].title) {
+                        customCodeCauseTitle = causeRes.rows[0].title;
+                    }
+                } catch (e) {
+                    console.warn("No se pudo obtener el título de la causa ligada al código especial:", e.message);
+                }
+            }
+            
             res.status(200).json({
                 referral_reward_amount: rewardAmount,
                 referral_remaining_slots: remainingSlots,
@@ -139,6 +158,7 @@ const SystemController = {
                 referral_codes_expiry_date: settings['referral_codes_expiry_date'] || null,
                 referral_custom_share_code: settings['referral_custom_share_code'] || 'WINTON',
                 referral_custom_share_code_enabled: settings['referral_custom_share_code_enabled'] === 'true',
+                referral_custom_share_code_cause_title: customCodeCauseTitle,
                 referral_share_message_template: settings['referral_share_message_template'] || '',
                 referral_card_title: settings['referral_card_title'] || '🔥 CAMPAÑA ESPECIAL',
                 referral_card_button_text: settings['referral_card_button_text'] || '📢 COMPARTIR INVITACIÓN',
