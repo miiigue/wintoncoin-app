@@ -170,6 +170,28 @@ const SystemController = {
     },
 
     // =========================================================================
+    // Verificar código de referido en la base de datos (Admin / Público)
+    // =========================================================================
+    verifyReferralCode: async (req, res) => {
+        try {
+            const code = (req.query.code || req.body.code || '').trim().toUpperCase();
+            if (!code) {
+                return res.status(400).json({ valid: false, message: 'Debe ingresar un código' });
+            }
+
+            const result = await pool.query('SELECT id, username FROM users WHERE UPPER(referral_code) = $1', [code]);
+            if (result.rows.length > 0) {
+                return res.status(200).json({ valid: true, username: result.rows[0].username });
+            } else {
+                return res.status(200).json({ valid: false, message: 'El código de referido no existe' });
+            }
+        } catch (error) {
+            console.error("Error al verificar código de referido:", error);
+            res.status(500).json({ valid: false, message: "Error interno del servidor." });
+        }
+    },
+
+    // =========================================================================
     // Lista de Obligaciones Vencidas (LOVE) (Público)
     // =========================================================================
     getLoveList: async (req, res) => {

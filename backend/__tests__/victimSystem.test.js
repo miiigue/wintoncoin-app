@@ -55,4 +55,25 @@ describe('Pruebas del Sistema SOS Venezuela - Algoritmo de 4 Dígitos y Normaliz
         expect(victimController.normalizePhone('04141234567')).toBe('+584141234567');
         expect(victimController.normalizePhone('+584129876543')).toBe('+584129876543');
     });
+
+    test('4. Debe validar la verificación de código de referido en SystemController (Código Existente y No Existente)', async () => {
+        const SystemController = require('../src/controllers/systemController');
+        const db = require('../src/config/db');
+
+        // Mock para código existente
+        db.query.mockResolvedValueOnce({ rows: [{ id: 10, username: 'CadenaSOSVenezuela' }] });
+        const reqExist = { query: { code: 'SOSVENEZUELADEMO' }, body: {} };
+        const resExist = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+        await SystemController.verifyReferralCode(reqExist, resExist);
+        expect(resExist.status).toHaveBeenCalledWith(200);
+        expect(resExist.json).toHaveBeenCalledWith({ valid: true, username: 'CadenaSOSVenezuela' });
+
+        // Mock para código no existente
+        db.query.mockResolvedValueOnce({ rows: [] });
+        const reqInvalid = { query: { code: 'CODIGOINEXISTENTE' }, body: {} };
+        const resInvalid = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+        await SystemController.verifyReferralCode(reqInvalid, resInvalid);
+        expect(resInvalid.status).toHaveBeenCalledWith(200);
+        expect(resInvalid.json).toHaveBeenCalledWith({ valid: false, message: 'El código de referido no existe' });
+    });
 });

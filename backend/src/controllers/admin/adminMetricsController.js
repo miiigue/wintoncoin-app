@@ -26,12 +26,11 @@ async function getAdminBadges(req, res) {
             client.query(`SELECT COUNT(*) as count FROM humanitarian_causes WHERE status = 'pending'`).catch(() => ({rows:[{count:0}]})),
             // Envíos Momentum pendientes
             client.query(`SELECT COUNT(*) as count FROM momentum_submissions WHERE status = 'pending'`).catch(() => ({rows:[{count:0}]})),
-            // Publicaciones en auditoría o pendientes de pago (mismo filtro del panel principal)
+            // Publicaciones con entregas o pagos pendientes de revisión administrativa
             client.query(`
-                SELECT COUNT(DISTINCT p.id) as count 
-                FROM publications p
-                LEFT JOIN publication_acceptances pa ON p.id = pa.publication_id
-                WHERE pa.status IS NULL OR pa.status != 'confirmed_paid'
+                SELECT COUNT(pa.id) as count 
+                FROM publication_acceptances pa
+                WHERE pa.status IN ('pending', 'pending_approval', 'completed')
             `).catch(() => ({rows:[{count:0}]})),
             // Gobernanza pendientes
             client.query(`SELECT COUNT(*) as count FROM governance_requests WHERE status = 'pending'`).catch(() => ({rows:[{count:0}]}))

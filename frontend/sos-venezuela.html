@@ -91,10 +91,10 @@
             <div class="sos-hero-content">
                 <h1>Ayudemos a <span class="gradient-text-pink">Venezuela</span></h1>
                 <p class="sos-hero-subtitle">
-                    Regístrate con el código <strong class="highlight-pink">SOSVENEZUELA</strong> y asignaremos 200 BLUE IOU a la cuenta receptora <strong class="highlight-pink">CadenaSOSVenezuela</strong>
+                    Regístrate con el código <strong class="highlight-pink dynamic-special-code">SOSVENEZUELA</strong> y asignaremos 200 BLUE IOU a la cuenta receptora <strong class="highlight-pink">CadenaSOSVenezuela</strong>
                 </p>
                 <div class="sos-cta-group" style="display: flex; gap: 1.25rem; justify-content: center; flex-wrap: wrap; align-items: center;">
-                    <a href="register.html?ref=SOSVENEZUELA" class="btn-primary-campaign">Apoyar causa</a>
+                    <a href="register.html?ref=SOSVENEZUELA" id="sos-register-ref-link" class="btn-primary-campaign">Apoyar causa</a>
                     <a href="#registro-damnificados" class="btn-primary-campaign">Soy afectado</a>
                     <a href="#voluntariado" class="btn-primary-campaign">Quiero ser voluntario</a>
                 </div>
@@ -263,40 +263,74 @@
 
                 <div id="sos-victim-feedback" style="display: none;"></div>
 
-                <button type="submit" class="btn-primary-campaign" style="width: 100%; padding: 16px; font-size: 1.15rem; font-weight: 600; margin-top: 1rem; border-radius: 50px; cursor: pointer;">
+                <button type="submit" id="sos-submit-btn" class="btn-primary-campaign" disabled style="width: 100%; padding: 16px; font-size: 1.15rem; font-weight: 600; margin-top: 1rem; border-radius: 50px; cursor: not-allowed; opacity: 0.5;">
                     Enviar Solicitud
                 </button>
             </form>
 
-            <!-- Card de Resultado de Expediente Generado y Verificación OTP (Tema Claro) -->
+            <!-- Card de Verificación OTP y Resultado de Registro (Tema Claro) -->
             <div id="sos-victim-result-card" style="display: none; text-align: center; padding: 2rem 1rem;">
-                <div style="font-size: 3.5rem; margin-bottom: 1rem;">✅</div>
-                <h3 style="font-size: 1.8rem; font-weight: 800; color: #10b981; font-family: 'Outfit', sans-serif; margin-bottom: 0.5rem;">
-                    ¡Solicitud Registrada Exitosamente!
-                </h3>
-                <p style="color: #334155; font-size: 1.05rem; max-width: 650px; margin: 0 auto 1.25rem; line-height: 1.6;">
-                    Se ha generado tu expediente de censo de emergencia con el correlativo <strong id="sos-dossier-number-display" style="color: #0f172a; font-weight: 700;">#SOS-VZLA-000-00000</strong>. Tu solicitud ha entrado directamente en <strong>Proceso de Verificación Manual</strong>.
-                </p>
-
-                <!-- Caja Destacada Exclusiva para el Código OTP de 6 dígitos -->
-                <div id="sos-otp-verification-card" style="background: #f8fafc; border: 1px solid rgba(219, 39, 119, 0.3); border-radius: 20px; padding: 1.75rem; max-width: 500px; margin: 1.5rem auto 1.5rem; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.04);">
-                    <h4 style="color: #0f172a; font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem; font-family: 'Outfit', sans-serif;">
-                        🔐 Activa tu Billetera de Ayuda Humanitaria
-                    </h4>
-                    <p style="color: #475569; font-size: 0.9rem; line-height: 1.5; margin-bottom: 1.25rem;">
-                        Hemos creado tu cuenta WintonCoin con el código especial <strong>SOSVENEZUELA</strong> y enviado un <strong>Código de Verificación de 6 dígitos</strong> a tu correo electrónico. Ingrésalo a continuación para activar tus 200 BLUE IOU iniciales:
+                
+                <!-- PASO 1: Formulario de Verificación OTP + Contraseñas (Paso Intermedio) -->
+                <div id="sos-otp-verification-card" style="margin: 0 auto; text-align: center;">
+                    <div style="font-size: 3.5rem; margin-bottom: 0.5rem;">🔐</div>
+                    <h3 style="font-size: 1.8rem; font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif; margin-bottom: 0.5rem;">
+                        ¡Solo falta un paso más!
+                    </h3>
+                    <p id="sos-activation-desc" style="color: #475569; font-size: 0.95rem; line-height: 1.5; margin: 0 auto 1.5rem; max-width: 600px;">
+                        Para completar tu solicitud, ingresa el código de verificación de 6 dígitos que enviamos a tu correo electrónico y crea una contraseña para tu cuenta.
                     </p>
-                    <div style="display: flex; gap: 10px; justify-content: center; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap;">
-                        <input type="text" id="sos-otp-code-input" maxlength="6" placeholder="849201" style="width: 160px; padding: 12px; font-size: 1.4rem; font-weight: 800; text-align: center; letter-spacing: 4px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
-                        <button type="button" id="sos-btn-verify-otp" class="btn-primary-campaign" style="padding: 12px 22px; font-size: 1rem; font-weight: 600; border-radius: 50px; cursor: pointer;">
-                            Confirmar Código
+
+                    <!-- Campo de Código OTP -->
+                    <div style="margin-bottom: 1rem;">
+                        <label for="sos-otp-code-input" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Código de 6 dígitos:</label>
+                        <input type="text" id="sos-otp-code-input" maxlength="6" placeholder="849201" style="width: 180px; padding: 12px; font-size: 1.4rem; font-weight: 800; text-align: center; letter-spacing: 4px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                        <small style="color: #64748b; display: block; font-size: 0.82rem; margin-top: 0.4rem;">Nota: Código de verificación enviado al correo.</small>
+                    </div>
+
+                    <!-- Campo de Nueva Contraseña -->
+                    <div style="margin-bottom: 0.75rem; text-align: left; position: relative;">
+                        <label for="sos-new-password" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Crea una contraseña:</label>
+                        <input type="password" id="sos-new-password" minlength="8" required placeholder="Mínimo 8 caracteres" style="width: 100%; padding: 12px 14px; padding-right: 40px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                        <button type="button" id="toggle-new-password" style="position: absolute; right: 10px; top: 35px; background: none; border: none; cursor: pointer; color: #64748b;">
+                            👁️
                         </button>
                     </div>
-                    <small style="color: #64748b; display: block; font-size: 0.82rem;">💡 Nota: Este código de 6 dígitos es tu clave de seguridad de correo, no lo confundas con tu número de expediente.</small>
+
+                    <!-- Campo de Confirmar Contraseña -->
+                    <div style="margin-bottom: 1rem; text-align: left; position: relative;">
+                        <label for="sos-confirm-password" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Confirma tu Contraseña:</label>
+                        <input type="password" id="sos-confirm-password" minlength="8" required placeholder="Repite la contraseña" style="width: 100%; padding: 12px 14px; padding-right: 40px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                        <button type="button" id="toggle-confirm-password" style="position: absolute; right: 10px; top: 35px; background: none; border: none; cursor: pointer; color: #64748b;">
+                            👁️
+                        </button>
+                    </div>
+
+                    <!-- Botón de Activación -->
+                    <button type="button" id="sos-btn-verify-otp" class="btn-primary-campaign" disabled style="padding: 14px 22px; font-size: 1.05rem; font-weight: 600; border-radius: 50px; cursor: not-allowed; opacity: 0.5; width: 100%;">
+                        Activar mi Cuenta
+                    </button>
+
                     <div id="sos-otp-feedback-msg" style="display: none; margin-top: 10px; font-size: 0.9rem; padding: 8px; border-radius: 6px;"></div>
                 </div>
 
-                <a href="login.html" class="btn-primary-campaign" style="display: inline-block; padding: 12px 24px; border-radius: 50px; text-decoration: none; margin-top: 0.5rem;">Ingresar a mi Cuenta</a>
+                <!-- PASO 2: Mensaje de Éxito Final (Post-Activación) -->
+                <div id="sos-activation-success" style="display: none; text-align: center; padding: 1rem;">
+                    <div style="font-size: 3.5rem; margin-bottom: 1rem;">✅</div>
+                    <h3 style="font-size: 1.8rem; font-weight: 800; color: #10b981; font-family: 'Outfit', sans-serif; margin-bottom: 0.5rem;">
+                        ¡Solicitud Registrada Exitosamente!
+                    </h3>
+                    <p style="color: #334155; font-size: 1.05rem; max-width: 650px; margin: 0 auto 1.25rem; line-height: 1.6;">
+                        Se ha generado tu expediente de censo de emergencia con el correlativo <strong id="sos-dossier-number-display" style="color: #0f172a; font-weight: 700;">#SOS-VZLA-000-00000</strong>. Tu solicitud ha entrado directamente en <strong>Proceso de Verificación Manual</strong>.
+                    </p>
+                    <p id="sos-success-reward-msg" style="color: #047857; font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.5rem; background: #ecfdf5; border: 1px solid #34d399; padding: 1rem; border-radius: 12px;">
+                        Tu cuenta ha sido activada exitosamente y tus <strong id="sos-success-reward-amount">BLUE IOU</strong> han sido acreditados a tu billetera WintonCoin.
+                    </p>
+                    <a href="profile.html" id="sos-btn-go-to-account" class="btn-primary-campaign" style="display: inline-block; text-decoration: none; padding: 14px 32px; border-radius: 50px; font-size: 1.05rem; font-weight: 700;">
+                        Ir a mi cuenta
+                    </a>
+                </div>
+
             </div>
         </div>
     </section>
@@ -330,7 +364,7 @@
                             <span class="timeline-card-icon">🎯</span>
                             <h4>Selección</h4>
                         </div>
-                        <p>El usuario selecciona la causa registrándose con el código promocional <strong class="text-pink">SOSVENEZUELA</strong> o donando directamente a la cuenta <strong class="text-pink">CadenaSOSVenezuela</strong>.</p>
+                        <p>El usuario selecciona la causa registrándose con el código promocional <strong class="text-pink dynamic-special-code">SOSVENEZUELA</strong> o donando directamente a la cuenta <strong class="text-pink">CadenaSOSVenezuela</strong>.</p>
                     </div>
                 </div>
 
@@ -344,7 +378,7 @@
                             <span class="timeline-card-icon">⏳</span>
                             <h4>Acumulación</h4>
                         </div>
-                        <p>Durante la Fase Pre-lanzamiento, todos los BLUE IOU de donaciones y registros con el código <strong class="text-pink">SOSVENEZUELA</strong> se acumulan de forma inmutable en la cuenta receptora.</p>
+                        <p>Durante la Fase Pre-lanzamiento, todos los BLUE IOU de donaciones y registros con el código <strong class="text-pink dynamic-special-code">SOSVENEZUELA</strong> se acumulan de forma inmutable en la cuenta receptora.</p>
                     </div>
                 </div>
 
@@ -476,7 +510,7 @@
                     </details>
                     <details class="faq-accordion-item">
                         <summary><h4>¿Cómo ayudo si no fui afectado por el terremoto?</h4></summary>
-                        <p>Registrándote con el código <strong>SOSVENEZUELA</strong>. WintonCoin donará automáticamente tu bono de registro de BLUE IOU a la cuenta de la campaña para financiar la reconstrucción.</p>
+                        <p>Registrándote con el código <strong class="dynamic-special-code">SOSVENEZUELA</strong>. WintonCoin donará automáticamente tu bono de registro de BLUE IOU a la cuenta de la campaña para financiar la reconstrucción.</p>
                     </details>
                     <details class="faq-accordion-item">
                         <summary><h4>¿Quién califica como persona afectada?</h4></summary>

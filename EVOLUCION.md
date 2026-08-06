@@ -13,9 +13,54 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-05 — Corrección Crítica en Activación SOS Venezuela y Verificación de Código Especial Admin
+* **Cambio**:
+  - **Corrección de ReferenceError en `victimController.js` (`verifyVictimOtpPublic`)**:
+    - Se resolvió un error crítico `ReferenceError: rewardAmount is not defined` que ocurría al activar la cuenta tras ingresar el OTP en el formulario SOS Venezuela.
+    - La variable `rewardAmount` ahora se retorna de forma limpia desde `referralRewardService.processReferralReward`, evitando que la función arroje un error interno del servidor (500) y se revierta la transacción.
+  - **Fix de Enrutamiento en Verificación de Código de Referido Especial (`systemRoutes.js` y `admin-panel.js`)**:
+    - Se solucionó el error `404 Not Found` en la consola de Chrome (`/api/system/verify-referral-code`) mediante la adición de una ruta alias explícita en `systemRoutes.js` (`router.get('/system/verify-referral-code', ...)`).
+    - Se actualizó el fetch en `admin-panel.js` con un patrón de respaldo resiliente que intenta la ruta primaria `/api/verify-referral-code` y cae a `/api/system/verify-referral-code`, garantizando retrocompatibilidad y eliminado el mensaje "Error al verificar código".
+* **Impacto**: Se restaura la operatividad total del Censo SOS Venezuela en el flujo de activación de cuenta y se garantiza que el Panel de Administración pueda verificar y validar en tiempo real la existencia de cualquier código de referido especial asignado a causas humanitarias (como `@CadenaSOSVenezuela`).
+
+### 2026-08-05 — Refactorización Integral Censo SOS Venezuela, Zero-Trust y Opción A (Contraseña en OTP)
+* **Cambio**:
+  - **Refactorización Backend de Registro (`registerVictimPublic`)**:
+    1. Se implementó validación booleana estricta (Zero-Trust) nativa para el consentimiento de Habeas Data y la Declaración Jurada, evitando ataques de inyección y bypass.
+    2. Modificación de la lógica para usuarios existentes implementando un `UPSERT` en `pending_verifications`, eliminando el bloqueo crítico que impedía a usuarios de WintonCoin enviar sus censos de ayuda humanitaria (Falla Crítica resuelta).
+    3. Reemplazo del uso inseguro de `Date.now()` para la asignación temporal de expedientes por `crypto.randomUUID()`, previniendo colisiones de ID bajo alta concurrencia o ataques de bots.
+    4. Eliminación de las inserciones prematuras y erróneas en `blue_token_escrows`, garantizando la integridad transaccional de los tokens.
+  - **Flujo de Activación y Contraseña Opción A (`verifyVictimOtpPublic`)**:
+    1. Se migró a la "Opción A" (Estándar de Industria), donde la contraseña nunca viaja por correo. El damnificado define su contraseña en la misma pantalla donde ingresa el OTP de 6 dígitos.
+    2. Integración idéntica y estandarizada (DRY) del motor de acreditación de referidos (`authController.js`), utilizando `record_booster_event` y dejando un registro inmutable en el Ledger del Impulsor para los 200 BLUE IOU otorgados en el programa SOSVENEZUELA.
+    3. Retorno inmediato de tokens JWT (Access de 15 min + Refresh HttpOnly de 7 días) al validar el OTP, activando automáticamente la sesión segura.
+    4. Mantenimiento correcto del estatus del expediente en `pending_verification`, supeditando la asignación de ayuda a la revisión humana de los administradores.
+  - **Protección Anti-Fricción en Frontend (`sos-venezuela.js` / `sos-venezuela.html`)**:
+    1. Reestructuración de la Card OTP para inyectar dinámicamente los campos requeridos de `Define tu Contraseña` y `Confirma tu Contraseña` con doble verificación de coincidencia en el cliente.
+    2. Implementación de una validación exhaustiva de formulario en tiempo real (eventos `input` y `change`). El botón "Enviar Solicitud" inicia visualmente deshabilitado (opacidad al 50%) y solo se activa como CTA interactivo cuando se han llenado *todos* los campos obligatorios y *ambas* casillas legales están marcadas.
+* **Impacto**: Se sanea la deuda técnica (códigos duplicados residuales) y se blinda el Censo de Ayuda Humanitaria contra ataques masivos. Se mejora drásticamente la Experiencia de Usuario (UX) dando feedback visual en el formulario y entregando el control de la contraseña al damnificado. Todo alineado bajo normativas de Zero-Trust, inmutabilidad y SOC 2.
+
+### 2026-08-05 — Incorporación del Plan de Refactorización de Base de Datos en Technical Improvements
+* **Cambio**:
+  - **Documentación ([TECHNICAL_IMPROVEMENTS.md](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/docs/TECHNICAL_IMPROVEMENTS.md))**:
+    - Se incorporó la **Sección 13 (Plan de Refactorización y Auditoría de la Base de Datos, Migraciones y Auditoría Bancaria)** ordenando los problemas por severidad:
+      1. **Severidad Crítica / Urgente**: Desacoplamiento de `databaseInit.js` de `server.js` para evitar DDLs duplicados y condiciones de carrera al arrancar.
+      2. **Severidad Crítica / SOC 2**: Unificación de las tablas de auditoría (`audit_log` singular vs `audit_logs` plural) y canalización vía `auditService.js`.
+      3. **Severidad Alta**: Corrección de colisiones en prefijos numéricos de migración (`050_`), refactorización del parche `MockPool` e instanciación duplicada de `pg.Pool`.
+      4. **Severidad Media**: Sanitización estricta de construcciones SQL dinámicas (`victimController.js`) y deprecación de columnas legacy duplicadas (`users.phone` vs `users.phone_number`).
+* **Impacto**: Proporciona una hoja de ruta priorizada y categorizada para guiar la refactorización defensiva y la homologación del subsistema de persistencia hacia estándares FinTech / SOC 2.
+
 ### 2026-08-04 — Sistema de Notificaciones (Badges) Centralizadas en Panel Admin
 * **Cambio**:
   - **Backend**: Se implementó `adminMetricsController.js` con un endpoint unificado (`GET /api/admin/metrics/badges`) que agrega conteos (SQL `COUNT(*)`) concurrentes de múltiples tablas (`disaster_victims_registry`, `humanitarian_causes`, `publications`, etc.) previniendo vulnerabilidades DoS por múltiples llamadas.
+  - **Modularización DRY de Acreditación de Referidos (`referralRewardService.js`):**
+    - Se extrajo toda la lógica de bonos, notificaciones, envíos de correo transaccional y derivación a Causas Humanitarias a un servicio centralizado.
+    - Tanto los registros normales como los registros del Censo SOS Venezuela ejecutan exactamente el mismo flujo de acreditación.
+    - Si el referente (ej. `@CadenaSOSVenezuela`) tiene una Causa Humanitaria Activa y Aprobada, los bonos generados por referidos se desvían de forma segura y auditable como donación `on_hold` a la causa.
+  - **Validación en Tiempo Real de Código Especial en Admin (`admin-panel.js` & `systemController.js`):**
+    - Se agregó el endpoint `/api/system/verify-referral-code` que comprueba si un código existe en la BD y muestra el usuario al que pertenece.
+    - En el Panel Admin, se muestra `✅ Pertenece a @username` o `❌ Código no encontrado` al escribir en el campo de Código de Referido Especial.
+    - Si el código ingresado no existe, el switch de habilitación se desactiva y bloquea automáticamente.
   - **Frontend**: Se inyectaron `nav-badge` y `nav-badge-blue` en `admin-panel.html` y se implementó `startBadgesPolling()` en `admin-panel.js` para una sincronización en tiempo real cada 60 segundos (arquitectura polling unificado).
 * **Impacto**: Incrementa dramáticamente la eficiencia operativa de los administradores al saber exactamente qué flujos (SOS, Solidario, Talento, Momentum, Publicaciones) requieren su atención, garantizando seguridad y nulo impacto al rendimiento de la DB.
 

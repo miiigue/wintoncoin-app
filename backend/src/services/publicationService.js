@@ -517,7 +517,7 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
 
     // AUDITORÍA FINTECH: Grabación de notificación adaptada a booster
     const notificationMessage = isBoosterTx
-        ? `¡Has acumulado ${cost.toFixed(4)} BLUE en tu Perfil de Impulsor por la tarea "${title}"!`
+        ? `¡Has acumulado ${cost.toFixed(4)} BLUE IOU en tu Perfil de Impulsor por la tarea "${title}"!`
         : `¡Has recibido ${cost.toFixed(4)} BLUE (en depósito) por la tarea "${title}"!`;
     await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [workerUsername, notificationMessage]);
 
@@ -554,7 +554,7 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         const eligibleBalance = balanceInfo.eligibleBalance;
 
         if (eligibleBalance < cost) {
-            throw { status: 400, message: `Saldo elegible insuficiente en tu perfil de impulsor. Dispones de ${eligibleBalance.toFixed(4)} BLUE para transaccionar (excluyendo bonos por referidos sin KYC aprobados).` };
+            throw { status: 400, message: `Saldo elegible insuficiente en tu perfil de impulsor. Dispones de ${eligibleBalance.toFixed(4)} BLUE IOU para transaccionar (excluyendo bonos por referidos sin KYC aprobados).` };
         }
 
         await client.query('SELECT record_booster_event($1, \'payment_sent\', $2, $3)', [payerId, -cost, pubId]);
@@ -567,9 +567,9 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         await updateUserBoosterLevel(client, payerId);
         await updateUserBoosterLevel(client, recipientId);
 
-        const payerNotification = `Has transferido ${cost.toFixed(4)} BLUE de tu perfil de impulsor para "${title}".`;
+        const payerNotification = `Has transferido ${cost.toFixed(4)} BLUE IOU de tu perfil de impulsor para "${title}".`;
         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [payer, payerNotification]);
-        const recipientNotification = `Has recibido ${cost.toFixed(4)} BLUE en tu perfil de impulsor de ${payer} para "${title}".`;
+        const recipientNotification = `Has recibido ${cost.toFixed(4)} BLUE IOU en tu perfil de impulsor de ${payer} para "${title}".`;
         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [recipient, recipientNotification]);
 
         resultMessage = "Transferencia completada exitosamente desde tu perfil de impulsor.";
@@ -744,7 +744,7 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
 
         // AUDITORÍA FINTECH: Registro de notificación para el receptor del pago (booster vs normal)
         const recipientNotification = isBoosterTx
-            ? `¡Has recibido el pago de ${cost.toFixed(4)} BLUE en tu perfil de impulsor por "${title}" de parte de ${payer}!`
+            ? `¡Has recibido el pago de ${cost.toFixed(4)} BLUE IOU en tu perfil de impulsor por "${title}" de parte de ${payer}!`
             : `¡Has recibido el pago de ${cost.toFixed(4)} BLUE (en depósito) por "${title}" de parte de ${payer}!`;
         await client.query(`INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`, [recipient, recipientNotification]);
 

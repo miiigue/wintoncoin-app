@@ -980,8 +980,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const updateBadge = (id, count) => {
                     const badge = document.getElementById(id);
                     if (badge) {
-                        badge.textContent = count > 0 ? count : '';
-                        badge.style.display = count > 0 ? 'inline-block' : 'none';
+                        const numericCount = parseInt(count, 10) || 0;
+                        if (numericCount > 0) {
+                            badge.textContent = numericCount;
+                            badge.style.display = 'inline-flex';
+                            badge.classList.add('is-visible');
+                        } else {
+                            badge.textContent = '';
+                            badge.style.display = 'none';
+                            badge.classList.remove('is-visible');
+                        }
                     }
                 };
 
@@ -1580,8 +1588,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <h4>Código de Referido Especial</h4>
                     <p>Código global para compartir en redes sociales en lugar del código personal.</p>
                 </div>
-                <div class="setting-item-control">
+                <div class="setting-item-control" style="flex-direction: column; align-items: flex-end; gap: 0.3rem;">
                     <input type="text" class="admin-text-input" id="setting-referral_custom_share_code" data-key="referral_custom_share_code" value="${escapeHtml(customCodeSetting.setting_value)}" style="padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #fff; width: 100%; max-width: 250px;">
+                    <div id="referral-code-status-msg" style="font-size: 0.8rem; text-align: right; width: 100%;"></div>
                 </div>
             </div>
 
@@ -1664,6 +1673,53 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         });
+
+        // Lógica de verificación dinámica del código especial
+        const codeInput = container.querySelector('#setting-referral_custom_share_code');
+        const codeCheckbox = container.querySelector('#setting-referral_custom_share_code_enabled');
+        const statusMsg = container.querySelector('#referral-code-status-msg');
+
+        const verifySpecialCode = async () => {
+            if (!codeInput || !statusMsg) return;
+            const codeVal = codeInput.value.trim();
+            if (!codeVal) {
+                statusMsg.innerHTML = '<span style="color: #e74c3c;">❌ Debe ingresar un código</span>';
+                if (codeCheckbox) {
+                    codeCheckbox.checked = false;
+                    codeCheckbox.disabled = true;
+                }
+                return;
+            }
+
+            try {
+                let res = await fetch(`${API_URL}/api/verify-referral-code?code=${encodeURIComponent(codeVal)}`);
+                if (!res.ok) {
+                    res = await fetch(`${API_URL}/api/system/verify-referral-code?code=${encodeURIComponent(codeVal)}`);
+                }
+                const data = await res.json();
+                if (data.valid) {
+                    statusMsg.innerHTML = `<span style="color: #2ecc71;">✅ Pertenece al usuario: <strong>@${data.username}</strong></span>`;
+                    if (codeCheckbox) codeCheckbox.disabled = false;
+                } else {
+                    statusMsg.innerHTML = `<span style="color: #e74c3c;">❌ ${data.message || 'El código no existe'}</span>`;
+                    if (codeCheckbox) {
+                        codeCheckbox.checked = false;
+                        codeCheckbox.disabled = true;
+                        // Si estaba encendido en BD, actualizar estado a apagado
+                        handleSettingChange({ target: codeCheckbox });
+                    }
+                }
+            } catch (err) {
+                statusMsg.innerHTML = `<span style="color: #e74c3c;">Error al verificar código</span>`;
+            }
+        };
+
+        if (codeInput) {
+            codeInput.addEventListener('blur', verifySpecialCode);
+            codeInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') verifySpecialCode(); });
+            // Verificar al cargar la pestaña
+            verifySpecialCode();
+        }
 
         const textarea = container.querySelector('textarea');
         if (textarea) {
@@ -3020,11 +3076,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updatePlatformPublicationsBadge(totalPending) {
         if (!elements.platformPublicationsBadge) return;
-        if (totalPending > 0) {
-            elements.platformPublicationsBadge.textContent = totalPending;
+        const numericCount = parseInt(totalPending, 10) || 0;
+        if (numericCount > 0) {
+            elements.platformPublicationsBadge.textContent = numericCount;
+            elements.platformPublicationsBadge.style.display = 'inline-flex';
             elements.platformPublicationsBadge.classList.add('is-visible');
         } else {
             elements.platformPublicationsBadge.textContent = '';
+            elements.platformPublicationsBadge.style.display = 'none';
             elements.platformPublicationsBadge.classList.remove('is-visible');
         }
     }

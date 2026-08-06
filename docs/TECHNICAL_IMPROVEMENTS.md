@@ -335,4 +335,42 @@ Estas mejoras **no son obligatorias para que el sistema funcione hoy**, pero son
 2. **Clarificación UI de Tokens**: Añadir indicadores visuales (badging / tooltips explicativos) entre saldo líquido y saldo IOU.
 3. **Logs Auditables Client-Side**: Implementar logger estandarizado para eventos críticos de cliente.
 4. **UX Responsiva Élite**: Ajustar la rejilla de modales y tablas P2P para cumplimiento de guías estilo Binance/Coinbase/Rappi.
-5. **Sincronización Vite**: Automatizar o verificar las entradas de `rollupOptions.input` en `vite.config.js`.
+5. **Sincronización Vite**: Automatizar o verificar las entradas de `rollupOptions.input` en `vite.config.js`.
+
+---
+
+## 13. Plan de Refactorización y Auditoría de la Base de Datos, Migraciones y Auditoría Bancaria
+
+**Prioridad: Crítica / Alta (Arquitectura, Ciberseguridad, SOC 2 e Integridad Relacional)**
+
+**Problemas Identificados y Severidad Asignada:**
+
+1. **Dualidad Arquitectónica e Inicialización Redundante (`databaseInit.js` vs `migrationRunner.js`)**
+   - **Severidad: CRÍTICA / URGENTE**
+   - **Problema:** En el inicio del servidor (`server.js`), se ejecuta primero `databaseInit.js` (más de 1,500 líneas de DDL inline) y luego `migrationRunner.js` (102 archivos de migración). Esto provoca DDLs duplicados, condiciones de carrera en inicios concurrentes y riesgo de recrear firmas de funciones obsoletas.
+   - **Solución Propuesta:** Consolidar todo el esquema DDL en las migraciones numeradas de `backend/migrations/`, desacoplando `databaseInit.js` del ciclo de arranque del servidor.
+
+2. **Duplicidad y Fracturación de las Tablas de Auditoría (`audit_log` vs `audit_logs`)**
+   - **Severidad: CRÍTICA / SOC 2**
+   - **Problema:** Existe una tabla `audit_log` (singular, creada en migración `006`) y otra tabla `audit_logs` (plural, creada en migración `097`). Distintos controladores escriben en tablas diferentes, rompiendo el estándar de auditoría centralizada bancaria e inmutable.
+   - **Solución Propuesta:** Crear una migración de consolidación DDL para migrar los registros de `audit_log` hacia `audit_logs` (con columna JSONB `details`), y canalizar el 100% de los eventos del backend a través del servicio centralizado `auditService.js`.
+
+3. **Colisión de Prefijos de Migración (`050_...`) y Compatibilidad Legacy (`MockPool`)**
+   - **Severidad: ALTA**
+   - **Problema:** Dos archivos comparten el prefijo `050_` (`050_add_web3_wallet_and_scoring_settings.js` y `050_create_booster_stages.js`), lo que puede causar orden de ejecución indeterminado. Además, el runner utiliza un parche dinámico (`MockPool`) para ejecutar migraciones legacy (001-049).
+   - **Solución Propuesta:** Renombrar la migración duplicada al prefijo correlativo único disponible y refactorizar progresivamente las migraciones legacy al formato estándar exportado `exports.up = async (client) => { ... }`.
+
+4. **Instanciación Duplicada de Pools de Conexión (`pg.Pool`)**
+   - **Severidad: ALTA**
+   - **Problema:** `db.js` instancia el pool principal, pero `migrationRunner.js` y varios scripts independientes instancian pools adicionales de `pg.Pool`, incrementando innecesariamente el número de conexiones simultáneas a PostgreSQL.
+   - **Solución Propuesta:** Reutilizar la instancia singleton del pool de `db.js` en el runner de migraciones y scripts auxiliares.
+
+5. **Construcción de SQL Dinámico e Identificadores Concatenados**
+   - **Severidad: MEDIA**
+   - **Problema:** Aunque las variables de datos están 100% parametrizadas (`$1, $2`), en módulos como `victimController.js` (`whereSql`) y `backup-database.js` se interpolan fragmentos de SQL o nombres de tabla mediante template strings (`${...}`).
+   - **Solución Propuesta:** Aplicar listas blancas (*whitelisting*) estrictas o sanitización con `pg-format` para la construcción de consultas dinámicas avanzadas.
+
+6. **Campos Redundantes Legacy en `users` (`phone` vs `phone_number`)**
+   - **Severidad: MEDIA**
+   - **Problema:** Existen dos columnas para el teléfono de los usuarios debido a parches acumulados en el monolito `databaseInit.js`.
+   - **Solución Propuesta:** Deprecar la columna redundante y unificar todas las lecturas/escrituras en un único campo estandarizado (`phone_number`).

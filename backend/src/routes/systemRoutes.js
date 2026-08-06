@@ -20,6 +20,10 @@ router.get('/referral-settings', SystemController.getReferralSettings);
 // 3. Obtener fecha de vigencia de códigos de referido (Público)
 router.get('/referral-expiry-date', SystemController.getReferralExpiryDate);
 
+// 3.1 Verificar código de referido en tiempo real (Público/Admin - Soporta ambos prefijos por compatibilidad)
+router.get('/verify-referral-code', SystemController.verifyReferralCode);
+router.get('/system/verify-referral-code', SystemController.verifyReferralCode);
+
 // 4. Lista de Obligaciones Vencidas (LOVE) (Público)
 router.get('/love-list', SystemController.getLoveList);
 
@@ -34,6 +38,9 @@ router.get('/platform-settings', SystemController.getPlatformSettings);
 
 // 8. Configuración pública legacy (Público, requerido por suite de pruebas de publicación)
 router.get('/public-settings', SystemController.getAppSettings);
+
+// 9. Multiplicador vigente actual y etapa activa del motor booster (Público)
+router.get('/booster/current-multiplier', SystemController.getCurrentMultiplier);
 
 const multer = require('multer');
 const path = require('path');
