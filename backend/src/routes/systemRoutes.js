@@ -39,6 +39,9 @@ router.get('/platform-settings', SystemController.getPlatformSettings);
 // 8. Configuración pública legacy (Público, requerido por suite de pruebas de publicación)
 router.get('/public-settings', SystemController.getAppSettings);
 
+// 9. Multiplicador vigente actual y etapa activa del motor booster (Público)
+router.get('/booster/current-multiplier', SystemController.getCurrentMultiplier);
+
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
