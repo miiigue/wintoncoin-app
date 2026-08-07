@@ -322,6 +322,7 @@ async function createPlatformPublication(req, res) {
                 // Notificar exclusivamente al usuario objetivo
                 const targetUserRes = await pool.query('SELECT id FROM users WHERE username = $1', [sanitizedTargetUsername]);
                 if (targetUserRes.rowCount > 0) {
+                    // 1. Notificación Push (Externa/Efímera)
                     await notificationService.sendNotificationToUser(targetUserRes.rows[0].id, {
                         title: '🎯 Tarea Asignada',
                         body: `¡Tienes una nueva tarea personalizada! 📝 ${title}.`,
@@ -329,6 +330,12 @@ async function createPlatformPublication(req, res) {
                         badge: '/assets/icons/icon-72x72.png',
                         data: { url: `/publication-detail.html?id=${newPubId}` }
                     }, 'SOCIAL');
+
+                    // 2. Notificación In-App (Interna/Persistente)
+                    await pool.query(
+                        `INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)`,
+                        [sanitizedTargetUsername, `🎯 Tarea Asignada: ¡Tienes una nueva tarea personalizada! "${title}".`]
+                    );
                 }
             } else {
                 // Tarea pública: Broadcast global
