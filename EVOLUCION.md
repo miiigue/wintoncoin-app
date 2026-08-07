@@ -12,6 +12,14 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
+### 2026-08-06 — Context-Aware Routing para Notificaciones Push (Deep Links)
+* **Cambio**:
+  - **Refactorización de Enrutamiento Push (`publicationController.js`, `adminPublicationsController.js`, `notificationEventBus.js`)**:
+    - Se solucionó el bug donde el payload de notificaciones push abría el `/momentum-dashboard.html` genérico. Ahora las notificaciones inyectan dinámicamente el ID y abren directamente `/publication-detail.html?id=XXX`.
+    - En el Panel Admin, se introdujo una bifurcación condicional: si una tarea oficial es asignada a un usuario específico (`target_username`), el sistema emite una notificación exclusiva privada (`sendNotificationToUser`), eliminando el spam global (`sendNotificationToAll`).
+    - **[NUEVO]** Para tareas personalizadas asignadas vía Admin, se habilitó el registro persistente In-App (campanita) mediante un `INSERT INTO notifications`, garantizando el cumplimiento de arquitecturas de doble canal (Efímero + Persistente) para notificaciones dirigidas uno a uno.
+    - Se auditaron y corrigieron 404s silenciosos en el bus central de eventos, actualizando enlaces de tareas y órdenes P2P para que dirijan a las interfaces reales.
+* **Impacto**: UX optimizada mediante Deep Linking preciso. Se evita la exposición o "spam" a la base completa de usuarios en tareas dirigidas y se asegura que cada notificación accione en el flujo de trabajo correcto.
 
 ### 2026-08-05 — Corrección Crítica en Activación SOS Venezuela y Verificación de Código Especial Admin
 * **Cambio**:
