@@ -169,44 +169,46 @@ async function loadApplicants() {
 
         listEl.innerHTML = `
             <div class="mma-table-wrap">
-                <table class="mma-table">
-                    <thead>
-                        <tr>
-                            <th>Usuario</th>
-                            <th>Nickname</th>
-                            <th>Plataforma</th>
-                            <th>Seguidores</th>
-                            <th>Link</th>
-                            <th>Nicho</th>
-                            <th>Asignar Tier</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${applicants.map(a => `
+                <div class="mma-table-scroll">
+                    <table class="mma-table">
+                        <thead>
                             <tr>
-                                <td><strong>${escapeHtml(a.username)}</strong></td>
-                                <td>${escapeHtml(a.nickname)}</td>
-                                <td>${escapeHtml(a.social_platform)}</td>
-                                <td>${(a.followers_count || 0).toLocaleString('es-ES')}</td>
-                                <td><a href="${escapeAttr(a.social_link)}" target="_blank" rel="noopener" style="color: var(--mm-blue);">Ver ↗</a></td>
-                                <td>${escapeHtml(a.niche || '—')}</td>
-                                <td>
-                                    <select class="mma-tier-select" data-profile-id="${a.id}">
-                                        <option value="">Seleccionar...</option>
-                                        <option value="VISIONARIO">👀 Visionario</option>
-                                        <option value="BRONCE">🥉 Bronce</option>
-                                        <option value="PLATA">🥈 Plata</option>
-                                        <option value="ORO">🥇 Oro</option>
-                                    </select>
-                                    <button class="mmd-btn mmd-btn--gold mmd-btn--small mma-assign-tier-btn" 
-                                            data-profile-id="${a.id}" style="margin-left: 4px;">
-                                        ✓
-                                    </button>
-                                </td>
+                                <th>Usuario</th>
+                                <th>Nickname</th>
+                                <th>Plataforma</th>
+                                <th>Seguidores</th>
+                                <th>Link</th>
+                                <th>Nicho</th>
+                                <th>Asignar Tier</th>
                             </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            ${applicants.map(a => `
+                                <tr>
+                                    <td><strong>${escapeHtml(a.username)}</strong></td>
+                                    <td>${escapeHtml(a.nickname)}</td>
+                                    <td>${escapeHtml(a.social_platform)}</td>
+                                    <td>${(a.followers_count || 0).toLocaleString('es-ES')}</td>
+                                    <td><a href="${escapeAttr(a.social_link)}" target="_blank" rel="noopener" style="color: var(--mma-blue); font-weight: 600;">Ver ↗</a></td>
+                                    <td>${escapeHtml(a.niche || '—')}</td>
+                                    <td>
+                                        <select class="mma-tier-select" data-profile-id="${a.id}">
+                                            <option value="">Seleccionar...</option>
+                                            <option value="VISIONARIO">👀 Visionario</option>
+                                            <option value="BRONCE">🥉 Bronce</option>
+                                            <option value="PLATA">🥈 Plata</option>
+                                            <option value="ORO">🥇 Oro</option>
+                                        </select>
+                                        <button class="mma-btn mma-btn--gold mma-btn--small mma-assign-tier-btn" 
+                                                data-profile-id="${a.id}" style="margin-left: 6px;">
+                                            ✓ Asignar
+                                        </button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         `;
 
@@ -301,34 +303,36 @@ async function loadProfiles() {
                 </div>
             </div>
             <div class="mma-table-wrap">
-                <table class="mma-table">
-                    <thead>
-                        <tr>
-                            <th>Nickname</th>
-                            <th>Usuario</th>
-                            <th>Tier</th>
-                            <th>Plataforma</th>
-                            <th>Seguidores</th>
-                            <th>Creado</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${profiles.map(p => {
-            const tierBadge = `<span class="mmd-status-badge --${p.tier.toLowerCase()}">${p.tier}</span>`;
-            const date = new Date(p.created_at).toLocaleDateString('es-ES');
-            return `
-                                <tr>
-                                    <td><strong>${escapeHtml(p.nickname)}</strong></td>
-                                    <td>${escapeHtml(p.username)}</td>
-                                    <td>${tierBadge}</td>
-                                    <td>${escapeHtml(p.social_platform)}</td>
-                                    <td>${(p.followers_count || 0).toLocaleString('es-ES')}</td>
-                                    <td>${date}</td>
-                                </tr>
-                            `;
-        }).join('')}
-                    </tbody>
-                </table>
+                <div class="mma-table-scroll">
+                    <table class="mma-table">
+                        <thead>
+                            <tr>
+                                <th>Nickname</th>
+                                <th>Usuario</th>
+                                <th>Tier</th>
+                                <th>Plataforma</th>
+                                <th>Seguidores</th>
+                                <th>Creado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${profiles.map(p => {
+                const tierBadge = `<span class="mma-badge --${p.tier.toLowerCase()}">${p.tier}</span>`;
+                const date = new Date(p.created_at).toLocaleDateString('es-ES');
+                return `
+                                    <tr>
+                                        <td><strong>${escapeHtml(p.nickname)}</strong></td>
+                                        <td>${escapeHtml(p.username)}</td>
+                                        <td>${tierBadge}</td>
+                                        <td>${escapeHtml(p.social_platform)}</td>
+                                        <td>${(p.followers_count || 0).toLocaleString('es-ES')}</td>
+                                        <td>${date}</td>
+                                    </tr>
+                                `;
+            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         `;
     } catch (error) {
@@ -361,56 +365,58 @@ async function loadCampaigns() {
 
         listEl.innerHTML = `
             <div class="mma-table-wrap">
-                <table class="mma-table">
-                    <thead>
-                        <tr>
-                            <th>Título</th>
-                            <th>Estado</th>
-                            <th>Tipo</th>
-                            <th>👀 Visionario</th>
-                            <th>🥉 Bronce</th>
-                            <th>🥈 Plata</th>
-                            <th>🥇 Oro</th>
-                            <th>💎 Platino</th>
-                            <th>Creada</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${campaigns.map(c => {
-            const active = c.is_active;
-            const statusBadge = active
-                ? '<span class="mmd-status-badge --aprobado">Activa</span>'
-                : '<span class="mmd-status-badge --rechazado">Inactiva</span>';
-            const typeBadge = c.allow_multiple
-                ? '<span class="mmd-status-badge" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; border-color: rgba(59, 130, 246, 0.2);">Repetible</span>'
-                : '<span class="mmd-status-badge" style="background: rgba(156, 163, 175, 0.1); color: #9ca3af;">Única</span>';
-            const date = new Date(c.created_at).toLocaleDateString('es-ES');
-            return `
-                                <tr>
-                                    <td><strong>${escapeHtml(c.title)}</strong></td>
-                                    <td>${statusBadge}</td>
-                                    <td>${typeBadge}</td>
-                                    <td>${parseFloat(c.base_pay_visionario || 0).toLocaleString('es-ES')}</td>
-                                    <td>${parseFloat(c.base_pay_bronce).toLocaleString('es-ES')}</td>
-                                    <td>${parseFloat(c.base_pay_plata).toLocaleString('es-ES')}</td>
-                                    <td>${parseFloat(c.base_pay_oro).toLocaleString('es-ES')}</td>
-                                    <td>${parseFloat(c.base_pay_platino || 0).toLocaleString('es-ES')}</td>
-                                    <td>${date}</td>
-                                    <td>
-                                        <button class="mmd-btn mmd-btn--ghost mmd-btn--small mma-toggle-status-btn" 
-                                                data-id="${c.id}" data-active="${active}">
-                                            ${active ? '⏸️ Pausar' : '▶️ Activar'}
-                                        </button>
-                                        <button class="mmd-btn mmd-btn--ghost mmd-btn--small mma-edit-campaign-btn" style="margin-left: 5px;" data-id="${c.id}">
-                                            ✏️ Editar
-                                        </button>
-                                    </td>
-                                </tr>
-                            `;
-        }).join('')}
-                    </tbody>
-                </table>
+                <div class="mma-table-scroll">
+                    <table class="mma-table">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Estado</th>
+                                <th>Tipo</th>
+                                <th>👀 Visionario</th>
+                                <th>🥉 Bronce</th>
+                                <th>🥈 Plata</th>
+                                <th>🥇 Oro</th>
+                                <th>💎 Platino</th>
+                                <th>Creada</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${campaigns.map(c => {
+                const active = c.is_active;
+                const statusBadge = active
+                    ? '<span class="mma-badge --aprobado">Activa</span>'
+                    : '<span class="mma-badge --rechazado">Inactiva</span>';
+                const typeBadge = c.allow_multiple
+                    ? '<span class="mma-badge --visionario">Repetible</span>'
+                    : '<span class="mma-badge --pendiente">Única</span>';
+                const date = new Date(c.created_at).toLocaleDateString('es-ES');
+                return `
+                                    <tr>
+                                        <td><strong>${escapeHtml(c.title)}</strong></td>
+                                        <td>${statusBadge}</td>
+                                        <td>${typeBadge}</td>
+                                        <td>${parseFloat(c.base_pay_visionario || 0).toLocaleString('es-ES')}</td>
+                                        <td>${parseFloat(c.base_pay_bronce).toLocaleString('es-ES')}</td>
+                                        <td>${parseFloat(c.base_pay_plata).toLocaleString('es-ES')}</td>
+                                        <td>${parseFloat(c.base_pay_oro).toLocaleString('es-ES')}</td>
+                                        <td>${parseFloat(c.base_pay_platino || 0).toLocaleString('es-ES')}</td>
+                                        <td>${date}</td>
+                                        <td>
+                                            <button class="mma-btn mma-btn--ghost mma-btn--small mma-toggle-status-btn" 
+                                                    data-id="${c.id}" data-active="${active}">
+                                                ${active ? '⏸️ Pausar' : '▶️ Activar'}
+                                            </button>
+                                            <button class="mma-btn mma-btn--ghost mma-btn--small mma-edit-campaign-btn" style="margin-left: 5px;" data-id="${c.id}">
+                                                ✏️ Editar
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `;
+            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         `;
 
@@ -535,30 +541,35 @@ async function loadSubmissions() {
 
         listEl.innerHTML = submissions.map(s => {
             const date = new Date(s.submitted_at).toLocaleDateString('es-ES');
+            // Validar que la URL del comprobante comience obligatoriamente con http:// o https:// (protección anti-XSS via javascript:)
+            const safeProofLink = (s.proof_link && (s.proof_link.startsWith('http://') || s.proof_link.startsWith('https://')))
+                ? s.proof_link
+                : '#';
+
             return `
                 <div class="mma-verify-card" id="mma-verify-${s.id}">
                     <div class="mma-verify-card__header">
                         <div>
                             <div class="mma-verify-card__user">${escapeHtml(s.nickname)} (@${escapeHtml(s.username)})</div>
                             <div class="mma-verify-card__campaign">
-                                🎯 ${escapeHtml(s.campaign_title)} · Tier: ${s.tier} · Enviado: ${date}
+                                🎯 ${escapeHtml(s.campaign_title)} · Tier: <strong>${escapeHtml(s.tier)}</strong> · Enviado: ${date}
                             </div>
                         </div>
-                        <span class="mmd-status-badge --pendiente">Pendiente</span>
+                        <span class="mma-badge --pendiente">Pendiente</span>
                     </div>
-                    <a href="${escapeAttr(s.proof_link)}" target="_blank" rel="noopener" class="mma-verify-card__link">
-                        📎 ${escapeHtml(s.proof_link)}
+                    <a href="${escapeAttr(safeProofLink)}" target="_blank" rel="noopener noreferrer" class="mma-verify-card__link">
+                        📎 ${escapeHtml(s.proof_link)} ↗
                     </a>
                     <div class="mma-verify-card__actions">
                         <input type="number" step="0.01" min="0" placeholder="Bono extra (opcional)" 
                                class="mma-bonus-input" data-id="${s.id}">
                         <input type="text" placeholder="Nota (obligatoria para rechazar)" 
                                class="mma-note-input" data-id="${s.id}">
-                        <button class="mmd-btn mmd-btn--gold mmd-btn--small mma-approve-btn" data-id="${s.id}">
+                        <button class="mma-btn mma-btn--gold mma-btn--small mma-approve-btn" data-id="${s.id}">
                             ✅ Aprobar
                         </button>
-                        <button class="mmd-btn mmd-btn--ghost mmd-btn--small mma-reject-btn" data-id="${s.id}" 
-                                style="border-color: var(--mm-red); color: var(--mm-red);">
+                        <button class="mma-btn mma-btn--ghost mma-btn--small mma-reject-btn" data-id="${s.id}" 
+                                style="border-color: var(--mma-red); color: var(--mma-red);">
                             ❌ Rechazar
                         </button>
                     </div>

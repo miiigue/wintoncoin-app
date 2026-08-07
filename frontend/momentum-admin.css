@@ -1,0 +1,742 @@
+/* ============================================================================
+ * WINTON MOMENTUM - Admin Panel Dedicated Design System
+ * ============================================================================
+ * Estilos exclusivos para el panel de administración de Winton Momentum.
+ * Diseño ultra-premium, dark mode con glassmorphism, gradientes dorados y
+ * estructura totalmente responsiva adaptada a estándares bancarios y FinTech.
+ * ============================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+:root {
+    --mma-bg-main: #080a0d;
+    --mma-bg-card: rgba(18, 22, 31, 0.85);
+    --mma-bg-card-hover: rgba(26, 32, 45, 0.95);
+    --mma-bg-input: #0f141c;
+    --mma-bg-header: rgba(13, 17, 23, 0.9);
+    
+    --mma-border: rgba(255, 255, 255, 0.1);
+    --mma-border-glow: rgba(255, 215, 0, 0.3);
+    
+    --mma-gold: #FFD700;
+    --mma-gold-gradient: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    --mma-gold-glow: rgba(255, 215, 0, 0.25);
+    
+    --mma-blue: #00D4FF;
+    --mma-blue-glow: rgba(0, 212, 255, 0.25);
+    --mma-green: #2ea043;
+    --mma-green-glow: rgba(46, 160, 67, 0.25);
+    --mma-red: #da3633;
+    --mma-red-glow: rgba(218, 54, 51, 0.25);
+    
+    --mma-text-main: #F0F6FC;
+    --mma-text-sub: #8B949E;
+    --mma-text-muted: #6E7681;
+    
+    --mma-radius: 12px;
+    --mma-radius-lg: 18px;
+    --mma-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+    --mma-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Reset y Base */
+body.momentum-admin-body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--mma-font);
+    background-color: var(--mma-bg-main);
+    background-image: 
+        radial-gradient(circle at 20% 20%, rgba(255, 215, 0, 0.04) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(0, 212, 255, 0.04) 0%, transparent 50%);
+    color: var(--mma-text-main);
+    min-height: 100vh;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* --- Header Superior --- */
+.mma-header {
+    background: var(--mma-bg-header);
+    border-bottom: 1px solid var(--mma-border);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    padding: 16px 32px;
+}
+
+.mma-header__inner {
+    max-width: 1320px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.mma-header__brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.mma-header__logo {
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    background: var(--mma-gold-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mma-header__badge {
+    background: rgba(255, 215, 0, 0.12);
+    color: var(--mma-gold);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.mma-header__actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.mma-header__back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--mma-text-sub);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--mma-border);
+    transition: all 0.2s ease;
+}
+
+.mma-header__back-btn:hover {
+    color: var(--mma-text-main);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* --- Contenedor Principal --- */
+.mma-container {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+}
+
+/* --- Bar de Pestañas (Tabs) --- */
+.mma-tabs-nav {
+    display: flex;
+    gap: 8px;
+    background: rgba(15, 20, 28, 0.95);
+    padding: 8px;
+    border-radius: var(--mma-radius-lg);
+    border: 1px solid var(--mma-border);
+    margin-bottom: 32px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.mma-tabs-nav::-webkit-scrollbar {
+    display: none;
+}
+
+.mma-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 22px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--mma-text-sub);
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-family: inherit;
+    border-radius: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mma-tab:hover {
+    color: var(--mma-text-main);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.mma-tab.--active {
+    background: var(--mma-bg-card-hover);
+    color: var(--mma-gold);
+    border-color: rgba(255, 215, 0, 0.3);
+    box-shadow: 0 0 16px var(--mma-gold-glow);
+}
+
+/* --- Paneles de Contenido --- */
+.mma-panel {
+    display: none;
+    animation: mmaFadeIn 0.3s ease-in-out;
+}
+
+.mma-panel.--active {
+    display: block;
+}
+
+@keyframes mmaFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Titulares de Sección --- */
+.mma-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.mma-section-title {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--mma-text-main);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+}
+
+.mma-section-title::before {
+    content: '';
+    display: block;
+    width: 4px;
+    height: 24px;
+    background: var(--mma-gold-gradient);
+    border-radius: 4px;
+}
+
+/* --- Grid de Configuración --- */
+.mma-config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+    margin-bottom: 28px;
+}
+
+.mma-config-card {
+    background: var(--mma-bg-card);
+    border: 1px solid var(--mma-border);
+    border-radius: var(--mma-radius);
+    padding: 22px;
+    backdrop-filter: blur(12px);
+    transition: all 0.25s ease;
+}
+
+.mma-config-card:focus-within {
+    border-color: rgba(255, 215, 0, 0.4);
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.1);
+}
+
+.mma-config-card label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--mma-text-sub);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 10px;
+    font-weight: 700;
+}
+
+.mma-config-card input,
+.mma-config-card select {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--mma-bg-input) !important;
+    border: 1px solid var(--mma-border);
+    border-radius: 10px;
+    color: var(--mma-text-main) !important;
+    font-size: 0.95rem;
+    font-family: inherit;
+    outline: none;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+}
+
+.mma-config-card input:focus,
+.mma-config-card select:focus {
+    border-color: var(--mma-gold);
+    box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.15);
+}
+
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.9);
+    cursor: pointer;
+}
+
+/* --- Botones Genéricos Premium --- */
+.mma-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 26px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    font-family: inherit;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    text-decoration: none;
+}
+
+.mma-btn--gold {
+    background: var(--mma-gold-gradient);
+    color: #000;
+    box-shadow: 0 4px 15px var(--mma-gold-glow);
+}
+
+.mma-btn--gold:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4);
+}
+
+.mma-btn--ghost {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--mma-text-main);
+    border: 1px solid var(--mma-border);
+}
+
+.mma-btn--ghost:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.mma-btn--small {
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    border-radius: 6px;
+}
+
+/* --- Tarjetas Estadísticas --- */
+.mma-stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 18px;
+    margin-bottom: 28px;
+}
+
+.mma-stat-card {
+    background: var(--mma-bg-card);
+    border: 1px solid var(--mma-border);
+    border-radius: var(--mma-radius);
+    padding: 20px;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    transition: all 0.25s ease;
+}
+
+.mma-stat-card:hover {
+    transform: translateY(-3px);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.mma-stat-card__value {
+    font-size: 1.9rem;
+    font-weight: 900;
+    color: var(--mma-gold);
+    line-height: 1.2;
+}
+
+.mma-stat-card__label {
+    font-size: 0.72rem;
+    color: var(--mma-text-sub);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-weight: 700;
+    margin-top: 6px;
+}
+
+/* --- Tablas Responsivas Profesionales --- */
+.mma-table-wrap {
+    background: var(--mma-bg-card);
+    border: 1px solid var(--mma-border);
+    border-radius: var(--mma-radius-lg);
+    overflow: hidden;
+    margin-bottom: 28px;
+    backdrop-filter: blur(12px);
+    box-shadow: var(--mma-shadow);
+}
+
+.mma-table-scroll {
+    overflow-x: auto;
+    width: 100%;
+}
+
+.mma-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    text-align: left;
+}
+
+.mma-table th {
+    padding: 14px 18px;
+    background: rgba(13, 17, 23, 0.95);
+    color: var(--mma-text-sub);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-size: 0.72rem;
+    border-bottom: 1px solid var(--mma-border);
+    white-space: nowrap;
+}
+
+.mma-table td {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--mma-border);
+    vertical-align: middle;
+    color: var(--mma-text-main);
+}
+
+.mma-table tbody tr {
+    transition: background 0.2s ease;
+}
+
+.mma-table tbody tr:hover td {
+    background: var(--mma-bg-card-hover);
+}
+
+.mma-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.mma-tier-select {
+    padding: 8px 12px;
+    background: var(--mma-bg-input) !important;
+    border: 1px solid var(--mma-border);
+    border-radius: 8px;
+    color: var(--mma-text-main) !important;
+    font-size: 0.82rem;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+}
+
+.mma-tier-select:focus {
+    border-color: var(--mma-gold);
+}
+
+/* --- Badges de Estado / Nivel --- */
+.mma-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.mma-badge.--visionario { background: rgba(0, 212, 255, 0.12); color: var(--mma-blue); border: 1px solid rgba(0, 212, 255, 0.3); }
+.mma-badge.--bronce { background: rgba(205, 127, 50, 0.15); color: #dfaf85; border: 1px solid rgba(205, 127, 50, 0.3); }
+.mma-badge.--plata { background: rgba(192, 192, 192, 0.15); color: #e0e0e0; border: 1px solid rgba(192, 192, 192, 0.3); }
+.mma-badge.--oro { background: rgba(255, 215, 0, 0.15); color: var(--mma-gold); border: 1px solid rgba(255, 215, 0, 0.3); }
+.mma-badge.--platino { background: rgba(229, 228, 226, 0.2); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.4); }
+.mma-badge.--pendiente { background: rgba(139, 148, 158, 0.12); color: var(--mma-text-sub); border: 1px dashed var(--mma-border); }
+.mma-badge.--activa, .mma-badge.--aprobado { background: rgba(46, 160, 67, 0.15); color: #3fb950; border: 1px solid rgba(46, 160, 67, 0.3); }
+.mma-badge.--inactiva, .mma-badge.--rechazado { background: rgba(248, 81, 73, 0.15); color: #f85149; border: 1px solid rgba(248, 81, 73, 0.3); }
+
+/* --- Formulario Crear / Editar Campaña --- */
+.mma-create-form {
+    background: var(--mma-bg-card);
+    border: 1px solid var(--mma-border);
+    border-radius: var(--mma-radius-lg);
+    padding: 28px;
+    margin-bottom: 28px;
+    backdrop-filter: blur(12px);
+    box-shadow: var(--mma-shadow);
+}
+
+.mma-create-form h4 {
+    font-size: 1.05rem;
+    font-weight: 800;
+    margin-bottom: 20px;
+    color: var(--mma-gold);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mma-form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.mma-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mma-form-field label {
+    font-size: 0.72rem;
+    color: var(--mma-text-sub);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-weight: 700;
+}
+
+.mma-form-field input,
+.mma-form-field textarea {
+    padding: 12px 14px;
+    background: var(--mma-bg-input) !important;
+    border: 1px solid var(--mma-border);
+    border-radius: 10px;
+    color: var(--mma-text-main) !important;
+    font-size: 0.9rem;
+    font-family: inherit;
+    outline: none;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+}
+
+.mma-form-field input:focus,
+.mma-form-field textarea:focus {
+    border-color: var(--mma-gold);
+    box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.15);
+}
+
+/* --- Tarjeta de Verificación --- */
+.mma-verify-card {
+    background: var(--mma-bg-card);
+    border: 1px solid var(--mma-border);
+    border-radius: var(--mma-radius-lg);
+    padding: 22px;
+    margin-bottom: 16px;
+    backdrop-filter: blur(12px);
+    transition: all 0.25s ease;
+}
+
+.mma-verify-card:hover {
+    border-color: rgba(255, 215, 0, 0.25);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.mma-verify-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.mma-verify-card__user {
+    font-weight: 800;
+    font-size: 1rem;
+    color: var(--mma-text-main);
+}
+
+.mma-verify-card__campaign {
+    font-size: 0.85rem;
+    color: var(--mma-text-sub);
+    margin-top: 2px;
+}
+
+.mma-verify-card__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--mma-blue);
+    font-size: 0.88rem;
+    text-decoration: none;
+    word-break: break-all;
+    background: rgba(0, 212, 255, 0.08);
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 212, 255, 0.2);
+    margin: 12px 0;
+    transition: all 0.2s ease;
+}
+
+.mma-verify-card__link:hover {
+    background: rgba(0, 212, 255, 0.15);
+    text-decoration: underline;
+}
+
+.mma-verify-card__actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--mma-border);
+}
+
+.mma-verify-card__actions input {
+    flex: 1;
+    min-width: 160px;
+    padding: 10px 14px;
+    background: var(--mma-bg-input) !important;
+    border: 1px solid var(--mma-border);
+    border-radius: 8px;
+    color: var(--mma-text-main) !important;
+    font-size: 0.85rem;
+    font-family: inherit;
+}
+
+/* ============================================================================
+ * SISTEMA DE MODALES Y ALERTAS PERSONALIZADAS (CRÍTICO)
+ * ============================================================================
+ * Oculta los modales por defecto (display: none) y los renderiza en un overlay
+ * flotante profesional cuando JavaScript les asigna display: flex o display: block.
+ * ============================================================================ */
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(4, 6, 10, 0.82);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    overflow-y: auto;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* Cuando el modal se abre desde JavaScript */
+.modal[style*="display: block"],
+.modal[style*="display: flex"] {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    animation: mmaModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes mmaModalFadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.modal-content {
+    background: #0f141c;
+    border: 1px solid rgba(255, 215, 0, 0.25);
+    border-radius: var(--mma-radius-lg);
+    padding: 32px;
+    width: 100%;
+    max-width: 600px;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 215, 0, 0.1);
+    box-sizing: border-box;
+}
+
+.close-button {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    color: var(--mma-text-sub);
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    line-height: 1;
+}
+
+.close-button:hover {
+    color: var(--mma-red);
+}
+
+.confirm-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.action-button {
+    padding: 10px 20px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    border-radius: 8px;
+    cursor: pointer;
+    border: none;
+    font-family: inherit;
+}
+
+.action-button.cancel-button {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--mma-text-main);
+    border: 1px solid var(--mma-border);
+}
+
+.action-button.cancel-button:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.action-button.confirm-button,
+.action-button.alert-close-button {
+    background: var(--mma-gold-gradient);
+    color: #000;
+}
+
+.action-button.confirm-button:hover,
+.action-button.alert-close-button:hover {
+    box-shadow: 0 4px 15px var(--mma-gold-glow);
+}
+
+/* Toast */
+.mmd-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 14px 24px;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    font-weight: 700;
+    z-index: 20000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(12px);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: var(--mma-shadow);
+}
+
+.mmd-toast.--visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.mmd-toast.--success { background: #1f6feb; color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); }
+.mmd-toast.--error { background: #da3633; color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); }
+.mmd-toast.--info { background: #161b22; color: var(--mma-gold); border: 1px solid var(--mma-gold); }
+
+/* Responsive Helpers */
+@media (max-width: 768px) {
+    .mma-header { padding: 14px 18px; }
+    .mma-container { padding: 18px 14px 60px; }
+    .mma-tabs-nav { padding: 6px; }
+    .mma-tab { padding: 10px 16px; font-size: 0.82rem; }
+    .mma-config-grid { grid-template-columns: 1fr; }
+    .mma-form-row { grid-template-columns: 1fr; }
+    .mma-verify-card__actions { flex-direction: column; align-items: stretch; }
+    .mma-verify-card__actions input { width: 100%; }
+}
