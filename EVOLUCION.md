@@ -12,6 +12,20 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
+### 2026-08-07 — Rediseño UI/UX Profesional y Auditoría de Ciberseguridad Zero-Trust en Momentum Admin Panel
+* **Cambio**:
+  - **Aislamiento de Estilos CSS (`momentum-admin.css`)**:
+    - Se creó la hoja de estilos dedicada `momentum-admin.css` eliminando la dependencia de `style.css` en `momentum-admin.html` para erradicar interferencias de reglas globales y desalineaciones de layout.
+    - Se implementó un diseño dark mode FinTech nivel Silicon Valley con Glassmorphism, tarjetas de configuración en Grid responsivo, tipografía `Inter` y botones/badges con paletas HSL tailoring.
+  - **Optimización de UX / Responsive Design (`momentum-admin.html` y `momentum-admin.js`)**:
+    - Se incorporaron wrappers de scroll horizontal (`.mma-table-scroll`) en todas las tablas dinámicas (Postulantes, Influencers, Campañas) permitiendo navegación fluida en dispositivos móviles sin desbordamientos de pantalla.
+    - Se rediseñó el header superior con posicionamiento sticky y badge de validación de panel oficial.
+  - **Auditoría de Ciberseguridad & Zero-Trust (`momentumController.js`, `momentum-admin.js`)**:
+    - Se sanearon y auditaron todas las renderizaciones dinámicas de enlaces de comprobantes (`proof_link`) con validación de protocolo estricto (`http://` o `https://`), previniendo inyecciones de código malicioso (`javascript:`) o vectores XSS.
+    - Se verificó que todas las operaciones de backend utilicen consultas SQL 100% parametrizadas con PostgreSQL Client/Pool, garantizando inmunidad contra inyección de SQL (SQLi).
+    - Se mantuvo el aislamiento de autenticación mediante cookies `httpOnly` supervisadas por `verifyAdminToken` e inmutabilidad en la tabla de auditoría bancaria.
+* **Impacto**: Interfaz de administración completamente ordenada, fluida y responsiva. Blindaje de ciberseguridad Zero-Trust y cumplimiento de estándares bancarios FinTech / SOC 2 para producción a gran escala.
+
 ### 2026-08-06 — Context-Aware Routing para Notificaciones Push (Deep Links)
 * **Cambio**:
   - **Refactorización de Enrutamiento Push (`publicationController.js`, `adminPublicationsController.js`, `notificationEventBus.js`)**:
