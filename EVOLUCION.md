@@ -12,6 +12,17 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
+### 2026-08-07 — Reclutamiento Seguro: CV en la Nube y Perfil Estructurado de Talento (Migración 103)
+* **Cambio**:
+  - **Base de Datos ([103_add_cv_url_and_fields_to_recruitment.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/103_add_cv_url_and_fields_to_recruitment.js))**: Creada migración correlativa PostgreSQL que añade las columnas `cv_url VARCHAR(500)`, `portfolio_url VARCHAR(500)`, `github_url VARCHAR(500)`, `years_experience VARCHAR(50)` y `cover_letter TEXT` a la tabla `recruitment_proposals`.
+  - **Ciberseguridad Backend ([recruitmentController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/recruitmentController.js) & [recruitmentRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/recruitmentRoutes.js))**:
+    1. Arquitectura **Zero Server File Vector**: El postulante envía el enlace seguro a su CV en la nube (Google Drive, Dropbox, Notion, OneDrive) o su Portfolio/GitHub en lugar de subir archivos binarios al servidor Express, eliminando riesgos de ejecución remota de código (RCE), bombas zip o virus.
+    2. Validación y desinfección estricta de URLs con protocolo `https://` mediante el parser nativo `URL` de JavaScript para prevenir Regex Bypass y XSS.
+    3. Inserción SQL 100% parametrizada (`$1...$15`) y registro inmutable en log de auditoría bancaria (`RECRUITMENT_APPLICATION_SUBMITTED`).
+  - **Portal de Talento ([trabaja-con-nosotros.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/trabaja-con-nosotros.html))**: Formularios enriquecidos con campos de CV en la nube, Portfolio, GitHub, Años de Experiencia y Carta de Presentación. Auto-formateo dinámico a `https://` y feedback interactivo.
+  - **Panel de Reclutamiento Admin ([admin-recruitment.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-recruitment.html))**: Despliegue de enlaces verificados (`📄 Ver CV ↗`, `LinkedIn ↗`, `Portfolio ↗`, `GitHub ↗`), años de experiencia y tarjeta expandible para la carta de presentación.
+* **Impacto**: Postulación de candidatos fluida, completa y 100% segura bajo el principio Zero-Trust sin riesgos de almacenamiento de archivos binarios en la infraestructura de WintonCoin.
+
 ### 2026-08-07 — Rediseño UI/UX Profesional y Auditoría de Ciberseguridad Zero-Trust en Momentum Admin Panel
 * **Cambio**:
   - **Aislamiento de Estilos CSS (`momentum-admin.css`)**:
@@ -339,7 +350,7 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 * **Evidencia**: Migraciones 094 y 095 validadas, pruebas de `UPSERT` con `updated_at` superadas y compilaciÃƒÂ³n de frontend limpia (`npm run build:demo` en 3.80s).
 * **Impacto**: Resiliencia del 100% en la base de datos, trazabilidad completa SOC 2 y cumplimiento legal-operativo.
 
-### 2026-07-24 Ã¢â‚¬â€� Snapshot de Multiplicadores en CreaciÃƒÂ³n/EdiciÃƒÂ³n de Publicaciones y Resguardo de Pagos
+### 2026-07-24 Ã¢â‚¬â€ Snapshot de Multiplicadores en CreaciÃƒÂ³n/EdiciÃƒÂ³n de Publicaciones y Resguardo de Pagos
 * **Cambio**: 
   - **Servidor Backend ([adminPublicationsController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/admin/adminPublicationsController.js), [publicationController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/publicationController.js))**:
     1. Ajustada la creaciÃƒÂ³n y ediciÃƒÂ³n de publicaciones oficiales en el Panel de AdministraciÃƒÂ³n para que obtengan el multiplicador vigente y congelen inmutablemente el snapshot: `base_blue_cost` (precio base), `applied_multiplier` y `blue_cost` (total recompensado = Base Ãƒâ€” Multiplicador).

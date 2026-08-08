@@ -55,7 +55,8 @@ router.get('/admin/list', authenticateAdmin, async (req, res) => {
         const { status, role, search } = req.query;
 
         let sql = `
-            SELECT id, full_name, email, linkedin_url, role, expected_salary, cv_filename, 
+            SELECT id, full_name, email, linkedin_url, cv_url, portfolio_url, github_url, 
+                   role, years_experience, expected_salary, cover_letter, cv_filename, 
                    status, multiplier_applied, ip_address, 
                    created_at, reviewed_at, reviewer_notes
             FROM recruitment_proposals

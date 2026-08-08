@@ -239,7 +239,6 @@
         
         <div class="header-talent">
             <h1>Únete al Equipo</h1>
-            <p>Ayúdanos a construir el futuro de WintonCoin.</p>
         </div>
 
         <div class="compensation-box">
@@ -253,8 +252,6 @@
                 <strong>Ejemplo:</strong> Por cada <strong>$100 USD</strong> de valor aportado hoy, recibirás <strong id="exampleCalc">1,500 BLUE IOU</strong>, canjeables por tokens BLUE* siguiendo las pautas de nuestro <a href="https://www.boosters.wintoncoin.com/" target="_blank" rel="noopener">Programa Boosters</a> (lectura obligatoria).<br><br>
                 <small>*Cálculo sujeto al multiplicador actual de <span id="smallMultiplier">15</span>x, el cual disminuye progresivamente según las fases del proyecto.</small>
             </div>
-        </div>
-
         <form id="recruitmentForm">
             <div class="form-group">
                 <label for="full_name">Nombre Completo</label>
@@ -267,29 +264,73 @@
             </div>
 
             <div class="form-group">
-                <label for="linkedin_url">Enlace LinkedIn (Opcional)</label>
-                <!-- Usamos type="text" en lugar de type="url" para evitar que el navegador bloquee la validación nativa y permitir nuestra autocompletación inteligente -->
-                <input type="text" id="linkedin_url" name="linkedin_url" placeholder="linkedin.com/in/tuperfil">
-                <span class="form-helper" id="linkedinHelper">El enlace debe ser seguro (https://). Si no lo incluyes, se agregará automáticamente.</span>
-            </div>
-
-            <div class="form-group">
                 <label for="role">¿Cuál es tu especialidad?</label>
                 <select id="role" name="role" required>
                     <option value="" disabled selected>Selecciona una opción</option>
                     <option value="Frontend Developer">Frontend Developer</option>
                     <option value="Backend Developer">Backend Developer</option>
-                    <option value="UI/UX Designer">UI/UX Designer</option>
-                    <option value="Marketing / Growth">Marketing / Growth</option>
+                    <option value="Fullstack Developer">Fullstack Developer</option>
+                    <option value="Smart Contract / Solidity Developer">Smart Contract / Solidity Developer</option>
+                    <option value="DevOps & Cloud Engineer">DevOps & Cloud Engineer</option>
+                    <option value="QA & Testing Engineer">QA & Testing Engineer</option>
+                    <option value="UI/UX & Product Designer">UI/UX & Product Designer</option>
+                    <option value="AI & Data Engineer">AI & Data Engineer</option>
+                    <option value="Product Manager / Owner">Product Manager / Owner</option>
+                    <option value="Marketing / Growth & SEO">Marketing / Growth & SEO</option>
+                    <option value="Community & Social Media Manager">Community & Social Media Manager</option>
                     <option value="Moderador de Comunidad">Moderador de Comunidad</option>
-                    <option value="Legal / Compliance">Legal / Compliance</option>
+                    <option value="Legal / Compliance & FinTech">Legal / Compliance & FinTech</option>
+                    <option value="Copywriter & Content Creator">Copywriter & Content Creator</option>
                     <option value="Otro">Otro</option>
                 </select>
+            </div>
+
+            <div class="form-group" id="otherRoleGroup" style="display: none;">
+                <label for="other_role">¿Cuál otra especialidad?</label>
+                <input type="text" id="other_role" name="other_role" placeholder="Ej: Blockchain Architect, Data Analyst...">
+            </div>
+
+            <div class="form-group">
+                <label for="years_experience">Años de Experiencia Profesional</label>
+                <select id="years_experience" name="years_experience" required>
+                    <option value="" disabled selected>Selecciona tu nivel de experiencia</option>
+                    <option value="Menos de 1 año">Menos de 1 año (Junior / Trainee)</option>
+                    <option value="1 a 3 años">1 a 3 años (Semi-Senior)</option>
+                    <option value="3 a 5 años">3 a 5 años (Senior)</option>
+                    <option value="Más de 5 años">Más de 5 años (Lead / Principal / Expert)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="cv_url">Enlace a tu CV en la Nube (Google Drive, Dropbox, Notion, Web)</label>
+                <input type="text" id="cv_url" name="cv_url" placeholder="drive.google.com/file/d/... o dropbox.com/..." required>
+                <span class="form-helper" id="cvUrlHelper">Ingresa el enlace público donde tengamos acceso de lectura a tu CV.</span>
+            </div>
+
+            <div class="form-group">
+                <label for="linkedin_url">Enlace LinkedIn</label>
+                <input type="text" id="linkedin_url" name="linkedin_url" placeholder="linkedin.com/in/tuperfil">
+                <span class="form-helper" id="linkedinHelper">El enlace debe ser seguro (https://). Se formateará automáticamente.</span>
+            </div>
+
+            <div class="form-group">
+                <label for="portfolio_url">Portfolio / Sitio Web Personal</label>
+                <input type="text" id="portfolio_url" name="portfolio_url" placeholder="behance.net/tuperfil o tumarca.com">
+            </div>
+
+            <div class="form-group">
+                <label for="github_url">GitHub / GitLab</label>
+                <input type="text" id="github_url" name="github_url" placeholder="github.com/tuusuario">
             </div>
 
             <div class="form-group">
                 <label for="expected_salary">Ingreso mensual pretendido (USD)</label>
                 <input type="text" id="expected_salary" name="expected_salary" placeholder="Ej: $1,500" required>
+            </div>
+
+            <div class="form-group">
+                <label for="cover_letter">Carta de Presentación / ¿Por qué deseas unirte a WintonCoin?</label>
+                <textarea id="cover_letter" name="cover_letter" rows="4" style="width: 100%; padding: 1.1rem; background: #ffffff !important; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; color: #1e293b !important; font-size: 0.95rem; font-family: inherit; box-sizing: border-box;" placeholder="Cuéntanos brevemente sobre tus logros principales, proyectos destacados o motivación para sumarte..." required></textarea>
             </div>
 
             <p class="legal-clause">
@@ -302,45 +343,43 @@
     </div>
 
     <script>
-        // ============================================================
-        // Resolución de URL del Backend API (misma lógica que config.js)
-        // ============================================================
-        // Como esta página es standalone (no pasa por Vite modules),
-        // replicamos la lógica de getApiUrl() para resolver correctamente
-        // la dirección del backend según el entorno (local, demo, producción).
         function getApiUrl() {
             const hostname = window.location.hostname;
             const isFileProtocol = window.location.protocol === 'file:';
             const isPrivateIp = /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
             const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || isPrivateIp || isFileProtocol;
 
-            // Protocolo file:// (abrir HTML directo)
             if (isFileProtocol) return 'http://localhost:3000';
-
-            // Entornos locales o de red privada
             if (isLocal) return `http://${hostname}:3000`;
-
-            // Entorno DEMO (demo.wintoncoin.com)
             if (hostname.startsWith('demo.') || hostname.includes('demo.')) {
                 return 'https://wintoncoin-backend-demo.onrender.com';
             }
-
-            // Producción por defecto
             return 'https://wintoncoin-backend.onrender.com';
         }
 
-        // URL resuelta del backend API
         const API_URL = getApiUrl();
-        console.log('[RECRUITMENT] 🌐 API URL resuelta:', API_URL);
-
-        // Multiplicador visual por defecto (fallback seguro si falla la API)
         let currentRecruitmentMultiplier = 1;
-
         const form = document.getElementById('recruitmentForm');
         const statusMsg = document.getElementById('statusMsg');
         const submitBtn = document.getElementById('submitBtn');
 
-        // Actualiza el bloque visual de compensación con el multiplicador vigente.
+        const roleSelect = document.getElementById('role');
+        const otherRoleGroup = document.getElementById('otherRoleGroup');
+        const otherRoleInput = document.getElementById('other_role');
+
+        if (roleSelect && otherRoleGroup && otherRoleInput) {
+            roleSelect.addEventListener('change', () => {
+                if (roleSelect.value === 'Otro') {
+                    otherRoleGroup.style.display = 'block';
+                    otherRoleInput.setAttribute('required', 'required');
+                } else {
+                    otherRoleGroup.style.display = 'none';
+                    otherRoleInput.removeAttribute('required');
+                    otherRoleInput.value = '';
+                }
+            });
+        }
+
         function updateCompensationUI(multiplier) {
             const safeMultiplier = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;
             currentRecruitmentMultiplier = safeMultiplier;
@@ -357,7 +396,6 @@
             }
         }
 
-        // Carga configuración pública de reclutamiento desde backend (DB).
         async function loadRecruitmentConfig() {
             try {
                 const response = await fetch(`${API_URL}/api/recruitment/config`);
@@ -373,46 +411,39 @@
             }
         }
 
-        // Elementos de LinkedIn para validación interactiva
+        function normalizeUrlInput(inputEl) {
+            if (!inputEl) return '';
+            let val = inputEl.value.trim();
+            if (!val) return '';
+
+            if (val.toLowerCase().startsWith('http://')) {
+                val = 'https://' + val.substring(7);
+            }
+            if (!/^https?:\/\//i.test(val)) {
+                val = 'https://' + val;
+            }
+            inputEl.value = val;
+            return val;
+        }
+
         const linkedinInput = document.getElementById('linkedin_url');
         const linkedinHelper = document.getElementById('linkedinHelper');
+        const cvInput = document.getElementById('cv_url');
+        const cvHelper = document.getElementById('cvUrlHelper');
 
-        // Formatea y valida el enlace de LinkedIn
-        function formatAndValidateLinkedinUrl() {
-            if (!linkedinInput || !linkedinHelper) return true; // Guardia de seguridad (fail-safe)
-
-            let val = linkedinInput.value.trim();
+        function validateLinkedin() {
+            if (!linkedinInput || !linkedinHelper) return true;
+            let val = normalizeUrlInput(linkedinInput);
             if (!val) {
-                // Si está vacío, es opcional. Limpiamos cualquier estilo de error
-                linkedinHelper.textContent = 'El enlace debe ser seguro (https://). Si no lo incluyes, se agregará automáticamente.';
+                linkedinHelper.textContent = 'El enlace debe ser seguro (https://). Se formateará automáticamente.';
                 linkedinHelper.className = 'form-helper';
                 return true;
             }
 
-            // Si empieza con http://, forzamos https:// (estándar de seguridad de la industria)
-            if (val.toLowerCase().startsWith('http://')) {
-                val = 'https://' + val.substring(7);
-            }
-
-            // Si no tiene esquema HTTP/HTTPS, lo añadimos de forma inteligente
-            if (!/^https?:\/\//i.test(val)) {
-                val = 'https://' + val;
-            }
-
             try {
-                // Utilizamos el objeto URL nativo para evitar vulnerabilidades de validación (Regex Bypass)
                 const parsedUrl = new URL(val);
-                
-                // Forzamos que siempre sea HTTPS
-                if (parsedUrl.protocol !== 'https:') {
-                    parsedUrl.protocol = 'https:';
-                }
-
                 const hostname = parsedUrl.hostname.toLowerCase();
-                
-                // Validación estricta del dominio para evitar ataques tipo https://malicious.com/?redirect=linkedin.com
                 if (hostname === 'linkedin.com' || hostname.endsWith('.linkedin.com')) {
-                    linkedinInput.value = parsedUrl.toString();
                     linkedinHelper.textContent = '✅ Enlace de LinkedIn verificado de forma segura.';
                     linkedinHelper.className = 'form-helper valid';
                     return true;
@@ -421,35 +452,45 @@
                     linkedinHelper.className = 'form-helper invalid';
                     return false;
                 }
-            } catch (error) {
-                // Si el objeto URL lanza error, es una URL sintácticamente inválida
+            } catch {
                 linkedinHelper.textContent = '❌ El formato del enlace proporcionado no es válido.';
                 linkedinHelper.className = 'form-helper invalid';
                 return false;
             }
         }
 
-        // Registrar manejadores de eventos si los elementos existen (Null-Safety)
-        if (linkedinInput && linkedinHelper) {
-            // Formatear al salir del input (on blur) para máxima fluidez y retroalimentación
-            linkedinInput.addEventListener('blur', formatAndValidateLinkedinUrl);
+        function validateCvUrl() {
+            if (!cvInput || !cvHelper) return false;
+            let val = normalizeUrlInput(cvInput);
+            if (!val) {
+                cvHelper.textContent = '❌ El enlace a tu CV en la nube es obligatorio.';
+                cvHelper.className = 'form-helper invalid';
+                return false;
+            }
 
-            // Previene la escritura directa de http:// transformándola inmediatamente en https://
-            linkedinInput.addEventListener('input', () => {
-                const val = linkedinInput.value.trim();
-                if (val.toLowerCase().startsWith('http://')) {
-                    linkedinInput.value = 'https://' + val.substring(7);
-                }
-            });
+            try {
+                new URL(val);
+                cvHelper.textContent = '✅ Enlace de CV verificado correctamente.';
+                cvHelper.className = 'form-helper valid';
+                return true;
+            } catch {
+                cvHelper.textContent = '❌ La URL de tu CV no tiene un formato válido.';
+                cvHelper.className = 'form-helper invalid';
+                return false;
+            }
         }
 
-        // Envío del formulario
+        if (linkedinInput) linkedinInput.addEventListener('blur', validateLinkedin);
+        if (cvInput) cvInput.addEventListener('blur', validateCvUrl);
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // Validamos e integramos el formato final antes del envío
-            const isLinkedinValid = formatAndValidateLinkedinUrl();
-            if (!isLinkedinValid) {
+            if (!validateCvUrl()) {
+                if (cvInput) cvInput.focus();
+                return;
+            }
+            if (!validateLinkedin()) {
                 if (linkedinInput) linkedinInput.focus();
                 return;
             }
@@ -458,16 +499,26 @@
             submitBtn.innerText = 'Enviando...';
             statusMsg.style.display = 'none';
 
+            const portfolioInput = document.getElementById('portfolio_url');
+            const githubInput = document.getElementById('github_url');
+            if (portfolioInput) normalizeUrlInput(portfolioInput);
+            if (githubInput) normalizeUrlInput(githubInput);
+
             const payload = {
                 full_name: document.getElementById('full_name')?.value?.trim() || '',
                 email: document.getElementById('email')?.value?.trim() || '',
                 linkedin_url: document.getElementById('linkedin_url')?.value?.trim() || '',
+                cv_url: document.getElementById('cv_url')?.value?.trim() || '',
+                portfolio_url: document.getElementById('portfolio_url')?.value?.trim() || '',
+                github_url: document.getElementById('github_url')?.value?.trim() || '',
                 role: document.getElementById('role')?.value || '',
-                expected_salary: document.getElementById('expected_salary')?.value?.trim() || ''
+                other_role: document.getElementById('other_role')?.value?.trim() || '',
+                years_experience: document.getElementById('years_experience')?.value || '',
+                expected_salary: document.getElementById('expected_salary')?.value?.trim() || '',
+                cover_letter: document.getElementById('cover_letter')?.value?.trim() || ''
             };
 
             try {
-                // Usamos API_URL para apuntar al backend correcto (Render)
                 const response = await fetch(`${API_URL}/api/recruitment/apply`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -481,6 +532,9 @@
                     statusMsg.innerText = `✅ ¡Postulación enviada! Multiplicador aplicado: ${data.multiplierApplied || currentRecruitmentMultiplier}x.`;
                     statusMsg.style.display = 'block';
                     form.reset();
+                    if (otherRoleGroup) otherRoleGroup.style.display = 'none';
+                    if (linkedinHelper) linkedinHelper.className = 'form-helper';
+                    if (cvHelper) cvHelper.className = 'form-helper';
                 } else {
                     throw new Error(data.message || 'Error al enviar la postulación.');
                 }
@@ -494,7 +548,6 @@
             }
         });
 
-        // Carga inicial del multiplicador dinámico.
         loadRecruitmentConfig();
     </script>
 </body>

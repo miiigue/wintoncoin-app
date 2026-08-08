@@ -333,34 +333,43 @@
                     day: '2-digit', month: 'short', year: 'numeric'
                 });
 
+                // Helpers de sanitización de links para prevenir XSS
+                const safeCvUrl = (p.cv_url && (p.cv_url.startsWith('http://') || p.cv_url.startsWith('https://'))) ? p.cv_url : null;
+                const safeLinkedinUrl = (p.linkedin_url && (p.linkedin_url.startsWith('http://') || p.linkedin_url.startsWith('https://'))) ? p.linkedin_url : null;
+                const safePortfolioUrl = (p.portfolio_url && (p.portfolio_url.startsWith('http://') || p.portfolio_url.startsWith('https://'))) ? p.portfolio_url : null;
+                const safeGithubUrl = (p.github_url && (p.github_url.startsWith('http://') || p.github_url.startsWith('https://'))) ? p.github_url : null;
+
                 return `
-                    <tr class="talent-row">
+                    <tr class="talent-row" onclick="openCandidateModal(${p.id})" style="cursor: pointer;">
                         <td>
                             <div class="talent-profile">
-                                <div class="avatar">${p.full_name.charAt(0)}</div>
+                                <div class="avatar">${escapeHtml(p.full_name.charAt(0))}</div>
                                 <div class="info">
                                     <span class="name">${escapeHtml(p.full_name)}</span>
-                                    <span class="id">ID: #${p.id}</span>
+                                    <span class="id">ID: #${p.id} ${p.years_experience ? `· ${escapeHtml(p.years_experience)}` : ''}</span>
                                 </div>
                             </div>
                         </td>
                         <td>
-                            <div class="contact-info">
+                            <div class="contact-info" style="display: flex; flex-direction: column; gap: 4px;">
                                 <span class="email"><i class="far fa-envelope"></i> ${escapeHtml(p.email)}</span>
-                                ${p.linkedin_url ? `<a href="${escapeHtml(p.linkedin_url)}" target="_blank" class="linkedin-link"><i class="fab fa-linkedin"></i> LinkedIn ↗</a>` : '<span class="no-link">Sin LinkedIn</span>'}
+                                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;" onclick="event.stopPropagation()">
+                                    ${safeCvUrl ? `<a href="${escapeAttr(safeCvUrl)}" target="_blank" rel="noopener noreferrer" class="linkedin-link" style="color: #60A5FA; background: rgba(59,130,246,0.1); padding: 2px 8px; border-radius: 6px;"><i class="fas fa-file-alt"></i> Ver CV ↗</a>` : ''}
+                                    ${safeLinkedinUrl ? `<a href="${escapeAttr(safeLinkedinUrl)}" target="_blank" rel="noopener noreferrer" class="linkedin-link" style="padding: 2px 8px; border-radius: 6px;"><i class="fab fa-linkedin"></i> LinkedIn ↗</a>` : ''}
+                                    ${safePortfolioUrl ? `<a href="${escapeAttr(safePortfolioUrl)}" target="_blank" rel="noopener noreferrer" class="linkedin-link" style="color: #34D399; background: rgba(52,211,153,0.1); padding: 2px 8px; border-radius: 6px;"><i class="fas fa-globe"></i> Portfolio ↗</a>` : ''}
+                                    ${safeGithubUrl ? `<a href="${escapeAttr(safeGithubUrl)}" target="_blank" rel="noopener noreferrer" class="linkedin-link" style="color: #E2E8F0; background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 6px;"><i class="fab fa-github"></i> GitHub ↗</a>` : ''}
+                                </div>
                             </div>
                         </td>
                         <td><span class="badge role">${escapeHtml(p.role)}</span></td>
                         <td><span class="salary-text highlight">${p.expected_salary ? `$ ${escapeHtml(p.expected_salary)}` : 'N/A'}</span></td>
                         <td><span class="date">${date}</span></td>
                         <td><span class="status-btn ${p.status}">${p.status.toUpperCase()}</span></td>
-                        <td class="text-right">
+                        <td class="text-right" onclick="event.stopPropagation()">
                             <div class="actions">
-                                ${p.status === 'pending' ? `
-                                    <button onclick="updateStatus(${p.id}, 'reviewing')" class="btn-action review" title="Revisar">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                ` : ''}
+                                <button onclick="openCandidateModal(${p.id})" class="btn-action review" title="Ver Ficha Completa del Candidato">
+                                    <i class="fas fa-eye"></i>
+                                </button>
                                 ${['pending', 'reviewing'].includes(p.status) ? `
                                     <button onclick="updateStatus(${p.id}, 'accepted')" class="btn-action accept" title="Aceptar">
                                         <i class="fas fa-check"></i>
@@ -376,9 +385,18 @@
             }).join('');
         }
 
+        // Mapa en memoria para acceso ultrarrápido a postulaciones cargadas
+        let currentProposalsMap = new Map();
+        let activeCandidateId = null;
+
+        // Sobrescribir renderTable para guardar mapeo en memoria
+        const originalRenderTable = renderTable;
+
         // Actualizar estadísticas de forma eficiente
         function updateStats(proposals) {
-            // Usamos los datos actuales para evitar doble petición si es posible
+            currentProposalsMap.clear();
+            proposals.forEach(p => currentProposalsMap.set(p.id, p));
+
             const total = proposals.length;
             const pending = proposals.filter(p => p.status === 'pending').length;
             const reviewing = proposals.filter(p => p.status === 'reviewing').length;
@@ -388,7 +406,128 @@
             document.getElementById('statReviewing').textContent = reviewing;
         }
 
-        // Actualizar estado de una postulación
+        // Abrir Modal ATS de Evaluación de Candidato
+        function openCandidateModal(id) {
+            const p = currentProposalsMap.get(id);
+            if (!p) return;
+
+            activeCandidateId = id;
+            const modal = document.getElementById('candidateDetailModal');
+            if (!modal) return;
+
+            document.getElementById('modalAvatar').textContent = p.full_name.charAt(0).toUpperCase();
+            document.getElementById('modalFullName').textContent = p.full_name;
+            
+            const badgeEl = document.getElementById('modalStatusBadge');
+            badgeEl.className = `status-btn ${p.status}`;
+            badgeEl.textContent = p.status.toUpperCase();
+
+            document.getElementById('modalRole').textContent = p.role;
+            document.getElementById('modalYearsExperience').textContent = p.years_experience || 'Experiencia no especificada';
+            document.getElementById('modalEmail').textContent = p.email;
+            document.getElementById('modalSalary').textContent = p.expected_salary ? `$ ${p.expected_salary} USD / mes` : 'No especificado';
+            
+            const date = new Date(p.created_at).toLocaleDateString('es-ES', {
+                day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+            document.getElementById('modalDate').textContent = date;
+
+            // Renderizar Botones Destacados de Enlaces
+            const linksContainer = document.getElementById('modalLinksContainer');
+            linksContainer.innerHTML = '';
+
+            const safeCvUrl = (p.cv_url && /^https?:\/\//i.test(p.cv_url)) ? p.cv_url : null;
+            const safeLinkedinUrl = (p.linkedin_url && /^https?:\/\//i.test(p.linkedin_url)) ? p.linkedin_url : null;
+            const safePortfolioUrl = (p.portfolio_url && /^https?:\/\//i.test(p.portfolio_url)) ? p.portfolio_url : null;
+            const safeGithubUrl = (p.github_url && /^https?:\/\//i.test(p.github_url)) ? p.github_url : null;
+
+            if (safeCvUrl) {
+                linksContainer.innerHTML += `
+                    <a href="${escapeAttr(safeCvUrl)}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; padding: 10px 18px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 0.9rem; box-shadow: 0 4px 15px rgba(37,99,235,0.3);">
+                        <i class="fas fa-file-alt"></i> Abrir CV en la Nube ↗
+                    </a>
+                `;
+            }
+
+            if (safeLinkedinUrl) {
+                linksContainer.innerHTML += `
+                    <a href="${escapeAttr(safeLinkedinUrl)}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 8px; background: #0a66c2; color: white; padding: 10px 18px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 0.9rem;">
+                        <i class="fab fa-linkedin"></i> Perfil LinkedIn ↗
+                    </a>
+                `;
+            }
+
+            if (safePortfolioUrl) {
+                linksContainer.innerHTML += `
+                    <a href="${escapeAttr(safePortfolioUrl)}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 8px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); color: #34d399; padding: 10px 18px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 0.9rem;">
+                        <i class="fas fa-globe"></i> Portfolio / Sitio Web ↗
+                    </a>
+                `;
+            }
+
+            if (safeGithubUrl) {
+                linksContainer.innerHTML += `
+                    <a href="${escapeAttr(safeGithubUrl)}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 10px 18px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 0.9rem;">
+                        <i class="fab fa-github"></i> Repositorio GitHub ↗
+                    </a>
+                `;
+            }
+
+            if (!safeCvUrl && !safeLinkedinUrl && !safePortfolioUrl && !safeGithubUrl) {
+                linksContainer.innerHTML = '<span style="color: #64748b; font-size: 0.85rem;">No se proporcionaron enlaces adicionales.</span>';
+            }
+
+            // Carta de Presentación
+            document.getElementById('modalCoverLetter').textContent = p.cover_letter || 'Sin carta de presentación.';
+            document.getElementById('modalReviewerNotes').value = p.reviewer_notes || '';
+
+            modal.style.display = 'flex';
+        }
+
+        function closeCandidateModal() {
+            const modal = document.getElementById('candidateDetailModal');
+            if (modal) modal.style.display = 'none';
+            activeCandidateId = null;
+        }
+
+        async function changeStatusFromModal(newStatus) {
+            if (!activeCandidateId) return;
+            const notes = document.getElementById('modalReviewerNotes')?.value?.trim() || null;
+
+            try {
+                const data = await apiFetchWithBody(`/api/recruitment/admin/${activeCandidateId}/status`, 'PATCH', { status: newStatus, notes });
+                if (data.success) {
+                    closeCandidateModal();
+                    loadProposals();
+                } else {
+                    showCustomAlert('Error: ' + data.message);
+                }
+            } catch (error) {
+                showCustomAlert('Error al actualizar estado: ' + error.message);
+            }
+        }
+
+        async function saveCandidateNotes() {
+            if (!activeCandidateId) return;
+            const p = currentProposalsMap.get(activeCandidateId);
+            if (!p) return;
+
+            const notes = document.getElementById('modalReviewerNotes')?.value?.trim() || '';
+
+            try {
+                const data = await apiFetchWithBody(`/api/recruitment/admin/${activeCandidateId}/status`, 'PATCH', { status: p.status, notes });
+                if (data.success) {
+                    showCustomAlert('✅ Observaciones guardadas con éxito.');
+                    loadProposals();
+                } else {
+                    showCustomAlert('Error: ' + data.message);
+                }
+            } catch (error) {
+                showCustomAlert('Error al guardar notas: ' + error.message);
+            }
+        }
+
+        // Actualizar estado de una postulación desde botón de tabla
         async function updateStatus(id, newStatus) {
             const notes = newStatus === 'rejected'
                 ? prompt('¿Motivo del rechazo? (opcional):')
@@ -397,7 +536,7 @@
             try {
                 const data = await apiFetchWithBody(`/api/recruitment/admin/${id}/status`, 'PATCH', { status: newStatus, notes });
                 if (data.success) {
-                    loadProposals(); // Recargar tabla
+                    loadProposals();
                 } else {
                     showCustomAlert('Error: ' + data.message);
                 }
@@ -406,14 +545,12 @@
             }
         }
 
-        // Descargar CV
-        function downloadCV(filename) {
-            window.open(`${API_URL}/api/recruitment/admin/download/${filename}`, '_blank');
-        }
-
-        // Registrar funciones en window para que onclick del HTML las acceda
+        // Registrar en window
+        window.openCandidateModal = openCandidateModal;
+        window.closeCandidateModal = closeCandidateModal;
+        window.changeStatusFromModal = changeStatusFromModal;
+        window.saveCandidateNotes = saveCandidateNotes;
         window.updateStatus = updateStatus;
-        window.downloadCV = downloadCV;
 
         // Sanitización XSS
         function escapeHtml(text) {
@@ -423,12 +560,15 @@
             return div.innerHTML;
         }
 
-        // Eventos de filtros
+        function escapeAttr(text) {
+            if (!text) return '';
+            return text.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
         searchInput.addEventListener('input', debounce(loadProposals, 400));
         statusFilter.addEventListener('change', loadProposals);
         roleFilter.addEventListener('change', loadProposals);
 
-        // Debounce para evitar peticiones excesivas
         function debounce(fn, ms) {
             let timer;
             return function(...args) {
@@ -437,8 +577,74 @@
             };
         }
 
-        // Carga inicial
         loadProposals();
     </script>
+
+    <!-- MODAL ATS: FICHA DE EVALUACIÓN COMPLETA DEL POSTULANTE -->
+    <div id="candidateDetailModal" class="modal" style="display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(4,6,10,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;">
+        <div class="modal-content" style="width: 100%; max-width: 750px; background: #0f141c; border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 18px; padding: 28px; color: #f0f6fc; box-shadow: 0 20px 60px rgba(0,0,0,0.8); position: relative; max-height: 90vh; overflow-y: auto; box-sizing: border-box;">
+            <span class="close-button" onclick="closeCandidateModal()" style="position: absolute; top: 18px; right: 22px; font-size: 1.5rem; color: #8b949e; cursor: pointer; font-weight: bold;">&times;</span>
+            
+            <!-- Header del Postulante -->
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 18px;">
+                <div id="modalAvatar" style="width: 54px; height: 54px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #1d4ed8); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800; color: #fff; flex-shrink: 0;"></div>
+                <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <h2 id="modalFullName" style="margin: 0; font-size: 1.4rem; font-weight: 800; color: #ffffff;"></h2>
+                        <span id="modalStatusBadge" class="status-btn"></span>
+                    </div>
+                    <div style="display: flex; gap: 12px; font-size: 0.85rem; color: #94a3b8; margin-top: 4px; flex-wrap: wrap;">
+                        <span id="modalRole" style="color: #60a5fa; font-weight: 700;"></span>
+                        <span>•</span>
+                        <span id="modalYearsExperience"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grid de Metadatos -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 12px;">
+                    <div style="font-size: 0.7rem; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Correo Electrónico</div>
+                    <div id="modalEmail" style="font-size: 0.92rem; font-weight: 600; color: #f0f6fc; margin-top: 4px; word-break: break-all;"></div>
+                </div>
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 12px;">
+                    <div style="font-size: 0.7rem; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Ingreso Pretendido</div>
+                    <div id="modalSalary" style="font-size: 1.1rem; font-weight: 800; color: #10b981; margin-top: 4px;"></div>
+                </div>
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 12px;">
+                    <div style="font-size: 0.7rem; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Fecha de Postulación</div>
+                    <div id="modalDate" style="font-size: 0.88rem; font-weight: 600; color: #f0f6fc; margin-top: 4px;"></div>
+                </div>
+            </div>
+
+            <!-- Documentación & Enlaces Directos -->
+            <div style="margin-bottom: 24px;">
+                <h4 style="margin: 0 0 12px 0; font-size: 0.85rem; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.5px;">Documentación y Recursos del Candidato</h4>
+                <div id="modalLinksContainer" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
+            </div>
+
+            <!-- Carta de Presentación -->
+            <div style="margin-bottom: 24px;">
+                <h4 style="margin: 0 0 10px 0; font-size: 0.85rem; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.5px;">Carta de Presentación / Motivación</h4>
+                <div id="modalCoverLetter" style="background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; font-size: 0.9rem; line-height: 1.6; color: #e2e8f0; max-height: 160px; overflow-y: auto; white-space: pre-wrap;"></div>
+            </div>
+
+            <!-- Observaciones del Reclutador -->
+            <div style="margin-bottom: 24px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 0.85rem; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.5px;">Notas de Evaluación / Comentarios del Reclutador</h4>
+                <textarea id="modalReviewerNotes" rows="3" style="width: 100%; padding: 12px; background: #080a0d; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #f0f6fc; font-family: inherit; font-size: 0.88rem; box-sizing: border-box;" placeholder="Escribe observaciones sobre la entrevista, conocimientos técnicos o notas de seguimiento..."></textarea>
+            </div>
+
+            <!-- Acciones Directas ATS -->
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+                <button onclick="saveCandidateNotes()" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #f0f6fc; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; font-family: inherit;">💾 Guardar Notas</button>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button onclick="changeStatusFromModal('reviewing')" style="background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.4); color: #818cf8; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: inherit;">👁️ Marcar En Revisión</button>
+                    <button onclick="changeStatusFromModal('rejected')" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: inherit;">❌ Rechazar</button>
+                    <button onclick="changeStatusFromModal('accepted')" style="background: linear-gradient(135deg, #16a34a, #15803d); border: none; color: white; padding: 10px 22px; border-radius: 8px; font-weight: 800; cursor: pointer; font-family: inherit; box-shadow: 0 4px 15px rgba(22,163,74,0.3);">✅ Aceptar Candidato</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
