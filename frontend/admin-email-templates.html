@@ -68,78 +68,91 @@
 
         /* Barra de Herramientas y Filtros */
         .controls-toolbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            padding: 16px 20px;
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 14px;
-            margin-bottom: 24px;
-            backdrop-filter: blur(12px);
-            flex-wrap: wrap;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 16px !important;
+            padding: 16px 20px !important;
+            background: var(--card-bg) !important;
+            border: 1px solid var(--card-border) !important;
+            border-radius: 14px !important;
+            margin-bottom: 24px !important;
+            backdrop-filter: blur(12px) !important;
+            flex-wrap: wrap !important;
         }
 
         .search-box {
-            position: relative;
-            flex: 1;
-            min-width: 280px;
+            position: relative !important;
+            flex: 1 1 280px !important;
+            min-width: 280px !important;
         }
 
         .search-box input {
-            width: 100%;
-            padding: 10px 16px 10px 42px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            color: white;
-            font-size: 0.9rem;
-            transition: all 0.2s ease;
+            width: 100% !important;
+            padding: 10px 16px 10px 42px !important;
+            background: rgba(255, 255, 255, 0.04) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 10px !important;
+            color: white !important;
+            font-size: 0.9rem !important;
+            box-sizing: border-box !important;
+            margin: 0 !important;
+            transition: all 0.2s ease !important;
         }
 
         .search-box input:focus {
-            outline: none;
-            border-color: var(--primary-blue);
-            box-shadow: 0 0 0 3px var(--primary-glow);
+            outline: none !important;
+            border-color: var(--primary-blue) !important;
+            box-shadow: 0 0 0 3px var(--primary-glow) !important;
         }
 
         .search-icon {
-            position: absolute;
-            left: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-muted);
+            position: absolute !important;
+            left: 14px !important;
+            top: 50% !important;
+            transform: translateY(-50%) !important;
+            color: var(--text-muted) !important;
+            pointer-events: none !important;
+            z-index: 2 !important;
         }
 
         .category-filters {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
+            display: flex !important;
+            flex-direction: row !important;
+            gap: 8px !important;
+            flex-wrap: wrap !important;
+            align-items: center !important;
         }
 
-        .cat-btn {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            color: var(--text-muted);
-            padding: 8px 14px;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
+        button.cat-btn {
+            width: auto !important;
+            padding: 8px 14px !important;
+            background: rgba(255, 255, 255, 0.04) !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 8px !important;
+            color: var(--text-muted) !important;
+            font-size: 0.85rem !important;
+            font-weight: 500 !important;
+            cursor: pointer !important;
+            transition: all 0.2s ease !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            margin: 0 !important;
+            box-sizing: border-box !important;
+            line-height: 1.2 !important;
         }
 
-        .cat-btn:hover {
-            background: rgba(255, 255, 255, 0.08);
-            color: white;
+        button.cat-btn:hover {
+            background: rgba(255, 255, 255, 0.08) !important;
+            color: white !important;
         }
 
-        .cat-btn.active {
-            background: var(--primary-blue);
-            border-color: var(--primary-blue);
-            color: white;
-            box-shadow: 0 4px 12px var(--primary-glow);
+        button.cat-btn.active {
+            background: var(--primary-blue) !important;
+            border-color: var(--primary-blue) !important;
+            color: white !important;
+            box-shadow: 0 4px 12px var(--primary-glow) !important;
         }
 
         /* Grid de Plantillas */
@@ -553,6 +566,18 @@
     <div class="toast" id="toastMessage">✅ Plantilla actualizada correctamente.</div>
 
     <script>
+        function getApiUrl() {
+            const hostname = window.location.hostname;
+            if (hostname.startsWith('demo.')) {
+                return 'https://wintoncoin-backend-demo.onrender.com';
+            }
+            if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                return 'http://localhost:3000';
+            }
+            return 'https://wintoncoin-backend.onrender.com';
+        }
+        const API_URL = getApiUrl();
+
         let allTemplates = [];
         let currentFilter = 'all';
         let activeTemplateKey = null;
@@ -565,7 +590,8 @@
         async function loadTemplates() {
             try {
                 const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
-                const response = await fetch('/api/admin/email-templates', {
+                const response = await fetch(`${API_URL}/api/admin/email-templates`, {
+                    credentials: 'include',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -640,7 +666,8 @@
             const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
 
             try {
-                const res = await fetch(`/api/admin/email-templates/${key}`, {
+                const res = await fetch(`${API_URL}/api/admin/email-templates/${key}`, {
+                    credentials: 'include',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const data = await res.json();
@@ -704,8 +731,9 @@
                 };
 
                 try {
-                    const res = await fetch(`/api/admin/email-templates/${activeTemplateKey}/preview`, {
+                    const res = await fetch(`${API_URL}/api/admin/email-templates/${activeTemplateKey}/preview`, {
                         method: 'POST',
+                        credentials: 'include',
                         headers: {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${token}`
@@ -731,8 +759,9 @@
             const body_html = document.getElementById('editBodyHtml').value;
 
             try {
-                const res = await fetch(`/api/admin/email-templates/${activeTemplateKey}`, {
+                const res = await fetch(`${API_URL}/api/admin/email-templates/${activeTemplateKey}`, {
                     method: 'PUT',
+                    credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
