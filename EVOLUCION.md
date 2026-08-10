@@ -12,6 +12,19 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
+
+### 2026-08-10 — Corrección Visual y de Endpoint API en CMS de Plantillas de Email Admin
+* **Cambio**:
+  - **Ajuste de Layout CSS ([admin-email-templates.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-email-templates.html))**:
+    - Corrección del solapamiento visual entre la barra lateral de navegación (`#adminSidebar`) y el contenedor principal (`.admin-container`).
+    - Adición de reglas CSS dedicadas `margin-left: 280px` y `width: calc(100% - 280px)` alineadas con las especificaciones responsive del Panel de Administración.
+  - **Conexión API y Autenticación HttpOnly**:
+    - Configuración explícita de `API_URL` para la consulta y actualización de plantillas de correo (`GET /api/admin/email-templates`, `PUT /api/admin/email-templates/:key`).
+    - Inclusión del encabezado de credenciales `credentials: 'include'` en todas las peticiones `fetch()` para transmitir correctamente las cookies HttpOnly de sesión administrativa, previniendo errores de autorización 401/403.
+  - **Pruebas y Compilación**:
+    - Verificación exitosa del empaquetado de producción/demo mediante Vite (`npm --prefix frontend run build:demo`) garantizando la validez de los activos estáticos.
+* **Impacto**: Presentación visual impecable, organizada y completamente funcional del Gestor de Plantillas de Correo en el Panel de Administración.
+
 ### 2026-08-09 — Admin Email CMS & Layout Máster Corporativo No-Reply (Migración 104)
 * **Cambio**:
   - **Base de Datos ([104_create_system_email_templates_table.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/104_create_system_email_templates_table.js))**:
