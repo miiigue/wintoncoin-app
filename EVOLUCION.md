@@ -27,7 +27,9 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
   - **Interfaz de Usuario Frontend ([admin-email-templates.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-email-templates.html) & [vite.config.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/vite.config.js))**:
     - Gestor visual de plantillas con tarjetas, filtrado por categorías, buscador en tiempo real, editor de texto/HTML, chipset para inserción con un clic de variables y Live Preview en vivo envuelto en el Layout Máster.
     - Registro de entrada en Vite Rollup Input y enlace de acceso directo en la barra lateral del Panel de Administración (`admin-panel.html`).
+  - **Catálogo de Pruebas QA ([QA_TEST_CATALOG.md](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/QA_TEST_CATALOG.md))**: Añadidas misiones correlativas **QA-21** (Edición de Plantillas de Correo y Vista Previa No-Reply) y **QA-22** (Evaluación de Candidatos y Visualización de CV en Reclutamiento) en el formato estricto compatible con el parser del Panel Admin.
 * **Impacto**: Estandarización 100% profesional de las comunicaciones transaccionales de WintonCoin bajo normas No-Reply de la industria y empoderamiento del equipo administrativo para editar el contenido de las notificaciones sin necesidad de despliegues de código.
+
 
 ### 2026-08-07 — Reclutamiento Seguro: CV en la Nube y Perfil Estructurado de Talento (Migración 103)
 

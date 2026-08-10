@@ -251,14 +251,30 @@ PASOS:
 ---
 
 ```text
-TITULO: QA-20 - Rediseño del Modal de Cuenta Única en Login y Registro
-DESCRIPCION: Esta prueba valida que el modal "Aviso Importante" (sobre política de una cuenta por persona) en las vistas de inicio de sesión y registro se renderice con la misma estética premium del modal global "Sabías?", incluyendo el fondo degradado oscuro, la bombilla indicadora, y el botón de acción a todo lo ancho.
+TITULO: QA-21 - Edición de Plantillas de Correo y Vista Previa No-Reply desde Móvil
+DESCRIPCION: Esta misión tiene como objetivo verificar que los administradores puedan revisar y modificar el texto de los correos automáticos del sistema (como los mensajes de bienvenida, notificaciones o recibos) directamente desde su teléfono móvil, y confirmar que la vista previa en vivo muestre el diseño oficial con la cabecera del logo y el aviso de no responder al correo.
 PASOS:
-2. Abre la página de Login (login.html) o de Registro (register.html) en tu navegador.
-3. Provoca o espera la apertura del modal "Aviso Importante" correspondiente a la política de cuenta única.
-4. Confirma que el fondo detrás del modal tenga un desenfoque (backdrop blur) sutil.
-5. Verifica que en el cuerpo del modal aparezca una tarjeta oscura con un icono de bombilla 💡 en un badge azul redondeado al principio.
-6. Confirma que el título "Aviso Importante" esté centrado y en color blanco.
-7. Comprueba que el botón "Entendido" a todo lo ancho de la tarjeta sea de color azul eléctrico brillante y responda visualmente al pasar el cursor (hover).
-8. Haz clic en el botón "Entendido" y confirma que el modal se cierre suavemente de la pantalla.
+2. Inicia sesión en el Panel de Administración desde el navegador de tu teléfono móvil.
+3. Abre el menú lateral y toca la opción que dice "📧 Plantillas Email".
+4. Revisa la lista de plantillas disponibles y usa los botones superiores de filtro (por ejemplo, presiona "Seguridad" o "Finanzas") para verificar que la lista se organice correctamente.
+5. Toca el botón "✏️ Editar & Previsualizar" en la tarjeta del correo de verificación (código OTP).
+6. Modifica brevemente el texto del asunto o del cuerpo del mensaje en la casilla de edición.
+7. Cambia a la pestaña o sección de "Vista Previa en Vivo" y confirma que el correo se muestre envuelto en el diseño oficial con la cabecera oscura del logo WintonCoin y el mensaje al final que indica no responder al correo.
+8. Presiona el botón azul "💾 Guardar Cambios" y confirma que aparezca el aviso verde indicando que la plantilla fue guardada con éxito.
 ```
+
+---
+
+```text
+TITULO: QA-22 - Evaluación de Candidatos y Visualización de Hojas de Vida desde el Teléfono
+DESCRIPCION: Esta prueba busca confirmar que los evaluadores de talento puedan revisar los perfiles de los profesionales postulados a la plataforma desde su teléfono inteligente. Se debe verificar que se puedan filtrar los candidatos por área de especialidad, abrir su ficha detallada con su enlace de hoja de vida (CV) y actualizar su estado de selección sin errores.
+PASOS:
+2. Ingresa al Panel de Administración desde el navegador de tu teléfono móvil.
+3. Toca la opción "💼 Reclutamiento" o "🎯 Talento" en el menú de navegación.
+4. Observa la lista de candidatos registrados y presiona los botones de filtro por especialidad para verificar que la tabla organice a los postulantes.
+5. Toca el botón "👁️ Evaluar" o "Ver Detalle" en la tarjeta de cualquier candidato para abrir su expediente flotante.
+6. Confirma que la ficha muestre claramente el nombre, correo, años de experiencia, carta de presentación y los botones directos para abrir su hoja de vida (CV) o perfil profesional.
+7. Cambia el estado del candidato (por ejemplo, a "En Entrevista" o "Aprobado") usando el selector desplegable de estado.
+8. Verifica que la pantalla confirme el cambio de estado y que la tarjeta del candidato actualice su distintivo de color.
+```
+
