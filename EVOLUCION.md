@@ -21,7 +21,9 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
   - **Layout Máster Corporativo ([emailService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/emailService.js))**:
     - Implementación de `buildMasterEmailWrapper()` que envuelve de forma centralizada a todos los envíos (OTP, Recibos de Transacción, Difusiones, Gobernanza, Reclutamiento y SOS).
     - Inyección inmutable de Header corporativo con Logo Pure CSS, caja de alertas anti-phishing y Footer No-Reply de la industria ("Por favor no respondas a este mensaje. Si requieres asistencia contáctanos en support@wintoncoin.com").
+    - Restitución limpia del worker de difusiones en segundo plano (`processPendingBroadcasts`) resolviendo el fallo de despliegue en Render.
     - Implementación de `sendTemplatedEmail()` para renderizado dinámico de plantillas editables desde base de datos.
+
   - **API de Administración ([emailTemplateController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/emailTemplateController.js) & [emailTemplateRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/emailTemplateRoutes.js))**:
     - Endpoints protegidos `GET /api/admin/email-templates`, `GET /api/admin/email-templates/:key`, `PUT /api/admin/email-templates/:key` y `POST /api/admin/email-templates/:key/preview` con middleware de autenticación Zero-Trust (`authenticateAdmin`) y auditoría imborrable SOC 2 (`logAuditEvent`).
   - **Interfaz de Usuario Frontend ([admin-email-templates.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-email-templates.html) & [vite.config.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/vite.config.js))**:
