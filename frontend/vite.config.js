@@ -140,9 +140,13 @@ export default defineConfig(({ mode }) => ({
         recruitment: resolve(__dirname, 'trabaja-con-nosotros.html'),
         adminRecruitment: resolve(__dirname, 'admin-recruitment.html'),
 
+        // Admin Email CMS & Templates
+        adminEmailTemplates: resolve(__dirname, 'admin-email-templates.html'),
+
         // Governance (Winton-Consensus)
         governancePanel: resolve(__dirname, 'governance-panel.html'),
       },
+
 
       // Optimización de chunks
       output: {

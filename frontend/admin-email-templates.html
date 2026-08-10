@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WintonCoin Admin - Gestión de Plantillas de Correo (CMS)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        :root {
+            --bg-dark: #0B0F19;
+            --card-bg: rgba(18, 24, 38, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --primary-blue: #0B5FFF;
+            --primary-glow: rgba(11, 95, 255, 0.25);
+            --text-main: #F1F5F9;
+            --text-muted: #94A3B8;
+            --accent-green: #10B981;
+            --accent-pink: #EC4899;
+            --accent-amber: #F59E0B;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .admin-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* Header Principal */
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 28px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .page-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(135deg, #FFFFFF 0%, #94A3B8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .page-subtitle {
+            color: var(--text-muted);
+            font-size: 0.92rem;
+            margin-top: 4px;
+        }
+
+        /* Barra de Herramientas y Filtros */
+        .controls-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 16px 20px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            margin-bottom: 24px;
+            backdrop-filter: blur(12px);
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 280px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 16px 10px 42px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: white;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        .category-filters {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .cat-btn {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .cat-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: white;
+        }
+
+        .cat-btn.active {
+            background: var(--primary-blue);
+            border-color: var(--primary-blue);
+            color: white;
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        /* Grid de Plantillas */
+        .templates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 20px;
+        }
+
+        .template-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .template-card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(11, 95, 255, 0.4);
+        }
+
+        .card-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .cat-badge {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+
+        .cat-seguridad { background: rgba(16, 185, 129, 0.15); color: #34D399; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .cat-finanzas { background: rgba(11, 95, 255, 0.15); color: #60A5FA; border: 1px solid rgba(11, 95, 255, 0.3); }
+        .cat-comunicados { background: rgba(245, 158, 11, 0.15); color: #FBBF24; border: 1px solid rgba(245, 158, 11, 0.3); }
+        .cat-gobernanza { background: rgba(139, 92, 246, 0.15); color: #A78BFA; border: 1px solid rgba(139, 92, 246, 0.3); }
+        .cat-reclutamiento { background: rgba(236, 72, 153, 0.15); color: #F472B6; border: 1px solid rgba(236, 72, 153, 0.3); }
+        .cat-sos_venezuela { background: rgba(239, 68, 68, 0.15); color: #F87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+        .template-key {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .template-subject {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: white;
+            margin: 0 0 14px 0;
+            line-height: 1.4;
+        }
+
+        .variables-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 16px;
+        }
+
+        .var-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #CBD5E1;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .btn-edit {
+            flex: 1;
+            background: rgba(11, 95, 255, 0.15);
+            border: 1px solid rgba(11, 95, 255, 0.4);
+            color: #60A5FA;
+            padding: 8px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .btn-edit:hover {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        /* Modal de Edición & Live Preview */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(5, 8, 15, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: #0F172A;
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 1100px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(15, 23, 42, 0.9);
+        }
+
+        .modal-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .modal-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        @media (max-width: 900px) {
+            .modal-body {
+                grid-template-columns: 1fr;
+                overflow-y: auto;
+            }
+        }
+
+        .editor-pane {
+            padding: 20px 24px;
+            border-right: 1px solid var(--card-border);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+        }
+
+        .preview-pane {
+            background: #F5F7FB;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .preview-bar {
+            background: #0A0F1C;
+            padding: 10px 16px;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .preview-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #F5F7FB;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-control {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: white;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+        }
+
+        textarea.form-control {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            resize: vertical;
+            min-height: 280px;
+        }
+
+        .var-chip {
+            background: rgba(11, 95, 255, 0.15);
+            border: 1px solid rgba(11, 95, 255, 0.3);
+            color: #60A5FA;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .var-chip:hover {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--card-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(15, 23, 42, 0.9);
+        }
+
+        .btn-save {
+            background: var(--primary-blue);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            box-shadow: 0 4px 12px var(--primary-glow);
+            transition: all 0.2s ease;
+        }
+
+        .btn-save:hover {
+            background: #0046CC;
+            transform: translateY(-1px);
+        }
+
+        .btn-cancel {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--text-muted);
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .btn-cancel:hover {
+            color: white;
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Notificación Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #10B981;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            display: none;
+            z-index: 2000;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="admin-container">
+        <!-- Header Principal -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <span>📧 Gestor de Plantillas de Correo (CMS)</span>
+                </h1>
+                <div class="page-subtitle">
+                    Modifica el contenido de las notificaciones transaccionales sin tocar código. Layout Máster No-Reply inyectado automáticamente.
+                </div>
+            </div>
+            <div>
+                <a href="admin.html" style="color: var(--text-muted); text-decoration: none; font-size: 0.88rem;">← Volver al Panel Admin</a>
+            </div>
+        </div>
+
+        <!-- Barra de Controles y Filtros -->
+        <div class="controls-toolbar">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" placeholder="Buscar por clave de plantilla o asunto..." oninput="filterTemplates()">
+            </div>
+            <div class="category-filters" id="categoryFilters">
+                <button class="cat-btn active" data-cat="all" onclick="filterByCategory('all')">Todas</button>
+                <button class="cat-btn" data-cat="seguridad" onclick="filterByCategory('seguridad')">Seguridad</button>
+                <button class="cat-btn" data-cat="finanzas" onclick="filterByCategory('finanzas')">Finanzas</button>
+                <button class="cat-btn" data-cat="comunicados" onclick="filterByCategory('comunicados')">Comunicados</button>
+                <button class="cat-btn" data-cat="gobernanza" onclick="filterByCategory('gobernanza')">Gobernanza</button>
+                <button class="cat-btn" data-cat="reclutamiento" onclick="filterByCategory('reclutamiento')">Reclutamiento</button>
+                <button class="cat-btn" data-cat="sos_venezuela" onclick="filterByCategory('sos_venezuela')">SOS Venezuela</button>
+            </div>
+        </div>
+
+        <!-- Grid de Plantillas -->
+        <div class="templates-grid" id="templatesGrid">
+            <!-- Cargado dinámicamente vía JavaScript -->
+        </div>
+    </div>
+
+    <!-- Modal de Edición & Live Preview -->
+    <div class="modal-backdrop" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h2 class="modal-title" id="modalTemplateKey">Editar Plantilla</h2>
+                    <span id="modalCategoryBadge" class="cat-badge">CATEGORÍA</span>
+                </div>
+                <button class="btn-cancel" onclick="closeModal()" style="padding: 4px 10px;">✕</button>
+            </div>
+            
+            <div class="modal-body">
+                <!-- Panel Editor -->
+                <div class="editor-pane">
+                    <div class="form-group">
+                        <label>Asunto del Correo (Subject)</label>
+                        <input type="text" id="editSubject" class="form-control" oninput="updateLivePreview()">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Variables Disponibles (haz clic para insertar)</label>
+                        <div id="modalVariables" style="display: flex; flex-wrap: wrap; gap: 6px;">
+                            <!-- Insertado dinámicamente -->
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="flex: 1; display: flex; flex-direction: column;">
+                        <label>Cuerpo HTML Editable (body_html)</label>
+                        <textarea id="editBodyHtml" class="form-control" oninput="updateLivePreview()"></textarea>
+                    </div>
+                </div>
+
+                <!-- Panel Vista Previa (Live Preview con Layout Máster) -->
+                <div class="preview-pane">
+                    <div class="preview-bar">
+                        <span>👁️ Vista Previa en Vivo (Layout Máster No-Reply)</span>
+                        <span id="previewStatus">Actualizado</span>
+                    </div>
+                    <iframe id="previewIframe" class="preview-iframe"></iframe>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <span style="font-size: 0.8rem; color: var(--text-muted);">
+                    🛡️ Cambios auditados de acuerdo a la norma SOC 2 / Auditoría FinTech.
+                </span>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+                    <button class="btn-save" onclick="saveTemplateChanges()">💾 Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toastMessage">✅ Plantilla actualizada correctamente.</div>
+
+    <script>
+        let allTemplates = [];
+        let currentFilter = 'all';
+        let activeTemplateKey = null;
+
+        // Cargar plantillas al iniciar
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTemplates();
+        });
+
+        async function loadTemplates() {
+            try {
+                const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+                const response = await fetch('/api/admin/email-templates', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    allTemplates = data.templates;
+                    renderTemplates();
+                } else {
+                    alert('Error al cargar plantillas: ' + (data.message || 'No autorizado.'));
+                }
+            } catch (err) {
+                console.error('Error de red al obtener plantillas:', err);
+            }
+        }
+
+        function renderTemplates() {
+            const grid = document.getElementById('templatesGrid');
+            const search = document.getElementById('searchInput').value.toLowerCase().trim();
+
+            const filtered = allTemplates.filter(t => {
+                const matchesCat = currentFilter === 'all' || t.category === currentFilter;
+                const matchesSearch = !search || 
+                    t.template_key.toLowerCase().includes(search) || 
+                    t.subject.toLowerCase().includes(search);
+                return matchesCat && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">No se encontraron plantillas con ese filtro.</div>`;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(t => {
+                const vars = (t.available_variables || '').split(',').map(v => v.trim()).filter(Boolean);
+                return `
+                    <div class="template-card">
+                        <div>
+                            <div class="card-top">
+                                <span class="cat-badge cat-${t.category}">${t.category}</span>
+                                <span style="font-size: 0.75rem; color: ${t.is_active ? '#34D399' : '#EF4444'};">
+                                    ${t.is_active ? '● Activa' : '○ Inactiva'}
+                                </span>
+                            </div>
+                            <div class="template-key">${t.template_key}</div>
+                            <h3 class="template-subject">${escapeHtml(t.subject)}</h3>
+                            <div class="variables-list">
+                                ${vars.map(v => `<span class="var-tag">{{${v}}}</span>`).join('')}
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn-edit" onclick="openEditModal('${t.template_key}')">✏️ Editar & Previsualizar</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterByCategory(cat) {
+            currentFilter = cat;
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.cat === cat);
+            });
+            renderTemplates();
+        }
+
+        function filterTemplates() {
+            renderTemplates();
+        }
+
+        async function openEditModal(key) {
+            activeTemplateKey = key;
+            const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+
+            try {
+                const res = await fetch(`/api/admin/email-templates/${key}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (!data.success) return alert(data.message);
+
+                const t = data.template;
+                document.getElementById('modalTemplateKey').textContent = t.template_key;
+                document.getElementById('modalCategoryBadge').textContent = t.category.toUpperCase();
+                document.getElementById('modalCategoryBadge').className = `cat-badge cat-${t.category}`;
+                document.getElementById('editSubject').value = t.subject;
+                document.getElementById('editBodyHtml').value = t.body_html;
+
+                // Renderizar variables para hacer clic
+                const vars = (t.available_variables || '').split(',').map(v => v.trim()).filter(Boolean);
+                const varsContainer = document.getElementById('modalVariables');
+                varsContainer.innerHTML = vars.map(v => `
+                    <span class="var-chip" onclick="insertVariable('{{${v}}}')">+ {{${v}}}</span>
+                `).join('');
+
+                document.getElementById('editModal').style.display = 'flex';
+                updateLivePreview();
+            } catch (err) {
+                console.error('Error al abrir modal:', err);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        function insertVariable(varText) {
+            const textarea = document.getElementById('editBodyHtml');
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            textarea.value = textarea.value.substring(0, start) + varText + textarea.value.substring(end);
+            textarea.focus();
+            textarea.selectionStart = textarea.selectionEnd = start + varText.length;
+            updateLivePreview();
+        }
+
+        let debounceTimer;
+        function updateLivePreview() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(async () => {
+                const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+                const subject = document.getElementById('editSubject').value;
+                const body_html = document.getElementById('editBodyHtml').value;
+
+                // Variables de ejemplo para el preview
+                const mockVars = {
+                    otp: '849201',
+                    nombre: 'Carlos Rodríguez',
+                    expediente: 'SOS-VZLA-2026-00412',
+                    monto: '250.00 BLUE',
+                    title: 'Recibo de Transacción',
+                    amount: '100.00 BLUE',
+                    rol: 'Desarrollador Backend Senior',
+                    cedula: 'V-18.492.012',
+                    edad: '34',
+                    ubicacion: 'Caracas, Venezuela'
+                };
+
+                try {
+                    const res = await fetch(`/api/admin/email-templates/${activeTemplateKey}/preview`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ subject, body_html, variables: mockVars })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        const iframe = document.getElementById('previewIframe');
+                        iframe.contentWindow.document.open();
+                        iframe.contentWindow.document.write(data.preview_html);
+                        iframe.contentWindow.document.close();
+                    }
+                } catch (err) {
+                    console.error('Error en vista previa:', err);
+                }
+            }, 250);
+        }
+
+        async function saveTemplateChanges() {
+            const token = localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
+            const subject = document.getElementById('editSubject').value;
+            const body_html = document.getElementById('editBodyHtml').value;
+
+            try {
+                const res = await fetch(`/api/admin/email-templates/${activeTemplateKey}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ subject, body_html, is_active: true })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    showToast('✅ Plantilla de correo guardada con éxito.');
+                    closeModal();
+                    loadTemplates();
+                } else {
+                    alert('Error al guardar: ' + data.message);
+                }
+            } catch (err) {
+                console.error('Error al guardar plantilla:', err);
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toastMessage');
+            toast.textContent = msg;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 3500);
+        }
+
+        function escapeHtml(str) {
+            return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>

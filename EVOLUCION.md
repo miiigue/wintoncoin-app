@@ -12,7 +12,25 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
+### 2026-08-09 — Admin Email CMS & Layout Máster Corporativo No-Reply (Migración 104)
+* **Cambio**:
+  - **Base de Datos ([104_create_system_email_templates_table.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/104_create_system_email_templates_table.js))**:
+    - Creada tabla global `email_templates` con indices por categoría (`seguridad`, `finanzas`, `comunicados`, `gobernanza`, `reclutamiento`, `sos_venezuela`).
+    - Sembrado idempotente (ON CONFLICT DO NOTHING) de 8 plantillas iniciales con variables dinámicas sanitizadas `{{var}}`.
+    - Corrección en tabla `email_templates_sos` del mensaje que solicitaba responder al correo, reemplazándolo por indicación explícita de No-Reply e instrucciones de soporte.
+  - **Layout Máster Corporativo ([emailService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/emailService.js))**:
+    - Implementación de `buildMasterEmailWrapper()` que envuelve de forma centralizada a todos los envíos (OTP, Recibos de Transacción, Difusiones, Gobernanza, Reclutamiento y SOS).
+    - Inyección inmutable de Header corporativo con Logo Pure CSS, caja de alertas anti-phishing y Footer No-Reply de la industria ("Por favor no respondas a este mensaje. Si requieres asistencia contáctanos en support@wintoncoin.com").
+    - Implementación de `sendTemplatedEmail()` para renderizado dinámico de plantillas editables desde base de datos.
+  - **API de Administración ([emailTemplateController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/emailTemplateController.js) & [emailTemplateRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/emailTemplateRoutes.js))**:
+    - Endpoints protegidos `GET /api/admin/email-templates`, `GET /api/admin/email-templates/:key`, `PUT /api/admin/email-templates/:key` y `POST /api/admin/email-templates/:key/preview` con middleware de autenticación Zero-Trust (`authenticateAdmin`) y auditoría imborrable SOC 2 (`logAuditEvent`).
+  - **Interfaz de Usuario Frontend ([admin-email-templates.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-email-templates.html) & [vite.config.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/vite.config.js))**:
+    - Gestor visual de plantillas con tarjetas, filtrado por categorías, buscador en tiempo real, editor de texto/HTML, chipset para inserción con un clic de variables y Live Preview en vivo envuelto en el Layout Máster.
+    - Registro de entrada en Vite Rollup Input y enlace de acceso directo en la barra lateral del Panel de Administración (`admin-panel.html`).
+* **Impacto**: Estandarización 100% profesional de las comunicaciones transaccionales de WintonCoin bajo normas No-Reply de la industria y empoderamiento del equipo administrativo para editar el contenido de las notificaciones sin necesidad de despliegues de código.
+
 ### 2026-08-07 — Reclutamiento Seguro: CV en la Nube y Perfil Estructurado de Talento (Migración 103)
+
 * **Cambio**:
   - **Base de Datos ([103_add_cv_url_and_fields_to_recruitment.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/103_add_cv_url_and_fields_to_recruitment.js))**: Creada migración correlativa PostgreSQL que añade las columnas `cv_url VARCHAR(500)`, `portfolio_url VARCHAR(500)`, `github_url VARCHAR(500)`, `years_experience VARCHAR(50)` y `cover_letter TEXT` a la tabla `recruitment_proposals`.
   - **Ciberseguridad Backend ([recruitmentController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/recruitmentController.js) & [recruitmentRoutes.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/recruitmentRoutes.js))**:
