@@ -251,7 +251,7 @@ PASOS:
 ---
 
 ```text
-TITULO: QA-21 - Edición de Plantillas de Correo y Vista Previa No-Reply desde Móvil
+TITULO: QA-20 - Edición de Plantillas de Correo y Vista Previa No-Reply desde Móvil
 DESCRIPCION: Esta misión tiene como objetivo verificar que los administradores puedan revisar y modificar el texto de los correos automáticos del sistema (como los mensajes de bienvenida, notificaciones o recibos) directamente desde su teléfono móvil, y confirmar que la vista previa en vivo muestre el diseño oficial con la cabecera del logo y el aviso de no responder al correo.
 PASOS:
 2. Inicia sesión en el Panel de Administración desde el navegador de tu teléfono móvil.
@@ -266,7 +266,7 @@ PASOS:
 ---
 
 ```text
-TITULO: QA-22 - Evaluación de Candidatos y Visualización de Hojas de Vida desde el Teléfono
+TITULO: QA-21 - Evaluación de Candidatos y Visualización de Hojas de Vida desde el Teléfono
 DESCRIPCION: Esta prueba busca confirmar que los evaluadores de talento puedan revisar los perfiles de los profesionales postulados a la plataforma desde su teléfono inteligente. Se debe verificar que se puedan filtrar los candidatos por área de especialidad, abrir su ficha detallada con su enlace de hoja de vida (CV) y actualizar su estado de selección sin errores.
 PASOS:
 2. Ingresa al Panel de Administración desde el navegador de tu teléfono móvil.
