@@ -22,6 +22,10 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
     - Restauración de la firma de `processPendingBroadcasts(pool)` para garantizar la compatibilidad con el despachador asíncrono.
   - **Redirección de SOS Venezuela ([victimController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/victimController.js))**:
     - El flujo humanitario SOS ha sido migrado para consultar la tabla centralizada `email_templates` (`sos_victim_registered`, `sos_victim_info_requested`, `sos_victim_aid_approved`) en vez de la tabla obsoleta `email_templates_sos`, unificando la administración en una sola interfaz.
+  - **Sincronización de Especialidades y adición de 'Voluntario' en Reclutamiento**:
+    - Se agregaron todas las especialidades reales del formulario de postulación del candidato al desplegable de filtros en el portal de administración (`admin-recruitment.html`), permitiendo filtrar búsquedas por cualquier rol.
+    - Se incorporó la opción de **'Voluntario'** tanto en el formulario de postulaciones del usuario (`trabaja-con-nosotros.html`) como en el filtro del panel de reclutamiento administrativo.
+    - Para mantener la seguridad y robustez, se actualizó la lista de roles permitidos del lado del servidor (`ALLOWED_ROLES` en `recruitmentController.js`) agregando `'Voluntario'`, asegurando que el backend procese correctamente estas nuevas postulaciones sin generar fallos de validación.
   - **Corrección de Rutas de Retorno en Submódulos Administrativos**:
     - Se identificó que al pulsar los botones "Volver" en `admin-email-templates.html` y `admin-recruitment.html`, estos enlazaban erróneamente a `admin.html` (el formulario de login) en lugar de a `admin-panel.html` (el panel de control del administrador).
     - Dado que la página de login no realiza redirecciones automáticas para usuarios autenticados, esto obligaba a los administradores a loguearse de nuevo. Se corrigieron los enlaces a `admin-panel.html`, restableciendo una navegación fluida y profesional sin interrumpir la sesión de usuario.
