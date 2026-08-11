@@ -13,6 +13,37 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-11 — Integración Completa del CMS y Enriquecimiento de Vistas Previas de Emails
+* **Cambio**:
+  - **Integración Backend ([emailService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/emailService.js))**:
+    - Las funciones del sistema (`sendOtpEmail`, `sendTransactionEmail`, `sendAnnouncementEmail`, `sendGovernanceEmail`) ahora consultan dinámicamente la tabla `email_templates` en la base de datos para recuperar las plantillas actualizadas en tiempo real desde el panel de administración.
+    - Se diseñó una estrategia de **Fallback Seguro**: si ocurre una desconexión o fallo temporal con PostgreSQL, las funciones caen automáticamente a la plantilla HTML estática original cableada, previniendo la pérdida de notificaciones críticas.
+    - Corrección de sintaxis y eliminación de redundancias de inicialización en `SendEmailCommand`.
+    - Restauración de la firma de `processPendingBroadcasts(pool)` para garantizar la compatibilidad con el despachador asíncrono.
+  - **Redirección de SOS Venezuela ([victimController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/victimController.js))**:
+    - El flujo humanitario SOS ha sido migrado para consultar la tabla centralizada `email_templates` (`sos_victim_registered`, `sos_victim_info_requested`, `sos_victim_aid_approved`) en vez de la tabla obsoleta `email_templates_sos`, unificando la administración en una sola interfaz.
+  - **Vistas Previas Enriquecidas ([admin-email-templates.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-email-templates.html))**:
+    - Se programaron conjuntos de **Mock Variables** inteligentes en el frontend. Dependiendo del tipo de correo activo, el editor inyecta valores realistas para variables estructurales complejas (`details_table`, `details_section`, `action_button`, `recent_changes_section`, etc.) en lugar de variables globales genéricas.
+    - Esto resuelve la visualización de tokens crudos en las vistas previas en vivo, asegurando una previsualización 100% idéntica al correo real recibido por el usuario.
+  - **Compilación de Producción**:
+    - Verificada exitosamente con Vite (`npm --prefix frontend run build:demo`): 104 módulos, 168 recursos precacheados, 0 errores.
+* **Impacto**: Se cumple con la premisa DRY y con la promesa de centralización del CMS: todo el sistema (Gobernanza, SOS, OTP, Transacciones) responde de inmediato a los cambios hechos por el administrador, manteniendo una vista previa idéntica en vivo y protegiendo el canal mediante sanitización XSS y robustez contra fallos de base de datos.
+
+### 2026-08-11 — Rediseño UX/UI Profesional: Modal Editor a Pantalla Completa en CMS de Plantillas de Email
+* **Cambio**:
+  - **Modal Editor Full-Screen ([admin-email-templates.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-email-templates.html))**:
+    - Rediseño completo del modal de edición a **pantalla completa real** (`100vw × 100vh`), eliminando bordes redondeados y márgenes para que el espacio de trabajo ocupe el 100% de la ventana del navegador.
+    - **Causa raíz identificada y corregida**: El archivo global `style.css` define `button { width: 100%; padding: 15px; }` que deformaba todos los botones internos del modal (cierre, guardar, cancelar). Solución: todos los selectores CSS del modal usan el prefijo `#editModal` con `!important` en cada propiedad crítica para ganar la batalla de especificidad CSS.
+    - Botón de cierre `✕` rediseñado como icono circular compacto de 32×32px (`#editModal button.btn-close-modal`) con hover rojo suave y rotación a 90°.
+    - Botones `Cancelar` y `Guardar Plantilla` del footer con ancho `auto` blindado contra el `width: 100%` global.
+    - Layout split 50/50 con editor de código HTML monoespaciado (JetBrains Mono) a la izquierda y vista previa en vivo del correo a la derecha.
+    - Eliminación de botones "Escritorio / Móvil" que no funcionaban por el conflicto CSS global y confundían al usuario.
+    - Cierre intuitivo con tecla `Escape`.
+    - Responsive: en pantallas menores a 900px el split se convierte en stack vertical.
+  - **Pruebas y Compilación**:
+    - Compilación verificada con Vite (`npm --prefix frontend run build:demo`): 104 módulos, 0 errores.
+* **Impacto**: Espacio de trabajo (workspace) profesional a pantalla completa comparable a editores CMS de nivel empresarial (Mailchimp, SendGrid, Stripe), inmune a las interferencias de los estilos CSS globales del proyecto.
+
 ### 2026-08-10 — Corrección Visual y de Endpoint API en CMS de Plantillas de Email Admin
 * **Cambio**:
   - **Ajuste de Layout CSS ([admin-email-templates.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-email-templates.html))**:

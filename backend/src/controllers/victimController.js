@@ -354,7 +354,7 @@ exports.registerVictimPublic = async (req, res) => {
 
             // 7.2 Enviar correo de confirmación con resumen del expediente
             const templateRes = await pool.query(
-                "SELECT subject, html_body FROM email_templates_sos WHERE template_key = 'victim_registration_confirm'"
+                "SELECT subject, body_html AS html_body FROM email_templates WHERE template_key = 'sos_victim_registered' AND is_active = TRUE"
             );
             if (templateRes.rows.length > 0) {
                 let { subject, html_body } = templateRes.rows[0];
@@ -781,7 +781,7 @@ exports.updateVictimStatusAdmin = async (req, res) => {
         // Disparar correo según el nuevo estado
         try {
             if (status === 'info_requested') {
-                const tmpl = await pool.query("SELECT subject, html_body FROM email_templates_sos WHERE template_key = 'victim_info_requested'");
+                const tmpl = await pool.query("SELECT subject, body_html AS html_body FROM email_templates WHERE template_key = 'sos_victim_info_requested' AND is_active = TRUE");
                 if (tmpl.rows.length > 0) {
                     let { subject, html_body } = tmpl.rows[0];
                     subject = subject.replace(/{{expediente}}/g, victim.dossier_number);
@@ -793,7 +793,7 @@ exports.updateVictimStatusAdmin = async (req, res) => {
                     await emailService.sendCustomEmail(victim.email, subject, html_body);
                 }
             } else if (status === 'approved_for_aid') {
-                const tmpl = await pool.query("SELECT subject, html_body FROM email_templates_sos WHERE template_key = 'victim_aid_approved'");
+                const tmpl = await pool.query("SELECT subject, body_html AS html_body FROM email_templates WHERE template_key = 'sos_victim_aid_approved' AND is_active = TRUE");
                 if (tmpl.rows.length > 0) {
                     let { subject, html_body } = tmpl.rows[0];
                     subject = subject.replace(/{{expediente}}/g, victim.dossier_number);
@@ -934,7 +934,7 @@ exports.disburseVictimAidAdmin = async (req, res) => {
 
         // 4. Notificar por correo
         try {
-            const tmpl = await pool.query("SELECT subject, html_body FROM email_templates_sos WHERE template_key = 'victim_aid_approved'");
+            const tmpl = await pool.query("SELECT subject, body_html AS html_body FROM email_templates WHERE template_key = 'sos_victim_aid_approved' AND is_active = TRUE");
             if (tmpl.rows.length > 0) {
                 let { subject, html_body } = tmpl.rows[0];
                 subject = subject.replace(/{{expediente}}/g, victim.dossier_number);
