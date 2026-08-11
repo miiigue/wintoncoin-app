@@ -22,6 +22,9 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
     - Restauración de la firma de `processPendingBroadcasts(pool)` para garantizar la compatibilidad con el despachador asíncrono.
   - **Redirección de SOS Venezuela ([victimController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/victimController.js))**:
     - El flujo humanitario SOS ha sido migrado para consultar la tabla centralizada `email_templates` (`sos_victim_registered`, `sos_victim_info_requested`, `sos_victim_aid_approved`) en vez de la tabla obsoleta `email_templates_sos`, unificando la administración en una sola interfaz.
+  - **Corrección de Rutas de Retorno en Submódulos Administrativos**:
+    - Se identificó que al pulsar los botones "Volver" en `admin-email-templates.html` y `admin-recruitment.html`, estos enlazaban erróneamente a `admin.html` (el formulario de login) en lugar de a `admin-panel.html` (el panel de control del administrador).
+    - Dado que la página de login no realiza redirecciones automáticas para usuarios autenticados, esto obligaba a los administradores a loguearse de nuevo. Se corrigieron los enlaces a `admin-panel.html`, restableciendo una navegación fluida y profesional sin interrumpir la sesión de usuario.
   - **Vistas Previas Enriquecidas ([admin-email-templates.html](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-email-templates.html))**:
     - Se programaron conjuntos de **Mock Variables** inteligentes en el frontend. Dependiendo del tipo de correo activo, el editor inyecta valores realistas para variables estructurales complejas (`details_table`, `details_section`, `action_button`, `recent_changes_section`, etc.) en lugar de variables globales genéricas.
     - Esto resuelve la visualización de tokens crudos en las vistas previas en vivo, asegurando una previsualización 100% idéntica al correo real recibido por el usuario.
