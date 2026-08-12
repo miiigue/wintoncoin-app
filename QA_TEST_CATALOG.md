@@ -278,3 +278,31 @@ PASOS:
 8. Verifica que la pantalla confirme el cambio de estado y que la tarjeta del candidato actualice su distintivo de color.
 ```
 
+---
+
+```text
+TITULO: QA-22 - Postulación y Filtro Administrativo de Especialidad Voluntario
+DESCRIPCION: El objetivo de esta prueba es asegurar que cualquier persona pueda postularse como Voluntario en la plataforma de reclutamiento y que el administrador pueda encontrar y filtrar este tipo de postulaciones de forma sencilla desde su panel de control.
+PASOS:
+2. Abre el navegador de tu teléfono móvil e ingresa a la página de postulación (trabaja-con-nosotros.html).
+3. Rellena tus datos personales de contacto, escribe tu carta de presentación y selecciona 'Voluntario' en el desplegable de Especialidad.
+4. Adjunta un archivo PDF de prueba como hoja de vida (CV) y presiona el botón 'Enviar Postulación'.
+5. Inicia sesión en el Panel de Administración (admin-panel.html) y dirígete a la sección de Reclutamiento.
+6. Abre el selector de filtro por especialidad, selecciona la opción 'Voluntario' y verifica que en la tabla aparezca listado únicamente el candidato que registraste con sus datos correctos.
+```
+
+---
+
+```text
+TITULO: QA-23 - Vista Previa de Emails y Retorno Seguro al Panel sin Perder Sesión
+DESCRIPCION: Esta misión tiene como objetivo comprobar que el editor de plantillas de correo a pantalla completa renderiza correctamente los correos de prueba en vivo sin mostrar códigos internos y que permite regresar al menú principal del panel de administración sin cerrar la sesión.
+PASOS:
+2. Inicia sesión en el Panel de Administración e ingresa al submódulo de Plantillas de Correo (admin-email-templates.html).
+3. Presiona el botón de 'Editar' en la plantilla de Recibo de Transacción (transaction_receipt) o de Gobernanza (governance_notification).
+4. Verifica que la ventana de edición se despliegue a pantalla completa con el código a la izquierda y que en la parte derecha se muestre la vista previa con datos ficticios reales (como nombres, montos y tablas) en lugar de códigos entre llaves.
+5. Presiona el botón de cerrar o la tecla ESC para salir del editor de la plantilla.
+6. Presiona el enlace que dice '← Volver al Panel Admin' en la esquina superior izquierda de la pantalla.
+7. Confirma que eres redirigido inmediatamente al panel de control principal (admin-panel.html) y que puedes navegar por sus secciones sin que el sistema te solicite iniciar sesión nuevamente.
+```
+
+
