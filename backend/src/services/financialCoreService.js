@@ -102,16 +102,21 @@ const FinancialCoreService = {
             [actualAmountToBurn, username]
         );
 
-        // Registro de Auditoría Bancaria
+        // 5.5 Registro de Auditoría Bancaria Inmutable (SOC 2 / FinTech)
+        // Redirigido a la tabla unificada centralizada audit_log (singular) para visibilidad en el Panel Admin.
         await client.query(
-            `INSERT INTO audit_logs (user_id, action, details)
-             VALUES ($1, 'burn_tokens', $2)`,
-            [userId, JSON.stringify({
-                amount: actualAmountToBurn,
-                from_liquid: burnedFromLiquid,
-                from_escrow: burnedFromEscrow,
-                remaining_debt_settled: remainingToSettle
-            })]
+            `INSERT INTO audit_log (actor_id, actor_username, event_type, category, metadata)
+             VALUES ($1, $2, 'burn_tokens', 'FINANCIAL', $3)`,
+            [
+                userId,     // ID inmutable del usuario actor (actor_id)
+                username,   // Nombre de usuario para lectura directa sin JOINs
+                JSON.stringify({
+                    amount: actualAmountToBurn,               // Total de tokens quemados
+                    from_liquid: burnedFromLiquid,           // Cantidad proveniente de saldo líquido BLUE
+                    from_escrow: burnedFromEscrow,           // Cantidad proveniente de saldo escrow BLUE
+                    remaining_debt_settled: remainingToSettle // Saldo restante de deuda RED liquidado
+                })
+            ]
         );
 
         return { 

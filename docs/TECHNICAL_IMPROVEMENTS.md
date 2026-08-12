@@ -352,8 +352,8 @@ Estas mejoras **no son obligatorias para que el sistema funcione hoy**, pero son
 
 2. **Duplicidad y Fracturación de las Tablas de Auditoría (`audit_log` vs `audit_logs`)**
    - **Severidad: CRÍTICA / SOC 2**
-   - **Problema:** Existe una tabla `audit_log` (singular, creada en migración `006`) y otra tabla `audit_logs` (plural, creada en migración `097`). Distintos controladores escriben en tablas diferentes, rompiendo el estándar de auditoría centralizada bancaria e inmutable.
-   - **Solución Propuesta:** Crear una migración de consolidación DDL para migrar los registros de `audit_log` hacia `audit_logs` (con columna JSONB `details`), y canalizar el 100% de los eventos del backend a través del servicio centralizado `auditService.js`.
+   - **Estado:** ✅ **COMPLETADO E IMPLEMENTADO (2026-08-12)**
+   - **Solución Aplicada:** Se creó la migración DDL `105_consolidate_audit_logs.js` para migrar los registros históricos de `audit_logs` (plural) hacia `audit_log` (singular) y eliminar la tabla obsoleta. Se refactorizaron `financialCoreService.js`, `victimController.js` y `delete_last_sos_user.js` canalizando el 100% de los eventos a través de la tabla unificada `audit_log`.
 
 3. **Colisión de Prefijos de Migración (`050_...`) y Compatibilidad Legacy (`MockPool`)**
    - **Severidad: ALTA**

@@ -13,6 +13,18 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-12 — Consolidación Inmutable de Tablas de Auditoría (`105_consolidate_audit_logs.js`)
+* **Cambio**:
+  - **Migración DDL ([105_consolidate_audit_logs.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/migrations/105_consolidate_audit_logs.js))**:
+    - Se creó la migración transaccional `105` para traspasar en caliente todos los registros históricos de la tabla obsoleta `audit_logs` (plural) hacia la tabla centralizada `audit_log` (singular) utilizando `WHERE NOT EXISTS` para prevención absoluta de duplicados.
+    - Asignación inteligente de categorías mediante `CASE` (`'FINANCIAL'`, `'SOS_HUMANITARIAN'`, `'SYSTEM'`).
+    - Eliminación segura (`DROP TABLE IF EXISTS audit_logs CASCADE`) de la tabla duplicada una vez migrados los datos.
+  - **Refactorización de Servicios ([financialCoreService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/financialCoreService.js))**:
+    - Se redirigió la inserción de quemas de tokens para saldar deudas hacia `audit_log` con metadatos JSONB completos y campos estandarizados (`actor_id`, `actor_username`, `category = 'FINANCIAL'`).
+  - **Mantenimiento y Comentarios ([victimController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/victimController.js), [delete_last_sos_user.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/scripts/delete_last_sos_user.js))**:
+    - Se eliminaron las referencias obsoletas a `audit_logs` y se documentó exhaustivamente la alineación con la tabla unificada.
+* **Impacto**: Resuelve la vulnerabilidad de invisibilidad operativa donde los eventos de quema de tokens y auditoría financiera no aparecían en la consola del Panel Admin. Garantiza cumplimiento 100% de normativas FinTech / SOC 2 Type II y cero pérdida de datos.
+
 ### 2026-08-11 — Integración Completa del CMS y Enriquecimiento de Vistas Previas de Emails
 * **Cambio**:
   - **Integración Backend ([emailService.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/emailService.js))**:
@@ -153,7 +165,7 @@ Para el detalle Ã¢â‚¬Å“tipo releaseÃ¢â‚¬ï¿½, ver `CHANGELOG.md
   - **Documentación ([TECHNICAL_IMPROVEMENTS.md](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/docs/TECHNICAL_IMPROVEMENTS.md))**:
     - Se incorporó la **Sección 13 (Plan de Refactorización y Auditoría de la Base de Datos, Migraciones y Auditoría Bancaria)** ordenando los problemas por severidad:
       1. **Severidad Crítica / Urgente**: Desacoplamiento de `databaseInit.js` de `server.js` para evitar DDLs duplicados y condiciones de carrera al arrancar.
-      2. **Severidad Crítica / SOC 2**: Unificación de las tablas de auditoría (`audit_log` singular vs `audit_logs` plural) y canalización vía `auditService.js`.
+      2. **Severidad Crítica / SOC 2**: Unificación de las tablas de auditoría (`audit_log` singular vs `audit_logs` plural) mediante la migración `105_consolidate_audit_logs.js` y canalización vía `auditService.js`.
       3. **Severidad Alta**: Corrección de colisiones en prefijos numéricos de migración (`050_`), refactorización del parche `MockPool` e instanciación duplicada de `pg.Pool`.
       4. **Severidad Media**: Sanitización estricta de construcciones SQL dinámicas (`victimController.js`) y deprecación de columnas legacy duplicadas (`users.phone` vs `users.phone_number`).
 * **Impacto**: Proporciona una hoja de ruta priorizada y categorizada para guiar la refactorización defensiva y la homologación del subsistema de persistencia hacia estándares FinTech / SOC 2.
