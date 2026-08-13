@@ -460,22 +460,29 @@ exports.verifyVictimOtpPublic = async (req, res) => {
         return res.status(400).json({ success: false, message: "Ingresa tu correo y el código de 6 dígitos." });
     }
 
-    // Validar que el usuario haya definido una contraseña segura
-    if (!password || password.length < 8) {
-        return res.status(400).json({ success: false, message: "La contraseña debe tener al menos 8 caracteres." });
-    }
-
-    // Validar que las contraseñas coincidan (doble verificación Zero-Trust)
-    if (password !== password_confirm) {
-        return res.status(400).json({ success: false, message: "Las contraseñas no coinciden." });
-    }
-
     const normEmail = email.trim().toLowerCase();
     const cleanCode = otp_code.trim();
 
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
+
+        // ── 1.1 Verificar si es Usuario Existente con Contraseña Establecida ──────
+        const existingUserCheck = await client.query('SELECT id, username, password_hash, is_verified FROM users WHERE email = $1', [normEmail]);
+        const isExistingUserWithPassword = (existingUserCheck.rows.length > 0 && existingUserCheck.rows[0].password_hash && existingUserCheck.rows[0].password_hash.length > 0);
+
+        // Si es usuario nuevo, requerir y validar contraseña
+        if (!isExistingUserWithPassword) {
+            if (!password || password.length < 8) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ success: false, message: "La contraseña debe tener al menos 8 caracteres." });
+            }
+
+            if (password !== password_confirm) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({ success: false, message: "Las contraseñas no coinciden." });
+            }
+        }
 
         // ── 2. Buscar Solicitud Pendiente de Verificación ──────────────────
         const pendingRes = await client.query('SELECT * FROM pending_verifications WHERE email = $1', [normEmail]);
@@ -487,7 +494,6 @@ exports.verifyVictimOtpPublic = async (req, res) => {
         const pending = pendingRes.rows[0];
 
         // ── 2.1 Anti-Brute-Force: Límite de 5 Intentos ────────────────────
-        // Si se exceden los intentos, se elimina la solicitud y se exige reenvío de OTP
         if ((pending.verification_attempts || 0) >= 5) {
             await client.query('DELETE FROM pending_verifications WHERE id = $1', [pending.id]);
             await client.query('COMMIT');
@@ -498,22 +504,26 @@ exports.verifyVictimOtpPublic = async (req, res) => {
         const computedHash = emailService.hashOtpForEmail(normEmail, cleanCode);
 
         if (!emailService.safeEqualHex(pending.verification_code_hash, computedHash)) {
-            // Incrementar contador de intentos fallidos (trazabilidad anti-brute-force)
             await client.query('UPDATE pending_verifications SET verification_attempts = verification_attempts + 1 WHERE id = $1', [pending.id]);
             await client.query('COMMIT');
             return res.status(400).json({ success: false, message: "Código de verificación de 6 dígitos incorrecto." });
         }
 
-        // ── 3. Hashear la Contraseña Definida por el Usuario ───────────────
-        // bcrypt con 10 salt rounds (estándar de la industria FinTech)
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // ── 4. Activar la Cuenta de Usuario ────────────────────────────────
-        // Actualizar password_hash y marcar is_verified = true en una sola operación atómica
-        await client.query(
-            'UPDATE users SET password_hash = $1, is_verified = true WHERE email = $2',
-            [hashedPassword, normEmail]
-        );
+        // ── 3. Activar Cuenta de Usuario ───────────────────────────────────
+        if (!isExistingUserWithPassword && password) {
+            // Usuario Nuevo: Hashear contraseña elegida por el usuario
+            const hashedPassword = await bcrypt.hash(password, 10);
+            await client.query(
+                'UPDATE users SET password_hash = $1, is_verified = true WHERE email = $2',
+                [hashedPassword, normEmail]
+            );
+        } else {
+            // Usuario Existente: Preservar la contraseña actual y solo asegurar is_verified = true
+            await client.query(
+                'UPDATE users SET is_verified = true WHERE email = $2',
+                [normEmail]
+            );
+        }
 
         // Obtener datos del usuario recién activado para generar JWT y acreditar bonos
         const userRes = await client.query('SELECT id, username FROM users WHERE email = $1', [normEmail]);

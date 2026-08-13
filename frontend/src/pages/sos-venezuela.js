@@ -286,17 +286,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(data.message || 'Error al registrar la solicitud.');
             }
 
-            // Guardar email y expediente registrado para la verificación OTP y en sessionStorage
+            // Guardar email, expediente e is_new_user registrado para la verificación OTP y en sessionStorage
             window._registeredVictimEmail = email;
             window._registeredDossierNumber = data.dossier_number;
+            window._isNewUser = Boolean(data.is_new_user);
 
             try {
                 sessionStorage.setItem('sos_pending_otp', JSON.stringify({
                     email: email,
                     dossier_number: data.dossier_number,
+                    is_new_user: window._isNewUser,
                     timestamp: Date.now()
                 }));
             } catch (sErr) {}
+
+            // Configurar UI de la tarjeta OTP según si es usuario nuevo o existente
+            configureOtpCardState();
 
             // Mostrar Paso 1 (Formulario OTP) y ocultar planilla de registro
             victimForm.style.display = 'none';
@@ -326,10 +331,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (parsed.email && parsed.dossier_number && (Date.now() - parsed.timestamp < 15 * 60 * 1000)) {
                 window._registeredVictimEmail = parsed.email;
                 window._registeredDossierNumber = parsed.dossier_number;
+                window._isNewUser = (parsed.is_new_user !== undefined) ? Boolean(parsed.is_new_user) : true;
                 victimForm.style.display = 'none';
                 if (resultCard) {
                     resultCard.style.display = 'block';
                 }
+                configureOtpCardState();
             } else {
                 sessionStorage.removeItem('sos_pending_otp');
             }
@@ -352,6 +359,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const otpCard = document.getElementById('sos-otp-verification-card');
     const successCard = document.getElementById('sos-activation-success');
 
+    // Función auxiliar para adaptar la interfaz del OTP si es usuario nuevo o existente
+    function configureOtpCardState() {
+        const passwordContainer = document.getElementById('sos-password-fields-container');
+        const activationDesc = document.getElementById('sos-activation-desc');
+
+        if (window._isNewUser === false) {
+            if (passwordContainer) passwordContainer.style.display = 'none';
+            if (activationDesc) activationDesc.textContent = 'Para completar tu solicitud, ingresa el código de verificación de 6 dígitos que enviamos a tu correo electrónico.';
+            if (btnVerifyOtp) btnVerifyOtp.textContent = 'Confirmar Solicitud SOS';
+        } else {
+            if (passwordContainer) passwordContainer.style.display = 'block';
+            if (activationDesc) activationDesc.textContent = 'Para completar tu solicitud, ingresa el código de verificación de 6 dígitos que enviamos a tu correo electrónico y crea una contraseña para tu cuenta.';
+            if (btnVerifyOtp) btnVerifyOtp.textContent = 'Activar mi Cuenta';
+        }
+        validateOtpForm();
+    }
+
     // ── 6.0 Toggle de Mostrar/Ocultar Contraseñas ──────────────────────────
     const toggleNewPwd = document.getElementById('toggle-new-password');
     const toggleConfirmPwd = document.getElementById('toggle-confirm-password');
@@ -371,19 +395,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── 6.1 Validación en Tiempo Real para Habilitar Botón ──────────────────
-    const validateOtpForm = () => {
-        if (!btnVerifyOtp || !otpInput || !newPasswordInput || !confirmPasswordInput) return;
+    function validateOtpForm() {
+        if (!btnVerifyOtp || !otpInput) return;
 
         const code = otpInput.value.trim();
-        const pwd = newPasswordInput.value;
-        const confirm = confirmPasswordInput.value;
+        let isValid = code.length === 6;
 
-        const isValid = code.length === 6 && pwd.length >= 8 && pwd === confirm;
+        if (window._isNewUser !== false && newPasswordInput && confirmPasswordInput) {
+            const pwd = newPasswordInput.value;
+            const confirm = confirmPasswordInput.value;
+            isValid = isValid && pwd.length >= 8 && pwd === confirm;
+        }
 
         btnVerifyOtp.disabled = !isValid;
         btnVerifyOtp.style.opacity = isValid ? '1' : '0.5';
         btnVerifyOtp.style.cursor = isValid ? 'pointer' : 'not-allowed';
-    };
+    }
 
     if (otpInput) otpInput.addEventListener('input', validateOtpForm);
     if (newPasswordInput) newPasswordInput.addEventListener('input', validateOtpForm);
@@ -402,19 +429,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            if (!password || password.length < 8) {
-                showOtpMsg('La contraseña debe tener al menos 8 caracteres.', '#ef4444');
-                return;
-            }
+            if (window._isNewUser !== false) {
+                if (!password || password.length < 8) {
+                    showOtpMsg('La contraseña debe tener al menos 8 caracteres.', '#ef4444');
+                    return;
+                }
 
-            if (password !== passwordConfirm) {
-                showOtpMsg('Las contraseñas no coinciden. Por favor verifica.', '#ef4444');
-                return;
+                if (password !== passwordConfirm) {
+                    showOtpMsg('Las contraseñas no coinciden. Por favor verifica.', '#ef4444');
+                    return;
+                }
             }
 
             // ── 6.3 Indicador de Carga ─────────────────────────────────────
             btnVerifyOtp.disabled = true;
-            btnVerifyOtp.textContent = 'Activando cuenta...';
+            btnVerifyOtp.textContent = (window._isNewUser === false) ? 'Verificando solicitud...' : 'Activando cuenta...';
 
             // ── 6.3 Envío al Endpoint de Verificación OTP ──────────────────
             try {

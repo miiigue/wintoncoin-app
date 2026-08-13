@@ -288,22 +288,25 @@
                         <small style="color: #64748b; display: block; font-size: 0.82rem; margin-top: 0.4rem;">Nota: Código de verificación enviado al correo.</small>
                     </div>
 
-                    <!-- Campo de Nueva Contraseña -->
-                    <div style="margin-bottom: 0.75rem; text-align: left; position: relative;">
-                        <label for="sos-new-password" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Crea una contraseña:</label>
-                        <input type="password" id="sos-new-password" minlength="8" required placeholder="Mínimo 8 caracteres" style="width: 100%; padding: 12px 14px; padding-right: 40px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
-                        <button type="button" id="toggle-new-password" style="position: absolute; right: 10px; top: 35px; background: none; border: none; cursor: pointer; color: #64748b;">
-                            👁️
-                        </button>
-                    </div>
+                    <!-- Contenedor de Campos de Contraseña (Solo para usuarios nuevos) -->
+                    <div id="sos-password-fields-container">
+                        <!-- Campo de Nueva Contraseña -->
+                        <div style="margin-bottom: 0.75rem; text-align: left; position: relative;">
+                            <label for="sos-new-password" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Crea una contraseña:</label>
+                            <input type="password" id="sos-new-password" minlength="8" placeholder="Mínimo 8 caracteres" style="width: 100%; padding: 12px 14px; padding-right: 40px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                            <button type="button" id="toggle-new-password" style="position: absolute; right: 10px; top: 35px; background: none; border: none; cursor: pointer; color: #64748b;">
+                                👁️
+                            </button>
+                        </div>
 
-                    <!-- Campo de Confirmar Contraseña -->
-                    <div style="margin-bottom: 1rem; text-align: left; position: relative;">
-                        <label for="sos-confirm-password" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Confirma tu Contraseña:</label>
-                        <input type="password" id="sos-confirm-password" minlength="8" required placeholder="Repite la contraseña" style="width: 100%; padding: 12px 14px; padding-right: 40px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
-                        <button type="button" id="toggle-confirm-password" style="position: absolute; right: 10px; top: 35px; background: none; border: none; cursor: pointer; color: #64748b;">
-                            👁️
-                        </button>
+                        <!-- Campo de Confirmar Contraseña -->
+                        <div style="margin-bottom: 1rem; text-align: left; position: relative;">
+                            <label for="sos-confirm-password" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Confirma tu Contraseña:</label>
+                            <input type="password" id="sos-confirm-password" minlength="8" placeholder="Repite la contraseña" style="width: 100%; padding: 12px 14px; padding-right: 40px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                            <button type="button" id="toggle-confirm-password" style="position: absolute; right: 10px; top: 35px; background: none; border: none; cursor: pointer; color: #64748b;">
+                                👁️
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Botón de Activación -->

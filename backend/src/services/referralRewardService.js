@@ -20,6 +20,16 @@ async function processReferralReward({ client, newUser, referralCode }) {
     let allocatedRewardAmount = 0;
     const cleanCode = (referralCode && typeof referralCode === 'string') ? referralCode.trim().toUpperCase() : '';
 
+    // 0. VERIFICACIÓN DE IDEMPOTENCIA (Principio Zero-Trust / Auditoría Bancaria)
+    // Previene excepciones de restricción UNIQUE en referral_log_referred_user_id_key si el usuario ya fue referido
+    if (newUser && newUser.id) {
+        const alreadyReferredCheck = await client.query('SELECT id FROM referral_log WHERE referred_user_id = $1', [newUser.id]);
+        if (alreadyReferredCheck.rowCount > 0) {
+            console.log(`[REFERRAL SERVICE] El usuario ID ${newUser.id} (${newUser.username}) ya posee un registro en referral_log. Omitiendo duplicación.`);
+            return { success: true, referrer: null, rewardAmount: 0, alreadyProcessed: true };
+        }
+    }
+
     // 1. Consultar configuraciones dinámicas de la plataforma desde app_settings
     const settingKeys = [
         'referral_system_enabled',
@@ -117,9 +127,9 @@ async function processReferralReward({ client, newUser, referralCode }) {
                 LIMIT 1
             `, [referrer.id]);
 
-            // VINCULACIÓN DE DATOS DE GENEALOGÍA
+            // VINCULACIÓN DE DATOS DE GENEALOGÍA (ON CONFLICT DO NOTHING para seguridad frente a duplicados)
             await client.query('UPDATE users SET referrer_id = $1 WHERE id = $2', [referrer.id, newUser.id]);
-            await client.query('INSERT INTO referral_log (referrer_user_id, referred_user_id) VALUES ($1, $2)', [referrer.id, newUser.id]);
+            await client.query('INSERT INTO referral_log (referrer_user_id, referred_user_id) VALUES ($1, $2) ON CONFLICT (referred_user_id) DO NOTHING', [referrer.id, newUser.id]);
 
             if (causeCheck.rowCount > 0) {
                 const activeCause = causeCheck.rows[0];

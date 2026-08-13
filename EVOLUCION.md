@@ -4948,3 +4948,18 @@ eferral_code previa inserción mediante .innerHTML, neutralizando posibles vecto
 - **Rendimiento JS**: Se optimiz� el manejador del evento scroll del bot�n 'Volver Arriba' mediante equestAnimationFrame para evitar Jank, y se mejor� la responsividad del efecto Parallax.
 - **Contenido**: Se eliminaron los textos solicitados por el usuario en la secci�n '�nete al equipo'.
 
+
+
+### 2026-08-13 - Corrección de Idempotencia en referral_log
+
+- **Contexto**: Se solucionó la excepción duplicate key en referral_log_referred_user_id_key añadiendo idempotencia y ON CONFLICT DO NOTHING en referralRewardService.js.
+
+
+### 2026-08-13 - Adaptabilidad Dinámica de Contraseñas OTP según Estado del Usuario (SOS Venezuela)
+
+- **Contexto**: Se identificó que la pantalla de OTP solicitaba definir una contraseña incluso a usuarios ya registrados en WintonCoin, sobrescribiendo potencialmente su clave anterior.
+- **Cambios Realizados**:
+  1. **Frontend (sos-venezuela.html & sos-venezuela.js)**: Al enviar la planilla SOS, la API retorna is_new_user. Si is_new_user === false, el contenedor #sos-password-fields-container se oculta dinámicamente, el botón cambia a Confirmar Solicitud SOS y solo exige ingresar el código OTP de 6 dígitos.
+  2. **Backend (victimController.js)**: En erifyVictimOtpPublic, se evalúa si el usuario posee password_hash. Para usuarios existentes, se preserva su contraseña y solo se actualiza is_verified = true sin solicitar ni sobrescribir contraseñas.
+  3. **Vite PWA Build**: Se re-compiló el bundle de producción y demo.
+- **Evidencia**: Archivos modificados: rontend/sos-venezuela.html, rontend/src/pages/sos-venezuela.js, ackend/src/controllers/victimController.js, EVOLUCION.md.
