@@ -70,39 +70,31 @@ document.addEventListener('DOMContentLoaded', () => {
     let targetX = 0;
     let targetY = 0;
 
-    // Detectar si el usuario está en un dispositivo táctil (Móvil/Tablet)
-    // para NO ejecutar eventos de mouse innecesarios que estropean el Responsive.
     const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
-    if (!isTouchDevice && window.innerWidth > 768) {
-        // Sólo se agrega el escuchador en Escritorio (Desktop)
-        document.addEventListener('mousemove', (event) => {
-            // Calculamos el desplazamiento basado en el centro de la pantalla
-            targetX = (window.innerWidth - event.pageX * 2) / 100;
-            targetY = (window.innerHeight - event.pageY * 2) / 100;
-            
-            // [OPTIMIZACIÓN PROFESIONAL] - RequestAnimationFrame
-            // Si ya hay un cálculo pendiente en la cola del frame, lo cancelamos.
-            // Esto previene los bloqueos del hilo principal (Jank) logrando 60 FPS fijos.
-            if (rafId) {
-                cancelAnimationFrame(rafId);
-            }
+    const handleMouseMove = (event) => {
+        // [OPTIMIZACIÓN PROFESIONAL] Evitar parallax en móviles o pantallas pequeñas
+        if (isTouchDevice || window.innerWidth <= 768) return;
 
-            rafId = requestAnimationFrame(() => {
-                // Aplicar transformaciones CSS utilizando aceleración de Hardware (GPU)
-                floatingCards.forEach(card => {
-                    card.style.transform = `translate3d(${targetX}px, ${targetY}px, 0)`;
-                });
+        targetX = (window.innerWidth - event.pageX * 2) / 100;
+        targetY = (window.innerHeight - event.pageY * 2) / 100;
+        
+        if (rafId) {
+            cancelAnimationFrame(rafId);
+        }
 
-                if (heroFloatingImage) {
-                    // El elemento principal visual se mueve en dirección contraria (efecto profundo)
-                    heroFloatingImage.style.transform = `translate3d(${-targetX * 0.5}px, ${-targetY * 0.5}px, 0)`;
-                }
+        rafId = requestAnimationFrame(() => {
+            floatingCards.forEach(card => {
+                card.style.transform = `translate3d(${targetX}px, ${targetY}px, 0)`;
             });
+
+            if (heroFloatingImage) {
+                heroFloatingImage.style.transform = `translate3d(${-targetX * 0.5}px, ${-targetY * 0.5}px, 0)`;
+            }
         });
-    } else {
-        console.log('[Landing] Parallax desactivado: Dispositivo Móvil Detectado (Optimización Batería).');
-    }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
 
     // ------------------------------------------------------------------------
     // 3. MÓDULO "VOLVER ARRIBA" (BACK TO TOP) - UX PROFESIONAL
@@ -111,17 +103,22 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Listener de Scroll para mostrar/ocultar el botón
     if (backToTopBtn) {
+        let scrollRafId = null;
+
         window.addEventListener('scroll', () => {
-            // Obtenemos la cantidad de scroll vertical actual
-            const scrollAmount = window.scrollY || document.documentElement.scrollTop;
-            
-            // Si el usuario bajó más de 400px, mostramos el botón
-            if (scrollAmount > 400) {
-                backToTopBtn.classList.add('show');
-            } else {
-                backToTopBtn.classList.remove('show');
-            }
-        });
+            if (scrollRafId) return; // Si ya hay un frame agendado, saltar el ciclo (Throttling con RAF)
+
+            scrollRafId = requestAnimationFrame(() => {
+                const scrollAmount = window.scrollY || document.documentElement.scrollTop;
+                
+                if (scrollAmount > 400) {
+                    backToTopBtn.classList.add('show');
+                } else {
+                    backToTopBtn.classList.remove('show');
+                }
+                scrollRafId = null; // Liberar para el próximo frame
+            });
+        }, { passive: true }); // Mejora adicional del rendimiento (passive)
 
         // Acción de click para volver al inicio suavemente
         backToTopBtn.addEventListener('click', () => {

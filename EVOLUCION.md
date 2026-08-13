@@ -4940,3 +4940,11 @@ eferral_code previa inserciÃ³n mediante .innerHTML, neutralizando posibles vecto
    - Modificado rontend/src/pages/profile.js agregando la galerÃ­a de evidencias a la tarjeta " Mi caso\ para que el usuario pueda previsualizar sus fotos subidas.
 
 - **Evidencia**: Archivos modificados: ackend/src/routes/systemRoutes.js, ackend/src/controllers/victimController.js, rontend/src/pages/admin-panel.js, rontend/src/pages/profile.js, EVOLUCION.md.
+
+### Auditoría y Optimización de la Landing Page (Frontend)
+
+- **Seguridad**: Se mitigó la vulnerabilidad de 'Reverse Tabnabbing' añadiendo el= "noopener noreferrer" a los enlaces 	arget= " _blank" del footer.
+- **Accesibilidad y SEO**: Se implementó la etiqueta semántica <main> para encapsular el contenido principal y se añadieron atributos ria-hidden= "true" y ocusable= "false" a los SVGs decorativos.
+- **Rendimiento JS**: Se optimizó el manejador del evento scroll del botón 'Volver Arriba' mediante equestAnimationFrame para evitar Jank, y se mejoró la responsividad del efecto Parallax.
+- **Contenido**: Se eliminaron los textos solicitados por el usuario en la sección 'Únete al equipo'.
+
