@@ -13,6 +13,14 @@ Para el detalle ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œtipo releaseÃƒÂ¢Ã¢â€
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: quÃ© problema resolviÃ³ y quÃ© habilita hacia adelante.
 
+### 2026-08-14 — Resolución de Error 500 en Feed de Publicaciones y Blindaje Responsivo Móvil de Tarjetas
+* **Diagnóstico & Solución**:
+  - **Backend ([publicationController.js](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/publicationController.js))**: Se corrigió el `ReferenceError: calculatePublicationEffectiveCost is not defined` implementando formalmente la función en el controlador. Esto restaura la estabilidad del endpoint `/publications/active` con soporte estricto de auditoría para multiplicadores dinámicos y snapshot de base de datos.
+  - **Frontend & CSS Responsivo ([frontend/style.css](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/style.css))**: Se inyectaron reglas con padding vertical reducido (`0.45rem`) en `.blue-section` y `.red-section` dentro de la media query `@media (max-width: 480px)` para garantizar que el diseño esbelto y ultra-compacto de las tarjetas de saldo se aplique con máxima fidelidad visual en teléfonos móviles.
+* **Verificación**:
+  - Auditoría de importación en tiempo de ejecución (`verify_all_backend_imports.js`): 84/84 módulos OK sin fallos.
+  - Re-compilación del bundle para entorno Demo (`dist-demo`).
+
 ### 2026-08-14 — Evaluación de Tasa Dinámica y Multiplicador Condicional en Transición de Pre-Lanzamiento
 * **Cambio**:
   - **Backend (`publicationController.js`, `publicationService.js`)**: Se centralizó la lógica con `calculatePublicationEffectiveCost()`. Si `pre_launch_mode_enabled` es `false` y la tarea no es de impulsor (`is_booster_task = false`), la tarifa se calcula estrictamente con multiplicador `1.0` sobre `base_blue_cost`, previniendo la inflación indebida de `BLUE` líquido. Si la tarea es de impulsor o el pre-lanzamiento está activo, mantiene la multiplicación por la etapa vigente.

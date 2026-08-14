@@ -26,6 +26,25 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         return (fallbackUsername || process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin').trim();
     }
 
+    /**
+     * Calcula el costo efectivo y el multiplicador aplicado para una publicación
+     */
+    function calculatePublicationEffectiveCost(publication, preLaunchMode, activeMultiplier) {
+        const baseCost = parseFloat(publication.base_blue_cost || publication.blue_cost || 0);
+        const dbBlueCost = parseFloat(publication.blue_cost || 0);
+        
+        // En modo pre-lanzamiento o si ya tiene snapshot congelado
+        const finalBlueCost = (dbBlueCost > 0 && baseCost > 0 && dbBlueCost !== baseCost)
+            ? dbBlueCost
+            : baseCost * activeMultiplier;
+            
+        return { 
+            baseCost, 
+            multiplierUsed: activeMultiplier, 
+            finalBlueCost 
+        };
+    }
+
     // Ruta para crear una nueva Publicación
     router.post('/publish', requireAcceptedLegalByUsernameField(['authorUsername']), async (req, res) => {
         const {
