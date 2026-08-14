@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>[DEMO] Perfil de Usuario - Winton Coin</title>
+  <script type="module" crossorigin src="./assets/profile.BH17GCLW.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill.B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="./assets/auth.BgcrufBo.js">
+  <link rel="modulepreload" crossorigin href="./assets/index.pbqrtUCb.js">
+  <link rel="stylesheet" crossorigin href="./assets/style.yScP5BS0.css">
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+<body>
+    <div class="container profile-container">
+        <!-- Enlace para volver al panel principal -->
+        <a href="contract_interaction.html" class="back-link">&larr; Volver</a>
+
+        <div id="profile-header" class="profile-header">
+            <!-- El contenido se cargará aquí (ej: nombre y estrellas) -->
+            <div class="loading-spinner"></div>
+        </div>
+        
+        <hr>
+
+        <!-- Sección 'Mi caso' para Expediente SOS Venezuela -->
+        <div id="sos-my-case-section"></div>
+
+        <!-- Sección de Solicitudes de Tutela Pendientes (Maker-Checker) -->
+        <div id="tutor-pending-requests-section"></div>
+
+        <!-- Sección de Controles Parentales FinTech para Tutores Legalmente Aprobados -->
+        <div id="tutor-parental-controls-section"></div>
+
+        <div class="profile-section">
+            <h2>Calificaciones y Comentarios</h2>
+            <div id="ratings-list" class="ratings-list">
+                <!-- Las calificaciones se cargarán aquí -->
+                <p class="loading-text">Cargando calificaciones...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Aprobación Legal de Tutela (Maker-Checker) -->
+    <div id="tutorLegalApprovalModal" class="modal" style="display: none;">
+        <div class="modal-content legal-modal-content">
+            <span class="close-button" id="closeTutorLegalModal">&times;</span>
+            <h2 class="modal-title">⚖️ Acuerdo de Tutela Legal y Responsabilidad Financiera</h2>
+            <div class="legal-terms-scroll">
+                <p>Al aceptar esta solicitud de tutela, usted declara y acuerda formalmente bajo las leyes vigentes de servicios financieros:</p>
+                <ul>
+                    <li>Asumir la responsabilidad legal y financiera de las obligaciones y deudas RED que el menor genere en la plataforma WintonCoin.</li>
+                    <li>Garantizar el cumplimiento de las políticas de uso y normativas de convivencia.</li>
+                    <li>Utilizar las herramientas de Control Parental para supervisar o pausar el acceso del menor en caso de requerirse.</li>
+                </ul>
+                <p class="legal-signature-notice">Su aprobación será registrada con la versión de términos <strong>v1.0-legal-tutor</strong>, sello de tiempo e dirección IP por motivos de auditoría SOC 2.</p>
+            </div>
+            <div class="legal-checkbox-row">
+                <input type="checkbox" id="chkAcceptTutorTerms">
+                <label for="chkAcceptTutorTerms">Declaro que soy mayor de edad y acepto formalmente asumir la tutela legal y financiera.</label>
+            </div>
+            <div class="modal-actions-row">
+                <button id="btnConfirmTutorApprove" class="btn-action btn-success" disabled>Aprobar y Activar Cuenta</button>
+                <button id="btnCancelTutorApprove" class="btn-action btn-secondary">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ES Modules (Vite) -->
+
+    <!-- Modal de Alerta Personalizado (por si hay errores) -->
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+</html> 

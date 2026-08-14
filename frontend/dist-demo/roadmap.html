@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[DEMO] Roadmap Oficial | WintonCoin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --accent-glow: #3b82f6;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --card-bg: rgba(30, 41, 59, 0.7);
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        /* Hero Section */
+        .roadmap-hero {
+            text-align: center;
+            padding: 8rem 1rem 4rem;
+            background: radial-gradient(circle at top, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+        }
+
+        .roadmap-hero h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+        }
+
+        .roadmap-hero p {
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        /* Timeline Container */
+        .timeline-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+        }
+
+        /* The Vertical Line */
+        .timeline-container::after {
+            content: '';
+            position: absolute;
+            width: 4px;
+            background: linear-gradient(180deg,
+                    rgba(59, 130, 246, 0) 0%,
+                    rgba(59, 130, 246, 0.5) 10%,
+                    rgba(59, 130, 246, 0.5) 90%,
+                    rgba(59, 130, 246, 0) 100%);
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            margin-left: -2px;
+            border-radius: 2px;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+        }
+
+        /* Timeline Item */
+        .tl-item {
+            padding: 10px 40px;
+            position: relative;
+            background-color: inherit;
+            width: 50%;
+            box-sizing: border-box;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.6s ease-out;
+        }
+
+        .tl-item.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Left/Right positioning */
+        .left {
+            left: 0;
+            text-align: right;
+        }
+
+        .right {
+            left: 50%;
+            text-align: left;
+        }
+
+        /* Icon Circle */
+        .tl-icon {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            right: -20px;
+            background: #1e293b;
+            border: 4px solid #3b82f6;
+            top: 20px;
+            border-radius: 50%;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 0 4px rgba(15, 23, 42, 1);
+            font-size: 1.2rem;
+        }
+
+        .right .tl-icon {
+            left: -20px;
+        }
+
+        /* Status Colors */
+        .status-done .tl-icon {
+            border-color: #10b981;
+            background: #064e3b;
+            color: #10b981;
+        }
+
+        .status-active .tl-icon {
+            border-color: #f59e0b;
+            background: #78350f;
+            color: #fcd34d;
+            animation: pulse 2s infinite;
+        }
+
+        .status-future .tl-icon {
+            border-color: #64748b;
+            background: #1e293b;
+            color: #94a3b8;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(245, 158, 11, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+            }
+        }
+
+        /* Content Card */
+        .tl-content {
+            padding: 20px 30px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            position: relative;
+            transition: transform 0.3s;
+        }
+
+        .tl-content:hover {
+            transform: translateY(-5px);
+            background: rgba(30, 41, 59, 0.9);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .tl-date {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--accent-glow);
+            margin-bottom: 0.5rem;
+            display: inline-block;
+            padding: 4px 8px;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 4px;
+        }
+
+        .tl-content h2 {
+            margin: 0.5rem 0;
+            font-size: 1.5rem;
+            color: #fff;
+        }
+
+        .tl-content p {
+            font-size: 0.95rem;
+            color: #cbd5e1;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .tl-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            text-align: left;
+            /* Always align list items left for readability */
+        }
+
+        .left .tl-list {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            /* Align container */
+        }
+
+        .left .tl-list li {
+            text-align: right;
+            position: relative;
+            padding-right: 20px;
+        }
+
+        .left .tl-list li::before {
+            content: "✓";
+            position: absolute;
+            right: 0;
+            color: #10b981;
+            font-weight: bold;
+        }
+
+        .right .tl-list li {
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .right .tl-list li::before {
+            content: "▹";
+            position: absolute;
+            left: 0;
+            color: var(--accent-glow);
+        }
+
+        .status-future .tl-list li::before {
+            color: #64748b;
+        }
+
+        .tl-list li {
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+
+        /* Mobile Responsive */
+        @media screen and (max-width: 768px) {
+            .timeline-container::after {
+                left: 31px;
+            }
+
+            .tl-item {
+                width: 100%;
+                padding-left: 70px;
+                padding-right: 25px;
+            }
+
+            .tl-item.left {
+                text-align: left;
+            }
+
+            .right {
+                left: 0;
+            }
+
+            .tl-icon {
+                left: 11px !important;
+                right: auto;
+                margin: 0;
+            }
+
+            .left .tl-list {
+                align-items: flex-start;
+            }
+
+            .left .tl-list li {
+                text-align: left;
+                padding-right: 0;
+                padding-left: 20px;
+            }
+
+            .left .tl-list li::before {
+                right: auto;
+                left: 0;
+                content: "✓";
+            }
+
+            .roadmap-hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .roadmap-hero {
+                padding-top: 6rem;
+            }
+        }
+
+        /* Footer override */
+        footer {
+            margin-top: 4rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 3rem 0;
+            text-align: center;
+            color: #64748b;
+        }
+    </style>
+  <link rel="stylesheet" crossorigin href="./assets/landing.Bgp_BVS3.css">
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+
+<body>
+
+    <!-- Nav Integration (Simplified) -->
+    <nav
+        style="position: absolute; top: 0; width: 100%; padding: 2rem; display: flex; justify-content: space-between; box-sizing: border-box; z-index: 100;">
+        <a href="landing.html"
+            style="color: white; font-weight: 800; font-size: 1.5rem; text-decoration: none;">Winton<span
+                style="color: #3b82f6;">Coin</span></a>
+        <a href="index.html" style="color: #94a3b8; text-decoration: none; font-weight: 500;">← Volver al Inicio</a>
+    </nav>
+
+    <header class="roadmap-hero">
+        <h1>Nuestra Trayectoria</h1>
+        <p>Un viaje desde la concepción teórica hasta la revolución financiera global. La transparencia es nuestro
+            compromiso.</p>
+    </header>
+
+    <div class="timeline-container">
+
+        <!-- AÑO 2024 -->
+        <div class="tl-item left status-done">
+            <div class="tl-icon">💡</div>
+            <div class="tl-content">
+                <span class="tl-date">Q1 2024</span>
+                <h2>Investigación y Concepción</h2>
+                <p>Análisis de falencias en sistemas tradicionales. Definición de la misión "Valor basado en Esfuerzo".
+                </p>
+                <ul class="tl-list">
+                    <li>Estudio de modelos de Crédito Mutuo</li>
+                    <li>Identificación del problema de liquidez</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="tl-item right status-done">
+            <div class="tl-icon">📝</div>
+            <div class="tl-content">
+                <span class="tl-date">Q2 2024</span>
+                <h2>Diseño del Protocolo</h2>
+                <p>Estructuración teórica del mecanismo Proof-of-Task.</p>
+                <ul class="tl-list">
+                    <li>Diseño del Modelo Dual Token (BLUE/RED)</li>
+                    <li>Matemática de emisión y quema</li>
+                    <li>Borrador inicial del Whitepaper (v0.1)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="tl-item left status-done">
+            <div class="tl-icon">📐</div>
+            <div class="tl-content">
+                <span class="tl-date">Q3 2024</span>
+                <h2>Arquitectura Técnica</h2>
+                <p>Selección del stack tecnológico y diseño de sistemas.</p>
+                <ul class="tl-list">
+                    <li>Elección de EVM (Ethereum Virtual Machine)</li>
+                    <li>Diseño de Base de Datos Relacional</li>
+                    <li>Arquitectura de Seguridad Híbrida</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="tl-item right status-done">
+            <div class="tl-icon">🎨</div>
+            <div class="tl-content">
+                <span class="tl-date">Q4 2024</span>
+                <h2>Prototipado y Branding</h2>
+                <p>Visualización de la interfaz y experiencia de usuario.</p>
+                <ul class="tl-list">
+                    <li>Wireframes de la Aplicación (UX)</li>
+                    <li>Diseño de Identidad Visual y Logotipo</li>
+                    <li>Validación teórica con expertos</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- AÑO 2025 -->
+        <div class="tl-item left status-done">
+            <div class="tl-icon">💻</div>
+            <div class="tl-content">
+                <span class="tl-date">Q1 2025</span>
+                <h2>Core: Smart Contracts</h2>
+                <p>Programación de la lógica inmutable en Solidity.</p>
+                <ul class="tl-list">
+                    <li>Codificación Tokens ERC-20 (BLUE/RED)</li>
+                    <li>Lógica de Minting Condicional</li>
+                    <li>Pruebas unitarias (Hardhat/Foundry)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="tl-item right status-done">
+            <div class="tl-icon">🔐</div>
+            <div class="tl-content">
+                <span class="tl-date">Q2 2025</span>
+                <h2>Infraestructura Backend</h2>
+                <p>Construcción del motor de gestión y APIs.</p>
+                <ul class="tl-list">
+                    <li>Desarrollo de API RESTful (Node.js)</li>
+                    <li>Sistema de Autenticación y Roles</li>
+                    <li>Algoritmo de Reputación L.O.V.E. (Alfa)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="tl-item left status-done">
+            <div class="tl-icon">📱</div>
+            <div class="tl-content">
+                <span class="tl-date">Q3 2025</span>
+                <h2>Desarrollo Frontend PWA</h2>
+                <p>Creación de la interfaz de usuario reactiva.</p>
+                <ul class="tl-list">
+                    <li>Implementación de Progressive Web App</li>
+                    <li>Integración Web3 (Wallet Connection)</li>
+                    <li>Panel de Control de Usuario y Admin</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="tl-item right status-done">
+            <div class="tl-icon">🧪</div>
+            <div class="tl-content">
+                <span class="tl-date">Q4 2025</span>
+                <h2>Testnet Interna y QA</h2>
+                <p>Pruebas exhaustivas y refinamiento antes de salir a la luz.</p>
+                <ul class="tl-list">
+                    <li>Despliegue en Testnet Privada</li>
+                    <li>Simulación de escenarios de ataque</li>
+                    <li>Optimización de Gas y rendimiento</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ITEM 3: Q1 2026 -->
+        <div class="tl-item left status-active">
+            <div class="tl-icon">🚀</div>
+            <div class="tl-content">
+                <span class="tl-date">Q1 2026 (ACTUAL)</span>
+                <h2>Lanzamiento Alfa & Comunidad</h2>
+                <p>Despliegue inicial de la PWA y formación del núcleo de la comunidad.</p>
+                <ul class="tl-list">
+                    <li>Lanzamiento PWA (Web App) Funcional</li>
+                    <li>Programa de Boosters (Impulsores)</li>
+                    <li>Sistema de Referidos y Verificación KYC</li>
+                    <li>Implementación de Tareas Sociales</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ITEM 4: Q2 2026 -->
+        <div class="tl-item right status-future">
+            <div class="tl-icon">🔒</div>
+            <div class="tl-content">
+                <span class="tl-date">Q2 2026</span>
+                <h2>Seguridad y Ecosistema</h2>
+                <p>Consolidación de la plataforma y expansión de casos de uso.</p>
+                <ul class="tl-list">
+                    <li>Módulo de Pagos QR para Comercios</li>
+                    <li><strong>Auditoría de Smart Contracts</strong></li>
+                    <li>Soporte Multi-cadena preliminar</li>
+                    <li>API Pública para Integraciones B2B</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ITEM 5: Q3-Q4 2026 -->
+        <div class="tl-item left status-future">
+            <div class="tl-icon">🌍</div>
+            <div class="tl-content">
+                <span class="tl-date">H2 2026</span>
+                <h2>Beta Global y Pre-Lanzamiento</h2>
+                <p>Preparación intensiva para el mercado masivo.</p>
+                <ul class="tl-list">
+                    <li>Beta Pública sin restricciones</li>
+                    <li>Campaña de Marketing Global</li>
+                    <li>Alianzas con Procesadores de Pago</li>
+                    <li>Eventos de Distribución Comunitaria (Airdrops)</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- ITEM 6: 2027 -->
+        <div class="tl-item right status-future">
+            <div class="tl-icon">⭐</div>
+            <div class="tl-content">
+                <span class="tl-date">14 FEB 2027</span>
+                <h2>Mainnet Oficial</h2>
+                <p>El nacimiento oficial de la economía WintonCoin en Mainnet.</p>
+                <ul class="tl-list">
+                    <li><strong>Token Generation Event (TGE)</strong></li>
+                    <li>Listado en Exchanges Tier-1 (DEX/CEX)</li>
+                    <li>Lanzamiento de WintonDAO</li>
+                    <li>Expansión a Mercados Asiáticos</li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+
+    <footer>
+        <p>&copy; 2026 WintonCoin Project. Descentralizando el futuro.</p>
+    </footer>
+
+    <script>
+        // Scroll Animation Logic
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: "0px 0px -50px 0px"
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    // Optional: Stop observing once visible to run animation only once
+                    // observer.unobserve(entry.target);
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.tl-item').forEach(item => {
+            observer.observe(item);
+        });
+    </script>
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+
+</html>

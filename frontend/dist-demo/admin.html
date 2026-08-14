@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>[DEMO] Acceso de Administrador - Winton Coin</title>
+  <script type="module" crossorigin src="./assets/admin.B6CNwGkk.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill.B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="./assets/auth.BgcrufBo.js">
+  <link rel="modulepreload" crossorigin href="./assets/index.pbqrtUCb.js">
+  <link rel="stylesheet" crossorigin href="./assets/style.yScP5BS0.css">
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+<body>
+    <div class="container">
+        <h1>Panel de Administración</h1>
+        <h2>Acceso Restringido</h2>
+
+        <form id="adminLoginForm">
+            <div>
+                <label for="adminUsername">Usuario de Administrador:</label>
+                <input type="text" id="adminUsername" name="adminUsername" required placeholder="Ej: admin" autocomplete="username">
+            </div>
+            <div>
+                <label for="adminPassword">Contraseña de Administrador:</label>
+                <input type="password" id="adminPassword" name="adminPassword" required autocomplete="current-password">
+            </div>
+            
+            <div>
+                <button type="submit">Ingresar</button>
+            </div>
+        </form>
+        <p><a href="index.html">Volver a la página principal</a></p>
+    </div>
+
+    <!-- ES Modules (Vite) -->
+
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+</html> 

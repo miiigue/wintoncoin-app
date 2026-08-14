@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>[DEMO] Winton Solidario — Causa Humanitaria</title>
+
+    <!-- SEO & Open Graph Meta Tags -->
+    <meta name="description" content="Apoya una causa humanitaria verificada por WintonCoin. Dona tus BLUE IOU y ayuda a cambiar vidas.">
+    <meta property="og:title" content="Winton Solidario — Causa Humanitaria" />
+    <meta property="og:description" content="Apoya una causa humanitaria verificada por WintonCoin. Dona tus BLUE IOU y ayuda a cambiar vidas." />
+    <meta property="og:image" content="https://www.demo.wintoncoin.com/assets/icons/solidaridad-banner.png" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="robots" content="noindex, nofollow">
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#4a90d9">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="WintonCoin">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- PWA Manifest & Icons -->
+    <link rel="manifest" href="manifest.demo.json">
+    <link rel="icon" type="image/png" sizes="32x32" href="./assets/icon-96x96.DCzaNkg0.png">
+    <link rel="apple-touch-icon" href="./assets/icon-192x192.DTV1SGDv.png">
+
+    <!-- Estilos -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400&family=Poppins:wght@300;400;600&display=swap"
+        rel="stylesheet">
+
+    <!-- ================================================================== -->
+    <!-- Estilos específicos de Winton Solidario (Causa Pública)            -->
+    <!-- Diseño inspirado en GoFundMe + estándar fintech premium            -->
+    <!-- ================================================================== -->
+    <style>
+        /* ============================================================ */
+        /* CONTENEDOR PRINCIPAL                                         */
+        /* ============================================================ */
+        .solidario-page {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 16px;
+            min-height: 100vh;
+        }
+
+        /* ============================================================ */
+        /* HEADER CON BADGE DE VERIFICACIÓN                             */
+        /* ============================================================ */
+        .solidario-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .solidario-back-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #94A3B8;
+            text-decoration: none;
+            font-size: 0.9em;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            transition: all 0.2s ease;
+        }
+
+        .solidario-back-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #E2E8F0;
+        }
+
+        .solidario-verified-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.78em;
+            font-weight: 600;
+            background: linear-gradient(135deg, rgba(232, 62, 140, 0.15), rgba(219, 39, 119, 0.15));
+            color: #fca5a5;
+            border: 1px solid rgba(232, 62, 140, 0.3);
+        }
+
+        /* ============================================================ */
+        /* TARJETA PRINCIPAL DE LA CAUSA                                */
+        /* ============================================================ */
+        .solidario-cause-card {
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .solidario-cause-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #F1F5F9;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+
+        .solidario-cause-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+            font-size: 0.88em;
+            color: #94A3B8;
+            margin-bottom: 16px;
+        }
+
+        .solidario-cause-meta span {
+            display: block;
+            line-height: 1.5;
+        }
+
+        .solidario-cause-story {
+            color: #CBD5E1;
+            font-size: 0.95em;
+            line-height: 1.7;
+            white-space: pre-line;
+            margin-bottom: 20px;
+            /* [DISEÑO RESPONSIVE PREVENCIÓN DE OVERFLOW] */
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        /* ============================================================ */
+        /* BARRA DE PROGRESO (Estilo GoFundMe)                         */
+        /* ============================================================ */
+        .solidario-progress-section {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .solidario-progress-amounts {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 10px;
+        }
+
+        .solidario-progress-current {
+            font-size: 1.6em;
+            font-weight: 700;
+            color: #e83e8c;
+        }
+
+        .solidario-progress-current .unit {
+            font-size: 0.5em;
+            font-weight: 400;
+            color: #fbcfe8;
+        }
+
+        .solidario-progress-goal {
+            font-size: 0.9em;
+            color: #64748B;
+        }
+
+        .solidario-progress-bar-wrapper {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 8px;
+            display: flex;
+        }
+
+        .solidario-progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #e83e8c, #db2777);
+            border-radius: 5px;
+            transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            min-width: 0%;
+        }
+
+        .solidario-progress-percentage {
+            font-size: 0.85em;
+            color: #94A3B8;
+            text-align: right;
+        }
+
+        /* Info de Hold */
+        .solidario-hold-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            color: #FBBF24;
+            font-size: 0.85em;
+            margin-top: 12px;
+        }
+
+        /* ============================================================ */
+        /* BOTONES DE ACCIÓN (Donar + Compartir)                       */
+        /* ============================================================ */
+        .solidario-actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .solidario-btn-donate {
+            flex: 2;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            background: linear-gradient(135deg, #e83e8c, #db2777);
+            color: white;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .solidario-btn-donate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(232, 62, 140, 0.4);
+        }
+
+        .solidario-btn-donate:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .solidario-btn-share {
+            flex: 1;
+            padding: 14px 16px;
+            border: 1px solid rgba(232, 62, 140, 0.3);
+            border-radius: 12px;
+            font-size: 0.9em;
+            font-weight: 500;
+            cursor: pointer;
+            background: rgba(232, 62, 140, 0.1);
+            color: #fbcfe8;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .solidario-btn-share:hover {
+            background: rgba(232, 62, 140, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* ============================================================ */
+        /* TABLA DE DONACIONES                                          */
+        /* ============================================================ */
+        .solidario-donations-section {
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .solidario-donations-title {
+            font-size: 1.05em;
+            font-weight: 600;
+            color: #E2E8F0;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .solidario-donation-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .solidario-donation-item:last-child {
+            border-bottom: none;
+        }
+
+        .solidario-donation-user {
+            font-size: 0.9em;
+            color: #CBD5E1;
+            font-weight: 500;
+        }
+
+        .solidario-donation-amount {
+            font-size: 0.95em;
+            font-weight: 600;
+            color: #e83e8c;
+        }
+
+        .solidario-donation-status {
+            font-size: 0.75em;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+
+        .solidario-donation-status.released {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ADE80;
+        }
+
+        .solidario-donation-status.on_hold {
+            background: rgba(245, 158, 11, 0.15);
+            color: #FBBF24;
+        }
+
+        .donation-type-badge {
+            font-size: 0.7em;
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .donation-type-badge.referral {
+            background: rgba(99, 102, 241, 0.15);
+            color: #818CF8;
+            border: 1px solid rgba(99, 102, 241, 0.25);
+        }
+
+        .donation-type-badge.voluntary {
+            background: rgba(232, 62, 140, 0.1);
+            color: #f06292;
+            border: 1px solid rgba(232, 62, 140, 0.2);
+        }
+
+        .solidario-empty-donations {
+            text-align: center;
+            padding: 30px;
+            color: #64748B;
+            font-size: 0.9em;
+        }
+
+        /* ============================================================ */
+        /* MODAL DE DONACIÓN                                            */
+        /* ============================================================ */
+        .solidario-donate-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 16px;
+        }
+
+        .solidario-donate-modal-overlay.active {
+            display: flex;
+        }
+
+        .solidario-donate-modal {
+            background: linear-gradient(145deg, #1E293B, #0F172A);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 16px;
+            padding: 28px;
+            width: 100%;
+            max-width: 420px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .solidario-donate-modal h3 {
+            font-size: 1.15em;
+            color: #F1F5F9;
+            margin-bottom: 6px;
+        }
+
+        .solidario-donate-modal .balance-hint {
+            font-size: 0.85em;
+            color: #64748B;
+            margin-bottom: 20px;
+        }
+
+        .solidario-donate-modal .balance-hint strong {
+            color: #3B82F6;
+        }
+
+        .solidario-donate-input-group {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .solidario-donate-input-group input {
+            width: 100%;
+            padding: 14px 16px;
+            padding-right: 90px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: #F1F5F9;
+            font-size: 1.1em;
+            font-weight: 600;
+            outline: none;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+
+        .solidario-donate-input-group input:focus {
+            border-color: #3B82F6;
+        }
+
+        .solidario-donate-input-group .input-unit {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.85em;
+            color: #64748B;
+            font-weight: 500;
+        }
+
+        .solidario-donate-warning {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            background: rgba(232, 62, 140, 0.08);
+            border: 1px solid rgba(232, 62, 140, 0.15);
+            color: #fbcfe8;
+            font-size: 0.82em;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+
+        .solidario-donate-btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .solidario-donate-btn-group button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 0.95em;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .solidario-donate-cancel {
+            background: rgba(255, 255, 255, 0.08);
+            color: #94A3B8;
+        }
+
+        .solidario-donate-confirm {
+            background: linear-gradient(135deg, #e83e8c, #db2777);
+            color: white;
+        }
+
+        .solidario-donate-confirm:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ============================================================ */
+        /* LOADING & ERROR STATES                                       */
+        /* ============================================================ */
+        .solidario-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            gap: 16px;
+            color: #64748B;
+        }
+
+        .solidario-loading .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(59, 130, 246, 0.2);
+            border-top-color: #3B82F6;
+            border-radius: 50%;
+            animation: solidario-spin 0.8s linear infinite;
+        }
+
+        @keyframes solidario-spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .solidario-error {
+            text-align: center;
+            padding: 60px 20px;
+            color: #EF4444;
+        }
+
+        .solidario-error a {
+            color: #3B82F6;
+            text-decoration: underline;
+        }
+
+        /* ============================================================ */
+        /* RESPONSIVE                                                    */
+        /* ============================================================ */
+        @media (max-width: 480px) {
+            .solidario-cause-title {
+                font-size: 1.2em;
+            }
+
+            .solidario-actions {
+                flex-direction: column;
+            }
+
+            .solidario-btn-donate,
+            .solidario-btn-share {
+                flex: unset;
+            }
+
+            .solidario-progress-current {
+                font-size: 1.3em;
+            }
+        }
+
+        /* ============================================================ */
+        /* PANEL DE HERRAMIENTAS DE AUTOR (Dashboard de Creador)        */
+        /* ============================================================ */
+        .author-toolbar {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.99));
+            border: 1px dashed rgba(232, 62, 140, 0.4);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .author-toolbar-title {
+            font-size: 0.92em;
+            font-weight: 600;
+            color: #fbcfe8;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .author-toolbar-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .author-btn {
+            flex: 1;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.85em;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .author-btn-edit {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60A5FA;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .author-btn-edit:hover {
+            background: rgba(59, 130, 246, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .author-btn-update {
+            background: rgba(232, 62, 140, 0.15);
+            color: #f472b6;
+            border: 1px solid rgba(232, 62, 140, 0.3);
+        }
+
+        .author-btn-update:hover {
+            background: rgba(232, 62, 140, 0.25);
+            transform: translateY(-1px);
+        }
+
+        /* ============================================================ */
+        /* PESTAÑAS (TABS)                                              */
+        /* ============================================================ */
+        .solidario-tabs {
+            display: flex;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.05);
+            margin-bottom: 16px;
+            gap: 8px;
+        }
+
+        .solidario-tab-btn {
+            background: none;
+            border: none;
+            color: #64748B;
+            font-size: 0.9em;
+            font-weight: 600;
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .solidario-tab-btn:hover {
+            color: #CBD5E1;
+        }
+
+        .solidario-tab-btn.active {
+            color: #e83e8c;
+            border-bottom-color: #e83e8c;
+        }
+
+        .solidario-tab-content {
+            display: none;
+        }
+
+        .solidario-tab-content.active {
+            display: block;
+        }
+
+        /* ============================================================ */
+        /* CARDS DE NOVEDADES/ACTUALIZACIONES                           */
+        /* ============================================================ */
+        .update-item {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+        }
+
+        .update-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 8px;
+            gap: 12px;
+        }
+
+        .update-item-title {
+            font-size: 0.98em;
+            font-weight: 600;
+            color: #F1F5F9;
+            line-height: 1.4;
+        }
+
+        .update-item-date {
+            font-size: 0.75em;
+            color: #64748B;
+            white-space: nowrap;
+        }
+
+        .update-item-body {
+            font-size: 0.88em;
+            color: #94A3B8;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            /* [DISEÑO RESPONSIVE PREVENCIÓN DE OVERFLOW] */
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        /* ============================================================ */
+        /* CARDS DE HISTORIAL DE CAMBIOS (EDICIONES DE LA HISTORIA)     */
+        /* ============================================================ */
+        .history-item {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .history-item-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.78em;
+            color: #64748B;
+            margin-bottom: 10px;
+        }
+
+        .history-item-editor {
+            color: #a5b4fc;
+            font-weight: 500;
+        }
+
+        .history-diff-container {
+            font-size: 0.85em;
+            line-height: 1.5;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .diff-section {
+            border-radius: 4px;
+            padding: 8px;
+        }
+
+        .diff-section.removed {
+            background: rgba(239, 68, 68, 0.08);
+            border-left: 3px solid #ef4444;
+            color: #fca5a5;
+            text-decoration: line-through;
+        }
+
+        .diff-section.added {
+            background: rgba(34, 197, 94, 0.08);
+            border-left: 3px solid #22c55e;
+            color: #86efac;
+        }
+    </style>
+  <script type="module" crossorigin src="./assets/causaSolidaria.CBV6MD_I.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill.B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="./assets/auth.BgcrufBo.js">
+  <link rel="modulepreload" crossorigin href="./assets/index.pbqrtUCb.js">
+  <link rel="stylesheet" crossorigin href="./assets/style.yScP5BS0.css">
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+
+<body>
+    <!-- ================================================================ -->
+    <!-- CONTENIDO PRINCIPAL (inyectado dinámicamente por JS)             -->
+    <!-- ================================================================ -->
+    <div class="solidario-page" id="solidarioPageContainer">
+        <!-- Estado: Cargando -->
+        <div class="solidario-loading" id="solidarioLoading">
+            <div class="spinner"></div>
+            <span>Cargando causa solidaria...</span>
+        </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- MODAL DE DONACIÓN                                               -->
+    <!-- ================================================================ -->
+    <div class="solidario-donate-modal-overlay" id="donateModalOverlay">
+        <div class="solidario-donate-modal">
+            <h3>💙 Donar BLUE IOU</h3>
+            <p class="balance-hint" id="balanceHintClickable" style="cursor: pointer; text-decoration: underline; transition: opacity 0.2s;" title="Ver tarjeta de disponibles para donaciones en tu perfil de impulsor">Disponible para donaciones: <strong id="donorBalanceDisplay">0.0000</strong> BLUE IOU</p>
+
+            <div class="solidario-donate-input-group">
+                <input type="text" inputmode="decimal" id="donateAmountInput" placeholder="0.0000" autocomplete="off">
+                <span class="input-unit">BLUE IOU</span>
+            </div>
+
+            <div class="solidario-donate-warning" id="donateKycWarning" style="display: none;">
+                <span>⏳</span>
+                <span>Tu identidad aún no ha sido verificada. La donación se registrará pero quedará en espera
+                    (<strong>Hold</strong>) hasta que completes la verificación KYC.</span>
+            </div>
+
+            <!-- CHECKBOX LEGAL: Clickwrap de Aceptación -->
+            <div style="display:flex; align-items:flex-start; gap:8px; margin-bottom:20px; font-size:0.82em; color:#94A3B8; line-height:1.5;">
+                <input type="checkbox" id="donateTermsCheckbox" style="margin-top:3px; cursor:pointer; width:14px; height:14px;">
+                <label for="donateTermsCheckbox" style="cursor:pointer; user-select:none;">
+                    Confirmo que mi donación es voluntaria y acepto los <a href="legales-campana.html" target="_blank" rel="noopener noreferrer" style="color:#e83e8c; text-decoration:underline; font-weight:600;">Términos Legales de la Campaña</a>, incluyendo la retención en Resguardo Seguro hasta la verificación KYC.
+                </label>
+            </div>
+            
+            <div class="solidario-donate-btn-group">
+                <button class="solidario-donate-cancel" id="donateCancelBtn">Cancelar</button>
+                <button class="solidario-donate-confirm" id="donateConfirmBtn" disabled>Confirmar Donación</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- MODAL DE EDICIÓN DE CAUSA                                        -->
+    <!-- ================================================================ -->
+    <div class="solidario-donate-modal-overlay" id="editCauseModalOverlay">
+        <div class="solidario-donate-modal" style="max-width: 500px;">
+            <h3>✏️ Editar Causa Solidaria</h3>
+            <p class="balance-hint" id="editStatusHint">Modifica la meta o añade correcciones a tu historia principal.</p>
+
+            <div style="margin-bottom: 16px;">
+                <label style="display:block; font-size:0.85em; color:#94A3B8; margin-bottom:6px; font-weight:600;">Meta de Recaudación (BLUE IOU):</label>
+                <div class="solidario-donate-input-group" style="margin-bottom: 0;">
+                    <input type="text" id="editGoalInput" placeholder="0.0000" autocomplete="off">
+                    <span class="input-unit">BLUE IOU</span>
+                </div>
+                <small id="editGoalMinHelp" style="display:block; font-size:0.75em; color:#64748B; margin-top:4px;">No puede ser menor al acumulado actual.</small>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display:block; font-size:0.85em; color:#94A3B8; margin-bottom:6px; font-weight:600;">Historia / Descripción de la causa:</label>
+                <textarea id="editStoryInput" style="width:100%; height:160px; padding:12px; background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.1); border-radius:10px; color:#F1F5F9; font-size:0.9em; font-family:inherit; outline:none; resize:vertical; box-sizing:border-box; line-height:1.5;" placeholder="Cuéntale a la comunidad los motivos de tu campaña..."></textarea>
+                <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:0.75em; color:#64748B;">
+                    <span id="editStoryCounter">0 caracteres (min 100)</span>
+                    <span id="editStoryLimitWarning" style="color:#EF4444; display:none;">⚠️ Limita el cambio al 15%</span>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display:block; font-size:0.85em; color:#94A3B8; margin-bottom:6px; font-weight:600;">Agregar imágenes de progreso (Opcional, máx 3 por vez):</label>
+                <div class="evidence-dropzone" id="editCauseDropzone" style="border: 2px dashed rgba(255,255,255,0.15); border-radius: 10px; padding: 20px; text-align: center; background: rgba(0,0,0,0.15); cursor: pointer; transition: border-color 0.3s; position: relative;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 8px;">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    <p style="margin: 0; font-size: 0.85em; color: #94A3B8;">Arrastra nuevas imágenes o haz clic aquí</p>
+                    <small style="display: block; margin-top: 4px; font-size: 0.75em; color: #64748B;">Máximo 3 nuevas imágenes por actualización.</small>
+                    <input type="file" id="editCauseFileInput" multiple accept="image/*" style="display: none;">
+                </div>
+                <div id="editCausePreviewContainer" style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;"></div>
+            </div>
+
+            <div class="solidario-donate-btn-group">
+                <button class="solidario-donate-cancel" id="editCancelBtn">Cancelar</button>
+                <button class="solidario-donate-confirm" id="editConfirmBtn">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- MODAL DE PUBLICAR ACTUALIZACIÓN (NOVEDADES)                       -->
+    <!-- ================================================================ -->
+    <div class="solidario-donate-modal-overlay" id="publishUpdateModalOverlay">
+        <div class="solidario-donate-modal" style="max-width: 500px;">
+            <h3>📢 Publicar Novedad</h3>
+            <p class="balance-hint">Informa a tus donantes sobre el avance de la causa. Se les enviará un correo automáticamente.</p>
+
+            <div style="margin-bottom: 16px;">
+                <label style="display:block; font-size:0.85em; color:#94A3B8; margin-bottom:6px; font-weight:600;">Título de la Novedad:</label>
+                <input type="text" id="updateTitleInput" style="width:100%; padding:12px; background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.1); border-radius:10px; color:#F1F5F9; font-size:0.95em; outline:none; box-sizing:border-box;" placeholder="Ej: ¡Llegamos a la mitad de la meta!">
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display:block; font-size:0.85em; color:#94A3B8; margin-bottom:6px; font-weight:600;">Contenido / Detalle:</label>
+                <textarea id="updateTextInput" style="width:100%; height:140px; padding:12px; background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.1); border-radius:10px; color:#F1F5F9; font-size:0.9em; font-family:inherit; outline:none; resize:vertical; box-sizing:border-box; line-height:1.5;" placeholder="Describe en detalle las novedades para mantener entusiasmada a la comunidad..."></textarea>
+            </div>
+
+            <div class="solidario-donate-btn-group">
+                <button class="solidario-donate-cancel" id="updateCancelBtn">Cancelar</button>
+                <button class="solidario-donate-confirm" id="updateConfirmBtn">Publicar y Notificar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================ -->
+    <!-- MODAL DE VISUALIZACIÓN DEL HISTORIAL DE EDICIONES                 -->
+    <!-- ================================================================ -->
+    <div class="solidario-donate-modal-overlay" id="viewHistoryModalOverlay">
+        <div class="solidario-donate-modal" style="max-width: 550px;">
+            <h3>📋 Historial de Ediciones</h3>
+            <p class="balance-hint">Consulta de forma transparente los cambios realizados en la historia oficial.</p>
+
+            <div id="historyListContainer" style="max-height: 320px; overflow-y: auto; margin-bottom: 20px; padding-right: 4px; display: flex; flex-direction: column; gap: 10px;">
+                <!-- Se inyecta por JS -->
+            </div>
+
+            <div class="solidario-donate-btn-group">
+                <button class="solidario-donate-cancel" id="historyCloseBtn" style="flex:1;">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Alerta Personalizado (reutilizado del proyecto) -->
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación Personalizado -->
+    <div id="customConfirmModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button confirm-close-button">&times;</span>
+            <p id="customConfirmMessage"></p>
+            <div class="confirm-buttons">
+                <button class="action-button cancel-button">Cancelar</button>
+                <button class="action-button confirm-button">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Lightbox para Evidencias de Causa -->
+    <div id="evidenceLightboxModal" class="modal" style="display: none; background: rgba(0,0,0,0.9); z-index: 9999;">
+        <div class="modal-content lightbox-content" style="background: transparent; border: none; box-shadow: none; max-width: 90vw;">
+            <span class="close-button lightbox-close-button" style="color: white; font-size: 2rem; position: absolute; right: 20px; top: 20px; cursor: pointer;">&times;</span>
+            <div id="lightboxImagesContainer" style="display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 20px; padding: 20px; align-items: center;">
+                <!-- Las imágenes se insertarán aquí dinámicamente -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ES Modules (Vite) -->
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+
+</html>

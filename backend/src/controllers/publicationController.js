@@ -540,26 +540,22 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
         try {
             const result = await pool.query(sql, queryParams);
+            const settingsRes = await pool.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'pre_launch_mode_enabled'`);
+            const preLaunchMode = settingsRes.rows[0]?.setting_value === 'true';
+
             const boosterService = require('../services/boosterService');
             const currentMultiplierInfo = await boosterService.calculateMultipliedAmount(1);
             const activeMultiplier = currentMultiplierInfo.multiplier || 1.0;
             const activeStageName = currentMultiplierInfo.stageName || 'Sin etapa activa';
 
             // AUDITORÍA FINTECH: Garantizar coherencia inmutable entre la consulta del feed y el pago final.
-            // Se respeta el snapshot congelado p.blue_cost almacenado en PostgreSQL.
             const publications = result.rows.map(p => {
-                const baseCost = parseFloat(p.base_blue_cost || p.blue_cost || 0);
-                const dbBlueCost = parseFloat(p.blue_cost || 0);
-                // Si la publicación ya posee su snapshot congelado (dbBlueCost > baseCost), se respeta el valor inmutable de la BD.
-                // Si es una publicación legacy donde blue_cost == base_blue_cost, se calcula dinámicamente.
-                const finalBlueCost = (dbBlueCost > 0 && baseCost > 0 && dbBlueCost !== baseCost)
-                    ? dbBlueCost
-                    : baseCost * activeMultiplier;
+                const { baseCost, multiplierUsed, finalBlueCost } = calculatePublicationEffectiveCost(p, preLaunchMode, activeMultiplier);
 
                 return {
                     ...p,
                     base_blue_cost: baseCost,
-                    current_multiplier: activeMultiplier,
+                    current_multiplier: multiplierUsed,
                     current_stage_name: activeStageName,
                     blue_cost: finalBlueCost,
                     participants: p.participants || [],
@@ -1793,14 +1789,18 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             const publication = result.rows[0];
             publication.participants = publication.participants || []; // Asegurarse de que sea un array
 
+            const settingsRes = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'pre_launch_mode_enabled'`);
+            const preLaunchMode = settingsRes.rows[0]?.setting_value === 'true';
+
             // --- Multiplicador dinámico vigente ---
             const boosterService = require('../services/boosterService');
-            const baseCost = parseFloat(publication.base_blue_cost || publication.blue_cost || 0);
-            const currentMultiplierInfo = await boosterService.calculateMultipliedAmount(baseCost);
+            const currentMultiplierInfo = await boosterService.calculateMultipliedAmount(1);
+            
+            const { baseCost, multiplierUsed, finalBlueCost } = calculatePublicationEffectiveCost(publication, preLaunchMode, currentMultiplierInfo.multiplier);
             publication.base_blue_cost = baseCost;
-            publication.current_multiplier = currentMultiplierInfo.multiplier || 1.0;
+            publication.current_multiplier = multiplierUsed;
             publication.current_stage_name = currentMultiplierInfo.stageName || 'Sin etapa activa';
-            publication.blue_cost = currentMultiplierInfo.multipliedAmount;
+            publication.blue_cost = finalBlueCost;
 
             // --- NUEVO: Lógica de Modal Intersticial (Pre-flight) ---
             if (publication.show_preflight_modal) {

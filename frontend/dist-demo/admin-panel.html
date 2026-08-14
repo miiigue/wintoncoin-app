@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>[DEMO] Panel de Administración - Winton Coin</title>
+  <script type="module" crossorigin src="./assets/adminPanel.BaRl2gqa.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill.B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="./assets/auth.BgcrufBo.js">
+  <link rel="modulepreload" crossorigin href="./assets/index.pbqrtUCb.js">
+  <link rel="stylesheet" crossorigin href="./assets/style.yScP5BS0.css">
+  <link rel="stylesheet" crossorigin href="./assets/admin-style.DAJKmt3Q.css">
+  <link rel="stylesheet" crossorigin href="./assets/admin-switch.z10rU-x2.css">
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+
+<body>
+    <div class="admin-grid-container">
+        <!-- Barra Lateral de Navegación -->
+        <aside class="admin-sidebar">
+            <div class="sidebar-header">
+                <h3>Winton Coin</h3>
+                <p>Admin Panel</p>
+                <!-- Indicador visual del administrador que ha iniciado sesión -->
+                <p class="admin-connected-user" id="adminConnectedUser" style="font-size: 11px; color: #10B981; margin: 5px 0 0 0; font-weight: bold;"></p>
+            </div>
+            <nav class="sidebar-nav">
+                <ul>
+                    <li><a href="#dashboard" class="nav-link active" data-section="dashboard">Dashboard</a></li>
+                    <li><a href="#settings" class="nav-link" data-section="settings">Configuración</a></li>
+                    <li><a href="#users" class="nav-link" data-section="users">Usuarios</a></li>
+                    <li><a href="#publications" class="nav-link" data-section="publications">Contenido</a></li>
+                    <li><a href="#debtors" class="nav-link" data-section="debtors">Compromisos Vencidos</a></li>
+                    <li><a href="#platform-wallet" class="nav-link" data-section="platform-wallet">Billetera</a></li>
+                    <li>
+                        <a href="#platform-publications" class="nav-link" data-section="platform-publications">
+                            Publicaciones
+                            <span class="nav-badge" id="platformPublicationsBadge" aria-label="Pendientes"></span>
+                        </a>
+                    </li>
+                    <li><a href="#referrals" class="nav-link" data-section="referrals">Referidos<span class="nav-badge" id="referralsBadge" aria-label="Pendientes"></span></a></li>
+                    <li><a href="#boosters" class="nav-link" data-section="boosters">Impulsores<span class="nav-badge" id="boostersBadge" aria-label="Pendientes"></span></a></li>
+                    <li><a href="#audit-log" class="nav-link" data-section="audit-log">Auditoría</a></li>
+                    <li><a href="#kyc-compliance" class="nav-link" data-section="kyc-compliance" style="color: #F59E0B;">🔐 KYC<span class="nav-badge" id="kycBadge" aria-label="Pendientes"></span></a></li>
+                    <!-- Menú de equipo exclusivo para superadmin (ocultado dinámicamente si no corresponde) -->
+                    <li id="sidebarTeamLi" style="display: none;"><a href="#team" class="nav-link" data-section="team" style="color: #A78BFA;">👥 Equipo<span class="nav-badge" id="teamBadge" aria-label="Pendientes"></span></a></li>
+                    <li><a href="#notifications" class="nav-link" data-section="notifications">Notificaciones</a></li>
+                    <li><a href="https://www.crm.wintoncoin.com" target="_blank" class="nav-link">CRM<span class="nav-badge nav-badge-blue" id="crmBadge" aria-label="Pendientes"></span></a></li>
+                    <li><a href="#academy" class="nav-link" data-section="academy" style="color: #4da6ff;">🎓 Winton
+                            Academy</a></li>
+                    <li><a href="momentum-admin.html" class="nav-link" style="color: #FFD700;">⚡ Momentum<span class="nav-badge" id="momentumBadge" aria-label="Pendientes"></span></a></li>
+                    <li><a href="#gov-rewards" class="nav-link" data-section="gov-rewards" style="color: #10B981;">Recompensas Gov.</a></li>
+                    <li><a href="governance-panel.html" class="nav-link" target="_blank" title="Se abre en nueva pestaña. Requiere sesión de usuario guardián." style="color: #10B981;">🔐 Gobernanza ↗<span class="nav-badge" id="governanceBadge" aria-label="Pendientes"></span></a></li>
+                    <li>
+                        <a href="#humanitarian" class="nav-link" data-section="humanitarian" style="color: #F472B6;">❤️
+                            Solidario
+                            <span class="nav-badge" id="humanitarianBadge" aria-label="Pendientes"></span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#sos-victims" class="nav-link" data-section="sos-victims" style="color: #EC4899;">🚨
+                            Damnificados (SOS)
+                            <span class="nav-badge" id="sosVictimsBadge" aria-label="Pendientes"></span>
+                        </a>
+                    </li>
+                    <li><a href="admin-email-templates.html" class="nav-link" style="color: #60A5FA;">📧 Plantillas Email</a></li>
+                    <li><a href="admin-recruitment.html" class="nav-link" style="color: #60A5FA;">🎯 Talento<span class="nav-badge nav-badge-blue" id="talentBadge" aria-label="Pendientes"></span></a></li>
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <a href="#" id="adminLogoutBtn">Cerrar Sesión</a>
+            </div>
+        </aside>
+
+        <!-- Contenido Principal -->
+        <main class="admin-main">
+            <!-- Cada sección se cargará aquí. Por defecto se muestra el Dashboard. -->
+
+            <!-- Sección Dashboard -->
+            <section id="dashboard-section" class="admin-section active-section">
+                <h1>Dashboard</h1>
+                <p>Resumen general de la plataforma.</p>
+                <!-- Aquí irán las tarjetas de estadísticas -->
+                <div id="dashboard-stats" class="stats-container">
+                    <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- Sección Configuración -->
+            <section id="settings-section" class="admin-section">
+                <h1>Configuración</h1>
+                <p>Activa o desactiva funcionalidades de la aplicación en tiempo real.</p>
+
+                <!-- Nueva sección para gestión de fases -->
+                <div class="settings-group">
+                    <h2>Fases</h2>
+                    <div id="phase-management-switches" class="settings-container">
+                        <!-- Interruptores para pre-lanzamiento y tipos de publicación se cargarán aquí -->
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h2>Configuración General</h2>
+                    <div id="settings-switches" class="settings-container">
+                        <!-- Los interruptores generales se cargarán aquí -->
+                    </div>
+                </div>
+
+                <!-- AUDITORÍA FINTECH: Restricción por Prefijo Telefónico (+58 Venezuela) -->
+                <div class="settings-group" style="margin-top: 2rem;">
+                    <div class="settings-header">
+                        <h2>Restricción de Registro por País (+58 Venezuela)</h2>
+                        <p class="section-description">Controla si el formulario de registro está restringido a ciertos prefijos telefónicos de país y configura la nota informativa.</p>
+                    </div>
+                    <div class="admin-card" style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 1.5rem; margin-top: 1rem;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                            <div>
+                                <strong style="font-size: 1.05rem; color: #f8fafc; display: block;">Activar Restricción por País</strong>
+                                <small style="color: #94a3b8;">Si está activado, solo se aceptarán registros de números telefónicos con los prefijos autorizados.</small>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="registrationCountryRestrictionToggle" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+
+                        <div class="form-group-admin" style="margin-bottom: 1.25rem;">
+                            <label for="registrationAllowedPrefixesInput" style="font-weight: 600; color: #e2e8f0; display: block; margin-bottom: 0.5rem;">Prefijos de País Permitidos (separados por comas):</label>
+                            <input type="text" id="registrationAllowedPrefixesInput" class="admin-input-dark" value="+58" placeholder="Ej: +58, +57" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: #fff;">
+                            <small style="color: #64748b; margin-top: 4px; display: block;">Auto-guardado al cambiar de campo (blur).</small>
+                        </div>
+
+                        <div class="form-group-admin" style="margin-bottom: 0.5rem;">
+                            <label for="registrationNoticeTextInput" style="font-weight: 600; color: #e2e8f0; display: block; margin-bottom: 0.5rem;">Texto de la Nota Informativa en el Formulario:</label>
+                            <input type="text" id="registrationNoticeTextInput" class="admin-input-dark" value="Por el momento solo se aceptan registros de personas residentes en Venezuela (+58)." style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: #fff;">
+                            <small style="color: #64748b; margin-top: 4px; display: block;">Auto-guardado al cambiar de campo (blur).</small>
+                        </div>
+                        <div id="registration-country-admin-feedback" style="display: none; margin-top: 1rem; color: #10b981; font-weight: 600; font-size: 0.9rem;"></div>
+                    </div>
+                </div>
+
+                <!-- Sección de Cambio de Contraseña de Administrador (SOC 2 Compliant) -->
+                <div class="settings-group" style="margin-top: 2.5rem;">
+                    <div class="settings-header">
+                        <h2>Seguridad de la Cuenta</h2>
+                        <p class="section-description">Actualiza la contraseña de tu cuenta de administrador. Por seguridad, se cerrará tu sesión activa tras realizar el cambio y deberás iniciar sesión nuevamente.</p>
+                    </div>
+                    
+                    <form id="changePasswordForm" class="admin-form" style="max-width: 600px; margin-top: 1.5rem;">
+                        <div class="form-group-admin" style="margin-bottom: 1.5rem;">
+                            <label for="currentPasswordInput">Contraseña Actual:</label>
+                            <input type="password" id="currentPasswordInput" class="admin-input-dark" required placeholder="Ingresa tu contraseña actual">
+                        </div>
+                        <div class="form-row-admin">
+                            <div class="form-group-admin">
+                                <label for="newPasswordInput">Nueva Contraseña:</label>
+                                <input type="password" id="newPasswordInput" class="admin-input-dark" required placeholder="Mínimo 8 caracteres (letras y números)">
+                            </div>
+                            <div class="form-group-admin">
+                                <label for="confirmNewPasswordInput">Confirmar Nueva Contraseña:</label>
+                                <input type="password" id="confirmNewPasswordInput" class="admin-input-dark" required placeholder="Repite tu nueva contraseña">
+                            </div>
+                        </div>
+                        <div class="admin-form-actions" style="margin-top: 1.5rem;">
+                            <button type="submit" id="changePasswordBtn" class="action-button-admin publish">🔒 Actualizar Contraseña</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Usuarios Section -->
+            <section id="users-section" class="admin-section">
+                <h1>Usuarios</h1>
+                <p>Explora y busca en la base de datos de usuarios.</p>
+
+                <div class="table-controls">
+                    <input type="text" id="userSearchInput" placeholder="Buscar por nombre de usuario...">
+                    <select id="userStatusFilter">
+                        <option value="">Todos los estados</option>
+                        <option value="active">Activo</option>
+                        <option value="suspended">Suspendido</option>
+                        <option value="banned">Baneado</option>
+                    </select>
+                </div>
+
+                <div id="users-table-container" class="table-container-admin">
+                    <!-- La tabla de usuarios se cargará aquí -->
+                    <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- Sección Panel de Compromisos Vencidos -->
+            <section id="debtors-section" class="admin-section">
+                <h1>Panel de Compromisos Vencidos</h1>
+                <p>Lista de usuarios con compromisos RED en mora.</p>
+                <div id="debtors-table-container" class="table-container-admin">
+                    <!-- La tabla de deudores se cargará aquí -->
+                    <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- Contenido Section -->
+            <section id="publications-section" class="admin-section">
+                <h1>Contenido</h1>
+                <p>Modera las publicaciones de la plataforma.</p>
+
+                <!-- === LÍMITES DE IMÁGENES === -->
+                <div class="settings-group" style="margin-top: 20px;">
+                    <div class="settings-header">
+                        <h2>Límites de Imágenes por Tipo de Publicación</h2>
+                        <p class="section-description">Define la cantidad máxima de fotos permitidas para cada caso.</p>
+                    </div>
+                    <form id="imageLimitsForm" class="admin-form">
+                        <div class="admin-form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                            <div class="form-group-admin">
+                                <label for="maxImagesRequest">Solicitudes (Request)</label>
+                                <input type="number" id="maxImagesRequest" name="maxImagesRequest" class="admin-input-dark" min="0" value="1">
+                            </div>
+                            <div class="form-group-admin">
+                                <label for="maxImagesSell">Ventas (Sell)</label>
+                                <input type="number" id="maxImagesSell" name="maxImagesSell" class="admin-input-dark" min="0" value="2">
+                            </div>
+                            <div class="form-group-admin">
+                                <label for="maxImagesDonation">Donaciones</label>
+                                <input type="number" id="maxImagesDonation" name="maxImagesDonation" class="admin-input-dark" min="0" value="1">
+                            </div>
+                            <div class="form-group-admin">
+                                <label for="maxImagesPlatform">Plataforma</label>
+                                <input type="number" id="maxImagesPlatform" name="maxImagesPlatform" class="admin-input-dark" min="0" value="3">
+                            </div>
+                            <div class="form-group-admin">
+                                <label for="maxImagesEvidence">Evidencias</label>
+                                <input type="number" id="maxImagesEvidence" name="maxImagesEvidence" class="admin-input-dark" min="0" value="2">
+                            </div>
+                        </div>
+                        <button type="submit" class="action-button-admin" style="margin-top:15px; width:100%;">Guardar Límites</button>
+                    </form>
+                </div>
+                <!-- ============================ -->
+                <!-- Un campo de búsqueda para filtrar publicaciones por título o autor -->
+                <div class="table-controls">
+                    <input type="text" id="publicationSearchInput" placeholder="Buscar por título o autor...">
+                    <select id="publicationStatusFilter">
+                        <option value="active">Activas</option>
+                        <option value="deleted">Eliminadas</option>
+                        <option value="expired">Expiradas</option>
+                        <option value="completed">Completadas</option>
+                        <option value="all">Todas</option>
+                    </select>
+                </div>
+                <!-- El contenedor donde se renderizará la tabla de publicaciones -->
+                <div id="publications-table-container" class="table-container-admin">
+                    <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- Nueva Sección para la Billetera de la Plataforma -->
+            <section id="platform-wallet-section" class="admin-section">
+                <h1>Billetera de la Plataforma</h1>
+                <p>Aquí se registran todas las comisiones ganadas por la plataforma.</p>
+
+                <!-- Tarjeta con el Saldo Total -->
+                <div id="platform-wallet-stats" class="stats-container" style="margin-bottom: 2rem;">
+                    <div class="loading-spinner"></div>
+                </div>
+
+                <!-- Historial de Transacciones -->
+                <h2>Historial de Transacciones</h2>
+                <div id="platform-commission-log-container" class="table-container-admin">
+                    <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- Sección Auditoría -->
+            <section id="audit-log-section" class="admin-section">
+                <h1>Auditoría</h1>
+                <p>Registro inmutable de eventos críticos para trazabilidad y cumplimiento.</p>
+
+                <div class="table-controls">
+                    <input type="text" id="auditEventTypeInput"
+                        placeholder="Event type (ej: publication.confirmed_paid)">
+                    <input type="text" id="auditActorInput" placeholder="Actor (username)">
+                    <input type="text" id="auditTargetInput" placeholder="Target (username)">
+                    <input type="text" id="auditCategoryInput" placeholder="Categoría (request, admin, etc)">
+                </div>
+                <div class="table-controls">
+                    <input type="datetime-local" id="auditFromInput" placeholder="Desde">
+                    <input type="datetime-local" id="auditToInput" placeholder="Hasta">
+                    <select id="auditLimitSelect">
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="200">200</option>
+                    </select>
+                    <button id="auditApplyFiltersBtn" class="action-button">Aplicar filtros</button>
+                    <button id="auditExportCsvBtn" class="action-button">Exportar CSV</button>
+                </div>
+
+                <div id="audit-log-container" class="table-container-admin">
+                    <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- Sección KYC Compliance -->
+            <section id="kyc-compliance-section" class="admin-section">
+                <h1>🔐 Verificación KYC (Compliance)</h1>
+                <p>Gestiona la verificación de identidad (Know Your Customer) de los usuarios en la blockchain. Todas las acciones quedan registradas en el log de auditoría.</p>
+
+                <div class="settings-group">
+                    <div class="settings-header">
+                        <h2>Verificar / Modificar Estado KYC</h2>
+                        <p class="section-description">Ingresa el nombre de usuario para consultar su estado KYC on-chain y aprobarlo o revocarlo.</p>
+                    </div>
+
+                    <div class="admin-form" style="max-width: 600px;">
+                        <!-- Campo de búsqueda -->
+                        <div class="form-group-admin">
+                            <label for="kycUsernameInput">Nombre de Usuario:</label>
+                            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                                <input type="text" id="kycUsernameInput" class="admin-input-dark" placeholder="Ej: cuentademo2" style="flex: 1; min-width: 250px;">
+                                <button type="button" id="kycCheckBtn" class="action-button-admin" style="width: auto; min-width: 150px; padding: 14px 24px; font-size: 1rem;">🔍 Consultar</button>
+                            </div>
+                        </div>
+
+                        <!-- Resultado de la consulta -->
+                        <div id="kycStatusResult" style="display: none; margin-top: 1.5rem; padding: 1.5rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                <div>
+                                    <p style="margin: 0; font-size: 14px; color: #667085;">Usuario</p>
+                                    <p id="kycResultUsername" style="margin: 4px 0 0; font-size: 18px; font-weight: 700;"></p>
+                                </div>
+                                <div style="text-align: right;">
+                                    <p style="margin: 0; font-size: 14px; color: #667085;">Estado KYC On-Chain</p>
+                                    <p id="kycResultStatus" style="margin: 4px 0 0; font-size: 18px; font-weight: 700;"></p>
+                                </div>
+                            </div>
+                            <p id="kycResultWallet" style="font-size: 12px; color: #667085; word-break: break-all; margin: 0 0 1rem;"></p>
+
+                            <!-- Botones de acción -->
+                            <div id="kycActions" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                <button type="button" id="kycApproveBtn" class="action-button-admin publish" style="flex: 1; min-width: 150px;">✅ Aprobar KYC</button>
+                                <button type="button" id="kycRevokeBtn" class="action-button-admin" style="flex: 1; min-width: 150px; background: #DC2626;">❌ Revocar KYC</button>
+                            </div>
+                        </div>
+
+                        <!-- Resultado de la operación -->
+                        <div id="kycOperationResult" style="display: none; margin-top: 1rem; padding: 1rem; border-radius: 8px;"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sección Gestión de Equipo (Invitaciones) -->
+            <section id="team-section" class="admin-section">
+                <h1>👥 Gestión de Equipo (Administradores)</h1>
+                <p>Invita a nuevos miembros a unirse al equipo administrativo. Por seguridad, se enviará un enlace de invitación temporal y de un solo uso para que configuren sus propias contraseñas.</p>
+
+                <!-- Formulario de Invitación -->
+                <div class="settings-group">
+                    <div class="settings-header">
+                        <h2>Invitar Nuevo Administrador</h2>
+                        <p class="section-description">Ingresa el correo electrónico del miembro del equipo y asígnale su rol operativo.</p>
+                    </div>
+
+                    <form id="inviteAdminForm" class="admin-form" style="max-width: 600px;">
+                        <div class="form-row-admin">
+                            <div class="form-group-admin">
+                                <label for="inviteEmailInput">Correo Electrónico:</label>
+                                <input type="email" id="inviteEmailInput" class="admin-input-dark" placeholder="ejemplo@wintoncoin.com" required>
+                            </div>
+                            <div class="form-group-admin">
+                                <label for="inviteRoleSelect">Rol Operativo:</label>
+                                <select id="inviteRoleSelect" class="admin-input-dark" required>
+                                    <option value="admin">Administrador (Gestión Diaria)</option>
+                                    <option value="auditor">Auditor (Solo Lectura/Auditoría)</option>
+                                    <option value="superadmin">Super Administrador (Control Total)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="admin-form-actions" style="margin-top: 1.5rem;">
+                            <button type="submit" id="sendInviteBtn" class="action-button-admin publish">✉️ Enviar Invitación</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Historial de Invitaciones -->
+                <div class="settings-group" style="margin-top: 2rem;">
+                    <div class="settings-header">
+                        <h2>Invitaciones Generadas</h2>
+                        <p class="section-description">Historial completo y auditable de invitaciones enviadas y su estado de reclamo.</p>
+                    </div>
+
+                    <div id="invitations-table-container" class="table-container-admin">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+
+                <!-- Administradores Activos (Equipo) -->
+                <div class="settings-group" style="margin-top: 2rem;">
+                    <div class="settings-header">
+                        <h2>Equipo de Administración</h2>
+                        <p class="section-description">Cuentas administrativas registradas en el sistema. Puedes suspender o reactivar accesos del equipo.</p>
+                    </div>
+
+                    <div id="active-admins-table-container" class="table-container-admin">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sección Notificaciones -->
+            <section id="notifications-section" class="admin-section">
+                <h1>Centro de Notificaciones</h1>
+                <p>Gestiona los canales de comunicación oficial con los usuarios.</p>
+
+                <div class="admin-tabs">
+                    <button class="tab-link active" data-tab="notifications-push">Alertas Push (VAPID)</button>
+                    <button class="tab-link" data-tab="notifications-email">Difusión de Email</button>
+                    <button class="tab-link" data-tab="notifications-daily">Mensajes Diarios</button>
+                </div>
+
+                <!-- Tab: Alertas Push -->
+                <div id="notifications-push-tab" class="tab-content active">
+                    <div class="settings-group">
+                        <div class="settings-header">
+                            <h2>Enviar Notificación Manual</h2>
+                            <p class="section-description">Envía alertas visuales instantáneas al navegador o
+                                dispositivo de los usuarios.</p>
+                        </div>
+                        <form id="pushNotificationForm" class="admin-form">
+                            <div class="form-row-admin">
+                                <div class="form-group-admin">
+                                    <label for="pushTargetUsername">Usuario Destino (Username):</label>
+                                    <input type="text" id="pushTargetUsername" class="admin-input-dark"
+                                        placeholder="Ej: miiigue">
+                                    <div class="admin-switch-container" style="margin-top: 5px;">
+                                        <label class="admin-switch">
+                                            <input type="checkbox" id="pushSendToAll">
+                                            <span class="slider round"></span>
+                                        </label>
+                                        <span class="switch-label">Enviar a TODOS los usuarios (Push Broadcast)</span>
+                                    </div>
+                                    <small class="input-hint">El nombre de usuario (ej: vitalik) al que le llegará la
+                                        alerta.</small>
+                                </div>
+
+                                <div class="form-group-admin">
+                                    <label for="pushUrl">URL de Acción (Opcional):</label>
+                                    <input type="text" id="pushUrl" class="admin-input-dark"
+                                        placeholder="Ej: /contract_interaction.html" value="/">
+                                </div>
+                            </div>
+
+                            <div class="form-group-admin">
+                                <label for="pushTitle">Título:</label>
+                                <input type="text" id="pushTitle" class="admin-input-dark"
+                                    placeholder="Ej: Aviso Importante" required>
+                            </div>
+
+                            <div class="form-group-admin">
+                                <label for="pushMessage">Mensaje:</label>
+                                <textarea id="pushMessage" class="admin-input-dark" rows="3"
+                                    placeholder="Redacta el mensaje corto..." required></textarea>
+                            </div>
+
+                            <div class="admin-form-actions">
+                                <button type="submit" id="sendPushBtn" class="action-button-admin publish">🚀 Enviar
+                                    Notificación Push</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Tab: Difusión de Email (NUEVO) -->
+                <div id="notifications-email-tab" class="tab-content">
+                    <div class="settings-group">
+                        <div class="settings-header">
+                            <h2>Crear Nueva Difusión de Email</h2>
+                            <p class="section-description">Sistema profesional de envío masivo con plantilla bancaria y
+                                auditoría.</p>
+                        </div>
+                        <form id="emailBroadcastForm" class="admin-form">
+                            <div class="form-row-admin">
+                                <div class="form-group-admin">
+                                    <label for="broadcastTargetGroup">Grupo Objetivo:</label>
+                                    <select id="broadcastTargetGroup" class="admin-input-dark">
+                                        <option value="all">Todos los usuarios</option>
+                                        <option value="verified">Solo usuarios verificados</option>
+                                        <option value="booster">Solo Impulsores (Boosters)</option>
+                                        <option value="specific">Usuario específico</option>
+                                    </select>
+                                </div>
+                                <div class="form-group-admin" id="broadcastSpecificUserGroup" style="display: none;">
+                                    <label for="broadcastTargetUsername">Username específico:</label>
+                                    <input type="text" id="broadcastTargetUsername" class="admin-input-dark"
+                                        placeholder="Ej: miiigue">
+                                </div>
+                            </div>
+
+                            <div class="form-group-admin">
+                                <label for="broadcastSubject">Asunto del Correo (Subject):</label>
+                                <input type="text" id="broadcastSubject" class="admin-input-dark"
+                                    placeholder="Lo que el usuario ve en su bandeja de entrada" required>
+                            </div>
+
+                            <div class="form-group-admin">
+                                <label for="broadcastTitle">Título del Mensaje (Cabecera):</label>
+                                <input type="text" id="broadcastTitle" class="admin-input-dark"
+                                    placeholder="Título dentro del diseño del correo" required>
+                            </div>
+
+                            <div class="form-group-admin">
+                                <label for="broadcastBody">Contenido del Correo (HTML permitido):</label>
+                                <textarea id="broadcastBody" class="admin-input-dark" rows="8"
+                                    placeholder="Escribe el cuerpo del correo. Puedes usar etiquetas <p>, <strong>, <br>, etc."
+                                    required></textarea>
+                            </div>
+
+                            <div class="form-row-admin">
+                                <div class="form-group-admin">
+                                    <label for="broadcastButtonText">Texto del Botón (Opcional):</label>
+                                    <input type="text" id="broadcastButtonText" class="admin-input-dark"
+                                        placeholder="Ej: Ver Nueva Imagen">
+                                </div>
+                                <div class="form-group-admin">
+                                    <label for="broadcastButtonUrl">URL del Botón (Opcional):</label>
+                                    <input type="text" id="broadcastButtonUrl" class="admin-input-dark"
+                                        placeholder="Ej: https://sc.wintoncoin.com">
+                                </div>
+                            </div>
+
+                            <div class="admin-form-actions">
+                                <button type="submit" id="sendBroadcastBtn" class="action-button-admin publish">✉️
+                                    Programar Difusión</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <hr class="admin-divider">
+
+                    <h3>Historial de Difusiones</h3>
+                    <div id="email-broadcast-history-container" class="table-container-admin">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+
+                <!-- Tab: Mensajes Diarios -->
+                <div id="notifications-daily-tab" class="tab-content">
+                    <div class="settings-group">
+                        <div class="settings-header">
+                            <h2>Mensajes Diarios (Modal Intersticial)</h2>
+                            <p class="section-description">Configura el mensaje que aparece al abrir una tarea con el
+                                modal activado. El contenido cambia automáticamente según el día.</p>
+                        </div>
+
+                        <div class="admin-form">
+                            <div class="form-group-admin"
+                                style="margin-bottom: 25px; padding: 15px; background: rgba(11, 95, 255, 0.05); border-radius: 12px; border: 1px solid rgba(11, 95, 255, 0.1);">
+                                <div class="admin-switch-container">
+                                    <label class="admin-switch">
+                                        <input type="checkbox" id="setting_global_app_interstitial_enabled"
+                                            data-setting-key="global_app_interstitial_enabled">
+                                        <span class="slider round"></span>
+                                    </label>
+                                    <div style="margin-left: 12px;">
+                                        <span class="switch-label" style="font-weight: 700; color: #fff;">Activar
+                                            Visualización Global</span>
+                                        <p style="margin: 4px 0 0 0; font-size: 12px; color: #667085;">Si se activa,
+                                            este mensaje aparecerá automáticamente a todos los usuarios al abrir la
+                                            plataforma (Dashboard).</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group-admin">
+                                <label for="setting_daily_modal_title">Título Global del Modal:</label>
+                                <input type="text" id="setting_daily_modal_title" class="admin-input-dark"
+                                    placeholder="Ej: Instrucciones Importantes" data-setting-key="daily_modal_title">
+                            </div>
+
+                            <div class="daily-messages-grid"
+                                style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                                <div class="form-group-admin">
+                                    <label for="setting_daily_modal_mon">Lunes:</label>
+                                    <textarea id="setting_daily_modal_mon" class="admin-input-dark" rows="2"
+                                        data-setting-key="daily_modal_mon"></textarea>
+                                </div>
+                                <div class="form-group-admin">
+                                    <label for="setting_daily_modal_tue">Martes:</label>
+                                    <textarea id="setting_daily_modal_tue" class="admin-input-dark" rows="2"
+                                        data-setting-key="daily_modal_tue"></textarea>
+                                </div>
+                                <div class="form-group-admin">
+                                    <label for="setting_daily_modal_wed">Miércoles:</label>
+                                    <textarea id="setting_daily_modal_wed" class="admin-input-dark" rows="2"
+                                        data-setting-key="daily_modal_wed"></textarea>
+                                </div>
+                                <div class="form-group-admin">
+                                    <label for="setting_daily_modal_thu">Jueves:</label>
+                                    <textarea id="setting_daily_modal_thu" class="admin-input-dark" rows="2"
+                                        data-setting-key="daily_modal_thu"></textarea>
+                                </div>
+                                <div class="form-group-admin">
+                                    <label for="setting_daily_modal_fri">Viernes:</label>
+                                    <textarea id="setting_daily_modal_fri" class="admin-input-dark" rows="2"
+                                        data-setting-key="daily_modal_fri"></textarea>
+                                </div>
+                                <div class="form-group-admin">
+                                    <label for="setting_daily_modal_sat">Sábado:</label>
+                                    <textarea id="setting_daily_modal_sat" class="admin-input-dark" rows="2"
+                                        data-setting-key="daily_modal_sat"></textarea>
+                                </div>
+                                <div class="form-group-admin">
+                                    <label for="setting_daily_modal_sun">Domingo:</label>
+                                    <textarea id="setting_daily_modal_sun" class="admin-input-dark" rows="2"
+                                        data-setting-key="daily_modal_sun"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="admin-form-actions">
+                                <button type="button" id="saveDailyMessagesBtn" class="action-button-admin publish">💾
+                                    Guardar Mensajes Diarios</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Nueva Sección para Publicaciones de la Plataforma -->
+            <section id="platform-publications-section" class="admin-section">
+                <h1>Publicaciones de la Plataforma</h1>
+
+                <!-- Acordeón para el formulario -->
+                <div class="admin-accordion">
+                    <div class="admin-accordion-header" id="platformFormToggle">
+                        <span class="accordion-title">Crear Nueva Publicación</span>
+                        <span class="accordion-icon">▼</span>
+                    </div>
+                    <div class="admin-accordion-content" id="platformFormContent" style="display: none;">
+                        
+                        <!-- GENERADOR QA IA -->
+                        <div id="qaGeneratorContainer" style="background: rgba(30,30,40,0.8); border: 1px dashed #00ffd5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                            <h3 style="color: #00ffd5; margin-top: 0; font-size: 1rem; margin-bottom: 10px;">🤖 Autocompletar Misión de Pruebas (QA)</h3>
+                            <p style="font-size: 0.85rem; color: #a0a0b0; margin-bottom: 10px;">Pega aquí el texto generado por la IA (modelo estricto con TITULO: y DESCRIPCION:) para autocompletar el formulario.</p>
+                            <textarea id="qaMarkdownInput" rows="4" style="width: 100%; background: #111; border: 1px solid #333; color: white; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; margin-bottom: 10px;" placeholder="TITULO: ...&#10;DESCRIPCION: ..."></textarea>
+                            <button type="button" id="btnAutoFillQA" class="btn-primary" style="width: 100%; padding: 8px; font-size: 0.9rem;">Pegar Prueba y Autocompletar</button>
+                        </div>
+
+                        <form id="platformPublicationForm" class="admin-form">
+                            <div id="platformEditNotice" class="admin-edit-notice" style="display: none;"></div>
+                            <div class="form-group-admin">
+                                <label for="platformPubTitle">Título de la Publicación:</label>
+                                <input type="text" id="platformPubTitle" required>
+                            </div>
+                            <div class="form-group-admin">
+                                <label for="platformPubDescription">Descripción:</label>
+                                <textarea id="platformPubDescription" rows="4" required></textarea>
+                            </div>
+
+                            <!-- MEDIA UPLOAD DROPZONE -->
+                            <div id="platform-media-upload-wrapper" class="dropzone-wrapper full-width" style="margin-top: 15px;">
+                                <label>Fotos (Opcional):</label>
+                                <div id="platformMediaDropzone" class="dropzone" tabindex="0">
+                                    <input type="file" id="platformMediaFileInput" name="images" multiple accept="image/jpeg, image/png, image/webp, image/jpg, image/heic" style="display: none;">
+                                    <div class="dropzone-message">
+                                        <span class="dropzone-icon" style="font-size: 2rem; display: block; margin-bottom: 5px;">📷</span>
+                                        <p>Haz clic o arrastra fotos aquí</p>
+                                        <small id="platform-dropzone-limit-message">Cargando límites...</small>
+                                    </div>
+                                </div>
+                                <div id="platformMediaPreviewContainer" class="media-preview-container" style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;"></div>
+                            </div>
+
+                            <!-- EVIDENCIAS SWITCH -->
+                            <div class="form-group-switch has-switch-header full-width" id="platform-evidence-wrapper" style="margin-top: 20px;">
+                                <div class="switch-header">
+                                    <div class="switch-label-group">
+                                        <label for="platformRequiresEvidence">Exigir evidencias fotográficas</label>
+                                        <small class="input-hint">El trabajador deberá subir fotos obligatoriamente para poder culminar la tarea.</small>
+                                    </div>
+                                    <label class="switch">
+                                        <input type="checkbox" id="platformRequiresEvidence" name="platformRequiresEvidence">
+                                        <span class="slider round"></span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="form-group-admin">
+                                <label>Describe las instrucciones paso a paso</label>
+                                <div class="admin-step-inputs" id="platformStepInputs">
+                                    <div class="admin-step-input" data-step="1">
+                                        <label for="platformStep1">Paso 1</label>
+                                        <input type="text" id="platformStep1" placeholder="Describe el primer paso">
+                                    </div>
+                                    <div class="admin-step-input" data-step="2">
+                                        <label for="platformStep2">Paso 2</label>
+                                        <input type="text" id="platformStep2" placeholder="Describe el segundo paso">
+                                        <div class="step-form-toggle">
+                                            <label class="toggle-label">
+                                                <input type="checkbox" class="step-form-checkbox" data-step="2">
+                                                <span>Activar formulario para este paso</span>
+                                            </label>
+                                            <div class="step-form-fields" style="display: none;">
+                                                <p class="form-hint">Define los campos que el usuario debe completar:
+                                                </p>
+                                                <div class="step-form-inputs">
+                                                    <input type="text" class="step-form-field"
+                                                        placeholder="Campo 1 (ej: Tu usuario de Instagram)">
+                                                    <input type="text" class="step-form-field"
+                                                        placeholder="Campo 2 (ej: Link del post)">
+                                                    <input type="text" class="step-form-field"
+                                                        placeholder="Campo 3 (opcional)">
+                                                </div>
+                                                <button type="button" class="step-add-field-btn">+ Agregar más
+                                                    campos</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="admin-step-input" data-step="3">
+                                        <label for="platformStep3">Paso 3</label>
+                                        <input type="text" id="platformStep3" placeholder="Describe el tercer paso">
+                                        <div class="step-form-toggle">
+                                            <label class="toggle-label">
+                                                <input type="checkbox" class="step-form-checkbox" data-step="3">
+                                                <span>Activar formulario para este paso</span>
+                                            </label>
+                                            <div class="step-form-fields" style="display: none;">
+                                                <p class="form-hint">Define los campos que el usuario debe completar:
+                                                </p>
+                                                <div class="step-form-inputs">
+                                                    <input type="text" class="step-form-field" placeholder="Campo 1">
+                                                    <input type="text" class="step-form-field" placeholder="Campo 2">
+                                                    <input type="text" class="step-form-field"
+                                                        placeholder="Campo 3 (opcional)">
+                                                </div>
+                                                <button type="button" class="step-add-field-btn">+ Agregar más
+                                                    campos</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="admin-step-input" data-step="4">
+                                        <label for="platformStep4">Paso 4</label>
+                                        <input type="text" id="platformStep4" placeholder="Describe el cuarto paso">
+                                        <div class="step-form-toggle">
+                                            <label class="toggle-label">
+                                                <input type="checkbox" class="step-form-checkbox" data-step="4">
+                                                <span>Activar formulario para este paso</span>
+                                            </label>
+                                            <div class="step-form-fields" style="display: none;">
+                                                <p class="form-hint">Define los campos que el usuario debe completar:
+                                                </p>
+                                                <div class="step-form-inputs">
+                                                    <input type="text" class="step-form-field" placeholder="Campo 1">
+                                                    <input type="text" class="step-form-field" placeholder="Campo 2">
+                                                    <input type="text" class="step-form-field"
+                                                        placeholder="Campo 3 (opcional)">
+                                                </div>
+                                                <button type="button" class="step-add-field-btn">+ Agregar más
+                                                    campos</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" id="platformAddStepBtn" class="admin-step-add-btn">Agregar más
+                                    pasos</button>
+                            </div>
+
+                            <div class="form-row-admin">
+                                <div class="form-group-admin">
+                                    <label>Tipo de Publicación:</label>
+                                    <div class="radio-group-admin">
+                                        <input type="radio" id="platformPubTypeRequest" name="platformPubType"
+                                            value="request" checked>
+                                        <label for="platformPubTypeRequest">Solicitud (paga BLUE)</label>
+                                        <input type="radio" id="platformPubTypeSell" name="platformPubType"
+                                            value="sell">
+                                        <label for="platformPubTypeSell">Venta (recibe BLUE)</label>
+                                    </div>
+                                </div>
+                                <div class="form-group-admin">
+                                    <label for="platformPubCost">Valor Base Real (en BLUE):</label>
+                                    <input type="number" id="platformPubCost" required min="0.0001" step="any">
+                                    <small id="platformPubCostCalculator" style="display: block; margin-top: 6px; color: #0284c7; font-weight: 600; font-size: 0.88rem;"></small>
+                                </div>
+                                <div class="form-group-admin">
+                                    <label for="platformPubSlots">Cupos Disponibles:</label>
+                                    <input type="number" id="platformPubSlots" required min="1" step="1" value="1">
+                                </div>
+                            </div>
+
+                            <div class="form-group-checkbox">
+                                <input type="checkbox" id="platformAutoApprove">
+                                <label for="platformAutoApprove">Aprobar automáticamente a los participantes</label>
+                            </div>
+
+                            <div class="form-group-checkbox repeat-switch">
+                                <div class="switch-header">
+                                    <div class="switch-label-group">
+                                        <label for="platformAllowRepeatParticipation">Permitir que los usuarios repitan
+                                            esta tarea</label>
+                                    </div>
+                                    <input type="checkbox" id="platformAllowRepeatParticipation">
+                                </div>
+                                <div class="repeat-limit-input" id="platformRepeatLimitWrapper" style="display: none;">
+                                    <label class="repeat-label" for="platformRepeatLimit">Veces que puede
+                                        repetir</label>
+                                    <div class="repeat-input-row">
+                                        <input type="number" id="platformRepeatLimit" min="2" step="1" value="2">
+                                    </div>
+                                    <small class="input-hint"></small>
+                                </div>
+                                <div class="repeat-limit-input" id="platformRepeatCooldownWrapper"
+                                    style="display: none;">
+                                    <label class="repeat-label">Tiempo mínimo para repetir</label>
+                                    <div class="repeat-cooldown-inputs repeat-input-row">
+                                        <div class="repeat-cooldown-field">
+                                            <input type="number" id="platformRepeatCooldownDays" min="0" step="1"
+                                                value="0" placeholder="Días">
+                                            <small class="repeat-cooldown-unit">d</small>
+                                        </div>
+                                        <div class="repeat-cooldown-field">
+                                            <input type="number" id="platformRepeatCooldownHours" min="0" step="1"
+                                                value="0" placeholder="Horas">
+                                            <small class="repeat-cooldown-unit">h</small>
+                                        </div>
+                                        <div class="repeat-cooldown-field">
+                                            <input type="number" id="platformRepeatCooldownMinutes" min="0" step="1"
+                                                value="12" placeholder="Minutos">
+                                            <small class="repeat-cooldown-unit">min</small>
+                                        </div>
+                                    </div>
+                                    <small class="input-hint"></small>
+                                </div>
+                            </div>
+
+                            <div class="form-group-checkbox booster-task-checkbox">
+                                <input type="checkbox" id="platformIsBoosterTask">
+                                <label for="platformIsBoosterTask">Tarea de Impulsor (Booster)</label>
+                                <small class="input-hint">Marcar si esta tarea otorga BLUE de Impulsor y cuenta para el
+                                    programa.</small>
+                            </div>
+
+                            <div class="form-group-checkbox preflight-modal-checkbox">
+                                <input type="checkbox" id="platformShowPreflightModal">
+                                <label for="platformShowPreflightModal">Activar Modal de Instrucciones Diarias
+                                    (Intersticial)</label>
+                                <small class="input-hint">Muestra un bloqueo de pantalla con el mensaje del día antes de
+                                    ver la tarea.</small>
+                            </div>
+
+                            <div class="form-group-admin target-user-group">
+                                <label for="platformTargetUsername">Usuario específico (opcional):</label>
+                                <input type="text" id="platformTargetUsername"
+                                    placeholder="Dejar vacío = visible para todos">
+                                <small class="input-hint">Si escribes un nombre de usuario, esta publicación SOLO será
+                                    visible para ese usuario.</small>
+                            </div>
+
+                            <div class="admin-form-actions">
+                                <button type="submit" id="platformPublicationSubmitBtn"
+                                    class="action-button-admin publish">Crear Publicación</button>
+                                <button type="button" id="platformCancelEditBtn" class="admin-edit-cancel"
+                                    style="display: none;">Cancelar edición</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="table-controls platform-publications-controls">
+                    <input type="text" id="platformPublicationSearchInput"
+                        placeholder="Buscar publicaciones (título o descripción)">
+                    <select id="platformPublicationStatusFilter">
+                        <option value="all" selected>Todos los estados</option>
+                        <option value="active">Activas</option>
+                        <option value="paused">Pausadas</option>
+                        <option value="completed">Completadas</option>
+                        <option value="expired">Expiradas</option>
+                        <option value="deleted">Eliminadas</option>
+                    </select>
+                    <select id="platformPublicationSortSelect">
+                        <option value="pending" selected>Ordenar por pendientes</option>
+                        <option value="recent">Más recientes</option>
+                        <option value="oldest">Más antiguas</option>
+                        <option value="reward_desc">Mayor recompensa</option>
+                        <option value="reward_asc">Menor recompensa</option>
+                        <option value="participants_desc">Más participantes</option>
+                        <option value="approvals_desc">Más aprobaciones pendientes</option>
+                        <option value="payments_desc">Más pagos pendientes</option>
+                    </select>
+                </div>
+
+                <hr class="admin-divider">
+
+                <div id="platform-publications-management">
+                    <div id="platform-management-list" class="publications-list-admin">
+                        <!-- El contenido se cargará aquí dinámicamente -->
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- NUEVA SECCIÓN PARA EL SISTEMA DE REFERIDOS -->
+            <section id="referrals-section" class="admin-section">
+                <h1>Sistema de Referidos</h1>
+                <p>Gestiona la configuración del programa de referidos de la plataforma.</p>
+
+                <div id="referrals-settings-container" class="settings-container">
+                    <!-- Las opciones de configuración de referidos se cargarán aquí dinámicamente. -->
+                    <div class="loading-spinner"></div>
+                </div>
+
+                <hr class="admin-divider">
+
+                <h2>Tramos de Recompensa (Halving Dinámico)</h2>
+                <p>Configura las recompensas de referidos por tramos basados en el conteo total de usuarios registrados.</p>
+                <div id="referrals-tiers-container" class="settings-container">
+                    <!-- Los tramos de referidos se cargarán aquí dinámicamente -->
+                    <div class="loading-spinner"></div>
+                </div>
+
+                <hr class="admin-divider">
+
+                <h2>Mensaje de Referido (WhatsApp / Redes)</h2>
+                <p>Configura el código especial de invitación y la plantilla de texto para compartir.</p>
+                <div id="referrals-message-container" class="settings-container">
+                    <!-- Las opciones del mensaje se cargarán dinámicamente -->
+                    <div class="loading-spinner"></div>
+                </div>
+
+                <hr class="admin-divider">
+
+                <h2>Registro de Referidos</h2>
+                <p>Aquí puedes ver un historial de todos los usuarios que se han registrado a través de un referido.</p>
+                <div id="referrals-log-container" class="table-container-admin">
+                    <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- Booster Management Section -->
+            <section id="boosters-section" class="admin-section">
+                <h1>Impulsores</h1>
+
+                <div class="admin-tabs">
+                    <button class="tab-link active" data-tab="boosters-dashboard">Dashboard</button>
+                    <button class="tab-link" data-tab="boosters-settings">Configuración</button>
+                    <button class="tab-link" data-tab="boosters-stages">Etapas y Multiplicadores</button>
+                    <button class="tab-link" data-tab="boosters-list">Lista de Impulsores</button>
+                    <button class="tab-link" data-tab="boosters-payments">Historial de Pagos</button>
+                </div>
+
+                <div id="boosters-dashboard-tab" class="tab-content active">
+                    <div id="boosters-dashboard-stats" class="stats-container">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+
+                <div id="boosters-settings-tab" class="tab-content">
+                    <h2>Configuración del Programa</h2>
+                    <p>Ajusta los parámetros del sistema de Impulsores.</p>
+                    <div id="boosters-settings-container" class="settings-container">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+
+                <div id="boosters-stages-tab" class="tab-content">
+                    <h2>Etapas de Multiplicación</h2>
+                    <p>Define las fechas y multiplicadores para las recompensas de impulsores.</p>
+                    <div id="boosters-stages-container" class="table-container-admin">
+                        <!-- Las etapas se cargarán aquí dinámicamente -->
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+
+                <div id="boosters-list-tab" class="tab-content">
+                    <h2>Lista de Impulsores</h2>
+                    <p>Todos los usuarios que participan en el programa.</p>
+                    <!-- Contenedor del badge del filtro de nivel activo con diseño premium coherente -->
+                    <div id="boosters-filter-badge-container" style="margin-bottom: 15px; display: none;">
+                        <span class="filter-badge" style="background: rgba(10, 132, 255, 0.15); color: var(--admin-primary); padding: 6px 14px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(10, 132, 255, 0.3);">
+                            Filtrado por: Nivel <span id="active-filter-level-num" style="color: #fff;"></span>
+                            <button id="clear-booster-filter-btn" style="background: none; border: none; color: #ff453a; cursor: pointer; font-weight: 800; padding: 0 4px; font-size: 1.1rem; line-height: 1;" title="Limpiar filtro">✕</button>
+                        </span>
+                    </div>
+                    <div id="boosters-list-container" class="table-container-admin">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+
+                <div id="boosters-payments-tab" class="tab-content">
+                    <h2>Historial de Pagos a Impulsores</h2>
+                    <p>Registro de todas las recompensas distribuidas mensualmente.</p>
+                    <div id="boosters-payments-log-container" class="table-container-admin">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sección Recompensas de Gobernanza -->
+            <section id="gov-rewards-section" class="admin-section">
+                <h1>Recompensas de Gobernanza</h1>
+                <p>Gestiona las recompensas BLUE IOU por participación en el sistema de votación.</p>
+
+                <div id="gov-rewards-stats" class="stats-container">
+                    <div class="loading-spinner"></div>
+                </div>
+
+                <div id="gov-rewards-action" style="margin-top: 1.5rem; display: none;">
+                    <div class="admin-card" style="border-left: 4px solid #059669;">
+                        <h3 id="gov-rewards-summary"></h3>
+                        <p id="gov-rewards-description" style="margin: 0.5rem 0 1rem; color: #667085;"></p>
+                        <button id="gov-rewards-process-btn" class="admin-btn" style="background: #059669; color: #fff; padding: 10px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                            Procesar Pagos Pendientes
+                        </button>
+                    </div>
+                </div>
+
+                <div id="gov-rewards-result" style="margin-top: 1rem; display: none;"></div>
+
+                <!-- Transferencia Demo → Producción -->
+                <hr style="margin: 2.5rem 0; border-color: #E5E7EB;">
+                <h2 style="margin-bottom: 0.5rem;">Transferencia Demo → Producción</h2>
+                <p style="color: #667085; margin-bottom: 1.5rem;">Exporta la actividad de gobernanza desde demo e impórtala en producción para acreditar recompensas reales.</p>
+
+                <!-- Exportar -->
+                <div class="admin-card" style="border-left: 4px solid #3B82F6; margin-bottom: 1.5rem;">
+                    <h3>Exportar Actividad de Gobernanza</h3>
+                    <p style="color: #667085; margin: 0.5rem 0 1rem;">Genera un reporte firmado (HMAC-SHA256) de los votos no exportados en este entorno.</p>
+                    <div id="gov-export-stats" style="margin-bottom: 1rem;"></div>
+                    <button id="gov-export-btn" class="admin-btn" style="background: #3B82F6; color: #fff; padding: 10px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                        Exportar Reporte
+                    </button>
+                    <div id="gov-export-result" style="margin-top: 1rem; display: none;"></div>
+                </div>
+
+                <!-- Historial de Exportaciones -->
+                <div class="admin-card" style="border-left: 4px solid #6B7280; margin-bottom: 1.5rem;">
+                    <h3>Historial de Exportaciones</h3>
+                    <p style="color: #667085; margin: 0.5rem 0 1rem;">Exportaciones anteriores guardadas para re-descarga en caso de pérdida del archivo.</p>
+                    <div id="gov-export-history"></div>
+                </div>
+
+                <!-- Importar -->
+                <div class="admin-card" style="border-left: 4px solid #8B5CF6;">
+                    <h3>Importar Recompensas desde Demo</h3>
+                    <p style="color: #667085; margin: 0.5rem 0 1rem;">Sube un reporte exportado desde el entorno de pruebas para acreditar BLUE IOU en cuentas reales.</p>
+                    <div style="margin-bottom: 1rem;">
+                        <label for="gov-import-file" style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Archivo JSON exportado:</label>
+                        <input type="file" id="gov-import-file" accept=".json" style="padding: 8px; border: 1px solid #D1D5DB; border-radius: 8px; width: 100%; max-width: 400px;">
+                    </div>
+                    <button id="gov-import-validate-btn" class="admin-btn" style="background: #8B5CF6; color: #fff; padding: 10px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                        Validar Archivo
+                    </button>
+                    <div id="gov-import-preview" style="margin-top: 1rem; display: none;"></div>
+                    <button id="gov-import-process-btn" class="admin-btn" style="background: #059669; color: #fff; padding: 10px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; margin-top: 1rem; display: none;">
+                        Confirmar y Procesar Pagos
+                    </button>
+                    <div id="gov-import-result" style="margin-top: 1rem; display: none;"></div>
+                </div>
+            </section>
+
+            <!-- Winton Academy Section -->
+            <section id="academy-section" class="admin-section">
+                <h1>Winton Academy 🎓</h1>
+                <p>Gestiona los videotutoriales interactivos mostrados en la página "Cómo Funciona".</p>
+
+                <div class="admin-grid" style="grid-template-columns: 1fr;">
+                    <!-- Formulario Nuevo Video -->
+                    <div class="admin-card">
+                        <h3>Agregar Nuevo Video</h3>
+                        <form id="academyVideoForm"
+                            style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
+                            <div class="form-group">
+                                <label for="academyVideoUrl">Enlace de YouTube:</label>
+                                <input type="url" id="academyVideoUrl" class="admin-input"
+                                    placeholder="Ej: https://youtu.be/bx0BuO7l7MQ" required
+                                    style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                                <small style="color: #888; display: block; margin-top: 5px;">El sistema detectará
+                                    automáticamente el ID del video (acepta links completos o cortos).</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="academyVideoTitle">Título Interactivo:</label>
+                                <input type="text" id="academyVideoTitle" class="admin-input"
+                                    placeholder="Ej: Aprende a crear tu primera publicación WintonCoin 🚀" required
+                                    style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                            </div>
+
+                            <div class="form-group"
+                                style="display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: 10px;">
+                                <label for="academyVideoOrder">Orden Lógico (#):</label>
+                                <input type="number" id="academyVideoOrder" class="admin-input" placeholder="0"
+                                    value="0"
+                                    style="padding: 10px; border-radius: 5px; border: 1px solid #ccc; width: 100px;">
+                            </div>
+
+                            <button type="submit" class="admin-btn primary action-button-admin"
+                                style="align-self: flex-start;">Guardar Tutorial</button>
+                        </form>
+                    </div>
+
+                    <!-- Lista de Videos -->
+                    <div class="admin-card">
+                        <h3>Videos en Cartelera</h3>
+                        <div id="academy-table-container" class="table-container-admin" style="margin-top: 15px;">
+                            <div class="loading-spinner"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sección Winton Solidario (Causas Humanitarias) -->
+            <section id="humanitarian-section" class="admin-section">
+                <h1>❤️ Winton Solidario</h1>
+                <p>Gestión de postulaciones de causas humanitarias. Revisa, aprueba o rechaza solicitudes.</p>
+
+                <div class="table-controls">
+                    <input type="text" id="humanitarianSearchInput" placeholder="Buscar por título o usuario...">
+                    <select id="humanitarianStatusFilter">
+                        <option value="all">Todos los estados</option>
+                        <option value="pending" selected>Pendientes</option>
+                        <option value="approved">Aprobadas</option>
+                        <option value="rejected">Rechazadas</option>
+                        <option value="completed">Completadas</option>
+                    </select>
+                </div>
+
+                <!-- Estadísticas rápidas -->
+                <div id="humanitarian-stats" class="stats-container" style="margin-bottom: 1.5rem;">
+                    <div class="loading-spinner"></div>
+                </div>
+
+                <!-- Tabla de causas -->
+                <div id="humanitarian-table-container" class="table-container-admin">
+                    <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- Modal de Detalle de Causa Humanitaria -->
+            <div id="humanitarianDetailModal" class="modal">
+                <div class="modal-content" style="max-width: 650px;">
+                    <span class="close-button humanitarian-modal-close">&times;</span>
+                    <h2 id="humanitarianModalTitle" style="margin-bottom: 1rem;">Detalle de Causa</h2>
+                    <div id="humanitarianModalBody"></div>
+                    <div id="humanitarianModalActions" class="modal-actions" style="margin-top: 1.5rem;"></div>
+                </div>
+            </div>
+
+            <!-- Sección Damnificados Terremoto (SOS Venezuela) -->
+            <section id="sos-victims-section" class="admin-section">
+                <h1>🚨 Damnificados Terremoto (SOS Venezuela)</h1>
+                <p>Gestión y auditoría de expedientes de censo, verificación de estado y asignación de ayuda en tokens BLUE.</p>
+
+                <div class="table-controls" style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem;">
+                    <input type="text" id="sosVictimsSearchInput" class="admin-input-dark" placeholder="Buscar por expediente, nombre o cédula..." style="flex: 1; min-width: 250px; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: #fff;">
+                    <select id="sosVictimsStatusFilter" class="admin-input-dark" style="padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); background: #0f172a; color: #fff;">
+                        <option value="all">Todos los estados</option>
+                        <option value="pending_verification" selected>En Verificación Manual</option>
+                        <option value="info_requested">Información Requerida</option>
+                        <option value="verified_approved">Aprobados</option>
+                        <option value="disbursed">Desembolsados</option>
+                        <option value="rejected">Rechazados</option>
+                    </select>
+                    <button type="button" id="sosEditEmailTemplatesBtn" class="action-button-admin publish" style="padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                        ✉️ Plantillas de Correo SOS
+                    </button>
+                </div>
+
+                <!-- Tabla de Expedientes SOS -->
+                <div id="sos-victims-table-container" class="table-container-admin">
+                    <div class="loading-spinner"></div>
+                </div>
+            </section>
+
+            <!-- Modal de Detalle de Expediente SOS -->
+            <div id="sosVictimDetailModal" class="modal">
+                <div class="modal-content" style="max-width: 700px; max-height: 90vh; overflow-y: auto; position: relative;">
+                    <span class="close-button sos-victim-modal-close">&times;</span>
+                    <h2 id="sosVictimModalTitle" style="margin-bottom: 1rem; color: #ec4899;">Expediente de Censo</h2>
+                    <div id="sosVictimModalBody"></div>
+                    <div id="sosVictimModalActions" class="modal-actions" style="margin-top: 1.5rem; display: flex; gap: 0.8rem; justify-content: flex-end; flex-wrap: wrap;"></div>
+                </div>
+            </div>
+
+            <!-- Modal de Asignación de Ayuda SOS -->
+            <div id="sosVictimDisburseModal" class="modal">
+                <div class="modal-content" style="max-width: 500px;">
+                    <span class="close-button sos-disburse-modal-close">&times;</span>
+                    <h2 style="margin-bottom: 1rem; color: #10b981;">💸 Asignar Ayuda Humanitaria</h2>
+                    <form id="sosDisburseForm">
+                        <input type="hidden" id="sosDisburseVictimId">
+                        <div style="margin-bottom: 1rem;">
+                            <label style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.4rem;">Monto en Tokens BLUE IOU:</label>
+                            <input type="number" id="sosDisburseAmount" required min="1" step="any" placeholder="Ej: 500" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff;">
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <label style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.4rem;">Fase / Periodo de Entrega:</label>
+                            <input type="text" id="sosDisbursePeriod" required value="Fase 1 - Asistencia Inicial" placeholder="Ej: Entrega Mensual Agosto" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff;">
+                        </div>
+                        <div style="margin-bottom: 1.25rem;">
+                            <label style="font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 0.4rem;">Notas Auditables:</label>
+                            <textarea id="sosDisburseNotes" rows="3" placeholder="Detalles de inspección o concepto de entrega..." style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff;"></textarea>
+                        </div>
+                        <button type="submit" class="action-button-admin publish" style="width: 100%; padding: 12px; font-weight: 700;">Confirmar Asignación de Tokens</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Modal de Plantillas de Correo SOS -->
+            <div id="sosEmailTemplatesModal" class="modal">
+                <div class="modal-content" style="max-width: 750px;">
+                    <span class="close-button sos-templates-modal-close">&times;</span>
+                    <h2 style="margin-bottom: 1rem; color: #ec4899;">✉️ Configuración de Plantillas de Correo SOS</h2>
+                    <div id="sosEmailTemplatesBody"></div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ES Modules (Vite) -->
+
+    <!-- Contenedor para alertas dinámicas -->
+    <div id="custom-alert-container"></div>
+
+    <!-- Modal de Alerta -->
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación -->
+    <div id="customConfirmModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <span class="close-button confirm-close-button">&times;</span>
+            <h2 id="customConfirmTitle" style="margin-top: 0;">Confirmar Acción</h2>
+            <p id="customConfirmMessage">¿Estás seguro de que deseas continuar?</p>
+            <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 1.5rem;">
+                <button id="customConfirmCancelBtn" class="action-button-admin cancel-button" style="background-color: transparent; border: 1px solid #475569; color: #E2E8F0;">Cancelar</button>
+                <button id="customConfirmAcceptBtn" class="action-button-admin delete confirm-button">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para OTP de Cambio de Contraseña de Admin -->
+    <div id="adminOtpModal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <span class="close-modal" id="closeAdminOtpModal">&times;</span>
+            <h2 style="margin-top: 0;">Verificación de Seguridad</h2>
+            <p>Se ha enviado un código a tu correo electrónico. Introdúcelo para autorizar el cambio de contraseña.</p>
+            <form id="adminOtpForm" style="margin-top: 1.5rem;">
+                <input type="text" id="adminOtpInput" class="admin-input-dark" required placeholder="000000" maxlength="6" style="font-size: 24px; text-align: center; letter-spacing: 4px; padding: 1rem;">
+                <button type="submit" id="adminOtpBtn" class="action-button-admin publish" style="margin-top: 1.5rem; width: 100%;">Verificar y Cambiar</button>
+            </form>
+        </div>
+    </div>
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+
+</html>

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[DEMO] Winton Talent - Panel de Reclutamiento</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* Layout General Uniforme con el Admin */
+        .admin-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Toolbar Compacta: Buscador + Stats + Filtros */
+        .controls-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 15px 25px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .search-group {
+            flex: 1;
+            position: relative;
+            min-width: 250px;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748B;
+        }
+
+        #searchInput {
+            width: 100%;
+            padding: 10px 15px 10px 40px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        /* Estadísticas en línea */
+        .stats-compact {
+            display: flex;
+            gap: 20px;
+            border-left: 1px solid rgba(255,255,255,0.1);
+            border-right: 1px solid rgba(255,255,255,0.1);
+            padding: 0 25px;
+        }
+
+        .sc-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .sc-label {
+            font-size: 0.65rem;
+            color: #64748B;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .sc-value {
+            font-size: 1.2rem;
+            font-weight: 800;
+            font-family: 'Outfit', sans-serif;
+            color: var(--talent-primary);
+        }
+
+        .sc-item.warning .sc-value { color: var(--talent-warning); }
+        .sc-item.info .sc-value { color: var(--talent-info); }
+
+        .filters-inline {
+            display: flex;
+            gap: 10px;
+        }
+
+        .filter-mini {
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            color: #94A3B8;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        /* Tabla y Perfiles */
+        .talent-table { width: 100%; border-collapse: collapse; }
+        .talent-table th { 
+            text-align: left; padding: 15px; font-size: 0.75rem; 
+            color: #64748B; border-bottom: 2px solid rgba(255,255,255,0.05);
+        }
+        .talent-table td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+
+        .talent-profile { display: flex; align-items: center; gap: 12px; }
+        .avatar { 
+            width: 36px; height: 36px; background: var(--talent-primary); 
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.9rem; color: white;
+        }
+        .info { display: flex; flex-direction: column; }
+        .name { font-weight: 600; color: #F1F5F9; font-size: 0.9rem; }
+        .id { font-size: 0.7rem; color: #64748B; }
+
+        .contact-info { display: flex; flex-direction: column; gap: 4px; }
+        .email { font-size: 0.85rem; color: #94A3B8; }
+        .linkedin-link { font-size: 0.75rem; color: var(--talent-primary); text-decoration: none; }
+
+        .salary-text.highlight { color: #10B981; font-weight: 700; font-size: 0.95rem; }
+
+        /* Botones de Acción Estilo Admin */
+        .actions { 
+            display: flex; justify-content: flex-end; gap: 8px; 
+        }
+        .btn-action {
+            width: 32px; height: 32px; border: none; border-radius: 6px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.2s; font-size: 0.9rem;
+        }
+        .btn-action.review { background: rgba(99, 102, 241, 0.1); color: #818CF8; }
+        .btn-action.accept { background: rgba(34, 197, 94, 0.1); color: #4ADE80; }
+        .btn-action.reject { background: rgba(239, 68, 68, 0.1); color: #F87171; }
+        .btn-action:hover { transform: translateY(-2px); filter: brightness(1.2); }
+
+        .status-btn {
+            padding: 4px 10px; border-radius: 4px; font-size: 0.7rem;
+            font-weight: 700; text-transform: uppercase;
+        }
+        .status-btn.pending { background: rgba(245, 158, 11, 0.1); color: #FBBF24; }
+        .status-btn.reviewing { background: rgba(99, 102, 241, 0.1); color: #818CF8; }
+        .status-btn.accepted { background: rgba(34, 197, 94, 0.1); color: #4ADE80; }
+
+        @media (max-width: 900px) {
+            .controls-toolbar { flex-direction: column; align-items: stretch; }
+            .stats-compact { border: none; padding: 15px 0; justify-content: space-around; }
+        }
+    </style>
+  <script type="module" crossorigin src="./assets/adminRecruitment.CiD6m-i_.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill.B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="./assets/auth.BgcrufBo.js">
+  <link rel="modulepreload" crossorigin href="./assets/index.pbqrtUCb.js">
+  <link rel="stylesheet" crossorigin href="./assets/style.yScP5BS0.css">
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+<body>
+    <div class="admin-container">
+        <!-- HEADER COMPACTO -->
+        <header class="admin-header">
+            <div class="header-left">
+                <a href="admin-panel.html" class="btn-back">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Volver</span>
+                </a>
+                <div class="title-group">
+                    <h1>Winton <span class="accent">Talent</span></h1>
+                </div>
+            </div>
+        </header>
+
+        <!-- BUSCADOR + ESTADÍSTICAS EN UNA LÍNEA -->
+        <section class="controls-toolbar card">
+            <div class="search-group">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="searchInput" placeholder="Buscar candidato...">
+            </div>
+            
+            <div class="stats-compact">
+                <div class="sc-item">
+                    <span class="sc-label">TOTAL</span>
+                    <span class="sc-value" id="statTotal">0</span>
+                </div>
+                <div class="sc-item warning">
+                    <span class="sc-label">PENDIENTES</span>
+                    <span class="sc-value" id="statPending">0</span>
+                </div>
+                <div class="sc-item info">
+                    <span class="sc-label">REVISION</span>
+                    <span class="sc-value" id="statReviewing">0</span>
+                </div>
+            </div>
+
+            <div class="filters-inline">
+                <select id="statusFilter" class="filter-mini">
+                    <option value="all">Estados</option>
+                    <option value="pending">Pendientes</option>
+                    <option value="reviewing">Revisión</option>
+                    <option value="accepted">Aceptados</option>
+                </select>
+                <select id="roleFilter" class="filter-mini">
+                    <option value="all">Especialidad</option>
+                    <option value="Frontend Developer">Frontend Developer</option>
+                    <option value="Backend Developer">Backend Developer</option>
+                    <option value="Fullstack Developer">Fullstack Developer</option>
+                    <option value="Smart Contract / Solidity Developer">Smart Contract / Solidity Developer</option>
+                    <option value="DevOps & Cloud Engineer">DevOps & Cloud Engineer</option>
+                    <option value="QA & Testing Engineer">QA & Testing Engineer</option>
+                    <option value="UI/UX & Product Designer">UI/UX & Product Designer</option>
+                    <option value="UI/UX Designer">UI/UX Designer (Histórico)</option>
+                    <option value="AI & Data Engineer">AI & Data Engineer</option>
+                    <option value="Product Manager / Owner">Product Manager / Owner</option>
+                    <option value="Marketing / Growth & SEO">Marketing / Growth & SEO</option>
+                    <option value="Marketing / Growth">Marketing / Growth (Histórico)</option>
+                    <option value="Community & Social Media Manager">Community & Social Media Manager</option>
+                    <option value="Moderador de Comunidad">Moderador de Comunidad</option>
+                    <option value="Legal / Compliance & FinTech">Legal / Compliance & FinTech</option>
+                    <option value="Legal / Compliance">Legal / Compliance (Histórico)</option>
+                    <option value="Copywriter & Content Creator">Copywriter & Content Creator</option>
+                    <option value="Voluntario">Voluntario</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
+        </section>
+
+        <!-- TABLA ULTRA COMPACTA -->
+        <main class="table-section card">
+            <div class="table-responsive">
+                <table class="talent-table">
+                    <thead>
+                        <tr>
+                            <th>CANDIDATO</th>
+                            <th>CONTACTO / RRSS</th>
+                            <th>ESPECIALIDAD</th>
+                            <th>SALARIO</th>
+                            <th>FECHA</th>
+                            <th>ESTADO</th>
+                            <th class="text-right">ACCIONES</th>
+                        </tr>
+                    </thead>
+                    <tbody id="talentTableBody">
+                        <!-- LLenado dinámico -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal de Alerta Personalizado -->
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+
+
+    <!-- MODAL ATS: FICHA DE EVALUACIÓN COMPLETA DEL POSTULANTE -->
+    <div id="candidateDetailModal" class="modal" style="display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(4,6,10,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;">
+        <div class="modal-content" style="width: 100%; max-width: 750px; background: #0f141c; border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 18px; padding: 28px; color: #f0f6fc; box-shadow: 0 20px 60px rgba(0,0,0,0.8); position: relative; max-height: 90vh; overflow-y: auto; box-sizing: border-box;">
+            <span class="close-button" onclick="closeCandidateModal()" style="position: absolute; top: 18px; right: 22px; font-size: 1.5rem; color: #8b949e; cursor: pointer; font-weight: bold;">&times;</span>
+            
+            <!-- Header del Postulante -->
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 18px;">
+                <div id="modalAvatar" style="width: 54px; height: 54px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #1d4ed8); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800; color: #fff; flex-shrink: 0;"></div>
+                <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <h2 id="modalFullName" style="margin: 0; font-size: 1.4rem; font-weight: 800; color: #ffffff;"></h2>
+                        <span id="modalStatusBadge" class="status-btn"></span>
+                    </div>
+                    <div style="display: flex; gap: 12px; font-size: 0.85rem; color: #94a3b8; margin-top: 4px; flex-wrap: wrap;">
+                        <span id="modalRole" style="color: #60a5fa; font-weight: 700;"></span>
+                        <span>•</span>
+                        <span id="modalYearsExperience"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grid de Metadatos -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 12px;">
+                    <div style="font-size: 0.7rem; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Correo Electrónico</div>
+                    <div id="modalEmail" style="font-size: 0.92rem; font-weight: 600; color: #f0f6fc; margin-top: 4px; word-break: break-all;"></div>
+                </div>
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 12px;">
+                    <div style="font-size: 0.7rem; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Ingreso Pretendido</div>
+                    <div id="modalSalary" style="font-size: 1.1rem; font-weight: 800; color: #10b981; margin-top: 4px;"></div>
+                </div>
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 12px;">
+                    <div style="font-size: 0.7rem; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Fecha de Postulación</div>
+                    <div id="modalDate" style="font-size: 0.88rem; font-weight: 600; color: #f0f6fc; margin-top: 4px;"></div>
+                </div>
+            </div>
+
+            <!-- Documentación & Enlaces Directos -->
+            <div style="margin-bottom: 24px;">
+                <h4 style="margin: 0 0 12px 0; font-size: 0.85rem; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.5px;">Documentación y Recursos del Candidato</h4>
+                <div id="modalLinksContainer" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
+            </div>
+
+            <!-- Carta de Presentación -->
+            <div style="margin-bottom: 24px;">
+                <h4 style="margin: 0 0 10px 0; font-size: 0.85rem; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.5px;">Carta de Presentación / Motivación</h4>
+                <div id="modalCoverLetter" style="background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; font-size: 0.9rem; line-height: 1.6; color: #e2e8f0; max-height: 160px; overflow-y: auto; white-space: pre-wrap;"></div>
+            </div>
+
+            <!-- Observaciones del Reclutador -->
+            <div style="margin-bottom: 24px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 0.85rem; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.5px;">Notas de Evaluación / Comentarios del Reclutador</h4>
+                <textarea id="modalReviewerNotes" rows="3" style="width: 100%; padding: 12px; background: #080a0d; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #f0f6fc; font-family: inherit; font-size: 0.88rem; box-sizing: border-box;" placeholder="Escribe observaciones sobre la entrevista, conocimientos técnicos o notas de seguimiento..."></textarea>
+            </div>
+
+            <!-- Acciones Directas ATS -->
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+                <button onclick="saveCandidateNotes()" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #f0f6fc; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; font-family: inherit;">💾 Guardar Notas</button>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button onclick="changeStatusFromModal('reviewing')" style="background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.4); color: #818cf8; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: inherit;">👁️ Marcar En Revisión</button>
+                    <button onclick="changeStatusFromModal('rejected')" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: inherit;">❌ Rechazar</button>
+                    <button onclick="changeStatusFromModal('accepted')" style="background: linear-gradient(135deg, #16a34a, #15803d); border: none; color: white; padding: 10px 22px; border-radius: 8px; font-weight: 800; cursor: pointer; font-family: inherit; box-shadow: 0 4px 15px rgba(22,163,74,0.3);">✅ Aceptar Candidato</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+</html>

@@ -67,8 +67,8 @@ export default defineConfig(({ mode }) => ({
   // BUILD CONFIGURATION
   // ============================================================================
   build: {
-    // Directorio de salida
-    outDir: 'dist',
+    // Directorio de salida dinámico: aisla el entorno demo del de producción
+    outDir: mode === 'demo' ? 'dist-demo' : 'dist',
 
     // Directorio para assets (CSS, JS, imágenes procesadas)
     assetsDir: 'assets',

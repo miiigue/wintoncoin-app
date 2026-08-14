@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>[DEMO] Admin Momentum — WintonCoin</title>
+    <link rel="icon" href="./assets/favicon.DuxeKF20.ico">
+  <script type="module" crossorigin src="./assets/momentumAdmin.DmGMEvmr.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill.B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="./assets/auth.BgcrufBo.js">
+  <link rel="modulepreload" crossorigin href="./assets/index.pbqrtUCb.js">
+  <link rel="stylesheet" crossorigin href="./assets/momentumAdmin.BXH8GdRk.css">
+  <link rel="stylesheet" crossorigin href="./assets/momentum-dashboard.PVUfBBWy.css">
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+
+<body class="momentum-admin-body">
+
+    <!-- ========== HEADER SUPERIOR ========== -->
+    <header class="mma-header">
+        <div class="mma-header__inner">
+            <div class="mma-header__brand">
+                <span class="mma-header__logo">⚡ Momentum Admin</span>
+                <span class="mma-header__badge">Panel Oficial</span>
+            </div>
+            <div class="mma-header__actions">
+                <a href="admin-panel.html" class="mma-header__back-btn">← Admin Panel</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- ========== CONTENEDOR PRINCIPAL ========== -->
+    <main class="mma-container">
+        <!-- Navegación por Pestañas (Tabs) -->
+        <nav class="mma-tabs-nav" id="mma-tabs">
+            <button class="mma-tab --active" data-panel="config">⚙️ Config Global</button>
+            <button class="mma-tab" data-panel="applicants">📋 Postulantes</button>
+            <button class="mma-tab" data-panel="profiles">👥 Influencers</button>
+            <button class="mma-tab" data-panel="campaigns">🎯 Campañas</button>
+            <button class="mma-tab" data-panel="verify">✅ Verificar Entregas</button>
+        </nav>
+
+        <!-- ========== TAB: CONFIGURACIÓN GLOBAL ========== -->
+        <div class="mma-panel --active" id="mma-panel-config">
+            <div class="mma-section-header">
+                <h3 class="mma-section-title">Configuración Global</h3>
+            </div>
+            <div class="mma-config-grid" id="mma-config-grid">
+                <div class="mma-config-card">
+                    <label>Multiplicador Vigente</label>
+                    <input type="number" id="mma-cfg-multiplier" step="0.01" min="1" placeholder="Ej. 9.00">
+                </div>
+                <div class="mma-config-card">
+                    <label>Nombre de Fase</label>
+                    <input type="text" id="mma-cfg-phase" maxlength="100" placeholder="Ej. Etapa 3">
+                </div>
+                <div class="mma-config-card">
+                    <label>Cupos Totales</label>
+                    <input type="number" id="mma-cfg-total-slots" min="0" placeholder="100">
+                </div>
+                <div class="mma-config-card">
+                    <label>Cupos Ocupados</label>
+                    <input type="number" id="mma-cfg-occupied" min="0" placeholder="0">
+                </div>
+                <div class="mma-config-card">
+                    <label>Fecha Fin de Fase</label>
+                    <input type="datetime-local" id="mma-cfg-end-date">
+                </div>
+            </div>
+            <button class="mma-btn mma-btn--gold" id="mma-save-config">💾 Guardar Configuración</button>
+        </div>
+
+        <!-- ========== TAB: POSTULANTES ========== -->
+        <div class="mma-panel" id="mma-panel-applicants">
+            <div class="mma-section-header">
+                <h3 class="mma-section-title">Postulantes Pendientes</h3>
+            </div>
+            <div id="mma-applicants-list"></div>
+        </div>
+
+        <!-- ========== TAB: INFLUENCERS ========== -->
+        <div class="mma-panel" id="mma-panel-profiles">
+            <div class="mma-section-header">
+                <h3 class="mma-section-title">Influencers Activos</h3>
+            </div>
+            <div id="mma-profiles-list"></div>
+        </div>
+
+        <!-- ========== TAB: CAMPAÑAS ========== -->
+        <div class="mma-panel" id="mma-panel-campaigns">
+            <div class="mma-section-header">
+                <h3 class="mma-section-title">Gestión de Campañas</h3>
+            </div>
+
+            <!-- Formulario de creación de campaña -->
+            <div class="mma-create-form" id="mma-create-campaign-form">
+                <h4>➕ Nueva Campaña</h4>
+                <div class="mma-form-row">
+                    <div class="mma-form-field" style="grid-column: 1 / span 2;">
+                        <label>Título de la Misión</label>
+                        <input type="text" id="mma-camp-title" placeholder="Ej: Haz la W de WintonCoin" required>
+                    </div>
+                    <div class="mma-form-field" style="display: flex; flex-direction: row; align-items: center; gap: 10px; padding-top: 24px;">
+                        <input type="checkbox" id="mma-camp-multiple" style="width: 20px; height: 20px; cursor: pointer;">
+                        <label for="mma-camp-multiple" style="margin-bottom: 0; cursor: pointer; text-transform: none;">Misión Repetible</label>
+                    </div>
+                </div>
+                <div class="mma-form-row">
+                    <div class="mma-form-field" style="grid-column: 1 / -1;">
+                        <label>Descripción / Instrucciones</label>
+                        <textarea id="mma-camp-desc" rows="3" placeholder="Describe exactamente qué debe hacer el influencer..."></textarea>
+                    </div>
+                </div>
+                <div class="mma-form-row">
+                    <div class="mma-form-field">
+                        <label>👀 Base Visionario</label>
+                        <input type="number" id="mma-camp-visionario" step="0.01" min="0" placeholder="100">
+                    </div>
+                    <div class="mma-form-field">
+                        <label>🥉 Base Bronce</label>
+                        <input type="number" id="mma-camp-bronce" step="0.01" min="0" placeholder="333">
+                    </div>
+                    <div class="mma-form-field">
+                        <label>🥈 Base Plata</label>
+                        <input type="number" id="mma-camp-plata" step="0.01" min="0" placeholder="666">
+                    </div>
+                    <div class="mma-form-field">
+                        <label>🥇 Base Oro</label>
+                        <input type="number" id="mma-camp-oro" step="0.01" min="0" placeholder="1000">
+                    </div>
+                    <div class="mma-form-field">
+                        <label>💎 Base Platino</label>
+                        <input type="number" id="mma-camp-platino" step="0.01" min="0" placeholder="2000">
+                    </div>
+                </div>
+                <button class="mma-btn mma-btn--gold" id="mma-create-campaign-btn" style="margin-top: 12px;">🚀 Crear Campaña</button>
+            </div>
+
+            <!-- Lista de campañas existentes -->
+            <div id="mma-campaigns-list"></div>
+        </div>
+
+        <!-- ========== TAB: VERIFICACIÓN DE ENTREGAS ========== -->
+        <div class="mma-panel" id="mma-panel-verify">
+            <div class="mma-section-header">
+                <h3 class="mma-section-title">Entregas Pendientes de Verificación</h3>
+            </div>
+            <div id="mma-verify-list"></div>
+        </div>
+    </main>
+
+    <!-- Modal para Editar Campaña -->
+    <div id="mmaEditCampaignModal" class="modal">
+        <div class="modal-content" style="max-width: 650px;">
+            <span class="close-button" id="closeEditCampaignModal">&times;</span>
+            <h3 style="margin-top: 0; color: var(--mma-gold);">✏️ Editar Campaña</h3>
+            <input type="hidden" id="edit-camp-id">
+            
+            <div class="mma-create-form" style="margin-top: 15px; background: transparent; padding: 0; box-shadow: none; border: none;">
+                <div class="mma-form-row">
+                    <div class="mma-form-field" style="grid-column: 1 / span 2;">
+                        <label>Título</label>
+                        <input type="text" id="edit-camp-title" required>
+                    </div>
+                    <div class="mma-form-field" style="display: flex; flex-direction: row; align-items: center; gap: 10px; padding-top: 24px;">
+                        <input type="checkbox" id="edit-camp-multiple" style="width: 20px; height: 20px; cursor: pointer;">
+                        <label for="edit-camp-multiple" style="margin-bottom: 0; cursor: pointer; text-transform: none;">Repetible</label>
+                    </div>
+                </div>
+                <div class="mma-form-row">
+                    <div class="mma-form-field" style="grid-column: 1 / -1;">
+                        <label>Descripción / Instrucciones</label>
+                        <textarea id="edit-camp-desc" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="mma-form-row">
+                    <div class="mma-form-field">
+                        <label>👀 Visionario</label>
+                        <input type="number" id="edit-camp-visionario" step="0.01" min="0">
+                    </div>
+                    <div class="mma-form-field">
+                        <label>🥉 Bronce</label>
+                        <input type="number" id="edit-camp-bronce" step="0.01" min="0">
+                    </div>
+                    <div class="mma-form-field">
+                        <label>🥈 Plata</label>
+                        <input type="number" id="edit-camp-plata" step="0.01" min="0">
+                    </div>
+                    <div class="mma-form-field">
+                        <label>🥇 Oro</label>
+                        <input type="number" id="edit-camp-oro" step="0.01" min="0">
+                    </div>
+                    <div class="mma-form-field">
+                        <label>💎 Platino</label>
+                        <input type="number" id="edit-camp-platino" step="0.01" min="0">
+                    </div>
+                </div>
+                <button class="mma-btn mma-btn--gold" id="btn-save-edit-campaign" style="margin-top: 20px; width: 100%;">💾 Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modales de Alerta y Confirmación Personalizados -->
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+    <div id="customConfirmModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button confirm-close-button">&times;</span>
+            <p id="customConfirmMessage"></p>
+            <div class="confirm-buttons">
+                <button class="action-button cancel-button">Cancelar</button>
+                <button class="action-button confirm-button">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast de Notificación -->
+    <div class="mmd-toast" id="mmd-toast"></div>
+
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+
+</html>

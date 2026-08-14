@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>[DEMO] WintonCoin</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Plataforma de intercambio de bienes y servicios con tokens BLUE y RED">
+    <meta name="theme-color" content="#4a90d9">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="WintonCoin">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="WintonCoin">
+    <meta name="msapplication-TileColor" content="#1a1a2e">
+    <meta name="msapplication-tap-highlight" content="no">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.demo.json">
+
+    <!-- PWA Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="./assets/icon-96x96.DCzaNkg0.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="./assets/icon-72x72.BGJbw9VK.png">
+    <link rel="apple-touch-icon" href="./assets/icon-192x192.DTV1SGDv.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="./assets/icon-152x152.HiZk-PlL.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/icon-192x192.DTV1SGDv.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="./assets/icon-192x192.DTV1SGDv.png">
+
+    <!-- Splash screens for iOS -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+
+    <!-- Importación de la fuente Poppins desde Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400&family=Poppins:wght@300;400;600&display=swap"
+        rel="stylesheet">
+    <!-- Driver.js for Onboarding -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css" />
+    
+    <!-- Componente Premium Sidebar -->
+    <script src="src/components/sidebar.js"></script>
+    
+    <!-- Estilos de Emergencia Terremoto Venezuela (Premium & Responsivo) -->
+    <style>
+        .emergency-banner {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(185, 28, 28, 0.95));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            margin: 15px auto 25px auto;
+            max-width: 1200px;
+            box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3);
+            animation: slideDown-emb 0.5s ease-out;
+            z-index: 10;
+            position: relative;
+        }
+
+        @keyframes slideDown-emb {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .emergency-banner-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .emergency-badge {
+            background: white;
+            color: #b91c1c;
+            font-weight: 800;
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 50px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .emergency-text {
+            flex: 1;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: white;
+            min-width: 250px;
+        }
+
+        .emergency-banner-btn {
+            background: white;
+            color: #b91c1c;
+            border: none;
+            border-radius: 50px;
+            padding: 8px 20px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+        }
+
+        .emergency-banner-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.25);
+            background: #f8fafc;
+        }
+
+        .emergency-banner-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 300;
+            cursor: pointer;
+            line-height: 1;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+            padding: 0 5px;
+        }
+
+        .emergency-banner-close:hover {
+            opacity: 1;
+        }
+
+        /* Modal Emergencia */
+        .venezuela-emergency-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100000;
+            animation: fadeIn-emb 0.4s ease;
+        }
+
+        @keyframes fadeIn-emb {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .venezuela-emergency-modal {
+            background: #0b0b14;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 24px;
+            max-width: 500px;
+            width: 90%;
+            overflow: hidden;
+            box-shadow: 0 25px 60px rgba(239, 68, 68, 0.15);
+            transform: scale(0.9);
+            animation: scaleUp-emb 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes scaleUp-emb {
+            to { transform: scale(1); }
+        }
+
+        .venezuela-emergency-banner-img {
+            height: 220px;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+
+        .venezuela-emergency-img-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, rgba(11, 11, 20, 0.1), rgba(11, 11, 20, 0.95));
+            display: flex;
+            align-items: flex-end;
+            padding: 1.5rem;
+        }
+
+        .venezuela-emergency-badge {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            font-weight: 800;
+            font-size: 0.7rem;
+            padding: 5px 12px;
+            border-radius: 50px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .venezuela-emergency-body {
+            padding: 2rem;
+        }
+
+        .venezuela-emergency-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 1rem;
+        }
+
+        .venezuela-emergency-text {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #e2e8f0;
+            margin-bottom: 1rem;
+        }
+
+        .venezuela-emergency-subtext {
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: #94a3b8;
+            margin-bottom: 1.8rem;
+        }
+
+        .venezuela-emergency-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .venezuela-emergency-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .venezuela-emergency-btn.confirm {
+            background: linear-gradient(135deg, #ef4444, #b91c1c);
+            border: none;
+            color: white;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+        }
+
+        .venezuela-emergency-btn.confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+        }
+
+        .venezuela-emergency-btn.secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+        }
+
+        .venezuela-emergency-btn.secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        /* Responsividad Móvil */
+        @media (max-width: 600px) {
+            .emergency-banner {
+                padding: 0.8rem 1rem;
+                margin: 10px auto 15px auto;
+            }
+            
+            .emergency-banner-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .emergency-text {
+                font-size: 0.85rem;
+                min-width: 100%;
+            }
+            
+            .emergency-banner-btn {
+                width: 100%;
+                text-align: center;
+            }
+
+            .venezuela-emergency-body {
+                padding: 1.5rem;
+            }
+
+            .venezuela-emergency-title {
+                font-size: 1.3rem;
+            }
+
+            .venezuela-emergency-text {
+                font-size: 0.85rem;
+            }
+
+            .venezuela-emergency-subtext {
+                font-size: 0.78rem;
+                margin-bottom: 1.2rem;
+            }
+            
+            .venezuela-emergency-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+        }
+    </style>
+  <script type="module" crossorigin src="./assets/dashboard.Dlf3xYbQ.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill.B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="./assets/auth.BgcrufBo.js">
+  <link rel="modulepreload" crossorigin href="./assets/index.pbqrtUCb.js">
+  <link rel="modulepreload" crossorigin href="./assets/pushManager.4QVSizjR.js">
+  <link rel="stylesheet" crossorigin href="./assets/pushManager.B1WnFsPR.css">
+  <link rel="stylesheet" crossorigin href="./assets/style.yScP5BS0.css">
+  <link rel="stylesheet" crossorigin href="./assets/admin-switch.z10rU-x2.css">
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+
+<body>
+    <!-- ============================================================= -->
+    <!-- MENÚ ORIGINAL MÓVIL (header-menu) - Visible solo en teléfonos -->
+    <!-- El sidebar premium se encargará de escritorio (≥768px)         -->
+    <!-- ============================================================= -->
+    <div class="header-menu">
+        <!-- Menú de Perfil del Usuario -->
+        <div class="profile-menu">
+            <div class="profile-trigger" style="align-items: flex-start; margin-top: -10px;">
+                <span id="usernameDisplay">Usuario</span> <!-- El nombre se insertará aquí -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-list"
+                    viewBox="0 0 16 16" style="margin-top: -2px; margin-left: 8px;">
+                    <path fill-rule="evenodd"
+                        d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z" />
+                </svg>
+            </div>
+            <div class="dropdown-content" id="profileDropdown">
+                <a href="como-funciona.html">¿Cómo funciona?</a>
+                <a href="p2p.html">Vende o Compra BLUE</a>
+                <a href="history.html">Historial</a>
+                <a href="transactions.html">Transacciones</a>
+                <a href="referrals.html">Referidos</a>
+                <a href="booster-profile.html">Perfil de Impulsor</a>
+                <!-- Enlace universal a 'Mi Perfil' disponible para todos los usuarios de la plataforma -->
+                <a href="profile.html" id="menuUserProfile" style="color: #ffffff; font-weight: 600;">👤 Mi Perfil</a>
+                <a href="estado-cuenta.html" style="color: #10B981; font-weight: 600;">Billetera Web3 📊</a>
+                <a href="#" id="menuSolidarioHistory"
+                    style="display: none; color: #e83e8c; font-weight: 600;">Donaciones ❤️</a>
+                <a href="momentum-dashboard.html" id="momentumMenuLink"
+                    style="display: none; color: #f59e0b; font-weight: 600;">Winton Momentum ⚡</a>
+                <a href="love.html">Página L.O.V.</a>
+                <a href="documentation.html">Documentación</a>
+                <a href="/" target="_blank">🌐 Ir al Sitio Web</a>
+                <a href="#" id="openSettingsModal">⚙️ Configuración</a>
+                <a href="#" id="logoutLink">Cerrar Sesión</a>
+            </div>
+        </div>
+
+        <!-- Menú de Notificaciones -->
+        <div class="notification-menu">
+            <div class="notification-trigger" style="margin-top: -5px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" fill="currentColor"
+                    class="bi bi-bell-fill" viewBox="0 0 16 16">
+                    <path
+                        d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2zm.995-14.901a1 1 0 1 0-1.99 0A5.002 5.002 0 0 0 3 6c0 1.098-.5 6-2.5 7h13c-2-1-2.5-5.902-2.5-7 0-2.42-1.72-4.44-4.005-4.901z" />
+                </svg>
+                <span class="notification-badge" id="notificationBadge"></span>
+            </div>
+            <div class="dropdown-content" id="notificationDropdown">
+                <!-- Las notificaciones se cargarán aquí -->
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-main-content">
+
+            <div class="container interaction-container"> <!-- Contenedor para centrar y dar estilo -->
+                <!-- Badge de Pre-lanzamiento (Banda Diagonal) -->
+                <div class="pre-launch-ribbon">
+            <span class="pre-launch-text">
+                <span class="ribbon-shine-overlay"></span>
+                <span class="ribbon-text-content info-text-clickable" role="button" tabindex="0"
+                    aria-label="Información sobre el estado de pre-lanzamiento" data-tooltip-id="tooltip-prelaunch">
+                    Pre-lanzamiento<br>
+                    <span class="ribbon-subtext">VERSION BETA</span>
+                </span>
+            </span>
+        </div>
+        <div id="tooltip-prelaunch" class="info-tooltip prelaunch-tooltip" role="tooltip" aria-hidden="true">
+            <p>Estás en fase de pre-lanzamiento. Las recompensas en BLUE iou se registran en el Perfil de Impulsor y los
+                saldos en la billetera principal se mantienen en cero hasta el lanzamiento oficial.</p>
+        </div>
+
+        <div class="main-title-container">
+            <div class="main-title-row">
+                <h1 class="main-title">
+                    <span class="logo-winton">Winton</span><span class="logo-coin">Coin</span>
+                </h1>
+            </div>
+        </div>
+
+        <!-- Banner de Emergencia Terremoto Venezuela (Persistente / Dismissible) -->
+        <div id="venezuelaEmergencyBanner" class="emergency-banner" style="display: none;">
+            <div class="emergency-banner-content">
+                <span class="emergency-badge">🚨 EMERGENCIA VENEZUELA</span>
+                <!-- OPTIMIZACIÓN DE COPYWRITING: Cambiado a plural para reflejar los dos sismos de la emergencia -->
+                <span class="emergency-text">Dos Terremotos en Venezuela. Dona tus BLUE IOU acumulados gratis para apoyar.</span>
+                <button id="emergencyBannerBtn" class="emergency-banner-btn">Ver Causas</button>
+                <button id="closeEmergencyBanner" class="emergency-banner-close" aria-label="Cerrar">&times;</button>
+            </div>
+        </div>
+        <!-- =============================================================== -->
+        <!-- ==           INTERFAZ DE TABS (IMPULSOR / BILLETERA)          == -->
+        <!-- =============================================================== -->
+        <div class="wallet-tabs-container">
+            <div class="wallet-tabs-nav">
+                <button class="wallet-tab-btn active" data-tab="impulsor" id="tabImpulsor">
+                    Impulsor
+                </button>
+                <button class="wallet-tab-btn" data-tab="billetera" id="tabBilletera">
+                    Billetera
+                </button>
+            </div>
+
+            <!-- Panel IMPULSOR -->
+            <div class="wallet-tab-panel active" id="panelImpulsor" data-panel="impulsor">
+                <a id="boosterSummary" class="booster-banner" href="booster-profile.html">
+                    <div class="booster-banner-header">
+                        <span class="booster-banner-title">Perfil de Impulsor</span>
+                    </div>
+                    <div class="booster-banner-body">
+                        <span class="booster-label">SALDO ACUMULADO</span>
+                        <div id="boosterTotalBlue" class="booster-amount">0 BLUE iou</div>
+                    </div>
+                </a>
+                <div id="sos-my-case-dashboard"></div>
+            </div>
+
+            <!-- Panel BILLETERA -->
+            <div class="wallet-tab-panel" id="panelBilletera" data-panel="billetera">
+                <div id="myWalletAddressContainer" style="display: none; align-items: center; justify-content: center; margin-bottom: 20px; background: rgba(0,0,0,0.25); padding: 6px 14px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.05); width: fit-content; margin: 0 auto 20px auto; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+                        <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+                        <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+                        <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
+                    </svg>
+                    <span id="myWalletAddressText" style="font-family: 'Courier New', Courier, monospace; font-size: 13px; color: #e2e8f0; margin-right: 10px; font-weight: normal; letter-spacing: 0.5px;">...</span>
+                    <button id="copyMyWalletBtn" style="background: none; border: none; cursor: pointer; color: #4da6ff; padding: 2px; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;" title="Copiar dirección" data-address="">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="balances-container">
+                    <!-- Sección BLUE -->
+                    <div class="balance-section blue-section" onclick="window.location.href='estado-cuenta.html'" style="cursor: pointer;" title="Ver Estado de Cuenta">
+                        <h3 class="balance-title">
+                            <span class="info-text-clickable" role="button" tabindex="0"
+                                aria-label="Información sobre SALDO BLUE" data-tooltip-id="tooltip-saldo-blue">SALDO
+                                BLUE</span>
+                        </h3>
+                        <div id="tooltip-saldo-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
+                            <p>Los tokens BLUE son tu activo. Puedes usarlos para pagar servicios, recibirlos por
+                                trabajo
+                                realizado, o quemarlos para amortizar tu compromiso RED. Al lanzamiento oficial
+                                <strong>14-2-2027</strong>, <strong>1 BLUE = 1 USD</strong>.
+                            </p>
+                        </div>
+                        <div class="balance-items">
+                            <div class="balance-item-wrapper">
+                                <span class="balance-label">
+                                    <span class="info-text-clickable" role="button" tabindex="0"
+                                        aria-label="Información sobre Disponibles"
+                                        data-tooltip-id="tooltip-disponibles">Disponibles</span>
+                                </span>
+                                <div id="tooltip-disponibles" class="info-tooltip" role="tooltip" aria-hidden="true">
+                                    <p>Son tus tokens BLUE que puedes usar inmediatamente. Puedes pagar con ellos,
+                                        transferirlos
+                                        o quemarlos para amortizar tu compromiso RED.</p>
+                                </div>
+                                <div class="balance-item">
+                                    <span id="saldoBlue" class="balance-amount blue-amount">--</span>
+                                </div>
+                                <div id="available-countdown-container" class="countdown-container"
+                                    style="display: none;">
+                                    <p id="available-countdown-text" class="countdown-text info-text-clickable"
+                                        role="button" tabindex="0" aria-label="Información sobre próxima liberación"
+                                        data-tooltip-id="tooltip-proxima-liberacion"></p>
+                                    <div id="tooltip-proxima-liberacion" class="info-tooltip" role="tooltip"
+                                        aria-hidden="true">
+                                        <p>Tiempo restante para que tus tokens BLUE pendientes se liberen y estén
+                                            disponibles
+                                            para usar. Este período de espera protege a ambas partes en las
+                                            transacciones.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sección RED -->
+                    <div class="balance-section red-section" title="Ver Estado de Cuenta">
+                        <h3 class="balance-title">
+                            <span class="info-text-clickable" role="button" tabindex="0"
+                                aria-label="Información sobre Saldo RED" data-tooltip-id="tooltip-saldo-red">SALDO
+                                RED</span>
+                        </h3>
+                        <div id="tooltip-saldo-red" class="info-tooltip" role="tooltip" aria-hidden="true">
+                            <p>Los tokens RED representan tu compromiso en el sistema. Se crean cuando realizas un pago a otro usuario. Gracias a la <strong>Regla Materia-Antimateria</strong>, este compromiso se amortizará automáticamente de forma instantánea en cuanto recibas tokens BLUE. Si no logras amortizarlo antes del vencimiento, tu usuario será listado públicamente en la <strong>página L.O.V.</strong> (Lista de Obligaciones Vencidas).</p>
+                        </div>
+                        <div class="balance-items red-balance-items">
+                            <div class="balance-item-wrapper red-balance-wrapper">
+                                <span class="balance-label">
+                                    <span class="info-text-clickable" role="button" tabindex="0"
+                                        aria-label="Información sobre Debes"
+                                        data-tooltip-id="tooltip-saldo-red-label">Tus
+                                        obligaciones</span>
+                                </span>
+                                <div id="tooltip-saldo-red-label" class="info-tooltip" role="tooltip"
+                                    aria-hidden="true">
+                                    <p>Es la cantidad total de tokens RED (compromiso) que tienes actualmente. Este compromiso
+                                        tiene un
+                                        tiempo de vigencia. Se aniquilará matemáticamente en cuanto recibas tokens BLUE líquidos. Si llegas a la fecha límite sin haber amortizado el compromiso, serás listado en la <strong>página L.O.V.</strong>.</p>
+                                </div>
+                                <div class="balance-item">
+                                    <span id="saldoRed" class="balance-amount red-amount">--</span>
+                                </div>
+                                <div id="debt-countdown-container" class="countdown-container" style="display: none;">
+                                    <p id="debt-countdown-text" class="countdown-text info-text-clickable" role="button"
+                                        tabindex="0" aria-label="Información sobre próximo vencimiento"
+                                        data-tooltip-id="tooltip-proximo-vencimiento"></p>
+                                    <div id="tooltip-proximo-vencimiento" class="info-tooltip" role="tooltip"
+                                        aria-hidden="true">
+                                        <p>Tiempo restante antes de que tu compromiso RED expire. Recuerda realizar trabajos o tareas remuneradas para recibir tokens BLUE; la aniquilación del compromiso será automática on-chain. Si llegas al límite, serás listado en la <strong>página L.O.V.</strong>.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- ==           UBICACIÓN DEFINITIVA DEL BANNER DE VALOR        == -->
+        <!-- =============================================================== -->
+
+        <div class="referral-motivation-section">
+            <div class="referral-promo-card" id="shareReferralCard" style="position: relative; overflow: hidden;">
+                <!-- Overlay dinámico de campaña (Oculto por defecto) -->
+                <div class="campaign-bg-overlay" id="campaignBgOverlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: cover; background-position: center; z-index: 1;">
+                    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(to bottom, rgba(15,23,42,0.3) 0%, rgba(15,23,42,0.95) 100%);"></div>
+                </div>
+
+                <!-- Contenido de la tarjeta (Z-index superior para estar sobre el overlay) -->
+                <div style="position: relative; z-index: 2;">
+                    <!-- Sección: Cupos restantes de la promoción -->
+                    <div class="promo-timer-container">
+                        <span class="promo-timer-label" id="promoSlotsLabel">CUPOS DISPONIBLES:</span>
+                        <div class="promo-timer-display">
+                            <div class="timer-unit" style="display: flex; align-items: center; gap: 4px; justify-content: center;">
+                                <!-- "quedan" → mismo tamaño que "al suscribirse" (reward-label: 0.5rem) -->
+                                <span id="promoSlotsPrefix" style="font-family: 'Inter', sans-serif; font-size: 0.5rem; font-weight: 700; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1.2px;">Quedan</span>
+                                <!-- "9990" → mismo tamaño que "200" (reward-value gold-premium: 1.5rem), color blanco -->
+                                <span id="referralRemainingSlots" style="font-family: 'Inter', sans-serif; font-size: 1.5rem; font-weight: 800; color: #fff; line-height: 1; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);">--</span>
+                                <!-- "cupos" → mismo tamaño que "al suscribirse" (reward-label: 0.5rem) -->
+                                <span id="referralRemainingLabel" style="font-family: 'Inter', sans-serif; font-size: 0.5rem; font-weight: 700; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1.2px;">cupos</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sección: Recompensa actual centrada -->
+                    <div class="promo-reward-info">
+                        <div class="reward-main-centered">
+                            <div class="reward-group">
+                                <span class="reward-label" id="referralCardSubtitle">Bono por referir hoy</span>
+                                <div class="reward-value gold-premium">
+                                    <span id="referralAmount">1000</span> <small>BLUE IOU</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sección: Botón de compartir (CTA principal) -->
+                    <button class="referral-share-button">
+                        <div class="button-content">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2.5"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="18" cy="5" r="3"></circle>
+                                <circle cx="6" cy="12" r="3"></circle>
+                                <circle cx="18" cy="19" r="3"></circle>
+                                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                            </svg>
+                            <span id="referralCardBtnText">Compartir mi código</span>
+                        </div>
+                    </button>
+                    
+                    <!-- Pequeño texto de campaña (Oculto por defecto) -->
+                    <div id="campaignCodeNotice" style="display: none; text-align: center; margin-top: 10px; font-size: 0.8rem; color: rgba(255,255,255,0.7);"></div>
+                </div>
+            </div><!-- /.referral-promo-card -->
+        </div><!-- /.referral-motivation-section -->
+
+        <!-- La tarjeta de Winton Solidario (Causas Humanitarias) ha sido reubicada al feed general de publicaciones activas para mejorar visibilidad y consistencia del marketplace. -->
+
+        <div class="publications-section">
+
+            <div class="main-actions-container">
+                <a href="#" id="openPublicationModalBtn" class="button-link primary-action">Crear Nueva Publicación</a>
+                <a href="#" id="openQuickSaleModalBtn" class="button-link secondary-action">⚡ Venta Rápida</a>
+            </div>
+
+            <div class="publications-title">
+                Publicaciones Activas <span class="publications-count-wrapper"><span id="publicationsCount"
+                        class="publications-count">0</span></span>
+            </div>
+
+            <!-- Controles de filtrado y ordenamiento (separados por responsabilidad) -->
+            <div class="publication-controls">
+                <!-- Chips de filtro por tipo de publicación -->
+                <div class="publication-filter-chips" id="publicationFilterChips" role="group" aria-label="Filtrar publicaciones por tipo">
+                    <button type="button" class="filter-chip active" data-filter="all" aria-pressed="true">Todos</button>
+                    <button type="button" class="filter-chip" data-filter="pending" aria-pressed="false">En proceso</button>
+                    <button type="button" class="filter-chip" data-filter="request" aria-pressed="false">Solicitud</button>
+                    <button type="button" class="filter-chip" data-filter="sell" aria-pressed="false">Venta</button>
+                    <button type="button" class="filter-chip" data-filter="donation" aria-pressed="false">Donación</button>
+                    <!-- Filtro para publicaciones ocultadas por el usuario de forma persistente -->
+                    <button type="button" class="filter-chip" data-filter="hidden" aria-pressed="false">Ocultas</button>
+                </div>
+                <!-- Búsqueda + Ordenamiento (en línea horizontal) -->
+                <div class="publication-sort-container">
+                    <div class="publication-search-wrapper">
+                        <input type="text" id="publicationSearchInput" class="publication-search-input"
+                            placeholder="Buscar..." autocomplete="off" aria-label="Buscar publicaciones por título, descripción o autor">
+                        <button type="button" class="publication-search-clear" id="publicationSearchClear"
+                            aria-label="Limpiar búsqueda" style="display: none;">&times;</button>
+                    </div>
+                    <label for="publicationSortSelect" class="publication-sort-label">Ordenar:</label>
+                    <select id="publicationSortSelect" class="publication-sort-select" aria-label="Ordenar publicaciones">
+                        <option value="recent" selected>Más reciente</option>
+                        <option value="oldest">Más antigua</option>
+                        <option value="reward_desc">Mayor recompensa</option>
+                        <option value="reward_asc">Menor recompensa</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="publications-list">
+                <!-- Las publicaciones se cargarán aquí dinámicamente -->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MODAL PARA VENTA RÁPIDA -->
+    <div id="quickSaleModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button quick-sale-close">&times;</span>
+            <form id="quickSaleForm">
+                <h2>⚡ Venta Rápida</h2>
+                <p>Crea un cobro directo con un enlace de pago único. Ideal para transacciones inmediatas.</p>
+                <div class="form-group">
+                    <label for="quickSaleAmount">Monto a cobrar (BLUE):</label>
+                    <input type="text" inputmode="decimal" id="quickSaleAmount" name="amount" required
+                        placeholder="Ej: 150.50">
+                </div>
+                <div class="form-group">
+                    <label for="quickSaleTitle">Título / Concepto (opcional):</label>
+                    <input type="text" id="quickSaleTitle" name="title" placeholder="Ej: Pago por diseño web">
+                </div>
+                <div class="form-group">
+                    <label for="quickSaleTargetUsername">Comprador específico (opcional):</label>
+                    <input type="text" id="quickSaleTargetUsername" name="targetUsername"
+                        placeholder="Ej: nombredeusuario">
+                    <small class="input-hint">Si lo dejas en blanco, cualquiera con el enlace podrá pagar.</small>
+                </div>
+                <button type="submit" class="action-button confirm">Generar QR de Cobro</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Historial de Causas Solidarias -->
+    <div id="solidarioHistoryModal" class="modal">
+        <div class="modal-content" style="max-height: 80vh; display: flex; flex-direction: column;">
+            <span class="close-button solidario-history-close">&times;</span>
+            <h2 style="color: #e83e8c; margin-bottom: 5px;">Historial de Causas</h2>
+            <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 20px;">Registro inmutable y transparente de tus
+                recaudaciones pasadas</p>
+            <div id="solidarioHistoryList"
+                style="overflow-y: auto; flex: 1; display:flex; flex-direction:column; gap: 15px; padding-right: 5px;">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PARA MOSTRAR CÓDIGO QR -->
+    <div id="qrCodeModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button qr-code-close">&times;</span>
+            <div class="qr-code-container">
+                <h2>¡Listo! Comparte este QR para recibir tu pago</h2>
+                <p>El enlace de pago es válido por 5 minutos.</p>
+                <div id="qrCodeOutput"></div> <!-- El QR se generará aquí -->
+                <input type="text" id="qrCodeUrl" readonly>
+                <button id="copyQrCodeUrl" class="action-button">Copiar Enlace</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="burnModal" class="modal">
+        <div class="modal-content burn-modal-content">
+            <span class="close-button">&times;</span>
+            <div class="burn-container">
+
+                <p class="burn-description">Esta acción es irreversible y restará la cantidad especificada de tus saldos
+                    de BLUE y RED.</p>
+
+                <div class="burn-balance-info">
+                    <h4>Tu saldo actual</h4>
+                    <div id="burnModalBalances" class="burn-modal-balances">
+                        <!-- Los saldos se insertarán aquí dinámicamente con JS -->
+                    </div>
+                </div>
+
+                <form id="burnForm">
+                    <div class="form-group">
+                        <label for="burnAmount">Cantidad a quemar:</label>
+                        <input type="text" inputmode="decimal" id="burnAmount" name="burnAmount"
+                            placeholder="Ej: 10.5000" required pattern="^[0-9]+([.,][0-9]{1,4})?$">
+                        <small class="input-hint">Usa un punto (.) o una coma (,) para los decimales.</small>
+                    </div>
+                    <button type="submit" class="action-button burn-button">Quemar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación de Quema (Fintech Style) -->
+    <div id="burnConfirmModal" class="modal burn-confirm-modal">
+        <div class="modal-content burn-confirm-content">
+            <div class="burn-confirm-icon">⚠️</div>
+            <h2 class="burn-confirm-title">Confirmar Operación</h2>
+
+            <div class="burn-confirm-summary">
+                <p class="burn-confirm-label">Vas a quemar:</p>
+                <div class="burn-confirm-amounts">
+                    <div class="burn-confirm-amount blue">
+                        <span class="amount-value" id="confirmBurnBlue">0.0000</span>
+                        <span class="amount-label">BLUE</span>
+                    </div>
+                    <div class="burn-confirm-amount red">
+                        <span class="amount-value" id="confirmBurnRed">0.0000</span>
+                        <span class="amount-label">RED</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="burn-confirm-warning">
+                <span class="warning-icon">🔒</span>
+                <p>Esta acción es <strong>IRREVERSIBLE</strong>. Los tokens serán eliminados permanentemente y no podrán
+                    ser recuperados.</p>
+            </div>
+
+            <div class="burn-confirm-buttons">
+                <button type="button" class="burn-confirm-btn cancel" id="burnConfirmCancel">Cancelar</button>
+                <button type="button" class="burn-confirm-btn confirm" id="burnConfirmAccept">🔥 Confirmar
+                    Quema</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Calificación -->
+    <div id="ratingModal" class="modal">
+        <div class="modal-content rating-modal-content">
+            <span class="close-button rating-close-button">&times;</span>
+
+            <form id="ratingForm">
+                <input type="hidden" id="ratingPublicationId" name="publication_id">
+                <input type="hidden" id="ratingRaterUsername" name="rater_username">
+                <input type="hidden" id="ratingRateeUsername" name="ratee_username">
+
+                <div class="rating-form-header">
+                    <h2 id="ratingModalTitle">Calificar al Usuario</h2>
+                    <div class="star-rating">
+                        <!-- Las estrellas están en orden inverso (5 a 1) para que el CSS funcione correctamente -->
+                        <input type="radio" id="5-stars" name="rating" value="5" required /><label for="5-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="4-stars" name="rating" value="4" /><label for="4-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="3-stars" name="rating" value="3" /><label for="3-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="2-stars" name="rating" value="2" /><label for="2-stars"
+                            class="star">&#9733;</label>
+                        <input type="radio" id="1-star" name="rating" value="1" /><label for="1-star"
+                            class="star">&#9733;</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <textarea id="ratingComment" name="comment" rows="2"
+                        placeholder="¿Qué te pareció la experiencia? (opcional)"></textarea>
+                </div>
+
+                <button type="submit" class="action-button confirm">Enviar Calificación</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ES Modules (Vite) -->
+
+    <!-- Modal de Alerta Personalizado -->
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación Personalizado -->
+    <div id="customConfirmModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button confirm-close-button">&times;</span>
+            <p id="customConfirmMessage"></p>
+            <div class="confirm-buttons">
+                <button class="action-button cancel-button">Cancelar</button>
+                <button class="action-button confirm-button">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Selección de Tipo de Publicación -->
+    <div id="publicationTypeModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button publication-type-close">&times;</span>
+            <h2>¿Qué te gustaría hacer?</h2>
+            <p>Elige una opción para continuar. Cada acción te llevará a un formulario específico.</p>
+            <div class="modal-options">
+                <a href="publish.html?type=request" class="modal-option-button request">
+                    <div class="option-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
+                            class="bi bi-person-plus" viewBox="0 0 16 16">
+                            <path
+                                d="M6 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H1s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C9.516 10.68 8.289 10 6 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z" />
+                            <path fill-rule="evenodd"
+                                d="M13.5 5a.5.5 0 0 1 .5.5V7h1.5a.5.5 0 0 1 0 1H14v1.5a.5.5 0 0 1-1 0V8h-1.5a.5.5 0 0 1 0-1H13V5.5a.5.5 0 0 1 .5-.5z" />
+                        </svg>
+                    </div>
+                    <h3>Solicitar un Ayudante</h3>
+                    <p>Pagarás BLUE a cambio de una tarea o servicio, recibirás RED.</p>
+                </a>
+                <a href="publish.html?type=sell" class="modal-option-button sell">
+                    <div class="option-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
+                            class="bi bi-tag" viewBox="0 0 16 16">
+                            <path d="M6 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-1 0a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0z" />
+                            <path
+                                d="M2 1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 1 6.586V2a1 1 0 0 1 1-1zm0 5.586 7 7L13.586 9l-7-7H2v4.586z" />
+                        </svg>
+                    </div>
+                    <h3>Venta / Ofrecer Servicio</h3>
+                    <p>Recibirás BLUE por un producto, servicio o monedas que vendas a otros usuarios.</p>
+                </a>
+                <a href="publish.html?type=donation" class="modal-option-button donation">
+                    <div class="option-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
+                            class="bi bi-heart-fill" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd"
+                                d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z" />
+                        </svg>
+                    </div>
+                    <h3>Recibir Donaciones</h3>
+                    <p>Publica una causa para recibir apoyo de la comunidad en BLUE.</p>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Etiqueta de Versión Beta -->
+    <div class="beta-version-tag" style="display: none;">
+        VERSION BETA
+    </div>
+    <!-- Modal Pre-Lanzamiento Billetera -->
+    <div class="prelaunch-modal-overlay" id="prelaunchWalletModal" style="display: none;">
+        <div class="prelaunch-modal">
+            <div class="prelaunch-modal-icon">💰</div>
+            <h3 class="prelaunch-modal-title">Fase Pre-lanzamiento</h3>
+            <div class="prelaunch-modal-text">
+                <p style="margin-bottom: 10px;">
+                    Actualmente estás acumulando <strong>BLUE iou</strong> (pagarés).
+                </p>
+                <p>
+                    A partir del <strong class="highlight-date">14 de febrero de 2027</strong>, recibirás tus
+                    <strong>tokens
+                        BLUE</strong> conforme al <a href="https://boosters.wintoncoin.com/detalles/pagos.html"
+                        target="_blank" class="modal-link">Programa de Incentivos para Impulsores</a>.
+                </p>
+            </div>
+            <button class="prelaunch-modal-btn" id="prelaunchModalAccept">Entendido</button>
+        </div>
+    </div>
+
+    <!-- Modal Aviso Pre-Lanzamiento (Crear Publicación) -->
+    <div class="prelaunch-modal-overlay" id="createPostPrelaunchModal" style="display: none;">
+        <div class="prelaunch-modal">
+            <div class="prelaunch-modal-icon">🚀</div>
+            <h3 class="prelaunch-modal-title">Fase de Desarrollo</h3>
+            <div class="prelaunch-modal-text">
+                <p>
+                    Durante la <strong>fase de pre-lanzamiento</strong>, las publicaciones de usuarios están
+                    deshabilitadas.
+                </p>
+                <p>
+                    Solo tareas de la plataforma con fines educativos, promocion, desarrollo y pruebas.
+                </p>
+            </div>
+            <button class="prelaunch-modal-btn" id="createPostPrelaunchAccept">Entendido</button>
+        </div>
+    </div>
+
+    <!-- Modal de Configuración -->
+    <div id="settingsModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close-button" id="closeSettingsModal">&times;</span>
+            <h2 style="margin-bottom: 20px;">⚙️ Configuración</h2>
+
+            <!-- Sección de Notificaciones -->
+            <div class="settings-section">
+                <h3 style="margin-bottom: 15px; color: #4a90d9;">🔔 Notificaciones</h3>
+                <p style="font-size: 0.9em; color: #888; margin-bottom: 20px;">
+                    Controla qué tipo de notificaciones deseas recibir.
+                </p>
+
+                <!-- Switch Seguridad (Bloqueado) -->
+                <div class="notification-setting-item">
+                    <div class="notification-setting-info">
+                        <strong>🔒 Seguridad y Transacciones</strong>
+                        <p style="font-size: 0.85em; color: #999; margin: 5px 0 0 0;">
+                            Alertas críticas de seguridad, pagos y verificaciones. <strong>Siempre activas.</strong>
+                        </p>
+                    </div>
+                    <label class="admin-switch" style="opacity: 0.6; cursor: not-allowed;">
+                        <input type="checkbox" id="notifSecuritySwitch" checked disabled>
+                        <span class="admin-slider"></span>
+                    </label>
+                </div>
+
+                <!-- Switch Social -->
+                <div class="notification-setting-item">
+                    <div class="notification-setting-info">
+                        <strong>👥 Actividad Social</strong>
+                        <p style="font-size: 0.85em; color: #999; margin: 5px 0 0 0;">
+                            Mensajes, interacciones, tareas completadas y actividad de tus publicaciones.
+                        </p>
+                    </div>
+                    <label class="admin-switch">
+                        <input type="checkbox" id="notifSocialSwitch" checked>
+                        <span class="admin-slider"></span>
+                    </label>
+                </div>
+
+                <!-- Switch Marketing -->
+                <div class="notification-setting-item">
+                    <div class="notification-setting-info">
+                        <strong>📢 Novedades y Promociones</strong>
+                        <p style="font-size: 0.85em; color: #999; margin: 5px 0 0 0;">
+                            Nuevas campañas, bonos, actualizaciones de la plataforma y ofertas especiales.
+                        </p>
+                    </div>
+                    <label class="admin-switch">
+                        <input type="checkbox" id="notifMarketingSwitch" checked>
+                        <span class="admin-slider"></span>
+                    </label>
+                </div>
+
+                <button id="saveNotificationSettings" class="action-button" style="margin-top: 25px; width: 100%;">
+                    Guardar Preferencias
+                </button>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- Sección de Descarga de la Aplicación (PWA Install)           -->
+            <!-- ============================================================ -->
+            <!-- MOTIVO: Botón redundante de instalación para usuarios que    -->
+            <!-- descartaron el botón flotante. Estándar de la industria.     -->
+            <!-- Se oculta automáticamente si la app ya está instalada.       -->
+            <!-- ============================================================ -->
+            <div class="settings-section settings-pwa-section" id="pwa-settings-section">
+                <h3 style="margin-bottom: 15px; color: #00d4aa;">📲 Descargar App</h3>
+                <p style="font-size: 0.9em; color: #888; margin-bottom: 20px;">
+                    Instala WintonCoin en tu dispositivo para acceso rápido desde la pantalla de inicio.
+                </p>
+                <button id="pwa-settings-install-btn" type="button">
+                    📲 Descargar App
+                </button>
+                <p id="pwa-settings-status" class="pwa-settings-status"></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
+
+    <!-- Modal de Emergencia Terremoto Venezuela (Opción 3 - Blend Premium) -->
+    <div id="venezuelaEmergencyModal" class="venezuela-emergency-modal-overlay" style="display: none;">
+        <div class="venezuela-emergency-modal">
+            <div class="venezuela-emergency-banner-img" style="background-image: url('./assets/images/venezuela_earthquake_banner.png');">
+                <div class="venezuela-emergency-img-overlay">
+                    <span class="venezuela-emergency-badge">Campaña de Ayuda</span>
+                </div>
+            </div>
+            <div class="venezuela-emergency-body">
+                <!-- OPTIMIZACIÓN DE COPYWRITING: Título en plural que describe con precisión la campaña de dos terremotos -->
+                <h3 class="venezuela-emergency-title">SOS Venezuela: Dos Terremotos</h3>
+                <p class="venezuela-emergency-text">
+                    Dos terremotos devastadores han afectado a Venezuela. Familias enteras se encuentran damnificadas y necesitan alimentos, refugio y auxilio de forma urgente.
+                </p>
+                <p class="venezuela-emergency-subtext">
+                    Si puedes ayudar desde donde estés donando tus tokens <strong>BLUE IOU</strong> acumulados de forma totalmente gratuita. El 100% de las donaciones llega a causas verificadas.
+                </p>
+                <div class="venezuela-emergency-actions">
+                    <button class="venezuela-emergency-btn confirm" id="venezuelaEmergencyDonateBtn">❤️ Ir a Donar</button>
+                    <button class="venezuela-emergency-btn secondary" id="venezuelaEmergencyCloseBtn">Quizás más tarde</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        </div> <!-- Cierre del dashboard-main-content -->
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+</html>

@@ -374,3 +374,23 @@ Estas mejoras **no son obligatorias para que el sistema funcione hoy**, pero son
    - **Severidad: MEDIA**
    - **Problema:** Existen dos columnas para el telÃ©fono de los usuarios debido a parches acumulados en el monolito `databaseInit.js`.
    - **SoluciÃ³n Propuesta:** Deprecar la columna redundante y unificar todas las lecturas/escrituras en un Ãºnico campo estandarizado (`phone_number`).
+
+---
+
+## 14. Automatización de Despliegues con CI/CD (GitHub Actions)
+
+**Prioridad: Media / Alta (DevOps y Estandarización Profesional)**
+
+**Problema Actual:**
+Actualmente los procesos de construcción (build) de los entornos de Producción (
+pm run build) y Demostración (
+pm run build:demo) se ejecutan de manera local. Aunque se ha solucionado el aislamiento de directorios (dist/ vs dist-demo/), depender de builds locales introduce riesgos de inconsistencia (diferentes versiones de Node, caché corrupta) y vulnera el estándar de cero confianza (Zero-Trust) para despliegues a producción.
+
+**Solución Propuesta:**
+1. **Implementar GitHub Actions:** Crear workflows (ej. .github/workflows/deploy-prod.yml y deploy-demo.yml) que automaticen el proceso de build y despliegue.
+2. **Entornos Efímeros:** Configurar el pipeline para que, ante cada push a la rama main o demo, levante un contenedor inmaculado, instale dependencias, ejecute el build correspondiente y lo transfiera automáticamente al proveedor de alojamiento vía FTP/SSH o integraciones directas.
+3. **Bloqueo de Modificaciones Manuales:** Requerir que todos los cambios pasen por Pull Requests revisados, garantizando que el código que llega a los usuarios fue compilado y auditado por los servidores de integración y no por la máquina de un desarrollador individual.
+
+**Beneficios:**
+- **Seguridad Inquebrantable:** Cumplimiento total del estándar Zero-Trust, con auditoría de quién aprobó y qué bot ejecutó el despliegue.
+- **Eficiencia y Confiabilidad:** Se elimina el error humano (ej. subir dist-demo a producción accidentalmente) y se garantiza un entorno de compilación idéntico cada vez.

@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4a90d9">
+    <title>[DEMO] SOS Venezuela - Portal de Ayuda Humanitaria | WintonCoin</title>
+    <meta name="description" content="Canalización de ayuda social para los damnificados del terremoto en Venezuela a través de nuestro ecosistema colaborativo.">
+    
+    <!-- Open Graph (WhatsApp / Facebook Previews) -->
+    <meta property="og:title" content="SOS Venezuela - Portal de Ayuda Humanitaria | WintonCoin" />
+    <meta property="og:description" content="Apoya a los damnificados del terremoto en Venezuela a través del ecosistema colaborativo de WintonCoin. Transparencia, Escrow y control." />
+    <meta property="og:image" content="https://www.demo.wintoncoin.com/assets/icons/icon-192x192.png" />
+    <meta property="og:type" content="website" />
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <style>
+        .vzla-flag-bg {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(180deg, rgba(255, 204, 0, 0.05) 0%, rgba(0, 51, 160, 0.05) 50%, rgba(207, 20, 43, 0.05) 100%), #ffffff !important;
+            border: 1px solid rgba(255, 204, 0, 0.4) !important;
+        }
+        .vzla-flag-bg::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 6px;
+            background: linear-gradient(90deg, #ffcc00 33.33%, #0033a0 33.33%, #0033a0 66.66%, #cf142b 66.66%);
+            z-index: 0;
+        }
+        .vzla-flag-bg::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: 
+                radial-gradient(circle at 10% 10%, rgba(255, 204, 0, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 50%, rgba(0, 51, 160, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 25% 90%, rgba(207, 20, 43, 0.15) 0%, transparent 40%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .vzla-flag-bg > * {
+            position: relative;
+            z-index: 1;
+        }
+    </style>
+  <script type="module" crossorigin src="./assets/sosVenezuela.CWrxzVi-.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill.B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="./assets/auth.BgcrufBo.js">
+  <link rel="modulepreload" crossorigin href="./assets/index.pbqrtUCb.js">
+  <link rel="stylesheet" crossorigin href="./assets/landing.Bgp_BVS3.css">
+  <link rel="stylesheet" crossorigin href="./assets/main.HUhMQLu4.css">
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+
+<body class="sos-portal-body">
+
+    <!-- Fondo Animado Mesh -->
+    <div class="background-mesh">
+        <div class="mesh-1"></div>
+        <div class="mesh-2"></div>
+        <div class="mesh-overlay"></div>
+    </div>
+
+    <!-- BANNER DE EMERGENCIA HUMANITARIA (Mismo estilo que index) -->
+    <div class="emergency-ribbon">
+        <div class="ribbon-content">
+            <span class="flag-icon">🇻🇪</span>
+            <span class="ribbon-text"><strong>🚨 URGENTE:</strong> Campaña de Ayuda Humanitaria por el Terremoto en Venezuela.</span>
+        </div>
+    </div>
+
+    <!-- Navegación Flotante -->
+    <nav class="glass-nav">
+        <div class="logo">
+            <a href="index.html">
+                <img src="assets/branding/wintoncoin_transparent_phrase.png" alt="WintonCoin" class="logo-phrase-img" style="height: 32px; width: auto;">
+            </a>
+        </div>
+        <div class="nav-links">
+            <a href="index.html#como-funciona">¿Cómo Funciona?</a>
+            <a href="index.html#valores">Seguridad</a>
+            <a href="index.html#economia">Tokenomics</a>
+            <a href="register.html" class="btn-primary-nav">Iniciar App</a>
+        </div>
+    </nav>
+
+    <!-- Héroe Principal con Bandera de Venezuela de fondo difuminada -->
+    <header class="sos-hero">
+        <div class="container">
+            <div class="sos-hero-content">
+                <h1>Ayudemos a <span class="gradient-text-pink">Venezuela</span></h1>
+                <p class="sos-hero-subtitle">
+                    Regístrate con el código <strong class="highlight-pink dynamic-special-code">SOSVENEZUELA</strong> y asignaremos 200 BLUE IOU a la cuenta receptora <strong class="highlight-pink">CadenaSOSVenezuela</strong>
+                </p>
+                <div class="sos-cta-group" style="display: flex; gap: 1.25rem; justify-content: center; flex-wrap: wrap; align-items: center;">
+                    <a href="register.html?ref=SOSVENEZUELA" id="sos-register-ref-link" class="btn-primary-campaign">Apoyar causa</a>
+                    <a href="#registro-damnificados" class="btn-primary-campaign">Soy afectado</a>
+                    <a href="#voluntariado" class="btn-primary-campaign">Quiero ser voluntario</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sección de Compromiso Solidario WTN Solutions (Mismo tamaño y estilo compliance-box que las demás secciones) -->
+    <section class="sos-compliance-section">
+        <div class="container">
+            <div class="compliance-box vzla-flag-bg" style="text-align: center;">
+                <div class="compliance-header" style="margin-bottom: 0;">
+                    <h2 style="font-size: clamp(1.8rem, 4vw, 2.3rem); font-weight: 800; color: #0f172a; margin-bottom: 1rem; font-family: 'Outfit', sans-serif;">Nuestro Compromiso: Cero Margen de Lucro</h2>
+                    <p style="color: #334155; font-size: clamp(1.05rem, 2.2vw, 1.2rem); font-weight: 500; max-width: 800px; margin: 0 auto; line-height: 1.6;">
+                        WintonCoin es una plataforma comercial sustentada por comisiones de red. Sin embargo, ante la gravedad de la catástrofe en Venezuela, WintonCoin <strong>destinará la totalidad de las ganancias (comisiones) en tokens BLUE a la reconstrucción y ayuda humanitaria</strong> de las víctimas del terremoto.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECCIÓN DE REGISTRO Y CENSO DE DAMNIFICADOS DEL TERREMOTO (TEMA CLARO GLOBAL CONTINUO) -->
+    <section id="registro-damnificados" class="sos-compliance-section" style="padding-top: 3.5rem; padding-bottom: 4rem;">
+        <div class="container">
+            <div class="compliance-box vzla-flag-bg" style="background: #ffffff !important; color: #0f172a; padding: 2.5rem; border-radius: 24px; border: 1px solid rgba(219, 39, 119, 0.25); box-shadow: 0 15px 45px rgba(0,0,0,0.06);">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <h2 style="font-size: clamp(1.8rem, 4vw, 2.3rem); font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif; margin-bottom: 0.5rem;">
+                        Censo para Asistencia a Damnificados
+                    </h2>
+                <p style="color: #475569; font-size: 1.05rem; max-width: 700px; margin: 0 auto; line-height: 1.6;">
+                    Si fuiste afectado por el sismo en Venezuela, completa este formulario oficial de censo para evaluar tu caso, generar tu expediente e inscribirte en el programa de asistencia humanitaria directa.
+                </p>
+            </div>
+
+            <form id="sos-victim-registration-form" style="display: flex; flex-direction: column; gap: 1.5rem;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
+                    <div>
+                        <label for="sos-fullname" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Nombre Completo:</label>
+                        <input type="text" id="sos-fullname" required placeholder="Ej: María Alejandrina Pérez" style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                    </div>
+                    <div>
+                        <label for="sos-iddocument" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Número de Cédula:</label>
+                        <input type="text" id="sos-iddocument" required value="V-" placeholder="12345678" style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.25rem;">
+                    <div>
+                        <label for="sos-birthdate" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Fecha de Nacimiento:</label>
+                        <input type="date" id="sos-birthdate" required style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                    </div>
+                    <div>
+                        <label for="sos-gender" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Género:</label>
+                        <select id="sos-gender" required style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                            <option value="female">Femenino</option>
+                            <option value="male">Masculino</option>
+                            <option value="other">Otro</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 1.8rem; background: #f8fafc; padding: 10px 14px; border-radius: 10px; border: 1px solid #e2e8f0;">
+                        <input type="checkbox" id="sos-headof-family" style="width: 20px; height: 20px; accent-color: #db2777;">
+                        <label for="sos-headof-family" style="font-weight: 600; color: #0f172a; cursor: pointer;">¿Es Cabeza de Familia?</label>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
+                    <div>
+                        <label for="sos-email" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Correo Electrónico (para notificaciones):</label>
+                        <input type="email" id="sos-email" required placeholder="ejemplo@correo.com" style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                    </div>
+                    <div>
+                        <label for="sos-phone" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Teléfono WhatsApp (+58):</label>
+                        <input type="tel" id="sos-phone" required placeholder="+58 414 123 4567" value="+58 " style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                    </div>
+                </div>
+
+                <!-- Ubicación de la Emergencia -->
+                <div style="background: #f8fafc; padding: 1.25rem; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+                    <strong style="color: #db2777; display: block; margin-bottom: 1rem; font-size: 1.05rem;">📍 Ubicación Geográfica de la Emergencia</strong>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem;">
+                        <div>
+                            <label for="sos-state" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Estado:</label>
+                            <input type="text" id="sos-state" required placeholder="Ej: Sucre" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                        </div>
+                        <div>
+                            <label for="sos-municipality" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Municipio:</label>
+                            <input type="text" id="sos-municipality" required placeholder="Ej: Bermúdez" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                        </div>
+                        <div>
+                            <label for="sos-sector" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Sector / Comunidad:</label>
+                            <input type="text" id="sos-sector" required placeholder="Ej: Carúpano Centro" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="sos-address" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Dirección Detallada (Calle, Edificio/Casa, Apt/Nro, Punto de Referencia):</label>
+                        <input type="text" id="sos-address" required placeholder="Ej: Calle Carabobo, Casa Nro 45, al lado del abasto" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                    </div>
+                </div>
+
+                <!-- Censo de Cargas Familiares -->
+                <div style="background: #f8fafc; padding: 1.25rem; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+                    <strong style="color: #db2777; display: block; margin-bottom: 1rem; font-size: 1.05rem;">👨‍👩‍👧‍👦 Censo de Cargas Familiares a Cargo</strong>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
+                        <div>
+                            <label for="sos-minors" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Niños / Menores de Edad:</label>
+                            <input type="number" id="sos-minors" min="0" value="0" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                        </div>
+                        <div>
+                            <label for="sos-elderly" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Adultos Mayores / Tercera Edad:</label>
+                            <input type="number" id="sos-elderly" min="0" value="0" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                        </div>
+                        <div>
+                            <label for="sos-disabled" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Personas con Discapacidad:</label>
+                            <input type="number" id="sos-disabled" min="0" value="0" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detalle del Daño y Evidencia -->
+                <div>
+                    <label for="sos-affectation-level" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Nivel de Afectación Principal:</label>
+                    <select id="sos-affectation-level" required style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                        <option value="total_loss">🚨 Pérdida Total de Vivienda / Enseres (Urgencia Máxima)</option>
+                        <option value="medical_emergency">🚑 Emergencia Médica / Lesionados por el Sismo</option>
+                        <option value="partial_damage">🏚️ Daños Estructurales Parciales en Vivienda</option>
+                        <option value="essential_needs">📦 Necesidad Urgente de Alimentos / Medicamentos</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="sos-description" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Descripción de la Situación y Necesidades Urgentes:</label>
+                    <textarea id="sos-description" required rows="4" placeholder="Describe brevemente lo ocurrido en tu vivienda o sector tras el sismo y cuáles son tus necesidades más urgentes..." style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; line-height: 1.5;"></textarea>
+                    <small style="color: #64748b; margin-top: 4px; display: block;">💡 Describe los detalles principales para ayudar a nuestro equipo a priorizar tu atención.</small>
+                </div>
+
+                <!-- Evidencias Fotográficas -->
+                <div style="background: #f8fafc; padding: 1.25rem; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
+                    <label for="sos-photo-files" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">
+                        📷 Subir Fotos de Evidencia (Vivienda / Daños / Documentos):
+                    </label>
+                    <input type="file" id="sos-photo-files" accept="image/*" multiple style="width: 100%; padding: 10px; border-radius: 8px; border: 1px dashed #db2777; background: #ffffff; color: #0f172a; cursor: pointer;">
+                    <small style="color: #64748b; margin-top: 6px; display: block;">💡 Puedes seleccionar o tomar varias fotos directamente desde la cámara o galería de tu teléfono (Máx. 5 fotos).</small>
+                    <div id="sos-photo-previews" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;"></div>
+
+                    <div style="margin-top: 1rem; border-top: 1px dashed #cbd5e1; padding-top: 1rem;">
+                        <label for="sos-photo-link" style="font-size: 0.9rem; color: #475569; font-weight: 600; display: block; margin-bottom: 0.3rem;">O pega un Enlace de Google Fotos / Drive (Opcional):</label>
+                        <input type="url" id="sos-photo-link" placeholder="Ej: https://photos.app.goo.gl/..." style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                    </div>
+                </div>
+
+                <!-- Checkboxes Legales (Todos sin marcar por defecto) -->
+                <div style="background: #fff5f8; padding: 1.25rem; border-radius: 14px; border: 1px solid rgba(219, 39, 119, 0.25); display: flex; flex-direction: column; gap: 0.8rem;">
+                    <div style="display: flex; gap: 10px; align-items: flex-start;">
+                        <input type="checkbox" id="sos-data-consent" required style="width: 20px; height: 20px; margin-top: 3px; accent-color: #db2777;">
+                        <label for="sos-data-consent" style="font-size: 0.9rem; color: #1e293b; cursor: pointer; line-height: 1.4;">
+                            Autorizo el tratamiento confidencial de mis datos personales únicamente con fines de censo humanitario, verificación de campo y entrega de asistencia (Protección de Datos / Habeas Data).
+                        </label>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: flex-start;">
+                        <input type="checkbox" id="sos-sworn-declaration" required style="width: 20px; height: 20px; margin-top: 3px; accent-color: #db2777;">
+                        <label for="sos-sworn-declaration" style="font-size: 0.9rem; color: #1e293b; cursor: pointer; line-height: 1.4;">
+                            Declaro bajo fe de juramento que la información y evidencias suministradas corresponden a mi situación real y verídica como afectado por el sismo.
+                        </label>
+                    </div>
+                </div>
+
+                <div id="sos-victim-feedback" style="display: none;"></div>
+
+                <button type="submit" id="sos-submit-btn" class="btn-primary-campaign" disabled style="width: 100%; padding: 16px; font-size: 1.15rem; font-weight: 600; margin-top: 1rem; border-radius: 50px; cursor: not-allowed; opacity: 0.5;">
+                    Enviar Solicitud
+                </button>
+            </form>
+
+            <!-- Card de Verificación OTP y Resultado de Registro (Tema Claro) -->
+            <div id="sos-victim-result-card" style="display: none; text-align: center; padding: 2rem 1rem;">
+                
+                <!-- PASO 1: Formulario de Verificación OTP + Contraseñas (Paso Intermedio) -->
+                <div id="sos-otp-verification-card" style="margin: 0 auto; text-align: center;">
+                    <div style="font-size: 3.5rem; margin-bottom: 0.5rem;">🔐</div>
+                    <h3 style="font-size: 1.8rem; font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif; margin-bottom: 0.5rem;">
+                        ¡Solo falta un paso más!
+                    </h3>
+                    <p id="sos-activation-desc" style="color: #475569; font-size: 0.95rem; line-height: 1.5; margin: 0 auto 1.5rem; max-width: 600px;">
+                        Para completar tu solicitud, ingresa el código de verificación de 6 dígitos que enviamos a tu correo electrónico y crea una contraseña para tu cuenta.
+                    </p>
+
+                    <!-- Campo de Código OTP -->
+                    <div style="margin-bottom: 1rem;">
+                        <label for="sos-otp-code-input" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Código de 6 dígitos:</label>
+                        <input type="text" id="sos-otp-code-input" maxlength="6" placeholder="849201" style="width: 180px; padding: 12px; font-size: 1.4rem; font-weight: 800; text-align: center; letter-spacing: 4px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                        <small style="color: #64748b; display: block; font-size: 0.82rem; margin-top: 0.4rem;">Nota: Código de verificación enviado al correo.</small>
+                    </div>
+
+                    <!-- Contenedor de Campos de Contraseña (Solo para usuarios nuevos) -->
+                    <div id="sos-password-fields-container">
+                        <!-- Campo de Nueva Contraseña -->
+                        <div style="margin-bottom: 0.75rem; text-align: left; position: relative;">
+                            <label for="sos-new-password" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Crea una contraseña:</label>
+                            <input type="password" id="sos-new-password" minlength="8" placeholder="Mínimo 8 caracteres" style="width: 100%; padding: 12px 14px; padding-right: 40px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                            <button type="button" id="toggle-new-password" style="position: absolute; right: 10px; top: 35px; background: none; border: none; cursor: pointer; color: #64748b;">
+                                👁️
+                            </button>
+                        </div>
+
+                        <!-- Campo de Confirmar Contraseña -->
+                        <div style="margin-bottom: 1rem; text-align: left; position: relative;">
+                            <label for="sos-confirm-password" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Confirma tu Contraseña:</label>
+                            <input type="password" id="sos-confirm-password" minlength="8" placeholder="Repite la contraseña" style="width: 100%; padding: 12px 14px; padding-right: 40px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                            <button type="button" id="toggle-confirm-password" style="position: absolute; right: 10px; top: 35px; background: none; border: none; cursor: pointer; color: #64748b;">
+                                👁️
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Botón de Activación -->
+                    <button type="button" id="sos-btn-verify-otp" class="btn-primary-campaign" disabled style="padding: 14px 22px; font-size: 1.05rem; font-weight: 600; border-radius: 50px; cursor: not-allowed; opacity: 0.5; width: 100%;">
+                        Activar mi Cuenta
+                    </button>
+
+                    <div id="sos-otp-feedback-msg" style="display: none; margin-top: 10px; font-size: 0.9rem; padding: 8px; border-radius: 6px;"></div>
+                </div>
+
+                <!-- PASO 2: Mensaje de Éxito Final (Post-Activación) -->
+                <div id="sos-activation-success" style="display: none; text-align: center; padding: 1rem;">
+                    <div style="font-size: 3.5rem; margin-bottom: 1rem;">✅</div>
+                    <h3 style="font-size: 1.8rem; font-weight: 800; color: #10b981; font-family: 'Outfit', sans-serif; margin-bottom: 0.5rem;">
+                        ¡Solicitud Registrada Exitosamente!
+                    </h3>
+                    <p style="color: #334155; font-size: 1.05rem; max-width: 650px; margin: 0 auto 1.25rem; line-height: 1.6;">
+                        Se ha generado tu expediente de censo de emergencia con el correlativo <strong id="sos-dossier-number-display" style="color: #0f172a; font-weight: 700;">#SOS-VZLA-000-00000</strong>. Tu solicitud ha entrado directamente en <strong>Proceso de Verificación Manual</strong>.
+                    </p>
+                    <p id="sos-success-reward-msg" style="color: #047857; font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.5rem; background: #ecfdf5; border: 1px solid #34d399; padding: 1rem; border-radius: 12px;">
+                        Tu cuenta ha sido activada exitosamente y tus <strong id="sos-success-reward-amount">BLUE IOU</strong> han sido acreditados a tu billetera WintonCoin.
+                    </p>
+                    <a href="profile.html" id="sos-btn-go-to-account" class="btn-primary-campaign" style="display: inline-block; text-decoration: none; padding: 14px 32px; border-radius: 50px; font-size: 1.05rem; font-weight: 700;">
+                        Ir a mi cuenta
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Sección del Proceso de los BLUE IOU -->
+    <section class="sos-timeline-section vzla-flag-bg" id="bitacora" style="padding-top: 4rem; padding-bottom: 4rem; margin: 2rem 0; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.05);">
+        <div class="container">
+            <!-- Advertencia contra Estafas (Ubicación Centralizada) -->
+            <div class="alert-scam-warning" style="background: #ffffff; border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 12px; padding: 1.2rem; margin: 0 auto 3.5rem; max-width: 800px; color: #b91c1c; font-size: 0.95rem; line-height: 1.6; text-align: left; display: flex; gap: 0.8rem; align-items: flex-start; box-shadow: 0 15px 40px rgba(15, 23, 42, 0.04);">
+                <span style="font-size: 1.4rem; line-height: 1;">⚠️</span>
+                <div>
+                    <strong>ADVERTENCIA DE SEGURIDAD:</strong> CadenaSOSVenezuela y WintonCoin <strong>no reciben ni solicitarán dinero fiduciario, transferencias bancarias, tokens externos ni criptomonedas</strong> de los usuarios. Todo el proceso es 100% gratuito y se realiza exclusivamente con los BLUE IOU que obtuviste por registrarte o completar tareas en la plataforma. No caigas en estafas.
+                </div>
+            </div>
+
+            <div class="section-header" style="text-align: center;">
+                <h2>Fases de los <span class="text-pink">BLUE IOU donados</span></h2>
+            </div>
+
+            <div class="sos-timeline">
+                <!-- Línea central del timeline -->
+                <div class="timeline-central-line"></div>
+
+                <!-- Evento 1: Selección -->
+                <div class="sos-timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">Paso 1</div>
+                    <div class="timeline-card">
+                        <div class="timeline-badge-status approved">SELECCIÓN</div>
+                        <div class="timeline-card-header">
+                            <span class="timeline-card-icon">🎯</span>
+                            <h4>Selección</h4>
+                        </div>
+                        <p>El usuario selecciona la causa registrándose con el código promocional <strong class="text-pink dynamic-special-code">SOSVENEZUELA</strong> o donando directamente a la cuenta <strong class="text-pink">CadenaSOSVenezuela</strong>.</p>
+                    </div>
+                </div>
+
+                <!-- Evento 2: Acumulación -->
+                <div class="sos-timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">Paso 2</div>
+                    <div class="timeline-card active-step">
+                        <div class="timeline-badge-status approved">FASE ACTUAL</div>
+                        <div class="timeline-card-header">
+                            <span class="timeline-card-icon">⏳</span>
+                            <h4>Acumulación</h4>
+                        </div>
+                        <p>Durante la Fase Pre-lanzamiento, todos los BLUE IOU de donaciones y registros con el código <strong class="text-pink dynamic-special-code">SOSVENEZUELA</strong> se acumulan de forma inmutable en la cuenta receptora.</p>
+                    </div>
+                </div>
+
+                <!-- Evento 3: Consulta Pública -->
+                <div class="sos-timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">Paso 3</div>
+                    <div class="timeline-card">
+                        <div class="timeline-badge-status info">TRANSPARENCIA</div>
+                        <div class="timeline-card-header">
+                            <span class="timeline-card-icon">📊</span>
+                            <h4>Auditoría</h4>
+                        </div>
+                        <p>Los usuarios pueden ingresar y auditar en tiempo real todas las donaciones de BLUE IOU recibidas por la cuenta receptora.</p>
+                    </div>
+                </div>
+
+                <!-- Evento 4: Evaluación de Proyectos -->
+                <div class="sos-timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">Paso 4</div>
+                    <div class="timeline-card">
+                        <div class="timeline-badge-status info">EVALUACIÓN</div>
+                        <div class="timeline-card-header">
+                            <span class="timeline-card-icon">📋</span>
+                            <h4>Evaluación</h4>
+                        </div>
+                        <p>Recibimos, analizamos y evaluamos estudios de campo y propuestas para determinar los proyectos con mayor impacto social.</p>
+                    </div>
+                </div>
+
+                <!-- Evento 5: Asignación -->
+                <div class="sos-timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">Paso 5</div>
+                    <div class="timeline-card">
+                        <div class="timeline-badge-status info">ASIGNACIÓN</div>
+                        <div class="timeline-card-header">
+                            <span class="timeline-card-icon">🤝</span>
+                            <h4>Asignación</h4>
+                        </div>
+                        <p>Al completarse el desarrollo y las evaluaciones, se transfieren los BLUE IOU recibidos a las cuentas de las organizaciones humanitarias o beneficiarios seleccionados.</p>
+                    </div>
+                </div>
+
+                <!-- Evento 6: Canje -->
+                <div class="sos-timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-date">Paso 6</div>
+                    <div class="timeline-card next-step">
+                        <div class="timeline-badge-status pending">SWAP MENSUAL</div>
+                        <div class="timeline-card-header">
+                            <span class="timeline-card-icon">🔄</span>
+                            <h4>Canje</h4>
+                        </div>
+                        <p>Tras el lanzamiento, cambiaremos mes a mes los BLUE IOU entregados a organismos o beneficiarios por tokens BLUE de nuestras comisiones, hasta cambiar todos los BLUE IOU recibidos de donaciones.</p>
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sección de Convocatoria de Voluntarios y Difusión (Bandera de Venezuela de Fondo & Sin Íconos/Fondo Oscuro) -->
+    <section id="voluntariado" class="sos-compliance-section" style="padding-top: 1rem; padding-bottom: 3rem;">
+        <div class="container">
+            <div class="compliance-box vzla-flag-bg" style="border-radius: 24px; padding: 3rem 1.8rem; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.06); text-align: center;">
+
+                <div>
+                    <!-- Título Principal Grande -->
+                    <h2 style="font-size: clamp(1.8rem, 4vw, 2.4rem); font-weight: 800; color: #0f172a; margin-bottom: 0.9rem; font-family: 'Outfit', sans-serif; line-height: 1.25;">
+                        Únete como <span style="background: linear-gradient(135deg, #d97706, #0284c7, #dc2626); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Voluntario y Difunde</span> la Campaña
+                    </h2>
+
+
+
+                    <!-- Rejilla de Tarjetas Resumidas SIN ÍCONOS con Diseño Glassmorphism -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 2.2rem; text-align: left;">
+                        
+                        <!-- Tarjeta 1: Voluntariado -->
+                        <div style="background: rgba(15, 23, 42, 0.03); border: 1px solid rgba(15, 23, 42, 0.08); border-radius: 16px; padding: 1.25rem 1.5rem; transition: all 0.3s ease;">
+                            <h4 style="font-size: 1.1rem; font-weight: 700; color: #0f2d5c; margin: 0 0 0.5rem; font-family: 'Outfit', 'Inter', sans-serif;">Voluntariado</h4>
+                            <p style="font-size: 0.95rem; line-height: 1.6; color: #334155; margin: 0;">
+                                Apoya desde cualquier país en evaluación de proyectos, auditoría y logística remota.
+                            </p>
+                        </div>
+
+                        <!-- Tarjeta 2: Difusión -->
+                        <div style="background: rgba(15, 23, 42, 0.03); border: 1px solid rgba(15, 23, 42, 0.08); border-radius: 16px; padding: 1.25rem 1.5rem; transition: all 0.3s ease;">
+                            <h4 style="font-size: 1.1rem; font-weight: 700; color: #0f2d5c; margin: 0 0 0.5rem; font-family: 'Outfit', 'Inter', sans-serif;">Difusión</h4>
+                            <p style="font-size: 0.95rem; line-height: 1.6; color: #334155; margin: 0;">
+                                Comparte la campaña para que las familias afectadas aprovechen y obtengan el bono por registrarse.
+                            </p>
+                        </div>
+
+                    </div>
+
+                    <!-- Caja CTA de Instagram en FONDO CLARO (Sin Fondo Oscuro) -->
+                    <div style="background: #f8fafc; border: 1px solid rgba(226, 232, 240, 0.9); border-radius: 20px; padding: 2rem 1.5rem; color: #0f172a; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);">
+                        <h3 style="font-size: clamp(1.25rem, 2.3vw, 1.45rem); font-weight: 800; color: #0f172a; margin-bottom: 0.6rem;">¿Cómo postularte o colaborar?</h3>
+                        <p style="color: #475569; font-size: clamp(1rem, 2vw, 1.1rem); max-width: 600px; margin: 0 auto 1.6rem; line-height: 1.5;">
+                            Escríbenos un mensaje privado por Instagram detallando tu ciudad y cómo deseas colaborar.
+                        </p>
+                        <a href="https://www.instagram.com/cadenasosvenezuela?igsh=MTIxcGVnZGs4bm0yYw==" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem; background: linear-gradient(90deg, #e1306c, #c13584, #833ab4); color: #ffffff; font-weight: 800; font-size: clamp(0.95rem, 1.8vw, 1.05rem); padding: 0.7rem 1.6rem; border-radius: 50px; text-decoration: none; box-shadow: 0 8px 20px rgba(225, 48, 108, 0.25); transition: transform 0.2s; min-height: 44px; width: auto; max-width: 100%; box-sizing: border-box;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" style="flex-shrink: 0;">
+                                <path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0h.003zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599.28.28.453.546.598.92.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.47 2.47 0 0 1-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.478 2.478 0 0 1-.92-.598 2.48 2.48 0 0 1-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233 0-2.136.008-2.388.046-3.231.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92.28-.28.546-.453.92-.598.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045v.002zm4.988 1.328a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92zm-4.27 1.122a4.109 4.109 0 1 0 0 8.217 4.109 4.109 0 0 0 0-8.217zm0 1.441a2.667 2.667 0 1 1 0 5.334 2.667 2.667 0 0 1 0-5.334z"/>
+                            </svg>
+                            Contáctanos
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Sección de Preguntas Frecuentes (FAQ de la Campaña) -->
+    <section class="sos-compliance-section">
+        <div class="container">
+            <div class="compliance-box vzla-flag-bg">
+                <div class="compliance-header">
+                    <h2>Preguntas Frecuentes de la Campaña</h2>
+                    <p>Todo lo que necesitas saber para unirte y apoyar a Venezuela.</p>
+                </div>
+                <div class="faq-accordion-container">
+                    <details class="faq-accordion-item">
+                        <summary><h4>¿Tengo que pagar algo para registrarme?</h4></summary>
+                        <p>No, es completamente gratis. La plataforma otorga el bono para incentivar la participación y apoyar la reconstrucción.</p>
+                    </details>
+                    <details class="faq-accordion-item">
+                        <summary><h4>¿Cómo ayudo si no fui afectado por el terremoto?</h4></summary>
+                        <p>Registrándote con el código <strong class="dynamic-special-code">SOSVENEZUELA</strong>. WintonCoin donará automáticamente tu bono de registro de BLUE IOU a la cuenta de la campaña para financiar la reconstrucción.</p>
+                    </details>
+                    <details class="faq-accordion-item">
+                        <summary><h4>¿Quién califica como persona afectada?</h4></summary>
+                        <p>Residentes de las zonas declaradas en emergencia que sufrieron daños materiales en sus viviendas o lesiones físicas.</p>
+                    </details>
+                    <details class="faq-accordion-item">
+                        <summary><h4>¿Qué pruebas debo subir si soy afectado?</h4></summary>
+                        <p>Necesitas subir fotos claras de los daños, tu documento de identidad y cualquier otro documento verificable que permita a los validadores constatar tu situación real.</p>
+                    </details>
+                    <details class="faq-accordion-item">
+                        <summary><h4>¿Cuál es el rol de los voluntarios?</h4></summary>
+                        <p>Verifican físicamente los reportes en el terreno y asisten a personas sin internet, asegurando que la ayuda llegue a quienes la necesitan.</p>
+                    </details>
+                    <details class="faq-accordion-item">
+                        <summary><h4>¿Reciben los voluntarios alguna compensación?</h4></summary>
+                        <p>El voluntariado es humanitario, pero la plataforma otorga incentivos en BLUE IOU como reconocimiento al trabajo de campo realizado.</p>
+                    </details>
+                    <details class="faq-accordion-item">
+                        <summary><h4>¿Cómo se protege mi privacidad?</h4></summary>
+                        <p>Tus datos sensibles están cifrados bajo cumplimiento SOC 2 y solo se usan estrictamente para auditar y entregar la ayuda económica.</p>
+                    </details>
+                </div>
+                <div class="compliance-footer" style="text-align: center; margin-top: 3.5rem;">
+                    <a href="legales-campana.html" class="btn-secondary-campaign" style="font-size: 0.95rem; padding: 1rem 2.5rem; border-color: rgba(14, 165, 233, 0.25);">Términos y Cumplimiento Legal de la Campaña</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer Oficial -->
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col brand">
+                    <img src="assets/branding/wintoncoin_transparent_phrase.png" alt="WintonCoin" class="footer-logo-img" style="height: 32px; width: auto; margin-bottom: 1.5rem;">
+                    <p>La primera red de economía colaborativa inmutable del mundo. Intercambia servicios sin dinero y apoya causas humanitarias.</p>
+                </div>
+                <div class="footer-col links">
+                    <h5>Legal & Cumplimiento</h5>
+                    <a href="terms.html">Términos de Servicio</a>
+                    <a href="privacy.html">Política de Privacidad</a>
+                    <a href="docs.html">Documentación Legal</a>
+                </div>
+                <div class="footer-col social">
+                    <h5>Comunidad</h5>
+                    <div class="social-icons" style="display: flex; gap: 1rem; align-items: center;">
+                        <a href="https://x.com/WintonCoin" target="_blank" aria-label="X (Twitter)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                            </svg>
+                        </a>
+                        <a href="https://www.instagram.com/cadenasosvenezuela?igsh=MTIxcGVnZGs4bm0yYw==" target="_blank" aria-label="Instagram" style="color: inherit; transition: opacity 0.2s;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" class="bi bi-instagram" viewBox="0 0 16 16">
+                                <path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.9 3.9 0 0 0-1.417.923A3.9 3.9 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.9 3.9 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.9 3.9 0 0 0-.923-1.417A3.9 3.9 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599s.453.546.598.92c.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.5 2.5 0 0 1-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.5 2.5 0 0 1-.92-.598 2.5 2.5 0 0 1-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233s.008-2.388.046-3.231c.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92s.546-.453.92-.598c.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045zm4.988 1.328a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92m-4.27 1.122a4.109 4.109 0 1 0 0 8.217 4.109 4.109 0 0 0 0-8.217m0 1.441a2.667 2.667 0 1 1 0 5.334 2.667 2.667 0 0 1 0-5.334"/>
+                            </svg>
+                        </a>
+                    </div>
+                    <h6>Contáctanos</h6>
+                    <a href="mailto:support@wintoncoin.com" class="footer-contact-link">support@wintoncoin.com</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                &copy; 2026 WintonCoin. Todos los derechos reservados.<br>
+                <small style="opacity: 0.7;">WintonCoin es un producto propiedad de WTN Solutions LLC.</small>
+            </div>
+        </div>
+    </footer>
+
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+</html>

@@ -48,17 +48,29 @@ document.addEventListener('DOMContentLoaded', () => {
     if (blueCostInput && pubCostCalculator) {
         let activeMult = 1.0;
         let activeStage = 'Sin etapa activa';
-        fetch(`${API_URL}/api/booster/current-multiplier`)
-            .then(res => res.json())
-            .then(data => {
-                activeMult = data.multiplier || 1.0;
-                activeStage = data.stageName || 'Sin etapa activa';
-                updatePubCalcDisplay();
-            })
-            .catch(() => updatePubCalcDisplay());
+        let isPreLaunch = false;
+
+        Promise.all([
+            fetch(`${API_URL}/api/booster/current-multiplier`).then(res => res.json()).catch(() => ({})),
+            fetch(`${API_URL}/api/platform-settings`).then(res => res.json()).catch(() => ({}))
+        ]).then(([multData, platformData]) => {
+            activeMult = multData?.multiplier || 1.0;
+            activeStage = multData?.stageName || 'Sin etapa activa';
+            isPreLaunch = platformData?.pre_launch_mode_enabled === true;
+            updatePubCalcDisplay();
+        }).catch(() => updatePubCalcDisplay());
 
         function updatePubCalcDisplay() {
             const val = parseFloat(blueCostInput.value.replace(',', '.'));
+            if (!isPreLaunch) {
+                if (isNaN(val) || val <= 0) {
+                    pubCostCalculator.textContent = `Moneda: BLUE Real (Transacción directa sin multiplicador)`;
+                } else {
+                    pubCostCalculator.textContent = `Valor Nominal: ${val} BLUE (Transacción real)`;
+                }
+                return;
+            }
+
             if (isNaN(val) || val <= 0) {
                 pubCostCalculator.textContent = `Multiplicador vigente: ${activeMult}x (${activeStage})`;
             } else {

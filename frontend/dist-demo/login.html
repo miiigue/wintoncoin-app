@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>[DEMO] WintonCoin - Iniciar Sesión</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Plataforma de intercambio de servicios con tokens BLUE y RED">
+    <meta name="theme-color" content="#4a90d9">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="WintonCoin">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="WintonCoin">
+    <meta name="msapplication-TileColor" content="#1a1a2e">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.demo.json">
+
+    <!-- PWA Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon.DuxeKF20.ico">
+    <link rel="icon" type="image/png" sizes="16x16" href="./assets/favicon-16x16.qlexLwP3.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.BskCKsiM.png">
+
+  <script type="module" crossorigin src="./assets/login.dKBOzhPw.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill.B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin href="./assets/auth.BgcrufBo.js">
+  <link rel="modulepreload" crossorigin href="./assets/index.pbqrtUCb.js">
+  <link rel="modulepreload" crossorigin href="./assets/pushManager.4QVSizjR.js">
+  <link rel="stylesheet" crossorigin href="./assets/pushManager.B1WnFsPR.css">
+  <link rel="stylesheet" crossorigin href="./assets/style.yScP5BS0.css">
+<script id="vite-plugin-pwa:register-sw" src="./registerSW.js"></script></head>
+
+<body>
+    <div class="container"> <!-- Contenedor para centrar y dar estilo -->
+        <a href="/" title="Ir al Inicio"><img src="./assets/icon-192x192.DTV1SGDv.png"
+                alt="WintonCoin" class="auth-page-logo"></a>
+        <h1>Bienvenido</h1>
+
+        <form id="loginForm">
+            <div>
+                <label for="identifier">Inicia sesión con tu Usuario o Email:</label>
+                <input type="text" id="identifier" name="identifier"
+                    placeholder="Tu nombre de usuario o correo electrónico" required autocomplete="username">
+            </div>
+
+            <div>
+                <label for="password">Contraseña:</label>
+                <div class="password-wrapper">
+                    <input type="password" id="password" name="password" required autocomplete="current-password">
+                    <span class="password-toggle-icon" onclick="togglePasswordVisibility('password', this)">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-eye">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </span>
+                </div>
+                <div style="text-align: right; margin-top: 6px;">
+                    <a href="forgot-password.html" class="forgot-password-link">¿Olvidaste tu contraseña?</a>
+                </div>
+            </div>
+
+            <div>
+                <button type="submit">Ingresar</button>
+            </div>
+        </form>
+
+        <a href="register.html" class="secondary-action-button">Registrarse</a>
+
+        <div style="margin-top: 2rem; text-align: center;">
+            <a href="/"
+                style="color: rgba(255,255,255,0.6); text-decoration: none; font-size: 0.9rem;">← Volver al sitio
+                principal</a>
+        </div>
+    </div>
+
+    <!-- ES Modules (Vite) -->
+
+    <!-- Contenedor para alertas dinámicas -->
+    <div id="custom-alert-container"></div>
+
+    <!-- Modal de Alerta Personalizado (legacy) -->
+    <div id="customAlertModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button alert-close-button">&times;</span>
+            <p id="customAlertMessage"></p>
+            <button class="action-button alert-close-button">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- Modal de Advertencia de Cuenta Única -->
+    <div id="oneAccountPolicyModal" class="modal policy-modal">
+        <div class="modal-content">
+            <span class="close-button policy-close-button">&times;</span>
+            <div class="policy-header">
+                <div class="policy-icon-circle">
+                    <span class="policy-icon">💡</span>
+                </div>
+                <h3>Aviso Importante</h3>
+            </div>
+            <div class="policy-body">
+                <p>Para mantener nuestra comunidad justa, segura y libre de estafadores, te recordamos que solo se permite una cuenta por persona. ¡Gracias por tu colaboración!</p>
+            </div>
+            <div class="policy-footer">
+                <button class="action-button policy-close-button">Entendido</button>
+            </div>
+        </div>
+    </div>
+
+          <div style="position: fixed; top: 0; right: 0; width: 150px; height: 150px; overflow: hidden; z-index: 999999; pointer-events: none;">
+            <div style="position: absolute; top: 30px; right: -40px; background: linear-gradient(90deg, #e83e8c, #8B5CF6); color: white; padding: 5px 40px; transform: rotate(45deg); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); letter-spacing: 2px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+              DEMO MODE
+            </div>
+          </div>
+        
+</body>
+
+</html>

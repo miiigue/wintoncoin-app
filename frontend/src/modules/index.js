@@ -15,6 +15,7 @@ export * from './linkify.js';
 export * from './password-toggle.js';
 export * from './sanitize.js';
 export * from './clipboard.js';
+export * from './walletService.js';
 
 // ============================================================================
 // COMPATIBILIDAD GLOBAL (window.*)
@@ -65,6 +66,12 @@ import { linkify } from './linkify.js';
 import { togglePasswordVisibility } from './password-toggle.js';
 import { escapeHtml, escapeAttr } from './sanitize.js';
 import { copyTextToClipboard } from './clipboard.js';
+import {
+    formatBalance,
+    formatBalancePlain,
+    parseFormattedBalance,
+    calculateCreditMetrics
+} from './walletService.js';
 
 // Solo ejecutar en el navegador (no en Node.js)
 if (typeof window !== 'undefined') {
@@ -91,6 +98,12 @@ if (typeof window !== 'undefined') {
     window.escapeHtml = escapeHtml;
     window.escapeAttr = escapeAttr;
     window.copyTextToClipboard = copyTextToClipboard;
+
+    // --- Billetera y Balances ---
+    window.formatBalance = formatBalance;
+    window.formatBalancePlain = formatBalancePlain;
+    window.parseFormattedBalance = parseFormattedBalance;
+    window.calculateCreditMetrics = calculateCreditMetrics;
 
     // --- Tooltips ---
     window.initializeInfoTooltip = initializeInfoTooltip;
