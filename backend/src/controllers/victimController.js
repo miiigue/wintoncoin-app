@@ -430,7 +430,12 @@ exports.registerVictimPublic = async (req, res) => {
     } catch (error) {
         await client.query('ROLLBACK');
         console.error("[SOS VICTIM] Error en registro público:", error);
-        res.status(500).json({ success: false, message: "Error interno al procesar la solicitud." });
+        res.status(500).json({
+            success: false,
+            message: (process.env.NODE_ENV === 'production' && process.env.IS_DEMO_ENV !== 'true')
+                ? "Error interno al procesar la solicitud."
+                : `Error interno al procesar la solicitud: ${error.message}`
+        });
     } finally {
         client.release();
     }
@@ -523,7 +528,7 @@ exports.verifyVictimOtpPublic = async (req, res) => {
         } else {
             // Usuario Existente: Preservar la contraseña actual y solo asegurar is_verified = true
             await client.query(
-                'UPDATE users SET is_verified = true WHERE email = $2',
+                'UPDATE users SET is_verified = true WHERE email = $1',
                 [normEmail]
             );
         }
