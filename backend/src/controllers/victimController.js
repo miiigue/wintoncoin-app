@@ -113,6 +113,13 @@ function normalizePhone(phone) {
     return cleaned;
 }
 
+function maskEmailHelper(email) {
+    if (!email || !email.includes('@')) return email || '';
+    const [local, domain] = email.split('@');
+    if (local.length <= 2) return `${local[0]}***@${domain}`;
+    return `${local[0]}***${local[local.length - 1]}@${domain}`;
+}
+
 // ============================================================================
 // POST /api/public/sos-venezuela/register-victim (Público)
 // ============================================================================
@@ -120,6 +127,9 @@ function normalizePhone(phone) {
 // 1. Validar campos obligatorios y consentimientos legales (Zero-Trust).
 // 2. Calcular edad autoritativa a partir de birth_date (fuente única de verdad).
 // 3. Verificar que la Cédula no tenga un expediente previo (unicidad documental).
+//    - Si ya tiene expediente y la cuenta está ACTIVA: Indicar que inicie sesión.
+//    - Si ya tiene expediente y la cuenta está PENDIENTE: Reanudación Inteligente (Smart Resume),
+//      generando y reenviando nuevo OTP al correo para que complete su activación.
 // 4. Buscar o crear cuenta de usuario WintonCoin (vinculación al ecosistema).
 // 5. SIEMPRE guardar hash de OTP en pending_verifications (UPSERT) para que
 //    el flujo de verificación funcione tanto para usuarios nuevos como existentes.
@@ -208,19 +218,72 @@ exports.registerVictimPublic = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // ── 4. Verificar Unicidad de Cédula (Prevención de Duplicados) ─────
-        // Si la cédula ya tiene un expediente, se rechaza con mensaje informativo
-        const existingDossier = await client.query(
-            'SELECT id, dossier_number FROM disaster_victims_registry WHERE id_document = $1',
-            [normDoc]
-        );
+        // ── 4. Detección Inteligente de Cédula y Reanudación de Verificación ──
+        const existingDossier = await client.query(`
+            SELECT d.id, d.dossier_number, d.user_id, d.email, u.is_verified, u.username
+            FROM disaster_victims_registry d
+            LEFT JOIN users u ON u.id = d.user_id
+            WHERE d.id_document = $1
+        `, [normDoc]);
 
         if (existingDossier.rows.length > 0) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({
-                success: false,
-                message: `La Cédula ${normDoc} ya tiene una solicitud registrada bajo el expediente #${existingDossier.rows[0].dossier_number}.`
-            });
+            const dossier = existingDossier.rows[0];
+            const isUserVerified = dossier.is_verified === true;
+
+            if (isUserVerified) {
+                // Caso 1: El usuario ya completó su verificación y su cuenta está activa
+                await client.query('ROLLBACK');
+                return res.status(409).json({
+                    success: false,
+                    already_active: true,
+                    dossier_number: dossier.dossier_number,
+                    message: `La Cédula ${normDoc} ya tiene una solicitud activa bajo el expediente #${dossier.dossier_number}. Inicia sesión en tu cuenta para consultar tu estatus.`
+                });
+            } else {
+                // Caso 2: El usuario llenó el formulario anteriormente pero NO completó el OTP (Smart Resume)
+                const verificationCode = emailService.generateOtp6();
+                const verificationCodeHash = emailService.hashOtpForEmail(dossier.email, verificationCode);
+                const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+
+                const customCodeRes = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'referral_custom_share_code'`);
+                const specialReferralCode = (customCodeRes.rows.length > 0 && customCodeRes.rows[0].setting_value) ? customCodeRes.rows[0].setting_value.trim() : 'SOSVENEZUELA';
+
+                await client.query(`
+                    INSERT INTO pending_verifications (
+                        username, email, password_hash, phone_number, referral_code,
+                        verification_code_hash, verification_attempts, resend_count, last_sent_at, expires_at
+                    ) VALUES ($1, $2, '', $3, $4, $5, 0, 0, NOW(), $6)
+                    ON CONFLICT (email) DO UPDATE
+                    SET referral_code = EXCLUDED.referral_code,
+                        verification_code_hash = EXCLUDED.verification_code_hash,
+                        expires_at = EXCLUDED.expires_at,
+                        verification_attempts = 0,
+                        resend_count = pending_verifications.resend_count + 1,
+                        last_sent_at = NOW()
+                `, [dossier.username || normEmail.split('@')[0], dossier.email, normPhone, specialReferralCode, verificationCodeHash, expiresAt]);
+
+                await client.query('COMMIT');
+
+                // Enviar nuevo OTP al correo registrado
+                try {
+                    const ipRaw = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString();
+                    const ip = ipRaw.split(',')[0].trim();
+                    await emailService.sendOtpEmail({ toEmail: dossier.email, otp: verificationCode, context: { ip, requestedAt: new Date().toISOString() } });
+                } catch (mErr) {
+                    console.error("[SOS RESUME] Error enviando email de reanudación OTP:", mErr.message);
+                }
+
+                const maskedEmail = maskEmailHelper(dossier.email);
+
+                return res.status(200).json({
+                    success: true,
+                    resume_verification: true,
+                    dossier_number: dossier.dossier_number,
+                    email: dossier.email,
+                    is_new_user: true,
+                    message: `Tu solicitud ya fue recibida con el expediente #${dossier.dossier_number}. Hemos enviado un nuevo código de 6 dígitos a tu correo (${maskedEmail}) para que actives tu cuenta.`
+                });
+            }
         }
 
         // ── 5. Buscar o Crear Cuenta WintonCoin ────────────────────────────
@@ -475,12 +538,16 @@ exports.verifyVictimOtpPublic = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // ── 1.1 Verificar si es Usuario Existente con Contraseña Establecida ──────
+        // ── 1.1 Verificar si es Usuario Pre-Existente y Verificado ──────
+        // Un usuario es pre-existente si ya estaba verificado y activo en la plataforma
+        // ANTES de completar este censo (is_verified = true).
+        // Si is_verified es false, es un usuario NUEVO creado durante este censo que aún
+        // no ha definido su contraseña ni ha activado su cuenta.
         const existingUserCheck = await client.query('SELECT id, username, password_hash, is_verified FROM users WHERE email = $1', [normEmail]);
-        const isExistingUserWithPassword = (existingUserCheck.rows.length > 0 && existingUserCheck.rows[0].password_hash && existingUserCheck.rows[0].password_hash.length > 0);
+        const isExistingVerifiedUser = (existingUserCheck.rows.length > 0 && existingUserCheck.rows[0].is_verified === true);
 
         // Si es usuario nuevo, requerir y validar contraseña
-        if (!isExistingUserWithPassword) {
+        if (!isExistingVerifiedUser) {
             if (!password || password.length < 8) {
                 await client.query('ROLLBACK');
                 return res.status(400).json({ success: false, message: "La contraseña debe tener al menos 8 caracteres." });
@@ -518,8 +585,8 @@ exports.verifyVictimOtpPublic = async (req, res) => {
         }
 
         // ── 3. Activar Cuenta de Usuario ───────────────────────────────────
-        if (!isExistingUserWithPassword && password) {
-            // Usuario Nuevo: Hashear contraseña elegida por el usuario
+        if (!isExistingVerifiedUser && password) {
+            // Usuario Nuevo: Hashear contraseña elegida por el usuario y activar
             const hashedPassword = await bcrypt.hash(password, 10);
             await client.query(
                 'UPDATE users SET password_hash = $1, is_verified = true WHERE email = $2',
@@ -543,11 +610,12 @@ exports.verifyVictimOtpPublic = async (req, res) => {
         const user = userRes.rows[0];
 
         // ── 5. Acreditación Centralizada de Bonos (Solo Usuarios Nuevos) ────────────
-        // Regla de Negocio SOS: Si el usuario YA ESTÁ REGISTRADO previamente en WintonCoin,
+        // Regla de Negocio SOS: Si el usuario YA ESTABA REGISTRADO y VERIFICADO previamente en WintonCoin,
         // recibe su OTP por correo para confirmar su expediente SOS, pero NO se asigna
         // ningún bono adicional ni a él ni al código de referido utilizado.
+        // Si el usuario es NUEVO, se procesa la recompensa de referido y el bono de bienvenida.
         let rewardAmount = 0;
-        if (!isExistingUserWithPassword) {
+        if (!isExistingVerifiedUser) {
             try {
                 const pendingRefRes = await client.query('SELECT referral_code FROM pending_verifications WHERE email = $1', [normEmail]);
                 const customCodeRes2 = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'referral_custom_share_code'`);
@@ -653,6 +721,105 @@ exports.verifyVictimOtpPublic = async (req, res) => {
                 ? "Error interno del servidor."
                 : `Error interno al procesar OTP: ${error.message}`
         });
+    } finally {
+        client.release();
+    }
+};
+
+// ============================================================================
+// POST /api/public/sos-venezuela/resend-otp (Público - Reenvío de Código OTP)
+// ============================================================================
+// Estándar FinTech & NIST SP 800-63B:
+// 1. Rate Limiting: Cooldown mínimo de 60s entre reenvíos sucesivos.
+// 2. Anti-Abuse: Límite estricto de 5 reenvíos por sesión.
+// 3. Generación criptográfica segura de nuevo OTP y nuevo TTL de 15 min.
+// 4. Registro inmutable de auditoría para trazabilidad SOC 2.
+// ============================================================================
+exports.resendVictimOtpPublic = async (req, res) => {
+    const { email } = req.body;
+    if (!email || typeof email !== 'string' || !email.trim()) {
+        return res.status(400).json({ success: false, message: "Ingresa un correo electrónico válido." });
+    }
+
+    const normEmail = email.trim().toLowerCase();
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Buscar si hay una verificación pendiente
+        const pendingRes = await client.query('SELECT * FROM pending_verifications WHERE email = $1', [normEmail]);
+        if (pendingRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: "No se encontró una solicitud pendiente para este correo." });
+        }
+
+        const pending = pendingRes.rows[0];
+
+        // 2. Control de Frecuencia (Rate Limiting: Mínimo 60 segundos entre reenvíos)
+        if (pending.last_sent_at) {
+            const timeSinceLastSent = Date.now() - new Date(pending.last_sent_at).getTime();
+            const cooldownMs = 60 * 1000; // 60s
+            if (timeSinceLastSent < cooldownMs) {
+                const remainingSecs = Math.ceil((cooldownMs - timeSinceLastSent) / 1000);
+                await client.query('ROLLBACK');
+                return res.status(429).json({
+                    success: false,
+                    message: `Por favor espera ${remainingSecs} segundos antes de solicitar otro código.`
+                });
+            }
+        }
+
+        // 3. Límite máximo de 5 reenvíos por sesión (Anti-Spam / Anti-Abuse)
+        if ((pending.resend_count || 0) >= 5) {
+            await client.query('ROLLBACK');
+            return res.status(429).json({
+                success: false,
+                message: "Has alcanzado el límite máximo de reenvíos permitidos. Por favor espera unos minutos o contacta a soporte."
+            });
+        }
+
+        // 4. Generar nuevo código OTP de 6 dígitos
+        const newOtp = emailService.generateOtp6();
+        const newHash = emailService.hashOtpForEmail(normEmail, newOtp);
+        const newExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
+
+        await client.query(`
+            UPDATE pending_verifications
+            SET verification_code_hash = $1,
+                verification_attempts = 0,
+                resend_count = resend_count + 1,
+                last_sent_at = NOW(),
+                expires_at = $2
+            WHERE id = $3
+        `, [newHash, newExpiresAt, pending.id]);
+
+        await client.query('COMMIT');
+
+        // 5. Enviar OTP por correo
+        try {
+            const ipRaw = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString();
+            const ip = ipRaw.split(',')[0].trim();
+            await emailService.sendOtpEmail({ toEmail: normEmail, otp: newOtp, context: { ip, requestedAt: new Date().toISOString() } });
+        } catch (mailErr) {
+            console.error("[SOS RESEND OTP] Error enviando correo:", mailErr.message);
+        }
+
+        // 6. Auditoría Inmutable
+        await logAuditEvent(pool, req, {
+            eventType: 'sos.victim.otp_resent',
+            actorUsername: normEmail,
+            category: 'humanitarian',
+            metadata: { email: normEmail, resend_count: (pending.resend_count || 0) + 1 }
+        });
+
+        res.json({
+            success: true,
+            message: "Se ha reenviado un nuevo código de 6 dígitos a tu correo."
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error("[SOS RESEND OTP] Error:", error);
+        res.status(500).json({ success: false, message: "Error al reenviar el código de verificación." });
     } finally {
         client.release();
     }

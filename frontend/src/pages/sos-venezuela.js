@@ -283,17 +283,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
 
             if (!response.ok || !data.success) {
+                if (data && data.already_active) {
+                    showError(`${data.message} <div style="margin-top: 10px;"><a href="login.html" style="display: inline-block; background: #db2777; color: #ffffff; padding: 8px 20px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 0.95rem;">Iniciar Sesión</a></div>`);
+                    return;
+                }
                 throw new Error(data.message || 'Error al registrar la solicitud.');
             }
 
             // Guardar email, expediente e is_new_user registrado para la verificación OTP y en sessionStorage
-            window._registeredVictimEmail = email;
+            window._registeredVictimEmail = data.email || email;
             window._registeredDossierNumber = data.dossier_number;
             window._isNewUser = Boolean(data.is_new_user);
 
             try {
                 sessionStorage.setItem('sos_pending_otp', JSON.stringify({
-                    email: email,
+                    email: window._registeredVictimEmail,
                     dossier_number: data.dossier_number,
                     is_new_user: window._isNewUser,
                     timestamp: Date.now()
@@ -302,6 +306,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Configurar UI de la tarjeta OTP según si es usuario nuevo o existente
             configureOtpCardState();
+
+            // Si es reanudación inteligente de un expediente previo, mostrar aviso informativo
+            if (data.resume_verification) {
+                showOtpMsg(`ℹ️ ${data.message}`, '#0284c7');
+            }
 
             // Mostrar Paso 1 (Formulario OTP) y ocultar planilla de registro
             victimForm.style.display = 'none';
@@ -499,6 +508,69 @@ document.addEventListener('DOMContentLoaded', () => {
                 showOtpMsg(err.message, '#ef4444');
                 btnVerifyOtp.disabled = false;
                 btnVerifyOtp.textContent = 'Activar mi Cuenta';
+            }
+        });
+    }
+
+    // ── 6.6 Manejo de Reenvío de Código OTP (Botón con Cooldown de 60s) ───
+    const btnResendOtp = document.getElementById('sos-btn-resend-otp');
+    const resendTimerSpan = document.getElementById('sos-resend-timer-span');
+    const timerSecondsEl = document.getElementById('sos-timer-seconds');
+    let resendCooldownInterval = null;
+
+    function startResendCooldown(seconds = 60) {
+        if (!btnResendOtp || !resendTimerSpan || !timerSecondsEl) return;
+        btnResendOtp.style.display = 'none';
+        resendTimerSpan.style.display = 'inline';
+        let remaining = seconds;
+        timerSecondsEl.textContent = String(remaining);
+
+        if (resendCooldownInterval) clearInterval(resendCooldownInterval);
+        resendCooldownInterval = setInterval(() => {
+            remaining--;
+            if (remaining <= 0) {
+                clearInterval(resendCooldownInterval);
+                resendCooldownInterval = null;
+                resendTimerSpan.style.display = 'none';
+                btnResendOtp.style.display = 'inline';
+            } else {
+                timerSecondsEl.textContent = String(remaining);
+            }
+        }, 1000);
+    }
+
+    if (btnResendOtp) {
+        btnResendOtp.addEventListener('click', async () => {
+            const targetEmail = window._registeredVictimEmail || document.getElementById('sos-email').value.trim();
+            if (!targetEmail) {
+                showOtpMsg('No se encontró el correo electrónico registrado.', '#ef4444');
+                return;
+            }
+
+            try {
+                btnResendOtp.disabled = true;
+                btnResendOtp.textContent = 'Enviando...';
+
+                const res = await fetch(`${API_URL}/api/public/sos-venezuela/resend-otp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: targetEmail })
+                });
+
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    throw new Error(data.message || 'Error al reenviar el código.');
+                }
+
+                showOtpMsg('✅ Nuevo código enviado a tu correo. Por favor revisa tu bandeja de entrada o spam.', '#10b981');
+                startResendCooldown(60);
+            } catch (rErr) {
+                showOtpMsg(rErr.message, '#ef4444');
+            } finally {
+                if (btnResendOtp) {
+                    btnResendOtp.disabled = false;
+                    btnResendOtp.textContent = 'Reenviar código';
+                }
             }
         });
     }

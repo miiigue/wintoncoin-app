@@ -314,6 +314,17 @@
                         Activar mi Cuenta
                     </button>
 
+                    <!-- Reenvío de Código OTP con Temporizador (Estándar FinTech) -->
+                    <div style="margin-top: 1rem; font-size: 0.9rem; color: #64748b; text-align: center;">
+                        <span>¿No recibiste el código?</span>
+                        <button type="button" id="sos-btn-resend-otp" style="background: none; border: none; color: #db2777; font-weight: 600; cursor: pointer; text-decoration: underline; padding: 0 4px; font-size: 0.9rem;">
+                            Reenviar código
+                        </button>
+                        <span id="sos-resend-timer-span" style="display: none; color: #94a3b8; font-weight: 500;">
+                            (espera <span id="sos-timer-seconds">60</span>s)
+                        </span>
+                    </div>
+
                     <div id="sos-otp-feedback-msg" style="display: none; margin-top: 10px; font-size: 0.9rem; padding: 8px; border-radius: 6px;"></div>
                 </div>
 
