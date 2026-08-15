@@ -5053,3 +5053,4 @@ pm run build:demo) exitosamente.
 - **Contexto**: Se aislaron los procesos secundarios en verifyVictimOtpPublic para garantizar que la activación de la cuenta SOS nunca falle.
 - **Cambios**: Coerción de tipos anti-crash en email/otp_code, fallback en jwtSecret y try-catch en processReferralReward.
 - **Evidencia**: Modificado backend/src/controllers/victimController.js, EVOLUCION.md.
+\n\n### 2026-08-15 - Correccion de Casteo de Tipos PostgreSQL y Regla SOS Usuarios Existentes\n- **Causa del Error (could not determine data type of parameter )**: Parametros nulos en ecord_booster_event sin casteo explicito de tipo en PostgreSQL.\n- **Solucion**:\n  1. Casteo de tipos SQL explicito en eferralRewardService.js.\n  2. Exencion de bonos de referido para usuarios existentes al verificar OTP SOS en ictimController.js.\n

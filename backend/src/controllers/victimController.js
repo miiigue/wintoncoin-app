@@ -537,29 +537,35 @@ exports.verifyVictimOtpPublic = async (req, res) => {
 
         const user = userRes.rows[0];
 
-        // ── 5. Acreditación Centralizada de Bonos (Aislamiento Secundario) ────────────
-        // El proceso de bonificación se aísla para no revertir la activación del usuario si ocurre un error colateral.
+        // ── 5. Acreditación Centralizada de Bonos (Solo Usuarios Nuevos) ────────────
+        // Regla de Negocio SOS: Si el usuario YA ESTÁ REGISTRADO previamente en WintonCoin,
+        // recibe su OTP por correo para confirmar su expediente SOS, pero NO se asigna
+        // ningún bono adicional ni a él ni al código de referido utilizado.
         let rewardAmount = 0;
-        try {
-            const pendingRefRes = await client.query('SELECT referral_code FROM pending_verifications WHERE email = $1', [normEmail]);
-            const customCodeRes2 = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'referral_custom_share_code'`);
-            
-            let refCodeToUse = 'SOSVENEZUELA';
-            if (pendingRefRes.rows.length > 0 && pendingRefRes.rows[0].referral_code) {
-                refCodeToUse = pendingRefRes.rows[0].referral_code;
-            } else if (customCodeRes2.rows.length > 0 && customCodeRes2.rows[0].setting_value) {
-                refCodeToUse = customCodeRes2.rows[0].setting_value;
+        if (!isExistingUserWithPassword) {
+            try {
+                const pendingRefRes = await client.query('SELECT referral_code FROM pending_verifications WHERE email = $1', [normEmail]);
+                const customCodeRes2 = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'referral_custom_share_code'`);
+                
+                let refCodeToUse = 'SOSVENEZUELA';
+                if (pendingRefRes.rows.length > 0 && pendingRefRes.rows[0].referral_code) {
+                    refCodeToUse = pendingRefRes.rows[0].referral_code;
+                } else if (customCodeRes2.rows.length > 0 && customCodeRes2.rows[0].setting_value) {
+                    refCodeToUse = customCodeRes2.rows[0].setting_value;
+                }
+
+                const rewardResult = await referralRewardService.processReferralReward({
+                    client,
+                    newUser: user,
+                    referralCode: refCodeToUse
+                });
+
+                rewardAmount = parseFloat(rewardResult?.rewardAmount || 0);
+            } catch (rewardErr) {
+                console.error("[SOS OTP] Advertencia: Error en proceso secundario de bono de referido:", rewardErr.message);
             }
-
-            const rewardResult = await referralRewardService.processReferralReward({
-                client,
-                newUser: user,
-                referralCode: refCodeToUse
-            });
-
-            rewardAmount = parseFloat(rewardResult?.rewardAmount || 0);
-        } catch (rewardErr) {
-            console.error("[SOS OTP] Advertencia: Error en proceso secundario de bono de referido:", rewardErr.message);
+        } else {
+            console.log(`[SOS OTP] Usuario existente ID ${user.id} (${user.username}). Omitiendo acreditación de bonos según regla SOS.`);
         }
 
         // ── 5.6 Registrar en historial del expediente SOS ──────────────────

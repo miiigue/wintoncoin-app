@@ -198,7 +198,7 @@ async function processReferralReward({ client, newUser, referralCode }) {
 
             } else {
                 // CASO TRADICIONAL (Sin causa activa)
-                await client.query("SELECT record_booster_event($1, 'referral_reward', $2, NULL, $3)", [referrer.id, allocatedRewardAmount, newUser.id]);
+                await client.query("SELECT record_booster_event($1::INTEGER, 'referral_reward'::TEXT, $2::NUMERIC, NULL::INTEGER, $3::INTEGER)", [referrer.id, allocatedRewardAmount, newUser.id]);
                 await client.query('UPDATE users SET is_booster = true WHERE id = $1', [referrer.id]);
 
                 await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_sent', $2, $3)`, [referrer.id, allocatedRewardAmount, `Bono por referir a ${newUser.username}`]);
@@ -214,7 +214,7 @@ async function processReferralReward({ client, newUser, referralCode }) {
             }
 
             // Bono para el nuevo usuario (referred)
-            await client.query("SELECT record_booster_event($1, 'referral_reward', $2, NULL, $3)", [newUser.id, allocatedRewardAmount, referrer.id]);
+            await client.query("SELECT record_booster_event($1::INTEGER, 'referral_reward'::TEXT, $2::NUMERIC, NULL::INTEGER, $3::INTEGER)", [newUser.id, allocatedRewardAmount, referrer.id]);
             await client.query('UPDATE users SET is_booster = true WHERE id = $1', [newUser.id]);
             await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_received', $2, $3)`, [newUser.id, allocatedRewardAmount, `Bono por usar el código de ${referrer.username}`]);
             await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [newUser.id, `Recompensa (perfil impulsor) por usar el código de ${referrer.username}`, allocatedRewardAmount]);
@@ -235,7 +235,7 @@ async function processReferralReward({ client, newUser, referralCode }) {
         const welcomeBonusAmount = parseFloat(settings.welcome_bonus_amount) || 0;
         if (welcomeBonusAmount > 0) {
             allocatedRewardAmount = welcomeBonusAmount;
-            await client.query('SELECT record_booster_event($1, \'welcome_bonus\', $2, NULL)', [newUser.id, allocatedRewardAmount]);
+            await client.query("SELECT record_booster_event($1::INTEGER, 'welcome_bonus'::TEXT, $2::NUMERIC, NULL::INTEGER, NULL::INTEGER)", [newUser.id, allocatedRewardAmount]);
             await client.query('UPDATE users SET is_booster = true WHERE id = $1', [newUser.id]);
             await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, allocatedRewardAmount, 'Bono de Bienvenida por registro']);
             await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, 'Bono de bienvenida (perfil impulsor)', allocatedRewardAmount]);
