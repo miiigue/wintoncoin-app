@@ -263,14 +263,14 @@
 
                 <div id="sos-victim-feedback" style="display: none;"></div>
 
-                <!-- Botón de Envío -->
-                <button type="submit" id="sos-btn-submit" class="btn-primary-campaign" style="width: 100%; padding: 16px; font-size: 1.15rem; font-weight: 700; border-radius: 50px; cursor: pointer;">
+                <!-- Botón de Envío (Deshabilitado por defecto hasta completar campos y checks) -->
+                <button type="submit" id="sos-submit-btn" class="btn-primary-campaign" disabled style="width: 100%; padding: 16px; font-size: 1.15rem; font-weight: 700; margin-top: 1rem; border-radius: 50px; cursor: not-allowed; opacity: 0.5;">
                     Enviar Solicitud
                 </button>
             </form>
 
             <!-- Card de Verificación OTP y Resultado de Registro (Tema Claro) -->
-            <div id="sos-registration-result-card" style="display: none; margin-top: 2rem; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,0,0,0.06); padding: 2rem;">
+            <div id="sos-victim-result-card" style="display: none; margin-top: 2rem; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,0,0,0.06); padding: 2rem;">
                 
                 <!-- PASO 1: Formulario de Verificación OTP + Contraseñas (Paso Intermedio) -->
                 <div id="sos-otp-verification-card" style="margin: 0 auto; text-align: center;">

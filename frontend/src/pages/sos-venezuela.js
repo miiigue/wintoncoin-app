@@ -49,10 +49,14 @@ document.addEventListener('DOMContentLoaded', () => {
      * cuando todas las llaves (campos) están en su lugar.
      */
     function evaluateFormCompleteness() {
-        // Verificar que todos los campos de texto tengan contenido (no vacío)
+        // Verificar que todos los campos de texto tengan contenido válido (no solo prefijos iniciales)
         const allFieldsFilled = requiredFieldIds.every(id => {
             const el = document.getElementById(id);
-            return el && el.value.trim() !== '';
+            if (!el) return false;
+            const val = el.value.trim();
+            if (id === 'sos-iddocument') return val.length > 2 && val !== 'V-';
+            if (id === 'sos-phone') return val.length > 4 && val !== '+58';
+            return val !== '';
         });
 
         // Verificar que todos los checkboxes legales estén marcados (checked)
@@ -284,8 +288,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
 
             if (!response.ok || !data.success) {
+                const hasActiveSession = Boolean(localStorage.getItem('token'));
+                const btnLabel = hasActiveSession ? '👤 Ir a mi cuenta' : '🔑 Iniciar Sesión';
+                const btnHref = hasActiveSession ? 'profile.html' : 'login.html';
+
                 if (data && data.already_active) {
-                    showError(`${data.message} <div style="margin-top: 10px;"><a href="login.html" style="display: inline-block; background: #db2777; color: #ffffff; padding: 8px 20px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 0.95rem;">Iniciar Sesión</a></div>`);
+                    showError(`
+                        <div style="font-weight: 700; font-size: 1rem; color: #991b1b; margin-bottom: 6px;">
+                            ${data.message}
+                        </div>
+                        <div style="font-size: 0.88rem; color: #475569; margin-bottom: 14px;">
+                            ${hasActiveSession ? 'Ya tienes una sesión activa en este dispositivo. Puedes consultar tu expediente directamente en tu perfil.' : 'Inicia sesión con tu cuenta para consultar el estatus de tu expediente.'}
+                        </div>
+                        <div style="margin-top: 6px;">
+                            <a href="${btnHref}" class="btn-primary-campaign" style="display: inline-block; background: #db2777; color: #ffffff; padding: 10px 24px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 0.95rem; box-shadow: 0 4px 12px rgba(219,39,119,0.25);">
+                                ${btnLabel}
+                            </a>
+                        </div>
+                    `);
                     return;
                 }
                 throw new Error(data.message || 'Error al registrar la solicitud.');
@@ -600,14 +620,16 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function showError(msg) {
         if (feedbackEl) {
-            feedbackEl.textContent = msg;
+            feedbackEl.innerHTML = msg;
             feedbackEl.style.display = 'block';
-            feedbackEl.style.color = '#ef4444';
-            feedbackEl.style.background = 'rgba(239, 68, 68, 0.1)';
-            feedbackEl.style.border = '1px solid rgba(239, 68, 68, 0.3)';
-            feedbackEl.style.padding = '12px';
-            feedbackEl.style.borderRadius = '8px';
+            feedbackEl.style.color = '#991b1b';
+            feedbackEl.style.background = '#fef2f2';
+            feedbackEl.style.border = '1px solid #fecdd3';
+            feedbackEl.style.padding = '14px 16px';
+            feedbackEl.style.borderRadius = '12px';
             feedbackEl.style.marginTop = '1rem';
+            feedbackEl.style.lineHeight = '1.5';
+            feedbackEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
     }
 
