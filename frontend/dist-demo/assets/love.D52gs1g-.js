@@ -1,7 +1,0 @@
-import"./modulepreload-polyfill.B5Qt9EMX.js";/* empty css              */import"./index.pbqrtUCb.js";import{g as c}from"./auth.BgcrufBo.js";function r(){if(!localStorage.getItem("token")){window.location.href="index.html";return}const n=document.getElementById("love-table-body"),a=document.getElementById("loading");async function d(){a.style.display="block",n.innerHTML="";try{const t=c(),e=await fetch(`${t}/api/love-list`);if(!e.ok)throw new Error("Error al obtener los datos del servidor.");const o=await e.json();o.length===0?n.innerHTML='<tr class="love-empty-row"><td colspan="4">No hay obligaciones vencidas en este momento. ¡Felicidades a la comunidad!</td></tr>':i(o)}catch(t){console.error("Error:",t),n.innerHTML='<tr class="love-empty-row"><td colspan="4">No se pudo cargar la información. Inténtelo de nuevo más tarde.</td></tr>'}finally{a.style.display="none"}}function i(t){t.forEach(e=>{const o=document.createElement("tr"),l=new Date(e.overdue_since).toLocaleDateString("es-ES",{year:"numeric",month:"long",day:"numeric"});o.innerHTML=`
-                <td data-label="Usuario">${e.username}</td>
-                <td data-label="Compromiso Vencido (RED)">${parseFloat(e.total_overdue_amount).toFixed(4)}</td>
-                <td data-label="Vencido Desde">${l}</td>
-                <td data-label="Reincidencias">${e.recurrence_count}</td>
-            `,n.appendChild(o)})}d()}document.readyState==="loading"?document.addEventListener("DOMContentLoaded",r):r();
-//# sourceMappingURL=love.D52gs1g-.js.map

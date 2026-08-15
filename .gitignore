@@ -76,6 +76,7 @@ typings/
 
 # Vite build output
 frontend/dist/
+frontend/dist-demo/
 
 # Serverless directories
 .serverless/

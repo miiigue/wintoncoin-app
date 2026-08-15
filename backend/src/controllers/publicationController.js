@@ -27,21 +27,44 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
     }
 
     /**
-     * Calcula el costo efectivo y el multiplicador aplicado para una publicación
+     * Calcula el costo efectivo y el multiplicador aplicado para una publicación.
+     * REGLA CRÍTICA (Truth-in-Pricing / FinTech Compliance):
+     * Esta función DEBE replicar exactamente la misma lógica de decisión
+     * que publicationService.processRequestPayment() (líneas 200-214)
+     * para que el precio mostrado al usuario SIEMPRE coincida con el
+     * precio que se cobrará en el motor de pagos.
+     *
+     * Regla de negocio:
+     * - preLaunchMode === true  → multiplicador de etapa activo (BLUE IOU)
+     * - is_booster_task === true → multiplicador de etapa activo (BLUE IOU)
+     * - Cualquier otro caso       → multiplicador = 1.0 (precio base directo, BLUE real)
+     *
+     * @param {Object} publication - Row de la publicación (debe incluir is_booster_task)
+     * @param {boolean} preLaunchMode - Estado global del modo pre-lanzamiento
+     * @param {number} activeMultiplier - Multiplicador de etapa vigente (ej: 9.0)
+     * @returns {{ baseCost: number, multiplierUsed: number, finalBlueCost: number, isBoosterTx: boolean }}
      */
     function calculatePublicationEffectiveCost(publication, preLaunchMode, activeMultiplier) {
+        // Costo base original sin multiplicador (inmutable, almacenado al crear la publicación)
         const baseCost = parseFloat(publication.base_blue_cost || publication.blue_cost || 0);
-        const dbBlueCost = parseFloat(publication.blue_cost || 0);
-        
-        // En modo pre-lanzamiento o si ya tiene snapshot congelado
-        const finalBlueCost = (dbBlueCost > 0 && baseCost > 0 && dbBlueCost !== baseCost)
-            ? dbBlueCost
-            : baseCost * activeMultiplier;
-            
-        return { 
-            baseCost, 
-            multiplierUsed: activeMultiplier, 
-            finalBlueCost 
+
+        // Determinar si esta transacción califica para multiplicador de etapa.
+        // Misma regla que publicationService.processRequestPayment() línea 202:
+        // isBoosterTx = preLaunchMode || !!acceptance.is_booster_task
+        const isBoosterTx = preLaunchMode || !!publication.is_booster_task;
+
+        // Si NO califica como transacción de impulsor, multiplicador efectivo = 1.0
+        // (el usuario ve y paga el precio base directo en BLUE real)
+        const effectiveMultiplier = isBoosterTx ? activeMultiplier : 1.0;
+
+        // Costo final = base × multiplicador efectivo
+        const finalBlueCost = baseCost * effectiveMultiplier;
+
+        return {
+            baseCost,                    // Precio base sin multiplicar
+            multiplierUsed: effectiveMultiplier, // Multiplicador realmente aplicado (1.0 o Nx)
+            finalBlueCost,               // Precio final que el usuario ve y paga
+            isBoosterTx                  // Flag para auditoría y frontend (controla etiqueta y desglose)
         };
     }
 
@@ -568,8 +591,10 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             const activeStageName = currentMultiplierInfo.stageName || 'Sin etapa activa';
 
             // AUDITORÍA FINTECH: Garantizar coherencia inmutable entre la consulta del feed y el pago final.
+            // Se propaga isBoosterTx al frontend para que la UI refleje correctamente
+            // si el multiplicador aplica (desglose visible) o no (precio base directo).
             const publications = result.rows.map(p => {
-                const { baseCost, multiplierUsed, finalBlueCost } = calculatePublicationEffectiveCost(p, preLaunchMode, activeMultiplier);
+                const { baseCost, multiplierUsed, finalBlueCost, isBoosterTx } = calculatePublicationEffectiveCost(p, preLaunchMode, activeMultiplier);
 
                 return {
                     ...p,
@@ -577,6 +602,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                     current_multiplier: multiplierUsed,
                     current_stage_name: activeStageName,
                     blue_cost: finalBlueCost,
+                    is_booster_tx: isBoosterTx, // Frontend: controla si mostrar desglose de multiplicador
                     participants: p.participants || [],
                 };
             });
@@ -1815,11 +1841,13 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             const boosterService = require('../services/boosterService');
             const currentMultiplierInfo = await boosterService.calculateMultipliedAmount(1);
             
-            const { baseCost, multiplierUsed, finalBlueCost } = calculatePublicationEffectiveCost(publication, preLaunchMode, currentMultiplierInfo.multiplier);
+            // Calcular costo efectivo con la misma regla que el motor de pagos (Truth-in-Pricing)
+            const { baseCost, multiplierUsed, finalBlueCost, isBoosterTx } = calculatePublicationEffectiveCost(publication, preLaunchMode, currentMultiplierInfo.multiplier);
             publication.base_blue_cost = baseCost;
             publication.current_multiplier = multiplierUsed;
             publication.current_stage_name = currentMultiplierInfo.stageName || 'Sin etapa activa';
             publication.blue_cost = finalBlueCost;
+            publication.is_booster_tx = isBoosterTx; // Frontend: controla si mostrar desglose de multiplicador
 
             // --- NUEVO: Lógica de Modal Intersticial (Pre-flight) ---
             if (publication.show_preflight_modal) {
