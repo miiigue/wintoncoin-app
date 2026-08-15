@@ -37,8 +37,8 @@ exports.uploadImages = async (req, res) => {
             });
         }
 
-        // Leer límite de imágenes (por defecto 5 si no se especifica)
-        const maxImages = parseInt(req.body.max_images || 5);
+        // Leer límite de imágenes (por defecto 15 si no se especifica)
+        const maxImages = parseInt(req.body.max_images || 15, 10);
         if (req.files.length > maxImages) {
             return res.status(400).json({ 
                 success: false, 

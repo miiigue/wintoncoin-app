@@ -177,6 +177,7 @@ describe('registerVictimPublic — Registro Inicial del Formulario SOS', () => {
             .mockResolvedValueOnce({ rows: [], rowCount: 0 })  // Colisión de username: único
             .mockResolvedValueOnce({ rows: [], rowCount: 0 })  // generateUniqueReferralCode: código único (rowCount = 0)
             .mockResolvedValueOnce({ rows: [{ id: 101 }], rowCount: 1 }) // INSERT INTO users (...) RETURNING id
+            .mockResolvedValueOnce({ rows: [], rowCount: 0 })  // DELETE FROM pending_verifications
             .mockResolvedValueOnce({ rows: [{ setting_value: 'SOSVENEZUELADEMO' }], rowCount: 1 }) // SELECT app_settings referral_custom_share_code
             .mockResolvedValueOnce({ rows: [], rowCount: 1 })  // INSERT INTO pending_verifications (...)
             .mockResolvedValueOnce({ rows: [{ id: 50 }], rowCount: 1 }) // INSERT INTO disaster_victims_registry (...) RETURNING id
@@ -329,6 +330,82 @@ describe('registerVictimPublic — Registro Inicial del Formulario SOS', () => {
             success: false,
             already_active: true,
             dossier_number: 'SOS-VZLA-4332-00060'
+        }));
+    });
+
+    test('3.4 Debe rechazar con mensaje amigable si el número de teléfono ya está registrado con otro email', async () => {
+        mockClient.query
+            .mockResolvedValueOnce({ rows: [] })  // BEGIN
+            .mockResolvedValueOnce({ rows: [], rowCount: 0 })  // existingDossier check: no existe expediente previo
+            .mockResolvedValueOnce({
+                rows: [{
+                    id: 88,
+                    username: 'otro_usuario',
+                    email: 'otro.usuario@test.com',
+                    phone_number: '+584149991122'
+                }],
+                rowCount: 1
+            }) // userCheck: el teléfono pertenece a otro.usuario@test.com, pero el req trae ana@test.com
+            .mockResolvedValueOnce({ rows: [], rowCount: 0 }); // ROLLBACK
+
+        const req = {
+            body: {
+                full_name: 'Ana Gómez',
+                id_document: 'V-19888777',
+                email: 'ana@test.com',
+                phone_number: '+584149991122',
+                state: 'Carabobo',
+                municipality: 'Valencia',
+                sector: 'El Trigal',
+                address_details: 'Calle 3',
+                description: 'Daños por sismo',
+                data_consent_accepted: true,
+                sworn_declaration_accepted: true
+            }
+        };
+        const res = createMockRes();
+
+        await victimController.registerVictimPublic(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: false,
+            message: expect.stringContaining('número de teléfono ya está registrado')
+        }));
+    });
+
+    test('3.5 Debe manejar errores PostgreSQL 23505 (violación de clave única) de forma amigable sin exponer SQL crudo', async () => {
+        const pgError = new Error('duplicate key value violates unique constraint "pending_verifications_phone_number_key"');
+        pgError.code = '23505';
+        pgError.constraint = 'pending_verifications_phone_number_key';
+
+        mockClient.query
+            .mockResolvedValueOnce({ rows: [] })  // BEGIN
+            .mockRejectedValueOnce(pgError);      // Error de unicidad durante la transacción
+
+        const req = {
+            body: {
+                full_name: 'Luis Ramos',
+                id_document: 'V-18777666',
+                email: 'luis@test.com',
+                phone_number: '+584128887766',
+                state: 'Lara',
+                municipality: 'Iribarren',
+                sector: 'Barquisimeto',
+                address_details: 'Carrera 19',
+                description: 'Afectación de vivienda',
+                data_consent_accepted: true,
+                sworn_declaration_accepted: true
+            }
+        };
+        const res = createMockRes();
+
+        await victimController.registerVictimPublic(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: false,
+            message: expect.stringContaining('número de teléfono ya se encuentra en uso')
         }));
     });
 });

@@ -155,8 +155,8 @@ document.addEventListener('DOMContentLoaded', () => {
         photoFilesInput.addEventListener('change', () => {
             // Limpiar previews anteriores
             photoPreviewsContainer.innerHTML = '';
-            // Limitar a 5 archivos máximo
-            const files = Array.from(photoFilesInput.files).slice(0, 5);
+            // Limitar a 15 archivos máximo
+            const files = Array.from(photoFilesInput.files).slice(0, 15);
             files.forEach(file => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
@@ -227,10 +227,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let evidenceUrls = [];
 
-        // ── 5.4 Subida Directa de Archivos (Fotos desde teléfono/PC) ──────
+        // ── 5.4 Subida Directa de Archivos (Fotos desde teléfono/PC - Hasta 15 fotos) ──
         if (photoFilesInput && photoFilesInput.files.length > 0) {
             const formData = new FormData();
-            Array.from(photoFilesInput.files).slice(0, 5).forEach(f => formData.append('images', f));
+            formData.append('max_images', '15');
+            Array.from(photoFilesInput.files).slice(0, 15).forEach(f => formData.append('images', f));
 
             try {
                 const upRes = await fetch(`${API_URL}/api/public/sos-venezuela/upload-evidence`, {

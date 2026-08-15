@@ -294,12 +294,32 @@ exports.registerVictimPublic = async (req, res) => {
         let isNewUser = false;
 
         const userCheck = await client.query(
-            'SELECT id, username FROM users WHERE email = $1 OR phone_number = $2',
+            'SELECT id, username, email, phone_number FROM users WHERE email = $1 OR phone_number = $2',
             [normEmail, normPhone]
         );
 
         if (userCheck.rows.length > 0) {
-            // Usuario existente: solo vincular al expediente SOS
+            // Verificar si el teléfono pertenece a OTRA cuenta de usuario con distinto email
+            const phoneConflict = userCheck.rows.find(u => u.phone_number === normPhone && u.email !== normEmail);
+            if (phoneConflict) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({
+                    success: false,
+                    message: "El número de teléfono ya está registrado en otra cuenta. Por favor verifica tus datos o utiliza tu número personal."
+                });
+            }
+
+            // Verificar si el correo pertenece a OTRA cuenta con distinto teléfono
+            const emailConflict = userCheck.rows.find(u => u.email === normEmail && u.phone_number !== normPhone);
+            if (emailConflict) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({
+                    success: false,
+                    message: "El correo electrónico ya está registrado con otro número telefónico. Por favor inicia sesión con tu cuenta existente."
+                });
+            }
+
+            // Usuario existente coincidente: solo vincular al expediente SOS
             userId = userCheck.rows[0].id;
             username = userCheck.rows[0].username;
             // Actualizar fecha de nacimiento si no la tenía registrada
@@ -339,10 +359,10 @@ exports.registerVictimPublic = async (req, res) => {
         }
 
         // ── 5.2 UPSERT en pending_verifications (Corrección de Bug Crítico) ──
-        // ANTES: Solo se guardaba el hash OTP para usuarios nuevos, dejando
-        // bloqueados a los usuarios existentes que intentaban verificar su correo.
-        // AHORA: Se ejecuta SIEMPRE un UPSERT para que el código OTP funcione
-        // independientemente de si el usuario existía previamente o es nuevo.
+        // Limpiar cualquier registro pendiente previo con este email, teléfono o username
+        // para prevenir violaciones de clave única (unique constraint)
+        await client.query('DELETE FROM pending_verifications WHERE email = $1 OR phone_number = $2 OR username = $3', [normEmail, normPhone, username]);
+
         const verificationCode = emailService.generateOtp6();
         const verificationCodeHash = emailService.hashOtpForEmail(normEmail, verificationCode);
         const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos de vigencia
@@ -356,13 +376,6 @@ exports.registerVictimPublic = async (req, res) => {
                 username, email, password_hash, phone_number, referral_code,
                 verification_code_hash, verification_attempts, resend_count, last_sent_at, expires_at, date_of_birth
             ) VALUES ($1, $2, '', $3, $4, $5, 0, 0, NOW(), $6, $7)
-            ON CONFLICT (email) DO UPDATE
-            SET referral_code = EXCLUDED.referral_code,
-                verification_code_hash = EXCLUDED.verification_code_hash,
-                expires_at = EXCLUDED.expires_at,
-                verification_attempts = 0,
-                resend_count = pending_verifications.resend_count + 1,
-                last_sent_at = NOW()
         `, [username, normEmail, normPhone, specialReferralCode, verificationCodeHash, expiresAt, birth_date || null]);
 
         // ── 6. Insertar Registro de Expediente (Paso 1: Código Temporal) ───
@@ -493,10 +506,38 @@ exports.registerVictimPublic = async (req, res) => {
     } catch (error) {
         await client.query('ROLLBACK');
         console.error("[SOS VICTIM] Error en registro público:", error);
+
+        // Manejo profesional de errores de base de datos / PostgreSQL 23505 (Unique Violation)
+        if (error.code === '23505') {
+            const constraint = error.constraint || '';
+            if (constraint.includes('phone_number')) {
+                return res.status(400).json({
+                    success: false,
+                    message: "El número de teléfono ya se encuentra en uso. Por favor verifica tus datos o utiliza tu número personal."
+                });
+            }
+            if (constraint.includes('email')) {
+                return res.status(400).json({
+                    success: false,
+                    message: "El correo electrónico ya se encuentra registrado. Por favor verifica tu correo o inicia sesión."
+                });
+            }
+            if (constraint.includes('id_document')) {
+                return res.status(400).json({
+                    success: false,
+                    message: `La Cédula ${normDoc} ya cuenta con una solicitud registrada en el sistema.`
+                });
+            }
+            return res.status(400).json({
+                success: false,
+                message: "Alguno de los datos ingresados ya se encuentra registrado en el sistema. Por favor verifica tu información."
+            });
+        }
+
         res.status(500).json({
             success: false,
             message: (process.env.NODE_ENV === 'production' && process.env.IS_DEMO_ENV !== 'true')
-                ? "Error interno al procesar la solicitud."
+                ? "Error interno al procesar la solicitud. Por favor intenta nuevamente en unos momentos."
                 : `Error interno al procesar la solicitud: ${error.message}`
         });
     } finally {
