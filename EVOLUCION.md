@@ -5024,3 +5024,32 @@ pm run build:demo) exitosamente.
 - **Fecha:** 2026-08-13
 - **Acción:** Se agregó el ítem '14. Automatización de Despliegues con CI/CD (GitHub Actions)' al documento \TECHNICAL_IMPROVEMENTS.md\.
 - **Razón:** Para establecer en el roadmap oficial la necesidad de migrar de builds locales a un sistema de integración continua en la nube, asegurando el principio Zero-Trust en los despliegues de producción y demostración.
+
+### 2026-08-14 - Inicio del Plan Maestro Android Nativo (Fase 1) & Principio de Cero Impacto en PWA
+- **Contexto**: Se definió el plan maestro para la aplicación Android nativa (Kotlin + Jetpack Compose) y se establecieron los principios de diseño y aislamiento para asegurar que la PWA y el backend actual permanezcan 100% operativos e intactos.
+- **Decisión & Respuestas**:
+  1. **Aislamiento Total & Cero Impacto PWA/Backend**: Garantía estricta de no modificar ni afectar la PWA ni la API backend viva. El desarrollo Android consumirá la API existente manteniendo compatibilidad hacia atrás.
+  2. **Estructura de Repositorio (Monorepo)**: Se recomienda situar el código nativo en `android/` dentro del repositorio actual para compartir assets de marca y mantener trazabilidad única.
+  3. **Admin Panel**: Excluido 100% de la aplicación móvil nativa (permanecerá exclusivamente en la PWA web).
+  4. **Gradle Flavors**: Implementación de entornos `demo` y `production` para cambiar dinámicamente endpoints (`demo.wintoncoin.com` vs `wintoncoin.com`) de manera limpia y segura sin modificar código fuente.
+  5. **Firebase**: Identificado procedimiento para verificar y configurar Firebase Cloud Messaging (FCM) en la Fase 5 (Push Notifications).
+- **Impacto**: Arquitectura limpia preparada para iniciar la Fase 1 sin riesgo alguno para la producción ni para los usuarios actuales de la PWA.
+- **Evidencia**: `EVOLUCION.md`, `implementation_plan.md`.
+
+### 2026-08-15 - Implementación de Guard de Seguridad Zero-Trust en Script Utilitario de Borrado SOS
+- **Contexto**: El script `backend/scripts/delete_last_sos_user.js` carecía de una verificación de guarda estricta para garantizar que solo se ejecutara contra la base de datos de Demo (`wintoncoin_demo_db`).
+- **Cambios Realizados**:
+  1. **Validación de Entorno Estática (Pre-Conexión)**: Se agregó una comprobación Zero-Trust previa que exige `IS_DEMO_ENV === 'true'` o `NODE_ENV === 'demo'` y verifica que `DATABASE_URL` contenga explícitamente `demo` o `wintoncoin_demo_db`. Si no se cumple, el script aborta inmediatamente con exit code `1`.
+  2. **Validación de Entorno Dinámica (Post-Conexión SQL)**: Se incorporó la consulta `SELECT current_database()` tras la conexión al cliente de PostgreSQL para verificar que el nombre real de la base de datos en ejecución contenga `demo`.
+  3. **Documentación y Auditoría**: Se comentaron detalladamente todas las líneas de código explicando el motivo técnico de cada línea y su alineación con las buenas prácticas de la industria.
+  4. **Robustez de Limpieza en Cascada & SAVEPOINTs**: Se añadió soporte para eliminar causas humanitarias creadas por el usuario, desvincular `tutor_user_id` / `referrer_id` / `reference_user_id`, y se implementaron `SAVEPOINT`s en PostgreSQL para garantizar la atomicidad incluso cuando se interactúa con tablas secundarias opcionales.
+  5. **Criterio de Selección por `users.id DESC`**: Se reestructuró la consulta principal para buscar directamente el último usuario registrado globalmente en la plataforma (`SELECT * FROM users ORDER BY id DESC LIMIT 1`) e integrarle la limpieza en cascada de su expediente de censo SOS si estuviere asociado.
+- **Evidencia**: `backend/scripts/delete_last_sos_user.js`, `EVOLUCION.md`.
+
+
+
+
+### 2026-08-15 - Blindaje de Excepciones OTP
+- **Contexto**: Se aislaron los procesos secundarios en verifyVictimOtpPublic para garantizar que la activación de la cuenta SOS nunca falle.
+- **Cambios**: Coerción de tipos anti-crash en email/otp_code, fallback en jwtSecret y try-catch en processReferralReward.
+- **Evidencia**: Modificado backend/src/controllers/victimController.js, EVOLUCION.md.

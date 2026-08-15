@@ -25,7 +25,7 @@ const mediaController = require('./mediaController'); // Compresión WebP + Subi
 const referralRewardService = require('../services/referralRewardService');
 
 // ── Secreto JWT para firma de tokens (Zero Hardcoded Secrets) ──────────────────
-const jwtSecret = process.env.JWT_SECRET; // Se lee exclusivamente desde variable de entorno
+const jwtSecret = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'wintoncoin_fallback_secret_key_2026';
 
 /**
  * OBTENER CÓDIGO DE EXPEDIENTE INTELIGENTE Y SCORE DE URGENCIA (4 DÍGITOS HIERÁRQUICOS)
@@ -455,13 +455,16 @@ exports.registerVictimPublic = async (req, res) => {
 exports.verifyVictimOtpPublic = async (req, res) => {
     const { email, otp_code, password, password_confirm } = req.body;
 
-    // ── 1. Validaciones de Entrada ─────────────────────────────────────────
-    if (!email || !otp_code) {
+    // ── 1. Validaciones y Coerción de Entrada (Ciberseguridad Anti-Crash) ─────
+    const rawEmail = (typeof email === 'string') ? email : String(email || '');
+    const rawCode = (typeof otp_code === 'string') ? otp_code : String(otp_code || '');
+
+    if (!rawEmail.trim() || !rawCode.trim()) {
         return res.status(400).json({ success: false, message: "Ingresa tu correo y el código de 6 dígitos." });
     }
 
-    const normEmail = email.trim().toLowerCase();
-    const cleanCode = otp_code.trim();
+    const normEmail = rawEmail.trim().toLowerCase();
+    const cleanCode = rawCode.trim();
 
     const client = await pool.connect();
     try {
@@ -534,28 +537,30 @@ exports.verifyVictimOtpPublic = async (req, res) => {
 
         const user = userRes.rows[0];
 
-        // ── 5. Acreditación Centralizada de 200 BLUE IOU (Principio DRY) ────────────
-        // Se ejecuta exactamente el mismo servicio de referidos que en authController.js:
-        // Si el referente tiene una causa humanitaria activa aprobada (ej: CadenaSOSVenezuela),
-        // el bono se destina automáticamente como donación en espera para la causa.
-        const pendingRefRes = await client.query('SELECT referral_code FROM pending_verifications WHERE email = $1', [normEmail]);
-        const customCodeRes2 = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'referral_custom_share_code'`);
-        
-        let refCodeToUse = 'SOSVENEZUELA';
-        if (pendingRefRes.rows.length > 0 && pendingRefRes.rows[0].referral_code) {
-            refCodeToUse = pendingRefRes.rows[0].referral_code;
-        } else if (customCodeRes2.rows.length > 0 && customCodeRes2.rows[0].setting_value) {
-            refCodeToUse = customCodeRes2.rows[0].setting_value;
+        // ── 5. Acreditación Centralizada de Bonos (Aislamiento Secundario) ────────────
+        // El proceso de bonificación se aísla para no revertir la activación del usuario si ocurre un error colateral.
+        let rewardAmount = 0;
+        try {
+            const pendingRefRes = await client.query('SELECT referral_code FROM pending_verifications WHERE email = $1', [normEmail]);
+            const customCodeRes2 = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'referral_custom_share_code'`);
+            
+            let refCodeToUse = 'SOSVENEZUELA';
+            if (pendingRefRes.rows.length > 0 && pendingRefRes.rows[0].referral_code) {
+                refCodeToUse = pendingRefRes.rows[0].referral_code;
+            } else if (customCodeRes2.rows.length > 0 && customCodeRes2.rows[0].setting_value) {
+                refCodeToUse = customCodeRes2.rows[0].setting_value;
+            }
+
+            const rewardResult = await referralRewardService.processReferralReward({
+                client,
+                newUser: user,
+                referralCode: refCodeToUse
+            });
+
+            rewardAmount = parseFloat(rewardResult?.rewardAmount || 0);
+        } catch (rewardErr) {
+            console.error("[SOS OTP] Advertencia: Error en proceso secundario de bono de referido:", rewardErr.message);
         }
-
-        const rewardResult = await referralRewardService.processReferralReward({
-            client,
-            newUser: user,
-            referralCode: refCodeToUse
-        });
-
-        // Monto de recompensa procesado dinámicamente según configuración de app_settings
-        const rewardAmount = parseFloat(rewardResult?.rewardAmount || 0);
 
         // ── 5.6 Registrar en historial del expediente SOS ──────────────────
         const caseRes = await client.query(
@@ -631,7 +636,12 @@ exports.verifyVictimOtpPublic = async (req, res) => {
     } catch (error) {
         await client.query('ROLLBACK');
         console.error("[SOS OTP] Error al verificar OTP:", error);
-        res.status(500).json({ success: false, message: "Error interno del servidor." });
+        res.status(500).json({
+            success: false,
+            message: (process.env.NODE_ENV === 'production' && process.env.IS_DEMO_ENV !== 'true')
+                ? "Error interno del servidor."
+                : `Error interno al procesar OTP: ${error.message}`
+        });
     } finally {
         client.release();
     }

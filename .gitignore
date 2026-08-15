@@ -106,3 +106,16 @@ demo_audit_backup_genesis.json
 backend/scratch/
 frontend/scratch/
 
+# Android Build & IDE Artifacts (Zero-Trust Repository Hygiene)
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+android/local.properties
+android/captures/
+*.apk
+*.aar
+*.keystore
+!**/keystore/example.keystore
+
+
