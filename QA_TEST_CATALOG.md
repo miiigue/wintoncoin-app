@@ -305,4 +305,59 @@ PASOS:
 7. Confirma que eres redirigido inmediatamente al panel de control principal (admin-panel.html) y que puedes navegar por sus secciones sin que el sistema te solicite iniciar sesión nuevamente.
 ```
 
+---
+
+```text
+TITULO: QA-24 - Registro SOS de Nuevo Damnificado y Activación por Código de Seguridad
+DESCRIPCION: Esta prueba valida el registro completo de una persona afectada por la emergencia. Se debe comprobar que el botón de envío solo se active cuando todos los campos y casillas legales estén completos, que el usuario reciba un código de 6 dígitos por correo para crear su clave y que al validar su cuenta reciba su bono de bienvenida en su billetera.
+PASOS:
+2. Abre la página de ayuda humanitaria (sos-venezuela.html) desde el navegador de tu teléfono.
+3. Rellena todos los campos obligatorios con datos nuevos y verifica que el botón rosado de 'Enviar Solicitud' permanezca deshabilitado hasta que marques ambas casillas de autorización legal al final.
+4. Sube entre 5 y 15 fotos de prueba y presiona el botón 'Enviar Solicitud'.
+5. Comprueba que el formulario desaparezca y se abra la tarjeta de verificación pidiéndote tu código de 6 dígitos y tu nueva contraseña.
+6. Revisa tu bandeja de correo electrónico, copia el código de 6 dígitos recibido e ingrésalo junto a tu nueva contraseña de 8 o más caracteres.
+7. Presiona el botón de confirmar y verifica que la pantalla te felicite mostrando tu número de expediente asignado y que al entrar a tu perfil tengas acreditados 200 BLUE en tu balance.
+```
+
+---
+
+```text
+TITULO: QA-25 - Reactivación de Expediente Abandonado y Tiempo de Espera en Reenvío
+DESCRIPCION: Esta misión asegura que si una persona no pudo ingresar su código de seguridad a tiempo o cerró la pantalla, el sistema le permita retomar su trámite de forma automática sin perder su expediente y sin permitir abusos de reenvío de mensajes.
+PASOS:
+2. Ingresa a la página de ayuda humanitaria (sos-venezuela.html) y envía una solicitud con una cédula y correo nuevos.
+3. Al llegar a la pantalla donde pide el código de 6 dígitos, cierra el navegador o recarga la página sin ingresar el código.
+4. Vuelve a llenar el formulario ingresando exactamente la misma cédula que usaste en el paso 2.
+5. Comprueba que el sistema detecte tu expediente previo, te muestre un aviso informándote que tu solicitud ya fue recibida y te lleve de inmediato a la pantalla del código de seguridad enviándote un nuevo código al correo.
+6. En la pantalla del código, presiona el enlace que dice 'Reenviar código'.
+7. Comprueba que el enlace cambie a un contador de tiempo de 60 segundos y no te permita presionar reenvíos repetidos hasta que finalice la cuenta regresiva.
+```
+
+---
+
+```text
+TITULO: QA-26 - Detección de Cédula Activa y Botón Inteligente de Acceso a Cuenta
+DESCRIPCION: Esta prueba busca confirmar que la plataforma impida registros duplicados si una persona ya tiene una cuenta activa y verificada, mostrándole un aviso amigable y un botón que se adapta según si el usuario ya tiene su sesión abierta o no.
+PASOS:
+2. Abre la página de ayuda humanitaria (sos-venezuela.html) en una ventana de navegación privada o de incógnito (sin iniciar sesión).
+3. Intenta enviar el formulario usando una cédula que ya esté registrada y activa en el sistema.
+4. Verifica que aparezca un cuadro de aviso rojo explicando amigablemente que la cédula ya tiene una solicitud activa y mostrando un botón destacado que dice 'Iniciar Sesión'.
+5. Ahora abre una ventana normal donde sí tengas tu sesión iniciada con tu cuenta e intenta enviar nuevamente el formulario con esa misma cédula.
+6. Comprueba que el cuadro de aviso detecte que ya estás conectado y cambie el botón automáticamente por uno que dice 'Ir a mi cuenta' que te lleva directamente a tu perfil.
+```
+
+---
+
+```text
+TITULO: QA-27 - Detección Preventiva de Teléfono o Correo en Uso por Otra Cuenta
+DESCRIPCION: Esta prueba asegura que el sistema maneje de forma clara y sin errores técnicos las situaciones donde un usuario intenta registrarse utilizando un número telefónico o correo electrónico que ya pertenece a otra persona en la plataforma.
+PASOS:
+2. Abre la página de ayuda humanitaria (sos-venezuela.html) desde tu teléfono.
+3. Rellena el formulario con una cédula y nombre nuevos, pero coloca un número de teléfono que ya esté registrado previamente en otra cuenta del sistema.
+4. Marca las casillas legales y presiona el botón 'Enviar Solicitud'.
+5. Verifica que la aplicación no muestre códigos de error extraños de base de datos y en su lugar te muestre un mensaje claro indicando que el número de teléfono ya está registrado en otra cuenta.
+6. Cambia el número de teléfono por uno nuevo y confirma que ahora la solicitud se procese normalmente hacia la pantalla de verificación.
+```
+
+
 
