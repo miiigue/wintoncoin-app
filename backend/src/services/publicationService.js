@@ -196,22 +196,23 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
     let cost = parseFloat(blue_cost || 0);
     const baseCost = parseFloat(base_blue_cost || 0);
 
-    // AUDITORÍA FINTECH: Resguardo de seguridad para publicaciones sin snapshot congelado en BD (donde blue_cost == base_blue_cost).
-    // Si no se ha congelado el snapshot previo, se aplica el multiplicador de etapa activa para no subpagar al usuario.
-    if (cost > 0 && baseCost > 0 && cost === baseCost) {
-        const boosterService = require('./boosterService');
-        const currentMultiplierInfo = await boosterService.calculateMultipliedAmount(1);
-        const activeMultiplier = parseFloat(currentMultiplierInfo.multiplier || 1.0);
-        cost = baseCost * activeMultiplier;
-    }
-
-    // AUDITORÍA FINTECH: Se establece la variable global de resguardo de base de datos
-    let web3IntentId = null;
-
     // MOTOR TRANSACCIONAL HÍBRIDO (OPCIÓN A):
     // Si la plataforma está en pre-lanzamiento o si la tarea en sí es una Tarea de Impulsor (is_booster_task = true),
     // procesamos de forma virtual off-chain mediante el Libro de Impulsores (booster_blue_ledger).
     const isBoosterTx = preLaunchMode || !!acceptance.is_booster_task;
+
+    // AUDITORÍA FINTECH: Resguardo de seguridad para publicaciones sin snapshot congelado en BD (donde blue_cost == base_blue_cost).
+    // El multiplicador de etapa solo se aplica si la transacción califica como Tarea de Impulsor / Pre-lanzamiento (isBoosterTx = true).
+    if (cost > 0 && baseCost > 0 && cost === baseCost) {
+        if (isBoosterTx) {
+            const boosterService = require('./boosterService');
+            const currentMultiplierInfo = await boosterService.calculateMultipliedAmount(1);
+            const activeMultiplier = parseFloat(currentMultiplierInfo.multiplier || 1.0);
+            cost = baseCost * activeMultiplier;
+        } else {
+            cost = baseCost;
+        }
+    }
 
     if (isBoosterTx) {
         // --- MODO PRE-LANZAMIENTO ---

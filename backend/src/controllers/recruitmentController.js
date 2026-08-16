@@ -28,6 +28,7 @@ const ALLOWED_ROLES = new Set([
     'UI/UX Designer',
     'Marketing / Growth',
     'Legal / Compliance',
+    'Voluntario',
     'Otro'
 ]);
 

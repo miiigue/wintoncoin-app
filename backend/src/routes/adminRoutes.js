@@ -112,4 +112,12 @@ router.post('/sos-venezuela/victims/:id/disburse', verifyAdminToken, victimContr
 router.get('/sos-venezuela/email-templates', verifyAdminToken, victimController.getEmailTemplatesAdmin);
 router.post('/sos-venezuela/email-templates', verifyAdminToken, victimController.updateEmailTemplateAdmin);
 
+// Gestión Global de Plantillas de Correo (Admin Email CMS)
+const emailTemplateController = require('../controllers/emailTemplateController');
+router.get('/email-templates', verifyAdminToken, emailTemplateController.getEmailTemplates);
+router.get('/email-templates/:key', verifyAdminToken, emailTemplateController.getTemplateByKey);
+router.put('/email-templates/:key', verifyAdminToken, emailTemplateController.updateTemplate);
+router.post('/email-templates/:key/preview', verifyAdminToken, emailTemplateController.previewTemplate);
+
 module.exports = router;
+

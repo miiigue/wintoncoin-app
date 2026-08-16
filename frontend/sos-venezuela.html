@@ -125,7 +125,7 @@
                         Censo para Asistencia a Damnificados
                     </h2>
                 <p style="color: #475569; font-size: 1.05rem; max-width: 700px; margin: 0 auto; line-height: 1.6;">
-                    Si fuiste afectado por el sismo en Venezuela, completa este formulario oficial de censo para evaluar tu caso, generar tu expediente e inscribirte en el programa de asistencia humanitaria directa.
+                    Completa este formulario de censo para evaluar tu caso, generar tu expediente e inscribirte en el programa de asistencia humanitaria directa.
                 </p>
             </div>
 
@@ -162,7 +162,7 @@
 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem;">
                     <div>
-                        <label for="sos-email" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Correo Electrónico (para notificaciones):</label>
+                        <label for="sos-email" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Correo Electrónico:</label>
                         <input type="email" id="sos-email" required placeholder="ejemplo@correo.com" style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                     </div>
                     <div>
@@ -194,9 +194,9 @@
                     </div>
                 </div>
 
-                <!-- Censo de Cargas Familiares -->
+                <!-- Familiares a Cargo -->
                 <div style="background: #f8fafc; padding: 1.25rem; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
-                    <strong style="color: #db2777; display: block; margin-bottom: 1rem; font-size: 1.05rem;">👨‍👩‍👧‍👦 Censo de Cargas Familiares a Cargo</strong>
+                    <strong style="color: #db2777; display: block; margin-bottom: 1rem; font-size: 1.05rem;">👨‍👩‍👧‍👦 Familiares a Cargo</strong>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
                         <div>
                             <label for="sos-minors" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Niños / Menores de Edad:</label>
@@ -218,7 +218,7 @@
                     <label for="sos-affectation-level" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Nivel de Afectación Principal:</label>
                     <select id="sos-affectation-level" required style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                         <option value="total_loss">🚨 Pérdida Total de Vivienda / Enseres (Urgencia Máxima)</option>
-                        <option value="medical_emergency">🚑 Emergencia Médica / Lesionados por el Sismo</option>
+                        <option value="medical_emergency">🚑 Emergencia Médica / Lesionados</option>
                         <option value="partial_damage">🏚️ Daños Estructurales Parciales en Vivienda</option>
                         <option value="essential_needs">📦 Necesidad Urgente de Alimentos / Medicamentos</option>
                     </select>
@@ -226,7 +226,7 @@
 
                 <div>
                     <label for="sos-description" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Descripción de la Situación y Necesidades Urgentes:</label>
-                    <textarea id="sos-description" required rows="4" placeholder="Describe brevemente lo ocurrido en tu vivienda o sector tras el sismo y cuáles son tus necesidades más urgentes..." style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; line-height: 1.5;"></textarea>
+                    <textarea id="sos-description" required rows="4" placeholder="Describe detalladamente lo ocurrido en tu vivienda o sector, qué te sucedió físicamente a ti y a tus familiares, y cuáles son sus necesidades más urgentes..." style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; line-height: 1.5;"></textarea>
                     <small style="color: #64748b; margin-top: 4px; display: block;">💡 Describe los detalles principales para ayudar a nuestro equipo a priorizar tu atención.</small>
                 </div>
 
@@ -236,7 +236,7 @@
                         📷 Subir Fotos de Evidencia (Vivienda / Daños / Documentos):
                     </label>
                     <input type="file" id="sos-photo-files" accept="image/*" multiple style="width: 100%; padding: 10px; border-radius: 8px; border: 1px dashed #db2777; background: #ffffff; color: #0f172a; cursor: pointer;">
-                    <small style="color: #64748b; margin-top: 6px; display: block;">💡 Puedes seleccionar o tomar varias fotos directamente desde la cámara o galería de tu teléfono (Máx. 5 fotos).</small>
+                    <small style="color: #64748b; margin-top: 6px; display: block;">💡 Sube mín. 5 fotos que describan lo ocurrido (hasta 15 fotos permitidas).</small>
                     <div id="sos-photo-previews" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;"></div>
 
                     <div style="margin-top: 1rem; border-top: 1px dashed #cbd5e1; padding-top: 1rem;">
@@ -263,19 +263,20 @@
 
                 <div id="sos-victim-feedback" style="display: none;"></div>
 
-                <button type="submit" id="sos-submit-btn" class="btn-primary-campaign" disabled style="width: 100%; padding: 16px; font-size: 1.15rem; font-weight: 600; margin-top: 1rem; border-radius: 50px; cursor: not-allowed; opacity: 0.5;">
+                <!-- Botón de Envío (Deshabilitado por defecto hasta completar campos y checks) -->
+                <button type="submit" id="sos-submit-btn" class="btn-primary-campaign" disabled style="width: 100%; padding: 16px; font-size: 1.15rem; font-weight: 700; margin-top: 1rem; border-radius: 50px; cursor: not-allowed; opacity: 0.5;">
                     Enviar Solicitud
                 </button>
             </form>
 
             <!-- Card de Verificación OTP y Resultado de Registro (Tema Claro) -->
-            <div id="sos-victim-result-card" style="display: none; text-align: center; padding: 2rem 1rem;">
+            <div id="sos-victim-result-card" style="display: none; margin-top: 2rem; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,0,0,0.06); padding: 2rem;">
                 
                 <!-- PASO 1: Formulario de Verificación OTP + Contraseñas (Paso Intermedio) -->
                 <div id="sos-otp-verification-card" style="margin: 0 auto; text-align: center;">
-                    <div style="font-size: 3.5rem; margin-bottom: 0.5rem;">🔐</div>
-                    <h3 style="font-size: 1.8rem; font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif; margin-bottom: 0.5rem;">
-                        ¡Solo falta un paso más!
+                    <div style="font-size: 3rem; margin-bottom: 0.75rem;">🔐</div>
+                    <h3 id="sos-activation-title" style="font-size: 1.6rem; font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif; margin-bottom: 0.5rem;">
+                        Activa tu Cuenta para Completar la Solicitud
                     </h3>
                     <p id="sos-activation-desc" style="color: #475569; font-size: 0.95rem; line-height: 1.5; margin: 0 auto 1.5rem; max-width: 600px;">
                         Para completar tu solicitud, ingresa el código de verificación de 6 dígitos que enviamos a tu correo electrónico y crea una contraseña para tu cuenta.
@@ -284,32 +285,46 @@
                     <!-- Campo de Código OTP -->
                     <div style="margin-bottom: 1rem;">
                         <label for="sos-otp-code-input" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Código de 6 dígitos:</label>
-                        <input type="text" id="sos-otp-code-input" maxlength="6" placeholder="849201" style="width: 180px; padding: 12px; font-size: 1.4rem; font-weight: 800; text-align: center; letter-spacing: 4px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                        <input type="text" id="sos-otp-code-input" maxlength="6" placeholder="000000" style="width: 180px; padding: 12px; font-size: 1.4rem; font-weight: 800; text-align: center; letter-spacing: 4px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                         <small style="color: #64748b; display: block; font-size: 0.82rem; margin-top: 0.4rem;">Nota: Código de verificación enviado al correo.</small>
                     </div>
 
-                    <!-- Campo de Nueva Contraseña -->
-                    <div style="margin-bottom: 0.75rem; text-align: left; position: relative;">
-                        <label for="sos-new-password" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Crea una contraseña:</label>
-                        <input type="password" id="sos-new-password" minlength="8" required placeholder="Mínimo 8 caracteres" style="width: 100%; padding: 12px 14px; padding-right: 40px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
-                        <button type="button" id="toggle-new-password" style="position: absolute; right: 10px; top: 35px; background: none; border: none; cursor: pointer; color: #64748b;">
-                            👁️
-                        </button>
-                    </div>
+                    <!-- Contenedor de Campos de Contraseña (Solo para usuarios nuevos) -->
+                    <div id="sos-password-fields-container">
+                        <!-- Campo de Nueva Contraseña -->
+                        <div style="margin-bottom: 0.75rem; text-align: left; position: relative;">
+                            <label for="sos-new-password" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Crea una contraseña:</label>
+                            <input type="password" id="sos-new-password" minlength="8" placeholder="Mínimo 8 caracteres" style="width: 100%; padding: 12px 14px; padding-right: 40px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                            <button type="button" id="toggle-new-password" style="position: absolute; right: 10px; top: 35px; background: none; border: none; cursor: pointer; color: #64748b;">
+                                👁️
+                            </button>
+                        </div>
 
-                    <!-- Campo de Confirmar Contraseña -->
-                    <div style="margin-bottom: 1rem; text-align: left; position: relative;">
-                        <label for="sos-confirm-password" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Confirma tu Contraseña:</label>
-                        <input type="password" id="sos-confirm-password" minlength="8" required placeholder="Repite la contraseña" style="width: 100%; padding: 12px 14px; padding-right: 40px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
-                        <button type="button" id="toggle-confirm-password" style="position: absolute; right: 10px; top: 35px; background: none; border: none; cursor: pointer; color: #64748b;">
-                            👁️
-                        </button>
+                        <!-- Campo de Confirmar Contraseña -->
+                        <div style="margin-bottom: 1rem; text-align: left; position: relative;">
+                            <label for="sos-confirm-password" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Confirma tu Contraseña:</label>
+                            <input type="password" id="sos-confirm-password" minlength="8" placeholder="Repite la contraseña" style="width: 100%; padding: 12px 14px; padding-right: 40px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                            <button type="button" id="toggle-confirm-password" style="position: absolute; right: 10px; top: 35px; background: none; border: none; cursor: pointer; color: #64748b;">
+                                👁️
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Botón de Activación -->
                     <button type="button" id="sos-btn-verify-otp" class="btn-primary-campaign" disabled style="padding: 14px 22px; font-size: 1.05rem; font-weight: 600; border-radius: 50px; cursor: not-allowed; opacity: 0.5; width: 100%;">
                         Activar mi Cuenta
                     </button>
+
+                    <!-- Reenvío de Código OTP con Temporizador (Estándar FinTech) -->
+                    <div style="margin-top: 1rem; font-size: 0.9rem; color: #64748b; text-align: center;">
+                        <span>¿No recibiste el código?</span>
+                        <button type="button" id="sos-btn-resend-otp" style="background: none; border: none; color: #db2777; font-weight: 600; cursor: pointer; text-decoration: underline; padding: 0 4px; font-size: 0.9rem;">
+                            Reenviar código
+                        </button>
+                        <span id="sos-resend-timer-span" style="display: none; color: #94a3b8; font-weight: 500;">
+                            (espera <span id="sos-timer-seconds">60</span>s)
+                        </span>
+                    </div>
 
                     <div id="sos-otp-feedback-msg" style="display: none; margin-top: 10px; font-size: 0.9rem; padding: 8px; border-radius: 6px;"></div>
                 </div>

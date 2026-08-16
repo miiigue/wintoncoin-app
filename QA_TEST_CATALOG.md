@@ -251,14 +251,113 @@ PASOS:
 ---
 
 ```text
-TITULO: QA-20 - Rediseño del Modal de Cuenta Única en Login y Registro
-DESCRIPCION: Esta prueba valida que el modal "Aviso Importante" (sobre política de una cuenta por persona) en las vistas de inicio de sesión y registro se renderice con la misma estética premium del modal global "Sabías?", incluyendo el fondo degradado oscuro, la bombilla indicadora, y el botón de acción a todo lo ancho.
+TITULO: QA-20 - Edición de Plantillas de Correo y Vista Previa No-Reply desde Móvil
+DESCRIPCION: Esta misión tiene como objetivo verificar que los administradores puedan revisar y modificar el texto de los correos automáticos del sistema (como los mensajes de bienvenida, notificaciones o recibos) directamente desde su teléfono móvil, y confirmar que la vista previa en vivo muestre el diseño oficial con la cabecera del logo y el aviso de no responder al correo.
 PASOS:
-2. Abre la página de Login (login.html) o de Registro (register.html) en tu navegador.
-3. Provoca o espera la apertura del modal "Aviso Importante" correspondiente a la política de cuenta única.
-4. Confirma que el fondo detrás del modal tenga un desenfoque (backdrop blur) sutil.
-5. Verifica que en el cuerpo del modal aparezca una tarjeta oscura con un icono de bombilla 💡 en un badge azul redondeado al principio.
-6. Confirma que el título "Aviso Importante" esté centrado y en color blanco.
-7. Comprueba que el botón "Entendido" a todo lo ancho de la tarjeta sea de color azul eléctrico brillante y responda visualmente al pasar el cursor (hover).
-8. Haz clic en el botón "Entendido" y confirma que el modal se cierre suavemente de la pantalla.
+2. Inicia sesión en el Panel de Administración desde el navegador de tu teléfono móvil.
+3. Abre el menú lateral y toca la opción que dice "📧 Plantillas Email".
+4. Revisa la lista de plantillas disponibles y usa los botones superiores de filtro (por ejemplo, presiona "Seguridad" o "Finanzas") para verificar que la lista se organice correctamente.
+5. Toca el botón "✏️ Editar & Previsualizar" en la tarjeta del correo de verificación (código OTP).
+6. Modifica brevemente el texto del asunto o del cuerpo del mensaje en la casilla de edición.
+7. Cambia a la pestaña o sección de "Vista Previa en Vivo" y confirma que el correo se muestre envuelto en el diseño oficial con la cabecera oscura del logo WintonCoin y el mensaje al final que indica no responder al correo.
+8. Presiona el botón azul "💾 Guardar Cambios" y confirma que aparezca el aviso verde indicando que la plantilla fue guardada con éxito.
 ```
+
+---
+
+```text
+TITULO: QA-21 - Evaluación de Candidatos y Visualización de Hojas de Vida desde el Teléfono
+DESCRIPCION: Esta prueba busca confirmar que los evaluadores de talento puedan revisar los perfiles de los profesionales postulados a la plataforma desde su teléfono inteligente. Se debe verificar que se puedan filtrar los candidatos por área de especialidad, abrir su ficha detallada con su enlace de hoja de vida (CV) y actualizar su estado de selección sin errores.
+PASOS:
+2. Ingresa al Panel de Administración desde el navegador de tu teléfono móvil.
+3. Toca la opción "💼 Reclutamiento" o "🎯 Talento" en el menú de navegación.
+4. Observa la lista de candidatos registrados y presiona los botones de filtro por especialidad para verificar que la tabla organice a los postulantes.
+5. Toca el botón "👁️ Evaluar" o "Ver Detalle" en la tarjeta de cualquier candidato para abrir su expediente flotante.
+6. Confirma que la ficha muestre claramente el nombre, correo, años de experiencia, carta de presentación y los botones directos para abrir su hoja de vida (CV) o perfil profesional.
+7. Cambia el estado del candidato (por ejemplo, a "En Entrevista" o "Aprobado") usando el selector desplegable de estado.
+8. Verifica que la pantalla confirme el cambio de estado y que la tarjeta del candidato actualice su distintivo de color.
+```
+
+---
+
+```text
+TITULO: QA-22 - Postulación y Filtro Administrativo de Especialidad Voluntario
+DESCRIPCION: El objetivo de esta prueba es asegurar que cualquier persona pueda postularse como Voluntario en la plataforma de reclutamiento y que el administrador pueda encontrar y filtrar este tipo de postulaciones de forma sencilla desde su panel de control.
+PASOS:
+2. Abre el navegador de tu teléfono móvil e ingresa a la página de postulación (trabaja-con-nosotros.html).
+3. Rellena tus datos personales de contacto, escribe tu carta de presentación y selecciona 'Voluntario' en el desplegable de Especialidad.
+4. Adjunta un archivo PDF de prueba como hoja de vida (CV) y presiona el botón 'Enviar Postulación'.
+5. Inicia sesión en el Panel de Administración (admin-panel.html) y dirígete a la sección de Reclutamiento.
+6. Abre el selector de filtro por especialidad, selecciona la opción 'Voluntario' y verifica que en la tabla aparezca listado únicamente el candidato que registraste con sus datos correctos.
+```
+
+---
+
+```text
+TITULO: QA-23 - Vista Previa de Emails y Retorno Seguro al Panel sin Perder Sesión
+DESCRIPCION: Esta misión tiene como objetivo comprobar que el editor de plantillas de correo a pantalla completa renderiza correctamente los correos de prueba en vivo sin mostrar códigos internos y que permite regresar al menú principal del panel de administración sin cerrar la sesión.
+PASOS:
+2. Inicia sesión en el Panel de Administración e ingresa al submódulo de Plantillas de Correo (admin-email-templates.html).
+3. Presiona el botón de 'Editar' en la plantilla de Recibo de Transacción (transaction_receipt) o de Gobernanza (governance_notification).
+4. Verifica que la ventana de edición se despliegue a pantalla completa con el código a la izquierda y que en la parte derecha se muestre la vista previa con datos ficticios reales (como nombres, montos y tablas) en lugar de códigos entre llaves.
+5. Presiona el botón de cerrar o la tecla ESC para salir del editor de la plantilla.
+6. Presiona el enlace que dice '← Volver al Panel Admin' en la esquina superior izquierda de la pantalla.
+7. Confirma que eres redirigido inmediatamente al panel de control principal (admin-panel.html) y que puedes navegar por sus secciones sin que el sistema te solicite iniciar sesión nuevamente.
+```
+
+---
+
+```text
+TITULO: QA-24 - Registro SOS de Nuevo Damnificado y Activación por Código de Seguridad
+DESCRIPCION: Esta prueba valida el registro completo de una persona afectada por la emergencia. Se debe comprobar que el botón de envío solo se active cuando todos los campos y casillas legales estén completos, que el usuario reciba un código de 6 dígitos por correo para crear su clave y que al validar su cuenta reciba su bono de bienvenida en su billetera.
+PASOS:
+2. Abre la página de ayuda humanitaria (sos-venezuela.html) desde el navegador de tu teléfono.
+3. Rellena todos los campos obligatorios con datos nuevos y verifica que el botón rosado de 'Enviar Solicitud' permanezca deshabilitado hasta que marques ambas casillas de autorización legal al final.
+4. Sube entre 5 y 15 fotos de prueba y presiona el botón 'Enviar Solicitud'.
+5. Comprueba que el formulario desaparezca y se abra la tarjeta de verificación pidiéndote tu código de 6 dígitos y tu nueva contraseña.
+6. Revisa tu bandeja de correo electrónico, copia el código de 6 dígitos recibido e ingrésalo junto a tu nueva contraseña de 8 o más caracteres.
+7. Presiona el botón de confirmar y verifica que la pantalla te felicite mostrando tu número de expediente asignado y que al entrar a tu perfil tengas acreditados 200 BLUE en tu balance.
+```
+
+---
+
+```text
+TITULO: QA-25 - Reactivación de Expediente Abandonado y Tiempo de Espera en Reenvío
+DESCRIPCION: Esta misión asegura que si una persona no pudo ingresar su código de seguridad a tiempo o cerró la pantalla, el sistema le permita retomar su trámite de forma automática sin perder su expediente y sin permitir abusos de reenvío de mensajes.
+PASOS:
+2. Ingresa a la página de ayuda humanitaria (sos-venezuela.html) y envía una solicitud con una cédula y correo nuevos.
+3. Al llegar a la pantalla donde pide el código de 6 dígitos, cierra el navegador o recarga la página sin ingresar el código.
+4. Vuelve a llenar el formulario ingresando exactamente la misma cédula que usaste en el paso 2.
+5. Comprueba que el sistema detecte tu expediente previo, te muestre un aviso informándote que tu solicitud ya fue recibida y te lleve de inmediato a la pantalla del código de seguridad enviándote un nuevo código al correo.
+6. En la pantalla del código, presiona el enlace que dice 'Reenviar código'.
+7. Comprueba que el enlace cambie a un contador de tiempo de 60 segundos y no te permita presionar reenvíos repetidos hasta que finalice la cuenta regresiva.
+```
+
+---
+
+```text
+TITULO: QA-26 - Detección de Cédula Activa y Botón Inteligente de Acceso a Cuenta
+DESCRIPCION: Esta prueba busca confirmar que la plataforma impida registros duplicados si una persona ya tiene una cuenta activa y verificada, mostrándole un aviso amigable y un botón que se adapta según si el usuario ya tiene su sesión abierta o no.
+PASOS:
+2. Abre la página de ayuda humanitaria (sos-venezuela.html) en una ventana de navegación privada o de incógnito (sin iniciar sesión).
+3. Intenta enviar el formulario usando una cédula que ya esté registrada y activa en el sistema.
+4. Verifica que aparezca un cuadro de aviso rojo explicando amigablemente que la cédula ya tiene una solicitud activa y mostrando un botón destacado que dice 'Iniciar Sesión'.
+5. Ahora abre una ventana normal donde sí tengas tu sesión iniciada con tu cuenta e intenta enviar nuevamente el formulario con esa misma cédula.
+6. Comprueba que el cuadro de aviso detecte que ya estás conectado y cambie el botón automáticamente por uno que dice 'Ir a mi cuenta' que te lleva directamente a tu perfil.
+```
+
+---
+
+```text
+TITULO: QA-27 - Detección Preventiva de Teléfono o Correo en Uso por Otra Cuenta
+DESCRIPCION: Esta prueba asegura que el sistema maneje de forma clara y sin errores técnicos las situaciones donde un usuario intenta registrarse utilizando un número telefónico o correo electrónico que ya pertenece a otra persona en la plataforma.
+PASOS:
+2. Abre la página de ayuda humanitaria (sos-venezuela.html) desde tu teléfono.
+3. Rellena el formulario con una cédula y nombre nuevos, pero coloca un número de teléfono que ya esté registrado previamente en otra cuenta del sistema.
+4. Marca las casillas legales y presiona el botón 'Enviar Solicitud'.
+5. Verifica que la aplicación no muestre códigos de error extraños de base de datos y en su lugar te muestre un mensaje claro indicando que el número de teléfono ya está registrado en otra cuenta.
+6. Cambia el número de teléfono por uno nuevo y confirma que ahora la solicitud se procese normalmente hacia la pantalla de verificación.
+```
+
+
+

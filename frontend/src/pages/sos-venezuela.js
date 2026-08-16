@@ -49,10 +49,14 @@ document.addEventListener('DOMContentLoaded', () => {
      * cuando todas las llaves (campos) están en su lugar.
      */
     function evaluateFormCompleteness() {
-        // Verificar que todos los campos de texto tengan contenido (no vacío)
+        // Verificar que todos los campos de texto tengan contenido válido (no solo prefijos iniciales)
         const allFieldsFilled = requiredFieldIds.every(id => {
             const el = document.getElementById(id);
-            return el && el.value.trim() !== '';
+            if (!el) return false;
+            const val = el.value.trim();
+            if (id === 'sos-iddocument') return val.length > 2 && val !== 'V-';
+            if (id === 'sos-phone') return val.length > 4 && val !== '+58';
+            return val !== '';
         });
 
         // Verificar que todos los checkboxes legales estén marcados (checked)
@@ -155,8 +159,8 @@ document.addEventListener('DOMContentLoaded', () => {
         photoFilesInput.addEventListener('change', () => {
             // Limpiar previews anteriores
             photoPreviewsContainer.innerHTML = '';
-            // Limitar a 5 archivos máximo
-            const files = Array.from(photoFilesInput.files).slice(0, 5);
+            // Limitar a 15 archivos máximo
+            const files = Array.from(photoFilesInput.files).slice(0, 15);
             files.forEach(file => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
@@ -227,10 +231,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let evidenceUrls = [];
 
-        // ── 5.4 Subida Directa de Archivos (Fotos desde teléfono/PC) ──────
+        // ── 5.4 Subida Directa de Archivos (Fotos desde teléfono/PC - Hasta 15 fotos) ──
         if (photoFilesInput && photoFilesInput.files.length > 0) {
             const formData = new FormData();
-            Array.from(photoFilesInput.files).slice(0, 5).forEach(f => formData.append('images', f));
+            formData.append('max_images', '15');
+            Array.from(photoFilesInput.files).slice(0, 15).forEach(f => formData.append('images', f));
 
             try {
                 const upRes = await fetch(`${API_URL}/api/public/sos-venezuela/upload-evidence`, {
@@ -283,20 +288,50 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
 
             if (!response.ok || !data.success) {
+                const hasActiveSession = Boolean(localStorage.getItem('token'));
+                const btnLabel = hasActiveSession ? '👤 Ir a mi cuenta' : '🔑 Iniciar Sesión';
+                const btnHref = hasActiveSession ? 'profile.html' : 'login.html';
+
+                if (data && data.already_active) {
+                    showError(`
+                        <div style="font-weight: 700; font-size: 1rem; color: #991b1b; margin-bottom: 6px;">
+                            ${data.message}
+                        </div>
+                        <div style="font-size: 0.88rem; color: #475569; margin-bottom: 14px;">
+                            ${hasActiveSession ? 'Ya tienes una sesión activa en este dispositivo. Puedes consultar tu expediente directamente en tu perfil.' : 'Inicia sesión con tu cuenta para consultar el estatus de tu expediente.'}
+                        </div>
+                        <div style="margin-top: 6px;">
+                            <a href="${btnHref}" class="btn-primary-campaign" style="display: inline-block; background: #db2777; color: #ffffff; padding: 10px 24px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 0.95rem; box-shadow: 0 4px 12px rgba(219,39,119,0.25);">
+                                ${btnLabel}
+                            </a>
+                        </div>
+                    `);
+                    return;
+                }
                 throw new Error(data.message || 'Error al registrar la solicitud.');
             }
 
-            // Guardar email y expediente registrado para la verificación OTP y en sessionStorage
-            window._registeredVictimEmail = email;
+            // Guardar email, expediente e is_new_user registrado para la verificación OTP y en sessionStorage
+            window._registeredVictimEmail = data.email || email;
             window._registeredDossierNumber = data.dossier_number;
+            window._isNewUser = Boolean(data.is_new_user);
 
             try {
                 sessionStorage.setItem('sos_pending_otp', JSON.stringify({
-                    email: email,
+                    email: window._registeredVictimEmail,
                     dossier_number: data.dossier_number,
+                    is_new_user: window._isNewUser,
                     timestamp: Date.now()
                 }));
             } catch (sErr) {}
+
+            // Configurar UI de la tarjeta OTP según si es usuario nuevo o existente
+            configureOtpCardState();
+
+            // Si es reanudación inteligente de un expediente previo, mostrar aviso informativo
+            if (data.resume_verification) {
+                showOtpMsg(`ℹ️ ${data.message}`, '#0284c7');
+            }
 
             // Mostrar Paso 1 (Formulario OTP) y ocultar planilla de registro
             victimForm.style.display = 'none';
@@ -326,10 +361,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (parsed.email && parsed.dossier_number && (Date.now() - parsed.timestamp < 15 * 60 * 1000)) {
                 window._registeredVictimEmail = parsed.email;
                 window._registeredDossierNumber = parsed.dossier_number;
+                window._isNewUser = (parsed.is_new_user !== undefined) ? Boolean(parsed.is_new_user) : true;
                 victimForm.style.display = 'none';
                 if (resultCard) {
                     resultCard.style.display = 'block';
                 }
+                configureOtpCardState();
             } else {
                 sessionStorage.removeItem('sos_pending_otp');
             }
@@ -352,6 +389,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const otpCard = document.getElementById('sos-otp-verification-card');
     const successCard = document.getElementById('sos-activation-success');
 
+    // Función auxiliar para adaptar la interfaz del OTP si es usuario nuevo o existente
+    function configureOtpCardState() {
+        const passwordContainer = document.getElementById('sos-password-fields-container');
+        const activationDesc = document.getElementById('sos-activation-desc');
+
+        if (window._isNewUser === false) {
+            if (passwordContainer) passwordContainer.style.display = 'none';
+            if (activationDesc) activationDesc.textContent = 'Para completar tu solicitud, ingresa el código de verificación de 6 dígitos que enviamos a tu correo electrónico.';
+            if (btnVerifyOtp) btnVerifyOtp.textContent = 'Confirmar Solicitud SOS';
+        } else {
+            if (passwordContainer) passwordContainer.style.display = 'block';
+            if (activationDesc) activationDesc.textContent = 'Para completar tu solicitud, ingresa el código de verificación de 6 dígitos que enviamos a tu correo electrónico y crea una contraseña para tu cuenta.';
+            if (btnVerifyOtp) btnVerifyOtp.textContent = 'Activar mi Cuenta';
+        }
+        validateOtpForm();
+    }
+
     // ── 6.0 Toggle de Mostrar/Ocultar Contraseñas ──────────────────────────
     const toggleNewPwd = document.getElementById('toggle-new-password');
     const toggleConfirmPwd = document.getElementById('toggle-confirm-password');
@@ -371,19 +425,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── 6.1 Validación en Tiempo Real para Habilitar Botón ──────────────────
-    const validateOtpForm = () => {
-        if (!btnVerifyOtp || !otpInput || !newPasswordInput || !confirmPasswordInput) return;
+    function validateOtpForm() {
+        if (!btnVerifyOtp || !otpInput) return;
 
         const code = otpInput.value.trim();
-        const pwd = newPasswordInput.value;
-        const confirm = confirmPasswordInput.value;
+        let isValid = code.length === 6;
 
-        const isValid = code.length === 6 && pwd.length >= 8 && pwd === confirm;
+        if (window._isNewUser !== false && newPasswordInput && confirmPasswordInput) {
+            const pwd = newPasswordInput.value;
+            const confirm = confirmPasswordInput.value;
+            isValid = isValid && pwd.length >= 8 && pwd === confirm;
+        }
 
         btnVerifyOtp.disabled = !isValid;
         btnVerifyOtp.style.opacity = isValid ? '1' : '0.5';
         btnVerifyOtp.style.cursor = isValid ? 'pointer' : 'not-allowed';
-    };
+    }
 
     if (otpInput) otpInput.addEventListener('input', validateOtpForm);
     if (newPasswordInput) newPasswordInput.addEventListener('input', validateOtpForm);
@@ -402,19 +459,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            if (!password || password.length < 8) {
-                showOtpMsg('La contraseña debe tener al menos 8 caracteres.', '#ef4444');
-                return;
-            }
+            if (window._isNewUser !== false) {
+                if (!password || password.length < 8) {
+                    showOtpMsg('La contraseña debe tener al menos 8 caracteres.', '#ef4444');
+                    return;
+                }
 
-            if (password !== passwordConfirm) {
-                showOtpMsg('Las contraseñas no coinciden. Por favor verifica.', '#ef4444');
-                return;
+                if (password !== passwordConfirm) {
+                    showOtpMsg('Las contraseñas no coinciden. Por favor verifica.', '#ef4444');
+                    return;
+                }
             }
 
             // ── 6.3 Indicador de Carga ─────────────────────────────────────
             btnVerifyOtp.disabled = true;
-            btnVerifyOtp.textContent = 'Activando cuenta...';
+            btnVerifyOtp.textContent = (window._isNewUser === false) ? 'Verificando solicitud...' : 'Activando cuenta...';
 
             // ── 6.3 Envío al Endpoint de Verificación OTP ──────────────────
             try {
@@ -474,6 +533,69 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ── 6.6 Manejo de Reenvío de Código OTP (Botón con Cooldown de 60s) ───
+    const btnResendOtp = document.getElementById('sos-btn-resend-otp');
+    const resendTimerSpan = document.getElementById('sos-resend-timer-span');
+    const timerSecondsEl = document.getElementById('sos-timer-seconds');
+    let resendCooldownInterval = null;
+
+    function startResendCooldown(seconds = 60) {
+        if (!btnResendOtp || !resendTimerSpan || !timerSecondsEl) return;
+        btnResendOtp.style.display = 'none';
+        resendTimerSpan.style.display = 'inline';
+        let remaining = seconds;
+        timerSecondsEl.textContent = String(remaining);
+
+        if (resendCooldownInterval) clearInterval(resendCooldownInterval);
+        resendCooldownInterval = setInterval(() => {
+            remaining--;
+            if (remaining <= 0) {
+                clearInterval(resendCooldownInterval);
+                resendCooldownInterval = null;
+                resendTimerSpan.style.display = 'none';
+                btnResendOtp.style.display = 'inline';
+            } else {
+                timerSecondsEl.textContent = String(remaining);
+            }
+        }, 1000);
+    }
+
+    if (btnResendOtp) {
+        btnResendOtp.addEventListener('click', async () => {
+            const targetEmail = window._registeredVictimEmail || document.getElementById('sos-email').value.trim();
+            if (!targetEmail) {
+                showOtpMsg('No se encontró el correo electrónico registrado.', '#ef4444');
+                return;
+            }
+
+            try {
+                btnResendOtp.disabled = true;
+                btnResendOtp.textContent = 'Enviando...';
+
+                const res = await fetch(`${API_URL}/api/public/sos-venezuela/resend-otp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: targetEmail })
+                });
+
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    throw new Error(data.message || 'Error al reenviar el código.');
+                }
+
+                showOtpMsg('✅ Nuevo código enviado a tu correo. Por favor revisa tu bandeja de entrada o spam.', '#10b981');
+                startResendCooldown(60);
+            } catch (rErr) {
+                showOtpMsg(rErr.message, '#ef4444');
+            } finally {
+                if (btnResendOtp) {
+                    btnResendOtp.disabled = false;
+                    btnResendOtp.textContent = 'Reenviar código';
+                }
+            }
+        });
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // SECCIÓN 7: FUNCIONES AUXILIARES DE FEEDBACK VISUAL
     // ═══════════════════════════════════════════════════════════════════════
@@ -498,14 +620,16 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function showError(msg) {
         if (feedbackEl) {
-            feedbackEl.textContent = msg;
+            feedbackEl.innerHTML = msg;
             feedbackEl.style.display = 'block';
-            feedbackEl.style.color = '#ef4444';
-            feedbackEl.style.background = 'rgba(239, 68, 68, 0.1)';
-            feedbackEl.style.border = '1px solid rgba(239, 68, 68, 0.3)';
-            feedbackEl.style.padding = '12px';
-            feedbackEl.style.borderRadius = '8px';
+            feedbackEl.style.color = '#991b1b';
+            feedbackEl.style.background = '#fef2f2';
+            feedbackEl.style.border = '1px solid #fecdd3';
+            feedbackEl.style.padding = '14px 16px';
+            feedbackEl.style.borderRadius = '12px';
             feedbackEl.style.marginTop = '1rem';
+            feedbackEl.style.lineHeight = '1.5';
+            feedbackEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
     }
 

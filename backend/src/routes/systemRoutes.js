@@ -78,11 +78,12 @@ const victimUpload = multer({
 
 const victimController = require('../controllers/victimController');
 
-// 10. Registro, Verificación OTP, Subida de Fotos y Consulta de Expediente SOS Venezuela
+// 10. Registro, Verificación OTP, Reenvío de Código, Subida de Fotos y Consulta de Expediente SOS Venezuela
 router.post('/public/sos-venezuela/register-victim', victimController.registerVictimPublic);
 router.post('/public/sos-venezuela/verify-otp', victimController.verifyVictimOtpPublic);
-// Subida de evidencias SOS (Protegida en RAM + Transcodificación en Cloudflare R2)
-router.post('/public/sos-venezuela/upload-evidence', victimUpload.array('images', 5), victimController.uploadEvidencePublic);
+router.post('/public/sos-venezuela/resend-otp', victimController.resendVictimOtpPublic);
+// Subida de evidencias SOS (Protegida en RAM + Transcodificación en Cloudflare R2 - Hasta 15 fotos)
+router.post('/public/sos-venezuela/upload-evidence', victimUpload.array('images', 15), victimController.uploadEvidencePublic);
 router.get('/public/sos-venezuela/my-case', victimController.getMyCasePublic);
 
 module.exports = router;

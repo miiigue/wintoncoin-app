@@ -13,7 +13,9 @@ import {
     fetchAndStoreAppSettings,
     appSettings,
     handleSessionExpired,
-    silentRefreshIfNeeded
+    silentRefreshIfNeeded,
+    formatBalance,
+    parseFormattedBalance
 } from '../modules/index.js';
 import { initMigrationCheck } from '../modules/migrationManager.js';
 import { initPWAInstall, initSettingsInstallButton } from '../modules/pwa-install.js';

@@ -76,6 +76,7 @@ typings/
 
 # Vite build output
 frontend/dist/
+frontend/dist-demo/
 
 # Serverless directories
 .serverless/
@@ -104,4 +105,17 @@ demo_audit_backup_genesis.json
 # Local Developer Debug/Scratch Directories
 backend/scratch/
 frontend/scratch/
+
+# Android Build & IDE Artifacts (Zero-Trust Repository Hygiene)
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+android/local.properties
+android/captures/
+*.apk
+*.aar
+*.keystore
+!**/keystore/example.keystore
+
 

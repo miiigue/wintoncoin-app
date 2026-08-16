@@ -352,8 +352,8 @@ Estas mejoras **no son obligatorias para que el sistema funcione hoy**, pero son
 
 2. **Duplicidad y Fracturaci√≥n de las Tablas de Auditor√≠a (`audit_log` vs `audit_logs`)**
    - **Severidad: CR√çTICA / SOC 2**
-   - **Problema:** Existe una tabla `audit_log` (singular, creada en migraci√≥n `006`) y otra tabla `audit_logs` (plural, creada en migraci√≥n `097`). Distintos controladores escriben en tablas diferentes, rompiendo el est√°ndar de auditor√≠a centralizada bancaria e inmutable.
-   - **Soluci√≥n Propuesta:** Crear una migraci√≥n de consolidaci√≥n DDL para migrar los registros de `audit_log` hacia `audit_logs` (con columna JSONB `details`), y canalizar el 100% de los eventos del backend a trav√©s del servicio centralizado `auditService.js`.
+   - **Estado:** ‚úÖ **COMPLETADO E IMPLEMENTADO (2026-08-12)**
+   - **Soluci√≥n Aplicada:** Se cre√≥ la migraci√≥n DDL `105_consolidate_audit_logs.js` para migrar los registros hist√≥ricos de `audit_logs` (plural) hacia `audit_log` (singular) y eliminar la tabla obsoleta. Se refactorizaron `financialCoreService.js`, `victimController.js` y `delete_last_sos_user.js` canalizando el 100% de los eventos a trav√©s de la tabla unificada `audit_log`.
 
 3. **Colisi√≥n de Prefijos de Migraci√≥n (`050_...`) y Compatibilidad Legacy (`MockPool`)**
    - **Severidad: ALTA**
@@ -374,3 +374,23 @@ Estas mejoras **no son obligatorias para que el sistema funcione hoy**, pero son
    - **Severidad: MEDIA**
    - **Problema:** Existen dos columnas para el tel√©fono de los usuarios debido a parches acumulados en el monolito `databaseInit.js`.
    - **Soluci√≥n Propuesta:** Deprecar la columna redundante y unificar todas las lecturas/escrituras en un √∫nico campo estandarizado (`phone_number`).
+
+---
+
+## 14. AutomatizaciÛn de Despliegues con CI/CD (GitHub Actions)
+
+**Prioridad: Media / Alta (DevOps y EstandarizaciÛn Profesional)**
+
+**Problema Actual:**
+Actualmente los procesos de construcciÛn (build) de los entornos de ProducciÛn (
+pm run build) y DemostraciÛn (
+pm run build:demo) se ejecutan de manera local. Aunque se ha solucionado el aislamiento de directorios (dist/ vs dist-demo/), depender de builds locales introduce riesgos de inconsistencia (diferentes versiones de Node, cachÈ corrupta) y vulnera el est·ndar de cero confianza (Zero-Trust) para despliegues a producciÛn.
+
+**SoluciÛn Propuesta:**
+1. **Implementar GitHub Actions:** Crear workflows (ej. .github/workflows/deploy-prod.yml y deploy-demo.yml) que automaticen el proceso de build y despliegue.
+2. **Entornos EfÌmeros:** Configurar el pipeline para que, ante cada push a la rama main o demo, levante un contenedor inmaculado, instale dependencias, ejecute el build correspondiente y lo transfiera autom·ticamente al proveedor de alojamiento vÌa FTP/SSH o integraciones directas.
+3. **Bloqueo de Modificaciones Manuales:** Requerir que todos los cambios pasen por Pull Requests revisados, garantizando que el cÛdigo que llega a los usuarios fue compilado y auditado por los servidores de integraciÛn y no por la m·quina de un desarrollador individual.
+
+**Beneficios:**
+- **Seguridad Inquebrantable:** Cumplimiento total del est·ndar Zero-Trust, con auditorÌa de quiÈn aprobÛ y quÈ bot ejecutÛ el despliegue.
+- **Eficiencia y Confiabilidad:** Se elimina el error humano (ej. subir dist-demo a producciÛn accidentalmente) y se garantiza un entorno de compilaciÛn idÈntico cada vez.

@@ -20,6 +20,16 @@ async function processReferralReward({ client, newUser, referralCode }) {
     let allocatedRewardAmount = 0;
     const cleanCode = (referralCode && typeof referralCode === 'string') ? referralCode.trim().toUpperCase() : '';
 
+    // 0. VERIFICACIÓN DE IDEMPOTENCIA (Principio Zero-Trust / Auditoría Bancaria)
+    // Previene excepciones de restricción UNIQUE en referral_log_referred_user_id_key si el usuario ya fue referido
+    if (newUser && newUser.id) {
+        const alreadyReferredCheck = await client.query('SELECT id FROM referral_log WHERE referred_user_id = $1', [newUser.id]);
+        if (alreadyReferredCheck.rowCount > 0) {
+            console.log(`[REFERRAL SERVICE] El usuario ID ${newUser.id} (${newUser.username}) ya posee un registro en referral_log. Omitiendo duplicación.`);
+            return { success: true, referrer: null, rewardAmount: 0, alreadyProcessed: true };
+        }
+    }
+
     // 1. Consultar configuraciones dinámicas de la plataforma desde app_settings
     const settingKeys = [
         'referral_system_enabled',
@@ -117,9 +127,9 @@ async function processReferralReward({ client, newUser, referralCode }) {
                 LIMIT 1
             `, [referrer.id]);
 
-            // VINCULACIÓN DE DATOS DE GENEALOGÍA
+            // VINCULACIÓN DE DATOS DE GENEALOGÍA (ON CONFLICT DO NOTHING para seguridad frente a duplicados)
             await client.query('UPDATE users SET referrer_id = $1 WHERE id = $2', [referrer.id, newUser.id]);
-            await client.query('INSERT INTO referral_log (referrer_user_id, referred_user_id) VALUES ($1, $2)', [referrer.id, newUser.id]);
+            await client.query('INSERT INTO referral_log (referrer_user_id, referred_user_id) VALUES ($1, $2) ON CONFLICT (referred_user_id) DO NOTHING', [referrer.id, newUser.id]);
 
             if (causeCheck.rowCount > 0) {
                 const activeCause = causeCheck.rows[0];
@@ -188,7 +198,7 @@ async function processReferralReward({ client, newUser, referralCode }) {
 
             } else {
                 // CASO TRADICIONAL (Sin causa activa)
-                await client.query("SELECT record_booster_event($1, 'referral_reward', $2, NULL, $3)", [referrer.id, allocatedRewardAmount, newUser.id]);
+                await client.query("SELECT record_booster_event($1::INTEGER, 'referral_reward'::TEXT, $2::NUMERIC, NULL::INTEGER, $3::INTEGER)", [referrer.id, allocatedRewardAmount, newUser.id]);
                 await client.query('UPDATE users SET is_booster = true WHERE id = $1', [referrer.id]);
 
                 await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_sent', $2, $3)`, [referrer.id, allocatedRewardAmount, `Bono por referir a ${newUser.username}`]);
@@ -204,7 +214,7 @@ async function processReferralReward({ client, newUser, referralCode }) {
             }
 
             // Bono para el nuevo usuario (referred)
-            await client.query("SELECT record_booster_event($1, 'referral_reward', $2, NULL, $3)", [newUser.id, allocatedRewardAmount, referrer.id]);
+            await client.query("SELECT record_booster_event($1::INTEGER, 'referral_reward'::TEXT, $2::NUMERIC, NULL::INTEGER, $3::INTEGER)", [newUser.id, allocatedRewardAmount, referrer.id]);
             await client.query('UPDATE users SET is_booster = true WHERE id = $1', [newUser.id]);
             await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'referral_bonus_received', $2, $3)`, [newUser.id, allocatedRewardAmount, `Bono por usar el código de ${referrer.username}`]);
             await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'referral_bonus', $2, $3)`, [newUser.id, `Recompensa (perfil impulsor) por usar el código de ${referrer.username}`, allocatedRewardAmount]);
@@ -225,7 +235,7 @@ async function processReferralReward({ client, newUser, referralCode }) {
         const welcomeBonusAmount = parseFloat(settings.welcome_bonus_amount) || 0;
         if (welcomeBonusAmount > 0) {
             allocatedRewardAmount = welcomeBonusAmount;
-            await client.query('SELECT record_booster_event($1, \'welcome_bonus\', $2, NULL)', [newUser.id, allocatedRewardAmount]);
+            await client.query("SELECT record_booster_event($1::INTEGER, 'welcome_bonus'::TEXT, $2::NUMERIC, NULL::INTEGER, NULL::INTEGER)", [newUser.id, allocatedRewardAmount]);
             await client.query('UPDATE users SET is_booster = true WHERE id = $1', [newUser.id]);
             await client.query(`INSERT INTO booster_transactions (user_id, type, amount, description) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, allocatedRewardAmount, 'Bono de Bienvenida por registro']);
             await client.query(`INSERT INTO transactions (user_id, type, description, blue_change) VALUES ($1, 'welcome_bonus', $2, $3)`, [newUser.id, 'Bono de bienvenida (perfil impulsor)', allocatedRewardAmount]);
