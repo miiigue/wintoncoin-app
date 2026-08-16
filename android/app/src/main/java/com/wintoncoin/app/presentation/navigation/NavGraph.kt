@@ -2,6 +2,7 @@
 // WintonCoin Android — Navegación (Rutas & NavGraph)
 // ============================================================================
 // Define la estructura de navegación declarativa de la app Android nativa.
+// Contempla Login, Registro, Verificación OTP, Recuperación de Clave y Dashboard.
 // ============================================================================
 
 package com.wintoncoin.app.presentation.navigation
@@ -10,37 +11,77 @@ import androidx.compose.runtime.Composable
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.wintoncoin.app.core.security.TokenManager
 import com.wintoncoin.app.presentation.dashboard.DashboardPlaceholderScreen
+import com.wintoncoin.app.presentation.forgot.ForgotPasswordScreen
+import com.wintoncoin.app.presentation.forgot.ForgotPasswordViewModel
 import com.wintoncoin.app.presentation.login.LoginScreen
 import com.wintoncoin.app.presentation.login.LoginViewModel
+import com.wintoncoin.app.presentation.otp.OtpViewModel
+import com.wintoncoin.app.presentation.otp.VerifyOtpScreen
+import com.wintoncoin.app.presentation.register.RegisterScreen
+import com.wintoncoin.app.presentation.register.RegisterViewModel
 
 /**
  * Rutas de las pantallas de la aplicación.
  */
 sealed class Screen(val route: String) {
     object Login : Screen("login_screen")
+    object Register : Screen("register_screen")
+    object ForgotPassword : Screen("forgot_password_screen")
     object Dashboard : Screen("dashboard_screen")
+    data class VerifyOtp(val email: String) : Screen("verify_otp_screen/$email") {
+        companion object {
+            const val routePattern = "verify_otp_screen/{email}"
+        }
+    }
 }
 
 /**
  * NavGraph — Grafo principal de navegación.
- * Gestiona el paso entre la pantalla de Login y el Dashboard.
  */
 @Composable
 fun NavGraph(
     tokenManager: TokenManager,
     currentScreen: String,
+    onNavigateTo: (String) -> Unit,
     onNavigateToDashboard: () -> Unit,
     onNavigateToLogin: () -> Unit
 ) {
-    when (currentScreen) {
-        Screen.Login.route -> {
+    when {
+        currentScreen == Screen.Login.route -> {
             val loginViewModel: LoginViewModel = hiltViewModel()
             LoginScreen(
                 viewModel = loginViewModel,
-                onLoginSuccess = onNavigateToDashboard
+                onLoginSuccess = onNavigateToDashboard,
+                onNavigateToRegister = { onNavigateTo(Screen.Register.route) },
+                onNavigateToForgotPassword = { onNavigateTo(Screen.ForgotPassword.route) }
             )
         }
-        Screen.Dashboard.route -> {
+        currentScreen == Screen.Register.route -> {
+            val registerViewModel: RegisterViewModel = hiltViewModel()
+            RegisterScreen(
+                viewModel = registerViewModel,
+                onNavigateBackToLogin = { onNavigateTo(Screen.Login.route) },
+                onNavigateToOtp = { email -> onNavigateTo("verify_otp_screen/$email") }
+            )
+        }
+        currentScreen.startsWith("verify_otp_screen/") -> {
+            val email = currentScreen.removePrefix("verify_otp_screen/")
+            val otpViewModel: OtpViewModel = hiltViewModel()
+            VerifyOtpScreen(
+                viewModel = otpViewModel,
+                email = email,
+                onNavigateBack = { onNavigateTo(Screen.Register.route) },
+                onNavigateToDashboard = onNavigateToDashboard
+            )
+        }
+        currentScreen == Screen.ForgotPassword.route -> {
+            val forgotViewModel: ForgotPasswordViewModel = hiltViewModel()
+            ForgotPasswordScreen(
+                viewModel = forgotViewModel,
+                onNavigateBackToLogin = { onNavigateTo(Screen.Login.route) }
+            )
+        }
+        currentScreen == Screen.Dashboard.route -> {
             DashboardPlaceholderScreen(
                 username = tokenManager.getUsername(),
                 onLogout = {

@@ -2,7 +2,7 @@
 // WintonCoin Android — Design System (Tema Material 3)
 // ============================================================================
 // Define la configuración global del tema visual de WintonCoin.
-// Soporta esquemas de color claro y oscuro con contraste accesible.
+// Soporta esquemas de color claro y oscuro con contraste accesible y Edge-to-Edge.
 // ============================================================================
 
 package com.wintoncoin.app.presentation.theme
@@ -17,12 +17,10 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// Esquema de color oscuro (Dark Theme)
 private val DarkColorScheme = darkColorScheme(
     primary = WintonBlueLighter,
     onPrimary = WintonTextOnPrimary,
@@ -38,7 +36,6 @@ private val DarkColorScheme = darkColorScheme(
     onError = WintonTextOnPrimary
 )
 
-// Esquema de color claro (Light Theme por defecto)
 private val LightColorScheme = lightColorScheme(
     primary = WintonBlue,
     onPrimary = WintonTextOnPrimary,
@@ -56,12 +53,10 @@ private val LightColorScheme = lightColorScheme(
 
 /**
  * Tema principal de la aplicación WintonCoin.
- * Encapsula la configuración de colores, tipografía y status bar del sistema.
  */
 @Composable
 fun WintonCoinTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Colores dinámicos de Android 12+ (opcional, deshabilitado por defecto para preservar branding)
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
@@ -77,10 +72,10 @@ fun WintonCoinTheme(
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
-            val window = (view.context as Activity).window
-            // Pintar la barra de estado con el color primario de marca
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            val activity = view.context as? Activity
+            activity?.window?.let { window ->
+                WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            }
         }
     }
 

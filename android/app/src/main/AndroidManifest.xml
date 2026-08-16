@@ -2,29 +2,31 @@
 <!-- ============================================================================
      WintonCoin Android — AndroidManifest.xml
      ============================================================================
-     Configuración del manifiesto de la aplicación nativa Android.
-     Declara permisos de red, el punto de entrada Hilt (WintonCoinApplication)
-     y la Activity principal (MainActivity).
+     [SEGURIDAD FINTECH / OWASP MASVS]
+     - allowBackup="false": Previene extracción de datos mediante copias de seguridad ADB.
+     - usesCleartextTraffic="false": Bloquea cualquier tráfico HTTP inseguro en texto plano.
+     - exported="false" por defecto excepto el launcher principal.
      ============================================================================ -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- PERMISOS DE RED (Requeridos para comunicación con la API backend) -->
+    <!-- PERMISOS DE RED -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:name=".WintonCoinApplication"
         android:allowBackup="false"
+        android:usesCleartextTraffic="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:windowSoftInputMode="adjustResize"
         android:theme="@style/Theme.WintonCoin">
 
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

@@ -8,9 +8,11 @@
 package com.wintoncoin.app.presentation.login
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -61,7 +63,9 @@ import com.wintoncoin.app.presentation.theme.WintonPink
 @Composable
 fun LoginScreen(
     viewModel: LoginViewModel,
-    onLoginSuccess: () -> Unit
+    onLoginSuccess: () -> Unit,
+    onNavigateToRegister: () -> Unit = {},
+    onNavigateToForgotPassword: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
@@ -78,7 +82,7 @@ fun LoginScreen(
         WintonAlertDialog(
             title = "Error de Autenticación",
             message = state.errorMessage ?: "Ha ocurrido un error inesperado",
-            onDismissRequest = { viewModel.onEvent(LoginEvent.DismissError) }
+            onDismiss = { viewModel.onEvent(LoginEvent.DismissError) }
         )
     }
 
@@ -206,7 +210,19 @@ fun LoginScreen(
                             )
                         )
 
-                        Spacer(modifier = Modifier.height(28.dp))
+                        // Enlace: ¿Olvidaste tu contraseña?
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "¿Olvidaste tu contraseña?",
+                            color = WintonGold,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier
+                                .align(Alignment.End)
+                                .clickable { onNavigateToForgotPassword() }
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
 
                         // Botón de Enviar
                         WintonButton(
@@ -217,6 +233,27 @@ fun LoginScreen(
                             },
                             isLoading = state.isLoading
                         )
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Enlace: ¿No tienes cuenta? Registro
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "¿No tienes cuenta? ",
+                                color = Color.Gray,
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = "Regístrate aquí",
+                                color = WintonGold,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.clickable { onNavigateToRegister() }
+                            )
+                        }
                     }
                 }
 

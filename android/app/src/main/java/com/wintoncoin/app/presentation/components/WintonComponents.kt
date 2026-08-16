@@ -86,7 +86,7 @@ fun WintonButton(
 
 /**
  * WintonTextField — Campo de entrada de texto estilizado con soporte para iconos,
- * mensajes de error e indicador de visibilidad para contraseñas.
+ * placeholder, deshabilitado en carga y mensajes de error.
  */
 @Composable
 fun WintonTextField(
@@ -94,9 +94,11 @@ fun WintonTextField(
     onValueChange: (String) -> Unit,
     label: String,
     modifier: Modifier = Modifier,
+    placeholder: String? = null,
     leadingIcon: ImageVector? = null,
     isPassword: Boolean = false,
     errorMessage: String? = null,
+    enabled: Boolean = true,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default
 ) {
@@ -107,6 +109,8 @@ fun WintonTextField(
             value = value,
             onValueChange = onValueChange,
             label = { Text(label) },
+            placeholder = placeholder?.let { { Text(it, color = Color.Gray) } },
+            enabled = enabled,
             singleLine = true,
             isError = errorMessage != null,
             leadingIcon = leadingIcon?.let {
@@ -116,7 +120,7 @@ fun WintonTextField(
                 {
                     val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
                     val description = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
-                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }, enabled = enabled) {
                         Icon(imageVector = image, contentDescription = description)
                     }
                 }
@@ -146,18 +150,19 @@ fun WintonTextField(
 }
 
 /**
- * WintonAlertDialog — Diálogo modal estandarizado equivalente a las alertas personalizadas (alerts.js) de la PWA.
+ * WintonAlertDialog — Diálogo modal estandarizado.
  */
 @Composable
 fun WintonAlertDialog(
     title: String,
     message: String,
-    onDismissRequest: () -> Unit,
+    onDismissRequest: () -> Unit = {},
+    onDismiss: () -> Unit = onDismissRequest,
     confirmButtonText: String = "Aceptar",
-    onConfirm: () -> Unit = onDismissRequest
+    onConfirm: () -> Unit = onDismiss
 ) {
     AlertDialog(
-        onDismissRequest = onDismissRequest,
+        onDismissRequest = onDismiss,
         title = {
             Text(
                 text = title,

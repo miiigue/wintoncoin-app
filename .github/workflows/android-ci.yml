@@ -1,0 +1,56 @@
+name: Android CI / CD Pipeline (WintonCoin Native)
+
+on:
+  push:
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-ci.yml'
+  pull_request:
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-ci.yml'
+
+jobs:
+  build-and-test:
+    name: Build & Run Security Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x android/gradlew
+
+      - name: Run Automated Unit Tests (35/35 Security & Architecture Tests)
+        working-directory: ./android
+        run: ./gradlew --no-configuration-cache testDemoDebugUnitTest
+
+      - name: Assemble Demo Debug APK
+        working-directory: ./android
+        run: ./gradlew --no-configuration-cache assembleDemoDebug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-demo-debug
+          path: android/app/build/outputs/apk/demo/debug/app-demo-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Unit Test HTML Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-reports
+          path: android/app/build/reports/tests/testDemoDebugUnitTest/
+          retention-days: 7

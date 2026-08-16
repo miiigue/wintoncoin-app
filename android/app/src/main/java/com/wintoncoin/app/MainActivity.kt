@@ -65,6 +65,7 @@ class MainActivity : ComponentActivity() {
                     NavGraph(
                         tokenManager = tokenManager,
                         currentScreen = currentScreen,
+                        onNavigateTo = { targetRoute -> currentScreen = targetRoute },
                         onNavigateToDashboard = { currentScreen = Screen.Dashboard.route },
                         onNavigateToLogin = { currentScreen = Screen.Login.route }
                     )
