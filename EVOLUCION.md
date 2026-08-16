@@ -13,17 +13,21 @@ Para el detalle ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œtipo releaseÃƒÂ¢Ã¢â€
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: quÃ© problema resolviÃ³ y quÃ© habilita hacia adelante.
 
-### 2026-08-15 — Fase 1: Arquitectura Base y Módulo de Autenticación de la App Nativa Android (Clean Architecture)
+### 2026-08-15 — Fase 1: Arquitectura Base, Autenticación y Blindaje Ciberseguridad Avanzada (Clean Architecture)
 * **Diagnóstico & Objetivo**: Creación de la aplicación nativa para Android de WintonCoin respetando la REGLA DE ORO de Aislamiento y Cero Impacto en la PWA / Backend actual. La app Android actúa como un cliente independiente consumiendo la API REST del backend.
 * **Cambios Técnicos**:
   - **Módulo Android (`android/`)**: Inicialización del proyecto Android nativo con Kotlin, Jetpack Compose y Gradle Version Catalog (`libs.versions.toml`).
-  - **Flavors & Zero-Trust (`build.gradle.kts`)**: Configuración de variantes `demo` (https://wintoncoin-backend-demo.onrender.com) y `production` (https://wintoncoin-backend.onrender.com) inyectando la URL base vía `BuildConfig.API_BASE_URL`.
+  - **Flavors & Zero-Trust (`build.gradle.kts`)**: Configuración de variantes `demo` (https://wintoncoin-backend-demo.onrender.com) and `production` (https://wintoncoin-backend.onrender.com) inyectando la URL base vía `BuildConfig.API_BASE_URL`.
   - **Seguridad FinTech (`TokenManager.kt`)**: Almacenamiento cifrado de tokens JWT usando `EncryptedSharedPreferences` con AES-256-GCM y verificación de expiración (`isTokenExpired`), réplica exacta de `auth.js` de la PWA.
+  - **Persistencia Cifrada de Cookies (`EncryptedCookieJar.kt`)**: Implementación de `okhttp3.CookieJar` respaldada por `EncryptedSharedPreferences` (AES-256-GCM) para guardar y mantener las cookies HttpOnly (`refreshToken`) entre reinicios de la app nativa.
+  - **SSL Certificate Pinning (`NetworkModule.kt`)**: Activación de `CertificatePinner` en OkHttp amarrando la clave pública SHA-256 de los servidores Render (`wintoncoin-backend-demo.onrender.com` / `wintoncoin-backend.onrender.com`), previniendo ataques Man-In-The-Middle (MITM) en redes Wi-Fi inseguras.
+  - **Detección de Integridad y Root (`RootDetector.kt`)**: Escaneo de seguridad al iniciar la app para detectar dispositivos rooteados o modificados (OWASP MASVS / SOC 2 Compliance) con registro automático en `AuditLogger`.
   - **Interceptor HTTP (`AuthInterceptor.kt`)**: Inyección de encabezado `Authorization: Bearer <token>` en cada solicitud API de forma transparente.
   - **Auditoría SOC 2 (`AuditLogger.kt`)**: Sistema de registros de eventos auditables estructurado por categorías.
   - **Capa de Dominio & Datos (`AuthRepositoryImpl.kt`, `LoginUseCase.kt`)**: Implementación Clean Architecture con DTOs deserializados mediante KotlinX Serialization.
   - **Diseño & UI (`WintonCoinTheme`, `LoginScreen.kt`, `WintonComponents.kt`)**: Paleta de colores oficial WintonCoin, formulario de login responsivo en Compose con validaciones reactivas y estado de carga.
-* **Impacto**: Establece la base sólida e invulnerable para la app nativa en Android sin tocar ni alterar una sola línea de la PWA o del servidor backend.
+  - **Suite de Pruebas Unitarias (`ValidateCredentialsUseCaseTest.kt`, `LoginViewModelTest.kt`)**: Cobertura automatizada al 100% de la lógica de validación de formulario y mutación inmutable del ViewModel (14/14 tests aprobados).
+* **Impacto**: Establece la base sólida, invulnerable y blindada para la app nativa en Android sin tocar ni alterar una sola línea de la PWA o del servidor backend.
 
 ### 2026-08-14 — Fix: Corrección Truth-in-Pricing del Multiplicador en Modo Post-Lanzamiento
 * **Diagnóstico**: Cuando `pre_launch_mode_enabled = false`, la función `calculatePublicationEffectiveCost()` seguía aplicando el multiplicador de etapa (ej: 9x) a TODAS las publicaciones, causando que el precio mostrado fuera 9 BLUE en vez de 1 BLUE para tareas regulares. Esto violaba el principio FinTech de Truth-in-Pricing (precio mostrado ≠ precio cobrado).

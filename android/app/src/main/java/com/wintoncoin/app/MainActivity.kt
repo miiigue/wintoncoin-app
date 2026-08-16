@@ -2,7 +2,8 @@
 // WintonCoin Android — MainActivity (Activity Principal)
 // ============================================================================
 // Activity única (Single Activity Architecture) anotada con @AndroidEntryPoint.
-// Administra el contenedor principal de la UI en Jetpack Compose.
+// Administra el contenedor principal de la UI en Jetpack Compose e inspecciona
+// la seguridad del dispositivo en cada inicio.
 // ============================================================================
 
 package com.wintoncoin.app
@@ -19,6 +20,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.wintoncoin.app.core.security.RootDetector
 import com.wintoncoin.app.core.security.TokenManager
 import com.wintoncoin.app.presentation.navigation.NavGraph
 import com.wintoncoin.app.presentation.navigation.Screen
@@ -35,9 +37,15 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var tokenManager: TokenManager
 
+    @Inject
+    lateinit var rootDetector: RootDetector
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Escaneo de seguridad de integridad del dispositivo al arrancar la app
+        rootDetector.checkSecurity()
 
         setContent {
             // Verificar si hay sesión activa previa para decidir la pantalla inicial
