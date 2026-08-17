@@ -13,18 +13,20 @@ Para el detalle ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œtipo releaseÃƒÂ¢Ã¢â€
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: quÃ© problema resolviÃ³ y quÃ© habilita hacia adelante.
 
-### 2026-08-16 — Fase 2: Registro de Usuarios, Verificación OTP, Recuperación de Contraseña y Pipeline CI/CD Automatizado (Clean Architecture)
-* **Diagnóstico & Objetivo**: Implementar el ciclo completo de autenticación y onboarding nativo en la app Android de WintonCoin con paridad total con la PWA (`register.html`, `register-verify.html`, `forgot-password.html`), incorporando evidencia auditable de seguridad y pipeline CI/CD en GitHub Actions.
+### 2026-08-16 — Fase 3: Módulo de Perfil de Usuario, Reputación P2P, Expediente SOS y Cobertura de 44 Tests Unitarios (Clean Architecture)
+* **Diagnóstico & Objetivo**: Implementar el módulo de Perfil de Usuario en la app Android nativa con paridad total con `profile.html` y `profile.js` de la PWA, incorporando reputación P2P, desglose de calificaciones por estrellas (1 a 5), billetera Web3, aislamiento Zero-Trust de expedientes privados SOS Venezuela y suite de 44 pruebas unitarias automatizadas.
 * **Cambios Técnicos**:
-  - **DTOs & Endpoints REST (`AuthDtos.kt`, `AuthApiService.kt`)**: Agregados modelos de datos e interfaces Retrofit para `POST /api/auth/register`, `POST /api/register-verify` y `POST /api/auth/forgot-password`.
-  - **Repositorio & Auditoría (`AuthRepositoryImpl.kt`, `AuthRepositoryImplTest.kt`)**: Extendido con los métodos `register()`, `verifyOtp()` y `forgotPassword()` registrando trazabilidad SOC 2 en `AuditLogger`.
-  - **Casos de Uso (`ValidateRegisterUseCase.kt`, `RegisterUseCase.kt`, `VerifyOtpUseCase.kt`, `ForgotPasswordUseCase.kt`)**: Lógica de negocio desvinculada para validación estricta de formulario (username, email regex, teléfono, coincidencia de contraseñas y aceptación de términos).
-  - **Interfaz de Usuario Jetpack Compose (`RegisterScreen.kt`, `VerifyOtpScreen.kt`, `ForgotPasswordScreen.kt`)**: Diseños responsivos y responsivos con paleta oficial WintonCoin, indicación visual de carga, PIN pad para OTP de 6 dígitos con temporizador de reenvío en corrutinas.
-  - **Navegación Declarativa (`NavGraph.kt`)**: Enlazadas todas las rutas dinámicas (`Screen.Register`, `Screen.VerifyOtp(email)`, `Screen.ForgotPassword`) con paso de argumentos seguro.
-  - **Suite Integral de Pruebas Unitarias (35 Tests Aprobados / 100% Cobertura)**: Cobertura automatizada sobre las 9 suites de casos de uso, ViewModels y repositorios (`BUILD SUCCESSFUL`).
-  - **Informe de Auditoría de Ciberseguridad (`SECURITY_AUDIT_REPORT.md`)**: Documento formal versionado en la raíz con la matriz de cumplimiento OWASP MASVS v2.0, controles SOC 2 y catálogo de pruebas.
-  - **Pipeline de Integración Continua (`.github/workflows/android-ci.yml`)**: Workflow de GitHub Actions que corre automáticamente los 35 unit tests y genera los APKs descargables en cada commit o Pull Request.
-* **Impacto**: La app nativa Android cuenta con un flujo completo de onboarding de usuarios, respaldo de seguridad bancaria auditable y verificación continua en la nube, con cero afectación a la PWA o al backend.
+  - **DTOs & API Service (`ProfileDtos.kt`, `ProfileApiService.kt`)**: Modelos tipados e inmutables para el perfil, desglose de calificaciones, reseñas de usuarios y expediente SOS (`GET /users/:username/profile`, `GET /api/public/sos-venezuela/my-case`).
+  - **Repositorio & Dominio (`ProfileRepository.kt`, `ProfileRepositoryImpl.kt`, `UserProfile.kt`)**: Capa de datos desacoplada con mapeo seguro a modelos de dominio limpios.
+  - **Casos de Uso (`GetProfileUseCase.kt`)**: Lógica de negocio con regla de privacidad Zero-Trust: los datos sensibles del expediente SOS solo se solicitan y renderizan si el usuario autenticado consulta su propio perfil.
+  - **Inyección de Dependencias Hilt (`NetworkModule.kt`, `RepositoryModule.kt`)**: Vinculación de `ProfileApiService` y `ProfileRepository`.
+  - **Capa de Presentación Jetpack Compose (`ProfileScreen.kt`, `ProfileViewModel.kt`, `ProfileState.kt`, `ProfileEvent.kt`)**: Interfaz reactiva con avatar personalizado, badges de verificación (`is_verified` y `kyc_verified`), barra de desglose de estrellas, tarjeta privada de expediente SOS y lista de comentarios.
+  - **Navegación & Dashboard (`NavGraph.kt`, `DashboardPlaceholderScreen.kt`)**: Enrutamiento dinámico hacia `Screen.Profile(username)` con botón de acceso directo desde el Dashboard.
+  - **Suite de Pruebas Unitarias (44 Tests Aprobados / 100% Cobertura)**: Incorporadas las suites `GetProfileUseCaseTest`, `ProfileViewModelTest` y `ProfileRepositoryImplTest`. 44 de 44 pruebas pasadas con éxito (`BUILD SUCCESSFUL`).
+  - **Actualización de Auditoría (`SECURITY_AUDIT_REPORT.md`)**: Registrada la regla `MASVS-PRIVACY-1` y la matriz de 44 pruebas unitarias.
+  - **Compilación de Artefacto**: Generado `app-demo-debug.apk` (19.22 MB) verificado.
+* **Impacto**: La app nativa Android cuenta con su módulo completo de perfil, reputación y expediente SOS, blindado con estándares bancarios y cero impacto en la PWA o el backend.
+
 
 
 

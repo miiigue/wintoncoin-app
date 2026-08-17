@@ -2,7 +2,7 @@
 // WintonCoin Android — Navegación (Rutas & NavGraph)
 // ============================================================================
 // Define la estructura de navegación declarativa de la app Android nativa.
-// Contempla Login, Registro, Verificación OTP, Recuperación de Clave y Dashboard.
+// Contempla Login, Registro, OTP, Recuperación de Clave, Dashboard y Perfil.
 // ============================================================================
 
 package com.wintoncoin.app.presentation.navigation
@@ -17,6 +17,9 @@ import com.wintoncoin.app.presentation.login.LoginScreen
 import com.wintoncoin.app.presentation.login.LoginViewModel
 import com.wintoncoin.app.presentation.otp.OtpViewModel
 import com.wintoncoin.app.presentation.otp.VerifyOtpScreen
+import com.wintoncoin.app.presentation.profile.ProfileEvent
+import com.wintoncoin.app.presentation.profile.ProfileScreen
+import com.wintoncoin.app.presentation.profile.ProfileViewModel
 import com.wintoncoin.app.presentation.register.RegisterScreen
 import com.wintoncoin.app.presentation.register.RegisterViewModel
 
@@ -28,11 +31,8 @@ sealed class Screen(val route: String) {
     object Register : Screen("register_screen")
     object ForgotPassword : Screen("forgot_password_screen")
     object Dashboard : Screen("dashboard_screen")
-    data class VerifyOtp(val email: String) : Screen("verify_otp_screen/$email") {
-        companion object {
-            const val routePattern = "verify_otp_screen/{email}"
-        }
-    }
+    data class VerifyOtp(val email: String) : Screen("verify_otp_screen/$email")
+    data class Profile(val username: String) : Screen("profile_screen/$username")
 }
 
 /**
@@ -81,9 +81,19 @@ fun NavGraph(
                 onNavigateBackToLogin = { onNavigateTo(Screen.Login.route) }
             )
         }
+        currentScreen.startsWith("profile_screen/") -> {
+            val targetUser = currentScreen.removePrefix("profile_screen/")
+            val profileViewModel: ProfileViewModel = hiltViewModel()
+            profileViewModel.onEvent(ProfileEvent.LoadProfile(targetUser))
+            ProfileScreen(
+                viewModel = profileViewModel,
+                onNavigateBack = { onNavigateTo(Screen.Dashboard.route) }
+            )
+        }
         currentScreen == Screen.Dashboard.route -> {
             DashboardPlaceholderScreen(
                 username = tokenManager.getUsername(),
+                onNavigateToProfile = { username -> onNavigateTo("profile_screen/$username") },
                 onLogout = {
                     tokenManager.clearSession()
                     onNavigateToLogin()

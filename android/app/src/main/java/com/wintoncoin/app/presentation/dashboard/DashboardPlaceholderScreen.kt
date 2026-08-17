@@ -1,8 +1,8 @@
 // ============================================================================
 // WintonCoin Android — DashboardPlaceholderScreen
 // ============================================================================
-// [PRESENTATION LAYER] Pantalla placeholder del Dashboard post-login.
-// Confirma la autenticación exitosa e informa los datos de la sesión guardados.
+// [PRESENTATION LAYER] Dashboard post-login con accesos rápidos a Mi Perfil
+// y cierre de sesión seguro.
 // ============================================================================
 
 package com.wintoncoin.app.presentation.dashboard
@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -23,7 +25,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -31,12 +32,10 @@ import com.wintoncoin.app.presentation.components.WintonButton
 import com.wintoncoin.app.presentation.theme.WintonBlue
 import com.wintoncoin.app.presentation.theme.WintonSuccess
 
-/**
- * DashboardPlaceholderScreen — Pantalla temporal de confirmación tras login exitoso.
- */
 @Composable
 fun DashboardPlaceholderScreen(
     username: String?,
+    onNavigateToProfile: (String) -> Unit,
     onLogout: () -> Unit
 ) {
     Surface(
@@ -63,7 +62,7 @@ fun DashboardPlaceholderScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "¡Sesión Iniciada Exitosamente!",
+                        text = "¡Sesión Iniciada!",
                         style = MaterialTheme.typography.titleLarge,
                         color = WintonSuccess,
                         fontWeight = FontWeight.Bold,
@@ -73,7 +72,7 @@ fun DashboardPlaceholderScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Text(
-                        text = "Bienvenido, ${username ?: "Usuario"}",
+                        text = "Hola, ${username ?: "Usuario"}",
                         style = MaterialTheme.typography.headlineMedium,
                         color = WintonBlue,
                         fontWeight = FontWeight.Bold
@@ -82,13 +81,20 @@ fun DashboardPlaceholderScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "Tu token JWT y credenciales se encuentran almacenados de forma segura con EncryptedSharedPreferences (AES-256-GCM).",
+                        text = "Sesión autenticada y protegida con EncryptedSharedPreferences (AES-256-GCM) y SSL Pinning.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
+
+                    WintonButton(
+                        text = "Ver Mi Perfil",
+                        onClick = { onNavigateToProfile(username ?: "") }
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     WintonButton(
                         text = "Cerrar Sesión",

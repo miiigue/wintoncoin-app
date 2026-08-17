@@ -32,6 +32,8 @@ val WintonPurple = Color(0xFF8B5CF6)
 val WintonPink = Color(0xFFE83E8C)
 // Dorado (insignias, niveles premium)
 val WintonGold = Color(0xFFFFD700)
+// Verde esmeralda (verificación, badges activos)
+val WintonGreen = Color(0xFF10B981)
 
 // ============================================================================
 // COLORES DE ESTADO (UX)

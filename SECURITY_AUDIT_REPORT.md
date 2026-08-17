@@ -9,7 +9,7 @@
 * **Aplicación:** WintonCoin Native Android Client (`com.wintoncoin.app`)
 * **Entorno Auditado:** Demo (`demo.wintoncoin.com` / `wintoncoin-backend-demo.onrender.com`)
 * **Estándares Aplicados:** OWASP MASVS (v2.0), SOC 2 Type II (Security & Confidentiality), FinTech Truth-in-Pricing.
-* **Cobertura de Pruebas Unitarias:** 35 / 35 Pruebas Aprobadas (100% Tasa de Éxito).
+* **Cobertura de Pruebas Unitarias:** 48 / 48 Pruebas Aprobadas (100% Tasa de Éxito).
 * **Aislamiento de Entornos:** 100% Protegido. El cliente Android no altera la PWA web ni el backend de producción.
 
 ---
@@ -23,8 +23,10 @@
 | **MASVS-NETWORK-1** | Cifrado Total en Tránsito (Cero Cleartext) | `android:usesCleartextTraffic="false"` activado. Todo el tráfico HTTP en texto plano está bloqueado por hardware y SO. | 🟢 CUMPLIDO |
 | **MASVS-NETWORK-2** | SSL / TLS Certificate Pinning | `CertificatePinner` activo en OkHttp amarrando las claves públicas SHA-256 de los servidores Render para mitigar ataques Man-In-The-Middle (MITM). | 🟢 CUMPLIDO |
 | **MASVS-NETWORK-3** | Persistencia Segura de Cookies HttpOnly | `EncryptedCookieJar.kt` guarda cookies de sesión (`refreshToken`) cifradas con AES-256 sin exponerlas en memoria volátil no segura. | 🟢 CUMPLIDO |
+| **MASVS-NETWORK-4** | Intercepción Segura de Cabeceras | `AuthInterceptor.kt` inyecta token `Authorization: Bearer` en endpoints protegidos y excluye de forma estricta rutas públicas de login/registro. | 🟢 CUMPLIDO |
 | **MASVS-RESILIENCE-1**| Detección de Integridad del Dispositivo (Root) | `RootDetector.kt` inspecciona la presencia de binarios `su`, aplicaciones de superusuario (Magisk, SuperSU) y firmas `test-keys` en `MainActivity`. | 🟢 CUMPLIDO |
 | **MASVS-AUTH-1** | Manejo de Sesión Segura y Cero Filtraciones | `AuthRepositoryImpl.kt` destruye credenciales locales inmediatamente ante respuestas `401 Unauthorized`. | 🟢 CUMPLIDO |
+| **MASVS-PRIVACY-1** | Aislamiento de Datos de Expediente SOS | `GetProfileUseCase.kt` aplica regla de Zero-Trust: los datos sensibles del censo SOS solo se consultan y renderizan si el usuario autenticado consulta su propio perfil. | 🟢 CUMPLIDO |
 | **MASVS-CODE-1** | Zero Hardcoded Secrets | URLs de endpoints y llaves maestras se inyectan en tiempo de compilación según el flavor de Gradle (`BuildConfig.API_BASE_URL`). | 🟢 CUMPLIDO |
 
 ---
@@ -34,7 +36,7 @@
 | Criterio de Confianza SOC 2 | Evidencia de Control en WintonCoin Android |
 | :--- | :--- |
 | **Seguridad Lógica (CC6.1)** | Autenticación mediante tokens JWT con expiración estricta (`isTokenExpired` con margen de 30s) y validación previa de inputs mediante expresiones regulares. |
-| **Transmisión Segura (CC6.6)** | Conexiones forzadas vía HTTPS con OkHttp, timeouts estrictos de 30s y Certificate Pinning. |
+| **Transmisión Segura (CC6.6)** | Conexiones forzadas vía HTTPS con OkHttp, timeouts estrictos de 30s, Certificate Pinning e inyección controlada en `AuthInterceptor`. |
 | **Pista de Auditoría (CC7.2)** | `AuditLogger.kt` registra de forma estructurada eventos de autenticación (`LOGIN_SUCCESS`, `LOGIN_FAILED`, `REGISTER_SUCCESS`, `DEVICE_INTEGRITY_OK`, `ROOT_DETECTED`). |
 | **Confidencialidad de Datos (CC6.3)**| Ninguna contraseña ni dato sensible es registrado en los logs del sistema (`HttpLoggingInterceptor` desactivado en compilaciones Release). |
 
@@ -42,14 +44,27 @@
 
 ## 4. Desglose de Pruebas Unitarias Automatizadas (Unit Test Matrix)
 
-Las 35 pruebas unitarias fueron ejecutadas exitosamente bajo la JVM mediante JUnit 4, MockK y Kotlinx Coroutines Test:
+Las 48 pruebas unitarias fueron ejecutadas exitosamente bajo la JVM mediante JUnit 4, MockK y Kotlinx Coroutines Test:
 
 ```text
+Suite: AuthInterceptorTest (3 Tests)
+├── [PASS] protected route injects Bearer token in header
+├── [PASS] excluded public login route does NOT inject Authorization header
+└── [PASS] protected route with null token sends request without Authorization header
+
+Suite: RootDetectorTest (1 Test)
+└── [PASS] clean standard device returns isRooted false and logs DEVICE_INTEGRITY_OK
+
 Suite: AuthRepositoryImplTest (4 Tests)
 ├── [PASS] login success stores token and returns UserSession
 ├── [PASS] login with 401 error logs failure and returns Result Error
 ├── [PASS] register success calls api and logs success
 └── [PASS] logout clears local session and calls remote logout
+
+Suite: ProfileRepositoryImplTest (3 Tests)
+├── [PASS] getProfile success maps DTO to domain UserProfile
+├── [PASS] getMySosCase with active case returns domain SosCase
+└── [PASS] getMySosCase with no case returns null
 
 Suite: ValidateCredentialsUseCaseTest (7 Tests)
 ├── [PASS] valid credentials returns isValid true and no errors
@@ -75,6 +90,11 @@ Suite: ForgotPasswordUseCaseTest (2 Tests)
 ├── [PASS] valid email calls repository and returns success
 └── [PASS] invalid email format returns error without calling repository
 
+Suite: GetProfileUseCaseTest (3 Tests)
+├── [PASS] empty username returns error immediately
+├── [PASS] viewing my own profile loads sos case
+└── [PASS] viewing another user profile does not query private sos case
+
 Suite: LoginViewModelTest (7 Tests)
 ├── [PASS] initial state is empty and default
 ├── [PASS] UsernameChanged updates username in state
@@ -98,7 +118,12 @@ Suite: ForgotPasswordViewModelTest (3 Tests)
 ├── [PASS] Submit with valid email triggers forgotPasswordUseCase and sets isSuccess
 └── [PASS] DismissSuccess clears isSuccess and successMessage
 
-TOTAL: 35 Pruebas Unitarias | 0 Fallos | 0 Errores | Tasa de Aprobación: 100%
+Suite: ProfileViewModelTest (3 Tests)
+├── [PASS] initial load fetches profile and updates state successfully
+├── [PASS] LoadProfile event for different user updates state with target username
+└── [PASS] error during profile fetch sets errorMessage
+
+TOTAL: 48 Pruebas Unitarias | 0 Fallos | 0 Errores | Tasa de Aprobación: 100%
 ```
 
 ---
@@ -108,7 +133,7 @@ TOTAL: 35 Pruebas Unitarias | 0 Fallos | 0 Errores | Tasa de Aprobación: 100%
 * **Comando:** `gradlew assembleDemoDebug`
 * **Resultado:** `BUILD SUCCESSFUL`
 * **Ubicación del APK:** `android/app/build/outputs/apk/demo/debug/app-demo-debug.apk`
-* **Tamaño del APK:** 19.14 MB
+* **Tamaño del APK:** 19.22 MB
 * **Arquitectura de UI:** Jetpack Compose + Material 3 + Single Activity
 * **Inyección de Dependencias:** Dagger Hilt (Compile-time)
 * **Serialización:** KotlinX Serialization (KSP - Type-safe, Zero-reflection)
