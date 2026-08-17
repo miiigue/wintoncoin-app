@@ -103,4 +103,10 @@ object NetworkModule {
     fun provideWalletApiService(retrofit: Retrofit): WalletApiService {
         return retrofit.create(WalletApiService::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideMarketplaceApiService(retrofit: Retrofit): com.wintoncoin.app.data.remote.api.MarketplaceApiService {
+        return retrofit.create(com.wintoncoin.app.data.remote.api.MarketplaceApiService::class.java)
+    }
 }

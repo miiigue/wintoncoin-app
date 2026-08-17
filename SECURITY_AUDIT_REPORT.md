@@ -9,7 +9,7 @@
 * **Aplicación:** WintonCoin Native Android Client (`com.wintoncoin.app`)
 * **Entorno Auditado:** Demo (`demo.wintoncoin.com` / `wintoncoin-backend-demo.onrender.com`)
 * **Estándares Aplicados:** OWASP MASVS (v2.0), SOC 2 Type II (Security & Confidentiality), FinTech Truth-in-Pricing.
-* **Cobertura de Pruebas Unitarias:** 56 / 56 Pruebas Aprobadas (100% Tasa de Éxito).
+* **Cobertura de Pruebas Unitarias:** 72 / 72 Pruebas Aprobadas (100% Tasa de Éxito).
 * **Aislamiento de Entornos:** 100% Protegido. El cliente Android no altera la PWA web ni el backend de producción.
 
 ---
@@ -28,6 +28,7 @@
 | **MASVS-AUTH-1** | Manejo de Sesión Segura y Cero Filtraciones | `AuthRepositoryImpl.kt` destruye credenciales locales inmediatamente ante respuestas `401 Unauthorized`. | 🟢 CUMPLIDO |
 | **MASVS-PRIVACY-1** | Aislamiento de Datos de Expediente SOS | `GetProfileUseCase.kt` aplica regla de Zero-Trust: los datos sensibles del censo SOS solo se consultan y renderizan si el usuario autenticado consulta su propio perfil. | 🟢 CUMPLIDO |
 | **MASVS-FINTECH-1** | Precisión y Cero Pérdida en Formateo de Balances | `FormatBalanceUseCase.kt` implementa formateo estricto de 4 decimales (`es-ES`) réplica de `walletService.js` para asegurar coherencia financiera. | 🟢 CUMPLIDO |
+| **MASVS-VISUAL-1** | Saneamiento de URLs Multimedia y Cero Inyección | `MarketplaceRepositoryImpl.kt` filtra enlaces externos no permitidos antes de renderizar imágenes en `PublicationCard` previniendo SSRF y fallas de renderizado. | 🟢 CUMPLIDO |
 | **MASVS-CODE-1** | Zero Hardcoded Secrets | URLs de endpoints y llaves maestras se inyectan en tiempo de compilación según el flavor de Gradle (`BuildConfig.API_BASE_URL`). | 🟢 CUMPLIDO |
 
 ---
@@ -45,7 +46,7 @@
 
 ## 4. Desglose de Pruebas Unitarias Automatizadas (Unit Test Matrix)
 
-Las 56 pruebas unitarias fueron ejecutadas exitosamente bajo la JVM mediante JUnit 4, MockK y Kotlinx Coroutines Test:
+Las 72 pruebas unitarias fueron ejecutadas exitosamente bajo la JVM mediante JUnit 4, MockK y Kotlinx Coroutines Test:
 
 ```text
 Suite: AuthInterceptorTest (3 Tests)
@@ -71,6 +72,12 @@ Suite: WalletRepositoryImplTest (2 Tests)
 ├── [PASS] getMyBalance success calculates credit metrics correctly
 └── [PASS] getMyHistory maps completed and authored tasks to unified transactions
 
+Suite: MarketplaceRepositoryImplTest (4 Tests)
+├── [PASS] getMarketplaceFeed combines publications and approved causes with correct priorities
+├── [PASS] acceptPublication sends correct payload and returns success message
+├── [PASS] completeTask sends evidence URLs and returns success
+└── [PASS] confirmPayment releases funds to worker
+
 Suite: ForgotPasswordUseCaseTest (2 Tests)
 ├── [PASS] valid email calls repository and returns success
 └── [PASS] invalid email format returns error without calling repository
@@ -91,6 +98,13 @@ Suite: GetTransactionHistoryUseCaseTest (1 Test)
 
 Suite: GetWalletBalanceUseCaseTest (1 Test)
 └── [PASS] successful repository call returns WalletBalance with credit metrics
+
+Suite: MarketplaceUseCasesTest (5 Tests)
+├── [PASS] GetMarketplaceFeedUseCase delegates to repository
+├── [PASS] GetPublicationDetailsUseCase fails if id is blank
+├── [PASS] ApplyToPublicationUseCase validates blank id
+├── [PASS] CompleteTaskUseCase executes successfully with valid id
+└── [PASS] ConfirmTaskPaymentUseCase fails when parameters are empty
 
 Suite: ValidateCredentialsUseCaseTest (7 Tests)
 ├── [PASS] valid credentials returns isValid true and no errors
@@ -145,7 +159,18 @@ Suite: WalletViewModelTest (3 Tests)
 ├── [PASS] TabSelected event updates selectedTab in state
 └── [PASS] error during balance fetch sets errorMessage in state
 
-TOTAL: 56 Pruebas Unitarias | 0 Fallos | 0 Errores | Tasa de Aprobación: 100%
+Suite: MarketplaceViewModelTest (3 Tests)
+├── [PASS] initial load fetches marketplace items into state
+├── [PASS] SelectCategory updates state and triggers reload
+└── [PASS] UpdateSearchQuery updates state and triggers reload
+
+Suite: PublicationDetailViewModelTest (4 Tests)
+├── [PASS] LoadDetails fetches publication data and updates state
+├── [PASS] Apply calls applyUseCase and updates success message
+├── [PASS] CompleteTask sends evidence input and updates success message
+└── [PASS] ConfirmPayment calls confirmPaymentUseCase and refreshes details
+
+TOTAL: 72 Pruebas Unitarias | 0 Fallos | 0 Errores | Tasa de Aprobación: 100%
 ```
 
 ---
@@ -155,7 +180,7 @@ TOTAL: 56 Pruebas Unitarias | 0 Fallos | 0 Errores | Tasa de Aprobación: 100%
 * **Comando:** `gradlew assembleDemoDebug`
 * **Resultado:** `BUILD SUCCESSFUL`
 * **Ubicación del APK:** `android/app/build/outputs/apk/demo/debug/app-demo-debug.apk`
-* **Tamaño del APK:** 19.32 MB
+* **Tamaño del APK:** 19.49 MB
 * **Arquitectura de UI:** Jetpack Compose + Material 3 + Single Activity
 * **Inyección de Dependencias:** Dagger Hilt (Compile-time)
 * **Serialización:** KotlinX Serialization (KSP - Type-safe, Zero-reflection)
