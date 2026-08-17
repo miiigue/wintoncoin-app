@@ -457,53 +457,253 @@
         </div>
     </section>
 
-    <!-- Sección de Convocatoria de Voluntarios y Difusión (Bandera de Venezuela de Fondo & Sin Íconos/Fondo Oscuro) -->
+    <!-- Sección de Convocatoria de Voluntarios (Registro de Voluntario) -->
     <section id="voluntariado" class="sos-compliance-section" style="padding-top: 1rem; padding-bottom: 3rem;">
         <div class="container">
             <div class="compliance-box vzla-flag-bg" style="border-radius: 24px; padding: 3rem 1.8rem; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.06); text-align: center;">
 
                 <div>
-                    <!-- Título Principal Grande -->
-                    <h2 style="font-size: clamp(1.8rem, 4vw, 2.4rem); font-weight: 800; color: #0f172a; margin-bottom: 0.9rem; font-family: 'Outfit', sans-serif; line-height: 1.25;">
-                        Únete como <span style="background: linear-gradient(135deg, #d97706, #0284c7, #dc2626); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Voluntario y Difunde</span> la Campaña
+                    <!-- Título Principal -->
+                    <h2 style="font-size: clamp(1.8rem, 4vw, 2.4rem); font-weight: 800; color: #0f172a; margin-bottom: 0.5rem; font-family: 'Outfit', sans-serif; line-height: 1.25;">
+                        Registro de <span style="background: linear-gradient(135deg, #d97706, #0284c7, #dc2626); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Voluntario</span>
                     </h2>
+                    <p style="color: #475569; font-size: 1.05rem; max-width: 650px; margin: 0 auto 2rem; line-height: 1.5;">
+                        Únete a la red de apoyo SOS Venezuela. Tu colaboración presencial o remota ayuda a salvar vidas y llevar auxilio transparente a quienes más lo necesitan.
+                    </p>
 
-
-
-                    <!-- Rejilla de Tarjetas Resumidas SIN ÍCONOS con Diseño Glassmorphism -->
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 2.2rem; text-align: left;">
+                    <!-- Formulario de Registro de Voluntario -->
+                    <form id="sos-volunteer-registration-form" style="display: flex; flex-direction: column; gap: 1.5rem; text-align: left; max-width: 850px; margin: 0 auto;">
                         
-                        <!-- Tarjeta 1: Voluntariado -->
-                        <div style="background: rgba(15, 23, 42, 0.03); border: 1px solid rgba(15, 23, 42, 0.08); border-radius: 16px; padding: 1.25rem 1.5rem; transition: all 0.3s ease;">
-                            <h4 style="font-size: 1.1rem; font-weight: 700; color: #0f2d5c; margin: 0 0 0.5rem; font-family: 'Outfit', 'Inter', sans-serif;">Voluntariado</h4>
-                            <p style="font-size: 0.95rem; line-height: 1.6; color: #334155; margin: 0;">
-                                Apoya desde cualquier país en evaluación de proyectos, auditoría y logística remota.
-                            </p>
+                        <!-- Información Personal Basica -->
+                        <div style="background: #ffffff; padding: 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
+                            <strong style="color: #0284c7; display: block; margin-bottom: 1.2rem; font-size: 1.1rem; font-family: 'Outfit', sans-serif;">👤 Datos de Identidad y Contacto</strong>
+                            
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; margin-bottom: 1.25rem;">
+                                <div>
+                                    <label for="vol-fullname" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Nombre y Apellido Completo:</label>
+                                    <input type="text" id="vol-fullname" required placeholder="Ej: Maria Perez" style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                                </div>
+                                <div>
+                                    <label for="vol-iddocument" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Cédula de Identidad:</label>
+                                    <input type="text" id="vol-iddocument" required placeholder="V-12345678" style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem;">
+                                <div>
+                                    <label for="vol-birthdate" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Fecha de Nacimiento (Mayor de 18 años):</label>
+                                    <input type="date" id="vol-birthdate" required style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                                </div>
+                                <div>
+                                    <label for="vol-gender" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Género:</label>
+                                    <select id="vol-gender" required style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                                        <option value="female">Femenino</option>
+                                        <option value="male">Masculino</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; margin-top: 1.25rem;">
+                                <div>
+                                    <label for="vol-email" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Correo Electrónico:</label>
+                                    <input type="email" id="vol-email" required placeholder="ejemplo@correo.com" style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                                </div>
+                                <div>
+                                    <label for="vol-phone" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Teléfono WhatsApp (+58):</label>
+                                    <input type="tel" id="vol-phone" required placeholder="+58 414 123 4567" value="+58 " style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Tarjeta 2: Difusión -->
-                        <div style="background: rgba(15, 23, 42, 0.03); border: 1px solid rgba(15, 23, 42, 0.08); border-radius: 16px; padding: 1.25rem 1.5rem; transition: all 0.3s ease;">
-                            <h4 style="font-size: 1.1rem; font-weight: 700; color: #0f2d5c; margin: 0 0 0.5rem; font-family: 'Outfit', 'Inter', sans-serif;">Difusión</h4>
-                            <p style="font-size: 0.95rem; line-height: 1.6; color: #334155; margin: 0;">
-                                Comparte la campaña para que las familias afectadas aprovechen y obtengan el bono por registrarse.
+                        <!-- Ubicación -->
+                        <div style="background: #ffffff; padding: 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
+                            <strong style="color: #0284c7; display: block; margin-bottom: 1.2rem; font-size: 1.1rem; font-family: 'Outfit', sans-serif;">📍 Ubicación Geográfica de Residencia</strong>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                                <div>
+                                    <label for="vol-state" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Estado:</label>
+                                    <input type="text" id="vol-state" required placeholder="Ej: Sucre" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                                </div>
+                                <div>
+                                    <label for="vol-municipality" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Municipio:</label>
+                                    <input type="text" id="vol-municipality" required placeholder="Ej: Bermúdez" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                                </div>
+                                <div>
+                                    <label for="vol-sector" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Ciudad / Sector:</label>
+                                    <input type="text" id="vol-sector" required placeholder="Ej: Carúpano Centro" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Áreas de Voluntariado (Selección Múltiple) -->
+                        <div style="background: #ffffff; padding: 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
+                            <strong style="color: #0284c7; display: block; margin-bottom: 0.5rem; font-size: 1.1rem; font-family: 'Outfit', sans-serif;">🛠️ ¿En qué áreas deseas colaborar? (Selecciona una o varias opciones)</strong>
+                            <p style="color: #64748b; font-size: 0.9rem; margin-top: 0; margin-bottom: 1.2rem;">Marca las opciones que se ajusten a tus capacidades y disposición:</p>
+                            
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem;">
+                                <label style="display: flex; gap: 10px; align-items: flex-start; background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0; cursor: pointer;">
+                                    <input type="checkbox" name="vol-types" value="campo" style="width: 18px; height: 18px; margin-top: 2px; accent-color: #0284c7;">
+                                    <span style="font-size: 0.92rem; color: #1e293b; line-height: 1.4;">
+                                        <strong>🚚 Ayuda Directa en el Sitio (Campo)</strong><br>
+                                        <small style="color: #64748b;">Apoyo físico en traslado de insumos, entregas y asistencia a familias.</small>
+                                    </span>
+                                </label>
+
+                                <label style="display: flex; gap: 10px; align-items: flex-start; background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0; cursor: pointer;">
+                                    <input type="checkbox" name="vol-types" value="verificacion" style="width: 18px; height: 18px; margin-top: 2px; accent-color: #0284c7;">
+                                    <span style="font-size: 0.92rem; color: #1e293b; line-height: 1.4;">
+                                        <strong>📋 Verificación y Confirmación de Casos</strong><br>
+                                        <small style="color: #64748b;">Revisión y comprobación de datos de familias afectadas en tu zona.</small>
+                                    </span>
+                                </label>
+
+                                <label style="display: flex; gap: 10px; align-items: flex-start; background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0; cursor: pointer;">
+                                    <input type="checkbox" name="vol-types" value="salud" style="width: 18px; height: 18px; margin-top: 2px; accent-color: #0284c7;">
+                                    <span style="font-size: 0.92rem; color: #1e293b; line-height: 1.4;">
+                                        <strong>🩺 Atención de Salud y Primeros Auxilios</strong><br>
+                                        <small style="color: #64748b;">Apoyo de médicos, enfermeros, primeros auxilios o asistencia psicológica.</small>
+                                    </span>
+                                </label>
+
+                                <label style="display: flex; gap: 10px; align-items: flex-start; background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0; cursor: pointer;">
+                                    <input type="checkbox" name="vol-types" value="difusion" style="width: 18px; height: 18px; margin-top: 2px; accent-color: #0284c7;">
+                                    <span style="font-size: 0.92rem; color: #1e293b; line-height: 1.4;">
+                                        <strong>📢 Difusión y Redes Sociales</strong><br>
+                                        <small style="color: #64748b;">Compartir la campaña, publicar información oficial y generar contenido.</small>
+                                    </span>
+                                </label>
+
+                                <label style="display: flex; gap: 10px; align-items: flex-start; background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0; cursor: pointer;">
+                                    <input type="checkbox" name="vol-types" value="tecnico" style="width: 18px; height: 18px; margin-top: 2px; accent-color: #0284c7;">
+                                    <span style="font-size: 0.92rem; color: #1e293b; line-height: 1.4;">
+                                        <strong>💻 Apoyo Técnico y Tecnológico</strong><br>
+                                        <small style="color: #64748b;">Colaboración en informática, sistemas, gestión de datos o traducción.</small>
+                                    </span>
+                                </label>
+
+                                <label style="display: flex; gap: 10px; align-items: flex-start; background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0; cursor: pointer;">
+                                    <input type="checkbox" name="vol-types" value="coordinacion" style="width: 18px; height: 18px; margin-top: 2px; accent-color: #0284c7;">
+                                    <span style="font-size: 0.92rem; color: #1e293b; line-height: 1.4;">
+                                        <strong>🤝 Coordinación y Logística Comunitaria</strong><br>
+                                        <small style="color: #64748b;">Organización de grupos locales y enlace con líderes comunitarios.</small>
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Disponibilidad de Tiempo (Selección Múltiple) -->
+                        <div style="background: #ffffff; padding: 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
+                            <strong style="color: #0284c7; display: block; margin-bottom: 0.5rem; font-size: 1.1rem; font-family: 'Outfit', sans-serif;">⏱️ ¿Cuál es tu disponibilidad de tiempo?</strong>
+                            <p style="color: #64748b; font-size: 0.9rem; margin-top: 0; margin-bottom: 1.2rem;">Puedes elegir varias opciones según tu agenda:</p>
+
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                                <label style="display: flex; gap: 8px; align-items: center; background: #f8fafc; padding: 10px 12px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer;">
+                                    <input type="checkbox" name="vol-avail" value="tiempo_completo" style="width: 18px; height: 18px; accent-color: #0284c7;">
+                                    <span style="font-size: 0.9rem; color: #1e293b;">Tiempo Completo</span>
+                                </label>
+
+                                <label style="display: flex; gap: 8px; align-items: center; background: #f8fafc; padding: 10px 12px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer;">
+                                    <input type="checkbox" name="vol-avail" value="tiempo_parcial" style="width: 18px; height: 18px; accent-color: #0284c7;">
+                                    <span style="font-size: 0.9rem; color: #1e293b;">Tiempo Parcial</span>
+                                </label>
+
+                                <label style="display: flex; gap: 8px; align-items: center; background: #f8fafc; padding: 10px 12px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer;">
+                                    <input type="checkbox" name="vol-avail" value="fines_de_semana" style="width: 18px; height: 18px; accent-color: #0284c7;">
+                                    <span style="font-size: 0.9rem; color: #1e293b;">Fines de Semana</span>
+                                </label>
+
+                                <label style="display: flex; gap: 8px; align-items: center; background: #f8fafc; padding: 10px 12px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer;">
+                                    <input type="checkbox" name="vol-avail" value="ocasional" style="width: 18px; height: 18px; accent-color: #0284c7;">
+                                    <span style="font-size: 0.9rem; color: #1e293b;">Ocasional / Por Horas</span>
+                                </label>
+                            </div>
+
+                            <div style="margin-top: 1.2rem;">
+                                <label for="vol-skills" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Profesión, oficio o habilidades especiales (Opcional):</label>
+                                <input type="text" id="vol-skills" placeholder="Ej: Enfermero, Chofer con camioneta 4x4, Diseñador gráfico..." style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                            </div>
+                        </div>
+
+                        <!-- Checkboxes Legales -->
+                        <div style="background: #eff6ff; padding: 1.25rem; border-radius: 14px; border: 1px solid rgba(2, 132, 199, 0.25); display: flex; flex-direction: column; gap: 0.8rem;">
+                            <div style="display: flex; gap: 10px; align-items: flex-start;">
+                                <input type="checkbox" id="vol-data-consent" required style="width: 20px; height: 20px; margin-top: 3px; accent-color: #0284c7;">
+                                <label for="vol-data-consent" style="font-size: 0.9rem; color: #1e293b; cursor: pointer; line-height: 1.4;">
+                                    Autorizo el tratamiento confidencial de mis datos con fines de coordinación de brigadas de voluntariado SOS Venezuela y verificación de identidad (Protección de Datos / Habeas Data).
+                                </label>
+                            </div>
+                            <div style="display: flex; gap: 10px; align-items: flex-start;">
+                                <input type="checkbox" id="vol-legal-disclaimer" required style="width: 20px; height: 20px; margin-top: 3px; accent-color: #0284c7;">
+                                <label for="vol-legal-disclaimer" style="font-size: 0.9rem; color: #1e293b; cursor: pointer; line-height: 1.4;">
+                                    Declaro que mi participación como voluntario es estrictamente altruista, no remunerada y sin relación de dependencia laboral con WTN Solutions LLC ni la plataforma WintonCoin.
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="vol-feedback-msg" style="display: none;"></div>
+
+                        <!-- Botón de Envío -->
+                        <button type="submit" id="vol-submit-btn" class="btn-primary-campaign" disabled style="width: 100%; padding: 16px; font-size: 1.15rem; font-weight: 700; border-radius: 50px; cursor: not-allowed; opacity: 0.5; background: linear-gradient(135deg, #0284c7, #2563eb);">
+                            Enviar Postulación de Voluntario
+                        </button>
+
+                    </form>
+
+                    <!-- Tarjeta de Verificación OTP y Resultado para Voluntario -->
+                    <div id="vol-result-card" style="display: none; margin-top: 2rem; background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 10px 30px rgba(0,0,0,0.06); padding: 2rem; text-align: center;">
+                        
+                        <!-- PASO 1: Formulario OTP + Contraseña -->
+                        <div id="vol-otp-verification-card">
+                            <div style="font-size: 3rem; margin-bottom: 0.75rem;">🔐</div>
+                            <h3 style="font-size: 1.6rem; font-weight: 800; color: #0f172a; font-family: 'Outfit', sans-serif; margin-bottom: 0.5rem;">
+                                Activa tu Cuenta de Voluntario
+                            </h3>
+                            <p style="color: #475569; font-size: 0.95rem; line-height: 1.5; margin: 0 auto 1.5rem; max-width: 600px;">
+                                Ingresa el código de 6 dígitos enviado a tu correo y crea una contraseña para activar tu cuenta de usuario en WintonCoin.
                             </p>
+
+                            <div style="margin-bottom: 1rem;">
+                                <label for="vol-otp-code-input" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Código de 6 dígitos:</label>
+                                <input type="text" id="vol-otp-code-input" maxlength="6" placeholder="000000" style="width: 180px; padding: 12px; font-size: 1.4rem; font-weight: 800; text-align: center; letter-spacing: 4px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                            </div>
+
+                            <div id="vol-password-fields-container">
+                                <div style="margin-bottom: 0.75rem; text-align: left; position: relative;">
+                                    <label for="vol-new-password" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Crea tu contraseña:</label>
+                                    <input type="password" id="vol-new-password" minlength="8" placeholder="Mínimo 8 caracteres" style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                                </div>
+
+                                <div style="margin-bottom: 1rem; text-align: left; position: relative;">
+                                    <label for="vol-confirm-password" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Confirma tu Contraseña:</label>
+                                    <input type="password" id="vol-confirm-password" minlength="8" placeholder="Repite la contraseña" style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                                </div>
+                            </div>
+
+                            <button type="button" id="vol-btn-verify-otp" class="btn-primary-campaign" disabled style="padding: 14px 22px; font-size: 1.05rem; font-weight: 600; border-radius: 50px; cursor: not-allowed; opacity: 0.5; width: 100%; background: linear-gradient(135deg, #0284c7, #2563eb);">
+                                Activar mi Cuenta de Voluntario
+                            </button>
+
+                            <div id="vol-otp-feedback-msg" style="display: none; margin-top: 10px; font-size: 0.9rem; padding: 8px; border-radius: 6px;"></div>
+                        </div>
+
+                        <!-- PASO 2: Éxito y Expediente Voluntario -->
+                        <div id="vol-activation-success" style="display: none; padding: 1rem;">
+                            <div style="font-size: 3.5rem; margin-bottom: 1rem;">🤝</div>
+                            <h3 style="font-size: 1.8rem; font-weight: 800; color: #0284c7; font-family: 'Outfit', sans-serif; margin-bottom: 0.5rem;">
+                                ¡Bienvenido a la Brigada de Voluntarios!
+                            </h3>
+                            <p style="color: #334155; font-size: 1.05rem; max-width: 650px; margin: 0 auto 1.25rem; line-height: 1.6;">
+                                Se ha expedido tu número de acreditación de voluntario con la codificación inteligente <strong id="vol-dossier-number-display" style="color: #0f172a; font-weight: 700;">#VOL-VZLA-0000-00000</strong>.
+                            </p>
+                            <p style="color: #0369a1; font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.5rem; background: #f0f9ff; border: 1px solid #bae6fd; padding: 1rem; border-radius: 12px;">
+                                Tu cuenta de usuario WintonCoin ha sido activada y tus <strong id="vol-reward-amount-display">BLUE IOU</strong> de bienvenida han sido abonados a tu billetera.
+                            </p>
+                            <a href="profile.html" class="btn-primary-campaign" style="display: inline-block; text-decoration: none; padding: 14px 32px; border-radius: 50px; font-size: 1.05rem; font-weight: 700; background: linear-gradient(135deg, #0284c7, #2563eb);">
+                                Ir a mi Perfil
+                            </a>
                         </div>
 
                     </div>
 
-                    <!-- Caja CTA de Instagram en FONDO CLARO (Sin Fondo Oscuro) -->
-                    <div style="background: #f8fafc; border: 1px solid rgba(226, 232, 240, 0.9); border-radius: 20px; padding: 2rem 1.5rem; color: #0f172a; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);">
-                        <h3 style="font-size: clamp(1.25rem, 2.3vw, 1.45rem); font-weight: 800; color: #0f172a; margin-bottom: 0.6rem;">¿Cómo postularte o colaborar?</h3>
-                        <p style="color: #475569; font-size: clamp(1rem, 2vw, 1.1rem); max-width: 600px; margin: 0 auto 1.6rem; line-height: 1.5;">
-                            Escríbenos un mensaje privado por Instagram detallando tu ciudad y cómo deseas colaborar.
-                        </p>
-                        <a href="https://www.instagram.com/cadenasosvenezuela?igsh=MTIxcGVnZGs4bm0yYw==" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem; background: linear-gradient(90deg, #e1306c, #c13584, #833ab4); color: #ffffff; font-weight: 800; font-size: clamp(0.95rem, 1.8vw, 1.05rem); padding: 0.7rem 1.6rem; border-radius: 50px; text-decoration: none; box-shadow: 0 8px 20px rgba(225, 48, 108, 0.25); transition: transform 0.2s; min-height: 44px; width: auto; max-width: 100%; box-sizing: border-box;">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" style="flex-shrink: 0;">
-                                <path d="M8 0C5.829 0 5.556.01 4.703.048 3.85.088 3.269.222 2.76.42a3.917 3.917 0 0 0-1.417.923A3.927 3.927 0 0 0 .42 2.76C.222 3.268.087 3.85.048 4.7.01 5.555 0 5.827 0 8.001c0 2.172.01 2.444.048 3.297.04.852.174 1.433.372 1.942.205.526.478.972.923 1.417.444.445.89.719 1.416.923.51.198 1.09.333 1.942.372C5.555 15.99 5.827 16 8 16s2.444-.01 3.298-.048c.851-.04 1.434-.174 1.943-.372a3.916 3.916 0 0 0 1.416-.923c.445-.445.718-.891.923-1.417.197-.509.332-1.09.372-1.942C15.99 10.445 16 10.173 16 8s-.01-2.445-.048-3.299c-.04-.851-.175-1.433-.372-1.941a3.926 3.926 0 0 0-.923-1.417A3.911 3.911 0 0 0 13.24.42c-.51-.198-1.092-.333-1.943-.372C10.443.01 10.172 0 7.998 0h.003zm-.717 1.442h.718c2.136 0 2.389.007 3.232.046.78.035 1.204.166 1.486.275.373.145.64.319.92.599.28.28.453.546.598.92.11.281.24.705.275 1.485.039.843.047 1.096.047 3.231s-.008 2.389-.047 3.232c-.035.78-.166 1.203-.275 1.485a2.47 2.47 0 0 1-.599.919c-.28.28-.546.453-.92.598-.28.11-.704.24-1.485.276-.843.038-1.096.047-3.232.047s-2.39-.009-3.233-.047c-.78-.036-1.203-.166-1.485-.276a2.478 2.478 0 0 1-.92-.598 2.48 2.48 0 0 1-.6-.92c-.109-.281-.24-.705-.275-1.485-.038-.843-.046-1.096-.046-3.233 0-2.136.008-2.388.046-3.231.036-.78.166-1.204.276-1.486.145-.373.319-.64.599-.92.28-.28.546-.453.92-.598.282-.11.705-.24 1.485-.276.738-.034 1.024-.044 2.515-.045v.002zm4.988 1.328a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92zm-4.27 1.122a4.109 4.109 0 1 0 0 8.217 4.109 4.109 0 0 0 0-8.217zm0 1.441a2.667 2.667 0 1 1 0 5.334 2.667 2.667 0 0 1 0-5.334z"/>
-                            </svg>
-                            Contáctanos
-                        </a>
-                    </div>
                 </div>
 
             </div>

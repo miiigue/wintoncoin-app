@@ -666,4 +666,219 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Cargar el código dinámico al inicializar la página
     loadDynamicSpecialCode();
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // SECCIÓN 9: MÓDULO DE REGISTRO DE VOLUNTARIO SOS (FORMULARIO E INTERACCIÓN)
+    // ═══════════════════════════════════════════════════════════════════════
+    const volForm = document.getElementById('sos-volunteer-registration-form');
+    const volSubmitBtn = document.getElementById('vol-submit-btn');
+    const volFeedback = document.getElementById('vol-feedback-msg');
+    const volResultCard = document.getElementById('vol-result-card');
+    const volOtpCard = document.getElementById('vol-otp-verification-card');
+    const volOtpInput = document.getElementById('vol-otp-code-input');
+    const volBtnVerifyOtp = document.getElementById('vol-btn-verify-otp');
+    const volOtpFeedback = document.getElementById('vol-otp-feedback-msg');
+    const volSuccessCard = document.getElementById('vol-activation-success');
+    const volDossierDisplay = document.getElementById('vol-dossier-number-display');
+    const volRewardDisplay = document.getElementById('vol-reward-amount-display');
+
+    if (volForm) {
+        const requiredVolIds = ['vol-fullname', 'vol-iddocument', 'vol-birthdate', 'vol-email', 'vol-phone', 'vol-state', 'vol-municipality', 'vol-sector'];
+        const requiredVolChecks = ['vol-data-consent', 'vol-legal-disclaimer'];
+
+        /**
+         * Evalúa si el formulario de voluntario está completo para activar el botón.
+         */
+        function evaluateVolCompleteness() {
+            const allFilled = requiredVolIds.every(id => {
+                const el = document.getElementById(id);
+                if (!el) return false;
+                const val = el.value.trim();
+                if (id === 'vol-iddocument') return val.length > 2 && val !== 'V-';
+                if (id === 'vol-phone') return val.length > 4 && val !== '+58';
+                return val !== '';
+            });
+
+            const allChecked = requiredVolChecks.every(id => {
+                const el = document.getElementById(id);
+                return el && el.checked;
+            });
+
+            // Verificar que al menos una opción de área y disponibilidad esté seleccionada
+            const selectedTypes = document.querySelectorAll('input[name="vol-types"]:checked');
+            const selectedAvail = document.querySelectorAll('input[name="vol-avail"]:checked');
+            const hasTypes = selectedTypes.length > 0;
+            const hasAvail = selectedAvail.length > 0;
+
+            const isReady = allFilled && allChecked && hasTypes && hasAvail;
+
+            if (volSubmitBtn) {
+                volSubmitBtn.disabled = !isReady;
+                volSubmitBtn.style.opacity = isReady ? '1' : '0.5';
+                volSubmitBtn.style.cursor = isReady ? 'pointer' : 'not-allowed';
+            }
+        }
+
+        // Listeners de validación en tiempo real
+        requiredVolIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', evaluateVolCompleteness);
+                el.addEventListener('change', evaluateVolCompleteness);
+            }
+        });
+        requiredVolChecks.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', evaluateVolCompleteness);
+        });
+        document.querySelectorAll('input[name="vol-types"]').forEach(el => el.addEventListener('change', evaluateVolCompleteness));
+        document.querySelectorAll('input[name="vol-avail"]').forEach(el => el.addEventListener('change', evaluateVolCompleteness));
+
+        evaluateVolCompleteness();
+
+        let currentVolEmail = '';
+
+        // Envío de Formulario de Voluntario
+        volForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (volSubmitBtn) {
+                volSubmitBtn.disabled = true;
+                volSubmitBtn.innerText = 'Enviando Registro...';
+            }
+            if (volFeedback) volFeedback.style.display = 'none';
+
+            const selectedTypes = Array.from(document.querySelectorAll('input[name="vol-types"]:checked')).map(el => el.value);
+            const selectedAvail = Array.from(document.querySelectorAll('input[name="vol-avail"]:checked')).map(el => el.value);
+
+            const payload = {
+                full_name: document.getElementById('vol-fullname')?.value?.trim() || '',
+                id_document: document.getElementById('vol-iddocument')?.value?.trim() || '',
+                birth_date: document.getElementById('vol-birthdate')?.value || '',
+                gender: document.getElementById('vol-gender')?.value || 'female',
+                email: document.getElementById('vol-email')?.value?.trim() || '',
+                phone_number: document.getElementById('vol-phone')?.value?.trim() || '',
+                state: document.getElementById('vol-state')?.value?.trim() || '',
+                municipality: document.getElementById('vol-municipality')?.value?.trim() || '',
+                sector_city: document.getElementById('vol-sector')?.value?.trim() || '',
+                volunteer_types: selectedTypes,
+                availability: selectedAvail,
+                profession_skills: document.getElementById('vol-skills')?.value?.trim() || '',
+                data_consent_accepted: document.getElementById('vol-data-consent')?.checked,
+                legal_disclaimer_accepted: document.getElementById('vol-legal-disclaimer')?.checked
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/api/volunteers/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (!res.ok || !data.success) {
+                    throw new Error(data.message || 'Error al procesar el registro de voluntario.');
+                }
+
+                currentVolEmail = payload.email;
+
+                // Ocultar formulario y mostrar tarjeta OTP
+                volForm.style.display = 'none';
+                if (volResultCard) volResultCard.style.display = 'block';
+                if (volOtpCard) volOtpCard.style.display = 'block';
+                if (volSuccessCard) volSuccessCard.style.display = 'none';
+
+                if (data.is_new_user) {
+                    const passContainer = document.getElementById('vol-password-fields-container');
+                    if (passContainer) passContainer.style.display = 'block';
+                } else {
+                    const passContainer = document.getElementById('vol-password-fields-container');
+                    if (passContainer) passContainer.style.display = 'none';
+                }
+
+                if (volOtpInput) volOtpInput.focus();
+
+            } catch (err) {
+                if (volFeedback) {
+                    volFeedback.textContent = '❌ ' + err.message;
+                    volFeedback.style.display = 'block';
+                    volFeedback.style.color = '#ef4444';
+                    volFeedback.style.background = '#fef2f2';
+                    volFeedback.style.padding = '12px';
+                    volFeedback.style.borderRadius = '10px';
+                    volFeedback.style.marginTop = '1rem';
+                }
+            } finally {
+                if (volSubmitBtn) {
+                    volSubmitBtn.disabled = false;
+                    volSubmitBtn.innerText = 'Enviar Postulación de Voluntario';
+                }
+            }
+        });
+
+        // Habilitar botón OTP al escribir 6 dígitos
+        if (volOtpInput) {
+            volOtpInput.addEventListener('input', () => {
+                const val = volOtpInput.value.trim();
+                if (volBtnVerifyOtp) {
+                    const is6 = val.length === 6;
+                    volBtnVerifyOtp.disabled = !is6;
+                    volBtnVerifyOtp.style.opacity = is6 ? '1' : '0.5';
+                    volBtnVerifyOtp.style.cursor = is6 ? 'pointer' : 'not-allowed';
+                }
+            });
+        }
+
+        // Verificación de OTP para Voluntario
+        if (volBtnVerifyOtp) {
+            volBtnVerifyOtp.addEventListener('click', async () => {
+                const otpCode = volOtpInput?.value?.trim() || '';
+                const password = document.getElementById('vol-new-password')?.value || '';
+                const passwordConfirm = document.getElementById('vol-confirm-password')?.value || '';
+
+                if (otpCode.length !== 6) return;
+
+                volBtnVerifyOtp.disabled = true;
+                volBtnVerifyOtp.innerText = 'Verificando...';
+                if (volOtpFeedback) volOtpFeedback.style.display = 'none';
+
+                try {
+                    const res = await fetch(`${API_URL}/api/volunteers/verify-otp`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email: currentVolEmail,
+                            otp_code: otpCode,
+                            password: password,
+                            password_confirm: passwordConfirm
+                        })
+                    });
+
+                    const data = await res.json();
+                    if (!res.ok || !data.success) {
+                        throw new Error(data.message || 'Código OTP incorrecto.');
+                    }
+
+                    // Éxito: Ocultar OTP y mostrar tarjeta de felicitación
+                    if (volOtpCard) volOtpCard.style.display = 'none';
+                    if (volSuccessCard) volSuccessCard.style.display = 'block';
+
+                    if (volDossierDisplay) volDossierDisplay.textContent = `#${data.dossier_number}`;
+                    if (volRewardDisplay) volRewardDisplay.textContent = `${data.reward_amount || 0} BLUE IOU`;
+
+                } catch (err) {
+                    if (volOtpFeedback) {
+                        volOtpFeedback.textContent = '❌ ' + err.message;
+                        volOtpFeedback.style.display = 'block';
+                        volOtpFeedback.style.color = '#ef4444';
+                        volOtpFeedback.style.background = '#fef2f2';
+                    }
+                } finally {
+                    volBtnVerifyOtp.disabled = false;
+                    volBtnVerifyOtp.innerText = 'Activar mi Cuenta de Voluntario';
+                }
+            });
+        }
+    }
 });
+

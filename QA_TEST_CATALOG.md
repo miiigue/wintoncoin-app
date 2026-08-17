@@ -359,5 +359,46 @@ PASOS:
 6. Cambia el número de teléfono por uno nuevo y confirma que ahora la solicitud se procese normalmente hacia la pantalla de verificación.
 ```
 
+---
+
+```text
+TITULO: QA-28 - Postulación y Verificación de Registro de Voluntarios SOS
+DESCRIPCION: Esta misión asegura que los usuarios interesados en prestar ayuda como voluntarios puedan completar su postulación desde la página SOS Venezuela indicando sus áreas de experiencia y disponibilidad. Se debe verificar que reciban su código de 6 dígitos al correo, activen su cuenta con clave de acceso, reciban su expediente inteligente #VOL-VZLA-XXXX-XXXXX y su bono de bienvenida en la billetera, y que el administrador pueda gestionarlos desde la pestaña Voluntarios SOS en el panel de reclutamiento.
+PASOS:
+2. Abre tu navegador móvil e ingresa al portal SOS Venezuela (sos-venezuela.html) desplazándote hasta el formulario Registro de Voluntario.
+3. Ingresa tu Nombre Completo, Cédula de Identidad V-, Fecha de Nacimiento (mayor de 18 años), Género, Correo Electrónico y Teléfono celular.
+4. Selecciona tu ubicación (Estado, Municipio y Sector) y marca tus opciones en las áreas de voluntariado y disponibilidad de tiempo.
+5. Acepta los términos de consentimiento de datos y la declaración jurada, y presiona Enviar Postulación de Voluntario.
+6. Copia el código de 6 dígitos que te llegó al correo, escribe tu contraseña de acceso y presiona Activar mi Cuenta de Voluntario.
+7. Confirma que la pantalla te muestre tu número de expediente asignado (ejemplo: #VOL-VZLA-4411-00001) y la acreditación de tu bono de bienvenida.
+8. Inicia sesión en el Panel de Administración (admin-recruitment.html) y presiona la pestaña Voluntarios SOS para verificar que tu registro aparezca ordenado por puntaje de prioridad con la opción de aprobar o activar el expediente.
+```
+
+---
+
+```text
+TITULO: QA-29 - Redirección desde Trabaja con Nosotros a Registro de Voluntario SOS
+DESCRIPCION: Esta prueba comprueba que si una persona intenta postularse como voluntario desde el formulario general de vacantes de empleo, el sistema le muestre un aviso informativo azul guiándolo hacia el registro especializado de voluntarios en la página SOS Venezuela.
+PASOS:
+2. Abre el navegador de tu teléfono móvil e ingresa a la página de ofertas de empleo (trabaja-con-nosotros.html).
+3. Ubica el campo de selección desplegable titulado Especialidad o Rol al que te postulas.
+4. Presiona el desplegable y elige la opción de Voluntario.
+5. Verifica que justo debajo aparezca de forma automática un cuadro azul destacado sugiriéndote ir al sistema oficial de voluntarios SOS.
+6. Toca el botón azul que dice Ir al Registro de Voluntario y confirma que te redirija a la sección de voluntariado en la página sos-venezuela.html#voluntariado.
+```
+
+---
+
+```text
+TITULO: QA-30 - Gestión Administrativa y Filtrado por Prioridad de Voluntarios SOS
+DESCRIPCION: Esta misión asegura que los gestores y administradores de la plataforma puedan filtrar, ordenar por disponibilidad y activar o suspender los expedientes de voluntarios registrados desde la pestaña dedicada en el panel de reclutamiento.
+PASOS:
+2. Inicia sesión con tu cuenta de administrador e ingresa al panel de talentos (admin-recruitment.html).
+3. En la parte superior de los controles, presiona el botón de la pestaña que dice Voluntarios SOS.
+4. Confirma que la tabla organice la lista de voluntarios mostrando su número de expediente, edad, género, ubicación y su puntaje de prioridad de despliegue.
+5. Usa el buscador o el filtro de estado para localizar a un voluntario recién registrado.
+6. Presiona el botón verde de aprobación para activar su expediente y confirma que la pantalla actualice su estatus a ACTIVO.
+```
+
 
 
