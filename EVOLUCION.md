@@ -13,19 +13,17 @@ Para el detalle ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œtipo releaseÃƒÂ¢Ã¢â€
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: quÃ© problema resolviÃ³ y quÃ© habilita hacia adelante.
 
-### 2026-08-16 — Fase 3: Módulo de Perfil de Usuario, Reputación P2P, Expediente SOS y Cobertura de 44 Tests Unitarios (Clean Architecture)
-* **Diagnóstico & Objetivo**: Implementar el módulo de Perfil de Usuario en la app Android nativa con paridad total con `profile.html` y `profile.js` de la PWA, incorporando reputación P2P, desglose de calificaciones por estrellas (1 a 5), billetera Web3, aislamiento Zero-Trust de expedientes privados SOS Venezuela y suite de 44 pruebas unitarias automatizadas.
+### 2026-08-16 — Fase 4: Billetera Web3 Nativa, Tarjetas Dinámicas BLUE/RED, Historial Contable y 56 Tests Unitarios (Clean Architecture)
+* **Diagnóstico & Objetivo**: Implementar el módulo completo de Billetera Web3 en la app nativa Android con paridad estricta con `contract_interaction.html`, `walletService.js` e `history.html` de la PWA.
 * **Cambios Técnicos**:
-  - **DTOs & API Service (`ProfileDtos.kt`, `ProfileApiService.kt`)**: Modelos tipados e inmutables para el perfil, desglose de calificaciones, reseñas de usuarios y expediente SOS (`GET /users/:username/profile`, `GET /api/public/sos-venezuela/my-case`).
-  - **Repositorio & Dominio (`ProfileRepository.kt`, `ProfileRepositoryImpl.kt`, `UserProfile.kt`)**: Capa de datos desacoplada con mapeo seguro a modelos de dominio limpios.
-  - **Casos de Uso (`GetProfileUseCase.kt`)**: Lógica de negocio con regla de privacidad Zero-Trust: los datos sensibles del expediente SOS solo se solicitan y renderizan si el usuario autenticado consulta su propio perfil.
-  - **Inyección de Dependencias Hilt (`NetworkModule.kt`, `RepositoryModule.kt`)**: Vinculación de `ProfileApiService` y `ProfileRepository`.
-  - **Capa de Presentación Jetpack Compose (`ProfileScreen.kt`, `ProfileViewModel.kt`, `ProfileState.kt`, `ProfileEvent.kt`)**: Interfaz reactiva con avatar personalizado, badges de verificación (`is_verified` y `kyc_verified`), barra de desglose de estrellas, tarjeta privada de expediente SOS y lista de comentarios.
-  - **Navegación & Dashboard (`NavGraph.kt`, `DashboardPlaceholderScreen.kt`)**: Enrutamiento dinámico hacia `Screen.Profile(username)` con botón de acceso directo desde el Dashboard.
-  - **Suite de Pruebas Unitarias (44 Tests Aprobados / 100% Cobertura)**: Incorporadas las suites `GetProfileUseCaseTest`, `ProfileViewModelTest` y `ProfileRepositoryImplTest`. 44 de 44 pruebas pasadas con éxito (`BUILD SUCCESSFUL`).
-  - **Actualización de Auditoría (`SECURITY_AUDIT_REPORT.md`)**: Registrada la regla `MASVS-PRIVACY-1` y la matriz de 44 pruebas unitarias.
-  - **Compilación de Artefacto**: Generado `app-demo-debug.apk` (19.22 MB) verificado.
-* **Impacto**: La app nativa Android cuenta con su módulo completo de perfil, reputación y expediente SOS, blindado con estándares bancarios y cero impacto en la PWA o el backend.
+  - **DTOs & API Service (`WalletDtos.kt`, `WalletApiService.kt`)**: Modelos inmutables para `GET /api/me/balance`, `GET /api/me/history` y `POST /api/me/collateral/sync`.
+  - **Repositorio & Dominio (`WalletRepository.kt`, `WalletRepositoryImpl.kt`, `WalletModels.kt`)**: Mapeo y cálculo unificado de balances (`blueAvailable`, `blueEscrow`, `redDebt`, `redLimit`, `redAvailable`, `collateralBalance`).
+  - **Casos de Uso (`GetWalletBalanceUseCase.kt`, `GetTransactionHistoryUseCase.kt`, `FormatBalanceUseCase.kt`)**: Implementado formateo estricto de 4 decimales con localización española (`es-ES`) réplica de `walletService.js`.
+  - **Componentes Compose (`BlueBalanceCard`, `RedBalanceCard`, `WalletScreen.kt`, `DashboardScreen.kt`)**: Tarjetas estilizadas con acabado *gleam*, bóveda de colateral, indicador KYC y navegación unificada con Bottom Navigation.
+  - **Suite de Pruebas Unitarias (56 Tests Aprobados / 100% Cobertura)**: Incorporadas 5 nuevas suites (`FormatBalanceUseCaseTest`, `GetWalletBalanceUseCaseTest`, `GetTransactionHistoryUseCaseTest`, `WalletViewModelTest`, `WalletRepositoryImplTest`).
+  - **Compilación de Artefacto**: Generado `app-demo-debug.apk` (19.32 MB) verificado con `BUILD SUCCESSFUL`.
+* **Impacto**: La app nativa Android permite a los usuarios monitorear sus saldos líquidos, deudas, créditos, garantías e historial de transacciones con precisión matemática y seguridad de nivel bancario.
+
 
 
 

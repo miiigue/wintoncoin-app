@@ -2,7 +2,7 @@
 // WintonCoin Android — Navegación (Rutas & NavGraph)
 // ============================================================================
 // Define la estructura de navegación declarativa de la app Android nativa.
-// Contempla Login, Registro, OTP, Recuperación de Clave, Dashboard y Perfil.
+// Contempla Login, Registro, OTP, Recuperación de Clave, Dashboard, Perfil y Billetera.
 // ============================================================================
 
 package com.wintoncoin.app.presentation.navigation
@@ -10,7 +10,7 @@ package com.wintoncoin.app.presentation.navigation
 import androidx.compose.runtime.Composable
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.wintoncoin.app.core.security.TokenManager
-import com.wintoncoin.app.presentation.dashboard.DashboardPlaceholderScreen
+import com.wintoncoin.app.presentation.dashboard.DashboardScreen
 import com.wintoncoin.app.presentation.forgot.ForgotPasswordScreen
 import com.wintoncoin.app.presentation.forgot.ForgotPasswordViewModel
 import com.wintoncoin.app.presentation.login.LoginScreen
@@ -22,6 +22,8 @@ import com.wintoncoin.app.presentation.profile.ProfileScreen
 import com.wintoncoin.app.presentation.profile.ProfileViewModel
 import com.wintoncoin.app.presentation.register.RegisterScreen
 import com.wintoncoin.app.presentation.register.RegisterViewModel
+import com.wintoncoin.app.presentation.wallet.WalletScreen
+import com.wintoncoin.app.presentation.wallet.WalletViewModel
 
 /**
  * Rutas de las pantallas de la aplicación.
@@ -31,6 +33,7 @@ sealed class Screen(val route: String) {
     object Register : Screen("register_screen")
     object ForgotPassword : Screen("forgot_password_screen")
     object Dashboard : Screen("dashboard_screen")
+    object Wallet : Screen("wallet_screen")
     data class VerifyOtp(val email: String) : Screen("verify_otp_screen/$email")
     data class Profile(val username: String) : Screen("profile_screen/$username")
 }
@@ -90,9 +93,19 @@ fun NavGraph(
                 onNavigateBack = { onNavigateTo(Screen.Dashboard.route) }
             )
         }
+        currentScreen == Screen.Wallet.route -> {
+            val walletViewModel: WalletViewModel = hiltViewModel()
+            WalletScreen(
+                viewModel = walletViewModel,
+                onNavigateBack = { onNavigateTo(Screen.Dashboard.route) }
+            )
+        }
         currentScreen == Screen.Dashboard.route -> {
-            DashboardPlaceholderScreen(
+            val walletViewModel: WalletViewModel = hiltViewModel()
+            DashboardScreen(
                 username = tokenManager.getUsername(),
+                walletViewModel = walletViewModel,
+                onNavigateToWallet = { onNavigateTo(Screen.Wallet.route) },
                 onNavigateToProfile = { username -> onNavigateTo("profile_screen/$username") },
                 onLogout = {
                     tokenManager.clearSession()

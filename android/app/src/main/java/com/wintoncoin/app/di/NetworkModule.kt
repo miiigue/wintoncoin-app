@@ -6,7 +6,7 @@
 // - Certificate Pinning contra dominios backend de Render para evitar Man-In-The-Middle (MITM).
 // - Persistencia cifrada de cookies HttpOnly (refreshToken).
 // - Retrofit configurado con KotlinX Serialization JSON.
-// - Servicios de API (AuthApiService, ProfileApiService).
+// - Servicios de API (AuthApiService, ProfileApiService, WalletApiService).
 // ============================================================================
 
 package com.wintoncoin.app.di
@@ -17,6 +17,7 @@ import com.wintoncoin.app.core.network.AuthInterceptor
 import com.wintoncoin.app.core.network.EncryptedCookieJar
 import com.wintoncoin.app.data.remote.api.AuthApiService
 import com.wintoncoin.app.data.remote.api.ProfileApiService
+import com.wintoncoin.app.data.remote.api.WalletApiService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -30,9 +31,6 @@ import retrofit2.Retrofit
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
-/**
- * NetworkModule — Configuración centralizada y blindada de red en Hilt.
- */
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
@@ -45,9 +43,6 @@ object NetworkModule {
         isLenient = true
     }
 
-    /**
-     * Provee el cliente OkHttp blindado.
-     */
     @Provides
     @Singleton
     fun provideOkHttpClient(
@@ -101,5 +96,11 @@ object NetworkModule {
     @Singleton
     fun provideProfileApiService(retrofit: Retrofit): ProfileApiService {
         return retrofit.create(ProfileApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideWalletApiService(retrofit: Retrofit): WalletApiService {
+        return retrofit.create(WalletApiService::class.java)
     }
 }
