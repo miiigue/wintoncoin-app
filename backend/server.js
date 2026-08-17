@@ -223,6 +223,8 @@ async function startServer() {
         app.use('/api', authRoutes); // Registrar rutas de autenticación
         app.use('/api', validationRoutes); // Registrar rutas de validación de disponibilidad
         app.use('/api/recruitment', recruitmentRoutes); // <<< ALTA PRIORIDAD
+        const volunteerRoutes = require('./src/routes/volunteerRoutes'); // Módulo de Voluntariado SOS
+        app.use('/api/volunteers', volunteerRoutes);
         app.use('/api/solidario', solidarioRoutes); // Registrar rutas de Winton Solidario
         app.use('/api/admin', adminRoutes); // <<< NUEVAS RUTAS MODULARES ADMIN
         app.use('/api', masterApiRouter); // <<< RUTA CENTRALIZADA MODULAR

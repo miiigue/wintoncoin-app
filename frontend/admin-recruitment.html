@@ -162,8 +162,17 @@
                 <div class="title-group">
                     <h1>Winton <span class="accent">Talent</span></h1>
                 </div>
-            </div>
         </header>
+
+        <!-- PESTAÑAS DE NAVEGACIÓN (TALENT vs VOLUNTARIOS) -->
+        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+            <button id="tabTalent" style="padding: 12px 24px; border-radius: 12px; font-weight: 700; border: none; background: #2563eb; color: white; cursor: pointer; transition: all 0.2s;">
+                💼 Candidatos Empleo
+            </button>
+            <button id="tabVolunteers" style="padding: 12px 24px; border-radius: 12px; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #94a3b8; cursor: pointer; transition: all 0.2s;">
+                🤝 Voluntarios SOS
+            </button>
+        </div>
 
         <!-- BUSCADOR + ESTADÍSTICAS EN UNA LÍNEA -->
         <section class="controls-toolbar card">
@@ -580,9 +589,165 @@
             return text.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
-        searchInput.addEventListener('input', debounce(loadProposals, 400));
-        statusFilter.addEventListener('change', loadProposals);
-        roleFilter.addEventListener('change', loadProposals);
+        let currentTab = 'talent';
+
+        const tabTalent = document.getElementById('tabTalent');
+        const tabVolunteers = document.getElementById('tabVolunteers');
+
+        if (tabTalent && tabVolunteers) {
+            tabTalent.addEventListener('click', () => {
+                currentTab = 'talent';
+                tabTalent.style.background = '#2563eb';
+                tabTalent.style.color = 'white';
+                tabVolunteers.style.background = 'rgba(255,255,255,0.05)';
+                tabVolunteers.style.color = '#94a3b8';
+                loadData();
+            });
+
+            tabVolunteers.addEventListener('click', () => {
+                currentTab = 'volunteers';
+                tabVolunteers.style.background = '#0284c7';
+                tabVolunteers.style.color = 'white';
+                tabTalent.style.background = 'rgba(255,255,255,0.05)';
+                tabTalent.style.color = '#94a3b8';
+                loadData();
+            });
+        }
+
+        async function loadData() {
+            if (currentTab === 'talent') {
+                await loadProposals();
+            } else {
+                await loadVolunteers();
+            }
+        }
+
+        async function loadVolunteers() {
+            try {
+                const params = new URLSearchParams();
+                const status = statusFilter.value;
+                const search = searchInput.value.trim();
+
+                if (status !== 'all') params.set('status', status);
+                if (search) params.set('search', search);
+
+                const data = await apiFetch(`/api/volunteers/admin/list?${params.toString()}`);
+                if (!data.success) throw new Error(data.message);
+
+                renderVolunteersTable(data.volunteers);
+                updateVolunteerStats(data.volunteers);
+            } catch (error) {
+                tableBody.innerHTML = `<tr><td colspan="7" class="empty-state">
+                    <div class="emoji">⚠️</div>
+                    <p>Error al cargar voluntarios: ${error.message}</p>
+                </td></tr>`;
+            }
+        }
+
+        function renderVolunteersTable(volunteers) {
+            if (volunteers.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="7" class="empty-state">
+                    <div class="emoji">📭</div>
+                    <p>No hay voluntarios registrados con estos filtros.</p>
+                </td></tr>`;
+                return;
+            }
+
+            tableBody.innerHTML = volunteers.map(v => {
+                const date = new Date(v.created_at).toLocaleDateString('es-ES', {
+                    day: '2-digit', month: 'short', year: 'numeric'
+                });
+                const typesStr = Array.isArray(v.volunteer_types) ? v.volunteer_types.join(', ') : (v.volunteer_types || 'N/A');
+                const availStr = Array.isArray(v.availability) ? v.availability.join(', ') : (v.availability || 'N/A');
+
+                const statusBadges = {
+                    pending_verification: '<span class="status-btn pending">PENDIENTE</span>',
+                    active: '<span class="status-btn accepted">ACTIVO</span>',
+                    suspended: '<span class="status-btn reviewing">SUSPENDIDO</span>',
+                    rejected: '<span class="status-btn reject" style="background: rgba(239, 68, 68, 0.1); color: #f87171; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 0.7rem;">RECHAZADO</span>'
+                };
+
+                return `
+                    <tr class="talent-row">
+                        <td>
+                            <div class="talent-profile">
+                                <div class="avatar" style="background: linear-gradient(135deg, #0284c7, #2563eb);">${escapeHtml(v.full_name.charAt(0))}</div>
+                                <div class="info">
+                                    <span class="name">${escapeHtml(v.full_name)}</span>
+                                    <span class="id">Exp: #${escapeHtml(v.dossier_number)} · ${v.age} años (${v.gender === 'male' ? 'Hombre' : 'Mujer'})</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="contact-info">
+                                <span class="email"><i class="far fa-envelope"></i> ${escapeHtml(v.email)}</span>
+                                <span class="email" style="color: #60a5fa;"><i class="fab fa-whatsapp"></i> ${escapeHtml(v.phone_number)}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-size: 0.82rem; color: #e2e8f0;">
+                                <strong>${escapeHtml(v.state)}, ${escapeHtml(v.municipality)}</strong><br>
+                                <small style="color: #94a3b8;">${escapeHtml(v.sector_city)}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-size: 0.8rem; color: #94a3b8;">
+                                <span style="color: #60a5fa; font-weight: 600;">Mod:</span> ${escapeHtml(typesStr)}<br>
+                                <span style="color: #34d399; font-weight: 600;">Disp:</span> ${escapeHtml(availStr)}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="salary-text highlight" style="color: #38bdf8;">★ ${v.priority_score || 0}</span>
+                        </td>
+                        <td>${statusBadges[v.status] || v.status}</td>
+                        <td class="text-right">
+                            <div class="actions">
+                                ${v.status !== 'active' ? `
+                                    <button onclick="updateVolunteerStatus(${v.id}, 'active')" class="btn-action accept" title="Activar Voluntario">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                ` : ''}
+                                ${v.status !== 'suspended' ? `
+                                    <button onclick="updateVolunteerStatus(${v.id}, 'suspended')" class="btn-action reject" title="Suspender">
+                                        <i class="fas fa-ban"></i>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updateVolunteerStats(volunteers) {
+            const total = volunteers.length;
+            const pending = volunteers.filter(v => v.status === 'pending_verification').length;
+            const active = volunteers.filter(v => v.status === 'active').length;
+
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statPending').textContent = pending;
+            document.getElementById('statReviewing').textContent = active;
+        }
+
+        async function updateVolunteerStatus(id, status) {
+            try {
+                const notes = status === 'suspended' ? prompt('¿Motivo de la suspensión?:') : null;
+                const data = await apiFetchWithBody(`/api/volunteers/admin/${id}/status`, 'PUT', { status, admin_notes: notes });
+                if (data.success) {
+                    loadVolunteers();
+                } else {
+                    showCustomAlert('Error: ' + data.message);
+                }
+            } catch (error) {
+                showCustomAlert('Error al actualizar estatus: ' + error.message);
+            }
+        }
+
+        window.updateVolunteerStatus = updateVolunteerStatus;
+
+        searchInput.addEventListener('input', debounce(loadData, 400));
+        statusFilter.addEventListener('change', loadData);
+        roleFilter.addEventListener('change', loadData);
 
         function debounce(fn, ms) {
             let timer;
@@ -592,7 +757,7 @@
             };
         }
 
-        loadProposals();
+        loadData();
     </script>
 
     <!-- MODAL ATS: FICHA DE EVALUACIÓN COMPLETA DEL POSTULANTE -->
