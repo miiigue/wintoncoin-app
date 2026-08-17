@@ -9,7 +9,7 @@
 * **Aplicación:** WintonCoin Native Android Client (`com.wintoncoin.app`)
 * **Entorno Auditado:** Demo (`demo.wintoncoin.com` / `wintoncoin-backend-demo.onrender.com`)
 * **Estándares Aplicados:** OWASP MASVS (v2.0), SOC 2 Type II (Security & Confidentiality), FinTech Truth-in-Pricing.
-* **Cobertura de Pruebas Unitarias:** 48 / 48 Pruebas Aprobadas (100% Tasa de Éxito).
+* **Cobertura de Pruebas Unitarias:** 56 / 56 Pruebas Aprobadas (100% Tasa de Éxito).
 * **Aislamiento de Entornos:** 100% Protegido. El cliente Android no altera la PWA web ni el backend de producción.
 
 ---
@@ -27,6 +27,7 @@
 | **MASVS-RESILIENCE-1**| Detección de Integridad del Dispositivo (Root) | `RootDetector.kt` inspecciona la presencia de binarios `su`, aplicaciones de superusuario (Magisk, SuperSU) y firmas `test-keys` en `MainActivity`. | 🟢 CUMPLIDO |
 | **MASVS-AUTH-1** | Manejo de Sesión Segura y Cero Filtraciones | `AuthRepositoryImpl.kt` destruye credenciales locales inmediatamente ante respuestas `401 Unauthorized`. | 🟢 CUMPLIDO |
 | **MASVS-PRIVACY-1** | Aislamiento de Datos de Expediente SOS | `GetProfileUseCase.kt` aplica regla de Zero-Trust: los datos sensibles del censo SOS solo se consultan y renderizan si el usuario autenticado consulta su propio perfil. | 🟢 CUMPLIDO |
+| **MASVS-FINTECH-1** | Precisión y Cero Pérdida en Formateo de Balances | `FormatBalanceUseCase.kt` implementa formateo estricto de 4 decimales (`es-ES`) réplica de `walletService.js` para asegurar coherencia financiera. | 🟢 CUMPLIDO |
 | **MASVS-CODE-1** | Zero Hardcoded Secrets | URLs de endpoints y llaves maestras se inyectan en tiempo de compilación según el flavor de Gradle (`BuildConfig.API_BASE_URL`). | 🟢 CUMPLIDO |
 
 ---
@@ -44,7 +45,7 @@
 
 ## 4. Desglose de Pruebas Unitarias Automatizadas (Unit Test Matrix)
 
-Las 48 pruebas unitarias fueron ejecutadas exitosamente bajo la JVM mediante JUnit 4, MockK y Kotlinx Coroutines Test:
+Las 56 pruebas unitarias fueron ejecutadas exitosamente bajo la JVM mediante JUnit 4, MockK y Kotlinx Coroutines Test:
 
 ```text
 Suite: AuthInterceptorTest (3 Tests)
@@ -66,6 +67,31 @@ Suite: ProfileRepositoryImplTest (3 Tests)
 ├── [PASS] getMySosCase with active case returns domain SosCase
 └── [PASS] getMySosCase with no case returns null
 
+Suite: WalletRepositoryImplTest (2 Tests)
+├── [PASS] getMyBalance success calculates credit metrics correctly
+└── [PASS] getMyHistory maps completed and authored tasks to unified transactions
+
+Suite: ForgotPasswordUseCaseTest (2 Tests)
+├── [PASS] valid email calls repository and returns success
+└── [PASS] invalid email format returns error without calling repository
+
+Suite: FormatBalanceUseCaseTest (4 Tests)
+├── [PASS] zero amount formats correctly with 4 decimals
+├── [PASS] small integer amount formats with 4 decimals
+├── [PASS] thousand amount formats with dot thousand separator and comma decimal
+└── [PASS] large million balance formats correctly with thousands dots
+
+Suite: GetProfileUseCaseTest (3 Tests)
+├── [PASS] empty username returns error immediately
+├── [PASS] viewing my own profile loads sos case
+└── [PASS] viewing another user profile does not query private sos case
+
+Suite: GetTransactionHistoryUseCaseTest (1 Test)
+└── [PASS] successful call returns list of transaction movements
+
+Suite: GetWalletBalanceUseCaseTest (1 Test)
+└── [PASS] successful repository call returns WalletBalance with credit metrics
+
 Suite: ValidateCredentialsUseCaseTest (7 Tests)
 ├── [PASS] valid credentials returns isValid true and no errors
 ├── [PASS] empty username returns error
@@ -86,14 +112,10 @@ Suite: VerifyOtpUseCaseTest (3 Tests)
 ├── [PASS] otp with less than 6 digits returns error without calling repository
 └── [PASS] otp with non-numeric characters returns error without calling repository
 
-Suite: ForgotPasswordUseCaseTest (2 Tests)
-├── [PASS] valid email calls repository and returns success
-└── [PASS] invalid email format returns error without calling repository
-
-Suite: GetProfileUseCaseTest (3 Tests)
-├── [PASS] empty username returns error immediately
-├── [PASS] viewing my own profile loads sos case
-└── [PASS] viewing another user profile does not query private sos case
+Suite: ForgotPasswordViewModelTest (3 Tests)
+├── [PASS] initial state is empty
+├── [PASS] Submit with valid email triggers forgotPasswordUseCase and sets isSuccess
+└── [PASS] DismissSuccess clears isSuccess and successMessage
 
 Suite: LoginViewModelTest (7 Tests)
 ├── [PASS] initial state is empty and default
@@ -104,26 +126,26 @@ Suite: LoginViewModelTest (7 Tests)
 ├── [PASS] Submit with valid credentials and failed login sets errorMessage
 └── [PASS] DismissError clears error message from state
 
-Suite: RegisterViewModelTest (2 Tests)
-├── [PASS] initial state is default
-└── [PASS] Submit with valid inputs triggers registerUseCase and sets isSuccess
-
 Suite: OtpViewModelTest (3 Tests)
 ├── [PASS] initial state has correct email and default values
 ├── [PASS] OtpCodeChanged updates code only up to 6 digits
 └── [PASS] Submit with valid 6 digit OTP triggers verifyOtpUseCase and sets isSuccess
-
-Suite: ForgotPasswordViewModelTest (3 Tests)
-├── [PASS] initial state is empty
-├── [PASS] Submit with valid email triggers forgotPasswordUseCase and sets isSuccess
-└── [PASS] DismissSuccess clears isSuccess and successMessage
 
 Suite: ProfileViewModelTest (3 Tests)
 ├── [PASS] initial load fetches profile and updates state successfully
 ├── [PASS] LoadProfile event for different user updates state with target username
 └── [PASS] error during profile fetch sets errorMessage
 
-TOTAL: 48 Pruebas Unitarias | 0 Fallos | 0 Errores | Tasa de Aprobación: 100%
+Suite: RegisterViewModelTest (2 Tests)
+├── [PASS] initial state is default
+└── [PASS] Submit with valid inputs triggers registerUseCase and sets isSuccess
+
+Suite: WalletViewModelTest (3 Tests)
+├── [PASS] initial load fetches balance and transactions and updates state
+├── [PASS] TabSelected event updates selectedTab in state
+└── [PASS] error during balance fetch sets errorMessage in state
+
+TOTAL: 56 Pruebas Unitarias | 0 Fallos | 0 Errores | Tasa de Aprobación: 100%
 ```
 
 ---
@@ -133,7 +155,7 @@ TOTAL: 48 Pruebas Unitarias | 0 Fallos | 0 Errores | Tasa de Aprobación: 100%
 * **Comando:** `gradlew assembleDemoDebug`
 * **Resultado:** `BUILD SUCCESSFUL`
 * **Ubicación del APK:** `android/app/build/outputs/apk/demo/debug/app-demo-debug.apk`
-* **Tamaño del APK:** 19.22 MB
+* **Tamaño del APK:** 19.32 MB
 * **Arquitectura de UI:** Jetpack Compose + Material 3 + Single Activity
 * **Inyección de Dependencias:** Dagger Hilt (Compile-time)
 * **Serialización:** KotlinX Serialization (KSP - Type-safe, Zero-reflection)
