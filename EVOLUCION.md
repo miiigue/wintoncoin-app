@@ -13,6 +13,18 @@ Para el detalle ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œtipo releaseÃƒÂ¢Ã¢â€
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: quÃ© problema resolviÃ³ y quÃ© habilita hacia adelante.
 
+### 2026-08-17 — Fase 5: Marketplace de Tareas P2P, Causas Solidarias, Gestión de Postulaciones y 72 Tests Unitarios (Clean Architecture)
+* **Diagnóstico & Objetivo**: Implementar el Marketplace nativo de Tareas y Publicaciones P2P en Android (`com.wintoncoin.app`) con paridad visual y lógica con la PWA, saneamiento de URLs multimedia contra caídas y resolución del problema de consultas N+1 en las calificaciones de autores.
+* **Cambios Técnicos**:
+  - **DTOs & API Service (`MarketplaceDtos.kt`, `MarketplaceApiService.kt`)**: Modelos inmutables para `GET /publications/active`, `GET /api/humanitarian/causes/approved`, `GET /api/publications/:id`, `POST /publications/:id/accept`, `POST /publications/:id/complete` y `POST /publications/:id/confirm-payment`.
+  - **Repositorio & Unificación de Feeds (`MarketplaceRepository.kt`, `MarketplaceRepositoryImpl.kt`, `MarketplaceModels.kt`)**: Mezcla y ordenamiento prioritario estricto (Causas Solidarias `-1`, Tareas del autor por aprobar `0`, por pagar `1`, participante aprobado `2`, resto `5`). Saneamiento automático de enlaces de fotos evitando URLs externas incompatibles (Instagram, Drive).
+  - **Casos de Uso (`GetMarketplaceFeedUseCase.kt`, `GetPublicationDetailsUseCase.kt`, `ApplyToPublicationUseCase.kt`, `CompleteTaskUseCase.kt`, `ConfirmTaskPaymentUseCase.kt`)**: Lógica de negocio modularizada y desacoplada de la UI.
+  - **Presentación Compose (`PublicationCard.kt`, `MarketplaceScreen.kt`, `PublicationDetailScreen.kt`)**: Tarjetas de diseño *gleam*, chips de filtro horizontal, búsqueda en tiempo real, formulario de postulación/donación, envío de evidencias fotográficas y panel de confirmación de pago para autores.
+  - **Navegación & Dashboard (`NavGraph.kt`, `DashboardScreen.kt`)**: Integrada la tarjeta destacada de acceso al Marketplace en la pantalla principal y rutas parametrizadas para ver detalles por ID.
+  - **Suite de Pruebas Unitarias (72 Tests Aprobados / 100% Cobertura)**: Incorporadas 16 nuevas pruebas unitarias en 4 suites (`MarketplaceRepositoryImplTest`, `MarketplaceUseCasesTest`, `MarketplaceViewModelTest`, `PublicationDetailViewModelTest`).
+  - **Compilación de Artefacto**: Generado `app-demo-debug.apk` (19.49 MB) verificado con `BUILD SUCCESSFUL`.
+* **Impacto**: La plataforma móvil ahora soporta el ciclo económico completo de tareas y micro-trabajos P2P (postularse, realizar, entregar evidencia, auditar y liberar fondos en BLUEs).
+
 ### 2026-08-16 — Fase 4: Billetera Web3 Nativa, Tarjetas Dinámicas BLUE/RED, Historial Contable y 56 Tests Unitarios (Clean Architecture)
 * **Diagnóstico & Objetivo**: Implementar el módulo completo de Billetera Web3 en la app nativa Android con paridad estricta con `contract_interaction.html`, `walletService.js` e `history.html` de la PWA.
 * **Cambios Técnicos**:

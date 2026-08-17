@@ -62,6 +62,7 @@ fun DashboardScreen(
     username: String?,
     walletViewModel: WalletViewModel,
     onNavigateToWallet: () -> Unit,
+    onNavigateToMarketplace: () -> Unit,
     onNavigateToProfile: (String) -> Unit,
     onLogout: () -> Unit
 ) {
@@ -180,6 +181,72 @@ fun DashboardScreen(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
+
+                // Tarjeta Destacada de Marketplace
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Brush.linearGradient(
+                            listOf(Color(0xFF1E293B), Color(0xFF0F172A))
+                        ).let { Color(0xFF1E293B) }
+                    ),
+                    onClick = onNavigateToMarketplace
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(WintonBlue.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Security,
+                                    contentDescription = "Marketplace",
+                                    tint = Color(0xFF60A5FA),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column {
+                                Text(
+                                    text = "Marketplace de Tareas",
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Gana BLUEs postulándote a tareas P2P",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = WintonGold.copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = "Explorar",
+                                color = WintonGold,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),

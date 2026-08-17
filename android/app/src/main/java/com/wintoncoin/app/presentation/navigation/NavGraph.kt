@@ -25,6 +25,11 @@ import com.wintoncoin.app.presentation.register.RegisterViewModel
 import com.wintoncoin.app.presentation.wallet.WalletScreen
 import com.wintoncoin.app.presentation.wallet.WalletViewModel
 
+import com.wintoncoin.app.presentation.marketplace.MarketplaceScreen
+import com.wintoncoin.app.presentation.marketplace.MarketplaceViewModel
+import com.wintoncoin.app.presentation.marketplace.detail.PublicationDetailScreen
+import com.wintoncoin.app.presentation.marketplace.detail.PublicationDetailViewModel
+
 /**
  * Rutas de las pantallas de la aplicación.
  */
@@ -34,8 +39,10 @@ sealed class Screen(val route: String) {
     object ForgotPassword : Screen("forgot_password_screen")
     object Dashboard : Screen("dashboard_screen")
     object Wallet : Screen("wallet_screen")
+    object Marketplace : Screen("marketplace_screen")
     data class VerifyOtp(val email: String) : Screen("verify_otp_screen/$email")
     data class Profile(val username: String) : Screen("profile_screen/$username")
+    data class PublicationDetail(val id: String) : Screen("publication_detail_screen/$id")
 }
 
 /**
@@ -100,12 +107,30 @@ fun NavGraph(
                 onNavigateBack = { onNavigateTo(Screen.Dashboard.route) }
             )
         }
+        currentScreen == Screen.Marketplace.route -> {
+            val marketplaceViewModel: MarketplaceViewModel = hiltViewModel()
+            MarketplaceScreen(
+                viewModel = marketplaceViewModel,
+                onNavigateBack = { onNavigateTo(Screen.Dashboard.route) },
+                onNavigateToDetail = { id -> onNavigateTo("publication_detail_screen/$id") }
+            )
+        }
+        currentScreen.startsWith("publication_detail_screen/") -> {
+            val pubId = currentScreen.removePrefix("publication_detail_screen/")
+            val detailViewModel: PublicationDetailViewModel = hiltViewModel()
+            PublicationDetailScreen(
+                viewModel = detailViewModel,
+                publicationId = pubId,
+                onNavigateBack = { onNavigateTo(Screen.Marketplace.route) }
+            )
+        }
         currentScreen == Screen.Dashboard.route -> {
             val walletViewModel: WalletViewModel = hiltViewModel()
             DashboardScreen(
                 username = tokenManager.getUsername(),
                 walletViewModel = walletViewModel,
                 onNavigateToWallet = { onNavigateTo(Screen.Wallet.route) },
+                onNavigateToMarketplace = { onNavigateTo(Screen.Marketplace.route) },
                 onNavigateToProfile = { username -> onNavigateTo("profile_screen/$username") },
                 onLogout = {
                     tokenManager.clearSession()

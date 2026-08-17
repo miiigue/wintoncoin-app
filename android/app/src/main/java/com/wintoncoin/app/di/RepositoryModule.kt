@@ -12,6 +12,8 @@ import com.wintoncoin.app.data.repository.WalletRepositoryImpl
 import com.wintoncoin.app.domain.repository.AuthRepository
 import com.wintoncoin.app.domain.repository.ProfileRepository
 import com.wintoncoin.app.domain.repository.WalletRepository
+import com.wintoncoin.app.data.repository.MarketplaceRepositoryImpl
+import com.wintoncoin.app.domain.repository.MarketplaceRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -33,4 +35,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindWalletRepository(impl: WalletRepositoryImpl): WalletRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMarketplaceRepository(impl: MarketplaceRepositoryImpl): MarketplaceRepository
 }
