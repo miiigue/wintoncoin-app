@@ -14,6 +14,18 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-18 — Optimización UX/Backend: Generación de Username a 10 Caracteres y Unificación de CTA 'Soy afectado'
+* **Diagnóstico & Objetivo**:
+  - Reducir el prefijo del nombre de usuario generado automáticamente de 20 a 10 caracteres para que los usernames resultantes (ej: `@carlos_482`) sean más cortos, legibles y ergonómicos en interfaces móviles y transferencias P2P.
+  - Estandarizar el llamado a la acción (CTA) del banner de emergencia en la página principal (`index.html`) cambiando `"¿Fuiste afectado? Regístrate"` a `"Soy afectado"`, logrando consistencia con la página `sos-venezuela.html`.
+* **Cambios Técnicos**:
+  - **Backend (`victimController.js`, `volunteerController.js`)**:
+    - Ajustada la longitud del prefijo base del correo a 10 caracteres (`substring(0, 10)`).
+    - Preservado el algoritmo de resolución de colisiones (`while (!isUsernameUnique)`) que añade un sufijo aleatorio de 3 dígitos, garantizando unicidad y cumplimiento con la restricción `UNIQUE` de PostgreSQL.
+  - **Frontend (`index.html`)**:
+    - Actualizado el texto del botón del hero de emergencia a `"Soy afectado"`.
+* **Impacto**: Usernames compactos y legibles en dispositivos móviles y mayor tasa de conversión con lenguaje empático en primera persona.
+
 ### 2026-08-18 — Optimización UI/UX: Relleno Automático en Corrección de Datos, Botón Flotante 'Volver Arriba' y Diseño 100% Responsivo en SOS Venezuela
 * **Diagnóstico & Objetivo**:
   - Al presionar el botón "← Modificar datos o cambiar correo", el usuario era retornado al formulario con los campos vacíos, obligándolo a reescribir toda su información desde cero.

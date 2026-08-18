@@ -309,7 +309,7 @@ exports.registerVolunteerPublic = async (req, res) => {
             isNewUser = true;
             const tempPassword = crypto.randomBytes(12).toString('hex');
             const hashedPassword = await bcrypt.hash(tempPassword, 10);
-            const baseUsername = normEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').substring(0, 20);
+            const baseUsername = normEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').substring(0, 10);
 
             let isUsernameUnique = false;
             while (!isUsernameUnique) {
