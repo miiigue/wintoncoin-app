@@ -10,6 +10,8 @@
     "migrate:prod": "cross-env NODE_ENV=production node backend/migrations/001_add_user_verification_fields.js",
     "test": "node verify_all_backend_imports.js && npx jest --runInBand --detectOpenHandles --forceExit",
     "test:unit": "npx jest --runInBand --detectOpenHandles --forceExit",
+    "build:demo": "npm --prefix frontend run build:demo",
+    "build": "npm --prefix frontend run build",
     "audit:imports": "node verify_all_backend_imports.js",
     "update:ui-inventory": "node scripts/update-ui-screen-inventory.js",
     "prepare": "husky install"

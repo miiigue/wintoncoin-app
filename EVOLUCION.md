@@ -14,6 +14,25 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-18 — Persistencia de Sesión OTP (F5/Recarga), Reenvío con Cooldown de 60s y Navegación DRY en Voluntariado SOS (NIST SP 800-63B / FinTech)
+* **Diagnóstico & Objetivo**:
+  - Resolver el problema de pérdida de estado y reinicio de formulario cuando el usuario recarga la página (`F5`) o cambia de aplicación en su teléfono tras postularse como voluntario.
+  - Aplicar el principio DRY reutilizando los estándares de reenvío de OTP (`POST /api/volunteers/resend-otp`), temporizador de cuenta regresiva de 60s y botón de corrección de datos implementados en el módulo general de SOS Víctimas.
+  - Eliminar el error `400: No se encontró una solicitud pendiente` garantizando que el email registrado se preserve en `sessionStorage` y se transmita confiablemente en la verificación.
+* **Cambios Técnicos**:
+  - **Backend (`volunteerController.js`, `volunteerRoutes.js`)**:
+    - Implementado `resendVolunteerOtpPublic` bajo estándar NIST SP 800-63B y SOC 2: control de frecuencia (cooldown mínimo de 60 segundos), límite de 5 reenvíos por sesión contra abusos/spam, generación criptográfica de nuevo OTP de 6 dígitos con TTL de 15 minutos y registro de eventos.
+    - Declarada la ruta pública `POST /api/volunteers/resend-otp` con limitador de tasa `otpVerifyLimiter`.
+  - **Frontend (`sos-venezuela.html`, `sos-venezuela.js`)**:
+    - Incorporada persistencia en `sessionStorage` (`winton_vol_pending`): al recargar la página (`F5`), el sistema detecta la postulación en curso, oculta el formulario y restaura la pantalla de verificación OTP con el correo asociado sin perder el progreso.
+    - Agregado botón de "Reenviar código" con temporizador regresivo de 60 segundos (`#vol-btn-resend-otp`, `#vol-timer-seconds`).
+    - Agregado botón "← Modificar datos o cambiar correo" (`#vol-btn-back-to-form`) para permitir al usuario corregir errores tipográficos limpiando la sesión pendiente.
+    - Limpieza automática de `sessionStorage` tras la activación exitosa de la cuenta.
+  - **Pruebas Automatizadas & Build (`volunteerSystem.test.js`, `package.json`)**:
+    - Añadida prueba unitaria 8 en Jest para validar el endpoint de reenvío de OTP con verificación de cooldown. Total: 11 suites y 66 tests unitarios ejecutados y aprobados (100%).
+    - Actualizado paquete de producción `dist-demo/` mediante `npm run build:demo`.
+* **Impacto**: Experiencia de usuario (UX) resiliente y robusta idéntica a los estándares bancarios y FinTech, evitando pérdida de datos ante interrupciones de red o recargas de navegador.
+
 ### 2026-08-17 — Sistema de Registro de Voluntarios SOS Venezuela, Aislamiento de Sesiones, Teléfonos Internacionales y Pipeline de CI/CD (SOC 2)
 * **Diagnóstico & Objetivo**:
   - Reemplazar la convocatoria informal a redes sociales en la campaña SOS Venezuela por un sistema formal de postulación y acreditación de voluntarios.
