@@ -683,7 +683,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const volRewardDisplay = document.getElementById('vol-reward-amount-display');
 
     if (volForm) {
-        const requiredVolIds = ['vol-fullname', 'vol-iddocument', 'vol-birthdate', 'vol-email', 'vol-phone', 'vol-state', 'vol-municipality', 'vol-sector'];
+        const requiredVolIds = ['vol-fullname', 'vol-iddocument', 'vol-birthdate', 'vol-email', 'vol-phone', 'vol-country', 'vol-state', 'vol-municipality', 'vol-sector'];
         const requiredVolChecks = ['vol-data-consent', 'vol-legal-disclaimer'];
 
         /**
@@ -694,8 +694,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const el = document.getElementById(id);
                 if (!el) return false;
                 const val = el.value.trim();
-                if (id === 'vol-iddocument') return val.length > 2 && val !== 'V-';
-                if (id === 'vol-phone') return val.length > 4 && val !== '+58';
+                if (id === 'vol-iddocument') return val.length >= 2;
+                if (id === 'vol-phone') return val.length >= 7;
                 return val !== '';
             });
 
@@ -737,6 +737,7 @@ document.addEventListener('DOMContentLoaded', () => {
         evaluateVolCompleteness();
 
         let currentVolEmail = '';
+        let isVolunteerNewUser = true;
 
         // Envío de Formulario de Voluntario
         volForm.addEventListener('submit', async (e) => {
@@ -758,6 +759,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 gender: document.getElementById('vol-gender')?.value || 'female',
                 email: document.getElementById('vol-email')?.value?.trim() || '',
                 phone_number: document.getElementById('vol-phone')?.value?.trim() || '',
+                country: document.getElementById('vol-country')?.value?.trim() || '',
                 state: document.getElementById('vol-state')?.value?.trim() || '',
                 municipality: document.getElementById('vol-municipality')?.value?.trim() || '',
                 sector_city: document.getElementById('vol-sector')?.value?.trim() || '',
@@ -777,10 +779,60 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await res.json();
 
                 if (!res.ok || !data.success) {
+                    // Manejo seguro de cuenta ya registrada / sesión activa
+                    if (data && data.already_active) {
+                        const hasActiveSession = Boolean(localStorage.getItem('token'));
+                        const currentLoggedUser = localStorage.getItem('username') || '';
+
+                        let sessionNotice = '';
+                        if (hasActiveSession && currentLoggedUser) {
+                            sessionNotice = `
+                                <div style="margin-top: 10px; font-size: 0.88rem; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px;">
+                                    ℹ️ Actualmente tienes una sesión activa como <strong>@${escapeHtml(currentLoggedUser)}</strong>.
+                                    <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+                                        <a href="profile.html" class="btn-primary-campaign" style="font-size: 0.85rem; padding: 6px 14px; text-decoration: none; border-radius: 20px;">Ir a mi Perfil actual</a>
+                                        <button type="button" id="vol-btn-switch-account" style="font-size: 0.85rem; padding: 6px 14px; background: #ef4444; color: white; border: none; border-radius: 20px; cursor: pointer;">Cerrar sesión e Iniciar con esta cuenta</button>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            sessionNotice = `
+                                <div style="margin-top: 10px;">
+                                    <a href="login.html" class="btn-primary-campaign" style="font-size: 0.88rem; padding: 8px 18px; text-decoration: none; border-radius: 20px; display: inline-block;">🔑 Iniciar Sesión</a>
+                                </div>
+                            `;
+                        }
+
+                        if (volFeedback) {
+                            volFeedback.innerHTML = `
+                                <div style="font-weight: 700; color: #991b1b; margin-bottom: 4px;">⚠️ ${escapeHtml(data.message)}</div>
+                                ${sessionNotice}
+                            `;
+                            volFeedback.style.display = 'block';
+                            volFeedback.style.background = '#fef2f2';
+                            volFeedback.style.border = '1px solid #fecdd3';
+                            volFeedback.style.padding = '14px';
+                            volFeedback.style.borderRadius = '12px';
+                            volFeedback.style.marginTop = '1rem';
+
+                            const switchBtn = document.getElementById('vol-btn-switch-account');
+                            if (switchBtn) {
+                                switchBtn.addEventListener('click', () => {
+                                    localStorage.removeItem('token');
+                                    localStorage.removeItem('username');
+                                    localStorage.removeItem('user');
+                                    window.location.href = 'login.html';
+                                });
+                            }
+                        }
+                        return;
+                    }
+
                     throw new Error(data.message || 'Error al procesar el registro de voluntario.');
                 }
 
                 currentVolEmail = payload.email;
+                isVolunteerNewUser = (data.is_new_user !== false);
 
                 // Ocultar formulario y mostrar tarjeta OTP
                 volForm.style.display = 'none';
@@ -788,14 +840,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (volOtpCard) volOtpCard.style.display = 'block';
                 if (volSuccessCard) volSuccessCard.style.display = 'none';
 
-                if (data.is_new_user) {
-                    const passContainer = document.getElementById('vol-password-fields-container');
-                    if (passContainer) passContainer.style.display = 'block';
-                } else {
-                    const passContainer = document.getElementById('vol-password-fields-container');
-                    if (passContainer) passContainer.style.display = 'none';
+                const passContainer = document.getElementById('vol-password-fields-container');
+                if (passContainer) {
+                    passContainer.style.display = isVolunteerNewUser ? 'block' : 'none';
                 }
 
+                validateVolOtpForm();
                 if (volOtpInput) volOtpInput.focus();
 
             } catch (err) {
@@ -804,6 +854,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     volFeedback.style.display = 'block';
                     volFeedback.style.color = '#ef4444';
                     volFeedback.style.background = '#fef2f2';
+                    volFeedback.style.border = '1px solid #fecdd3';
                     volFeedback.style.padding = '12px';
                     volFeedback.style.borderRadius = '10px';
                     volFeedback.style.marginTop = '1rem';
@@ -816,27 +867,89 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Habilitar botón OTP al escribir 6 dígitos
-        if (volOtpInput) {
-            volOtpInput.addEventListener('input', () => {
-                const val = volOtpInput.value.trim();
-                if (volBtnVerifyOtp) {
-                    const is6 = val.length === 6;
-                    volBtnVerifyOtp.disabled = !is6;
-                    volBtnVerifyOtp.style.opacity = is6 ? '1' : '0.5';
-                    volBtnVerifyOtp.style.cursor = is6 ? 'pointer' : 'not-allowed';
-                }
+        // ── Toggle de Visibilidad de Contraseñas en OTP de Voluntario ───────
+        const volToggleNewPwd = document.getElementById('vol-toggle-new-password');
+        const volToggleConfirmPwd = document.getElementById('vol-toggle-confirm-password');
+        const volNewPwdInput = document.getElementById('vol-new-password');
+        const volConfirmPwdInput = document.getElementById('vol-confirm-password');
+        const volPwdHelper = document.getElementById('vol-password-match-helper');
+
+        if (volToggleNewPwd && volNewPwdInput) {
+            volToggleNewPwd.addEventListener('click', () => {
+                const type = volNewPwdInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                volNewPwdInput.setAttribute('type', type);
+                volToggleNewPwd.textContent = type === 'password' ? '👁️' : '🙈';
             });
         }
+
+        if (volToggleConfirmPwd && volConfirmPwdInput) {
+            volToggleConfirmPwd.addEventListener('click', () => {
+                const type = volConfirmPwdInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                volConfirmPwdInput.setAttribute('type', type);
+                volToggleConfirmPwd.textContent = type === 'password' ? '👁️' : '🙈';
+            });
+        }
+
+        /**
+         * Validación en Tiempo Real del Formulario OTP de Voluntario
+         * (Exige OTP de 6 dígitos Y coincidencia estricta de contraseña si es usuario nuevo)
+         */
+        function validateVolOtpForm() {
+            if (!volBtnVerifyOtp || !volOtpInput) return;
+
+            const code = volOtpInput.value.trim();
+            let isCodeValid = (code.length === 6);
+            let isPasswordValid = true;
+
+            if (isVolunteerNewUser && volNewPwdInput && volConfirmPwdInput) {
+                const pwd = volNewPwdInput.value;
+                const confirm = volConfirmPwdInput.value;
+
+                if (pwd.length === 0 && confirm.length === 0) {
+                    if (volPwdHelper) volPwdHelper.textContent = '';
+                    isPasswordValid = false;
+                } else if (pwd.length < 8) {
+                    if (volPwdHelper) {
+                        volPwdHelper.textContent = '⚠️ La contraseña debe tener al menos 8 caracteres.';
+                        volPwdHelper.style.color = '#d97706';
+                    }
+                    isPasswordValid = false;
+                } else if (confirm.length > 0 && pwd !== confirm) {
+                    if (volPwdHelper) {
+                        volPwdHelper.textContent = '❌ Las contraseñas no coinciden.';
+                        volPwdHelper.style.color = '#ef4444';
+                    }
+                    isPasswordValid = false;
+                } else if (pwd.length >= 8 && pwd === confirm) {
+                    if (volPwdHelper) {
+                        volPwdHelper.textContent = '✅ Las contraseñas coinciden.';
+                        volPwdHelper.style.color = '#10b981';
+                    }
+                    isPasswordValid = true;
+                } else {
+                    isPasswordValid = false;
+                }
+            }
+
+            const canSubmit = isCodeValid && isPasswordValid;
+            volBtnVerifyOtp.disabled = !canSubmit;
+            volBtnVerifyOtp.style.opacity = canSubmit ? '1' : '0.5';
+            volBtnVerifyOtp.style.cursor = canSubmit ? 'pointer' : 'not-allowed';
+        }
+
+        if (volOtpInput) volOtpInput.addEventListener('input', validateVolOtpForm);
+        if (volNewPwdInput) volNewPwdInput.addEventListener('input', validateVolOtpForm);
+        if (volConfirmPwdInput) volConfirmPwdInput.addEventListener('input', validateVolOtpForm);
 
         // Verificación de OTP para Voluntario
         if (volBtnVerifyOtp) {
             volBtnVerifyOtp.addEventListener('click', async () => {
                 const otpCode = volOtpInput?.value?.trim() || '';
-                const password = document.getElementById('vol-new-password')?.value || '';
-                const passwordConfirm = document.getElementById('vol-confirm-password')?.value || '';
+                const password = volNewPwdInput?.value || '';
+                const passwordConfirm = volConfirmPwdInput?.value || '';
 
                 if (otpCode.length !== 6) return;
+                if (isVolunteerNewUser && (password.length < 8 || password !== passwordConfirm)) return;
 
                 volBtnVerifyOtp.disabled = true;
                 volBtnVerifyOtp.innerText = 'Verificando...';
@@ -858,6 +971,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!res.ok || !data.success) {
                         throw new Error(data.message || 'Código OTP incorrecto.');
                     }
+
+                    // Guardar credenciales de sesión activa para el voluntario
+                    if (data.token) localStorage.setItem('token', data.token);
+                    if (data.user?.username) localStorage.setItem('username', data.user.username);
+                    if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
 
                     // Éxito: Ocultar OTP y mostrar tarjeta de felicitación
                     if (volOtpCard) volOtpCard.style.display = 'none';

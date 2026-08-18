@@ -8,7 +8,8 @@
     "dev": "nodemon backend/server.js",
     "reset-db": "node backend/reset_db.js",
     "migrate:prod": "cross-env NODE_ENV=production node backend/migrations/001_add_user_verification_fields.js",
-    "test": "node verify_all_backend_imports.js",
+    "test": "node verify_all_backend_imports.js && npx jest --runInBand --detectOpenHandles --forceExit",
+    "test:unit": "npx jest --runInBand --detectOpenHandles --forceExit",
     "audit:imports": "node verify_all_backend_imports.js",
     "update:ui-inventory": "node scripts/update-ui-screen-inventory.js",
     "prepare": "husky install"
@@ -20,12 +21,31 @@
     "api"
   ],
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1090.0",
+    "@aws-sdk/client-ses": "^3.966.0",
+    "@openzeppelin/merkle-tree": "^1.0.8",
+    "@simplewebauthn/server": "^9.0.3",
+    "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "ethers": "^6.16.0",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.0.1",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
     "node-cron": "^4.2.1",
-    "twilio": "^5.9.0"
+    "pg": "^8.11.3",
+    "sharp": "^0.35.3",
+    "twilio": "^5.9.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
-    "cross-env": "^10.0.0",
-    "husky": "^9.1.7"
+    "artillery": "^2.0.29",
+    "cross-env": "^10.1.0",
+    "husky": "^9.1.7",
+    "jest": "^30.2.0",
+    "supertest": "^7.2.2"
   }
 }

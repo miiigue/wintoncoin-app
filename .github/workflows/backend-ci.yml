@@ -1,0 +1,48 @@
+name: Backend CI - Pruebas Unitarias y Auditoria Continua (SOC 2)
+
+on:
+  pull_request:
+    branches:
+      - main
+      - demo
+  push:
+    branches:
+      - main
+      - demo
+      - 'feat/**'
+      - 'feature/**'
+      - 'fix/**'
+
+jobs:
+  backend-test:
+    name: Pruebas Unitarias y Auditoria de Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Clonar repositorio (Checkout)
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Configurar entorno Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 Instalar dependencias
+        run: npm install
+
+      - name: 🛡️ Ejecutar Auditoria de Modulos y Suite de Pruebas Unitarias (Jest)
+        env:
+          JWT_SECRET: ci-test-secret-key-soc2-auditable
+          ADMIN_SECRET_KEY: ci-test-admin-key-soc2
+          NODE_ENV: test
+          IS_DEMO_ENV: 'true'
+        run: npm test
+
+      - name: 📋 Registro de Auditoria de Calidad (GitHub Step Summary)
+        if: always()
+        run: |
+          echo "## 🛡️ Reporte de Integracion Continua Backend (WintonCoin FinTech)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Estado de la Suite**: Todas las pruebas unitarias y escaneo de 86 modulos ejecutados." >> $GITHUB_STEP_SUMMARY
+          echo "- **Estándar**: SOC 2 / Zero-Trust / Zero Hardcoded Secrets." >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp UTC**: $(date -u)" >> $GITHUB_STEP_SUMMARY

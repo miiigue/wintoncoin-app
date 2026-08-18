@@ -120,15 +120,18 @@ function normalizeIdDocument(doc) {
 }
 
 /**
- * Normaliza el número de teléfono a formato internacional (+58)
+ * Normaliza el número de teléfono a formato internacional E.164 (+1, +34, +57, +58, etc.)
  */
 function normalizePhone(phone) {
     if (!phone) return '';
     let cleaned = phone.trim().replace(/[\s\-\(\)]/g, '');
     if (!cleaned.startsWith('+')) {
-        if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
-        if (!cleaned.startsWith('58')) cleaned = '58' + cleaned;
-        cleaned = '+' + cleaned;
+        if (cleaned.startsWith('0')) {
+            // Número local con cero inicial (ej: 0414... -> +58414...)
+            cleaned = '+58' + cleaned.substring(1);
+        } else {
+            cleaned = '+' + cleaned;
+        }
     }
     return cleaned;
 }
@@ -163,8 +166,8 @@ exports.registerVolunteerPublic = async (req, res) => {
     } = req.body;
 
     // 1. Validaciones de campos obligatorios
-    if (!full_name || !id_document || !birth_date || !email || !phone_number || !state || !municipality || !sector_city) {
-        return res.status(400).json({ success: false, message: "Completa todos los campos obligatorios del registro." });
+    if (!full_name || !id_document || !birth_date || !email || !phone_number || !country || !country.trim() || !state || !municipality || !sector_city) {
+        return res.status(400).json({ success: false, message: "Completa todos los campos obligatorios del registro, incluyendo el país de residencia." });
     }
 
     // 1.1 Validaciones de Consentimiento Legal
@@ -195,9 +198,11 @@ exports.registerVolunteerPublic = async (req, res) => {
     const normPhone = normalizePhone(phone_number);
     const normEmail = email.trim().toLowerCase();
     const cleanGender = (gender === 'male' || gender === 'hombre' || gender === 'm') ? 'male' : 'female';
+    const cleanCountry = country.trim();
 
-    if (!normPhone.startsWith('+58')) {
-        return res.status(400).json({ success: false, message: "Por el momento solo se aceptan números telefónicos de Venezuela (+58)." });
+    // Validación de formato internacional de teléfono (+ y al menos 7 dígitos numéricos)
+    if (!/^\+[1-9]\d{6,16}$/.test(normPhone)) {
+        return res.status(400).json({ success: false, message: "Ingresa un número telefónico internacional válido (ej: +584121234567, +13051234567, +34612345678)." });
     }
 
     const client = await pool.connect();
@@ -361,7 +366,7 @@ exports.registerVolunteerPublic = async (req, res) => {
             ) RETURNING id;
         `, [
             tempDossierCode, userId, full_name.trim(), normDoc, birth_date, calculatedAge, cleanGender,
-            normEmail, normPhone, country || 'Venezuela', state.trim(), municipality.trim(), sector_city.trim(),
+            normEmail, normPhone, cleanCountry, state.trim(), municipality.trim(), sector_city.trim(),
             normalizedTypes, normalizedAvailability, profession_skills ? profession_skills.trim() : '',
             consentAccepted, legalAccepted
         ]);
