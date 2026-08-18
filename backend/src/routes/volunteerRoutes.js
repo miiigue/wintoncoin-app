@@ -56,6 +56,13 @@ router.post('/register', volunteerRateLimiter, volunteerController.registerVolun
  */
 router.post('/verify-otp', otpVerifyLimiter, volunteerController.verifyVolunteerOtpPublic);
 
+/**
+ * @route   POST /api/volunteers/resend-otp
+ * @desc    Reenvío de código OTP de 6 dígitos con límite de 60s cooldown y anti-abuso
+ * @access  Público
+ */
+router.post('/resend-otp', otpVerifyLimiter, volunteerController.resendVolunteerOtpPublic);
+
 // ── RUTAS PROTEGIDAS (PANEL ADMINISTRACIÓN) ───────────────────────────────────
 
 /**

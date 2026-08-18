@@ -739,6 +739,39 @@ document.addEventListener('DOMContentLoaded', () => {
         let currentVolEmail = '';
         let isVolunteerNewUser = true;
 
+        // ── 9.1 Restauración de Sesión OTP Persistente al Recargar (F5) ──────
+        const btnVolResendOtp = document.getElementById('vol-btn-resend-otp');
+        const volResendTimerSpan = document.getElementById('vol-resend-timer-span');
+        const volTimerSecondsEl = document.getElementById('vol-timer-seconds');
+        const btnVolBackToForm = document.getElementById('vol-btn-back-to-form');
+        let volResendCooldownInterval = null;
+
+        function restorePendingVolunteerSession() {
+            try {
+                const storedVolPending = sessionStorage.getItem('winton_vol_pending');
+                if (storedVolPending) {
+                    const parsed = JSON.parse(storedVolPending);
+                    if (parsed && parsed.email) {
+                        currentVolEmail = parsed.email;
+                        isVolunteerNewUser = (parsed.isNewUser !== false);
+
+                        volForm.style.display = 'none';
+                        if (volResultCard) volResultCard.style.display = 'block';
+                        if (volOtpCard) volOtpCard.style.display = 'block';
+                        if (volSuccessCard) volSuccessCard.style.display = 'none';
+
+                        const passContainer = document.getElementById('vol-password-fields-container');
+                        if (passContainer) {
+                            passContainer.style.display = isVolunteerNewUser ? 'block' : 'none';
+                        }
+                        validateVolOtpForm();
+                    }
+                }
+            } catch (e) {
+                sessionStorage.removeItem('winton_vol_pending');
+            }
+        }
+
         // Envío de Formulario de Voluntario
         volForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -833,6 +866,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 currentVolEmail = payload.email;
                 isVolunteerNewUser = (data.is_new_user !== false);
+
+                // Guardar en sessionStorage para persistencia ante F5 / recargas
+                sessionStorage.setItem('winton_vol_pending', JSON.stringify({
+                    email: currentVolEmail,
+                    isNewUser: isVolunteerNewUser
+                }));
 
                 // Ocultar formulario y mostrar tarjeta OTP
                 volForm.style.display = 'none';
@@ -941,6 +980,89 @@ document.addEventListener('DOMContentLoaded', () => {
         if (volNewPwdInput) volNewPwdInput.addEventListener('input', validateVolOtpForm);
         if (volConfirmPwdInput) volConfirmPwdInput.addEventListener('input', validateVolOtpForm);
 
+        // ── 9.2 Reenvío de Código OTP con Temporizador de 60s (DRY) ─────────
+        function startVolResendCooldown(seconds = 60) {
+            if (!btnVolResendOtp || !volResendTimerSpan || !volTimerSecondsEl) return;
+            btnVolResendOtp.style.display = 'none';
+            volResendTimerSpan.style.display = 'inline';
+            let remaining = seconds;
+            volTimerSecondsEl.textContent = String(remaining);
+
+            if (volResendCooldownInterval) clearInterval(volResendCooldownInterval);
+            volResendCooldownInterval = setInterval(() => {
+                remaining--;
+                if (remaining <= 0) {
+                    clearInterval(volResendCooldownInterval);
+                    volResendCooldownInterval = null;
+                    volResendTimerSpan.style.display = 'none';
+                    btnVolResendOtp.style.display = 'inline';
+                } else {
+                    volTimerSecondsEl.textContent = String(remaining);
+                }
+            }, 1000);
+        }
+
+        if (btnVolResendOtp) {
+            btnVolResendOtp.addEventListener('click', async () => {
+                const targetEmail = currentVolEmail || document.getElementById('vol-email')?.value?.trim();
+                if (!targetEmail) {
+                    if (volOtpFeedback) {
+                        volOtpFeedback.textContent = '❌ No se encontró el correo electrónico del voluntario.';
+                        volOtpFeedback.style.display = 'block';
+                        volOtpFeedback.style.color = '#ef4444';
+                    }
+                    return;
+                }
+
+                try {
+                    btnVolResendOtp.disabled = true;
+                    btnVolResendOtp.textContent = 'Enviando...';
+
+                    const res = await fetch(`${API_URL}/api/volunteers/resend-otp`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: targetEmail })
+                    });
+
+                    const data = await res.json();
+                    if (!res.ok || !data.success) {
+                        throw new Error(data.message || 'Error al reenviar el código.');
+                    }
+
+                    if (volOtpFeedback) {
+                        volOtpFeedback.textContent = '✅ Nuevo código enviado a tu correo. Por favor revisa tu bandeja de entrada o spam.';
+                        volOtpFeedback.style.display = 'block';
+                        volOtpFeedback.style.color = '#10b981';
+                        volOtpFeedback.style.background = 'rgba(16, 185, 129, 0.15)';
+                    }
+                    startVolResendCooldown(60);
+                } catch (rErr) {
+                    if (volOtpFeedback) {
+                        volOtpFeedback.textContent = '❌ ' + rErr.message;
+                        volOtpFeedback.style.display = 'block';
+                        volOtpFeedback.style.color = '#ef4444';
+                        volOtpFeedback.style.background = '#fef2f2';
+                    }
+                } finally {
+                    if (btnVolResendOtp) {
+                        btnVolResendOtp.disabled = false;
+                        btnVolResendOtp.textContent = 'Reenviar código';
+                    }
+                }
+            });
+        }
+
+        // ── 9.3 Botón de Regresar al Formulario (Modificar Datos) ───────────
+        if (btnVolBackToForm) {
+            btnVolBackToForm.addEventListener('click', () => {
+                sessionStorage.removeItem('winton_vol_pending');
+                if (volResultCard) volResultCard.style.display = 'none';
+                if (volOtpCard) volOtpCard.style.display = 'none';
+                if (volForm) volForm.style.display = 'block';
+                if (volFeedback) volFeedback.style.display = 'none';
+            });
+        }
+
         // Verificación de OTP para Voluntario
         if (volBtnVerifyOtp) {
             volBtnVerifyOtp.addEventListener('click', async () => {
@@ -972,6 +1094,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         throw new Error(data.message || 'Código OTP incorrecto.');
                     }
 
+                    // Limpiar estado de verificación pendiente de sessionStorage
+                    sessionStorage.removeItem('winton_vol_pending');
+
                     // Guardar credenciales de sesión activa para el voluntario
                     if (data.token) localStorage.setItem('token', data.token);
                     if (data.user?.username) localStorage.setItem('username', data.user.username);
@@ -997,6 +1122,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
+
+        // Ejecutar restauración al cargar módulo
+        restorePendingVolunteerSession();
     }
 });
 

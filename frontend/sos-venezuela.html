@@ -720,6 +720,20 @@
                             </button>
 
                             <div id="vol-otp-feedback-msg" style="display: none; margin-top: 10px; font-size: 0.9rem; padding: 8px; border-radius: 6px;"></div>
+
+                            <!-- Botón de Reenvío OTP y Temporizador (DRY) -->
+                            <div style="margin-top: 1.25rem; font-size: 0.9rem; color: #475569;">
+                                ¿No recibiste el código?
+                                <button type="button" id="vol-btn-resend-otp" style="background: none; border: none; color: #0284c7; font-weight: 600; cursor: pointer; text-decoration: underline; padding: 0;">Reenviar código</button>
+                                <span id="vol-resend-timer-span" style="display: none; color: #64748b;">(Reenviar en <span id="vol-timer-seconds">60</span>s)</span>
+                            </div>
+
+                            <!-- Botón de Retorno para Modificar Datos o Correo -->
+                            <div style="margin-top: 0.85rem;">
+                                <button type="button" id="vol-btn-back-to-form" style="background: none; border: none; color: #64748b; font-size: 0.85rem; cursor: pointer; text-decoration: underline;">
+                                    ← Modificar datos o cambiar correo
+                                </button>
+                            </div>
                         </div>
 
                         <!-- PASO 2: Éxito y Expediente Voluntario -->
