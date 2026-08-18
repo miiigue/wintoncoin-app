@@ -14,6 +14,20 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-18 — Optimización UI/UX: Relleno Automático en Corrección de Datos, Botón Flotante 'Volver Arriba' y Diseño 100% Responsivo en SOS Venezuela
+* **Diagnóstico & Objetivo**:
+  - Al presionar el botón "← Modificar datos o cambiar correo", el usuario era retornado al formulario con los campos vacíos, obligándolo a reescribir toda su información desde cero.
+  - En la página `sos-venezuela.html` faltaba el botón flotante de retorno rápido al inicio ("Volver arriba") con efecto glassmorphism presente en la página principal (`index.html`).
+  - En pantallas móviles pequeñas (360px - 412px), los múltiples sub-contenedores blancos internos causaban desbordamiento horizontal de los campos de texto (`input`), selectores y tarjetas de selección múltiple.
+* **Cambios Técnicos**:
+  - **Frontend (`sos-venezuela.html`, `sos-venezuela.js`)**:
+    - Implementada la función `restoreVolunteerFormData()` y persistencia de borrador completo en `sessionStorage` (`winton_vol_draft_data`). Al presionar "← Modificar datos o cambiar correo", el sistema rellena automáticamente todos los campos de texto, fechas, selectores, checkboxes de áreas, disponibilidad y consentimientos con los datos ingresados previamente.
+    - Integrado el botón flotante `#btn-back-to-top` con efecto glassmorphism, throttling vía `requestAnimationFrame`, scroll suave al tope (`window.scrollTo({ top: 0, behavior: 'smooth' })`) y visualización automática al superar 400px de scroll.
+    - Eliminados los 5 sub-contenedores internos anidados, permitiendo que todos los campos e inputs fluyan directamente en el contenedor principal `#sos-volunteer-registration-form`.
+    - Incorporado `box-sizing: border-box; width: 100%; max-width: 100%;` en todos los inputs, selects, botones y tarjetas de opciones múltiples para evitar cualquier desbordamiento horizontal en pantallas móviles.
+    - Simplificado el texto introductorio a `"Tu colaboración presencial o remota ayuda a salvar vidas."` y el título de sección a `"📍 Residencia"`.
+* **Impacto**: Experiencia de usuario (UX) fluida, ergonómica y profesional, permitiendo corregir datos sin fricción y mejorando la navegación en dispositivos móviles.
+
 ### 2026-08-18 — Persistencia de Sesión OTP (F5/Recarga), Reenvío con Cooldown de 60s y Navegación DRY en Voluntariado SOS (NIST SP 800-63B / FinTech)
 * **Diagnóstico & Objetivo**:
   - Resolver el problema de pérdida de estado y reinicio de formulario cuando el usuario recarga la página (`F5`) o cambia de aplicación en su teléfono tras postularse como voluntario.
