@@ -28,8 +28,10 @@ jobs:
           node-version: 20
           cache: 'npm'
 
-      - name: 📦 Instalar dependencias
-        run: npm install
+      - name: 📦 Instalar dependencias (Root y Backend)
+        run: |
+          npm install
+          npm install --prefix backend
 
       - name: 🛡️ Ejecutar Auditoria de Modulos y Suite de Pruebas Unitarias (Jest)
         env:
@@ -37,7 +39,9 @@ jobs:
           ADMIN_SECRET_KEY: ci-test-admin-key-soc2
           NODE_ENV: test
           IS_DEMO_ENV: 'true'
-        run: npm test
+        run: |
+          node verify_all_backend_imports.js
+          npm test --prefix backend
 
       - name: 📋 Registro de Auditoria de Calidad (GitHub Step Summary)
         if: always()
