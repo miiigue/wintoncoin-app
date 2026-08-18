@@ -14,7 +14,7 @@
     "build": "npm --prefix frontend run build",
     "audit:imports": "node verify_all_backend_imports.js",
     "update:ui-inventory": "node scripts/update-ui-screen-inventory.js",
-    "prepare": "husky install"
+    "prepare": "husky || true"
   },
   "keywords": [
     "wintoncoin",
