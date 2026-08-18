@@ -36,7 +36,8 @@ jest.mock('../src/services/emailService', () => ({
 }));
 
 jest.mock('../src/services/notificationService', () => ({
-    sendPushToUser: jest.fn().mockResolvedValue(true)
+    sendPushToUser: jest.fn().mockResolvedValue(true),
+    sendNotificationToUser: jest.fn().mockResolvedValue(true)
 }));
 
 jest.mock('../src/services/referralRewardService', () => ({
@@ -219,6 +220,273 @@ describe('Pruebas del Módulo de Registro de Voluntarios SOS - Algoritmo y Cober
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             success: true,
             volunteers: mockVolunteers
+        }));
+    });
+
+    test('8. Debe permitir el reenvío de OTP para voluntario respetando el rate limit de cooldown', async () => {
+        mockClient.query
+            .mockResolvedValueOnce({}) // BEGIN
+            .mockResolvedValueOnce({   // SELECT pending_verifications
+                rows: [{
+                    id: 99,
+                    email: 'carlos@ejemplo.com',
+                    last_sent_at: new Date(Date.now() - 70 * 1000), // Hace 70s (> 60s cooldown)
+                    resend_count: 1
+                }]
+            })
+            .mockResolvedValueOnce({}) // UPDATE pending_verifications
+            .mockResolvedValueOnce({}); // COMMIT
+
+        const req = {
+            body: { email: 'carlos@ejemplo.com' }
+        };
+        const res = {
+            status: jest.fn().mockReturnThis(),
+            json: jest.fn()
+        };
+
+        await volunteerController.resendVolunteerOtpPublic(req, res);
+
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: true,
+            message: expect.stringContaining('Nuevo código de 6 dígitos enviado')
+        }));
+    });
+
+    test('9. verifyVolunteerOtpPublic: Debe rechazar si falta el correo o el código OTP', async () => {
+        const req = { body: { email: '', otp_code: '' } };
+        const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+
+        await volunteerController.verifyVolunteerOtpPublic(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: false,
+            message: expect.stringContaining('Ingresa tu correo')
+        }));
+    });
+
+    test('10. verifyVolunteerOtpPublic: Debe rechazar si la contraseña tiene menos de 8 caracteres o no coincide', async () => {
+        mockClient.query
+            .mockResolvedValueOnce({}) // BEGIN
+            .mockResolvedValueOnce({ rows: [] }); // existingUserCheck (isExistingVerifiedUser = false)
+
+        const req = {
+            body: {
+                email: 'carlos@ejemplo.com',
+                otp_code: '123456',
+                password: '123',
+                password_confirm: '123'
+            }
+        };
+        const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+
+        await volunteerController.verifyVolunteerOtpPublic(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: false,
+            message: expect.stringContaining('al menos 8 caracteres')
+        }));
+    });
+
+    test('11. verifyVolunteerOtpPublic: Debe rechazar si el código OTP es incorrecto e incrementar intentos', async () => {
+        mockClient.query
+            .mockResolvedValueOnce({}) // BEGIN
+            .mockResolvedValueOnce({ rows: [] }) // existingUserCheck
+            .mockResolvedValueOnce({ // pending_verifications
+                rows: [{
+                    id: 10,
+                    verification_code_hash: 'correcthash',
+                    verification_attempts: 1
+                }]
+            })
+            .mockResolvedValueOnce({}) // UPDATE verification_attempts
+            .mockResolvedValueOnce({}); // COMMIT
+
+        const emailService = require('../src/services/emailService');
+        const origSafe = emailService.safeEqualHex;
+        emailService.safeEqualHex = () => false; // Simular hash incorrecto
+
+        const req = {
+            body: {
+                email: 'carlos@ejemplo.com',
+                otp_code: '999999',
+                password: 'password123',
+                password_confirm: 'password123'
+            }
+        };
+        const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+
+        await volunteerController.verifyVolunteerOtpPublic(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: false,
+            message: expect.stringContaining('Código de verificación de 6 dígitos incorrecto')
+        }));
+
+        emailService.safeEqualHex = origSafe;
+    });
+
+    test('12. verifyVolunteerOtpPublic: Debe bloquear por fuerza bruta tras 5 intentos fallidos', async () => {
+        mockClient.query
+            .mockResolvedValueOnce({}) // BEGIN
+            .mockResolvedValueOnce({ rows: [] }) // existingUserCheck
+            .mockResolvedValueOnce({ // pending_verifications
+                rows: [{
+                    id: 10,
+                    verification_code_hash: 'mockhash',
+                    verification_attempts: 5 // Límite alcanzado
+                }]
+            })
+            .mockResolvedValueOnce({}) // DELETE pending_verifications
+            .mockResolvedValueOnce({}); // COMMIT
+
+        const req = {
+            body: {
+                email: 'carlos@ejemplo.com',
+                otp_code: '123456',
+                password: 'password123',
+                password_confirm: 'password123'
+            }
+        };
+        const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+
+        await volunteerController.verifyVolunteerOtpPublic(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(429);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: false,
+            message: expect.stringContaining('Demasiados intentos fallidos')
+        }));
+    });
+
+    test('13. verifyVolunteerOtpPublic: Debe activar la cuenta con éxito, otorgar bono y retornar sesión JWT', async () => {
+        mockClient.query
+            .mockResolvedValueOnce({}) // BEGIN
+            .mockResolvedValueOnce({ rows: [] }) // existingUserCheck
+            .mockResolvedValueOnce({ // pending_verifications
+                rows: [{
+                    id: 10,
+                    verification_code_hash: 'mockhash',
+                    verification_attempts: 0,
+                    referral_code: 'SOSVENEZUELA'
+                }]
+            })
+            .mockResolvedValueOnce({}) // UPDATE users (password_hash, is_verified)
+            .mockResolvedValueOnce({ rows: [{ id: 5, username: 'carlos_vol' }] }) // SELECT users
+            .mockResolvedValueOnce({ rows: [{ setting_value: 'SOSVENEZUELA' }] }) // SELECT app_settings
+            .mockResolvedValueOnce({ rows: [{ id: 1, dossier_number: 'VOL-VZLA-4431-00001' }] }) // SELECT volunteers_registry
+            .mockResolvedValueOnce({}) // INSERT volunteer_activity_history
+            .mockResolvedValueOnce({}) // DELETE pending_verifications
+            .mockResolvedValueOnce({}); // COMMIT
+
+        const req = {
+            body: {
+                email: 'carlos@ejemplo.com',
+                otp_code: '123456',
+                password: 'password123',
+                password_confirm: 'password123'
+            }
+        };
+        const res = {
+            cookie: jest.fn(),
+            status: jest.fn().mockReturnThis(),
+            json: jest.fn()
+        };
+
+        await volunteerController.verifyVolunteerOtpPublic(req, res);
+
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: true,
+            dossier_number: 'VOL-VZLA-4431-00001',
+            reward_amount: 200,
+            token: expect.any(String)
+        }));
+    });
+
+    test('14. resendVolunteerOtpPublic: Debe rechazar reenvío si no ha cumplido el cooldown de 60 segundos', async () => {
+        mockClient.query
+            .mockResolvedValueOnce({}) // BEGIN
+            .mockResolvedValueOnce({   // SELECT pending_verifications
+                rows: [{
+                    id: 99,
+                    email: 'carlos@ejemplo.com',
+                    last_sent_at: new Date(Date.now() - 20 * 1000), // Hace 20s (< 60s cooldown)
+                    resend_count: 1
+                }]
+            })
+            .mockResolvedValueOnce({}); // ROLLBACK
+
+        const req = { body: { email: 'carlos@ejemplo.com' } };
+        const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+
+        await volunteerController.resendVolunteerOtpPublic(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(429);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: false,
+            message: expect.stringContaining('segundos antes de solicitar otro código')
+        }));
+    });
+
+    test('15. resendVolunteerOtpPublic: Debe rechazar reenvío si se alcanza el límite de 5 intentos por sesión', async () => {
+        mockClient.query
+            .mockResolvedValueOnce({}) // BEGIN
+            .mockResolvedValueOnce({   // SELECT pending_verifications
+                rows: [{
+                    id: 99,
+                    email: 'carlos@ejemplo.com',
+                    last_sent_at: new Date(Date.now() - 70 * 1000),
+                    resend_count: 5 // Máximo alcanzado
+                }]
+            })
+            .mockResolvedValueOnce({}); // ROLLBACK
+
+        const req = { body: { email: 'carlos@ejemplo.com' } };
+        const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+
+        await volunteerController.resendVolunteerOtpPublic(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(429);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: false,
+            message: expect.stringContaining('límite máximo de reenvíos permitidos')
+        }));
+    });
+
+    test('16. updateVolunteerStatusAdmin: Debe rechazar estatus inválido y procesar estatus activo con auditoría', async () => {
+        // Caso inválido
+        const invalidReq = {
+            params: { id: 1 },
+            body: { status: 'estado_invalido' }
+        };
+        const invalidRes = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+
+        await volunteerController.updateVolunteerStatusAdmin(invalidReq, invalidRes);
+        expect(invalidRes.status).toHaveBeenCalledWith(400);
+
+        // Caso válido a 'active'
+        pool.query
+            .mockResolvedValueOnce({ // SELECT volunteers_registry
+                rows: [{ id: 1, full_name: 'Carlos Diaz', dossier_number: 'VOL-VZLA-4431-00001', user_id: 5, email: 'carlos@ejemplo.com' }]
+            })
+            .mockResolvedValueOnce({}) // UPDATE volunteers_registry
+            .mockResolvedValueOnce({}); // INSERT volunteer_activity_history
+
+        const validReq = {
+            params: { id: 1 },
+            body: { status: 'active', admin_notes: 'Verificado por directiva' },
+            admin: { username: 'superadmin' }
+        };
+        const validRes = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+
+        await volunteerController.updateVolunteerStatusAdmin(validReq, validRes);
+
+        expect(validRes.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: true,
+            message: expect.stringContaining('Activo / Aprobado')
         }));
     });
 });

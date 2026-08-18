@@ -750,6 +750,95 @@ exports.updateVolunteerStatusAdmin = async (req, res) => {
     }
 };
 
+// ============================================================================
+// POST /api/volunteers/resend-otp (Público - Reenvío de Código OTP de Voluntario)
+// ============================================================================
+// Estándar FinTech & NIST SP 800-63B (DRY):
+// 1. Rate Limiting: Cooldown de 60s entre reenvíos sucesivos.
+// 2. Anti-Abuse: Límite estricto de 5 reenvíos por sesión.
+// 3. Generación criptográfica segura de nuevo OTP y nuevo TTL de 15 min.
+// ============================================================================
+exports.resendVolunteerOtpPublic = async (req, res) => {
+    const { email } = req.body;
+    if (!email || typeof email !== 'string' || !email.trim()) {
+        return res.status(400).json({ success: false, message: "Ingresa un correo electrónico válido." });
+    }
+
+    const normEmail = email.trim().toLowerCase();
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Buscar verificación pendiente
+        const pendingRes = await client.query('SELECT * FROM pending_verifications WHERE email = $1', [normEmail]);
+        if (pendingRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: "No se encontró una solicitud pendiente para este correo." });
+        }
+
+        const pending = pendingRes.rows[0];
+
+        // 2. Control de Frecuencia (Rate Limiting: Mínimo 60 segundos entre reenvíos)
+        if (pending.last_sent_at) {
+            const timeSinceLastSent = Date.now() - new Date(pending.last_sent_at).getTime();
+            const cooldownMs = 60 * 1000;
+            if (timeSinceLastSent < cooldownMs) {
+                const remainingSecs = Math.ceil((cooldownMs - timeSinceLastSent) / 1000);
+                await client.query('ROLLBACK');
+                return res.status(429).json({
+                    success: false,
+                    message: `Por favor espera ${remainingSecs} segundos antes de solicitar otro código.`
+                });
+            }
+        }
+
+        // 3. Límite máximo de 5 reenvíos por sesión (Anti-Abuse)
+        if ((pending.resend_count || 0) >= 5) {
+            await client.query('ROLLBACK');
+            return res.status(429).json({
+                success: false,
+                message: "Has alcanzado el límite máximo de reenvíos permitidos. Por favor espera unos minutos."
+            });
+        }
+
+        // 4. Generar nuevo código OTP de 6 dígitos
+        const newOtp = emailService.generateOtp6();
+        const newHash = emailService.hashOtpForEmail(normEmail, newOtp);
+        const newExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+        await client.query(`
+            UPDATE pending_verifications
+            SET verification_code_hash = $1,
+                verification_attempts = 0,
+                resend_count = resend_count + 1,
+                last_sent_at = NOW(),
+                expires_at = $2
+            WHERE id = $3
+        `, [newHash, newExpiresAt, pending.id]);
+
+        await client.query('COMMIT');
+
+        // 5. Enviar OTP por correo
+        try {
+            await emailService.sendOtpEmail(normEmail, newOtp, "SOS Voluntariado");
+        } catch (mailErr) {
+            console.error("[VOLUNTEER RESEND OTP] Error al enviar email:", mailErr.message);
+        }
+
+        return res.json({
+            success: true,
+            message: "Nuevo código de 6 dígitos enviado a tu correo. Revisa tu bandeja de entrada o spam."
+        });
+
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error("[VOLUNTEER RESEND OTP] Error:", error);
+        return res.status(500).json({ success: false, message: "Error interno al reenviar el código de verificación." });
+    } finally {
+        client.release();
+    }
+};
+
 exports.calculateSmartVolunteerCode = calculateSmartVolunteerCode;
 exports.calculateAgeRangeD3 = calculateAgeRangeD3;
 exports.normalizeIdDocument = normalizeIdDocument;
