@@ -746,6 +746,60 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnVolBackToForm = document.getElementById('vol-btn-back-to-form');
         let volResendCooldownInterval = null;
 
+        /**
+         * Restaura los datos del formulario previamente ingresados por el usuario
+         * para que al hacer clic en "Modificar datos" todos los campos aparezcan llenos.
+         */
+        function restoreVolunteerFormData(draftData = null) {
+            try {
+                let data = draftData;
+                if (!data) {
+                    const saved = sessionStorage.getItem('winton_vol_draft_data');
+                    if (saved) data = JSON.parse(saved);
+                }
+                if (!data) return;
+
+                const setVal = (id, val) => {
+                    const el = document.getElementById(id);
+                    if (el && val !== undefined && val !== null) el.value = val;
+                };
+
+                setVal('vol-fullname', data.full_name || '');
+                setVal('vol-iddocument', data.id_document || '');
+                setVal('vol-birthdate', data.birth_date || '');
+                setVal('vol-gender', data.gender || 'female');
+                setVal('vol-email', data.email || '');
+                setVal('vol-phone', data.phone_number || '');
+                setVal('vol-country', data.country || '');
+                setVal('vol-state', data.state || '');
+                setVal('vol-municipality', data.municipality || '');
+                setVal('vol-sector', data.sector_city || '');
+                setVal('vol-skills', data.profession_skills || '');
+
+                if (Array.isArray(data.volunteer_types)) {
+                    document.querySelectorAll('input[name="vol-types"]').forEach(cb => {
+                        cb.checked = data.volunteer_types.includes(cb.value);
+                    });
+                }
+
+                if (Array.isArray(data.availability)) {
+                    document.querySelectorAll('input[name="vol-avail"]').forEach(cb => {
+                        cb.checked = data.availability.includes(cb.value);
+                    });
+                }
+
+                const consentEl = document.getElementById('vol-data-consent');
+                if (consentEl) consentEl.checked = Boolean(data.data_consent_accepted);
+
+                const disclaimerEl = document.getElementById('vol-legal-disclaimer');
+                if (disclaimerEl) disclaimerEl.checked = Boolean(data.legal_disclaimer_accepted);
+
+                evaluateVolCompleteness();
+            } catch (err) {
+                console.warn('[VOLUNTEER UX] Error restaurando datos de borrador:', err);
+            }
+        }
+
         function restorePendingVolunteerSession() {
             try {
                 const storedVolPending = sessionStorage.getItem('winton_vol_pending');
@@ -802,6 +856,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 data_consent_accepted: document.getElementById('vol-data-consent')?.checked,
                 legal_disclaimer_accepted: document.getElementById('vol-legal-disclaimer')?.checked
             };
+
+            // Guardar borrador completo de datos para preservarlo ante recargas o correcciones
+            sessionStorage.setItem('winton_vol_draft_data', JSON.stringify(payload));
 
             try {
                 const res = await fetch(`${API_URL}/api/volunteers/register`, {
@@ -1052,13 +1109,17 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // ── 9.3 Botón de Regresar al Formulario (Modificar Datos) ───────────
+        // ── 9.3 Botón de Regresar al Formulario (Modificar Datos con Relleno Automático) ───
         if (btnVolBackToForm) {
             btnVolBackToForm.addEventListener('click', () => {
                 sessionStorage.removeItem('winton_vol_pending');
+                restoreVolunteerFormData();
                 if (volResultCard) volResultCard.style.display = 'none';
                 if (volOtpCard) volOtpCard.style.display = 'none';
-                if (volForm) volForm.style.display = 'block';
+                if (volForm) {
+                    volForm.style.display = 'flex';
+                    volForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
                 if (volFeedback) volFeedback.style.display = 'none';
             });
         }
@@ -1094,8 +1155,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         throw new Error(data.message || 'Código OTP incorrecto.');
                     }
 
-                    // Limpiar estado de verificación pendiente de sessionStorage
+                    // Limpiar estado de verificación pendiente y borrador de sessionStorage
                     sessionStorage.removeItem('winton_vol_pending');
+                    sessionStorage.removeItem('winton_vol_draft_data');
 
                     // Guardar credenciales de sesión activa para el voluntario
                     if (data.token) localStorage.setItem('token', data.token);
@@ -1125,6 +1187,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Ejecutar restauración al cargar módulo
         restorePendingVolunteerSession();
+    }
+
+    // ========================================================================
+    // 10. MÓDULO "VOLVER ARRIBA" (BACK TO TOP) - UX PROFESIONAL
+    // ========================================================================
+    const backToTopBtn = document.getElementById('btn-back-to-top');
+    if (backToTopBtn) {
+        let scrollRafId = null;
+
+        window.addEventListener('scroll', () => {
+            if (scrollRafId) return;
+
+            scrollRafId = requestAnimationFrame(() => {
+                const scrollAmount = window.scrollY || document.documentElement.scrollTop;
+                if (scrollAmount > 400) {
+                    backToTopBtn.classList.add('show');
+                } else {
+                    backToTopBtn.classList.remove('show');
+                }
+                scrollRafId = null;
+            });
+        }, { passive: true });
+
+        backToTopBtn.addEventListener('click', () => {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+            console.log('[SOS/UX] Botón "Volver Arriba" presionado por el usuario.');
+        });
     }
 });
 

@@ -8,15 +8,14 @@
     "dev": "nodemon backend/server.js",
     "reset-db": "node backend/reset_db.js",
     "migrate:prod": "cross-env NODE_ENV=production node backend/migrations/001_add_user_verification_fields.js",
-    "test": "node verify_all_backend_imports.js && npx jest --runInBand --detectOpenHandles --forceExit",
-    "test:unit": "npx jest --runInBand --detectOpenHandles --forceExit",
+    "test": "node verify_all_backend_imports.js && node node_modules/jest/bin/jest.js --runInBand --detectOpenHandles --forceExit",
+    "test:unit": "node node_modules/jest/bin/jest.js --runInBand --detectOpenHandles --forceExit",
     "build:demo": "npm --prefix frontend run build:demo",
     "build": "npm --prefix frontend run build",
     "audit:imports": "node verify_all_backend_imports.js",
     "update:ui-inventory": "node scripts/update-ui-screen-inventory.js",
-    "prepare": "husky install"
+    "prepare": "husky || true"
   },
-
   "keywords": [
     "wintoncoin",
     "backend",
@@ -47,7 +46,8 @@
     "artillery": "^2.0.29",
     "cross-env": "^10.1.0",
     "husky": "^9.1.7",
-    "jest": "^30.2.0",
+    "jest": "^30.4.2",
+    "jest-cli": "^30.4.2",
     "supertest": "^7.2.2"
   }
 }

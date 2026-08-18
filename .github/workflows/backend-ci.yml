@@ -29,12 +29,14 @@ jobs:
           cache: 'npm'
 
       - name: 📦 Instalar dependencias
-        run: npm install
+        run: npm install --ignore-scripts
 
       - name: 🛡️ Ejecutar Auditoria de Modulos y Suite de Pruebas Unitarias (Jest)
         env:
           JWT_SECRET: ci-test-secret-key-soc2-auditable
           ADMIN_SECRET_KEY: ci-test-admin-key-soc2
+          ENCRYPTION_SECRET: ci-test-encryption-secret-32-chars-key
+          OTP_SECRET: ci-test-otp-secret-key-soc2
           NODE_ENV: test
           IS_DEMO_ENV: 'true'
         run: npm test
