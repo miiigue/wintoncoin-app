@@ -484,8 +484,8 @@
                                     <input type="text" id="vol-fullname" required placeholder="Ej: Maria Perez" style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                                 </div>
                                 <div>
-                                    <label for="vol-iddocument" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Cédula de Identidad:</label>
-                                    <input type="text" id="vol-iddocument" required placeholder="V-12345678" style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                                    <label for="vol-iddocument" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Documento de Identidad:</label>
+                                    <input type="text" id="vol-iddocument" required placeholder="V-12345678 o Pasaporte / DNI" style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                                 </div>
                             </div>
 
@@ -509,8 +509,8 @@
                                     <input type="email" id="vol-email" required placeholder="ejemplo@correo.com" style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                                 </div>
                                 <div>
-                                    <label for="vol-phone" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Teléfono WhatsApp (+58):</label>
-                                    <input type="tel" id="vol-phone" required placeholder="+58 414 123 4567" value="+58 " style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                                    <label for="vol-phone" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">Teléfono WhatsApp / Contacto (con código de país):</label>
+                                    <input type="tel" id="vol-phone" required placeholder="+58 414 1234567 o +1 305 1234567" style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                                 </div>
                             </div>
                         </div>
@@ -518,13 +518,17 @@
                         <!-- Ubicación -->
                         <div style="background: #ffffff; padding: 1.5rem; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
                             <strong style="color: #0284c7; display: block; margin-bottom: 1.2rem; font-size: 1.1rem; font-family: 'Outfit', sans-serif;">📍 Ubicación Geográfica de Residencia</strong>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
                                 <div>
-                                    <label for="vol-state" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Estado:</label>
+                                    <label for="vol-country" style="font-size: 0.9rem; color: #475569; font-weight: 600;">País:</label>
+                                    <input type="text" id="vol-country" required value="Venezuela" placeholder="Ej: Venezuela, Colombia..." style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                                </div>
+                                <div>
+                                    <label for="vol-state" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Estado / Provincia:</label>
                                     <input type="text" id="vol-state" required placeholder="Ej: Sucre" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                                 </div>
                                 <div>
-                                    <label for="vol-municipality" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Municipio:</label>
+                                    <label for="vol-municipality" style="font-size: 0.9rem; color: #475569; font-weight: 600;">Municipio / Distrito:</label>
                                     <input type="text" id="vol-municipality" required placeholder="Ej: Bermúdez" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                                 </div>
                                 <div>
@@ -667,15 +671,23 @@
                             </div>
 
                             <div id="vol-password-fields-container">
-                                <div style="margin-bottom: 0.75rem; text-align: left; position: relative;">
-                                    <label for="vol-new-password" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Crea tu contraseña:</label>
-                                    <input type="password" id="vol-new-password" minlength="8" placeholder="Mínimo 8 caracteres" style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                                <div style="margin-bottom: 0.85rem; text-align: left;">
+                                    <label for="vol-new-password" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Crea tu contraseña (Mínimo 8 caracteres):</label>
+                                    <div style="position: relative; display: flex; align-items: center;">
+                                        <input type="password" id="vol-new-password" minlength="8" placeholder="Mínimo 8 caracteres" style="width: 100%; padding: 12px 42px 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                                        <button type="button" id="vol-toggle-new-password" title="Mostrar/Ocultar contraseña" style="position: absolute; right: 12px; background: none; border: none; cursor: pointer; font-size: 1.1rem; color: #64748b; padding: 4px;">👁️</button>
+                                    </div>
                                 </div>
 
-                                <div style="margin-bottom: 1rem; text-align: left; position: relative;">
+                                <div style="margin-bottom: 0.5rem; text-align: left;">
                                     <label for="vol-confirm-password" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.4rem; font-size: 0.9rem;">Confirma tu Contraseña:</label>
-                                    <input type="password" id="vol-confirm-password" minlength="8" placeholder="Repite la contraseña" style="width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                                    <div style="position: relative; display: flex; align-items: center;">
+                                        <input type="password" id="vol-confirm-password" minlength="8" placeholder="Repite la contraseña" style="width: 100%; padding: 12px 42px 12px 14px; border-radius: 10px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
+                                        <button type="button" id="vol-toggle-confirm-password" title="Mostrar/Ocultar contraseña" style="position: absolute; right: 12px; background: none; border: none; cursor: pointer; font-size: 1.1rem; color: #64748b; padding: 4px;">👁️</button>
+                                    </div>
                                 </div>
+
+                                <div id="vol-password-match-helper" style="font-size: 0.84rem; text-align: left; margin-bottom: 1rem; color: #64748b; transition: all 0.2s ease;"></div>
                             </div>
 
                             <button type="button" id="vol-btn-verify-otp" class="btn-primary-campaign" disabled style="padding: 14px 22px; font-size: 1.05rem; font-weight: 600; border-radius: 50px; cursor: not-allowed; opacity: 0.5; width: 100%; background: linear-gradient(135deg, #0284c7, #2563eb);">

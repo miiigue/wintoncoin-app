@@ -1,17 +1,43 @@
 # EvoluciÃƒÆ’Ã‚Â³n de WintonCoin
+# Evolución de WintonCoin
 
 ---
 
-# EvoluciÃƒÆ’Ã‚Â³n del proyecto (historia tÃƒÆ’Ã‚Â©cnica + decisiones)
+# Evolución del proyecto (historia técnica + decisiones)
 
-Este documento explica **cÃƒÆ’Ã‚Â³mo y por quÃƒÆ’Ã‚Â©** evolucionÃƒÆ’Ã‚Â³ el cÃƒÆ’Ã‚Â³digo (decisiones, trade-offs y impacto).  
-Para el detalle ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œtipo releaseÃƒÂ¢Ã¢â€šÂ¬Ã¯Â¿Â½, ver `CHANGELOG.md`.
+Este documento explica **cómo y por qué** evolucionó el código (decisiones, trade-offs y impacto).  
+Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
-## CÃƒÆ’Ã‚Â³mo leer este documento
+## Cómo leer este documento
 
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
-- **Impacto**: quÃ© problema resolviÃ³ y quÃ© habilita hacia adelante.
+- **Impacto**: qué problema resolvió y qué habilita hacia adelante.
+
+### 2026-08-17 — Sistema de Registro de Voluntarios SOS Venezuela, Aislamiento de Sesiones, Teléfonos Internacionales y Pipeline de CI/CD (SOC 2)
+* **Diagnóstico & Objetivo**:
+  - Reemplazar la convocatoria informal a redes sociales en la campaña SOS Venezuela por un sistema formal de postulación y acreditación de voluntarios.
+  - Soportar postulaciones nacionales e internacionales (con código de país sin restricción exclusiva a +58) e incorporación de ubicación geográfica por país.
+  - Implementar validación UX/UI en tiempo real para contraseñas de activación (mínimo 8 caracteres, coincidencia estricta y botones para mostrar/ocultar contraseña).
+  - Blindar el aislamiento de sesiones (Zero-Trust) para evitar que usuarios con sesiones activas previas sufran colisión o confusión de identidad al registrar terceros.
+  - Establecer el pipeline de Integración Continua (CI) en GitHub Actions (`.github/workflows/backend-ci.yml`) y consolidación de `npm test` para certificar la ejecución automática de las suites de pruebas unitarias en cada Pull Request.
+* **Cambios Técnicos**:
+  - **Base de Datos & Migración 106 (`106_create_volunteers_system.js`)**: Tabla `volunteers_registry` con campos de Cédula/DNI único, `country`, arrays `volunteer_types` y `availability`, `priority_score`, estatus y tabla inmutable `volunteer_activity_history` para auditoría.
+  - **Algoritmo de Codificación Inteligente de 4 Dígitos & Score de Despacho (`volunteerController.js`)**:
+    - Código de expediente `#VOL-VZLA-[D1][D2][D3][D4]-[SECUENCIAL]`:
+      - **D1 (Modalidad)**: 4 = Campo, 3 = Verificación/Censo, 2 = Profesional (Salud/Legal/Técnico), 1 = Remoto/Redes.
+      - **D2 (Disponibilidad)**: 4 = Tiempo Completo 24/7, 3 = Tiempo Parcial, 2 = Fines de Semana, 1 = Ocasional.
+      - **D3 (Rango de Edad Decenal)**: 1 = 18-19 años, 2 = 20-29 años, ..., 9 = 90+ años.
+      - **D4 (Sexo)**: 1 = Hombre, 2 = Mujer.
+      - **Score de Prioridad**: `(D1*1000) + (D2*100) + (D3*10) + D4`.
+    - Normalización E.164 de teléfonos internacionales y eliminación del bloqueo restringido a números venezolanos.
+    - Manejo seguro de cuenta duplicada con aviso explícito de sesión activa para evitar confusión de perfiles.
+  - **Frontend (`sos-venezuela.html`, `sos-venezuela.js`, `admin-recruitment.html`)**:
+    - Formulario responsivo con selector de País, etiquetas claras ("Documento de Identidad"), validación interactiva de contraseñas, feedback visual de coincidencia y botones con ícono 👁️/🙈 para ver/ocultar contraseñas.
+    - Pestaña de administración "Voluntarios SOS" con filtrado y cambio de estatus con envío de notificaciones Push/Email.
+  - **Pipeline Automatizado de CI/CD (`.github/workflows/backend-ci.yml`, `package.json`)**:
+    - Workflow de GitHub Actions que ejecuta `npm test` (auditoría de los 86 módulos + 11 suites de Jest con 64 tests unitarios) en cada Pull Request hacia `demo` y `main`.
+* **Impacto**: Garantiza el registro ordenado, auditable y seguro de voluntarios en todo el mundo, protege la integridad de los datos según normativas SOC 2 y FinTech, y automatiza el control de calidad en el ciclo de desarrollo continuo.
 
 ### 2026-08-17 — Fase 5: Marketplace de Tareas P2P, Causas Solidarias, Gestión de Postulaciones y 72 Tests Unitarios (Clean Architecture)
 * **Diagnóstico & Objetivo**: Implementar el Marketplace nativo de Tareas y Publicaciones P2P en Android (`com.wintoncoin.app`) con paridad visual y lógica con la PWA, saneamiento de URLs multimedia contra caídas y resolución del problema de consultas N+1 en las calificaciones de autores.

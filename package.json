@@ -8,7 +8,8 @@
     "dev": "nodemon backend/server.js",
     "reset-db": "node backend/reset_db.js",
     "migrate:prod": "cross-env NODE_ENV=production node backend/migrations/001_add_user_verification_fields.js",
-    "test": "node verify_all_backend_imports.js",
+    "test": "node verify_all_backend_imports.js && npx jest --runInBand",
+    "test:unit": "npx jest --runInBand",
     "audit:imports": "node verify_all_backend_imports.js",
     "update:ui-inventory": "node scripts/update-ui-screen-inventory.js",
     "prepare": "husky install"

@@ -86,11 +86,14 @@ describe('Pruebas del Módulo de Registro de Voluntarios SOS - Algoritmo y Cober
         expect(calculateAgeRangeD3(95)).toBe(9);
     });
 
-    test('3. Debe normalizar cédula y teléfono correctamente', () => {
+    test('3. Debe normalizar cédula y teléfono correctamente (nacional e internacional)', () => {
         expect(volunteerController.normalizeIdDocument('12345678')).toBe('V-12345678');
         expect(volunteerController.normalizeIdDocument('v-87654321')).toBe('V-87654321');
         expect(volunteerController.normalizePhone('04141234567')).toBe('+584141234567');
         expect(volunteerController.normalizePhone('+584129876543')).toBe('+584129876543');
+        expect(volunteerController.normalizePhone('+1 305 123 4567')).toBe('+13051234567');
+        expect(volunteerController.normalizePhone('+34 612 34 56 78')).toBe('+34612345678');
+        expect(volunteerController.normalizePhone('+57 300 123 4567')).toBe('+573001234567');
     });
 
     test('4. Debe rechazar registro si el aspirante es menor de 18 años', async () => {
