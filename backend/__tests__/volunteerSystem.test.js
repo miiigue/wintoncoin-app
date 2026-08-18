@@ -105,6 +105,7 @@ describe('Pruebas del Módulo de Registro de Voluntarios SOS - Algoritmo y Cober
                 gender: 'male',
                 email: 'menor@ejemplo.com',
                 phone_number: '+584121234567',
+                country: 'Venezuela',
                 state: 'Carabobo',
                 municipality: 'Valencia',
                 sector_city: 'Centro',
@@ -138,6 +139,7 @@ describe('Pruebas del Módulo de Registro de Voluntarios SOS - Algoritmo y Cober
                 gender: 'female',
                 email: 'maria@ejemplo.com',
                 phone_number: '+584121234567',
+                country: 'Venezuela',
                 state: 'Miranda',
                 municipality: 'Chacao',
                 sector_city: 'Altamira',
@@ -162,10 +164,44 @@ describe('Pruebas del Módulo de Registro de Voluntarios SOS - Algoritmo y Cober
         }));
     });
 
-    test('6. Debe obtener la lista de voluntarios desde el panel de administración ordenados por Score de Prioridad', async () => {
+    test('6. Debe rechazar registro si se omite el país de residencia', async () => {
+        const req = {
+            body: {
+                full_name: 'Carlos Ruiz',
+                id_document: 'V-21123456',
+                birth_date: '1992-03-20',
+                gender: 'male',
+                email: 'carlos@ejemplo.com',
+                phone_number: '+584141234567',
+                country: '', // País vacío
+                state: 'Zulia',
+                municipality: 'Maracaibo',
+                sector_city: 'Bella Vista',
+                volunteer_types: ['Tecnico'],
+                availability: ['Fines de Semana'],
+                data_consent_accepted: true,
+                legal_disclaimer_accepted: true
+            }
+        };
+
+        const res = {
+            status: jest.fn().mockReturnThis(),
+            json: jest.fn()
+        };
+
+        await volunteerController.registerVolunteerPublic(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: false,
+            message: expect.stringContaining('país de residencia')
+        }));
+    });
+
+    test('7. Debe obtener la lista de voluntarios desde el panel de administración ordenados por Score de Prioridad', async () => {
         const mockVolunteers = [
-            { id: 1, dossier_number: 'VOL-VZLA-4431-00001', full_name: 'Carlos Diaz', priority_score: 4431, status: 'pending_verification' },
-            { id: 2, dossier_number: 'VOL-VZLA-1122-00002', full_name: 'Ana Lopez', priority_score: 1122, status: 'active' }
+            { id: 1, dossier_number: 'VOL-VZLA-4431-00001', full_name: 'Carlos Diaz', priority_score: 4431, country: 'Estados Unidos', status: 'pending_verification' },
+            { id: 2, dossier_number: 'VOL-VZLA-1122-00002', full_name: 'Ana Lopez', priority_score: 1122, country: 'Costa Rica', status: 'active' }
         ];
 
         pool.query

@@ -759,7 +759,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 gender: document.getElementById('vol-gender')?.value || 'female',
                 email: document.getElementById('vol-email')?.value?.trim() || '',
                 phone_number: document.getElementById('vol-phone')?.value?.trim() || '',
-                country: document.getElementById('vol-country')?.value?.trim() || 'Venezuela',
+                country: document.getElementById('vol-country')?.value?.trim() || '',
                 state: document.getElementById('vol-state')?.value?.trim() || '',
                 municipality: document.getElementById('vol-municipality')?.value?.trim() || '',
                 sector_city: document.getElementById('vol-sector')?.value?.trim() || '',

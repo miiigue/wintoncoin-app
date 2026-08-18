@@ -166,8 +166,8 @@ exports.registerVolunteerPublic = async (req, res) => {
     } = req.body;
 
     // 1. Validaciones de campos obligatorios
-    if (!full_name || !id_document || !birth_date || !email || !phone_number || !state || !municipality || !sector_city) {
-        return res.status(400).json({ success: false, message: "Completa todos los campos obligatorios del registro." });
+    if (!full_name || !id_document || !birth_date || !email || !phone_number || !country || !country.trim() || !state || !municipality || !sector_city) {
+        return res.status(400).json({ success: false, message: "Completa todos los campos obligatorios del registro, incluyendo el país de residencia." });
     }
 
     // 1.1 Validaciones de Consentimiento Legal
@@ -198,7 +198,7 @@ exports.registerVolunteerPublic = async (req, res) => {
     const normPhone = normalizePhone(phone_number);
     const normEmail = email.trim().toLowerCase();
     const cleanGender = (gender === 'male' || gender === 'hombre' || gender === 'm') ? 'male' : 'female';
-    const cleanCountry = (country && country.trim()) ? country.trim() : 'Venezuela';
+    const cleanCountry = country.trim();
 
     // Validación de formato internacional de teléfono (+ y al menos 7 dígitos numéricos)
     if (!/^\+[1-9]\d{6,16}$/.test(normPhone)) {
