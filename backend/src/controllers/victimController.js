@@ -334,7 +334,7 @@ exports.registerVictimPublic = async (req, res) => {
             isNewUser = true;
             const tempPassword = crypto.randomBytes(12).toString('hex'); // 24 chars de alta entropía
             const hashedPassword = await bcrypt.hash(tempPassword, 10); // 10 salt rounds (estándar industria)
-            const baseUsername = normEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').substring(0, 20);
+            const baseUsername = normEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').substring(0, 10);
             
             // Bucle de Resolución de Colisiones (Garantiza Username Único)
             let isUsernameUnique = false;

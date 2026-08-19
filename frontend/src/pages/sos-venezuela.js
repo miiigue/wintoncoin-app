@@ -666,4 +666,557 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Cargar el código dinámico al inicializar la página
     loadDynamicSpecialCode();
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // SECCIÓN 9: MÓDULO DE REGISTRO DE VOLUNTARIO SOS (FORMULARIO E INTERACCIÓN)
+    // ═══════════════════════════════════════════════════════════════════════
+    const volForm = document.getElementById('sos-volunteer-registration-form');
+    const volSubmitBtn = document.getElementById('vol-submit-btn');
+    const volFeedback = document.getElementById('vol-feedback-msg');
+    const volResultCard = document.getElementById('vol-result-card');
+    const volOtpCard = document.getElementById('vol-otp-verification-card');
+    const volOtpInput = document.getElementById('vol-otp-code-input');
+    const volBtnVerifyOtp = document.getElementById('vol-btn-verify-otp');
+    const volOtpFeedback = document.getElementById('vol-otp-feedback-msg');
+    const volSuccessCard = document.getElementById('vol-activation-success');
+    const volDossierDisplay = document.getElementById('vol-dossier-number-display');
+    const volRewardDisplay = document.getElementById('vol-reward-amount-display');
+
+    if (volForm) {
+        const requiredVolIds = ['vol-fullname', 'vol-iddocument', 'vol-birthdate', 'vol-email', 'vol-phone', 'vol-country', 'vol-state', 'vol-municipality', 'vol-sector'];
+        const requiredVolChecks = ['vol-data-consent', 'vol-legal-disclaimer'];
+
+        /**
+         * Evalúa si el formulario de voluntario está completo para activar el botón.
+         */
+        function evaluateVolCompleteness() {
+            const allFilled = requiredVolIds.every(id => {
+                const el = document.getElementById(id);
+                if (!el) return false;
+                const val = el.value.trim();
+                if (id === 'vol-iddocument') return val.length >= 2;
+                if (id === 'vol-phone') return val.length >= 7;
+                return val !== '';
+            });
+
+            const allChecked = requiredVolChecks.every(id => {
+                const el = document.getElementById(id);
+                return el && el.checked;
+            });
+
+            // Verificar que al menos una opción de área y disponibilidad esté seleccionada
+            const selectedTypes = document.querySelectorAll('input[name="vol-types"]:checked');
+            const selectedAvail = document.querySelectorAll('input[name="vol-avail"]:checked');
+            const hasTypes = selectedTypes.length > 0;
+            const hasAvail = selectedAvail.length > 0;
+
+            const isReady = allFilled && allChecked && hasTypes && hasAvail;
+
+            if (volSubmitBtn) {
+                volSubmitBtn.disabled = !isReady;
+                volSubmitBtn.style.opacity = isReady ? '1' : '0.5';
+                volSubmitBtn.style.cursor = isReady ? 'pointer' : 'not-allowed';
+            }
+        }
+
+        // Listeners de validación en tiempo real
+        requiredVolIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', evaluateVolCompleteness);
+                el.addEventListener('change', evaluateVolCompleteness);
+            }
+        });
+        requiredVolChecks.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', evaluateVolCompleteness);
+        });
+        document.querySelectorAll('input[name="vol-types"]').forEach(el => el.addEventListener('change', evaluateVolCompleteness));
+        document.querySelectorAll('input[name="vol-avail"]').forEach(el => el.addEventListener('change', evaluateVolCompleteness));
+
+        evaluateVolCompleteness();
+
+        let currentVolEmail = '';
+        let isVolunteerNewUser = true;
+
+        // ── 9.1 Restauración de Sesión OTP Persistente al Recargar (F5) ──────
+        const btnVolResendOtp = document.getElementById('vol-btn-resend-otp');
+        const volResendTimerSpan = document.getElementById('vol-resend-timer-span');
+        const volTimerSecondsEl = document.getElementById('vol-timer-seconds');
+        const btnVolBackToForm = document.getElementById('vol-btn-back-to-form');
+        let volResendCooldownInterval = null;
+
+        /**
+         * Restaura los datos del formulario previamente ingresados por el usuario
+         * para que al hacer clic en "Modificar datos" todos los campos aparezcan llenos.
+         */
+        function restoreVolunteerFormData(draftData = null) {
+            try {
+                let data = draftData;
+                if (!data) {
+                    const saved = sessionStorage.getItem('winton_vol_draft_data');
+                    if (saved) data = JSON.parse(saved);
+                }
+                if (!data) return;
+
+                const setVal = (id, val) => {
+                    const el = document.getElementById(id);
+                    if (el && val !== undefined && val !== null) el.value = val;
+                };
+
+                setVal('vol-fullname', data.full_name || '');
+                setVal('vol-iddocument', data.id_document || '');
+                setVal('vol-birthdate', data.birth_date || '');
+                setVal('vol-gender', data.gender || 'female');
+                setVal('vol-email', data.email || '');
+                setVal('vol-phone', data.phone_number || '');
+                setVal('vol-country', data.country || '');
+                setVal('vol-state', data.state || '');
+                setVal('vol-municipality', data.municipality || '');
+                setVal('vol-sector', data.sector_city || '');
+                setVal('vol-skills', data.profession_skills || '');
+
+                if (Array.isArray(data.volunteer_types)) {
+                    document.querySelectorAll('input[name="vol-types"]').forEach(cb => {
+                        cb.checked = data.volunteer_types.includes(cb.value);
+                    });
+                }
+
+                if (Array.isArray(data.availability)) {
+                    document.querySelectorAll('input[name="vol-avail"]').forEach(cb => {
+                        cb.checked = data.availability.includes(cb.value);
+                    });
+                }
+
+                const consentEl = document.getElementById('vol-data-consent');
+                if (consentEl) consentEl.checked = Boolean(data.data_consent_accepted);
+
+                const disclaimerEl = document.getElementById('vol-legal-disclaimer');
+                if (disclaimerEl) disclaimerEl.checked = Boolean(data.legal_disclaimer_accepted);
+
+                evaluateVolCompleteness();
+            } catch (err) {
+                console.warn('[VOLUNTEER UX] Error restaurando datos de borrador:', err);
+            }
+        }
+
+        function restorePendingVolunteerSession() {
+            try {
+                const storedVolPending = sessionStorage.getItem('winton_vol_pending');
+                if (storedVolPending) {
+                    const parsed = JSON.parse(storedVolPending);
+                    if (parsed && parsed.email) {
+                        currentVolEmail = parsed.email;
+                        isVolunteerNewUser = (parsed.isNewUser !== false);
+
+                        volForm.style.display = 'none';
+                        if (volResultCard) volResultCard.style.display = 'block';
+                        if (volOtpCard) volOtpCard.style.display = 'block';
+                        if (volSuccessCard) volSuccessCard.style.display = 'none';
+
+                        const passContainer = document.getElementById('vol-password-fields-container');
+                        if (passContainer) {
+                            passContainer.style.display = isVolunteerNewUser ? 'block' : 'none';
+                        }
+                        validateVolOtpForm();
+                    }
+                }
+            } catch (e) {
+                sessionStorage.removeItem('winton_vol_pending');
+            }
+        }
+
+        // Envío de Formulario de Voluntario
+        volForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (volSubmitBtn) {
+                volSubmitBtn.disabled = true;
+                volSubmitBtn.innerText = 'Enviando Registro...';
+            }
+            if (volFeedback) volFeedback.style.display = 'none';
+
+            const selectedTypes = Array.from(document.querySelectorAll('input[name="vol-types"]:checked')).map(el => el.value);
+            const selectedAvail = Array.from(document.querySelectorAll('input[name="vol-avail"]:checked')).map(el => el.value);
+
+            const payload = {
+                full_name: document.getElementById('vol-fullname')?.value?.trim() || '',
+                id_document: document.getElementById('vol-iddocument')?.value?.trim() || '',
+                birth_date: document.getElementById('vol-birthdate')?.value || '',
+                gender: document.getElementById('vol-gender')?.value || 'female',
+                email: document.getElementById('vol-email')?.value?.trim() || '',
+                phone_number: document.getElementById('vol-phone')?.value?.trim() || '',
+                country: document.getElementById('vol-country')?.value?.trim() || '',
+                state: document.getElementById('vol-state')?.value?.trim() || '',
+                municipality: document.getElementById('vol-municipality')?.value?.trim() || '',
+                sector_city: document.getElementById('vol-sector')?.value?.trim() || '',
+                volunteer_types: selectedTypes,
+                availability: selectedAvail,
+                profession_skills: document.getElementById('vol-skills')?.value?.trim() || '',
+                data_consent_accepted: document.getElementById('vol-data-consent')?.checked,
+                legal_disclaimer_accepted: document.getElementById('vol-legal-disclaimer')?.checked
+            };
+
+            // Guardar borrador completo de datos para preservarlo ante recargas o correcciones
+            sessionStorage.setItem('winton_vol_draft_data', JSON.stringify(payload));
+
+            try {
+                const res = await fetch(`${API_URL}/api/volunteers/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (!res.ok || !data.success) {
+                    // Manejo seguro de cuenta ya registrada / sesión activa
+                    if (data && data.already_active) {
+                        const hasActiveSession = Boolean(localStorage.getItem('token'));
+                        const currentLoggedUser = localStorage.getItem('username') || '';
+
+                        let sessionNotice = '';
+                        if (hasActiveSession && currentLoggedUser) {
+                            sessionNotice = `
+                                <div style="margin-top: 10px; font-size: 0.88rem; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px;">
+                                    ℹ️ Actualmente tienes una sesión activa como <strong>@${escapeHtml(currentLoggedUser)}</strong>.
+                                    <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+                                        <a href="profile.html" class="btn-primary-campaign" style="font-size: 0.85rem; padding: 6px 14px; text-decoration: none; border-radius: 20px;">Ir a mi Perfil actual</a>
+                                        <button type="button" id="vol-btn-switch-account" style="font-size: 0.85rem; padding: 6px 14px; background: #ef4444; color: white; border: none; border-radius: 20px; cursor: pointer;">Cerrar sesión e Iniciar con esta cuenta</button>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            sessionNotice = `
+                                <div style="margin-top: 10px;">
+                                    <a href="login.html" class="btn-primary-campaign" style="font-size: 0.88rem; padding: 8px 18px; text-decoration: none; border-radius: 20px; display: inline-block;">🔑 Iniciar Sesión</a>
+                                </div>
+                            `;
+                        }
+
+                        if (volFeedback) {
+                            volFeedback.innerHTML = `
+                                <div style="font-weight: 700; color: #991b1b; margin-bottom: 4px;">⚠️ ${escapeHtml(data.message)}</div>
+                                ${sessionNotice}
+                            `;
+                            volFeedback.style.display = 'block';
+                            volFeedback.style.background = '#fef2f2';
+                            volFeedback.style.border = '1px solid #fecdd3';
+                            volFeedback.style.padding = '14px';
+                            volFeedback.style.borderRadius = '12px';
+                            volFeedback.style.marginTop = '1rem';
+
+                            const switchBtn = document.getElementById('vol-btn-switch-account');
+                            if (switchBtn) {
+                                switchBtn.addEventListener('click', () => {
+                                    localStorage.removeItem('token');
+                                    localStorage.removeItem('username');
+                                    localStorage.removeItem('user');
+                                    window.location.href = 'login.html';
+                                });
+                            }
+                        }
+                        return;
+                    }
+
+                    throw new Error(data.message || 'Error al procesar el registro de voluntario.');
+                }
+
+                currentVolEmail = payload.email;
+                isVolunteerNewUser = (data.is_new_user !== false);
+
+                // Guardar en sessionStorage para persistencia ante F5 / recargas
+                sessionStorage.setItem('winton_vol_pending', JSON.stringify({
+                    email: currentVolEmail,
+                    isNewUser: isVolunteerNewUser
+                }));
+
+                // Ocultar formulario y mostrar tarjeta OTP
+                volForm.style.display = 'none';
+                if (volResultCard) volResultCard.style.display = 'block';
+                if (volOtpCard) volOtpCard.style.display = 'block';
+                if (volSuccessCard) volSuccessCard.style.display = 'none';
+
+                const passContainer = document.getElementById('vol-password-fields-container');
+                if (passContainer) {
+                    passContainer.style.display = isVolunteerNewUser ? 'block' : 'none';
+                }
+
+                validateVolOtpForm();
+                if (volOtpInput) volOtpInput.focus();
+
+            } catch (err) {
+                if (volFeedback) {
+                    volFeedback.textContent = '❌ ' + err.message;
+                    volFeedback.style.display = 'block';
+                    volFeedback.style.color = '#ef4444';
+                    volFeedback.style.background = '#fef2f2';
+                    volFeedback.style.border = '1px solid #fecdd3';
+                    volFeedback.style.padding = '12px';
+                    volFeedback.style.borderRadius = '10px';
+                    volFeedback.style.marginTop = '1rem';
+                }
+            } finally {
+                if (volSubmitBtn) {
+                    volSubmitBtn.disabled = false;
+                    volSubmitBtn.innerText = 'Enviar Postulación de Voluntario';
+                }
+            }
+        });
+
+        // ── Toggle de Visibilidad de Contraseñas en OTP de Voluntario ───────
+        const volToggleNewPwd = document.getElementById('vol-toggle-new-password');
+        const volToggleConfirmPwd = document.getElementById('vol-toggle-confirm-password');
+        const volNewPwdInput = document.getElementById('vol-new-password');
+        const volConfirmPwdInput = document.getElementById('vol-confirm-password');
+        const volPwdHelper = document.getElementById('vol-password-match-helper');
+
+        if (volToggleNewPwd && volNewPwdInput) {
+            volToggleNewPwd.addEventListener('click', () => {
+                const type = volNewPwdInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                volNewPwdInput.setAttribute('type', type);
+                volToggleNewPwd.textContent = type === 'password' ? '👁️' : '🙈';
+            });
+        }
+
+        if (volToggleConfirmPwd && volConfirmPwdInput) {
+            volToggleConfirmPwd.addEventListener('click', () => {
+                const type = volConfirmPwdInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                volConfirmPwdInput.setAttribute('type', type);
+                volToggleConfirmPwd.textContent = type === 'password' ? '👁️' : '🙈';
+            });
+        }
+
+        /**
+         * Validación en Tiempo Real del Formulario OTP de Voluntario
+         * (Exige OTP de 6 dígitos Y coincidencia estricta de contraseña si es usuario nuevo)
+         */
+        function validateVolOtpForm() {
+            if (!volBtnVerifyOtp || !volOtpInput) return;
+
+            const code = volOtpInput.value.trim();
+            let isCodeValid = (code.length === 6);
+            let isPasswordValid = true;
+
+            if (isVolunteerNewUser && volNewPwdInput && volConfirmPwdInput) {
+                const pwd = volNewPwdInput.value;
+                const confirm = volConfirmPwdInput.value;
+
+                if (pwd.length === 0 && confirm.length === 0) {
+                    if (volPwdHelper) volPwdHelper.textContent = '';
+                    isPasswordValid = false;
+                } else if (pwd.length < 8) {
+                    if (volPwdHelper) {
+                        volPwdHelper.textContent = '⚠️ La contraseña debe tener al menos 8 caracteres.';
+                        volPwdHelper.style.color = '#d97706';
+                    }
+                    isPasswordValid = false;
+                } else if (confirm.length > 0 && pwd !== confirm) {
+                    if (volPwdHelper) {
+                        volPwdHelper.textContent = '❌ Las contraseñas no coinciden.';
+                        volPwdHelper.style.color = '#ef4444';
+                    }
+                    isPasswordValid = false;
+                } else if (pwd.length >= 8 && pwd === confirm) {
+                    if (volPwdHelper) {
+                        volPwdHelper.textContent = '✅ Las contraseñas coinciden.';
+                        volPwdHelper.style.color = '#10b981';
+                    }
+                    isPasswordValid = true;
+                } else {
+                    isPasswordValid = false;
+                }
+            }
+
+            const canSubmit = isCodeValid && isPasswordValid;
+            volBtnVerifyOtp.disabled = !canSubmit;
+            volBtnVerifyOtp.style.opacity = canSubmit ? '1' : '0.5';
+            volBtnVerifyOtp.style.cursor = canSubmit ? 'pointer' : 'not-allowed';
+        }
+
+        if (volOtpInput) volOtpInput.addEventListener('input', validateVolOtpForm);
+        if (volNewPwdInput) volNewPwdInput.addEventListener('input', validateVolOtpForm);
+        if (volConfirmPwdInput) volConfirmPwdInput.addEventListener('input', validateVolOtpForm);
+
+        // ── 9.2 Reenvío de Código OTP con Temporizador de 60s (DRY) ─────────
+        function startVolResendCooldown(seconds = 60) {
+            if (!btnVolResendOtp || !volResendTimerSpan || !volTimerSecondsEl) return;
+            btnVolResendOtp.style.display = 'none';
+            volResendTimerSpan.style.display = 'inline';
+            let remaining = seconds;
+            volTimerSecondsEl.textContent = String(remaining);
+
+            if (volResendCooldownInterval) clearInterval(volResendCooldownInterval);
+            volResendCooldownInterval = setInterval(() => {
+                remaining--;
+                if (remaining <= 0) {
+                    clearInterval(volResendCooldownInterval);
+                    volResendCooldownInterval = null;
+                    volResendTimerSpan.style.display = 'none';
+                    btnVolResendOtp.style.display = 'inline';
+                } else {
+                    volTimerSecondsEl.textContent = String(remaining);
+                }
+            }, 1000);
+        }
+
+        if (btnVolResendOtp) {
+            btnVolResendOtp.addEventListener('click', async () => {
+                const targetEmail = currentVolEmail || document.getElementById('vol-email')?.value?.trim();
+                if (!targetEmail) {
+                    if (volOtpFeedback) {
+                        volOtpFeedback.textContent = '❌ No se encontró el correo electrónico del voluntario.';
+                        volOtpFeedback.style.display = 'block';
+                        volOtpFeedback.style.color = '#ef4444';
+                    }
+                    return;
+                }
+
+                try {
+                    btnVolResendOtp.disabled = true;
+                    btnVolResendOtp.textContent = 'Enviando...';
+
+                    const res = await fetch(`${API_URL}/api/volunteers/resend-otp`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: targetEmail })
+                    });
+
+                    const data = await res.json();
+                    if (!res.ok || !data.success) {
+                        throw new Error(data.message || 'Error al reenviar el código.');
+                    }
+
+                    if (volOtpFeedback) {
+                        volOtpFeedback.textContent = '✅ Nuevo código enviado a tu correo. Por favor revisa tu bandeja de entrada o spam.';
+                        volOtpFeedback.style.display = 'block';
+                        volOtpFeedback.style.color = '#10b981';
+                        volOtpFeedback.style.background = 'rgba(16, 185, 129, 0.15)';
+                    }
+                    startVolResendCooldown(60);
+                } catch (rErr) {
+                    if (volOtpFeedback) {
+                        volOtpFeedback.textContent = '❌ ' + rErr.message;
+                        volOtpFeedback.style.display = 'block';
+                        volOtpFeedback.style.color = '#ef4444';
+                        volOtpFeedback.style.background = '#fef2f2';
+                    }
+                } finally {
+                    if (btnVolResendOtp) {
+                        btnVolResendOtp.disabled = false;
+                        btnVolResendOtp.textContent = 'Reenviar código';
+                    }
+                }
+            });
+        }
+
+        // ── 9.3 Botón de Regresar al Formulario (Modificar Datos con Relleno Automático) ───
+        if (btnVolBackToForm) {
+            btnVolBackToForm.addEventListener('click', () => {
+                sessionStorage.removeItem('winton_vol_pending');
+                restoreVolunteerFormData();
+                if (volResultCard) volResultCard.style.display = 'none';
+                if (volOtpCard) volOtpCard.style.display = 'none';
+                if (volForm) {
+                    volForm.style.display = 'flex';
+                    volForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+                if (volFeedback) volFeedback.style.display = 'none';
+            });
+        }
+
+        // Verificación de OTP para Voluntario
+        if (volBtnVerifyOtp) {
+            volBtnVerifyOtp.addEventListener('click', async () => {
+                const otpCode = volOtpInput?.value?.trim() || '';
+                const password = volNewPwdInput?.value || '';
+                const passwordConfirm = volConfirmPwdInput?.value || '';
+
+                if (otpCode.length !== 6) return;
+                if (isVolunteerNewUser && (password.length < 8 || password !== passwordConfirm)) return;
+
+                volBtnVerifyOtp.disabled = true;
+                volBtnVerifyOtp.innerText = 'Verificando...';
+                if (volOtpFeedback) volOtpFeedback.style.display = 'none';
+
+                try {
+                    const res = await fetch(`${API_URL}/api/volunteers/verify-otp`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email: currentVolEmail,
+                            otp_code: otpCode,
+                            password: password,
+                            password_confirm: passwordConfirm
+                        })
+                    });
+
+                    const data = await res.json();
+                    if (!res.ok || !data.success) {
+                        throw new Error(data.message || 'Código OTP incorrecto.');
+                    }
+
+                    // Limpiar estado de verificación pendiente y borrador de sessionStorage
+                    sessionStorage.removeItem('winton_vol_pending');
+                    sessionStorage.removeItem('winton_vol_draft_data');
+
+                    // Guardar credenciales de sesión activa para el voluntario
+                    if (data.token) localStorage.setItem('token', data.token);
+                    if (data.user?.username) localStorage.setItem('username', data.user.username);
+                    if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
+
+                    // Éxito: Ocultar OTP y mostrar tarjeta de felicitación
+                    if (volOtpCard) volOtpCard.style.display = 'none';
+                    if (volSuccessCard) volSuccessCard.style.display = 'block';
+
+                    if (volDossierDisplay) volDossierDisplay.textContent = `#${data.dossier_number}`;
+                    if (volRewardDisplay) volRewardDisplay.textContent = `${data.reward_amount || 0} BLUE IOU`;
+
+                } catch (err) {
+                    if (volOtpFeedback) {
+                        volOtpFeedback.textContent = '❌ ' + err.message;
+                        volOtpFeedback.style.display = 'block';
+                        volOtpFeedback.style.color = '#ef4444';
+                        volOtpFeedback.style.background = '#fef2f2';
+                    }
+                } finally {
+                    volBtnVerifyOtp.disabled = false;
+                    volBtnVerifyOtp.innerText = 'Activar mi Cuenta de Voluntario';
+                }
+            });
+        }
+
+        // Ejecutar restauración al cargar módulo
+        restorePendingVolunteerSession();
+    }
+
+    // ========================================================================
+    // 10. MÓDULO "VOLVER ARRIBA" (BACK TO TOP) - UX PROFESIONAL
+    // ========================================================================
+    const backToTopBtn = document.getElementById('btn-back-to-top');
+    if (backToTopBtn) {
+        let scrollRafId = null;
+
+        window.addEventListener('scroll', () => {
+            if (scrollRafId) return;
+
+            scrollRafId = requestAnimationFrame(() => {
+                const scrollAmount = window.scrollY || document.documentElement.scrollTop;
+                if (scrollAmount > 400) {
+                    backToTopBtn.classList.add('show');
+                } else {
+                    backToTopBtn.classList.remove('show');
+                }
+                scrollRafId = null;
+            });
+        }, { passive: true });
+
+        backToTopBtn.addEventListener('click', () => {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+            console.log('[SOS/UX] Botón "Volver Arriba" presionado por el usuario.');
+        });
+    }
 });
+

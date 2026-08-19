@@ -1,17 +1,115 @@
 # EvoluciÃƒÆ’Ã‚Â³n de WintonCoin
+# Evolución de WintonCoin
 
 ---
 
-# EvoluciÃƒÆ’Ã‚Â³n del proyecto (historia tÃƒÆ’Ã‚Â©cnica + decisiones)
+# Evolución del proyecto (historia técnica + decisiones)
 
-Este documento explica **cÃƒÆ’Ã‚Â³mo y por quÃƒÆ’Ã‚Â©** evolucionÃƒÆ’Ã‚Â³ el cÃƒÆ’Ã‚Â³digo (decisiones, trade-offs y impacto).  
-Para el detalle ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œtipo releaseÃƒÂ¢Ã¢â€šÂ¬Ã¯Â¿Â½, ver `CHANGELOG.md`.
+Este documento explica **cómo y por qué** evolucionó el código (decisiones, trade-offs y impacto).  
+Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
-## CÃƒÆ’Ã‚Â³mo leer este documento
+## Cómo leer este documento
 
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
-- **Impacto**: quÃ© problema resolviÃ³ y quÃ© habilita hacia adelante.
+- **Impacto**: qué problema resolvió y qué habilita hacia adelante.
+
+### 2026-08-18 — Optimización UX/Backend: Generación de Username a 10 Caracteres y Unificación de CTA 'Soy afectado'
+* **Diagnóstico & Objetivo**:
+  - Reducir el prefijo del nombre de usuario generado automáticamente de 20 a 10 caracteres para que los usernames resultantes (ej: `@carlos_482`) sean más cortos, legibles y ergonómicos en interfaces móviles y transferencias P2P.
+  - Estandarizar el llamado a la acción (CTA) del banner de emergencia en la página principal (`index.html`) cambiando `"¿Fuiste afectado? Regístrate"` a `"Soy afectado"`, logrando consistencia con la página `sos-venezuela.html`.
+* **Cambios Técnicos**:
+  - **Backend (`victimController.js`, `volunteerController.js`)**:
+    - Ajustada la longitud del prefijo base del correo a 10 caracteres (`substring(0, 10)`).
+    - Preservado el algoritmo de resolución de colisiones (`while (!isUsernameUnique)`) que añade un sufijo aleatorio de 3 dígitos, garantizando unicidad y cumplimiento con la restricción `UNIQUE` de PostgreSQL.
+  - **Frontend (`index.html`)**:
+    - Actualizado el texto del botón del hero de emergencia a `"Soy afectado"`.
+* **Impacto**: Usernames compactos y legibles en dispositivos móviles y mayor tasa de conversión con lenguaje empático en primera persona.
+
+### 2026-08-18 — Optimización UI/UX: Relleno Automático en Corrección de Datos, Botón Flotante 'Volver Arriba' y Diseño 100% Responsivo en SOS Venezuela
+* **Diagnóstico & Objetivo**:
+  - Al presionar el botón "← Modificar datos o cambiar correo", el usuario era retornado al formulario con los campos vacíos, obligándolo a reescribir toda su información desde cero.
+  - En la página `sos-venezuela.html` faltaba el botón flotante de retorno rápido al inicio ("Volver arriba") con efecto glassmorphism presente en la página principal (`index.html`).
+  - En pantallas móviles pequeñas (360px - 412px), los múltiples sub-contenedores blancos internos causaban desbordamiento horizontal de los campos de texto (`input`), selectores y tarjetas de selección múltiple.
+* **Cambios Técnicos**:
+  - **Frontend (`sos-venezuela.html`, `sos-venezuela.js`)**:
+    - Implementada la función `restoreVolunteerFormData()` y persistencia de borrador completo en `sessionStorage` (`winton_vol_draft_data`). Al presionar "← Modificar datos o cambiar correo", el sistema rellena automáticamente todos los campos de texto, fechas, selectores, checkboxes de áreas, disponibilidad y consentimientos con los datos ingresados previamente.
+    - Integrado el botón flotante `#btn-back-to-top` con efecto glassmorphism, throttling vía `requestAnimationFrame`, scroll suave al tope (`window.scrollTo({ top: 0, behavior: 'smooth' })`) y visualización automática al superar 400px de scroll.
+    - Eliminados los 5 sub-contenedores internos anidados, permitiendo que todos los campos e inputs fluyan directamente en el contenedor principal `#sos-volunteer-registration-form`.
+    - Incorporado `box-sizing: border-box; width: 100%; max-width: 100%;` en todos los inputs, selects, botones y tarjetas de opciones múltiples para evitar cualquier desbordamiento horizontal en pantallas móviles.
+    - Simplificado el texto introductorio a `"Tu colaboración presencial o remota ayuda a salvar vidas."` y el título de sección a `"📍 Residencia"`.
+* **Impacto**: Experiencia de usuario (UX) fluida, ergonómica y profesional, permitiendo corregir datos sin fricción y mejorando la navegación en dispositivos móviles.
+
+### 2026-08-18 — Persistencia de Sesión OTP (F5/Recarga), Reenvío con Cooldown de 60s y Navegación DRY en Voluntariado SOS (NIST SP 800-63B / FinTech)
+* **Diagnóstico & Objetivo**:
+  - Resolver el problema de pérdida de estado y reinicio de formulario cuando el usuario recarga la página (`F5`) o cambia de aplicación en su teléfono tras postularse como voluntario.
+  - Aplicar el principio DRY reutilizando los estándares de reenvío de OTP (`POST /api/volunteers/resend-otp`), temporizador de cuenta regresiva de 60s y botón de corrección de datos implementados en el módulo general de SOS Víctimas.
+  - Eliminar el error `400: No se encontró una solicitud pendiente` garantizando que el email registrado se preserve en `sessionStorage` y se transmita confiablemente en la verificación.
+* **Cambios Técnicos**:
+  - **Backend (`volunteerController.js`, `volunteerRoutes.js`)**:
+    - Implementado `resendVolunteerOtpPublic` bajo estándar NIST SP 800-63B y SOC 2: control de frecuencia (cooldown mínimo de 60 segundos), límite de 5 reenvíos por sesión contra abusos/spam, generación criptográfica de nuevo OTP de 6 dígitos con TTL de 15 minutos y registro de eventos.
+    - Declarada la ruta pública `POST /api/volunteers/resend-otp` con limitador de tasa `otpVerifyLimiter`.
+  - **Frontend (`sos-venezuela.html`, `sos-venezuela.js`)**:
+    - Incorporada persistencia en `sessionStorage` (`winton_vol_pending`): al recargar la página (`F5`), el sistema detecta la postulación en curso, oculta el formulario y restaura la pantalla de verificación OTP con el correo asociado sin perder el progreso.
+    - Agregado botón de "Reenviar código" con temporizador regresivo de 60 segundos (`#vol-btn-resend-otp`, `#vol-timer-seconds`).
+    - Agregado botón "← Modificar datos o cambiar correo" (`#vol-btn-back-to-form`) para permitir al usuario corregir errores tipográficos limpiando la sesión pendiente.
+    - Limpieza automática de `sessionStorage` tras la activación exitosa de la cuenta.
+  - **Pruebas Automatizadas & Build (`volunteerSystem.test.js`, `package.json`)**:
+    - Añadida prueba unitaria 8 en Jest para validar el endpoint de reenvío de OTP con verificación de cooldown. Total: 11 suites y 66 tests unitarios ejecutados y aprobados (100%).
+    - Actualizado paquete de producción `dist-demo/` mediante `npm run build:demo`.
+* **Impacto**: Experiencia de usuario (UX) resiliente y robusta idéntica a los estándares bancarios y FinTech, evitando pérdida de datos ante interrupciones de red o recargas de navegador.
+
+### 2026-08-17 — Sistema de Registro de Voluntarios SOS Venezuela, Aislamiento de Sesiones, Teléfonos Internacionales y Pipeline de CI/CD (SOC 2)
+* **Diagnóstico & Objetivo**:
+  - Reemplazar la convocatoria informal a redes sociales en la campaña SOS Venezuela por un sistema formal de postulación y acreditación de voluntarios.
+  - Soportar postulaciones nacionales e internacionales (con código de país sin restricción exclusiva a +58) e incorporación de ubicación geográfica por país.
+  - Implementar validación UX/UI en tiempo real para contraseñas de activación (mínimo 8 caracteres, coincidencia estricta y botones para mostrar/ocultar contraseña).
+  - Blindar el aislamiento de sesiones (Zero-Trust) para evitar que usuarios con sesiones activas previas sufran colisión o confusión de identidad al registrar terceros.
+  - Establecer el pipeline de Integración Continua (CI) en GitHub Actions (`.github/workflows/backend-ci.yml`) y consolidación de `npm test` para certificar la ejecución automática de las suites de pruebas unitarias en cada Pull Request.
+* **Cambios Técnicos**:
+  - **Base de Datos & Migración 106 (`106_create_volunteers_system.js`)**: Tabla `volunteers_registry` con campos de Cédula/DNI único, `country`, arrays `volunteer_types` y `availability`, `priority_score`, estatus y tabla inmutable `volunteer_activity_history` para auditoría.
+  - **Algoritmo de Codificación Inteligente de 4 Dígitos & Score de Despacho (`volunteerController.js`)**:
+    - Código de expediente `#VOL-VZLA-[D1][D2][D3][D4]-[SECUENCIAL]`:
+      - **D1 (Modalidad)**: 4 = Campo, 3 = Verificación/Censo, 2 = Profesional (Salud/Legal/Técnico), 1 = Remoto/Redes.
+      - **D2 (Disponibilidad)**: 4 = Tiempo Completo 24/7, 3 = Tiempo Parcial, 2 = Fines de Semana, 1 = Ocasional.
+      - **D3 (Rango de Edad Decenal)**: 1 = 18-19 años, 2 = 20-29 años, ..., 9 = 90+ años.
+      - **D4 (Sexo)**: 1 = Hombre, 2 = Mujer.
+      - **Score de Prioridad**: `(D1*1000) + (D2*100) + (D3*10) + D4`.
+    - Normalización E.164 de teléfonos internacionales y eliminación del bloqueo restringido a números venezolanos.
+    - Manejo seguro de cuenta duplicada con aviso explícito de sesión activa para evitar confusión de perfiles.
+  - **Frontend (`sos-venezuela.html`, `sos-venezuela.js`, `admin-recruitment.html`)**:
+    - Formulario responsivo con selector de País, etiquetas claras ("Documento de Identidad"), validación interactiva de contraseñas, feedback visual de coincidencia y botones con ícono 👁️/🙈 para ver/ocultar contraseñas.
+    - Pestaña de administración "Voluntarios SOS" con filtrado y cambio de estatus con envío de notificaciones Push/Email.
+  - **Pipeline Automatizado de CI/CD (`.github/workflows/backend-ci.yml`, `package.json`)**:
+    - Workflow de GitHub Actions que ejecuta `npm test` (auditoría de los 86 módulos + 11 suites de Jest con 64 tests unitarios) en cada Pull Request hacia `demo` y `main`.
+* **Impacto**: Garantiza el registro ordenado, auditable y seguro de voluntarios en todo el mundo, protege la integridad de los datos según normativas SOC 2 y FinTech, y automatiza el control de calidad en el ciclo de desarrollo continuo.
+
+### 2026-08-17 — Fase 5: Marketplace de Tareas P2P, Causas Solidarias, Gestión de Postulaciones y 72 Tests Unitarios (Clean Architecture)
+* **Diagnóstico & Objetivo**: Implementar el Marketplace nativo de Tareas y Publicaciones P2P en Android (`com.wintoncoin.app`) con paridad visual y lógica con la PWA, saneamiento de URLs multimedia contra caídas y resolución del problema de consultas N+1 en las calificaciones de autores.
+* **Cambios Técnicos**:
+  - **DTOs & API Service (`MarketplaceDtos.kt`, `MarketplaceApiService.kt`)**: Modelos inmutables para `GET /publications/active`, `GET /api/humanitarian/causes/approved`, `GET /api/publications/:id`, `POST /publications/:id/accept`, `POST /publications/:id/complete` y `POST /publications/:id/confirm-payment`.
+  - **Repositorio & Unificación de Feeds (`MarketplaceRepository.kt`, `MarketplaceRepositoryImpl.kt`, `MarketplaceModels.kt`)**: Mezcla y ordenamiento prioritario estricto (Causas Solidarias `-1`, Tareas del autor por aprobar `0`, por pagar `1`, participante aprobado `2`, resto `5`). Saneamiento automático de enlaces de fotos evitando URLs externas incompatibles (Instagram, Drive).
+  - **Casos de Uso (`GetMarketplaceFeedUseCase.kt`, `GetPublicationDetailsUseCase.kt`, `ApplyToPublicationUseCase.kt`, `CompleteTaskUseCase.kt`, `ConfirmTaskPaymentUseCase.kt`)**: Lógica de negocio modularizada y desacoplada de la UI.
+  - **Presentación Compose (`PublicationCard.kt`, `MarketplaceScreen.kt`, `PublicationDetailScreen.kt`)**: Tarjetas de diseño *gleam*, chips de filtro horizontal, búsqueda en tiempo real, formulario de postulación/donación, envío de evidencias fotográficas y panel de confirmación de pago para autores.
+  - **Navegación & Dashboard (`NavGraph.kt`, `DashboardScreen.kt`)**: Integrada la tarjeta destacada de acceso al Marketplace en la pantalla principal y rutas parametrizadas para ver detalles por ID.
+  - **Suite de Pruebas Unitarias (72 Tests Aprobados / 100% Cobertura)**: Incorporadas 16 nuevas pruebas unitarias en 4 suites (`MarketplaceRepositoryImplTest`, `MarketplaceUseCasesTest`, `MarketplaceViewModelTest`, `PublicationDetailViewModelTest`).
+  - **Compilación de Artefacto**: Generado `app-demo-debug.apk` (19.49 MB) verificado con `BUILD SUCCESSFUL`.
+* **Impacto**: La plataforma móvil ahora soporta el ciclo económico completo de tareas y micro-trabajos P2P (postularse, realizar, entregar evidencia, auditar y liberar fondos en BLUEs).
+
+### 2026-08-16 — Fase 4: Billetera Web3 Nativa, Tarjetas Dinámicas BLUE/RED, Historial Contable y 56 Tests Unitarios (Clean Architecture)
+* **Diagnóstico & Objetivo**: Implementar el módulo completo de Billetera Web3 en la app nativa Android con paridad estricta con `contract_interaction.html`, `walletService.js` e `history.html` de la PWA.
+* **Cambios Técnicos**:
+  - **DTOs & API Service (`WalletDtos.kt`, `WalletApiService.kt`)**: Modelos inmutables para `GET /api/me/balance`, `GET /api/me/history` y `POST /api/me/collateral/sync`.
+  - **Repositorio & Dominio (`WalletRepository.kt`, `WalletRepositoryImpl.kt`, `WalletModels.kt`)**: Mapeo y cálculo unificado de balances (`blueAvailable`, `blueEscrow`, `redDebt`, `redLimit`, `redAvailable`, `collateralBalance`).
+  - **Casos de Uso (`GetWalletBalanceUseCase.kt`, `GetTransactionHistoryUseCase.kt`, `FormatBalanceUseCase.kt`)**: Implementado formateo estricto de 4 decimales con localización española (`es-ES`) réplica de `walletService.js`.
+  - **Componentes Compose (`BlueBalanceCard`, `RedBalanceCard`, `WalletScreen.kt`, `DashboardScreen.kt`)**: Tarjetas estilizadas con acabado *gleam*, bóveda de colateral, indicador KYC y navegación unificada con Bottom Navigation.
+  - **Suite de Pruebas Unitarias (56 Tests Aprobados / 100% Cobertura)**: Incorporadas 5 nuevas suites (`FormatBalanceUseCaseTest`, `GetWalletBalanceUseCaseTest`, `GetTransactionHistoryUseCaseTest`, `WalletViewModelTest`, `WalletRepositoryImplTest`).
+  - **Compilación de Artefacto**: Generado `app-demo-debug.apk` (19.32 MB) verificado con `BUILD SUCCESSFUL`.
+* **Impacto**: La app nativa Android permite a los usuarios monitorear sus saldos líquidos, deudas, créditos, garantías e historial de transacciones con precisión matemática y seguridad de nivel bancario.
+
+
+
+
 
 ### 2026-08-14 — Fix: Corrección Truth-in-Pricing del Multiplicador en Modo Post-Lanzamiento
 * **Diagnóstico**: Cuando `pre_launch_mode_enabled = false`, la función `calculatePublicationEffectiveCost()` seguía aplicando el multiplicador de etapa (ej: 9x) a TODAS las publicaciones, causando que el precio mostrado fuera 9 BLUE en vez de 1 BLUE para tareas regulares. Esto violaba el principio FinTech de Truth-in-Pricing (precio mostrado ≠ precio cobrado).
@@ -5053,4 +5151,24 @@ pm run build:demo) exitosamente.
 - **Contexto**: Se aislaron los procesos secundarios en verifyVictimOtpPublic para garantizar que la activación de la cuenta SOS nunca falle.
 - **Cambios**: Coerción de tipos anti-crash en email/otp_code, fallback en jwtSecret y try-catch en processReferralReward.
 - **Evidencia**: Modificado backend/src/controllers/victimController.js, EVOLUCION.md.
-\n\n### 2026-08-15 - Correccion de Casteo de Tipos PostgreSQL y Regla SOS Usuarios Existentes\n- **Causa del Error (could not determine data type of parameter )**: Parametros nulos en ecord_booster_event sin casteo explicito de tipo en PostgreSQL.\n- **Solucion**:\n  1. Casteo de tipos SQL explicito en eferralRewardService.js.\n  2. Exencion de bonos de referido para usuarios existentes al verificar OTP SOS en ictimController.js.\n\n\n### 2026-08-15 - Fix Critico: Parametro SQL  desalineado en UPDATE de usuario existente SOS\n- **Bug**: La query UPDATE users SET is_verified = true WHERE email =  usaba  pero solo pasaba 1 parametro [normEmail], causando error could not determine data type of parameter .\n- **Fix**: Corregido  a  en victimController.js linea 526.\n- **Diagnostico**: Agregado mensaje transparente en Demo para registerVictimPublic catch block.\n\n\n### 2026-08-15 - Fix Critico: Clasificacion de Usuario en Activacion SOS (is_verified vs password_hash)\n- **Causa Raiz**: En verifyVictimOtpPublic se comprobaba si el usuario era existente mediante la longitud de password_hash. Como el paso previo de registro (registerVictimPublic) creaba una fila en users con un hash temporal para nuevos usuarios, el sistema los clasificaba erroneamente como usuarios existentes, omitiendo la actualizacion de su contraseÃ±a definitiva y saltandose la llamada a referralRewardService.processReferralReward.\n- **Solucion Implementada**: Se cambio la clasificacion a isExistingVerifiedUser evaluando que is_verified === true. De este modo, los usuarios creados por el formulario SOS (con is_verified = false) son tratados como usuarios nuevos: se valida su contraseÃ±a elegida, se guarda encriptada, se activa su cuenta y se procesa su bono de bienvenida de 200 BLUE IOU y el aporte a la causa solidaria vinculada.\n- **Cobertura de Pruebas**: Suite de pruebas ampliada a 51 tests unitarios cubriendo los flujos completos de usuario nuevo y existente.\n\n\n### 2026-08-15 - Implementacion Smart Resume y Reenvio de OTP SOS Venezuela (Estandar FinTech)\n- **Smart Resume (Reanudacion Inteligente)**: Si un usuario con cedula registrada pero no activada (is_verified = false) vuelve a enviar el formulario de censo, el backend regenera un nuevo OTP de 6 digitos, lo envia al correo y transiciona directamente a la tarjeta OTP con mensaje informativo.\n- **Deteccion de Cuenta Activa**: Si la cedula ya tiene cuenta activa (is_verified = true), responde 409 con already_active = true y boton directo para iniciar sesion.\n- **Endpoint de Reenvio OTP**: Se creo POST /api/public/sos-venezuela/resend-otp con rate-limiting (cooldown de 60s, maximo 5 reenvios), nuevo TTL de 15 minutos y registro de auditoria inmutable.\n- **Frontend SOS**: Integracion de boton 'Reenviar codigo' con temporizador interactivo de cuenta regresiva de 60s.\n- **Cobertura de Pruebas**: Suite de pruebas ampliada a 56 pruebas unitarias (100% pasando).\n\n\n### 2026-08-15 - Optimizaciones UI/UX Censo SOS y Manejo Profesional de Errores de Base de Datos\n- **Manejo Profesional de Errores de BD**: Se capturan violaciones de unicidad PostgreSQL (23505) y se responden con mensajes amigables al usuario (telefono/correo en uso) en lugar de exponer SQL crudo.\n- **Prevencion de Colisiones**: Limpieza automatica en pending_verifications previa al envio para evitar errores por intentos previos abandonados.\n- **Capacidad de Fotos Ampliada**: Limite de subida de fotos aumentado de 5 a 15 fotos tanto en frontend como en backend (systemRoutes, victimController y mediaController).\n- **Ajustes de Textos y Copywriting SOS**:\n  - Encabezado simplificado sin menciones redundantes a sismo ni la palabra oficial.\n  - Etiqueta de correo simplificada a 'Correo Electronico:'.\n  - 'Censo de Cargas Familiares a Cargo' cambiado a 'Familiares a Cargo'.\n  - Placeholder de descripcion ampliado para solicitar afectacion fisica propia y de familiares.\n  - Placeholder de OTP cambiado a '000000'.\n\n\n### 2026-08-15 - Correccion de Estado Inicial del Boton Enviar y Renderizado de Enlace de Inicio de Sesion\n- **Boton de Envio Reactivo**: Se corrigio el ID del boton en HTML a 'sos-submit-btn' y se mejoro la evaluacion de completitud para validar que la cedula y telefono no contengan unicamente sus prefijos iniciales, manteniendo el boton deshabilitado hasta el llenado de todos los campos y checkboxes.\n- **Renderizado Limpio de HTML de Error**: Se corrigio showError para renderizar etiquetas HTML mediante innerHTML, permitiendo que el boton de 'Iniciar Sesion' se muestre de forma visual y accesible ante solicitudes con cuentas activas previas.\n\n\n### 2026-08-15 - Boton Inteligente y Consistencia DRY segun Estado de Sesion\n- **Boton Dinamico en Banners de Error**: Se implemento logica para evaluar si el usuario ya tiene sesion activa (token en localStorage). Si ya tiene sesion, el banner muestra 'Ir a mi cuenta' llevando a profile.html. Si no tiene sesion, muestra 'Iniciar Sesion' llevando a login.html.\n- **Experiencia de Usuario Consistente**: Aplica tanto para deteccion de cedula registrada como para correos y telefonos en uso.\n
+\n\n### 2026-08-15 - Correccion de Casteo de Tipos PostgreSQL y Regla SOS Usuarios Existentes\n- **Causa del Error (could not determine data type of parameter )**: Parametros nulos en ecord_booster_event sin casteo explicito de tipo en PostgreSQL.\n- **Solucion**:\n  1. Casteo de tipos SQL explicito en eferralRewardService.js.\n  2. Exencion de bonos de referido para usuarios existentes al verificar OTP SOS en ictimController.js.\n\n\n### 2026-08-15 - Fix Critico: Parametro SQL  desalineado en UPDATE de usuario existente SOS\n- **Bug**: La query UPDATE users SET is_verified = true WHERE email =  usaba  pero solo pasaba 1 parametro [normEmail], causando error could not determine data type of parameter .\n- **Fix**: Corregido  a  en victimController.js linea 526.\n- **Diagnostico**: Agregado mensaje transparente en Demo para registerVictimPublic catch block.\n\n\n### 2026-08-15 - Fix Critico: Clasificacion de Usuario en Activacion SOS (is_verified vs password_hash)\n- **Causa Raiz**: En verifyVictimOtpPublic se comprobaba si el usuario era existente mediante la longitud de password_hash. Como el paso previo de registro (registerVictimPublic) creaba una fila en users con un hash temporal para nuevos usuarios, el sistema los clasificaba erroneamente como usuarios existentes, omitiendo la actualizacion de su contraseÃ±a definitiva y saltandose la llamada a referralRewardService.processReferralReward.\n- **Solucion Implementada**: Se cambio la clasificacion a isExistingVerifiedUser evaluando que is_verified === true. De este modo, los usuarios creados por el formulario SOS (con is_verified = false) son tratados como usuarios nuevos: se valida su contraseÃ±a elegida, se guarda encriptada, se activa su cuenta y se procesa su bono de bienvenida de 200 BLUE IOU y el aporte a la causa solidaria vinculada.\n- **Cobertura de Pruebas**: Suite de pruebas ampliada a 51 tests unitarios cubriendo los flujos completos de usuario nuevo y existente.\n\n\n### 2026-08-15 - Implementacion Smart Resume y Reenvio de OTP SOS Venezuela (Estandar FinTech)\n- **Smart Resume (Reanudacion Inteligente)**: Si un usuario con cedula registrada pero no activada (is_verified = false) vuelve a enviar el formulario de censo, el backend regenera un nuevo OTP de 6 digitos, lo envia al correo y transiciona directamente a la tarjeta OTP con mensaje informativo.\n- **Deteccion de Cuenta Activa**: Si la cedula ya tiene cuenta activa (is_verified = true), responde 409 con already_active = true y boton directo para iniciar sesion.\n- **Endpoint de Reenvio OTP**: Se creo POST /api/public/sos-venezuela/resend-otp con rate-limiting (cooldown de 60s, maximo 5 reenvios), nuevo TTL de 15 minutos y registro de auditoria inmutable.\n- **Frontend SOS**: Integracion de boton 'Reenviar codigo' con temporizador interactivo de cuenta regresiva de 60s.\n- **Cobertura de Pruebas**: Suite de pruebas ampliada a 56 pruebas unitarias (100% pasando).\n\n\n### 2026-08-15 - Optimizaciones UI/UX Censo SOS y Manejo Profesional de Errores de Base de Datos\n- **Manejo Profesional de Errores de BD**: Se capturan violaciones de unicidad PostgreSQL (23505) y se responden con mensajes amigables al usuario (telefono/correo en uso) en lugar de exponer SQL crudo.\n- **Prevencion de Colisiones**: Limpieza automatica en pending_verifications previa al envio para evitar errores por intentos previos abandonados.\n- **Capacidad de Fotos Ampliada**: Limite de subida de fotos aumentado de 5 a 15 fotos tanto en frontend como en backend (systemRoutes, victimController y mediaController).\n- **Ajustes de Textos y Copywriting SOS**:\n  - Encabezado simplificado sin menciones redundantes a sismo ni la palabra oficial.\n  - Etiqueta de correo simplificada a 'Correo Electronico:'.\n  - 'Censo de Cargas Familiares a Cargo' cambiado a 'Familiares a Cargo'.\n  - Placeholder de descripcion ampliado para solicitar afectacion fisica propia y de familiares.\n  - Placeholder de OTP cambiado a '000000'.\n\n\n### 2026-08-15 - Correccion de Estado Inicial del Boton Enviar y Renderizado de Enlace de Inicio de Sesion\n- **Boton de Envio Reactivo**: Se corrigio el ID del boton en HTML a 'sos-submit-btn' y se mejoro la evaluacion de completitud para validar que la cedula y telefono no contengan unicamente sus prefijos iniciales, manteniendo el boton deshabilitado hasta el llenado de todos los campos y checkboxes.\n- **Renderizado Limpio de HTML de Error**: Se corrigio showError para renderizar etiquetas HTML mediante innerHTML, permitiendo que el boton de 'Iniciar Sesion' se muestre de forma visual y accesible ante solicitudes con cuentas activas previas.\n\n\n### 2026-08-15 - Boton Inteligente y Consistencia DRY segun Estado de Sesion\n- **Boton Dinamico en Banners de Error**: Se implemento logica para evaluar si el usuario ya tiene sesion activa (token en localStorage). Si ya tiene sesion, el banner muestra 'Ir a mi cuenta' llevando a profile.html. Si no tiene sesion, muestra 'Iniciar Sesion' llevando a login.html.\n- **Experiencia de Usuario Consistente**: Aplica tanto para deteccion de cedula registrada como para correos y telefonos en uso.
+
+### 2026-08-17 - Sistema de Registro y Gestión Auditable de Voluntarios SOS (WintonCoin)
+- **Módulo Completo de Voluntariado SOS**: Reemplazo del CTA manual de Instagram por un **Sistema de Registro de Voluntarios** interactivo, auditable y conforme a estándares bancarios (SOC 2, Zero-Trust) y legales de Silicon Valley.
+- **Codificación Inteligente de 4 Dígitos Hierárquicos (`#VOL-VZLA-[D1][D2][D3][D4]-[SECUENCIAL]`)**:
+  - D1 = Modalidad / Ámbito de Operación (1-4: Campo/Brigada, Verificador, Profesional Salud/Legal, Remoto).
+  - D2 = Disponibilidad de Tiempo (1-4: Tiempo Completo, Parcial, Fines de Semana, Ocasional).
+  - D3 = Rango Decenal de Edad (1-9: 1 = 18-19 años, 2 = 20-29, 3 = 30-39, etc.).
+  - D4 = Sexo / Género (1 = Hombre, 2 = Mujer).
+  - Score de Prioridad de Despliegue: `(D1 * 1000) + (D2 * 100) + (D3 * 10) + D4` para ordenar candidatos por disponibilidad en 1 clic.
+- **Migración de Base de Datos 106 (`106_create_volunteers_system.js`)**:
+  - Tablas `volunteers_registry` (con arrays `volunteer_types TEXT[]` y `availability TEXT[]` en lenguaje claro) y `volunteer_activity_history` (bitácora de eventos).
+- **Controlador y Rutas Backend (`volunteerController.js` / `volunteerRoutes.js`)**:
+  - `POST /api/volunteers/register`: Validación Zero-Trust, comprobación de duplicados, Smart Resume OTP y envío de código de 6 dígitos.
+  - `POST /api/volunteers/verify-otp`: Verificación OTP, creación/activación de cuenta WintonCoin, acreditación de bono de bienvenida estándar mediante `referralRewardService` (DRY), emisión de tokens JWT e historial.
+  - `GET /api/volunteers/admin/list` & `PUT /api/volunteers/admin/:id/status`: Endpoints de administración protegidos con notificaciones automáticas al voluntario.
+- **Frontend & Panel Admin**:
+  - `sos-venezuela.html` / `sos-venezuela.js`: Formulario de 'Registro de Voluntario' con opciones comprensibles y verificación OTP.
+  - `trabaja-con-nosotros.html`: Banner reactivo al elegir 'Voluntario' para redirigir a `sos-venezuela.html#voluntariado`.
+  - `admin-recruitment.html`: Pestaña dedicada **Voluntarios SOS** con tabla interactiva, filtros por score/ubicación y acciones rápidas de activación y suspensión.
+\n
