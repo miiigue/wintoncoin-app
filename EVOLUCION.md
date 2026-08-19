@@ -14,6 +14,24 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-19 — Optimización UI/UX: Actualización de CTA a 'Registrarme' en SOS Venezuela
+* **Diagnóstico & Objetivo**:
+  - Actualizar el llamado a la acción del botón de apoyo a la campaña en `sos-venezuela.html` de `"Apoyar causa"` a `"Registrarme"`, comunicando de forma más directa y clara que este botón dirige al formulario de creación de cuenta (`register.html?ref=SOSVENEZUELA`) para asignar el bono de bienvenida de 200 BLUE IOU a la causa.
+* **Cambios Técnicos**:
+  - **Frontend (`sos-venezuela.html`)**:
+    - Modificado el texto del botón `#sos-register-ref-link` a `"Registrarme"`.
+* **Impacto**: Mayor claridad de intención para el usuario que desea registrarse con el código especial SOSVENEZUELA.
+
+### 2026-08-19 — Optimización UI/UX: Enfoque Minimalista en Hero Banner (Consolidación en Botón Principal de Acceso)
+* **Diagnóstico & Objetivo**:
+  - Simplificar la llamada a la acción principal del hero en `index.html` para reducir la sobrecarga cognitiva del usuario, promoviendo un acceso unificado mediante el botón principal "Iniciar Sesión →".
+  - Retirar el botón redundante de registro público directo en la portada, canalizando a nuevos usuarios de forma natural a través de `login.html` (enlace "¿No tienes cuenta? Regístrate"), la campaña SOS Venezuela (`sos-venezuela.html`), enlaces de referidos y la aplicación móvil Android.
+* **Cambios Técnicos**:
+  - **Frontend (`index.html`)**:
+    - Promovido el botón "Iniciar Sesión" a clase `.btn-primary` con flecha indicativa (`→`).
+    - Eliminado el botón secundario `register.html` del bloque `.cta-group`.
+* **Impacto**: Portada más limpia, moderna y con un único punto focal de alta conversión para usuarios existentes y nuevos visitantes.
+
 ### 2026-08-18 — Optimización UX/Backend: Generación de Username a 10 Caracteres y Unificación de CTA 'Soy afectado'
 * **Diagnóstico & Objetivo**:
   - Reducir el prefijo del nombre de usuario generado automáticamente de 20 a 10 caracteres para que los usernames resultantes (ej: `@carlos_482`) sean más cortos, legibles y ergonómicos en interfaces móviles y transferencias P2P.
