@@ -14,6 +14,18 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-20 — Optimización UI/UX: Rediseño Fintech Pro Compacto del Formulario de Límites de Imágenes en Contenido
+* **Diagnóstico & Objetivo**:
+  - Reemplazar el formulario de límites de fotos de publicaciones en la sección Contenido (`#publications-section`), el cual renderizaba 5 campos de texto gigantes con fondo blanco forzado (`#ffffff`) apilados verticalmente ocupando más de 500px de pantalla.
+  - Diseñar una tarjeta compacta estilo **Binance Pro** en una sola fila horizontal (`.image-limits-card` y `.admin-form-grid`), reduciendo el espacio vertical en un 80% y dejando la tabla de publicaciones visible de inmediato.
+  - Corregir los estilos globales de `.admin-input-dark` para aplicar fondos oscuros translúcidos (`rgba(15, 23, 42, 0.8)`), bordes sutiles y textos luminosos cian `#38bdf8`.
+* **Cambios Técnicos**:
+  - **Frontend Markup (`admin-panel.html`)**:
+    - Reemplazado bloque `.settings-group` por `.image-limits-card` con grid horizontal que integra los 5 inputs (`Solicitudes`, `Ventas`, `Donaciones`, `Plataforma`, `Evidencias`) y el botón `💾 Guardar` en la misma fila.
+  - **Estilos Visuales (`admin-style.css`)**:
+    - Agregadas reglas para `.image-limits-card`, `.image-limits-header`, `.admin-form-grid`, `.save-limits-btn` y saneamiento de `.admin-input-dark`.
+* **Impacto**: Interfaz 100% coherente con el Dark Theme de WintonCoin, reducción de fricción visual y máxima visibilidad para la moderación de contenido.
+
 ### 2026-08-20 — Optimización UI/UX: Columna de Fecha y Hora de Registro en Tabla de Damnificados SOS
 * **Diagnóstico & Objetivo**:
   - Incorporar la columna de **Fecha y Hora de Registro** (`created_at`) en la tabla de Damnificados SOS (`#sos-victims`) en formato compacto Fintech Pro (Opción 1: 2 líneas `DD/MM/AAAA` y `HH:mm` atenuada).
