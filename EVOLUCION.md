@@ -14,6 +14,19 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-20 — Optimización UI/UX: Columna de Fecha y Hora de Registro en Tabla de Damnificados SOS
+* **Diagnóstico & Objetivo**:
+  - Incorporar la columna de **Fecha y Hora de Registro** (`created_at`) en la tabla de Damnificados SOS (`#sos-victims`) en formato compacto Fintech Pro (Opción 1: 2 líneas `DD/MM/AAAA` y `HH:mm` atenuada).
+  - Habilitar ordenamiento interactivo bidireccional cronológico (`▲▼`) sobre la nueva columna mediante `tableSort.js` (tipo `date`) para permitir auditar y priorizar censos recientes con 0ms de latencia.
+  - Mostrar la fecha completa de registro en la ficha de detalle de cada expediente (`openSosVictimDetailModal`).
+* **Cambios Técnicos**:
+  - **Frontend (`admin-panel.js`)**:
+    - Agregado campo `created_at: 'date'` en `sosVictimsTypeMap`.
+    - Integrado encabezado ordenable `${renderSortableTh({ key: 'created_at', label: 'Fecha Reg.', ... })}` en `renderSosVictimsTable`.
+    - Formateado compacto en 2 líneas verticales para optimizar el ancho horizontal de la tabla y su responsividad móvil.
+    - Integrado campo de fecha legible en el modal de ficha del damnificado.
+* **Impacto**: Mayor trazabilidad y control cronológico en auditorías de emergencias humanitarias, reduciendo el tiempo de respuesta administrativa.
+
 ### 2026-08-20 — Optimización UI/UX & Arquitectura: Sistema Modular de Ordenamiento de Columnas Estilo Binance en Panel de Administración
 * **Diagnóstico & Objetivo**:
   - Dotar a todas las tablas del Panel de Administración (`Publicaciones / Contenido`, `Lista de Impulsores`, `Usuarios`, `Damnificados SOS`, `Compromisos Vencidos / Deudores`, etc.) de capacidades interactivas de ordenamiento de mayor a menor (`▼`) y menor a mayor (`▲`) con un solo clic sobre los encabezados de columna.

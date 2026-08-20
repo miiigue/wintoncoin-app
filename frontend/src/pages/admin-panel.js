@@ -220,7 +220,8 @@ document.addEventListener('DOMContentLoaded', () => {
         state: 'text',
         total_dependents: 'number',
         affectation_level: 'text',
-        status: 'text'
+        status: 'text',
+        created_at: 'date'
     };
 
     let debtorsCache = [];
@@ -6536,6 +6537,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${renderSortableTh({ key: 'total_dependents', label: 'Dependientes', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
                         ${renderSortableTh({ key: 'affectation_level', label: 'Afectación', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
                         ${renderSortableTh({ key: 'status', label: 'Estado', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
+                        ${renderSortableTh({ key: 'created_at', label: 'Fecha Reg.', currentSortKey: currentKey, currentDirection: currentDir, type: 'date', title: 'Ordenar por fecha y hora de registro' })}
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -6561,6 +6563,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const totalDependents = v.total_dependents ?? ((parseInt(v.dependents_minors) || 0) + (parseInt(v.dependents_elderly) || 0) + (parseInt(v.dependents_disabled) || 0));
 
+            // Formato compacto de fecha y hora en 2 líneas (Fintech Pro - Opción 1)
+            let formattedDate = '-';
+            let formattedTime = '';
+            if (v.created_at) {
+                const dateObj = new Date(v.created_at);
+                if (!isNaN(dateObj.getTime())) {
+                    const day = String(dateObj.getDate()).padStart(2, '0');
+                    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    const year = dateObj.getFullYear();
+                    const hours = String(dateObj.getHours()).padStart(2, '0');
+                    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+                    formattedDate = `${day}/${month}/${year}`;
+                    formattedTime = `${hours}:${minutes}`;
+                }
+            }
+
             const isApproved = v.status === 'approved_for_aid';
             const disabledAttr = isApproved ? '' : 'disabled';
             const disabledStyle = isApproved ? '' : 'opacity: 0.5; cursor: not-allowed; pointer-events: none;';
@@ -6575,6 +6593,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td><strong>${totalDependents}</strong> (👨‍👩‍👧 ${v.dependents_minors} | 👴 ${v.dependents_elderly} | ♿ ${v.dependents_disabled})</td>
                     <td>${affectationLabels[v.affectation_level] || v.affectation_level}</td>
                     <td>${statusBadges[v.status] || v.status}</td>
+                    <td style="white-space: nowrap; font-size: 0.85rem;">
+                        <div style="font-weight: 500; color: #f8fafc;">${formattedDate}</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 1px;">${formattedTime}</div>
+                    </td>
                     <td>
                         <button type="button" class="action-button-admin view-sos-victim-btn" data-id="${v.id}" style="padding: 4px 10px; font-size: 0.85rem; margin-right: 4px;">🔎 Ver Ficha</button>
                         <button type="button" class="action-button-admin publish disburse-sos-victim-btn" data-id="${v.id}" data-dossier="${escapeHtml(v.dossier_number)}" ${disabledAttr} style="padding: 4px 10px; font-size: 0.85rem; ${disabledStyle}">💸 Asignar Ayuda</button>
@@ -6688,6 +6710,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div><strong>¿Cabeza de Familia?:</strong> ${v.is_head_of_family ? 'Sí' : 'No'}</div>
                     <div><strong>Correo:</strong> ${escapeHtml(v.email)}</div>
                     <div><strong>Teléfono:</strong> ${escapeHtml(v.phone_number)}</div>
+                    <div><strong>Fecha Registro:</strong> <span style="color: #38bdf8;">${v.created_at ? new Date(v.created_at).toLocaleString('es-ES') : 'N/A'}</span></div>
                     <div><strong>Puntaje Urgencia:</strong> <span style="background: rgba(236,72,153,0.2); color: #ec4899; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-family: monospace;">${v.urgency_score || 'N/A'}</span></div>
                 </div>
 
