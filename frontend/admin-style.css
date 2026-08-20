@@ -715,12 +715,12 @@ input:checked+.slider:before {
 .form-group-admin select.admin-input-dark,
 .admin-input-dark {
     width: 100%;
-    padding: 14px 18px;
+    padding: 10px 14px;
     border-radius: 8px;
-    background-color: #ffffff !important;
-    border: 2px solid var(--admin-border) !important;
-    color: #111111 !important;
-    font-size: 1.1rem !important;
+    background-color: rgba(15, 23, 42, 0.8) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #f8fafc !important;
+    font-size: 1rem !important;
     box-sizing: border-box;
     transition: all 0.2s ease;
 }
@@ -729,16 +729,125 @@ input:checked+.slider:before {
 .form-group-admin textarea.admin-input-dark:focus,
 .form-group-admin select.admin-input-dark:focus,
 .admin-input-dark:focus {
-    border-color: var(--admin-primary) !important;
-    box-shadow: 0 0 0 3px rgba(106, 90, 205, 0.3) !important;
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25) !important;
+    background-color: rgba(15, 23, 42, 0.95) !important;
     outline: none;
 }
 
 .form-group-admin input.admin-input-dark::placeholder,
 .form-group-admin textarea.admin-input-dark::placeholder,
 .admin-input-dark::placeholder {
-    color: #667085 !important;
-    opacity: 0.8;
+    color: #94a3b8 !important;
+    opacity: 0.7;
+}
+
+/* --- Card de Configuración de Límites de Imágenes (Fintech Pro - Compacto) --- */
+.image-limits-card {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(8px);
+}
+
+.image-limits-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.image-limits-header h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #f8fafc;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.image-limits-header .section-description {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin: 0;
+}
+
+.admin-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+    align-items: end;
+}
+
+.admin-form-grid .form-group-admin {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.admin-form-grid .form-group-admin label {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #94a3b8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admin-form-grid .form-group-admin input[type="number"] {
+    text-align: center;
+    font-size: 1.15rem !important;
+    font-weight: 700;
+    color: #38bdf8 !important;
+    padding: 7px 10px !important;
+    height: 38px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.4) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+.admin-form-grid .form-group-admin input[type="number"]:focus {
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.3) !important;
+}
+
+.admin-form-grid .form-action-group {
+    display: flex;
+    align-items: flex-end;
+}
+
+.admin-form-grid .save-limits-btn {
+    height: 38px;
+    width: 100%;
+    background: linear-gradient(135deg, #2563eb, #4f46e5);
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.85rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.admin-form-grid .save-limits-btn:hover {
+    background: linear-gradient(135deg, #1d4ed8, #4338ca);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.45);
+}
+
+.admin-form-grid .save-limits-btn:active {
+    transform: translateY(0);
 }
 
 .admin-text-input,

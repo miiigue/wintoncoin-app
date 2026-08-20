@@ -203,20 +203,20 @@
                 <h1>Contenido</h1>
                 <p>Modera las publicaciones de la plataforma.</p>
 
-                <!-- === LÍMITES DE IMÁGENES === -->
-                <div class="settings-group" style="margin-top: 20px;">
-                    <div class="settings-header">
-                        <h2>Límites de Imágenes por Tipo de Publicación</h2>
-                        <p class="section-description">Define la cantidad máxima de fotos permitidas para cada caso.</p>
+                <!-- === LÍMITES DE IMÁGENES (Fintech Pro Compact Grid) === -->
+                <div class="image-limits-card">
+                    <div class="image-limits-header">
+                        <h2><span>📷</span> Límites de Fotos por Publicación</h2>
+                        <p class="section-description">Define la cantidad máxima de fotos permitidas para cada tipo</p>
                     </div>
                     <form id="imageLimitsForm" class="admin-form">
-                        <div class="admin-form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                        <div class="admin-form-grid">
                             <div class="form-group-admin">
-                                <label for="maxImagesRequest">Solicitudes (Request)</label>
+                                <label for="maxImagesRequest">Solicitudes</label>
                                 <input type="number" id="maxImagesRequest" name="maxImagesRequest" class="admin-input-dark" min="0" value="1">
                             </div>
                             <div class="form-group-admin">
-                                <label for="maxImagesSell">Ventas (Sell)</label>
+                                <label for="maxImagesSell">Ventas</label>
                                 <input type="number" id="maxImagesSell" name="maxImagesSell" class="admin-input-dark" min="0" value="2">
                             </div>
                             <div class="form-group-admin">
@@ -231,8 +231,10 @@
                                 <label for="maxImagesEvidence">Evidencias</label>
                                 <input type="number" id="maxImagesEvidence" name="maxImagesEvidence" class="admin-input-dark" min="0" value="2">
                             </div>
+                            <div class="form-group-admin form-action-group">
+                                <button type="submit" class="save-limits-btn">💾 Guardar</button>
+                            </div>
                         </div>
-                        <button type="submit" class="action-button-admin" style="margin-top:15px; width:100%;">Guardar Límites</button>
                     </form>
                 </div>
                 <!-- ============================ -->
