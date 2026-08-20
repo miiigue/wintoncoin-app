@@ -180,6 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let usersSortState = { key: 'created_at', direction: 'desc' };
     const usersTypeMap = {
         username: 'text',
+        sos_dossier: 'text',
         web3_wallet_address: 'text',
         liquid_blue_balance: 'number',
         escrow_blue_balance: 'number',
@@ -3863,14 +3864,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 <thead>
                     <tr>
                         ${renderSortableTh({ key: 'username', label: 'Usuario', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
+                        ${renderSortableTh({ key: 'sos_dossier', label: 'Exp. SOS/VOL', currentSortKey: currentKey, currentDirection: currentDir, type: 'text', align: 'center' })}
                         ${renderSortableTh({ key: 'web3_wallet_address', label: 'Billetera Web3', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
-                        ${renderSortableTh({ key: 'liquid_blue_balance', label: 'Saldo BLUE (Disponible)', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
-                        ${renderSortableTh({ key: 'escrow_blue_balance', label: 'Saldo BLUE (Pendientes)', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
-                        ${renderSortableTh({ key: 'booster_blue_balance', label: 'BLUE de Impulsor (IOU)', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
-                        ${renderSortableTh({ key: 'red_balance', label: 'Saldo RED', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
+                        ${renderSortableTh({ key: 'liquid_blue_balance', label: 'BLUE (Disponible)', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
+                        ${renderSortableTh({ key: 'escrow_blue_balance', label: 'BLUE (Pendiente)', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
+                        ${renderSortableTh({ key: 'booster_blue_balance', label: 'BLUE IOU', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
+                        ${renderSortableTh({ key: 'red_balance', label: 'RED', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
                         ${renderSortableTh({ key: 'average_rating', label: 'Calificación', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
                         ${renderSortableTh({ key: 'status', label: 'Estado', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
-                        ${renderSortableTh({ key: 'created_at', label: 'Fecha de Registro', currentSortKey: currentKey, currentDirection: currentDir, type: 'date' })}
+                        ${renderSortableTh({ key: 'created_at', label: 'Fecha Reg.', currentSortKey: currentKey, currentDirection: currentDir, type: 'date' })}
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -3907,10 +3909,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getUserRowHTML(user) {
-        const registrationDate = new Date(user.created_at).toLocaleDateString('es-ES', {
-            year: 'numeric', month: 'long', day: 'numeric'
-        });
+        // Formato Fintech Pro en 2 líneas: Fecha corta y Hora atenuada
+        let dateFormatted = '-';
+        let timeFormatted = '';
+        if (user.created_at) {
+            const d = new Date(user.created_at);
+            if (!isNaN(d.getTime())) {
+                dateFormatted = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                timeFormatted = d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+            }
+        }
         const ratingHTML = generateStarRating(user.average_rating, user.ratings_count);
+
+        // Renderizar expedientes SOS / Voluntario
+        let dossiersHTML = '<span style="color: #64748b; font-size: 0.8rem;">-</span>';
+        const dossiersList = [];
+        if (user.sos_dossier) {
+            dossiersList.push(`<span style="color: #f43f5e; font-weight: 600; font-family: monospace; font-size: 0.72rem; background: rgba(244,63,94,0.12); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(244,63,94,0.25); white-space: nowrap;" title="Expediente Damnificado SOS">🆘 ${escapeHtml(user.sos_dossier)}</span>`);
+        }
+        if (user.vol_dossier) {
+            dossiersList.push(`<span style="color: #38bdf8; font-weight: 600; font-family: monospace; font-size: 0.72rem; background: rgba(56,189,248,0.12); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(56,189,248,0.25); white-space: nowrap;" title="Expediente Voluntario">🤝 ${escapeHtml(user.vol_dossier)}</span>`);
+        }
+        if (dossiersList.length > 0) {
+            dossiersHTML = `<div style="display: flex; flex-direction: column; gap: 4px; align-items: center;">${dossiersList.join('')}</div>`;
+        }
 
         let walletHTML = '<span style="color: #888;">Sin billetera</span>';
         if (user.web3_wallet_address) {
@@ -3934,6 +3956,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="username-cell">
                     <a href="profile.html?user=${escapeHtml(user.username)}" target="_blank">${escapeHtml(user.username)}</a>
                 </td>
+                <td align="center">${dossiersHTML}</td>
                 <td>${walletHTML}</td>
                 <td class="saldo-blue-text">${formatBalance(user.liquid_blue_balance)}</td>
                 <td class="saldo-escrow-text">${formatBalance(user.escrow_blue_balance)}</td>
@@ -3941,7 +3964,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="saldo-red-text">${formatBalance(user.red_balance)}</td>
                 <td>${ratingHTML}</td>
                 <td><span class="status-badge ${escapeHtml(user.status)}">${escapeHtml(user.status)}</span></td>
-                <td>${registrationDate}</td>
+                <td style="white-space: nowrap; font-size: 0.85rem;">
+                    <div style="font-weight: 500; color: #f8fafc;">${dateFormatted}</div>
+                    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 1px;">${timeFormatted}</div>
+                </td>
                 <td class="actions-cell">
                     <div class="action-menu-container">
                         <button class="action-button-admin menu-toggle">Acciones</button>

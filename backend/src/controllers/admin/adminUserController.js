@@ -30,7 +30,9 @@ async function getUsers(req, res) {
                 u.id, u.username, u.liquid_blue_balance, u.escrow_blue_balance,
                 u.red_balance, u.account_status as status, u.average_rating,
                 u.ratings_count, u.created_at, u.referral_code, u.web3_wallet_address,
-                COALESCE(SUM(bbl.amount), 0) as booster_blue_balance
+                COALESCE(SUM(bbl.amount), 0) as booster_blue_balance,
+                (SELECT string_agg(dvr.dossier_number, ', ') FROM disaster_victims_registry dvr WHERE dvr.user_id = u.id) as sos_dossier,
+                (SELECT string_agg(vr.dossier_number, ', ') FROM volunteers_registry vr WHERE vr.user_id = u.id) as vol_dossier
             FROM users u
             LEFT JOIN booster_blue_ledger bbl ON u.id = bbl.user_id
             WHERE u.username ILIKE $1`;
