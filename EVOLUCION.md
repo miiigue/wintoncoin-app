@@ -14,6 +14,20 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-20 — Optimización UI/UX & Auditoría: Expedientes SOS/VOL, Fecha/Hora Compacta y Nombres Abreviados en Tabla de Usuarios
+* **Diagnóstico & Objetivo**:
+  - Enriquecer la tabla administrativa de Usuarios (`#users-section`) para correlacionar en tiempo real a los usuarios con sus expedientes de emergencia como damnificados (`disaster_victims_registry`) o voluntarios (`volunteers_registry`).
+  - Optimizar el espacio horizontal y la legibilidad eliminando redundancias en los encabezados (`Saldo BLUE (Disponible)` -> `BLUE (Disponible)`, `Saldo BLUE (Pendientes)` -> `BLUE (Pendiente)`, `BLUE de Impulsor (IOU)` -> `BLUE IOU`, `Saldo RED` -> `RED`).
+  - Estandarizar la columna **Fecha Reg.** al formato compacto Fintech Pro de 2 líneas (`DD/MM/AAAA` arriba y `HH:mm` atenuada abajo) con ordenamiento bidireccional instantáneo.
+* **Cambios Técnicos**:
+  - **Backend (`adminUserController.js`)**:
+    - Incorporadas subconsultas `sos_dossier` y `vol_dossier` en la función `getUsers` vinculando `disaster_victims_registry` y `volunteers_registry` por `user_id`.
+  - **Frontend (`admin-panel.js`)**:
+    - Agregada columna ordenable `Exp. SOS/VOL` que renderiza badges distintivos (`🆘 #SOS-VZLA-...` y/o `🤝 #VOL-VZLA-...`) apilados verticalmente si el usuario tiene ambos roles.
+    - Actualizados los encabezados de balances monetarios para mayor compacidad y claridad visual.
+    - Implementado formateo de 2 líneas para `created_at` con integración al motor de ordenamiento in-memory Binance (`tableSort.js`).
+* **Impacto**: Mayor trazabilidad y velocidad en la auditoría y atención de usuarios en contingencias humanitarias, reduciendo el scroll horizontal y mejorando la experiencia operativa.
+
 ### 2026-08-20 — Optimización UI/UX: Rediseño Fintech Pro Compacto del Formulario de Límites de Imágenes en Contenido
 * **Diagnóstico & Objetivo**:
   - Reemplazar el formulario de límites de fotos de publicaciones en la sección Contenido (`#publications-section`), el cual renderizaba 5 campos de texto gigantes con fondo blanco forzado (`#ffffff`) apilados verticalmente ocupando más de 500px de pantalla.
