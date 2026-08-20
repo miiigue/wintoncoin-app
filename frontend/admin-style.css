@@ -400,6 +400,85 @@ input:checked+.slider:before {
     letter-spacing: 0.5px;
 }
 
+/* --- ESTILOS DE ORDENAMIENTO DE TABLAS ESTILO BINANCE PRO --- */
+.admin-table thead th.sortable-th {
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.admin-table thead th.sortable-th:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #f8fafc;
+}
+
+.admin-table thead th.sortable-th:focus-visible {
+    outline: 2px solid var(--admin-primary, #38bdf8);
+    outline-offset: -2px;
+}
+
+.admin-table thead th.sortable-th.active-sort {
+    color: #f8fafc;
+    background-color: rgba(56, 189, 248, 0.05);
+    border-bottom: 2px solid #38bdf8;
+}
+
+.th-sort-wrapper {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-height: 18px;
+}
+
+.th-sort-wrapper.justify-center {
+    justify-content: center;
+}
+
+.th-sort-wrapper.justify-end {
+    justify-content: flex-end;
+}
+
+.th-sort-wrapper.justify-start {
+    justify-content: flex-start;
+}
+
+.th-label {
+    display: inline-block;
+    white-space: nowrap;
+}
+
+.sort-arrows {
+    display: inline-flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 1px;
+    width: 10px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+.sort-arrow {
+    display: block;
+    color: #64748b;
+    opacity: 0.35;
+    transition: color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
+}
+
+.admin-table thead th.sortable-th:hover .sort-arrow {
+    opacity: 0.65;
+    color: #94a3b8;
+}
+
+.sort-arrow.active {
+    color: #38bdf8 !important; /* Azul Winton / Cyan Binance */
+    opacity: 1 !important;
+    filter: drop-shadow(0 0 3px rgba(56, 189, 248, 0.6));
+    transform: scale(1.15);
+}
+
 .admin-table tbody tr:last-child td {
     border-bottom: none;
 }

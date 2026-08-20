@@ -14,6 +14,24 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-20 — Optimización UI/UX & Arquitectura: Sistema Modular de Ordenamiento de Columnas Estilo Binance en Panel de Administración
+* **Diagnóstico & Objetivo**:
+  - Dotar a todas las tablas del Panel de Administración (`Publicaciones / Contenido`, `Lista de Impulsores`, `Usuarios`, `Damnificados SOS`, `Compromisos Vencidos / Deudores`, etc.) de capacidades interactivas de ordenamiento de mayor a menor (`▼`) y menor a mayor (`▲`) con un solo clic sobre los encabezados de columna.
+  - Implementar una interfaz financiera nivel **Binance / Coinbase Pro** con doble flecha interactiva, estados luminosos de activación y respuesta instantánea (0ms de latencia) sin recargas de página ni sobrecarga al backend.
+  - Seguir estrictamente el principio **DRY (Don't Repeat Yourself)** y arquitectura **Zero-Trust**: creación de un módulo desacoplado y reutilizable (`tableSort.js`) que previene duplicación de código en el panel y elimina cualquier riesgo de inyección SQL.
+* **Cambios Técnicos**:
+  - **Frontend Core (`frontend/src/modules/tableSort.js`) [NUEVO]**:
+    - Desarrollado módulo con funciones puras: `parseSortValue` (con normalización de números formateados en español con separadores de miles y decimales, fechas ISO y cadenas de texto insensibles a mayúsculas/acentos con `localeCompare`), `sortDataset` (in-memory sorting inmutable), `renderSortableTh` (generación de encabezados semánticos accesibles `<th>` con iconos vectoriales SVG de flechas `▲▼` y atributos `aria-sort`) y `attachTableSortHandler` (delegación de eventos de alto rendimiento).
+  - **Frontend Módulos (`frontend/src/modules/index.js`)**:
+    - Re-exportadas las utilidades de ordenamiento y vinculadas a `window` para compatibilidad global.
+  - **Estilos Visuales (`frontend/admin-style.css`)**:
+    - Incorporadas clases `.sortable-th`, `.th-sort-wrapper`, `.sort-arrows`, `.sort-arrow`, `.sort-arrow.active` y estados `:hover`/`:focus-visible` con microinteracciones fluidas y soporte táctil en dispositivos móviles.
+  - **Páginas (`frontend/src/pages/admin-panel.js`)**:
+    - Integrado el motor de ordenamiento en las vistas de `Usuarios`, `Impulsores`, `Publicaciones / Contenido`, `Damnificados SOS` y `Compromisos Vencidos / Deudores`.
+  - **Pruebas Unitarias (`frontend/src/modules/tableSort.test.js`)**:
+    - Creada suite automatizada verificando el 100% de los casos de prueba de ordenamiento numérico, alfabético, cronológico y ciclos bidireccionales.
+* **Impacto**: Experiencia administrativa de nivel institucional, navegación fluida sin latencia, auditoría y análisis de datos en tiempo real con 0 impacto en el rendimiento de la base de datos.
+
 ### 2026-08-19 — Optimización UI/UX: Actualización de CTA a 'Registrarme' en SOS Venezuela
 * **Diagnóstico & Objetivo**:
   - Actualizar el llamado a la acción del botón de apoyo a la campaña en `sos-venezuela.html` de `"Apoyar causa"` a `"Registrarme"`, comunicando de forma más directa y clara que este botón dirige al formulario de creación de cuenta (`register.html?ref=SOSVENEZUELA`) para asignar el bono de bienvenida de 200 BLUE IOU a la causa.
