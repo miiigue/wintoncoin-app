@@ -10,11 +10,34 @@
 
 'use strict';
 
+const mockClient = {
+    query: jest.fn(),
+    release: jest.fn()
+};
+
+jest.mock('../src/config/db', () => ({
+    query: jest.fn(),
+    connect: jest.fn().mockResolvedValue(mockClient),
+    on: jest.fn()
+}));
+
 const victimController = require('../src/controllers/victimController');
 
 describe('Suite de Pruebas: Desembolsos de Ayuda Humanitaria SOS Venezuela', () => {
 
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockClient.query.mockReset();
+        mockClient.release.mockReset();
+    });
+
     test('disburseVictimAidAdmin debe devolver 404 cuando el expediente SOS no existe', async () => {
+        // Simular inicio de transacción y consulta sin resultados
+        mockClient.query
+            .mockResolvedValueOnce({ rows: [] }) // BEGIN
+            .mockResolvedValueOnce({ rows: [] }) // SELECT * FROM disaster_victims_registry WHERE id = $1
+            .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
+
         const req = { 
             user: { id: 1, role: 'admin' }, 
             params: { id: '999999' },

@@ -4,7 +4,15 @@
  * RESTORED: Full functionality from v1.5.0
  */
 
-import { getApiUrl, showCustomAlert, showCustomConfirm } from '../modules/index.js';
+import { 
+    getApiUrl, 
+    showCustomAlert, 
+    showCustomConfirm,
+    renderSortableTh,
+    sortDataset,
+    getNextSortDirection,
+    attachTableSortHandler
+} from '../modules/index.js';
 
 // Re-export for backward compatibility
 window.getApiUrl = getApiUrl;
@@ -166,6 +174,63 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- NUEVO: Variables de Estado del Programa de Impulsores (Booster level filter) ---
     let activeBoosterLevelFilter = null;
     let boosterListCache = [];
+
+    // --- VARIABLES DE ESTADO Y MAPAS DE TIPOS PARA ORDENAMIENTO ESTILO BINANCE ---
+    let usersCache = [];
+    let usersSortState = { key: 'created_at', direction: 'desc' };
+    const usersTypeMap = {
+        username: 'text',
+        web3_wallet_address: 'text',
+        liquid_blue_balance: 'number',
+        escrow_blue_balance: 'number',
+        booster_blue_balance: 'number',
+        red_balance: 'number',
+        average_rating: 'number',
+        status: 'text',
+        created_at: 'date'
+    };
+
+    let boostersSortState = { key: 'total_booster_blue', direction: 'desc' };
+    const boostersTypeMap = {
+        username: 'text',
+        booster_level: 'number',
+        kyc_verified: 'boolean',
+        total_booster_blue: 'number'
+    };
+
+    let publicationsCache = [];
+    let publicationsSortState = { key: 'created_at', direction: 'desc' };
+    const publicationsTypeMap = {
+        title: 'text',
+        author_username: 'text',
+        is_sell_post: 'text',
+        blue_cost: 'number',
+        participants_count: 'number',
+        status: 'text',
+        created_at: 'date'
+    };
+
+    let sosVictimsCache = [];
+    let sosVictimsSortState = { key: 'dossier_number', direction: 'desc' };
+    const sosVictimsTypeMap = {
+        dossier_number: 'text',
+        full_name: 'text',
+        id_document: 'text',
+        phone_number: 'text',
+        state: 'text',
+        total_dependents: 'number',
+        affectation_level: 'text',
+        status: 'text',
+        created_at: 'date'
+    };
+
+    let debtorsCache = [];
+    let debtorsSortState = { key: 'total_penalized_debt', direction: 'desc' };
+    const debtorsTypeMap = {
+        username: 'text',
+        total_penalized_debt: 'number',
+        penalized_debts_count: 'number'
+    };
 
     // --- NUEVO: Estado Legal para Admin (Simplificado para gestión) ---
     let legalStatus = { requires_terms_acceptance: false };
@@ -900,7 +965,8 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.usersTableContainer.innerHTML = '<div class="loading-spinner"></div>';
         try {
             const users = await apiFetch(`/api/admin/users?search=${encodeURIComponent(searchTerm)}&status=${encodeURIComponent(statusFilter)}`);
-            renderUsersTable(users);
+            usersCache = Array.isArray(users) ? users : [];
+            renderUsersTable(usersCache);
         } catch (error) {
             elements.usersTableContainer.innerHTML = `<p class="error-message">Error al cargar los usuarios: ${escapeHtml(error.message)}</p>`;
         }
@@ -911,7 +977,8 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.debtorsTableContainer.innerHTML = '<div class="loading-spinner"></div>';
         try {
             const debtors = await apiFetch(`/api/admin/debtors`);
-            renderDebtorsTable(debtors);
+            debtorsCache = Array.isArray(debtors) ? debtors : [];
+            renderDebtorsTable(debtorsCache);
         } catch (error) {
             elements.debtorsTableContainer.innerHTML = `<p class="error-message">Error al cargar los compromisos vencidos: ${escapeHtml(error.message)}</p>`;
         }
@@ -922,7 +989,8 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.publicationsTableContainer.innerHTML = '<div class="loading-spinner"></div>';
         try {
             const publications = await apiFetch(`/api/admin/publications?search=${encodeURIComponent(searchTerm)}&filter=${encodeURIComponent(filter)}`);
-            renderPublicationsTable(publications);
+            publicationsCache = Array.isArray(publications) ? publications : [];
+            renderPublicationsTable(publicationsCache);
         } catch (error) {
             elements.publicationsTableContainer.innerHTML = `<p class="error-message">Error al cargar las publicaciones: ${escapeHtml(error.message)}</p>`;
         }
@@ -2229,18 +2297,24 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Ordenar en memoria con alta eficiencia (0ms de latencia)
+        const sortedBoosters = sortDataset(filteredBoosters, boostersSortState.key, boostersSortState.direction, boostersTypeMap);
+
+        const currentKey = boostersSortState.key;
+        const currentDir = boostersSortState.direction;
+
         const tableHTML = `
             <table class="admin-table">
                 <thead>
                     <tr>
-                        <th>Usuario</th>
-                        <th>Nivel de Impulsor</th>
-                        <th style="text-align: center;">Estado KYC</th>
-                        <th>Total BLUE de Impulsor</th>
+                        ${renderSortableTh({ key: 'username', label: 'Usuario', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
+                        ${renderSortableTh({ key: 'booster_level', label: 'Nivel de Impulsor', currentSortKey: currentKey, currentDirection: currentDir, type: 'number', align: 'center' })}
+                        ${renderSortableTh({ key: 'kyc_verified', label: 'Estado KYC', currentSortKey: currentKey, currentDirection: currentDir, type: 'boolean', align: 'center' })}
+                        ${renderSortableTh({ key: 'total_booster_blue', label: 'Total BLUE de Impulsor', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
                     </tr>
                 </thead>
                 <tbody>
-                    ${filteredBoosters.map(booster => `
+                    ${sortedBoosters.map(booster => `
                         <tr>
                             <td class="username-cell">
                                 <a href="profile.html?user=${escapeHtml(booster.username)}" target="_blank">${escapeHtml(booster.username)}</a>
@@ -2258,6 +2332,13 @@ document.addEventListener('DOMContentLoaded', () => {
             </table>
         `;
         elements.boostersListContainer.innerHTML = tableHTML;
+
+        // Delegación de eventos de ordenamiento para la tabla de impulsores
+        attachTableSortHandler(elements.boostersListContainer, (sortKey, sortType) => {
+            boostersSortState.direction = getNextSortDirection(boostersSortState.key, sortKey, boostersSortState.direction, sortType);
+            boostersSortState.key = sortKey;
+            renderBoosterList(boosterListCache);
+        });
     }
 
     function renderBoosterPayments(payments) {
@@ -2874,21 +2955,34 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Ordenamiento en memoria de alto rendimiento (0ms de latencia)
+        const sortedDebtors = sortDataset(debtors, debtorsSortState.key, debtorsSortState.direction, debtorsTypeMap);
+
+        const currentKey = debtorsSortState.key;
+        const currentDir = debtorsSortState.direction;
+
         const tableHTML = `
             <table class="admin-table">
                 <thead>
                     <tr>
-                        <th>Usuario</th>
-                        <th>Compromiso Vencido Total (RED)</th>
-                        <th>Nº de Compromisos Vencidos</th>
+                        ${renderSortableTh({ key: 'username', label: 'Usuario', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
+                        ${renderSortableTh({ key: 'total_penalized_debt', label: 'Compromiso Vencido Total (RED)', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
+                        ${renderSortableTh({ key: 'penalized_debts_count', label: 'Nº de Compromisos Vencidos', currentSortKey: currentKey, currentDirection: currentDir, type: 'number', align: 'center' })}
                     </tr>
                 </thead>
                 <tbody>
-                    ${debtors.map(debtor => getDebtorRowHTML(debtor)).join('')}
+                    ${sortedDebtors.map(debtor => getDebtorRowHTML(debtor)).join('')}
                 </tbody>
             </table>
         `;
         elements.debtorsTableContainer.innerHTML = tableHTML;
+
+        // Delegación de eventos de ordenamiento para la tabla de compromisos vencidos
+        attachTableSortHandler(elements.debtorsTableContainer, (sortKey, sortType) => {
+            debtorsSortState.direction = getNextSortDirection(debtorsSortState.key, sortKey, debtorsSortState.direction, sortType);
+            debtorsSortState.key = sortKey;
+            renderDebtorsTable(debtorsCache);
+        });
     }
 
     function renderAuditLogTable(result) {
@@ -3753,37 +3847,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderUsersTable(users) {
         if (!elements.usersTableContainer) return;
-        if (users.length === 0) {
+        if (!users || users.length === 0) {
             elements.usersTableContainer.innerHTML = '<p class="empty-message">No se encontraron usuarios.</p>';
             return;
         }
+
+        // Ordenamiento en memoria de alto rendimiento (0ms de latencia)
+        const sortedUsers = sortDataset(users, usersSortState.key, usersSortState.direction, usersTypeMap);
+
+        const currentKey = usersSortState.key;
+        const currentDir = usersSortState.direction;
 
         const tableHTML = `
             <table class="admin-table">
                 <thead>
                     <tr>
-                        <th>Usuario</th>
-                        <th>Billetera Web3</th>
-                        <th>Saldo BLUE (Disponible)</th>
-                        <th>Saldo BLUE (Pendientes)</th>
-                        <th>BLUE de Impulsor (IOU)</th>
-                        <th>Saldo RED</th>
-                        <th>Calificación</th>
-                        <th>Estado</th>
-                        <th>Fecha de Registro</th>
+                        ${renderSortableTh({ key: 'username', label: 'Usuario', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
+                        ${renderSortableTh({ key: 'web3_wallet_address', label: 'Billetera Web3', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
+                        ${renderSortableTh({ key: 'liquid_blue_balance', label: 'Saldo BLUE (Disponible)', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
+                        ${renderSortableTh({ key: 'escrow_blue_balance', label: 'Saldo BLUE (Pendientes)', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
+                        ${renderSortableTh({ key: 'booster_blue_balance', label: 'BLUE de Impulsor (IOU)', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
+                        ${renderSortableTh({ key: 'red_balance', label: 'Saldo RED', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
+                        ${renderSortableTh({ key: 'average_rating', label: 'Calificación', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
+                        ${renderSortableTh({ key: 'status', label: 'Estado', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
+                        ${renderSortableTh({ key: 'created_at', label: 'Fecha de Registro', currentSortKey: currentKey, currentDirection: currentDir, type: 'date' })}
                         <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${users.map(user => getUserRowHTML(user)).join('')}
+                    ${sortedUsers.map(user => getUserRowHTML(user)).join('')}
                 </tbody>
             </table>
         `;
         elements.usersTableContainer.innerHTML = tableHTML;
 
+        // Delegación de eventos de ordenamiento para la tabla de usuarios
+        attachTableSortHandler(elements.usersTableContainer, (sortKey, sortType) => {
+            usersSortState.direction = getNextSortDirection(usersSortState.key, sortKey, usersSortState.direction, sortType);
+            usersSortState.key = sortKey;
+            renderUsersTable(usersCache);
+        });
+
         // Funcionalidad de copiar al portapapeles para la billetera Web3
         elements.usersTableContainer.querySelectorAll('.copy-wallet-btn-admin').forEach(btn => {
-            btn.addEventListener('click', function() {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
                 const fullAddress = this.dataset.address;
                 copyTextToClipboard(fullAddress).then(() => {
                     const originalHTML = this.innerHTML;
@@ -3975,31 +4083,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderPublicationsTable(publications) {
         if (!elements.publicationsTableContainer) return;
-        if (publications.length === 0) {
+        if (!publications || publications.length === 0) {
             elements.publicationsTableContainer.innerHTML = '<p class="empty-message">No se encontraron publicaciones con ese criterio.</p>';
             return;
         }
+
+        // Ordenamiento en memoria de alto rendimiento (0ms de latencia)
+        const sortedPublications = sortDataset(publications, publicationsSortState.key, publicationsSortState.direction, publicationsTypeMap);
+
+        const currentKey = publicationsSortState.key;
+        const currentDir = publicationsSortState.direction;
 
         const tableHTML = `
             <table class="admin-table">
                 <thead>
                     <tr>
-                        <th>Título</th>
-                        <th>Autor</th>
-                        <th>Tipo</th>
-                        <th>Valor (BLUE)</th>
-                        <th>Participantes</th>
-                        <th>Estado</th>
-                        <th>Fecha Creación</th>
+                        ${renderSortableTh({ key: 'title', label: 'Título', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
+                        ${renderSortableTh({ key: 'author_username', label: 'Autor', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
+                        ${renderSortableTh({ key: 'is_sell_post', label: 'Tipo', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
+                        ${renderSortableTh({ key: 'blue_cost', label: 'Valor (BLUE)', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
+                        ${renderSortableTh({ key: 'participants_count', label: 'Participantes', currentSortKey: currentKey, currentDirection: currentDir, type: 'number', align: 'center' })}
+                        ${renderSortableTh({ key: 'status', label: 'Estado', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
+                        ${renderSortableTh({ key: 'created_at', label: 'Fecha Creación', currentSortKey: currentKey, currentDirection: currentDir, type: 'date' })}
                         <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${publications.map(pub => getPublicationRowHTML(pub)).join('')}
+                    ${sortedPublications.map(pub => getPublicationRowHTML(pub)).join('')}
                 </tbody>
             </table>
         `;
         elements.publicationsTableContainer.innerHTML = tableHTML;
+
+        // Delegación de eventos de ordenamiento para la tabla de publicaciones
+        attachTableSortHandler(elements.publicationsTableContainer, (sortKey, sortType) => {
+            publicationsSortState.direction = getNextSortDirection(publicationsSortState.key, sortKey, publicationsSortState.direction, sortType);
+            publicationsSortState.key = sortKey;
+            renderPublicationsTable(publicationsCache);
+        });
     }
 
     function getPublicationRowHTML(pub) {
@@ -6376,9 +6497,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const data = await apiFetch(`/api/admin/sos-venezuela/victims?status=${encodeURIComponent(status)}&search=${encodeURIComponent(search)}`);
-            renderSosVictimsTable(data.victims || []);
+            sosVictimsCache = (data.victims || []).map(v => ({
+                ...v,
+                total_dependents: (parseInt(v.dependents_minors) || 0) + (parseInt(v.dependents_elderly) || 0) + (parseInt(v.dependents_disabled) || 0)
+            }));
+            renderSosVictimsTable(sosVictimsCache);
             if (elements.sosVictimsBadge) {
-                const pendingCount = (data.victims || []).filter(v => v.status === 'pending_verification').length;
+                const pendingCount = sosVictimsCache.filter(v => v.status === 'pending_verification').length;
                 elements.sosVictimsBadge.textContent = pendingCount > 0 ? pendingCount : '';
             }
         } catch (err) {
@@ -6388,30 +6513,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderSosVictimsTable(victims) {
+        if (!elements.sosVictimsTableContainer) return;
         if (!victims || victims.length === 0) {
             elements.sosVictimsTableContainer.innerHTML = '<p class="no-data-message">No se encontraron expedientes con los filtros seleccionados.</p>';
             return;
         }
 
+        // Ordenamiento en memoria de alto rendimiento (0ms de latencia)
+        const sortedVictims = sortDataset(victims, sosVictimsSortState.key, sosVictimsSortState.direction, sosVictimsTypeMap);
+
+        const currentKey = sosVictimsSortState.key;
+        const currentDir = sosVictimsSortState.direction;
+
         let html = `
             <table class="admin-table">
                 <thead>
                     <tr>
-                        <th>Expediente</th>
-                        <th>Nombre</th>
-                        <th>Cédula</th>
-                        <th>Teléfono</th>
-                        <th>Ubicación</th>
-                        <th>Dependientes</th>
-                        <th>Afectación</th>
-                        <th>Estado</th>
+                        ${renderSortableTh({ key: 'dossier_number', label: 'Expediente', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
+                        ${renderSortableTh({ key: 'full_name', label: 'Nombre', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
+                        ${renderSortableTh({ key: 'id_document', label: 'Cédula', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
+                        ${renderSortableTh({ key: 'phone_number', label: 'Teléfono', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
+                        ${renderSortableTh({ key: 'state', label: 'Ubicación', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
+                        ${renderSortableTh({ key: 'total_dependents', label: 'Dependientes', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
+                        ${renderSortableTh({ key: 'affectation_level', label: 'Afectación', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
+                        ${renderSortableTh({ key: 'status', label: 'Estado', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
+                        ${renderSortableTh({ key: 'created_at', label: 'Fecha Reg.', currentSortKey: currentKey, currentDirection: currentDir, type: 'date', title: 'Ordenar por fecha y hora de registro' })}
                         <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
         `;
 
-        victims.forEach(v => {
+        sortedVictims.forEach(v => {
             const statusBadges = {
                 'pending_verification': '<span class="status-badge pending">En Verificación</span>',
                 'info_requested': '<span class="status-badge active" style="background: #3b82f6;">Info Requerida</span>',
@@ -6428,7 +6561,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 'essential_needs': '📦 Insumos Básicos'
             };
 
-            const totalDependents = (parseInt(v.dependents_minors) || 0) + (parseInt(v.dependents_elderly) || 0) + (parseInt(v.dependents_disabled) || 0);
+            const totalDependents = v.total_dependents ?? ((parseInt(v.dependents_minors) || 0) + (parseInt(v.dependents_elderly) || 0) + (parseInt(v.dependents_disabled) || 0));
+
+            // Formato compacto de fecha y hora en 2 líneas (Fintech Pro - Opción 1)
+            let formattedDate = '-';
+            let formattedTime = '';
+            if (v.created_at) {
+                const dateObj = new Date(v.created_at);
+                if (!isNaN(dateObj.getTime())) {
+                    const day = String(dateObj.getDate()).padStart(2, '0');
+                    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    const year = dateObj.getFullYear();
+                    const hours = String(dateObj.getHours()).padStart(2, '0');
+                    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+                    formattedDate = `${day}/${month}/${year}`;
+                    formattedTime = `${hours}:${minutes}`;
+                }
+            }
 
             const isApproved = v.status === 'approved_for_aid';
             const disabledAttr = isApproved ? '' : 'disabled';
@@ -6444,6 +6593,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td><strong>${totalDependents}</strong> (👨‍👩‍👧 ${v.dependents_minors} | 👴 ${v.dependents_elderly} | ♿ ${v.dependents_disabled})</td>
                     <td>${affectationLabels[v.affectation_level] || v.affectation_level}</td>
                     <td>${statusBadges[v.status] || v.status}</td>
+                    <td style="white-space: nowrap; font-size: 0.85rem;">
+                        <div style="font-weight: 500; color: #f8fafc;">${formattedDate}</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 1px;">${formattedTime}</div>
+                    </td>
                     <td>
                         <button type="button" class="action-button-admin view-sos-victim-btn" data-id="${v.id}" style="padding: 4px 10px; font-size: 0.85rem; margin-right: 4px;">🔎 Ver Ficha</button>
                         <button type="button" class="action-button-admin publish disburse-sos-victim-btn" data-id="${v.id}" data-dossier="${escapeHtml(v.dossier_number)}" ${disabledAttr} style="padding: 4px 10px; font-size: 0.85rem; ${disabledStyle}">💸 Asignar Ayuda</button>
@@ -6454,6 +6607,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         html += '</tbody></table>';
         elements.sosVictimsTableContainer.innerHTML = html;
+
+        // Delegación de eventos de ordenamiento para la tabla SOS
+        attachTableSortHandler(elements.sosVictimsTableContainer, (sortKey, sortType) => {
+            sosVictimsSortState.direction = getNextSortDirection(sosVictimsSortState.key, sortKey, sosVictimsSortState.direction, sortType);
+            sosVictimsSortState.key = sortKey;
+            renderSosVictimsTable(sosVictimsCache);
+        });
 
         elements.sosVictimsTableContainer.querySelectorAll('.view-sos-victim-btn').forEach(btn => {
             btn.addEventListener('click', () => openSosVictimDetailModal(btn.getAttribute('data-id')));
@@ -6550,6 +6710,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div><strong>¿Cabeza de Familia?:</strong> ${v.is_head_of_family ? 'Sí' : 'No'}</div>
                     <div><strong>Correo:</strong> ${escapeHtml(v.email)}</div>
                     <div><strong>Teléfono:</strong> ${escapeHtml(v.phone_number)}</div>
+                    <div><strong>Fecha Registro:</strong> <span style="color: #38bdf8;">${v.created_at ? new Date(v.created_at).toLocaleString('es-ES') : 'N/A'}</span></div>
                     <div><strong>Puntaje Urgencia:</strong> <span style="background: rgba(236,72,153,0.2); color: #ec4899; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-family: monospace;">${v.urgency_score || 'N/A'}</span></div>
                 </div>
 

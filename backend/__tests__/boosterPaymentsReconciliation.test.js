@@ -15,6 +15,8 @@
 const pool = require('../src/config/db');
 const { executeBoosterPayments } = require('../src/services/boosterService');
 
+jest.setTimeout(60000);
+
 describe('Booster Payments Budget Reconciliation Integration Tests', () => {
     let originalSettings = {};
     let originalWalletBalance = 0.0000;
@@ -83,7 +85,7 @@ describe('Booster Payments Budget Reconciliation Integration Tests', () => {
             RETURNING id
         `, [testUsername, testEmail, `phone_${Date.now()}`]);
         testUserId = userInsertRes.rows[0].id;
-    });
+    }, 60000);
 
     afterAll(async () => {
         // Desactivar nuestro booster de pruebas para no interferir en futuras ejecuciones

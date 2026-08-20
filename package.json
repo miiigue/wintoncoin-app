@@ -8,7 +8,7 @@
     "dev": "nodemon backend/server.js",
     "reset-db": "node backend/reset_db.js",
     "migrate:prod": "cross-env NODE_ENV=production node backend/migrations/001_add_user_verification_fields.js",
-    "test": "node verify_all_backend_imports.js && node node_modules/jest/bin/jest.js --runInBand --detectOpenHandles --forceExit",
+    "test": "node verify_all_backend_imports.js && node frontend/src/modules/tableSort.test.js && node node_modules/jest/bin/jest.js --runInBand --detectOpenHandles --forceExit",
     "test:unit": "node node_modules/jest/bin/jest.js --runInBand --detectOpenHandles --forceExit",
     "build:demo": "npm --prefix frontend run build:demo",
     "build": "npm --prefix frontend run build",
@@ -49,5 +49,11 @@
     "jest": "^30.4.2",
     "jest-cli": "^30.4.2",
     "supertest": "^7.2.2"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "<rootDir>/backend/__tests__/**/*.test.js"
+    ]
   }
 }
