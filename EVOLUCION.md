@@ -14,6 +14,21 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-20 — Optimización UI/UX & Auditoría: Rediseño Integral de Tabla de Voluntarios SOS, Fecha/Hora de 2 Líneas y Ordenamiento Binance Pro en Reclutamiento
+* **Diagnóstico & Objetivo**:
+  - Resolver la incoherencia visual en el módulo de reclutamiento (`admin-recruitment.html`) donde la pestaña **Voluntarios SOS** reutilizaba encabezados estáticos de candidatos de empleo (`CANDIDATO`, `CONTACTO / RRSS`, `ESPECIALIDAD`, `SALARIO`, `FECHA`, `ESTADO`), provocando que la ubicación apareciera bajo "Especialidad", la modalidad y disponibilidad bajo "Salario", y el código/score de prioridad (`★ 2211`) se mostrara bajo la columna "Fecha", ocultando la fecha real de registro.
+  - Implementar encabezados específicos para Voluntarios SOS: `VOLUNTARIO / EXPEDIENTE`, `CONTACTO`, `UBICACIÓN`, `ÁREA Y DISPONIBILIDAD`, `PRIORIDAD (SCORE)`, `FECHA REG.`, `ESTADO`, `ACCIONES`.
+  - Integrar el sistema modular de ordenamiento de columnas estilo Binance Pro (`tableSort.js`) con flechas interactivas `▲▼`, ordenamiento in-memory con 0ms de latencia por nombre, contacto, ubicación, prioridad, fecha y estado.
+  - Estandarizar la columna **Fecha Reg.** en formato Fintech Pro de 2 líneas (`DD/MM/AAAA` arriba y `HH:mm` atenuada abajo).
+  - Dotar a la pestaña de Voluntarios de un Modal de Ficha Técnica Completa (`#volunteerDetailModal`) con desglose de código inteligente (`#VOL-VZLA-XXXX-YYYYY`), contacto WhatsApp directo, ubicación, habilidades, notas de administración y acciones rápidas de activación/suspensión.
+  - Adaptar dinámicamente los filtros y el buscador de la toolbar (`#statusFilter`, `#roleFilter`, `#searchInput`) según la pestaña activa (Candidatos vs Voluntarios).
+* **Cambios Técnicos**:
+  - **Frontend (`admin-recruitment.html`)**:
+    - Reestructurado el layout con soporte para `admin-style.css`, encabezados dinámicos `renderSortableTh` y estados de ordenamiento independientes (`volunteersSortState`, `proposalsSortState`).
+    - Implementada delegación de eventos `attachTableSortHandler` y renderizado optimizado `renderVolunteersTable`.
+    - Creado el modal ATS `#volunteerDetailModal` para auditoría y gestión de brigadas.
+* **Impacto**: Coherencia de datos 100% precisa, ordenamiento instantáneo sin sobrecarga de servidor y experiencia operativa premium para la coordinación de brigadas humanitarias.
+
 ### 2026-08-20 — Optimización UI/UX & Auditoría: Expedientes SOS/VOL, Fecha/Hora Compacta y Nombres Abreviados en Tabla de Usuarios
 * **Diagnóstico & Objetivo**:
   - Enriquecer la tabla administrativa de Usuarios (`#users-section`) para correlacionar en tiempo real a los usuarios con sus expedientes de emergencia como damnificados (`disaster_victims_registry`) o voluntarios (`volunteers_registry`).

@@ -3,17 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Winton Talent - Panel de Reclutamiento</title>
+    <title>Winton Talent & Voluntariado SOS - Panel Administrativo</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="admin-style.css">
     <style>
         /* Layout General Uniforme con el Admin */
+        body {
+            background: #090d16;
+            color: #f1f5f9;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
         .admin-container {
-            max-width: 1400px;
+            max-width: 1450px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 24px;
+        }
+
+        .admin-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #94a3b8;
+            padding: 8px 16px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.88rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .btn-back:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+            transform: translateX(-2px);
+        }
+
+        .title-group h1 {
+            margin: 0;
+            font-size: 1.6rem;
+            font-weight: 800;
+            font-family: 'Outfit', sans-serif;
+            letter-spacing: -0.5px;
+        }
+
+        .title-group h1 .accent {
+            color: #38bdf8;
+        }
+
+        /* Pestañas de Navegación */
+        .tabs-nav {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.04);
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #f1f5f9;
+        }
+
+        .tab-btn.active-talent {
+            background: #2563eb;
+            color: #ffffff;
+            border-color: #3b82f6;
+            box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+        }
+
+        .tab-btn.active-volunteers {
+            background: #0284c7;
+            color: #ffffff;
+            border-color: #38bdf8;
+            box-shadow: 0 4px 16px rgba(2, 132, 199, 0.35);
         }
 
         /* Toolbar Compacta: Buscador + Stats + Filtros */
@@ -22,42 +118,54 @@
             align-items: center;
             justify-content: space-between;
             gap: 20px;
-            padding: 15px 25px;
-            margin-bottom: 25px;
+            padding: 16px 24px;
+            margin-bottom: 24px;
+            background: #0f172a;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
             flex-wrap: wrap;
         }
 
         .search-group {
             flex: 1;
             position: relative;
-            min-width: 250px;
+            min-width: 260px;
         }
 
         .search-icon {
             position: absolute;
-            left: 15px;
+            left: 14px;
             top: 50%;
             transform: translateY(-50%);
-            color: #64748B;
+            color: #64748b;
+            font-size: 0.9rem;
         }
 
         #searchInput {
             width: 100%;
-            padding: 10px 15px 10px 40px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
+            padding: 10px 16px 10px 42px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 8px;
-            color: white;
+            color: #f8fafc;
             font-size: 0.9rem;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        #searchInput:focus {
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
         }
 
         /* Estadísticas en línea */
         .stats-compact {
             display: flex;
-            gap: 20px;
-            border-left: 1px solid rgba(255,255,255,0.1);
-            border-right: 1px solid rgba(255,255,255,0.1);
-            padding: 0 25px;
+            gap: 24px;
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0 24px;
         }
 
         .sc-item {
@@ -67,86 +175,288 @@
         }
 
         .sc-label {
-            font-size: 0.65rem;
-            color: #64748B;
+            font-size: 0.68rem;
+            color: #64748b;
             font-weight: 700;
             letter-spacing: 0.5px;
         }
 
         .sc-value {
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             font-weight: 800;
             font-family: 'Outfit', sans-serif;
-            color: var(--talent-primary);
+            color: #38bdf8;
         }
 
-        .sc-item.warning .sc-value { color: var(--talent-warning); }
-        .sc-item.info .sc-value { color: var(--talent-info); }
+        .sc-item.warning .sc-value { color: #fbbf24; }
+        .sc-item.info .sc-value { color: #34d399; }
 
         .filters-inline {
             display: flex;
             gap: 10px;
+            flex-wrap: wrap;
         }
 
         .filter-mini {
-            padding: 8px 12px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 6px;
-            color: #94A3B8;
-            font-size: 0.8rem;
+            padding: 9px 14px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 8px;
+            color: #e2e8f0;
+            font-size: 0.85rem;
+            font-weight: 500;
             cursor: pointer;
+            outline: none;
+        }
+
+        .filter-mini:focus {
+            border-color: #38bdf8;
         }
 
         /* Tabla y Perfiles */
-        .talent-table { width: 100%; border-collapse: collapse; }
-        .talent-table th { 
-            text-align: left; padding: 15px; font-size: 0.75rem; 
-            color: #64748B; border-bottom: 2px solid rgba(255,255,255,0.05);
+        .table-section {
+            background: #0f172a;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            overflow: hidden;
         }
-        .talent-table td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.03); }
 
-        .talent-profile { display: flex; align-items: center; gap: 12px; }
-        .avatar { 
-            width: 36px; height: 36px; background: var(--talent-primary); 
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 0.9rem; color: white;
+        .table-responsive {
+            width: 100%;
+            overflow-x: auto;
         }
-        .info { display: flex; flex-direction: column; }
-        .name { font-weight: 600; color: #F1F5F9; font-size: 0.9rem; }
-        .id { font-size: 0.7rem; color: #64748B; }
 
-        .contact-info { display: flex; flex-direction: column; gap: 4px; }
-        .email { font-size: 0.85rem; color: #94A3B8; }
-        .linkedin-link { font-size: 0.75rem; color: var(--talent-primary); text-decoration: none; }
+        .talent-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
 
-        .salary-text.highlight { color: #10B981; font-weight: 700; font-size: 0.95rem; }
+        .talent-table th {
+            padding: 14px 18px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            background: rgba(15, 23, 42, 0.95);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.06);
+            white-space: nowrap;
+        }
+
+        .talent-table th.sortable-th {
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .talent-table th.sortable-th:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #f8fafc;
+        }
+
+        .talent-table th.sortable-th.active-sort {
+            color: #38bdf8;
+            background: rgba(56, 189, 248, 0.06);
+            border-bottom: 2px solid #38bdf8;
+        }
+
+        .talent-table td {
+            padding: 14px 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            font-size: 0.88rem;
+            vertical-align: middle;
+        }
+
+        .talent-table tbody tr {
+            transition: background 0.15s ease;
+        }
+
+        .talent-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.025);
+        }
+
+        .talent-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.95rem;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .name {
+            font-weight: 700;
+            color: #f8fafc;
+            font-size: 0.92rem;
+        }
+
+        .id-badge {
+            font-size: 0.72rem;
+            font-family: monospace;
+            color: #38bdf8;
+            font-weight: 700;
+        }
+
+        .id-sub {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+
+        .contact-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .contact-link {
+            font-size: 0.82rem;
+            color: #94a3b8;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: color 0.15s ease;
+        }
+
+        .contact-link:hover {
+            color: #38bdf8;
+        }
+
+        .location-box {
+            font-size: 0.84rem;
+            color: #e2e8f0;
+            line-height: 1.4;
+        }
+
+        .location-sub {
+            font-size: 0.76rem;
+            color: #94a3b8;
+        }
+
+        .area-tags {
+            font-size: 0.8rem;
+            color: #cbd5e1;
+            line-height: 1.4;
+        }
 
         /* Botones de Acción Estilo Admin */
-        .actions { 
-            display: flex; justify-content: flex-end; gap: 8px; 
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 6px;
         }
+
         .btn-action {
-            width: 32px; height: 32px; border: none; border-radius: 6px;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: 0.2s; font-size: 0.9rem;
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-size: 0.85rem;
         }
-        .btn-action.review { background: rgba(99, 102, 241, 0.1); color: #818CF8; }
-        .btn-action.accept { background: rgba(34, 197, 94, 0.1); color: #4ADE80; }
-        .btn-action.reject { background: rgba(239, 68, 68, 0.1); color: #F87171; }
-        .btn-action:hover { transform: translateY(-2px); filter: brightness(1.2); }
+
+        .btn-action.review { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
+        .btn-action.accept { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+        .btn-action.reject { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+        .btn-action:hover { transform: translateY(-2px); filter: brightness(1.25); }
 
         .status-btn {
-            padding: 4px 10px; border-radius: 4px; font-size: 0.7rem;
-            font-weight: 700; text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            display: inline-block;
+            letter-spacing: 0.4px;
         }
-        .status-btn.pending { background: rgba(245, 158, 11, 0.1); color: #FBBF24; }
-        .status-btn.reviewing { background: rgba(99, 102, 241, 0.1); color: #818CF8; }
-        .status-btn.accepted { background: rgba(34, 197, 94, 0.1); color: #4ADE80; }
+        .status-btn.pending { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+        .status-btn.reviewing { background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); }
+        .status-btn.accepted, .status-btn.active { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .status-btn.reject, .status-btn.rejected, .status-btn.suspended { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+        .empty-state {
+            text-align: center;
+            padding: 50px 20px;
+            color: #64748b;
+        }
+
+        .empty-state .emoji {
+            font-size: 2.2rem;
+            margin-bottom: 8px;
+        }
+
+        /* Estilos Sortable TH Binance Pro */
+        .th-sort-wrapper {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+            min-height: 18px;
+        }
+
+        .th-sort-wrapper.justify-center { justify-content: center; }
+        .th-sort-wrapper.justify-end { justify-content: flex-end; }
+        .th-sort-wrapper.justify-start { justify-content: flex-start; }
+
+        .th-label {
+            display: inline-block;
+            white-space: nowrap;
+        }
+
+        .sort-arrows {
+            display: inline-flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 1px;
+            width: 10px;
+            height: 14px;
+            flex-shrink: 0;
+        }
+
+        .sort-arrow {
+            display: block;
+            color: #64748b;
+            opacity: 0.35;
+            transition: color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
+        }
+
+        .sortable-th:hover .sort-arrow {
+            opacity: 0.7;
+            color: #94a3b8;
+        }
+
+        .sort-arrow.active {
+            color: #38bdf8 !important;
+            opacity: 1 !important;
+            filter: drop-shadow(0 0 3px rgba(56, 189, 248, 0.6));
+            transform: scale(1.15);
+        }
 
         @media (max-width: 900px) {
             .controls-toolbar { flex-direction: column; align-items: stretch; }
-            .stats-compact { border: none; padding: 15px 0; justify-content: space-around; }
+            .stats-compact { border: none; padding: 12px 0; justify-content: space-around; }
         }
     </style>
 </head>
@@ -157,94 +467,68 @@
             <div class="header-left">
                 <a href="admin-panel.html" class="btn-back">
                     <i class="fas fa-arrow-left"></i>
-                    <span>Volver</span>
+                    <span>Volver al Panel Principal</span>
                 </a>
                 <div class="title-group">
-                    <h1>Winton <span class="accent">Talent</span></h1>
+                    <h1 id="pageTitle">Winton <span class="accent">Talent & Voluntariado</span></h1>
                 </div>
+            </div>
         </header>
 
         <!-- PESTAÑAS DE NAVEGACIÓN (TALENT vs VOLUNTARIOS) -->
-        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
-            <button id="tabTalent" style="padding: 12px 24px; border-radius: 12px; font-weight: 700; border: none; background: #2563eb; color: white; cursor: pointer; transition: all 0.2s;">
-                💼 Candidatos Empleo
+        <nav class="tabs-nav" aria-label="Secciones de Reclutamiento">
+            <button id="tabTalent" class="tab-btn active-talent" type="button">
+                <span>💼 Candidatos Empleo</span>
             </button>
-            <button id="tabVolunteers" style="padding: 12px 24px; border-radius: 12px; font-weight: 700; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #94a3b8; cursor: pointer; transition: all 0.2s;">
-                🤝 Voluntarios SOS
+            <button id="tabVolunteers" class="tab-btn" type="button">
+                <span>🤝 Voluntarios SOS</span>
             </button>
-        </div>
+        </nav>
 
         <!-- BUSCADOR + ESTADÍSTICAS EN UNA LÍNEA -->
-        <section class="controls-toolbar card">
+        <section class="controls-toolbar">
             <div class="search-group">
                 <i class="fas fa-search search-icon"></i>
-                <input type="text" id="searchInput" placeholder="Buscar candidato...">
+                <input type="text" id="searchInput" placeholder="Buscar candidato (nombre, email, rol)...">
             </div>
             
             <div class="stats-compact">
                 <div class="sc-item">
-                    <span class="sc-label">TOTAL</span>
+                    <span class="sc-label" id="labelStatTotal">TOTAL</span>
                     <span class="sc-value" id="statTotal">0</span>
                 </div>
                 <div class="sc-item warning">
-                    <span class="sc-label">PENDIENTES</span>
+                    <span class="sc-label" id="labelStatPending">PENDIENTES</span>
                     <span class="sc-value" id="statPending">0</span>
                 </div>
                 <div class="sc-item info">
-                    <span class="sc-label">REVISION</span>
+                    <span class="sc-label" id="labelStatReviewing">REVISIÓN</span>
                     <span class="sc-value" id="statReviewing">0</span>
                 </div>
             </div>
 
             <div class="filters-inline">
-                <select id="statusFilter" class="filter-mini">
-                    <option value="all">Estados</option>
+                <select id="statusFilter" class="filter-mini" aria-label="Filtrar por Estado">
+                    <option value="all">Todos los Estados</option>
                     <option value="pending">Pendientes</option>
                     <option value="reviewing">Revisión</option>
                     <option value="accepted">Aceptados</option>
                 </select>
-                <select id="roleFilter" class="filter-mini">
-                    <option value="all">Especialidad</option>
-                    <option value="Frontend Developer">Frontend Developer</option>
-                    <option value="Backend Developer">Backend Developer</option>
-                    <option value="Fullstack Developer">Fullstack Developer</option>
-                    <option value="Smart Contract / Solidity Developer">Smart Contract / Solidity Developer</option>
-                    <option value="DevOps & Cloud Engineer">DevOps & Cloud Engineer</option>
-                    <option value="QA & Testing Engineer">QA & Testing Engineer</option>
-                    <option value="UI/UX & Product Designer">UI/UX & Product Designer</option>
-                    <option value="UI/UX Designer">UI/UX Designer (Histórico)</option>
-                    <option value="AI & Data Engineer">AI & Data Engineer</option>
-                    <option value="Product Manager / Owner">Product Manager / Owner</option>
-                    <option value="Marketing / Growth & SEO">Marketing / Growth & SEO</option>
-                    <option value="Marketing / Growth">Marketing / Growth (Histórico)</option>
-                    <option value="Community & Social Media Manager">Community & Social Media Manager</option>
-                    <option value="Moderador de Comunidad">Moderador de Comunidad</option>
-                    <option value="Legal / Compliance & FinTech">Legal / Compliance & FinTech</option>
-                    <option value="Legal / Compliance">Legal / Compliance (Histórico)</option>
-                    <option value="Copywriter & Content Creator">Copywriter & Content Creator</option>
-                    <option value="Voluntario">Voluntario</option>
-                    <option value="Otro">Otro</option>
+                <select id="roleFilter" class="filter-mini" aria-label="Filtrar por Especialidad o Área">
+                    <option value="all">Todas las Especialidades</option>
                 </select>
             </div>
         </section>
 
-        <!-- TABLA ULTRA COMPACTA -->
-        <main class="table-section card">
-            <div class="table-responsive">
-                <table class="talent-table">
-                    <thead>
-                        <tr>
-                            <th>CANDIDATO</th>
-                            <th>CONTACTO / RRSS</th>
-                            <th>ESPECIALIDAD</th>
-                            <th>SALARIO</th>
-                            <th>FECHA</th>
-                            <th>ESTADO</th>
-                            <th class="text-right">ACCIONES</th>
-                        </tr>
+        <!-- TABLA PRINCIPAL ORDENABLE ESTILO BINANCE -->
+        <main class="table-section" id="tableSectionContainer">
+            <div class="table-responsive" id="talentTableContainer">
+                <table class="talent-table" id="recruitmentMainTable">
+                    <thead id="recruitmentTableHead">
+                        <!-- Generado dinámicamente con renderSortableTh -->
                     </thead>
                     <tbody id="talentTableBody">
-                        <!-- LLenado dinámico -->
+                        <!-- Llenado dinámico -->
                     </tbody>
                 </table>
             </div>
@@ -252,7 +536,7 @@
     </div>
 
     <!-- Modal de Alerta Personalizado -->
-    <div id="customAlertModal" class="modal">
+    <div id="customAlertModal" class="modal" style="display: none;">
         <div class="modal-content">
             <span class="close-button alert-close-button">&times;</span>
             <p id="customAlertMessage"></p>
@@ -260,31 +544,173 @@
         </div>
     </div>
 
-    <script type="module">
-        // ============================================================
-        // LÓGICA DEL PANEL DE RECLUTAMIENTO ADMIN
-        // ============================================================
+    <!-- MODAL ATS: FICHA DE EVALUACIÓN COMPLETA DEL CANDIDATO (EMPLEO) -->
+    <div id="candidateDetailModal" class="modal" style="display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(4,6,10,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;">
+        <div class="modal-content" style="width: 100%; max-width: 750px; background: #0f141c; border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 18px; padding: 28px; color: #f0f6fc; box-shadow: 0 20px 60px rgba(0,0,0,0.8); position: relative; max-height: 90vh; overflow-y: auto; box-sizing: border-box;">
+            <span class="close-button" onclick="closeCandidateModal()" style="position: absolute; top: 18px; right: 22px; font-size: 1.5rem; color: #8b949e; cursor: pointer; font-weight: bold;">&times;</span>
+            
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 18px;">
+                <div id="modalAvatar" style="width: 54px; height: 54px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #1d4ed8); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800; color: #fff; flex-shrink: 0;"></div>
+                <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <h2 id="modalFullName" style="margin: 0; font-size: 1.4rem; font-weight: 800; color: #ffffff;"></h2>
+                        <span id="modalStatusBadge" class="status-btn"></span>
+                    </div>
+                    <div style="display: flex; gap: 12px; font-size: 0.85rem; color: #94a3b8; margin-top: 4px; flex-wrap: wrap;">
+                        <span id="modalRole" style="color: #60a5fa; font-weight: 700;"></span>
+                        <span>•</span>
+                        <span id="modalYearsExperience"></span>
+                    </div>
+                </div>
+            </div>
 
-        import { getApiUrl, showCustomAlert } from './src/modules/index.js';
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 12px;">
+                    <div style="font-size: 0.7rem; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Correo Electrónico</div>
+                    <div id="modalEmail" style="font-size: 0.92rem; font-weight: 600; color: #f0f6fc; margin-top: 4px; word-break: break-all;"></div>
+                </div>
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 12px;">
+                    <div style="font-size: 0.7rem; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Ingreso Pretendido</div>
+                    <div id="modalSalary" style="font-size: 1.1rem; font-weight: 800; color: #10b981; margin-top: 4px;"></div>
+                </div>
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 12px;">
+                    <div style="font-size: 0.7rem; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Fecha de Postulación</div>
+                    <div id="modalDate" style="font-size: 0.88rem; font-weight: 600; color: #f0f6fc; margin-top: 4px;"></div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 24px;">
+                <h4 style="margin: 0 0 12px 0; font-size: 0.85rem; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.5px;">Documentación y Enlaces</h4>
+                <div id="modalLinksContainer" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
+            </div>
+
+            <div style="margin-bottom: 24px;">
+                <h4 style="margin: 0 0 10px 0; font-size: 0.85rem; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.5px;">Carta de Presentación</h4>
+                <div id="modalCoverLetter" style="background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; font-size: 0.9rem; line-height: 1.6; color: #e2e8f0; max-height: 160px; overflow-y: auto; white-space: pre-wrap;"></div>
+            </div>
+
+            <div style="margin-bottom: 24px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 0.85rem; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.5px;">Notas de Evaluación / Comentarios</h4>
+                <textarea id="modalReviewerNotes" rows="3" style="width: 100%; padding: 12px; background: #080a0d; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #f0f6fc; font-family: inherit; font-size: 0.88rem; box-sizing: border-box;" placeholder="Escribe observaciones sobre la entrevista o conocimientos técnicos..."></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+                <button onclick="saveCandidateNotes()" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #f0f6fc; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; font-family: inherit;">💾 Guardar Notas</button>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button onclick="changeStatusFromModal('reviewing')" style="background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.4); color: #818cf8; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: inherit;">👁️ En Revisión</button>
+                    <button onclick="changeStatusFromModal('rejected')" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: inherit;">❌ Rechazar</button>
+                    <button onclick="changeStatusFromModal('accepted')" style="background: linear-gradient(135deg, #16a34a, #15803d); border: none; color: white; padding: 10px 22px; border-radius: 8px; font-weight: 800; cursor: pointer; font-family: inherit; box-shadow: 0 4px 15px rgba(22,163,74,0.3);">✅ Aceptar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL SOS: FICHA TÉCNICA Y EXPEDIENTE COMPLETO DEL VOLUNTARIO -->
+    <div id="volunteerDetailModal" class="modal" style="display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(4,6,10,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;">
+        <div class="modal-content" style="width: 100%; max-width: 800px; background: #0f141c; border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 18px; padding: 28px; color: #f0f6fc; box-shadow: 0 20px 60px rgba(0,0,0,0.8); position: relative; max-height: 90vh; overflow-y: auto; box-sizing: border-box;">
+            <span class="close-button" onclick="closeVolunteerModal()" style="position: absolute; top: 18px; right: 22px; font-size: 1.5rem; color: #8b949e; cursor: pointer; font-weight: bold;">&times;</span>
+            
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 18px;">
+                <div id="volModalAvatar" style="width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #0284c7, #2563eb); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 800; color: #fff; flex-shrink: 0;"></div>
+                <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <h2 id="volModalFullName" style="margin: 0; font-size: 1.4rem; font-weight: 800; color: #ffffff;"></h2>
+                        <span id="volModalStatusBadge" class="status-btn"></span>
+                    </div>
+                    <div style="display: flex; gap: 12px; font-size: 0.85rem; color: #94a3b8; margin-top: 4px; flex-wrap: wrap; align-items: center;">
+                        <span id="volModalDossier" style="color: #38bdf8; font-family: monospace; font-weight: 700; font-size: 0.95rem;"></span>
+                        <span>•</span>
+                        <span id="volModalIdDoc" style="font-weight: 600; color: #e2e8f0;"></span>
+                        <span>•</span>
+                        <span id="volModalAgeGender"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grid de Metadatos del Voluntario -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 22px;">
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 12px;">
+                    <div style="font-size: 0.7rem; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Correo de Contacto</div>
+                    <div id="volModalEmail" style="font-size: 0.92rem; font-weight: 600; color: #f0f6fc; margin-top: 4px; word-break: break-all;"></div>
+                </div>
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 12px;">
+                    <div style="font-size: 0.7rem; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">WhatsApp / Teléfono</div>
+                    <div id="volModalPhone" style="font-size: 0.95rem; font-weight: 700; color: #38bdf8; margin-top: 4px;"></div>
+                </div>
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 12px;">
+                    <div style="font-size: 0.7rem; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Prioridad / Score</div>
+                    <div id="volModalScore" style="font-size: 1.2rem; font-weight: 800; color: #f59e0b; margin-top: 4px;"></div>
+                </div>
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 12px;">
+                    <div style="font-size: 0.7rem; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Fecha y Hora de Registro</div>
+                    <div id="volModalDate" style="font-size: 0.88rem; font-weight: 600; color: #f0f6fc; margin-top: 4px;"></div>
+                </div>
+            </div>
+
+            <!-- Ubicación Geográfica -->
+            <div style="background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 0.82rem; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fas fa-map-marker-alt"></i> Ubicación Geográfica y Residencia</h4>
+                <div id="volModalLocation" style="font-size: 0.95rem; font-weight: 600; color: #f8fafc;"></div>
+            </div>
+
+            <!-- Área y Disponibilidad -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px;">
+                <div style="background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px;">
+                    <h4 style="margin: 0 0 8px 0; font-size: 0.82rem; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fas fa-hands-helping"></i> Modalidades de Voluntariado</h4>
+                    <div id="volModalTypes" style="font-size: 0.9rem; color: #e2e8f0; line-height: 1.5;"></div>
+                </div>
+                <div style="background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px;">
+                    <h4 style="margin: 0 0 8px 0; font-size: 0.82rem; color: #34d399; text-transform: uppercase; letter-spacing: 0.5px;"><i class="far fa-clock"></i> Disponibilidad Horaria</h4>
+                    <div id="volModalAvailability" style="font-size: 0.9rem; color: #e2e8f0; line-height: 1.5;"></div>
+                </div>
+            </div>
+
+            <!-- Profesión y Habilidades -->
+            <div style="margin-bottom: 22px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 0.82rem; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fas fa-briefcase"></i> Profesión, Oficio y Habilidades Declaradas</h4>
+                <div id="volModalSkills" style="background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; font-size: 0.9rem; line-height: 1.6; color: #e2e8f0; white-space: pre-wrap;"></div>
+            </div>
+
+            <!-- Notas de la Directiva -->
+            <div style="margin-bottom: 24px;">
+                <h4 style="margin: 0 0 8px 0; font-size: 0.82rem; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px;">Observaciones y Notas de la Directiva</h4>
+                <textarea id="volModalAdminNotes" rows="3" style="width: 100%; padding: 12px; background: #080a0d; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #f0f6fc; font-family: inherit; font-size: 0.88rem; box-sizing: border-box;" placeholder="Escribe notas de validación, asignación de brigada o seguimiento..."></textarea>
+            </div>
+
+            <!-- Acciones Directas del Voluntario -->
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+                <button onclick="saveVolunteerNotes()" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #f0f6fc; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; font-family: inherit;">💾 Guardar Notas</button>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button onclick="changeVolunteerStatusFromModal('suspended')" style="background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: inherit;">⏸️ Suspender</button>
+                    <button onclick="changeVolunteerStatusFromModal('rejected')" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: inherit;">❌ Rechazar</button>
+                    <button onclick="changeVolunteerStatusFromModal('active')" style="background: linear-gradient(135deg, #0284c7, #2563eb); border: none; color: white; padding: 10px 22px; border-radius: 8px; font-weight: 800; cursor: pointer; font-family: inherit; box-shadow: 0 4px 15px rgba(2,132,199,0.35);">✅ Activar / Asignar Brigada</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT DE LÓGICA CON ORDENAMIENTO BINANCE PRO -->
+    <script type="module">
+        import {
+            getApiUrl,
+            showCustomAlert,
+            renderSortableTh,
+            getNextSortDirection,
+            sortDataset,
+            attachTableSortHandler
+        } from './src/modules/index.js';
 
         const API_URL = getApiUrl();
 
-        // ============================================================
-        // AUTENTICACIÓN POR COOKIES (igual que admin-panel.js)
-        // ============================================================
-        // El admin panel usa cookies httpOnly gestionadas por el backend.
-        // No usamos localStorage ni Bearer tokens.
-        // Si la cookie no existe o expiró, el backend responde 401
-        // y redirigimos a admin.html (login).
-
-        // Función segura para peticiones autenticadas (igual que apiFetch en admin-panel.js)
+        // ═══════════════════════════════════════════════════════════════════════
+        // AUTENTICACIÓN SEGURA Y FETCH
+        // ═══════════════════════════════════════════════════════════════════════
         async function apiFetch(endpoint) {
             const response = await fetch(`${API_URL}${endpoint}`, {
                 headers: { 'Content-Type': 'application/json' },
-                credentials: 'include' // Envía las cookies httpOnly automáticamente
+                credentials: 'include'
             });
 
-            // Si no está autenticado, redirigir al login
             if (response.status === 401 || response.status === 403) {
                 window.location.href = 'admin.html';
                 throw new Error('Sesión expirada.');
@@ -293,12 +719,11 @@
             return response.json();
         }
 
-        // Función para peticiones con body (PATCH, POST)
         async function apiFetchWithBody(endpoint, method, body) {
             const response = await fetch(`${API_URL}${endpoint}`, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
-                credentials: 'include', // Cookies httpOnly
+                credentials: 'include',
                 body: JSON.stringify(body)
             });
 
@@ -310,13 +735,268 @@
             return response.json();
         }
 
+        // ═══════════════════════════════════════════════════════════════════════
+        // ESTADO DE NAVEGACIÓN Y ORDENAMIENTO BINANCE PRO
+        // ═══════════════════════════════════════════════════════════════════════
+        let currentTab = 'volunteers'; // Pestaña activa inicial: Voluntarios SOS
+
+        // Caché y Estado de Ordenamiento para Candidatos Empleo
+        let proposalsCache = [];
+        let proposalsSortState = { key: 'created_at', direction: 'desc' };
+        const proposalsTypeMap = {
+            full_name: 'text',
+            email: 'text',
+            role: 'text',
+            expected_salary: 'number',
+            created_at: 'date',
+            status: 'text'
+        };
+
+        // Caché y Estado de Ordenamiento para Voluntarios SOS
+        let volunteersCache = [];
+        let volunteersSortState = { key: 'priority_score', direction: 'desc' };
+        const volunteersTypeMap = {
+            full_name: 'text',
+            dossier_number: 'text',
+            email: 'text',
+            state: 'text',
+            priority_score: 'number',
+            created_at: 'date',
+            status: 'text'
+        };
+
+        let currentProposalsMap = new Map();
+        let currentVolunteersMap = new Map();
+        let activeCandidateId = null;
+        let activeVolunteerId = null;
+
         // Elementos del DOM
+        const tableHead = document.getElementById('recruitmentTableHead');
         const tableBody = document.getElementById('talentTableBody');
         const searchInput = document.getElementById('searchInput');
         const statusFilter = document.getElementById('statusFilter');
         const roleFilter = document.getElementById('roleFilter');
+        const tabTalent = document.getElementById('tabTalent');
+        const tabVolunteers = document.getElementById('tabVolunteers');
+        const pageTitle = document.getElementById('pageTitle');
+        const tableContainer = document.getElementById('talentTableContainer');
 
-        // Cargar postulaciones
+        // Etiquetas Legibles
+        const volunteerTypeLabels = {
+            presencial: '🏢 Presencial',
+            remoto: '💻 Remoto',
+            medico: '🩺 Médico',
+            rescate: '🚨 Rescate',
+            logistica: '📦 Logística',
+            tecnico: '🔧 Técnico',
+            psicosocial: '🧠 Apoyo Psicosocial',
+            comunitario: '🍲 Comunitario'
+        };
+
+        const volunteerAvailLabels = {
+            fines_de_semana: 'Fines de Semana',
+            mananas: 'Mañanas',
+            tardes: 'Tardes',
+            noches: 'Noches',
+            tiempo_completo: 'Tiempo Completo',
+            medio_tiempo: 'Medio Tiempo',
+            guardias_emergencia: 'Guardias de Emergencia'
+        };
+
+        const volunteerStatusBadges = {
+            pending_verification: '<span class="status-btn pending">PENDIENTE</span>',
+            active: '<span class="status-btn accepted">ACTIVO</span>',
+            suspended: '<span class="status-btn reviewing">SUSPENDIDO</span>',
+            rejected: '<span class="status-btn reject">RECHAZADO</span>'
+        };
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // RENDERIZADO DE ENCABEZADOS DE TABLA (THEAD) ORDENABLES
+        // ═══════════════════════════════════════════════════════════════════════
+        function renderTableHeaders() {
+            if (!tableHead) return;
+
+            if (currentTab === 'volunteers') {
+                tableHead.innerHTML = `
+                    <tr>
+                        ${renderSortableTh({ key: 'full_name', label: 'VOLUNTARIO / EXPEDIENTE', currentKey: volunteersSortState.key, direction: volunteersSortState.direction, type: 'text' })}
+                        ${renderSortableTh({ key: 'email', label: 'CONTACTO', currentKey: volunteersSortState.key, direction: volunteersSortState.direction, type: 'text' })}
+                        ${renderSortableTh({ key: 'state', label: 'UBICACIÓN', currentKey: volunteersSortState.key, direction: volunteersSortState.direction, type: 'text' })}
+                        <th>ÁREA Y DISPONIBILIDAD</th>
+                        ${renderSortableTh({ key: 'priority_score', label: 'PRIORIDAD', currentKey: volunteersSortState.key, direction: volunteersSortState.direction, type: 'number' })}
+                        ${renderSortableTh({ key: 'created_at', label: 'FECHA REG.', currentKey: volunteersSortState.key, direction: volunteersSortState.direction, type: 'date' })}
+                        ${renderSortableTh({ key: 'status', label: 'ESTADO', currentKey: volunteersSortState.key, direction: volunteersSortState.direction, type: 'text' })}
+                        <th class="text-right" style="text-align: right;">ACCIONES</th>
+                    </tr>
+                `;
+            } else {
+                tableHead.innerHTML = `
+                    <tr>
+                        ${renderSortableTh({ key: 'full_name', label: 'CANDIDATO / PERFIL', currentKey: proposalsSortState.key, direction: proposalsSortState.direction, type: 'text' })}
+                        ${renderSortableTh({ key: 'email', label: 'CONTACTO / ENLACES', currentKey: proposalsSortState.key, direction: proposalsSortState.direction, type: 'text' })}
+                        ${renderSortableTh({ key: 'role', label: 'ESPECIALIDAD', currentKey: proposalsSortState.key, direction: proposalsSortState.direction, type: 'text' })}
+                        ${renderSortableTh({ key: 'expected_salary', label: 'SALARIO', currentKey: proposalsSortState.key, direction: proposalsSortState.direction, type: 'number' })}
+                        ${renderSortableTh({ key: 'created_at', label: 'FECHA REG.', currentKey: proposalsSortState.key, direction: proposalsSortState.direction, type: 'date' })}
+                        ${renderSortableTh({ key: 'status', label: 'ESTADO', currentKey: proposalsSortState.key, direction: proposalsSortState.direction, type: 'text' })}
+                        <th class="text-right" style="text-align: right;">ACCIONES</th>
+                    </tr>
+                `;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // CARGA Y RENDERIZADO DE VOLUNTARIOS SOS
+        // ═══════════════════════════════════════════════════════════════════════
+        async function loadVolunteers() {
+            try {
+                const params = new URLSearchParams();
+                const status = statusFilter.value;
+                const search = searchInput.value.trim();
+
+                if (status !== 'all') params.set('status', status);
+                if (search) params.set('search', search);
+
+                const data = await apiFetch(`/api/volunteers/admin/list?${params.toString()}`);
+                if (!data.success) throw new Error(data.message);
+
+                volunteersCache = data.volunteers || [];
+                currentVolunteersMap.clear();
+                volunteersCache.forEach(v => currentVolunteersMap.set(v.id, v));
+
+                updateVolunteerStats(volunteersCache);
+                renderTableHeaders();
+
+                const sorted = sortDataset(volunteersCache, volunteersSortState.key, volunteersSortState.direction, volunteersTypeMap);
+                renderVolunteersTable(sorted);
+            } catch (error) {
+                tableBody.innerHTML = `<tr><td colspan="8" class="empty-state">
+                    <div class="emoji">⚠️</div>
+                    <p>Error al cargar voluntarios: ${escapeHtml(error.message)}</p>
+                </td></tr>`;
+            }
+        }
+
+        function renderVolunteersTable(volunteers) {
+            if (!volunteers || volunteers.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="8" class="empty-state">
+                    <div class="emoji">📭</div>
+                    <p>No hay voluntarios registrados con estos filtros.</p>
+                </td></tr>`;
+                return;
+            }
+
+            tableBody.innerHTML = volunteers.map(v => {
+                // Formateo de Fecha de 2 líneas Fintech Pro (DD/MM/AAAA arriba, HH:mm abajo)
+                let formattedDate = 'N/A';
+                let formattedTime = '';
+                if (v.created_at) {
+                    const d = new Date(v.created_at);
+                    if (!isNaN(d.getTime())) {
+                        const day = String(d.getDate()).padStart(2, '0');
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const year = d.getFullYear();
+                        const hours = String(d.getHours()).padStart(2, '0');
+                        const minutes = String(d.getMinutes()).padStart(2, '0');
+                        formattedDate = `${day}/${month}/${year}`;
+                        formattedTime = `${hours}:${minutes}`;
+                    }
+                }
+
+                // Modalidades
+                const rawTypes = Array.isArray(v.volunteer_types) ? v.volunteer_types : (v.volunteer_types ? [v.volunteer_types] : []);
+                const typesStr = rawTypes.map(t => volunteerTypeLabels[t] || t).join(', ') || 'General';
+
+                // Disponibilidad
+                const rawAvail = Array.isArray(v.availability) ? v.availability : (v.availability ? [v.availability] : []);
+                const availStr = rawAvail.map(a => volunteerAvailLabels[a] || a).join(', ') || 'Flexible';
+
+                const cleanPhone = (v.phone_number || '').replace(/[^\d]/g, '');
+
+                return `
+                    <tr class="talent-row" onclick="openVolunteerModal(${v.id})" style="cursor: pointer;">
+                        <td>
+                            <div class="talent-profile">
+                                <div class="avatar" style="background: linear-gradient(135deg, #0284c7, #2563eb);">
+                                    ${escapeHtml((v.full_name || 'V').charAt(0).toUpperCase())}
+                                </div>
+                                <div class="info">
+                                    <span class="name">${escapeHtml(v.full_name)}</span>
+                                    <span class="id-badge">#${escapeHtml(v.dossier_number || 'N/A')}</span>
+                                    <span class="id-sub">${escapeHtml(v.id_document || '')} · ${v.age || 'N/A'} años (${v.gender === 'male' ? 'Hombre' : 'Mujer'})</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td onclick="event.stopPropagation()">
+                            <div class="contact-info">
+                                <a href="mailto:${escapeAttr(v.email)}" class="contact-link"><i class="far fa-envelope"></i> ${escapeHtml(v.email)}</a>
+                                ${cleanPhone ? `
+                                    <a href="https://wa.me/${escapeAttr(cleanPhone)}" target="_blank" rel="noopener noreferrer" class="contact-link" style="color: #38bdf8; font-weight: 600;">
+                                        <i class="fab fa-whatsapp"></i> ${escapeHtml(v.phone_number)}
+                                    </a>
+                                ` : `<span class="contact-link"><i class="fas fa-phone"></i> ${escapeHtml(v.phone_number || 'N/A')}</span>`}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="location-box">
+                                <strong>${escapeHtml(v.country || 'Venezuela')} · ${escapeHtml(v.state || '')}</strong>
+                                <div class="location-sub">${escapeHtml(v.municipality || '')} (${escapeHtml(v.sector_city || '')})</div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="area-tags">
+                                <div style="color: #38bdf8; font-weight: 600;"><i class="fas fa-hands-helping"></i> ${escapeHtml(typesStr)}</div>
+                                <div style="color: #34d399; font-size: 0.78rem; margin-top: 2px;"><i class="far fa-clock"></i> ${escapeHtml(availStr)}</div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="salary-text highlight" style="color: #f59e0b; font-size: 0.95rem; font-weight: 800;">
+                                ★ ${v.priority_score || 0}
+                            </span>
+                        </td>
+                        <td style="white-space: nowrap; font-size: 0.85rem;">
+                            <div style="font-weight: 600; color: #f8fafc;">${formattedDate}</div>
+                            <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 1px;">${formattedTime}</div>
+                        </td>
+                        <td>${volunteerStatusBadges[v.status] || `<span class="status-btn">${escapeHtml(v.status)}</span>`}</td>
+                        <td class="text-right" onclick="event.stopPropagation()">
+                            <div class="actions">
+                                <button onclick="openVolunteerModal(${v.id})" class="btn-action review" title="Ver Ficha Técnica del Voluntario">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                ${v.status !== 'active' ? `
+                                    <button onclick="updateVolunteerStatusDirect(${v.id}, 'active')" class="btn-action accept" title="Activar / Asignar Brigada">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                ` : ''}
+                                ${v.status !== 'suspended' ? `
+                                    <button onclick="updateVolunteerStatusDirect(${v.id}, 'suspended')" class="btn-action reject" title="Suspender">
+                                        <i class="fas fa-ban"></i>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function updateVolunteerStats(volunteers) {
+            const total = volunteers.length;
+            const pending = volunteers.filter(v => v.status === 'pending_verification').length;
+            const active = volunteers.filter(v => v.status === 'active').length;
+
+            document.getElementById('labelStatTotal').textContent = 'TOTAL';
+            document.getElementById('labelStatPending').textContent = 'PENDIENTES';
+            document.getElementById('labelStatReviewing').textContent = 'ACTIVOS / BRIGADA';
+
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statPending').textContent = pending;
+            document.getElementById('statReviewing').textContent = active;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // CARGA Y RENDERIZADO DE CANDIDATOS EMPLEO (TALENT)
+        // ═══════════════════════════════════════════════════════════════════════
         async function loadProposals() {
             try {
                 const params = new URLSearchParams();
@@ -329,76 +1009,93 @@
                 if (search) params.set('search', search);
 
                 const data = await apiFetch(`/api/recruitment/admin/list?${params.toString()}`);
-
                 if (!data.success) throw new Error(data.message);
 
-                renderTable(data.proposals);
-                updateStats(data.proposals);
+                proposalsCache = data.proposals || [];
+                currentProposalsMap.clear();
+                proposalsCache.forEach(p => currentProposalsMap.set(p.id, p));
+
+                updateTalentStats(proposalsCache);
+                renderTableHeaders();
+
+                const sorted = sortDataset(proposalsCache, proposalsSortState.key, proposalsSortState.direction, proposalsTypeMap);
+                renderTable(sorted);
             } catch (error) {
                 tableBody.innerHTML = `<tr><td colspan="7" class="empty-state">
                     <div class="emoji">⚠️</div>
-                    <p>Error al cargar: ${error.message}</p>
+                    <p>Error al cargar postulaciones: ${escapeHtml(error.message)}</p>
                 </td></tr>`;
             }
         }
 
-        // Renderizar tabla con toda la información
         function renderTable(proposals) {
-            if (proposals.length === 0) {
+            if (!proposals || proposals.length === 0) {
                 tableBody.innerHTML = `<tr><td colspan="7" class="empty-state">
                     <div class="emoji">📭</div>
-                    <p>No hay postulaciones con estos filtros.</p>
+                    <p>No hay postulaciones registradas con estos filtros.</p>
                 </td></tr>`;
                 return;
             }
 
             tableBody.innerHTML = proposals.map(p => {
-                const date = new Date(p.created_at).toLocaleDateString('es-ES', {
-                    day: '2-digit', month: 'short', year: 'numeric'
-                });
+                let formattedDate = 'N/A';
+                let formattedTime = '';
+                if (p.created_at) {
+                    const d = new Date(p.created_at);
+                    if (!isNaN(d.getTime())) {
+                        const day = String(d.getDate()).padStart(2, '0');
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const year = d.getFullYear();
+                        const hours = String(d.getHours()).padStart(2, '0');
+                        const minutes = String(d.getMinutes()).padStart(2, '0');
+                        formattedDate = `${day}/${month}/${year}`;
+                        formattedTime = `${hours}:${minutes}`;
+                    }
+                }
 
-                // Helpers de sanitización de links para prevenir XSS
-                const safeCvUrl = (p.cv_url && (p.cv_url.startsWith('http://') || p.cv_url.startsWith('https://'))) ? p.cv_url : null;
-                const safeLinkedinUrl = (p.linkedin_url && (p.linkedin_url.startsWith('http://') || p.linkedin_url.startsWith('https://'))) ? p.linkedin_url : null;
-                const safePortfolioUrl = (p.portfolio_url && (p.portfolio_url.startsWith('http://') || p.portfolio_url.startsWith('https://'))) ? p.portfolio_url : null;
-                const safeGithubUrl = (p.github_url && (p.github_url.startsWith('http://') || p.github_url.startsWith('https://'))) ? p.github_url : null;
+                const safeCvUrl = (p.cv_url && /^https?:\/\//i.test(p.cv_url)) ? p.cv_url : null;
+                const safeLinkedinUrl = (p.linkedin_url && /^https?:\/\//i.test(p.linkedin_url)) ? p.linkedin_url : null;
 
                 return `
                     <tr class="talent-row" onclick="openCandidateModal(${p.id})" style="cursor: pointer;">
                         <td>
                             <div class="talent-profile">
-                                <div class="avatar">${escapeHtml(p.full_name.charAt(0))}</div>
+                                <div class="avatar" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+                                    ${escapeHtml((p.full_name || 'C').charAt(0).toUpperCase())}
+                                </div>
                                 <div class="info">
                                     <span class="name">${escapeHtml(p.full_name)}</span>
-                                    <span class="id">ID: #${p.id} ${p.years_experience ? `· ${escapeHtml(p.years_experience)}` : ''}</span>
+                                    <span class="id-badge">ID: #${p.id}</span>
+                                    <span class="id-sub">${p.years_experience ? escapeHtml(p.years_experience) : 'Exp. N/A'}</span>
                                 </div>
                             </div>
                         </td>
-                        <td>
-                            <div class="contact-info" style="display: flex; flex-direction: column; gap: 4px;">
-                                <span class="email"><i class="far fa-envelope"></i> ${escapeHtml(p.email)}</span>
-                                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;" onclick="event.stopPropagation()">
-                                    ${safeCvUrl ? `<a href="${escapeAttr(safeCvUrl)}" target="_blank" rel="noopener noreferrer" class="linkedin-link" style="color: #60A5FA; background: rgba(59,130,246,0.1); padding: 2px 8px; border-radius: 6px;"><i class="fas fa-file-alt"></i> Ver CV ↗</a>` : ''}
-                                    ${safeLinkedinUrl ? `<a href="${escapeAttr(safeLinkedinUrl)}" target="_blank" rel="noopener noreferrer" class="linkedin-link" style="padding: 2px 8px; border-radius: 6px;"><i class="fab fa-linkedin"></i> LinkedIn ↗</a>` : ''}
-                                    ${safePortfolioUrl ? `<a href="${escapeAttr(safePortfolioUrl)}" target="_blank" rel="noopener noreferrer" class="linkedin-link" style="color: #34D399; background: rgba(52,211,153,0.1); padding: 2px 8px; border-radius: 6px;"><i class="fas fa-globe"></i> Portfolio ↗</a>` : ''}
-                                    ${safeGithubUrl ? `<a href="${escapeAttr(safeGithubUrl)}" target="_blank" rel="noopener noreferrer" class="linkedin-link" style="color: #E2E8F0; background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 6px;"><i class="fab fa-github"></i> GitHub ↗</a>` : ''}
+                        <td onclick="event.stopPropagation()">
+                            <div class="contact-info">
+                                <a href="mailto:${escapeAttr(p.email)}" class="contact-link"><i class="far fa-envelope"></i> ${escapeHtml(p.email)}</a>
+                                <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px;">
+                                    ${safeCvUrl ? `<a href="${escapeAttr(safeCvUrl)}" target="_blank" rel="noopener noreferrer" class="contact-link" style="color: #60a5fa; background: rgba(59,130,246,0.1); padding: 2px 8px; border-radius: 4px;"><i class="fas fa-file-alt"></i> CV ↗</a>` : ''}
+                                    ${safeLinkedinUrl ? `<a href="${escapeAttr(safeLinkedinUrl)}" target="_blank" rel="noopener noreferrer" class="contact-link" style="color: #38bdf8; background: rgba(56,189,248,0.1); padding: 2px 8px; border-radius: 4px;"><i class="fab fa-linkedin"></i> In ↗</a>` : ''}
                                 </div>
                             </div>
                         </td>
-                        <td><span class="badge role">${escapeHtml(p.role)}</span></td>
-                        <td><span class="salary-text highlight">${p.expected_salary ? `$ ${escapeHtml(p.expected_salary)}` : 'N/A'}</span></td>
-                        <td><span class="date">${date}</span></td>
-                        <td><span class="status-btn ${p.status}">${p.status.toUpperCase()}</span></td>
+                        <td><span style="background: rgba(59,130,246,0.15); color: #60a5fa; font-weight: 700; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem;">${escapeHtml(p.role)}</span></td>
+                        <td><span class="salary-text highlight" style="color: #10b981; font-weight: 700;">${p.expected_salary ? `$ ${escapeHtml(p.expected_salary)}` : 'N/A'}</span></td>
+                        <td style="white-space: nowrap; font-size: 0.85rem;">
+                            <div style="font-weight: 600; color: #f8fafc;">${formattedDate}</div>
+                            <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 1px;">${formattedTime}</div>
+                        </td>
+                        <td><span class="status-btn ${p.status}">${(p.status || '').toUpperCase()}</span></td>
                         <td class="text-right" onclick="event.stopPropagation()">
                             <div class="actions">
-                                <button onclick="openCandidateModal(${p.id})" class="btn-action review" title="Ver Ficha Completa del Candidato">
+                                <button onclick="openCandidateModal(${p.id})" class="btn-action review" title="Ver Ficha Completa">
                                     <i class="fas fa-eye"></i>
                                 </button>
                                 ${['pending', 'reviewing'].includes(p.status) ? `
-                                    <button onclick="updateStatus(${p.id}, 'accepted')" class="btn-action accept" title="Aceptar">
+                                    <button onclick="updateStatusDirect(${p.id}, 'accepted')" class="btn-action accept" title="Aceptar">
                                         <i class="fas fa-check"></i>
                                     </button>
-                                    <button onclick="updateStatus(${p.id}, 'rejected')" class="btn-action reject" title="Rechazar">
+                                    <button onclick="updateStatusDirect(${p.id}, 'rejected')" class="btn-action reject" title="Rechazar">
                                         <i class="fas fa-times"></i>
                                     </button>
                                 ` : ''}
@@ -409,28 +1106,247 @@
             }).join('');
         }
 
-        // Mapa en memoria para acceso ultrarrápido a postulaciones cargadas
-        let currentProposalsMap = new Map();
-        let activeCandidateId = null;
-
-        // Sobrescribir renderTable para guardar mapeo en memoria
-        const originalRenderTable = renderTable;
-
-        // Actualizar estadísticas de forma eficiente
-        function updateStats(proposals) {
-            currentProposalsMap.clear();
-            proposals.forEach(p => currentProposalsMap.set(p.id, p));
-
+        function updateTalentStats(proposals) {
             const total = proposals.length;
             const pending = proposals.filter(p => p.status === 'pending').length;
             const reviewing = proposals.filter(p => p.status === 'reviewing').length;
-            
+
+            document.getElementById('labelStatTotal').textContent = 'TOTAL';
+            document.getElementById('labelStatPending').textContent = 'PENDIENTES';
+            document.getElementById('labelStatReviewing').textContent = 'EN REVISIÓN';
+
             document.getElementById('statTotal').textContent = total;
             document.getElementById('statPending').textContent = pending;
             document.getElementById('statReviewing').textContent = reviewing;
         }
 
-        // Abrir Modal ATS de Evaluación de Candidato
+        // ═══════════════════════════════════════════════════════════════════════
+        // ACTUALIZACIÓN DINÁMICA DE FILTROS Y CONTROLES DE LA TOOLBAR
+        // ═══════════════════════════════════════════════════════════════════════
+        function updateToolbarForTab() {
+            if (currentTab === 'volunteers') {
+                pageTitle.innerHTML = 'Winton <span style="color: #0284c7;">Voluntarios SOS</span>';
+                searchInput.placeholder = 'Buscar voluntario (nombre, cédula, exp, email, ubicación)...';
+
+                statusFilter.innerHTML = `
+                    <option value="all">Todos los Estados</option>
+                    <option value="pending_verification">Pendientes</option>
+                    <option value="active">Activos / Brigada</option>
+                    <option value="suspended">Suspendidos</option>
+                    <option value="rejected">Rechazados</option>
+                `;
+
+                roleFilter.innerHTML = `
+                    <option value="all">Todas las Áreas / Modalidades</option>
+                    <option value="presencial">🏢 Presencial</option>
+                    <option value="remoto">💻 Remoto</option>
+                    <option value="medico">🩺 Médico / Salud</option>
+                    <option value="rescate">🚨 Rescate / Evacuación</option>
+                    <option value="logistica">📦 Logística / Acopio</option>
+                    <option value="tecnico">🔧 Técnico / IT</option>
+                    <option value="psicosocial">🧠 Apoyo Psicosocial</option>
+                    <option value="comunitario">🍲 Comunitario</option>
+                `;
+            } else {
+                pageTitle.innerHTML = 'Winton <span class="accent">Talent</span>';
+                searchInput.placeholder = 'Buscar candidato (nombre, email, rol)...';
+
+                statusFilter.innerHTML = `
+                    <option value="all">Todos los Estados</option>
+                    <option value="pending">Pendientes</option>
+                    <option value="reviewing">En Revisión</option>
+                    <option value="accepted">Aceptados</option>
+                    <option value="rejected">Rechazados</option>
+                `;
+
+                roleFilter.innerHTML = `
+                    <option value="all">Todas las Especialidades</option>
+                    <option value="Frontend Developer">Frontend Developer</option>
+                    <option value="Backend Developer">Backend Developer</option>
+                    <option value="Fullstack Developer">Fullstack Developer</option>
+                    <option value="Smart Contract / Solidity Developer">Smart Contract / Solidity Developer</option>
+                    <option value="DevOps & Cloud Engineer">DevOps & Cloud Engineer</option>
+                    <option value="QA & Testing Engineer">QA & Testing Engineer</option>
+                    <option value="UI/UX & Product Designer">UI/UX & Product Designer</option>
+                    <option value="AI & Data Engineer">AI & Data Engineer</option>
+                    <option value="Product Manager / Owner">Product Manager / Owner</option>
+                    <option value="Marketing / Growth & SEO">Marketing / Growth & SEO</option>
+                    <option value="Community & Social Media Manager">Community & Social Media Manager</option>
+                    <option value="Legal / Compliance & FinTech">Legal / Compliance & FinTech</option>
+                    <option value="Copywriter & Content Creator">Copywriter & Content Creator</option>
+                    <option value="Otro">Otro</option>
+                `;
+            }
+        }
+
+        async function loadData() {
+            if (currentTab === 'talent') {
+                await loadProposals();
+            } else {
+                await loadVolunteers();
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // DELEGACIÓN DEL ORDENAMIENTO BINANCE PRO (TABLESORT)
+        // ═══════════════════════════════════════════════════════════════════════
+        attachTableSortHandler(tableContainer, (sortKey, sortType) => {
+            if (currentTab === 'volunteers') {
+                volunteersSortState.direction = getNextSortDirection(
+                    volunteersSortState.key,
+                    sortKey,
+                    volunteersSortState.direction,
+                    sortType
+                );
+                volunteersSortState.key = sortKey;
+                renderTableHeaders();
+                const sorted = sortDataset(volunteersCache, volunteersSortState.key, volunteersSortState.direction, volunteersTypeMap);
+                renderVolunteersTable(sorted);
+            } else {
+                proposalsSortState.direction = getNextSortDirection(
+                    proposalsSortState.key,
+                    sortKey,
+                    proposalsSortState.direction,
+                    sortType
+                );
+                proposalsSortState.key = sortKey;
+                renderTableHeaders();
+                const sorted = sortDataset(proposalsCache, proposalsSortState.key, proposalsSortState.direction, proposalsTypeMap);
+                renderTable(sorted);
+            }
+        });
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // INTERACCIÓN DE PESTAÑAS (TABS)
+        // ═══════════════════════════════════════════════════════════════════════
+        if (tabTalent && tabVolunteers) {
+            tabTalent.addEventListener('click', () => {
+                if (currentTab === 'talent') return;
+                currentTab = 'talent';
+                tabTalent.className = 'tab-btn active-talent';
+                tabVolunteers.className = 'tab-btn';
+                updateToolbarForTab();
+                loadData();
+            });
+
+            tabVolunteers.addEventListener('click', () => {
+                if (currentTab === 'volunteers') return;
+                currentTab = 'volunteers';
+                tabVolunteers.className = 'tab-btn active-volunteers';
+                tabTalent.className = 'tab-btn';
+                updateToolbarForTab();
+                loadData();
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // ACCIONES Y MODAL DE VOLUNTARIOS SOS
+        // ═══════════════════════════════════════════════════════════════════════
+        function openVolunteerModal(id) {
+            const v = currentVolunteersMap.get(id);
+            if (!v) return;
+
+            activeVolunteerId = id;
+            const modal = document.getElementById('volunteerDetailModal');
+            if (!modal) return;
+
+            document.getElementById('volModalAvatar').textContent = (v.full_name || 'V').charAt(0).toUpperCase();
+            document.getElementById('volModalFullName').textContent = v.full_name || 'Sin Nombre';
+            
+            const badgeEl = document.getElementById('volModalStatusBadge');
+            badgeEl.className = `status-btn ${v.status}`;
+            badgeEl.textContent = (v.status || '').toUpperCase();
+
+            document.getElementById('volModalDossier').textContent = `#${v.dossier_number || 'N/A'}`;
+            document.getElementById('volModalIdDoc').textContent = `C.I. / DNI: ${v.id_document || 'N/A'}`;
+            document.getElementById('volModalAgeGender').textContent = `${v.age || 'N/A'} años (${v.gender === 'male' ? 'Hombre' : 'Mujer'})`;
+
+            document.getElementById('volModalEmail').textContent = v.email || 'N/A';
+            document.getElementById('volModalPhone').textContent = v.phone_number || 'N/A';
+            document.getElementById('volModalScore').textContent = `★ ${v.priority_score || 0}`;
+
+            const dateStr = v.created_at ? new Date(v.created_at).toLocaleString('es-ES', {
+                day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            }) : 'No disponible';
+            document.getElementById('volModalDate').textContent = dateStr;
+
+            document.getElementById('volModalLocation').innerHTML = `
+                ${escapeHtml(v.country || 'Venezuela')}, Estado ${escapeHtml(v.state || '')}, Municipio ${escapeHtml(v.municipality || '')} <br>
+                <span style="color: #94a3b8; font-size: 0.85rem;">Sector / Ciudad: ${escapeHtml(v.sector_city || 'No especificado')}</span>
+            `;
+
+            const rawTypes = Array.isArray(v.volunteer_types) ? v.volunteer_types : (v.volunteer_types ? [v.volunteer_types] : []);
+            document.getElementById('volModalTypes').innerHTML = rawTypes.map(t => `<span style="display: inline-block; background: rgba(56,189,248,0.15); color: #38bdf8; padding: 4px 10px; border-radius: 6px; margin: 3px; font-weight: 600;">${volunteerTypeLabels[t] || t}</span>`).join(' ') || 'Sin modalidades';
+
+            const rawAvail = Array.isArray(v.availability) ? v.availability : (v.availability ? [v.availability] : []);
+            document.getElementById('volModalAvailability').innerHTML = rawAvail.map(a => `<span style="display: inline-block; background: rgba(52,211,153,0.15); color: #34d399; padding: 4px 10px; border-radius: 6px; margin: 3px; font-weight: 600;">${volunteerAvailLabels[a] || a}</span>`).join(' ') || 'Sin disponibilidad';
+
+            document.getElementById('volModalSkills').textContent = v.profession_skills || 'No especificó habilidades adicionales.';
+            document.getElementById('volModalAdminNotes').value = v.admin_notes || '';
+
+            modal.style.display = 'flex';
+        }
+
+        function closeVolunteerModal() {
+            const modal = document.getElementById('volunteerDetailModal');
+            if (modal) modal.style.display = 'none';
+            activeVolunteerId = null;
+        }
+
+        async function changeVolunteerStatusFromModal(newStatus) {
+            if (!activeVolunteerId) return;
+            const notes = document.getElementById('volModalAdminNotes')?.value?.trim() || null;
+
+            try {
+                const data = await apiFetchWithBody(`/api/volunteers/admin/${activeVolunteerId}/status`, 'PUT', { status: newStatus, admin_notes: notes });
+                if (data.success) {
+                    closeVolunteerModal();
+                    loadVolunteers();
+                } else {
+                    showCustomAlert('Error: ' + data.message);
+                }
+            } catch (error) {
+                showCustomAlert('Error al actualizar estatus: ' + error.message);
+            }
+        }
+
+        async function saveVolunteerNotes() {
+            if (!activeVolunteerId) return;
+            const v = currentVolunteersMap.get(activeVolunteerId);
+            if (!v) return;
+
+            const notes = document.getElementById('volModalAdminNotes')?.value?.trim() || '';
+
+            try {
+                const data = await apiFetchWithBody(`/api/volunteers/admin/${activeVolunteerId}/status`, 'PUT', { status: v.status, admin_notes: notes });
+                if (data.success) {
+                    showCustomAlert('✅ Notas del voluntario guardadas con éxito.');
+                    loadVolunteers();
+                } else {
+                    showCustomAlert('Error: ' + data.message);
+                }
+            } catch (error) {
+                showCustomAlert('Error al guardar notas: ' + error.message);
+            }
+        }
+
+        async function updateVolunteerStatusDirect(id, status) {
+            try {
+                const notes = status === 'suspended' ? prompt('¿Motivo de la suspensión?:') : null;
+                const data = await apiFetchWithBody(`/api/volunteers/admin/${id}/status`, 'PUT', { status, admin_notes: notes });
+                if (data.success) {
+                    loadVolunteers();
+                } else {
+                    showCustomAlert('Error: ' + data.message);
+                }
+            } catch (error) {
+                showCustomAlert('Error al actualizar estatus: ' + error.message);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // ACCIONES Y MODAL DE CANDIDATOS EMPLEO (TALENT)
+        // ═══════════════════════════════════════════════════════════════════════
         function openCandidateModal(id) {
             const p = currentProposalsMap.get(id);
             if (!p) return;
@@ -439,24 +1355,23 @@
             const modal = document.getElementById('candidateDetailModal');
             if (!modal) return;
 
-            document.getElementById('modalAvatar').textContent = p.full_name.charAt(0).toUpperCase();
-            document.getElementById('modalFullName').textContent = p.full_name;
+            document.getElementById('modalAvatar').textContent = (p.full_name || 'C').charAt(0).toUpperCase();
+            document.getElementById('modalFullName').textContent = p.full_name || 'Sin Nombre';
             
             const badgeEl = document.getElementById('modalStatusBadge');
             badgeEl.className = `status-btn ${p.status}`;
-            badgeEl.textContent = p.status.toUpperCase();
+            badgeEl.textContent = (p.status || '').toUpperCase();
 
-            document.getElementById('modalRole').textContent = p.role;
+            document.getElementById('modalRole').textContent = p.role || 'N/A';
             document.getElementById('modalYearsExperience').textContent = p.years_experience || 'Experiencia no especificada';
-            document.getElementById('modalEmail').textContent = p.email;
+            document.getElementById('modalEmail').textContent = p.email || 'N/A';
             document.getElementById('modalSalary').textContent = p.expected_salary ? `$ ${p.expected_salary} USD / mes` : 'No especificado';
             
-            const date = new Date(p.created_at).toLocaleDateString('es-ES', {
+            const dateStr = p.created_at ? new Date(p.created_at).toLocaleString('es-ES', {
                 day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
-            });
-            document.getElementById('modalDate').textContent = date;
+            }) : 'No disponible';
+            document.getElementById('modalDate').textContent = dateStr;
 
-            // Renderizar Botones Destacados de Enlaces
             const linksContainer = document.getElementById('modalLinksContainer');
             linksContainer.innerHTML = '';
 
@@ -467,41 +1382,37 @@
 
             if (safeCvUrl) {
                 linksContainer.innerHTML += `
-                    <a href="${escapeAttr(safeCvUrl)}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; padding: 10px 18px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 0.9rem; box-shadow: 0 4px 15px rgba(37,99,235,0.3);">
-                        <i class="fas fa-file-alt"></i> Abrir CV en la Nube ↗
+                    <a href="${escapeAttr(safeCvUrl)}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; padding: 10px 18px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 0.9rem;">
+                        <i class="fas fa-file-alt"></i> Ver CV ↗
                     </a>
                 `;
             }
-
             if (safeLinkedinUrl) {
                 linksContainer.innerHTML += `
                     <a href="${escapeAttr(safeLinkedinUrl)}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 8px; background: #0a66c2; color: white; padding: 10px 18px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 0.9rem;">
-                        <i class="fab fa-linkedin"></i> Perfil LinkedIn ↗
+                        <i class="fab fa-linkedin"></i> LinkedIn ↗
                     </a>
                 `;
             }
-
             if (safePortfolioUrl) {
                 linksContainer.innerHTML += `
                     <a href="${escapeAttr(safePortfolioUrl)}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 8px; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); color: #34d399; padding: 10px 18px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 0.9rem;">
-                        <i class="fas fa-globe"></i> Portfolio / Sitio Web ↗
+                        <i class="fas fa-globe"></i> Portafolio ↗
                     </a>
                 `;
             }
-
             if (safeGithubUrl) {
                 linksContainer.innerHTML += `
                     <a href="${escapeAttr(safeGithubUrl)}" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 10px 18px; border-radius: 10px; text-decoration: none; font-weight: 700; font-size: 0.9rem;">
-                        <i class="fab fa-github"></i> Repositorio GitHub ↗
+                        <i class="fab fa-github"></i> GitHub ↗
                     </a>
                 `;
             }
 
             if (!safeCvUrl && !safeLinkedinUrl && !safePortfolioUrl && !safeGithubUrl) {
-                linksContainer.innerHTML = '<span style="color: #64748b; font-size: 0.85rem;">No se proporcionaron enlaces adicionales.</span>';
+                linksContainer.innerHTML = '<span style="color: #64748b; font-size: 0.85rem;">No se proporcionaron enlaces externos.</span>';
             }
 
-            // Carta de Presentación
             document.getElementById('modalCoverLetter').textContent = p.cover_letter || 'Sin carta de presentación.';
             document.getElementById('modalReviewerNotes').value = p.reviewer_notes || '';
 
@@ -551,11 +1462,8 @@
             }
         }
 
-        // Actualizar estado de una postulación desde botón de tabla
-        async function updateStatus(id, newStatus) {
-            const notes = newStatus === 'rejected'
-                ? prompt('¿Motivo del rechazo? (opcional):')
-                : null;
+        async function updateStatusDirect(id, newStatus) {
+            const notes = newStatus === 'rejected' ? prompt('¿Motivo del rechazo? (opcional):') : null;
 
             try {
                 const data = await apiFetchWithBody(`/api/recruitment/admin/${id}/status`, 'PATCH', { status: newStatus, notes });
@@ -569,12 +1477,18 @@
             }
         }
 
-        // Registrar en window
+        // Exportar funciones a window para eventos onclick inline
         window.openCandidateModal = openCandidateModal;
         window.closeCandidateModal = closeCandidateModal;
         window.changeStatusFromModal = changeStatusFromModal;
         window.saveCandidateNotes = saveCandidateNotes;
-        window.updateStatus = updateStatus;
+        window.updateStatusDirect = updateStatusDirect;
+
+        window.openVolunteerModal = openVolunteerModal;
+        window.closeVolunteerModal = closeVolunteerModal;
+        window.changeVolunteerStatusFromModal = changeVolunteerStatusFromModal;
+        window.saveVolunteerNotes = saveVolunteerNotes;
+        window.updateVolunteerStatusDirect = updateVolunteerStatusDirect;
 
         // Sanitización XSS
         function escapeHtml(text) {
@@ -586,168 +1500,8 @@
 
         function escapeAttr(text) {
             if (!text) return '';
-            return text.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            return String(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
-
-        let currentTab = 'talent';
-
-        const tabTalent = document.getElementById('tabTalent');
-        const tabVolunteers = document.getElementById('tabVolunteers');
-
-        if (tabTalent && tabVolunteers) {
-            tabTalent.addEventListener('click', () => {
-                currentTab = 'talent';
-                tabTalent.style.background = '#2563eb';
-                tabTalent.style.color = 'white';
-                tabVolunteers.style.background = 'rgba(255,255,255,0.05)';
-                tabVolunteers.style.color = '#94a3b8';
-                loadData();
-            });
-
-            tabVolunteers.addEventListener('click', () => {
-                currentTab = 'volunteers';
-                tabVolunteers.style.background = '#0284c7';
-                tabVolunteers.style.color = 'white';
-                tabTalent.style.background = 'rgba(255,255,255,0.05)';
-                tabTalent.style.color = '#94a3b8';
-                loadData();
-            });
-        }
-
-        async function loadData() {
-            if (currentTab === 'talent') {
-                await loadProposals();
-            } else {
-                await loadVolunteers();
-            }
-        }
-
-        async function loadVolunteers() {
-            try {
-                const params = new URLSearchParams();
-                const status = statusFilter.value;
-                const search = searchInput.value.trim();
-
-                if (status !== 'all') params.set('status', status);
-                if (search) params.set('search', search);
-
-                const data = await apiFetch(`/api/volunteers/admin/list?${params.toString()}`);
-                if (!data.success) throw new Error(data.message);
-
-                renderVolunteersTable(data.volunteers);
-                updateVolunteerStats(data.volunteers);
-            } catch (error) {
-                tableBody.innerHTML = `<tr><td colspan="7" class="empty-state">
-                    <div class="emoji">⚠️</div>
-                    <p>Error al cargar voluntarios: ${error.message}</p>
-                </td></tr>`;
-            }
-        }
-
-        function renderVolunteersTable(volunteers) {
-            if (volunteers.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="7" class="empty-state">
-                    <div class="emoji">📭</div>
-                    <p>No hay voluntarios registrados con estos filtros.</p>
-                </td></tr>`;
-                return;
-            }
-
-            tableBody.innerHTML = volunteers.map(v => {
-                const date = new Date(v.created_at).toLocaleDateString('es-ES', {
-                    day: '2-digit', month: 'short', year: 'numeric'
-                });
-                const typesStr = Array.isArray(v.volunteer_types) ? v.volunteer_types.join(', ') : (v.volunteer_types || 'N/A');
-                const availStr = Array.isArray(v.availability) ? v.availability.join(', ') : (v.availability || 'N/A');
-
-                const statusBadges = {
-                    pending_verification: '<span class="status-btn pending">PENDIENTE</span>',
-                    active: '<span class="status-btn accepted">ACTIVO</span>',
-                    suspended: '<span class="status-btn reviewing">SUSPENDIDO</span>',
-                    rejected: '<span class="status-btn reject" style="background: rgba(239, 68, 68, 0.1); color: #f87171; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 0.7rem;">RECHAZADO</span>'
-                };
-
-                return `
-                    <tr class="talent-row">
-                        <td>
-                            <div class="talent-profile">
-                                <div class="avatar" style="background: linear-gradient(135deg, #0284c7, #2563eb);">${escapeHtml(v.full_name.charAt(0))}</div>
-                                <div class="info">
-                                    <span class="name">${escapeHtml(v.full_name)}</span>
-                                    <span class="id">Exp: #${escapeHtml(v.dossier_number)} · ${v.age} años (${v.gender === 'male' ? 'Hombre' : 'Mujer'})</span>
-                                </div>
-                            </div>
-                        </td>
-                        <td>
-                            <div class="contact-info">
-                                <span class="email"><i class="far fa-envelope"></i> ${escapeHtml(v.email)}</span>
-                                <span class="email" style="color: #60a5fa;"><i class="fab fa-whatsapp"></i> ${escapeHtml(v.phone_number)}</span>
-                            </div>
-                        </td>
-                        <td>
-                            <div style="font-size: 0.82rem; color: #e2e8f0;">
-                                <strong>${escapeHtml(v.state)}, ${escapeHtml(v.municipality)}</strong><br>
-                                <small style="color: #94a3b8;">${escapeHtml(v.sector_city)}</small>
-                            </div>
-                        </td>
-                        <td>
-                            <div style="font-size: 0.8rem; color: #94a3b8;">
-                                <span style="color: #60a5fa; font-weight: 600;">Mod:</span> ${escapeHtml(typesStr)}<br>
-                                <span style="color: #34d399; font-weight: 600;">Disp:</span> ${escapeHtml(availStr)}
-                            </div>
-                        </td>
-                        <td>
-                            <span class="salary-text highlight" style="color: #38bdf8;">★ ${v.priority_score || 0}</span>
-                        </td>
-                        <td>${statusBadges[v.status] || v.status}</td>
-                        <td class="text-right">
-                            <div class="actions">
-                                ${v.status !== 'active' ? `
-                                    <button onclick="updateVolunteerStatus(${v.id}, 'active')" class="btn-action accept" title="Activar Voluntario">
-                                        <i class="fas fa-check"></i>
-                                    </button>
-                                ` : ''}
-                                ${v.status !== 'suspended' ? `
-                                    <button onclick="updateVolunteerStatus(${v.id}, 'suspended')" class="btn-action reject" title="Suspender">
-                                        <i class="fas fa-ban"></i>
-                                    </button>
-                                ` : ''}
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        function updateVolunteerStats(volunteers) {
-            const total = volunteers.length;
-            const pending = volunteers.filter(v => v.status === 'pending_verification').length;
-            const active = volunteers.filter(v => v.status === 'active').length;
-
-            document.getElementById('statTotal').textContent = total;
-            document.getElementById('statPending').textContent = pending;
-            document.getElementById('statReviewing').textContent = active;
-        }
-
-        async function updateVolunteerStatus(id, status) {
-            try {
-                const notes = status === 'suspended' ? prompt('¿Motivo de la suspensión?:') : null;
-                const data = await apiFetchWithBody(`/api/volunteers/admin/${id}/status`, 'PUT', { status, admin_notes: notes });
-                if (data.success) {
-                    loadVolunteers();
-                } else {
-                    showCustomAlert('Error: ' + data.message);
-                }
-            } catch (error) {
-                showCustomAlert('Error al actualizar estatus: ' + error.message);
-            }
-        }
-
-        window.updateVolunteerStatus = updateVolunteerStatus;
-
-        searchInput.addEventListener('input', debounce(loadData, 400));
-        statusFilter.addEventListener('change', loadData);
-        roleFilter.addEventListener('change', loadData);
 
         function debounce(fn, ms) {
             let timer;
@@ -757,74 +1511,13 @@
             };
         }
 
+        searchInput.addEventListener('input', debounce(loadData, 350));
+        statusFilter.addEventListener('change', loadData);
+        roleFilter.addEventListener('change', loadData);
+
+        // Inicialización
+        updateToolbarForTab();
         loadData();
     </script>
-
-    <!-- MODAL ATS: FICHA DE EVALUACIÓN COMPLETA DEL POSTULANTE -->
-    <div id="candidateDetailModal" class="modal" style="display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(4,6,10,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;">
-        <div class="modal-content" style="width: 100%; max-width: 750px; background: #0f141c; border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 18px; padding: 28px; color: #f0f6fc; box-shadow: 0 20px 60px rgba(0,0,0,0.8); position: relative; max-height: 90vh; overflow-y: auto; box-sizing: border-box;">
-            <span class="close-button" onclick="closeCandidateModal()" style="position: absolute; top: 18px; right: 22px; font-size: 1.5rem; color: #8b949e; cursor: pointer; font-weight: bold;">&times;</span>
-            
-            <!-- Header del Postulante -->
-            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 18px;">
-                <div id="modalAvatar" style="width: 54px; height: 54px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #1d4ed8); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: 800; color: #fff; flex-shrink: 0;"></div>
-                <div style="flex: 1;">
-                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                        <h2 id="modalFullName" style="margin: 0; font-size: 1.4rem; font-weight: 800; color: #ffffff;"></h2>
-                        <span id="modalStatusBadge" class="status-btn"></span>
-                    </div>
-                    <div style="display: flex; gap: 12px; font-size: 0.85rem; color: #94a3b8; margin-top: 4px; flex-wrap: wrap;">
-                        <span id="modalRole" style="color: #60a5fa; font-weight: 700;"></span>
-                        <span>•</span>
-                        <span id="modalYearsExperience"></span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Grid de Metadatos -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
-                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 12px;">
-                    <div style="font-size: 0.7rem; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Correo Electrónico</div>
-                    <div id="modalEmail" style="font-size: 0.92rem; font-weight: 600; color: #f0f6fc; margin-top: 4px; word-break: break-all;"></div>
-                </div>
-                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 12px;">
-                    <div style="font-size: 0.7rem; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Ingreso Pretendido</div>
-                    <div id="modalSalary" style="font-size: 1.1rem; font-weight: 800; color: #10b981; margin-top: 4px;"></div>
-                </div>
-                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 12px;">
-                    <div style="font-size: 0.7rem; color: #8b949e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Fecha de Postulación</div>
-                    <div id="modalDate" style="font-size: 0.88rem; font-weight: 600; color: #f0f6fc; margin-top: 4px;"></div>
-                </div>
-            </div>
-
-            <!-- Documentación & Enlaces Directos -->
-            <div style="margin-bottom: 24px;">
-                <h4 style="margin: 0 0 12px 0; font-size: 0.85rem; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.5px;">Documentación y Recursos del Candidato</h4>
-                <div id="modalLinksContainer" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
-            </div>
-
-            <!-- Carta de Presentación -->
-            <div style="margin-bottom: 24px;">
-                <h4 style="margin: 0 0 10px 0; font-size: 0.85rem; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.5px;">Carta de Presentación / Motivación</h4>
-                <div id="modalCoverLetter" style="background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; font-size: 0.9rem; line-height: 1.6; color: #e2e8f0; max-height: 160px; overflow-y: auto; white-space: pre-wrap;"></div>
-            </div>
-
-            <!-- Observaciones del Reclutador -->
-            <div style="margin-bottom: 24px;">
-                <h4 style="margin: 0 0 8px 0; font-size: 0.85rem; color: #60a5fa; text-transform: uppercase; letter-spacing: 0.5px;">Notas de Evaluación / Comentarios del Reclutador</h4>
-                <textarea id="modalReviewerNotes" rows="3" style="width: 100%; padding: 12px; background: #080a0d; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; color: #f0f6fc; font-family: inherit; font-size: 0.88rem; box-sizing: border-box;" placeholder="Escribe observaciones sobre la entrevista, conocimientos técnicos o notas de seguimiento..."></textarea>
-            </div>
-
-            <!-- Acciones Directas ATS -->
-            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
-                <button onclick="saveCandidateNotes()" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #f0f6fc; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; font-family: inherit;">💾 Guardar Notas</button>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button onclick="changeStatusFromModal('reviewing')" style="background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.4); color: #818cf8; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: inherit;">👁️ Marcar En Revisión</button>
-                    <button onclick="changeStatusFromModal('rejected')" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; padding: 10px 18px; border-radius: 8px; font-weight: 700; cursor: pointer; font-family: inherit;">❌ Rechazar</button>
-                    <button onclick="changeStatusFromModal('accepted')" style="background: linear-gradient(135deg, #16a34a, #15803d); border: none; color: white; padding: 10px 22px; border-radius: 8px; font-weight: 800; cursor: pointer; font-family: inherit; box-shadow: 0 4px 15px rgba(22,163,74,0.3);">✅ Aceptar Candidato</button>
-                </div>
-            </div>
-        </div>
-    </div>
 </body>
 </html>
