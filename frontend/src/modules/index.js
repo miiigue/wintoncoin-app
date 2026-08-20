@@ -16,6 +16,7 @@ export * from './password-toggle.js';
 export * from './sanitize.js';
 export * from './clipboard.js';
 export * from './walletService.js';
+export * from './tableSort.js';
 
 // ============================================================================
 // COMPATIBILIDAD GLOBAL (window.*)
@@ -72,6 +73,13 @@ import {
     parseFormattedBalance,
     calculateCreditMetrics
 } from './walletService.js';
+import {
+    parseSortValue,
+    sortDataset,
+    renderSortableTh,
+    getNextSortDirection,
+    attachTableSortHandler
+} from './tableSort.js';
 
 // Solo ejecutar en el navegador (no en Node.js)
 if (typeof window !== 'undefined') {
@@ -111,6 +119,13 @@ if (typeof window !== 'undefined') {
 
     // --- Banner ---
     window.initializeValueBanner = initializeValueBanner;
+
+    // --- Ordenamiento de Tablas Estilo Binance ---
+    window.parseSortValue = parseSortValue;
+    window.sortDataset = sortDataset;
+    window.renderSortableTh = renderSortableTh;
+    window.getNextSortDirection = getNextSortDirection;
+    window.attachTableSortHandler = attachTableSortHandler;
 }
 
 // ============================================================================
