@@ -13,6 +13,16 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-21 — DevOps & CI/CD: Pipeline de Despliegue Automatizado para Entorno Demo (demo.wintoncoin.com)
+* **Diagnóstico & Objetivo**:
+  - Habilitar entrega continua (CD) automatizada para el entorno de pruebas Staging (`demo.wintoncoin.com`) de modo que al fusionar cambios a la rama `demo`, GitHub Actions compile automáticamente el bundle con `npm run build:demo` y lo despliegue vía FTP seguro sin intervención manual.
+  - Mantener aislamiento estricto de credenciales y entornos (Zero-Trust) mediante cuenta FTP dedicada y enjaulada en Hostinger (`FTP_SERVER_DEMO`, `FTP_USERNAME_DEMO`, `FTP_PASSWORD_DEMO`), evitando cualquier riesgo de afectación accidental a producción (`sc.wintoncoin.com` y `wintoncoin.com`).
+* **Cambios Técnicos**:
+  - **GitHub Actions Workflow (`.github/workflows/deploy-frontend-demo.yml`)**:
+    - Creado pipeline disparado por `push` en rama `demo` sobre `frontend/**`.
+    - Ejecuta `npm run build:demo` generando `dist-demo/` e instala cliente `lftp` para sincronización en paralelo con Hostinger.
+* **Impacto**: Despliegues automáticos instantáneos en `demo.wintoncoin.com` con cada PR aprobado, aislamiento 100% garantizado y eliminación de tareas manuales propensas a errores.
+
 ### 2026-08-21 — Optimización UI/UX & PWA: Bypass de Caché en Páginas Administrativas y Actualización de Menú a Talento / Voluntarios
 * **Diagnóstico & Objetivo**:
   - Resolver el problema de caché agresivo del Service Worker y del navegador donde la página `admin-recruitment.html` cargaba una versión estática previa desactualizada al navegar desde el panel de administración, requiriendo recarga forzada (`Ctrl+Shift+R`).
