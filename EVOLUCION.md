@@ -1,4 +1,3 @@
-# EvoluciÃƒÆ’Ã‚Â³n de WintonCoin
 # Evolución de WintonCoin
 
 ---
@@ -13,6 +12,20 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
+
+### 2026-08-20 — Optimización UI/UX & Responsive: Compactación de Columnas de Saldos y Abreviación Fintech en Tabla de Usuarios
+* **Diagnóstico & Objetivo**:
+  - Corregir el desbordamiento horizontal en pantallas de escritorio en la tabla de Usuarios (`#users-section`), donde los títulos extensos (`BLUE (Disponible)`, `BLUE (Pendiente)`, `Calificación`) y el padding excesivo (`1.5rem`) empujaban las columnas de fecha y acciones fuera del viewport.
+  - Abreviar los encabezados de balances a `BLUE Disp.`, `BLUE Pend.`, `BLUE IOU`, `RED` y `Calif.`.
+  - Reducir el padding de celdas a `0.7rem 0.55rem` (y `0.3rem` para `.col-balance`), alineando los valores monetarios a la derecha con formato numérico tabular.
+* **Cambios Técnicos**:
+  - **Frontend Markup & Lógica (`admin-panel.js`)**:
+    - Actualizados los encabezados de ordenamiento `renderSortableTh` con labels abreviados (`BLUE Disp.`, `BLUE Pend.`, `Calif.`) y alineaciones visuales exactas (`right` para balances, `center` para expedientes, calificaciones y fechas).
+    - Asignadas clases `col-balance` en las celdas numéricas de `getUserRowHTML`.
+  - **Estilos Visuales (`admin-style.css`)**:
+    - Ajustado el padding del layout `.admin-main` a `1.5rem 1.75rem` para maximizar el área útil.
+    - Implementada clase `.col-balance` con padding compacto (`0.3rem`) y alineación numérica tabular.
+* **Impacto**: Toda la tabla de usuarios cabe al 100% en la pantalla sin scroll horizontal indeseado, mejorando la usabilidad y la densidad de información estilo Binance Pro.
 
 ### 2026-08-20 — Optimización UI/UX & Auditoría: Rediseño Integral de Tabla de Voluntarios SOS, Fecha/Hora de 2 Líneas y Ordenamiento Binance Pro en Reclutamiento
 * **Diagnóstico & Objetivo**:
