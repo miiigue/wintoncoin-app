@@ -28,12 +28,18 @@ cleanupOutdatedCaches();
 // RUNTIME CACHING STRATEGIES
 // ============================================================================
 
-// HTML: Network First
+// Admin & Dynamic Management HTML: NetworkOnly (Siempre fresco desde el servidor, sin caché estático para paneles de control)
+registerRoute(
+    /(admin.*\.html|governance-panel\.html|momentum-admin\.html)$/,
+    new NetworkOnly()
+);
+
+// HTML General: Network First
 registerRoute(
     /\.html$/,
     new NetworkFirst({
         cacheName: 'wintoncoin-html-v1',
-        networkTimeoutSeconds: 10,
+        networkTimeoutSeconds: 5,
         plugins: [
             new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 86400 }),
             new CacheableResponsePlugin({ statuses: [0, 200] })
