@@ -3866,14 +3866,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${renderSortableTh({ key: 'username', label: 'Usuario', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
                         ${renderSortableTh({ key: 'sos_dossier', label: 'Exp. SOS/VOL', currentSortKey: currentKey, currentDirection: currentDir, type: 'text', align: 'center' })}
                         ${renderSortableTh({ key: 'web3_wallet_address', label: 'Billetera Web3', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
-                        ${renderSortableTh({ key: 'liquid_blue_balance', label: 'BLUE (Disponible)', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
-                        ${renderSortableTh({ key: 'escrow_blue_balance', label: 'BLUE (Pendiente)', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
-                        ${renderSortableTh({ key: 'booster_blue_balance', label: 'BLUE IOU', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
-                        ${renderSortableTh({ key: 'red_balance', label: 'RED', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
-                        ${renderSortableTh({ key: 'average_rating', label: 'Calificación', currentSortKey: currentKey, currentDirection: currentDir, type: 'number' })}
-                        ${renderSortableTh({ key: 'status', label: 'Estado', currentSortKey: currentKey, currentDirection: currentDir, type: 'text' })}
-                        ${renderSortableTh({ key: 'created_at', label: 'Fecha Reg.', currentSortKey: currentKey, currentDirection: currentDir, type: 'date' })}
-                        <th>Acciones</th>
+                        ${renderSortableTh({ key: 'liquid_blue_balance', label: 'BLUE Disp.', currentSortKey: currentKey, currentDirection: currentDir, type: 'number', align: 'right' })}
+                        ${renderSortableTh({ key: 'escrow_blue_balance', label: 'BLUE Pend.', currentSortKey: currentKey, currentDirection: currentDir, type: 'number', align: 'right' })}
+                        ${renderSortableTh({ key: 'booster_blue_balance', label: 'BLUE IOU', currentSortKey: currentKey, currentDirection: currentDir, type: 'number', align: 'right' })}
+                        ${renderSortableTh({ key: 'red_balance', label: 'RED', currentSortKey: currentKey, currentDirection: currentDir, type: 'number', align: 'right' })}
+                        ${renderSortableTh({ key: 'average_rating', label: 'Calif.', currentSortKey: currentKey, currentDirection: currentDir, type: 'number', align: 'center' })}
+                        ${renderSortableTh({ key: 'status', label: 'Estado', currentSortKey: currentKey, currentDirection: currentDir, type: 'text', align: 'center' })}
+                        ${renderSortableTh({ key: 'created_at', label: 'Fecha Reg.', currentSortKey: currentKey, currentDirection: currentDir, type: 'date', align: 'center' })}
+                        <th style="text-align: center;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -3958,17 +3958,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
                 <td align="center">${dossiersHTML}</td>
                 <td>${walletHTML}</td>
-                <td class="saldo-blue-text">${formatBalance(user.liquid_blue_balance)}</td>
-                <td class="saldo-escrow-text">${formatBalance(user.escrow_blue_balance)}</td>
-                <td class="saldo-booster-text">${formatBalance(user.booster_blue_balance)}</td>
-                <td class="saldo-red-text">${formatBalance(user.red_balance)}</td>
-                <td>${ratingHTML}</td>
-                <td><span class="status-badge ${escapeHtml(user.status)}">${escapeHtml(user.status)}</span></td>
-                <td style="white-space: nowrap; font-size: 0.85rem;">
+                <td class="saldo-blue-text col-balance" style="text-align: right;">${formatBalance(user.liquid_blue_balance)}</td>
+                <td class="saldo-escrow-text col-balance" style="text-align: right;">${formatBalance(user.escrow_blue_balance)}</td>
+                <td class="saldo-booster-text col-balance" style="text-align: right;">${formatBalance(user.booster_blue_balance)}</td>
+                <td class="saldo-red-text col-balance" style="text-align: right;">${formatBalance(user.red_balance)}</td>
+                <td align="center">${ratingHTML}</td>
+                <td align="center"><span class="status-badge ${escapeHtml(user.status)}">${escapeHtml(user.status)}</span></td>
+                <td align="center" style="white-space: nowrap; font-size: 0.82rem;">
                     <div style="font-weight: 500; color: #f8fafc;">${dateFormatted}</div>
-                    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 1px;">${timeFormatted}</div>
+                    <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 1px;">${timeFormatted}</div>
                 </td>
-                <td class="actions-cell">
+                <td class="actions-cell" align="center">
                     <div class="action-menu-container">
                         <button class="action-button-admin menu-toggle">Acciones</button>
                         <div class="action-menu">
