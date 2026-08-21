@@ -6,6 +6,8 @@ on:
       - demo
     paths:
       - 'frontend/**'
+      - '.github/workflows/deploy-frontend-demo.yml'
+  workflow_dispatch:
 
 jobs:
   demo-deploy:
