@@ -13,6 +13,18 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-21 — Optimización UI/UX & PWA: Bypass de Caché en Páginas Administrativas y Actualización de Menú a Talento / Voluntarios
+* **Diagnóstico & Objetivo**:
+  - Resolver el problema de caché agresivo del Service Worker y del navegador donde la página `admin-recruitment.html` cargaba una versión estática previa desactualizada al navegar desde el panel de administración, requiriendo recarga forzada (`Ctrl+Shift+R`).
+  - Actualizar el acceso del menú lateral en `admin-panel.html` de `🎯 Talento` a `🎯 Talento / Voluntarios` para reflejar con precisión la integración de la brigada humanitaria SOS.
+* **Cambios Técnicos**:
+  - **Service Worker (`sw-source.js`)**:
+    - Registrada estrategia `NetworkOnly` para todas las rutas HTML administrativas (`admin*.html`, `governance-panel.html`, `momentum-admin.html`), asegurando que el Service Worker nunca sirva HTML estático obsoleto y siempre consulte la versión en vivo del servidor.
+  - **Frontend Markup (`admin-recruitment.html` & `admin-panel.html`)**:
+    - Inyectados meta tags anti-caché (`Cache-Control: no-cache, no-store, must-revalidate`, `Pragma: no-cache`, `Expires: 0`) en la cabecera de `admin-recruitment.html`.
+    - Actualizado el texto del elemento de navegación en el sidebar de `admin-panel.html` a `🎯 Talento / Voluntarios`.
+* **Impacto**: Carga instantánea de la versión más reciente en cada navegación sin necesidad de recarga forzada por parte de los administradores.
+
 ### 2026-08-20 — Optimización UI/UX & Responsive: Compactación de Columnas de Saldos y Abreviación Fintech en Tabla de Usuarios
 * **Diagnóstico & Objetivo**:
   - Corregir el desbordamiento horizontal en pantallas de escritorio en la tabla de Usuarios (`#users-section`), donde los títulos extensos (`BLUE (Disponible)`, `BLUE (Pendiente)`, `Calificación`) y el padding excesivo (`1.5rem`) empujaban las columnas de fecha y acciones fuera del viewport.
