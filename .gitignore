@@ -108,6 +108,7 @@ frontend/scratch/
 
 # Android Build & IDE Artifacts (Zero-Trust Repository Hygiene)
 android/.gradle/
+android/.kotlin/
 android/build/
 android/app/build/
 android/.idea/

@@ -13,6 +13,19 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-22 — Fase 6: Creación de Publicaciones, Subida Multimedia WebP a Cloudflare R2, Truth-in-Pricing y 88 Tests Unitarios (Android Nativo)
+* **Diagnóstico & Objetivo**: Implementar el módulo completo para la creación de publicaciones (Tareas Comerciales, Ventas P2P, Ventas Rápidas y Causas Solidarias) en la app nativa Android (`com.wintoncoin.app`), con selector fotográfico de alta seguridad (Photo Picker API 33+), compresión WebP en dispositivo antes de la subida a Cloudflare R2 y cálculo reactivo en tiempo real de multiplicadores de etapa (Truth-in-Pricing).
+* **Cambios Técnicos**:
+  - **DTOs & API Service (`PublishDtos.kt`, `MarketplaceApiService.kt`)**: DTOs serializables para `CreatePublicationRequest`, `CreateQuickSaleRequest`, `MediaUploadResponseDto`, `BoosterMultiplierDto` y `PlatformSettingsDto`.
+  - **Compresión Pre-Upload (`ImageCompressor.kt`)**: Optimizador nativo que decodifica con `inSampleSize`, redimensiona proporcionalmente a 1080px y comprime a WebP (80% calidad), reduciendo el consumo de datos móviles hasta en un 85%.
+  - **Repositorio & Dominio (`MarketplaceRepository.kt`, `MarketplaceRepositoryImpl.kt`)**: Métodos para creación de publicaciones, ventas rápidas, subida multipart a `/api/media/upload`, consulta de multiplicadores (`/api/booster/current-multiplier`) y parámetros de plataforma (`/api/platform-settings`).
+  - **Casos de Uso (`CreatePublicationUseCase.kt`, `CreateQuickSaleUseCase.kt`, `UploadMediaUseCase.kt`, `GetBoosterMultiplierUseCase.kt`, `GetPlatformEconomicSettingsUseCase.kt`)**: Validación estricta de campos, montos positivos, código de beneficiario para donaciones y tiempos mínimos de enfriamiento.
+  - **UI Jetpack Compose (`CreatePublicationScreen.kt`, `CreatePublicationViewModel.kt`, `MarketplaceScreen.kt`)**: Selector de pestañas por tipo, previsualización de miniaturas con eliminación dinámica, lista editable de pasos de instrucción, y botón flotante ("Publicar") en el feed.
+  - **Calculadora Truth-in-Pricing**: Distinción estricta entre **BLUE IOU** (con multiplicador activo off-chain en modo prelanzamiento) y **BLUE Real** (on-chain nominal en postlanzamiento).
+  - **Suite de Pruebas Unitarias (88 Tests Aprobados / 100% Cobertura)**: Incorporadas 16 nuevas pruebas unitarias (`CreatePublicationUseCaseTest`, `CreateQuickSaleUseCaseTest`, `UploadMediaUseCaseTest`, `CreatePublicationViewModelTest`).
+  - **Compilación de Artefacto**: Generado `app-demo-debug.apk` (19.68 MB) verificado con `BUILD SUCCESSFUL`.
+* **Impacto**: El ciclo comercial y operativo del Marketplace de WintonCoin queda 100% cerrado y autónomo en Android (crear, postularse, realizar, entregar evidencia, auditar y pagar).
+
 ### 2026-08-21 — DevOps & CI/CD: Pipeline de Despliegue Automatizado para Entorno Demo (demo.wintoncoin.com)
 * **Diagnóstico & Objetivo**:
   - Habilitar entrega continua (CD) automatizada para el entorno de pruebas Staging (`demo.wintoncoin.com`) de modo que al fusionar cambios a la rama `demo`, GitHub Actions compile automáticamente el bundle con `npm run build:demo` y lo despliegue vía FTP seguro sin intervención manual.

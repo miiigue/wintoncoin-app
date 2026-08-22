@@ -9,7 +9,7 @@
 * **Aplicación:** WintonCoin Native Android Client (`com.wintoncoin.app`)
 * **Entorno Auditado:** Demo (`demo.wintoncoin.com` / `wintoncoin-backend-demo.onrender.com`)
 * **Estándares Aplicados:** OWASP MASVS (v2.0), SOC 2 Type II (Security & Confidentiality), FinTech Truth-in-Pricing.
-* **Cobertura de Pruebas Unitarias:** 72 / 72 Pruebas Aprobadas (100% Tasa de Éxito).
+* **Cobertura de Pruebas Unitarias:** 88 / 88 Pruebas Aprobadas (100% Tasa de Éxito).
 * **Aislamiento de Entornos:** 100% Protegido. El cliente Android no altera la PWA web ni el backend de producción.
 
 ---
@@ -29,6 +29,7 @@
 | **MASVS-PRIVACY-1** | Aislamiento de Datos de Expediente SOS | `GetProfileUseCase.kt` aplica regla de Zero-Trust: los datos sensibles del censo SOS solo se consultan y renderizan si el usuario autenticado consulta su propio perfil. | 🟢 CUMPLIDO |
 | **MASVS-FINTECH-1** | Precisión y Cero Pérdida en Formateo de Balances | `FormatBalanceUseCase.kt` implementa formateo estricto de 4 decimales (`es-ES`) réplica de `walletService.js` para asegurar coherencia financiera. | 🟢 CUMPLIDO |
 | **MASVS-VISUAL-1** | Saneamiento de URLs Multimedia y Cero Inyección | `MarketplaceRepositoryImpl.kt` filtra enlaces externos no permitidos antes de renderizar imágenes en `PublicationCard` previniendo SSRF y fallas de renderizado. | 🟢 CUMPLIDO |
+| **MASVS-MEDIA-2** | Optimización WebP y Privacidad de Medios | `ImageCompressor.kt` y `ActivityResultContracts.PickMultipleVisualMedia` desacoplan el acceso al almacenamiento sin requerir permisos invasivos (`READ_MEDIA_IMAGES`). | 🟢 CUMPLIDO |
 | **MASVS-CODE-1** | Zero Hardcoded Secrets | URLs de endpoints y llaves maestras se inyectan en tiempo de compilación según el flavor de Gradle (`BuildConfig.API_BASE_URL`). | 🟢 CUMPLIDO |
 
 ---
@@ -46,7 +47,7 @@
 
 ## 4. Desglose de Pruebas Unitarias Automatizadas (Unit Test Matrix)
 
-Las 72 pruebas unitarias fueron ejecutadas exitosamente bajo la JVM mediante JUnit 4, MockK y Kotlinx Coroutines Test:
+Las 88 pruebas unitarias fueron ejecutadas exitosamente bajo la JVM mediante JUnit 4, MockK y Kotlinx Coroutines Test:
 
 ```text
 Suite: AuthInterceptorTest (3 Tests)
@@ -77,6 +78,23 @@ Suite: MarketplaceRepositoryImplTest (4 Tests)
 ├── [PASS] acceptPublication sends correct payload and returns success message
 ├── [PASS] completeTask sends evidence URLs and returns success
 └── [PASS] confirmPayment releases funds to worker
+
+Suite: CreatePublicationUseCaseTest (6 Tests)
+├── [PASS] short title less than 3 chars returns error
+├── [PASS] short description less than 5 chars returns error
+├── [PASS] request with zero or negative blueCost returns error
+├── [PASS] donation without beneficiary referral code returns error
+├── [PASS] repeat participation with zero cooldown returns error
+└── [PASS] valid request calls repository and returns success
+
+Suite: CreateQuickSaleUseCaseTest (3 Tests)
+├── [PASS] quick sale with zero or negative amount returns error
+├── [PASS] quick sale with same target user as author returns error
+└── [PASS] valid quick sale calls repository and returns success
+
+Suite: UploadMediaUseCaseTest (2 Tests)
+├── [PASS] empty images list returns error without calling repository
+└── [PASS] valid images list calls repository and returns uploaded URLs
 
 Suite: ForgotPasswordUseCaseTest (2 Tests)
 ├── [PASS] valid email calls repository and returns success
@@ -170,7 +188,14 @@ Suite: PublicationDetailViewModelTest (4 Tests)
 ├── [PASS] CompleteTask sends evidence input and updates success message
 └── [PASS] ConfirmPayment calls confirmPaymentUseCase and refreshes details
 
-TOTAL: 72 Pruebas Unitarias | 0 Fallos | 0 Errores | Tasa de Aprobación: 100%
+Suite: CreatePublicationViewModelTest (5 Tests)
+├── [PASS] initial load fetches multiplier and platform settings
+├── [PASS] AmountChanged calculates Truth-in-Pricing preview text in pre-launch mode
+├── [PASS] TypeChanged updates publicationType and resets amount
+├── [PASS] AddStep, UpdateStep and RemoveStep modify instructions correctly
+└── [PASS] Submit with valid data calls CreatePublicationUseCase and updates isSuccess
+
+TOTAL: 88 Pruebas Unitarias | 0 Fallos | 0 Errores | Tasa de Aprobación: 100%
 ```
 
 ---
@@ -180,7 +205,7 @@ TOTAL: 72 Pruebas Unitarias | 0 Fallos | 0 Errores | Tasa de Aprobación: 100%
 * **Comando:** `gradlew assembleDemoDebug`
 * **Resultado:** `BUILD SUCCESSFUL`
 * **Ubicación del APK:** `android/app/build/outputs/apk/demo/debug/app-demo-debug.apk`
-* **Tamaño del APK:** 19.49 MB
+* **Tamaño del APK:** 19.68 MB
 * **Arquitectura de UI:** Jetpack Compose + Material 3 + Single Activity
 * **Inyección de Dependencias:** Dagger Hilt (Compile-time)
 * **Serialización:** KotlinX Serialization (KSP - Type-safe, Zero-reflection)

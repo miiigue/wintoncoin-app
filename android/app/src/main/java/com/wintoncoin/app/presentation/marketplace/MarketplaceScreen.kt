@@ -27,14 +27,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -69,7 +72,8 @@ import com.wintoncoin.app.presentation.theme.WintonGreen
 fun MarketplaceScreen(
     viewModel: MarketplaceViewModel,
     onNavigateBack: () -> Unit,
-    onNavigateToDetail: (String) -> Unit
+    onNavigateToDetail: (String) -> Unit,
+    onNavigateToCreatePublication: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -113,6 +117,27 @@ fun MarketplaceScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF0F172A)
                 )
+            )
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = onNavigateToCreatePublication,
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Crear publicación",
+                        tint = Color.White
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Publicar",
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                },
+                containerColor = WintonBlue,
+                elevation = FloatingActionButtonDefaults.elevation(8.dp)
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }

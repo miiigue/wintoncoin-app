@@ -77,3 +77,27 @@ data class ParticipantItem(
     val ratingsCount: Int,
     val phoneNumber: String?
 )
+
+/**
+ * Modelo de Dominio para el Multiplicador Activo de Etapa.
+ */
+data class BoosterMultiplierInfo(
+    val multiplier: Double,
+    val stageName: String
+)
+
+/**
+ * Modelo de Dominio para la Configuración Económica de la Plataforma.
+ */
+data class PlatformEconomicSettings(
+    val preLaunchModeEnabled: Boolean,
+    val allowRequestPublications: Boolean,
+    val allowSellPublications: Boolean,
+    val allowDonationPublications: Boolean,
+    val allowQuickSalePublications: Boolean,
+    val maxImagesRequest: Int,
+    val maxImagesSell: Int,
+    val maxImagesDonation: Int,
+    val platformUsername: String?
+)
+
