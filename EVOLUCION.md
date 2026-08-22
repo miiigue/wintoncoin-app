@@ -25,7 +25,6 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - **Suite de Pruebas Unitarias (88 Tests Aprobados / 100% Cobertura)**: Incorporadas 16 nuevas pruebas unitarias (`CreatePublicationUseCaseTest`, `CreateQuickSaleUseCaseTest`, `UploadMediaUseCaseTest`, `CreatePublicationViewModelTest`).
   - **Compilación de Artefacto**: Generado `app-demo-debug.apk` (19.68 MB) verificado con `BUILD SUCCESSFUL`.
 * **Impacto**: El ciclo comercial y operativo del Marketplace de WintonCoin queda 100% cerrado y autónomo en Android (crear, postularse, realizar, entregar evidencia, auditar y pagar).
-
 ### 2026-08-21 — DevOps & CI/CD: Pipeline de Despliegue Automatizado para Entorno Demo (demo.wintoncoin.com)
 * **Diagnóstico & Objetivo**:
   - Habilitar entrega continua (CD) automatizada para el entorno de pruebas Staging (`demo.wintoncoin.com`) de modo que al fusionar cambios a la rama `demo`, GitHub Actions compile automáticamente el bundle con `npm run build:demo` y lo despliegue vía FTP seguro sin intervención manual.
