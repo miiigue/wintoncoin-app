@@ -13,6 +13,8 @@ import com.wintoncoin.app.data.remote.api.MarketplaceApiService
 import com.wintoncoin.app.data.remote.dto.AcceptPublicationRequest
 import com.wintoncoin.app.data.remote.dto.CompleteTaskRequest
 import com.wintoncoin.app.data.remote.dto.ConfirmPaymentRequest
+import com.wintoncoin.app.data.remote.dto.CreatePublicationRequest
+import com.wintoncoin.app.data.remote.dto.CreateQuickSaleRequest
 import com.wintoncoin.app.data.remote.dto.HumanitarianCauseDto
 import com.wintoncoin.app.data.remote.dto.ParticipantDto
 import com.wintoncoin.app.data.remote.dto.PublicationDto
@@ -148,6 +150,111 @@ class MarketplaceRepositoryImpl @Inject constructor(
                 val errorBody = response.errorBody()?.string() ?: ""
                 val msg = parseErrorMessage(errorBody).ifBlank { "Error al confirmar el pago." }
                 Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun createPublication(request: CreatePublicationRequest): Result<String> {
+        return try {
+            val response = apiService.createPublication(request)
+            if (response.isSuccessful) {
+                Result.success(response.body()?.message ?: "Publicación creada con éxito.")
+            } else {
+                val errorBody = response.errorBody()?.string() ?: ""
+                val msg = parseErrorMessage(errorBody).ifBlank { "Error al crear la publicación." }
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun createQuickSale(request: CreateQuickSaleRequest): Result<String> {
+        return try {
+            val response = apiService.createQuickSale(request)
+            if (response.isSuccessful) {
+                Result.success(response.body()?.message ?: "Venta Rápida creada con éxito.")
+            } else {
+                val errorBody = response.errorBody()?.string() ?: ""
+                val msg = parseErrorMessage(errorBody).ifBlank { "Error al crear la Venta Rápida." }
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun uploadImages(images: List<okhttp3.MultipartBody.Part>): Result<List<String>> {
+        return try {
+            val response = apiService.uploadImages(images)
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body?.success == true && body.urls.isNotEmpty()) {
+                    Result.success(body.urls)
+                } else {
+                    Result.failure(Exception(body?.message ?: "No se pudieron subir las imágenes."))
+                }
+            } else {
+                val errorBody = response.errorBody()?.string() ?: ""
+                val msg = parseErrorMessage(errorBody).ifBlank { "Error al subir las imágenes a Cloudflare R2." }
+                Result.failure(Exception(msg))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getBoosterMultiplier(): Result<com.wintoncoin.app.domain.model.BoosterMultiplierInfo> {
+        return try {
+            val response = apiService.getCurrentMultiplier()
+            if (response.isSuccessful) {
+                val body = response.body()
+                val info = com.wintoncoin.app.domain.model.BoosterMultiplierInfo(
+                    multiplier = body?.multiplier ?: 1.0,
+                    stageName = body?.stageName ?: "Sin etapa activa"
+                )
+                Result.success(info)
+            } else {
+                Result.success(com.wintoncoin.app.domain.model.BoosterMultiplierInfo(1.0, "Sin etapa activa"))
+            }
+        } catch (e: Exception) {
+            Result.success(com.wintoncoin.app.domain.model.BoosterMultiplierInfo(1.0, "Sin etapa activa"))
+        }
+    }
+
+    override suspend fun getPlatformSettings(): Result<com.wintoncoin.app.domain.model.PlatformEconomicSettings> {
+        return try {
+            val response = apiService.getPlatformSettings()
+            if (response.isSuccessful) {
+                val body = response.body()
+                val settings = com.wintoncoin.app.domain.model.PlatformEconomicSettings(
+                    preLaunchModeEnabled = body?.preLaunchModeEnabled ?: true,
+                    allowRequestPublications = body?.allowRequestPublications ?: true,
+                    allowSellPublications = body?.allowSellPublications ?: true,
+                    allowDonationPublications = body?.allowDonationPublications ?: true,
+                    allowQuickSalePublications = body?.allowQuickSalePublications ?: true,
+                    maxImagesRequest = body?.maxImagesRequest?.toIntOrNull() ?: 1,
+                    maxImagesSell = body?.maxImagesSell?.toIntOrNull() ?: 1,
+                    maxImagesDonation = body?.maxImagesDonation?.toIntOrNull() ?: 3,
+                    platformUsername = body?.platformUsername
+                )
+                Result.success(settings)
+            } else {
+                Result.success(
+                    com.wintoncoin.app.domain.model.PlatformEconomicSettings(
+                        preLaunchModeEnabled = true,
+                        allowRequestPublications = true,
+                        allowSellPublications = true,
+                        allowDonationPublications = true,
+                        allowQuickSalePublications = true,
+                        maxImagesRequest = 1,
+                        maxImagesSell = 1,
+                        maxImagesDonation = 3,
+                        platformUsername = "wintoncoin"
+                    )
+                )
             }
         } catch (e: Exception) {
             Result.failure(e)

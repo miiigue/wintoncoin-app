@@ -27,6 +27,8 @@ import com.wintoncoin.app.presentation.wallet.WalletViewModel
 
 import com.wintoncoin.app.presentation.marketplace.MarketplaceScreen
 import com.wintoncoin.app.presentation.marketplace.MarketplaceViewModel
+import com.wintoncoin.app.presentation.marketplace.create.CreatePublicationScreen
+import com.wintoncoin.app.presentation.marketplace.create.CreatePublicationViewModel
 import com.wintoncoin.app.presentation.marketplace.detail.PublicationDetailScreen
 import com.wintoncoin.app.presentation.marketplace.detail.PublicationDetailViewModel
 
@@ -40,6 +42,7 @@ sealed class Screen(val route: String) {
     object Dashboard : Screen("dashboard_screen")
     object Wallet : Screen("wallet_screen")
     object Marketplace : Screen("marketplace_screen")
+    object CreatePublication : Screen("create_publication_screen")
     data class VerifyOtp(val email: String) : Screen("verify_otp_screen/$email")
     data class Profile(val username: String) : Screen("profile_screen/$username")
     data class PublicationDetail(val id: String) : Screen("publication_detail_screen/$id")
@@ -112,7 +115,15 @@ fun NavGraph(
             MarketplaceScreen(
                 viewModel = marketplaceViewModel,
                 onNavigateBack = { onNavigateTo(Screen.Dashboard.route) },
-                onNavigateToDetail = { id -> onNavigateTo("publication_detail_screen/$id") }
+                onNavigateToDetail = { id -> onNavigateTo("publication_detail_screen/$id") },
+                onNavigateToCreatePublication = { onNavigateTo(Screen.CreatePublication.route) }
+            )
+        }
+        currentScreen == Screen.CreatePublication.route -> {
+            val createViewModel: CreatePublicationViewModel = hiltViewModel()
+            CreatePublicationScreen(
+                viewModel = createViewModel,
+                onNavigateBack = { onNavigateTo(Screen.Marketplace.route) }
             )
         }
         currentScreen.startsWith("publication_detail_screen/") -> {

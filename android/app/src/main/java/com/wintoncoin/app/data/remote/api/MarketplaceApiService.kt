@@ -13,10 +13,18 @@ import com.wintoncoin.app.data.remote.dto.ConfirmPaymentRequest
 import com.wintoncoin.app.data.remote.dto.HumanitarianCausesResponseDto
 import com.wintoncoin.app.data.remote.dto.MarketplaceActionResponseDto
 import com.wintoncoin.app.data.remote.dto.PublicationDto
+import com.wintoncoin.app.data.remote.dto.BoosterMultiplierDto
+import com.wintoncoin.app.data.remote.dto.CreatePublicationRequest
+import com.wintoncoin.app.data.remote.dto.CreateQuickSaleRequest
+import com.wintoncoin.app.data.remote.dto.MediaUploadResponseDto
+import com.wintoncoin.app.data.remote.dto.PlatformSettingsDto
+import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -73,4 +81,41 @@ interface MarketplaceApiService {
         @Path("id") id: String,
         @Body body: ConfirmPaymentRequest
     ): Response<MarketplaceActionResponseDto>
+
+    /**
+     * Crear una nueva publicación (Tarea Comercial, Venta P2P o Causa Solidaria).
+     */
+    @POST("publish")
+    suspend fun createPublication(
+        @Body body: CreatePublicationRequest
+    ): Response<MarketplaceActionResponseDto>
+
+    /**
+     * Crear una nueva Venta Rápida.
+     */
+    @POST("api/quick-sale")
+    suspend fun createQuickSale(
+        @Body body: CreateQuickSaleRequest
+    ): Response<MarketplaceActionResponseDto>
+
+    /**
+     * Subir múltiples imágenes optimizadas a Cloudflare R2 vía S3.
+     */
+    @Multipart
+    @POST("api/media/upload")
+    suspend fun uploadImages(
+        @Part images: List<MultipartBody.Part>
+    ): Response<MediaUploadResponseDto>
+
+    /**
+     * Obtiene el multiplicador activo y la etapa del motor Booster.
+     */
+    @GET("api/booster/current-multiplier")
+    suspend fun getCurrentMultiplier(): Response<BoosterMultiplierDto>
+
+    /**
+     * Obtiene la configuración de plataforma (modo prelanzamiento y límites).
+     */
+    @GET("api/platform-settings")
+    suspend fun getPlatformSettings(): Response<PlatformSettingsDto>
 }
