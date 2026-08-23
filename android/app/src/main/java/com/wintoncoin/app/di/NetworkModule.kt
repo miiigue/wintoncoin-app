@@ -109,4 +109,10 @@ object NetworkModule {
     fun provideMarketplaceApiService(retrofit: Retrofit): com.wintoncoin.app.data.remote.api.MarketplaceApiService {
         return retrofit.create(com.wintoncoin.app.data.remote.api.MarketplaceApiService::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideBoosterApiService(retrofit: Retrofit): com.wintoncoin.app.data.remote.api.BoosterApiService {
+        return retrofit.create(com.wintoncoin.app.data.remote.api.BoosterApiService::class.java)
+    }
 }

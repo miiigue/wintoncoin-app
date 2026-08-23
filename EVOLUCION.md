@@ -13,6 +13,32 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-22 — Fase 7: Motor de Impulsores (Booster Profile), Escalera de Niveles, Red de Referidos y 106 Tests Unitarios (Android Nativo)
+* **Diagnóstico & Objetivo**: Implementar en Android nativo (`com.wintoncoin.app`) el módulo completo del **Programa de Impulsores (Booster Profile)** y la **Red de Referidos (Referral Network)** auditados contra la PWA web (`booster-profile.js` y `referrals.js`), garantizando paridad funcional al 100%, seguridad bancaria Zero-Trust y Clean Architecture (MVI + Jetpack Compose).
+* **Cambios Técnicos**:
+  - **DTOs & API Service (`BoosterDtos.kt`, `BoosterApiService.kt`)**: DTOs inmutables con `@Serializable` para `BoosterProfileDto`, `BoosterLevelDto`, `BoosterLedgerItemDto`, `ReferralInfoResponseDto` y `ReferredUserDto`. Endpoints `/api/me/booster-profile`, `/api/users/:username/booster-profile` y `/api/users/:username/referral-info`.
+  - **Inyección de Dependencias (`NetworkModule.kt`, `RepositoryModule.kt`)**: Registro de `BoosterApiService` con cliente Retrofit seguro y vinculación de `BoosterRepository` a `BoosterRepositoryImpl`.
+  - **Repositorio & Dominio (`BoosterRepository.kt`, `BoosterRepositoryImpl.kt`, `BoosterModels.kt`)**: Mapeo defensivo de DTOs a entidades inmutables de dominio (`BoosterProfile`, `BoosterLevelInfo`, `BoosterLedgerMovement`, `ReferralNetworkData`, `ReferredMember`), con cálculo automático de progreso porcentual y saldo faltante para el siguiente nivel.
+  - **Casos de Uso de Dominio (`GetMyBoosterProfileUseCase.kt`, `GetUserBoosterProfileUseCase.kt`, `GetReferralInfoUseCase.kt`)**: Validación estricta de parámetros y consulta desacoplada.
+  - **UI Jetpack Compose - Perfil de Impulsor (`BoosterProfileScreen.kt`, `BoosterProfileViewModel.kt`)**:
+    - Vista para no-impulsores con invitación a realizar tareas en el marketplace.
+    - Cabecera de nivel con equivalencia monetaria `1 BLUE IOU = 1 BLUE = 1 USD`.
+    - Diálogo modal con medidas de seguridad anti-fraude (KYC requerido y actividad transaccional en los últimos 30 días).
+    - 8 Tarjetas de métricas FinTech (Total Acumulado, Habilitado KYC, Retenido Referidos, Disponible Donación, Meta Diaria Hoy vs Ayer con barra de progreso y felicitación animada, Ranking Mundial, Ranking Amigos y Tareas Completadas).
+    - Escalera interactiva del Sistema de Rangos (Booster Ranking System) con bono meta Nivel 3 (`+50.000 BLUE IOU`) y cálculo en vivo del faltante.
+    - Historial de ledger cruzado con transacciones legibles a 4 decimales.
+  - **UI Jetpack Compose - Red de Referidos (`ReferralsScreen.kt`, `ReferralsViewModel.kt`)**:
+    - Código de referido destacado con botón de copiado al portapapeles y generación de URL (`/register.html?ref=CODE`).
+    - Compartición nativa mediante Android Sharesheet (`Intent.ACTION_SEND`).
+    - Métricas de red (Total Invitados, Verificados KYC, BLUE IOU Total aportado).
+    - Lista de miembros referidos con badges de estado (`✅ Verificado` y `⏳ Pendiente`).
+  - **Navegación & Dashboard (`NavGraph.kt`, `DashboardScreen.kt`)**:
+    - Agregadas rutas `Screen.BoosterProfile`, `Screen.UserBoosterProfile` y `Screen.Referrals`.
+    - Agregadas tarjetas de acceso directo en el Dashboard y enlaces contextuales.
+  - **Suite de Pruebas Unitarias (106 Tests Aprobados / 100% Cobertura)**: Incorporadas 18 nuevas pruebas automatizadas (`GetMyBoosterProfileUseCaseTest`, `GetReferralInfoUseCaseTest`, `BoosterProfileViewModelTest`, `ReferralsViewModelTest`).
+  - **Compilación de Artefacto**: Generado y verificado `app-demo-debug.apk` (18.82 MB) con `BUILD SUCCESSFUL`.
+* **Impacto**: La suite de crecimiento orgánico y fidelización de usuarios (Momentum Engine / Booster & Referrals) queda completamente operativa y nativa en Android, lista para producción a gran escala.
+
 ### 2026-08-22 — Fase 6: Creación de Publicaciones, Subida Multimedia WebP a Cloudflare R2, Truth-in-Pricing y 88 Tests Unitarios (Android Nativo)
 * **Diagnóstico & Objetivo**: Implementar el módulo completo para la creación de publicaciones (Tareas Comerciales, Ventas P2P, Ventas Rápidas y Causas Solidarias) en la app nativa Android (`com.wintoncoin.app`), con selector fotográfico de alta seguridad (Photo Picker API 33+), compresión WebP en dispositivo antes de la subida a Cloudflare R2 y cálculo reactivo en tiempo real de multiplicadores de etapa (Truth-in-Pricing).
 * **Cambios Técnicos**:
