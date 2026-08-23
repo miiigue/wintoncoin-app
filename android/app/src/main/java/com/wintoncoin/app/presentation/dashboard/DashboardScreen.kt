@@ -57,6 +57,9 @@ import com.wintoncoin.app.presentation.wallet.RedBalanceCard
 import com.wintoncoin.app.presentation.wallet.WalletEvent
 import com.wintoncoin.app.presentation.wallet.WalletViewModel
 
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Star
+
 @Composable
 fun DashboardScreen(
     username: String?,
@@ -64,6 +67,8 @@ fun DashboardScreen(
     onNavigateToWallet: () -> Unit,
     onNavigateToMarketplace: () -> Unit,
     onNavigateToProfile: (String) -> Unit,
+    onNavigateToBooster: () -> Unit,
+    onNavigateToReferrals: () -> Unit,
     onLogout: () -> Unit
 ) {
     val walletState by walletViewModel.state.collectAsStateWithLifecycle()
@@ -297,6 +302,65 @@ fun DashboardScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "Mi Perfil",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B).copy(alpha = 0.95f)),
+                        onClick = onNavigateToBooster
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "Impulsores",
+                                tint = WintonGold,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Impulsores",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B).copy(alpha = 0.95f)),
+                        onClick = onNavigateToReferrals
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.People,
+                                contentDescription = "Referidos",
+                                tint = Color(0xFF6366F1),
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Mis Referidos",
                                 color = Color.White,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold

@@ -25,6 +25,11 @@ import com.wintoncoin.app.presentation.register.RegisterViewModel
 import com.wintoncoin.app.presentation.wallet.WalletScreen
 import com.wintoncoin.app.presentation.wallet.WalletViewModel
 
+import com.wintoncoin.app.presentation.booster.BoosterProfileEvent
+import com.wintoncoin.app.presentation.booster.BoosterProfileScreen
+import com.wintoncoin.app.presentation.booster.BoosterProfileViewModel
+import com.wintoncoin.app.presentation.referrals.ReferralsScreen
+import com.wintoncoin.app.presentation.referrals.ReferralsViewModel
 import com.wintoncoin.app.presentation.marketplace.MarketplaceScreen
 import com.wintoncoin.app.presentation.marketplace.MarketplaceViewModel
 import com.wintoncoin.app.presentation.marketplace.create.CreatePublicationScreen
@@ -43,8 +48,11 @@ sealed class Screen(val route: String) {
     object Wallet : Screen("wallet_screen")
     object Marketplace : Screen("marketplace_screen")
     object CreatePublication : Screen("create_publication_screen")
+    object BoosterProfile : Screen("booster_profile_screen")
+    object Referrals : Screen("referrals_screen")
     data class VerifyOtp(val email: String) : Screen("verify_otp_screen/$email")
     data class Profile(val username: String) : Screen("profile_screen/$username")
+    data class UserBoosterProfile(val username: String) : Screen("booster_profile_screen/$username")
     data class PublicationDetail(val id: String) : Screen("publication_detail_screen/$id")
 }
 
@@ -135,6 +143,33 @@ fun NavGraph(
                 onNavigateBack = { onNavigateTo(Screen.Marketplace.route) }
             )
         }
+        currentScreen == Screen.BoosterProfile.route -> {
+            val boosterViewModel: BoosterProfileViewModel = hiltViewModel()
+            BoosterProfileScreen(
+                viewModel = boosterViewModel,
+                onNavigateBack = { onNavigateTo(Screen.Dashboard.route) },
+                onNavigateToReferrals = { onNavigateTo(Screen.Referrals.route) },
+                onNavigateToMarketplace = { onNavigateTo(Screen.Marketplace.route) }
+            )
+        }
+        currentScreen.startsWith("booster_profile_screen/") -> {
+            val targetUser = currentScreen.removePrefix("booster_profile_screen/")
+            val boosterViewModel: BoosterProfileViewModel = hiltViewModel()
+            boosterViewModel.onEvent(BoosterProfileEvent.LoadProfile(targetUser))
+            BoosterProfileScreen(
+                viewModel = boosterViewModel,
+                onNavigateBack = { onNavigateTo(Screen.Dashboard.route) },
+                onNavigateToReferrals = { onNavigateTo(Screen.Referrals.route) },
+                onNavigateToMarketplace = { onNavigateTo(Screen.Marketplace.route) }
+            )
+        }
+        currentScreen == Screen.Referrals.route -> {
+            val referralsViewModel: ReferralsViewModel = hiltViewModel()
+            ReferralsScreen(
+                viewModel = referralsViewModel,
+                onNavigateBack = { onNavigateTo(Screen.Dashboard.route) }
+            )
+        }
         currentScreen == Screen.Dashboard.route -> {
             val walletViewModel: WalletViewModel = hiltViewModel()
             DashboardScreen(
@@ -143,6 +178,8 @@ fun NavGraph(
                 onNavigateToWallet = { onNavigateTo(Screen.Wallet.route) },
                 onNavigateToMarketplace = { onNavigateTo(Screen.Marketplace.route) },
                 onNavigateToProfile = { username -> onNavigateTo("profile_screen/$username") },
+                onNavigateToBooster = { onNavigateTo(Screen.BoosterProfile.route) },
+                onNavigateToReferrals = { onNavigateTo(Screen.Referrals.route) },
                 onLogout = {
                     tokenManager.clearSession()
                     onNavigateToLogin()

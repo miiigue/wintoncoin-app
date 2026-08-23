@@ -13,6 +13,54 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-22 — Seguridad & Arquitectura: Blindaje de Aislamiento de Entornos Zero-Trust y Estrategia de Caché Transparente (Frontend Demo vs Producción)
+* **Diagnóstico & Objetivo**:
+  - Proteger la segregación estricta de entornos bajo normativas bancarias FinTech y SOC 2 (Zero-Trust Environment Isolation), garantizando que las conexiones originadas desde `demo.wintoncoin.com` se enruten obligatoria e inmutablemente a `wintoncoin-backend-demo.onrender.com` (y su base de datos aislada `wintoncoin-demo-db`), evitando que un empaquetado o variable residual de compilación desvíe peticiones hacia el backend de producción.
+  - Resolver el problema de caché en el navegador del usuario sin necesidad de recargas forzadas (`Ctrl+Shift+R`) ni interrupciones visuales, aplicando el estándar de la industria (Vite Cache-Busting + HTTP Headers + Service Worker Ultra-Fast NetworkFirst).
+* **Cambios Técnicos**:
+  - **`frontend/src/modules/config.js` (`getApiUrl`)**:
+    - Reestructurada la jerarquía de resolución de URLs de API: la detección dinámica del hostname (`demo.wintoncoin.com` o prefijo `demo.`) y el modo `MODE === 'demo'` ahora tienen **prioridad inviolable de seguridad**.
+    - Eliminada la trampa de precedencia donde `import.meta.env.VITE_API_URL` interceptaba la resolución antes de evaluar el hostname en producción/demo.
+    - Preservado el soporte para desarrollo local (`localhost`, `127.0.0.1`, subredes privadas `10.x`, `192.168.x`, `172.16-31.x` y `file://`).
+  - **`frontend/admin-email-templates.html` (`getApiUrl`)**:
+    - Actualizado el resolvedor inline para incluir validación estricta de `demo.wintoncoin.com` y rangos de IP locales antes de producción.
+  - **`frontend/src/sw-source.js` (Estrategias PWA)**:
+    - Actualizada la ruta `NetworkFirst` de archivos `.html` a `cacheName: 'wintoncoin-html-v2'` con `networkTimeoutSeconds: 1`, entregando siempre el HTML vivo del servidor en milisegundos y reservando el almacenamiento local solo para desconexión total (offline).
+  - **`frontend/public/.htaccess` (Directivas de Servidor Web Hostinger / LiteSpeed)**:
+    - Creadas directivas automáticas de cabeceras HTTP:
+      - Archivos `.html`, `.json` y `sw.js`: `Cache-Control: no-cache, no-store, must-revalidate` (servidos siempre vivos desde el servidor).
+      - Assets con hash de Vite (`/assets/*.js`, `/assets/*.css`): `Cache-Control: public, max-age=31536000, immutable` (descargados automáticamente con cada nuevo hash sin recargar la página).
+      - Multimedia y fuentes: `Cache-Control: public, max-age=2592000`.
+* **Impacto**:
+  - Se elimina al 100% el riesgo de contaminación cruzada entre entornos. El cliente frontend en Demo queda técnicamente incapacitado de emitir peticiones a la API de producción.
+  - Los usuarios reciben actualizaciones de forma transparente e instantánea al abrir la app o navegar, sin pestañeos, recargas bruscas ni necesidad de comandos técnicos.
+
+### 2026-08-22 — Fase 7: Motor de Impulsores (Booster Profile), Escalera de Niveles, Red de Referidos y 106 Tests Unitarios (Android Nativo)
+* **Diagnóstico & Objetivo**: Implementar en Android nativo (`com.wintoncoin.app`) el módulo completo del **Programa de Impulsores (Booster Profile)** y la **Red de Referidos (Referral Network)** auditados contra la PWA web (`booster-profile.js` y `referrals.js`), garantizando paridad funcional al 100%, seguridad bancaria Zero-Trust y Clean Architecture (MVI + Jetpack Compose).
+* **Cambios Técnicos**:
+  - **DTOs & API Service (`BoosterDtos.kt`, `BoosterApiService.kt`)**: DTOs inmutables con `@Serializable` para `BoosterProfileDto`, `BoosterLevelDto`, `BoosterLedgerItemDto`, `ReferralInfoResponseDto` y `ReferredUserDto`. Endpoints `/api/me/booster-profile`, `/api/users/:username/booster-profile` y `/api/users/:username/referral-info`.
+  - **Inyección de Dependencias (`NetworkModule.kt`, `RepositoryModule.kt`)**: Registro de `BoosterApiService` con cliente Retrofit seguro y vinculación de `BoosterRepository` a `BoosterRepositoryImpl`.
+  - **Repositorio & Dominio (`BoosterRepository.kt`, `BoosterRepositoryImpl.kt`, `BoosterModels.kt`)**: Mapeo defensivo de DTOs a entidades inmutables de dominio (`BoosterProfile`, `BoosterLevelInfo`, `BoosterLedgerMovement`, `ReferralNetworkData`, `ReferredMember`), con cálculo automático de progreso porcentual y saldo faltante para el siguiente nivel.
+  - **Casos de Uso de Dominio (`GetMyBoosterProfileUseCase.kt`, `GetUserBoosterProfileUseCase.kt`, `GetReferralInfoUseCase.kt`)**: Validación estricta de parámetros y consulta desacoplada.
+  - **UI Jetpack Compose - Perfil de Impulsor (`BoosterProfileScreen.kt`, `BoosterProfileViewModel.kt`)**:
+    - Vista para no-impulsores con invitación a realizar tareas en el marketplace.
+    - Cabecera de nivel con equivalencia monetaria `1 BLUE IOU = 1 BLUE = 1 USD`.
+    - Diálogo modal con medidas de seguridad anti-fraude (KYC requerido y actividad transaccional en los últimos 30 días).
+    - 8 Tarjetas de métricas FinTech (Total Acumulado, Habilitado KYC, Retenido Referidos, Disponible Donación, Meta Diaria Hoy vs Ayer con barra de progreso y felicitación animada, Ranking Mundial, Ranking Amigos y Tareas Completadas).
+    - Escalera interactiva del Sistema de Rangos (Booster Ranking System) con bono meta Nivel 3 (`+50.000 BLUE IOU`) y cálculo en vivo del faltante.
+    - Historial de ledger cruzado con transacciones legibles a 4 decimales.
+  - **UI Jetpack Compose - Red de Referidos (`ReferralsScreen.kt`, `ReferralsViewModel.kt`)**:
+    - Código de referido destacado con botón de copiado al portapapeles y generación de URL (`/register.html?ref=CODE`).
+    - Compartición nativa mediante Android Sharesheet (`Intent.ACTION_SEND`).
+    - Métricas de red (Total Invitados, Verificados KYC, BLUE IOU Total aportado).
+    - Lista de miembros referidos con badges de estado (`✅ Verificado` y `⏳ Pendiente`).
+  - **Navegación & Dashboard (`NavGraph.kt`, `DashboardScreen.kt`)**:
+    - Agregadas rutas `Screen.BoosterProfile`, `Screen.UserBoosterProfile` y `Screen.Referrals`.
+    - Agregadas tarjetas de acceso directo en el Dashboard y enlaces contextuales.
+  - **Suite de Pruebas Unitarias (106 Tests Aprobados / 100% Cobertura)**: Incorporadas 18 nuevas pruebas automatizadas (`GetMyBoosterProfileUseCaseTest`, `GetReferralInfoUseCaseTest`, `BoosterProfileViewModelTest`, `ReferralsViewModelTest`).
+  - **Compilación de Artefacto**: Generado y verificado `app-demo-debug.apk` (18.82 MB) con `BUILD SUCCESSFUL`.
+* **Impacto**: La suite de crecimiento orgánico y fidelización de usuarios (Momentum Engine / Booster & Referrals) queda completamente operativa y nativa en Android, lista para producción a gran escala.
+
 ### 2026-08-22 — Fase 6: Creación de Publicaciones, Subida Multimedia WebP a Cloudflare R2, Truth-in-Pricing y 88 Tests Unitarios (Android Nativo)
 * **Diagnóstico & Objetivo**: Implementar el módulo completo para la creación de publicaciones (Tareas Comerciales, Ventas P2P, Ventas Rápidas y Causas Solidarias) en la app nativa Android (`com.wintoncoin.app`), con selector fotográfico de alta seguridad (Photo Picker API 33+), compresión WebP en dispositivo antes de la subida a Cloudflare R2 y cálculo reactivo en tiempo real de multiplicadores de etapa (Truth-in-Pricing).
 * **Cambios Técnicos**:

@@ -400,5 +400,32 @@ PASOS:
 6. Presiona el botón verde de aprobación para activar su expediente y confirma que la pantalla actualice su estatus a ACTIVO.
 ```
 
+---
+
+```text
+TITULO: QA-31 - Verificación del Perfil de Impulsor y Requisitos de Canje en Android
+DESCRIPCION: El objetivo de esta prueba es comprobar que la pantalla de perfil de impulsor en la aplicación móvil muestre tus 8 métricas financieras, el avance en la escalera de rangos y el diálogo explicativo de seguridad con las condiciones para canjear tus recompensas.
+PASOS:
+2. Abre la aplicación de WintonCoin en tu teléfono móvil e inicia sesión con tu cuenta.
+3. En la pantalla principal, presiona la tarjeta que dice Impulsores.
+4. Confirma que veas tu nivel actual de impulsor junto con el aviso de equivalencia 1 BLUE IOU = 1 USD.
+5. Toca el botón de información (icono de interrogación o candado) en la esquina superior y comprueba que se abra la ventana con los requisitos de seguridad anti-fraude.
+6. Revisa las tarjetas de saldo y verifica que tu saldo habilitado y el saldo retenido por referidos sin verificación aparezcan claramente separados.
+7. Desplázate hacia abajo y comprueba que la escalera de rangos señale tu nivel actual y te indique exactamente cuánto te falta para subir al siguiente nivel.
+```
+
+---
+
+```text
+TITULO: QA-32 - Invitación de Amigos y Monitoreo de Referidos con KYC en Android
+DESCRIPCION: Esta misión asegura que puedas compartir tu código y enlace de invitación directamente desde la aplicación móvil hacia tus redes sociales y ver el listado actualizado de las personas que se hayan registrado con tu enlace, identificando quiénes ya verificaron su identidad.
+PASOS:
+2. Abre la aplicación móvil y presiona el botón de Mis Referidos en la pantalla de inicio o desde tu perfil de impulsor.
+3. Presiona el botón Copiar Código y confirma que aparezca un mensaje indicando que el código fue copiado al portapapeles.
+4. Presiona el botón Compartir y comprueba que se abra el menú de aplicaciones de tu teléfono para enviarlo por WhatsApp o redes sociales.
+5. Revisa la lista de personas invitadas en la parte inferior y verifica que cada amigo tenga su etiqueta verde de KYC Aprobado o amarilla de KYC Pendiente según su estado real.
+```
+
+
 
 

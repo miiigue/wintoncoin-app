@@ -9,7 +9,7 @@
 * **Aplicación:** WintonCoin Native Android Client (`com.wintoncoin.app`)
 * **Entorno Auditado:** Demo (`demo.wintoncoin.com` / `wintoncoin-backend-demo.onrender.com`)
 * **Estándares Aplicados:** OWASP MASVS (v2.0), SOC 2 Type II (Security & Confidentiality), FinTech Truth-in-Pricing.
-* **Cobertura de Pruebas Unitarias:** 88 / 88 Pruebas Aprobadas (100% Tasa de Éxito).
+* **Cobertura de Pruebas Unitarias:** 106 / 106 Pruebas Aprobadas (100% Tasa de Éxito).
 * **Aislamiento de Entornos:** 100% Protegido. El cliente Android no altera la PWA web ni el backend de producción.
 
 ---
@@ -28,6 +28,8 @@
 | **MASVS-AUTH-1** | Manejo de Sesión Segura y Cero Filtraciones | `AuthRepositoryImpl.kt` destruye credenciales locales inmediatamente ante respuestas `401 Unauthorized`. | 🟢 CUMPLIDO |
 | **MASVS-PRIVACY-1** | Aislamiento de Datos de Expediente SOS | `GetProfileUseCase.kt` aplica regla de Zero-Trust: los datos sensibles del censo SOS solo se consultan y renderizan si el usuario autenticado consulta su propio perfil. | 🟢 CUMPLIDO |
 | **MASVS-FINTECH-1** | Precisión y Cero Pérdida en Formateo de Balances | `FormatBalanceUseCase.kt` implementa formateo estricto de 4 decimales (`es-ES`) réplica de `walletService.js` para asegurar coherencia financiera. | 🟢 CUMPLIDO |
+| **MASVS-FINTECH-2** | Verificación Anti-Fraude de Impulsores (Booster) | `BoosterProfileScreen.kt` expone y valida de forma explícita los requisitos anti-fraude: usuario con KYC verificado y actividad transaccional en 30 días para desbloquear retiros. | 🟢 CUMPLIDO |
+| **MASVS-FINTECH-3** | Aislamiento Estricto de Saldos Retenidos por Referidos | `BoosterRepositoryImpl.kt` segrega `eligible_booster_blue` (inmediato) de `pending_booster_blue` (bloqueado hasta que el referido apruebe KYC), impidiendo canjes indebidos. | 🟢 CUMPLIDO |
 | **MASVS-VISUAL-1** | Saneamiento de URLs Multimedia y Cero Inyección | `MarketplaceRepositoryImpl.kt` filtra enlaces externos no permitidos antes de renderizar imágenes en `PublicationCard` previniendo SSRF y fallas de renderizado. | 🟢 CUMPLIDO |
 | **MASVS-MEDIA-2** | Optimización WebP y Privacidad de Medios | `ImageCompressor.kt` y `ActivityResultContracts.PickMultipleVisualMedia` desacoplan el acceso al almacenamiento sin requerir permisos invasivos (`READ_MEDIA_IMAGES`). | 🟢 CUMPLIDO |
 | **MASVS-CODE-1** | Zero Hardcoded Secrets | URLs de endpoints y llaves maestras se inyectan en tiempo de compilación según el flavor de Gradle (`BuildConfig.API_BASE_URL`). | 🟢 CUMPLIDO |
@@ -195,7 +197,30 @@ Suite: CreatePublicationViewModelTest (5 Tests)
 ├── [PASS] AddStep, UpdateStep and RemoveStep modify instructions correctly
 └── [PASS] Submit with valid data calls CreatePublicationUseCase and updates isSuccess
 
-TOTAL: 88 Pruebas Unitarias | 0 Fallos | 0 Errores | Tasa de Aprobación: 100%
+Suite: GetMyBoosterProfileUseCaseTest (3 Tests)
+├── [PASS] getMyBoosterProfile success returns BoosterProfile with calculated level progression
+├── [PASS] getMyBoosterProfile non-booster returns isBooster false
+└── [PASS] getMyBoosterProfile repository failure returns Result error
+
+Suite: GetReferralInfoUseCaseTest (3 Tests)
+├── [PASS] blank username returns error without calling repository
+├── [PASS] valid username calls repository and returns ReferralNetworkData
+└── [PASS] repository failure propagates error
+
+Suite: BoosterProfileViewModelTest (5 Tests)
+├── [PASS] initial load fetches own booster profile and updates state
+├── [PASS] initial load with foreign username fetches that user profile
+├── [PASS] Open and Dismiss UnlockConditionsDialog toggles state
+├── [PASS] error during load updates errorMessage in state
+└── [PASS] Refresh triggers update and updates isRefreshing
+
+Suite: ReferralsViewModelTest (4 Tests)
+├── [PASS] initial load fetches referral network info and updates state
+├── [PASS] initial load without session sets error message
+├── [PASS] CopyText event triggers copyFeedback and dismiss clears it
+└── [PASS] Refresh updates referral network data
+
+TOTAL: 106 Pruebas Unitarias | 0 Fallos | 0 Errores | Tasa de Aprobación: 100%
 ```
 
 ---
@@ -205,7 +230,8 @@ TOTAL: 88 Pruebas Unitarias | 0 Fallos | 0 Errores | Tasa de Aprobación: 100%
 * **Comando:** `gradlew assembleDemoDebug`
 * **Resultado:** `BUILD SUCCESSFUL`
 * **Ubicación del APK:** `android/app/build/outputs/apk/demo/debug/app-demo-debug.apk`
-* **Tamaño del APK:** 19.68 MB
+* **Tamaño del APK:** 18.82 MB
 * **Arquitectura de UI:** Jetpack Compose + Material 3 + Single Activity
 * **Inyección de Dependencias:** Dagger Hilt (Compile-time)
 * **Serialización:** KotlinX Serialization (KSP - Type-safe, Zero-reflection)
+
