@@ -7,8 +7,11 @@
 
 package com.wintoncoin.app.presentation.login
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.res.painterResource
+import com.wintoncoin.app.R
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -99,28 +102,22 @@ fun LoginScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // Header / Branding Logo
-                Box(
+                // Header / Branding Logo Oficial
+                Image(
+                    painter = painterResource(id = R.drawable.winton_logo),
+                    contentDescription = "WintonCoin Logo",
                     modifier = Modifier
-                        .size(80.dp)
+                        .size(88.dp)
                         .clip(CircleShape)
-                        .background(WintonBlue),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "W",
-                        color = Color.White,
-                        fontSize = 42.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
                     text = "WintonCoin",
                     style = MaterialTheme.typography.headlineLarge,
-                    color = WintonBlue
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
                 )
 
                 Text(

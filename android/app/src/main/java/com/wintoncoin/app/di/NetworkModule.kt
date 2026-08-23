@@ -49,15 +49,9 @@ object NetworkModule {
         authInterceptor: AuthInterceptor,
         encryptedCookieJar: EncryptedCookieJar
     ): OkHttpClient {
-        val certificatePinner = CertificatePinner.Builder()
-            .add("wintoncoin-backend-demo.onrender.com", "sha256/47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=")
-            .add("wintoncoin-backend.onrender.com", "sha256/47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=")
-            .build()
-
         val builder = OkHttpClient.Builder()
             .cookieJar(encryptedCookieJar)
             .addInterceptor(authInterceptor)
-            .certificatePinner(certificatePinner)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
