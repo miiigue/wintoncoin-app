@@ -8,35 +8,46 @@
 export const appSettings = {};
 
 /**
- * Helper global para resolver la URL del API (soporta localhost y LAN).
- * @returns {string} La URL base del API
+ * Helper global para resolver la URL del API (soporta localhost, LAN, Demo y Producción).
+ * Aplica el principio de Cero Confianza (Zero-Trust) y Aislamiento Estricto de Entornos.
+ * Garantiza que cualquier petición originada en demo.wintoncoin.com se dirija única y
+ * exclusivamente a wintoncoin-backend-demo.onrender.com, protegiendo el entorno de producción.
+ * @returns {string} La URL base del API correspondiente al entorno activo
  */
 export function getApiUrl() {
-    // Permite sobreescribir la URL desde variables de entorno (útil para Demo/Staging)
-    if (import.meta.env.VITE_API_URL) {
-        return import.meta.env.VITE_API_URL;
-    }
-
+    // 1. Detección del contexto de ejecución en el navegador
     const hostname = window.location.hostname;
     const isFileProtocol = window.location.protocol === 'file:';
     const isPrivateIp = /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
     const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || isPrivateIp || isFileProtocol;
 
+    // 2. Si se ejecuta como archivo local plano (file://), redirigir al servidor local por defecto
     if (isFileProtocol) {
         return 'http://localhost:3000';
     }
 
-    // Para entornos locales
-    if (isLocal) {
-        return `http://${hostname}:3000`;
-    }
-
-    // Entorno de DEMO
-    if (hostname.startsWith('demo.')) {
+    // 3. AISLAMIENTO ESTRICTO DE DEMO (Prioridad Inviolable de Seguridad):
+    // Si el usuario está navegando en el dominio demo (demo.wintoncoin.com) o en modo demo,
+    // FORZAR SIEMPRE el backend de Demo, anulando cualquier valor residual de build.
+    if (hostname.startsWith('demo.') || hostname === 'demo.wintoncoin.com' || (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.MODE === 'demo')) {
         return 'https://wintoncoin-backend-demo.onrender.com';
     }
 
-    // Producción por defecto
+    // 4. Entornos Locales de Desarrollo (localhost / Red LAN)
+    if (isLocal) {
+        // Si hay una variable de entorno explícita configurada en desarrollo local, respetarla
+        if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
+            return import.meta.env.VITE_API_URL;
+        }
+        return `http://${hostname}:3000`;
+    }
+
+    // 5. Entornos de Staging / Variables de entorno explícitas
+    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL;
+    }
+
+    // 6. Entorno de Producción por Defecto (wintoncoin.com / sc.wintoncoin.com)
     return 'https://wintoncoin-backend.onrender.com';
 }
 

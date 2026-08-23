@@ -716,11 +716,11 @@
     <script>
         function getApiUrl() {
             const hostname = window.location.hostname;
-            if (hostname.startsWith('demo.')) {
+            if (hostname.startsWith('demo.') || hostname === 'demo.wintoncoin.com') {
                 return 'https://wintoncoin-backend-demo.onrender.com';
             }
-            if (hostname === 'localhost' || hostname === '127.0.0.1') {
-                return 'http://localhost:3000';
+            if (hostname === 'localhost' || hostname === '127.0.0.1' || /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)) {
+                return `http://${hostname === '127.0.0.1' || hostname === 'localhost' ? 'localhost' : hostname}:3000`;
             }
             return 'https://wintoncoin-backend.onrender.com';
         }

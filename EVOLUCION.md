@@ -13,6 +13,28 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-22 — Seguridad & Arquitectura: Blindaje de Aislamiento de Entornos Zero-Trust y Estrategia de Caché Transparente (Frontend Demo vs Producción)
+* **Diagnóstico & Objetivo**:
+  - Proteger la segregación estricta de entornos bajo normativas bancarias FinTech y SOC 2 (Zero-Trust Environment Isolation), garantizando que las conexiones originadas desde `demo.wintoncoin.com` se enruten obligatoria e inmutablemente a `wintoncoin-backend-demo.onrender.com` (y su base de datos aislada `wintoncoin-demo-db`), evitando que un empaquetado o variable residual de compilación desvíe peticiones hacia el backend de producción.
+  - Resolver el problema de caché en el navegador del usuario sin necesidad de recargas forzadas (`Ctrl+Shift+R`) ni interrupciones visuales, aplicando el estándar de la industria (Vite Cache-Busting + HTTP Headers + Service Worker Ultra-Fast NetworkFirst).
+* **Cambios Técnicos**:
+  - **`frontend/src/modules/config.js` (`getApiUrl`)**:
+    - Reestructurada la jerarquía de resolución de URLs de API: la detección dinámica del hostname (`demo.wintoncoin.com` o prefijo `demo.`) y el modo `MODE === 'demo'` ahora tienen **prioridad inviolable de seguridad**.
+    - Eliminada la trampa de precedencia donde `import.meta.env.VITE_API_URL` interceptaba la resolución antes de evaluar el hostname en producción/demo.
+    - Preservado el soporte para desarrollo local (`localhost`, `127.0.0.1`, subredes privadas `10.x`, `192.168.x`, `172.16-31.x` y `file://`).
+  - **`frontend/admin-email-templates.html` (`getApiUrl`)**:
+    - Actualizado el resolvedor inline para incluir validación estricta de `demo.wintoncoin.com` y rangos de IP locales antes de producción.
+  - **`frontend/src/sw-source.js` (Estrategias PWA)**:
+    - Actualizada la ruta `NetworkFirst` de archivos `.html` a `cacheName: 'wintoncoin-html-v2'` con `networkTimeoutSeconds: 1`, entregando siempre el HTML vivo del servidor en milisegundos y reservando el almacenamiento local solo para desconexión total (offline).
+  - **`frontend/public/.htaccess` (Directivas de Servidor Web Hostinger / LiteSpeed)**:
+    - Creadas directivas automáticas de cabeceras HTTP:
+      - Archivos `.html`, `.json` y `sw.js`: `Cache-Control: no-cache, no-store, must-revalidate` (servidos siempre vivos desde el servidor).
+      - Assets con hash de Vite (`/assets/*.js`, `/assets/*.css`): `Cache-Control: public, max-age=31536000, immutable` (descargados automáticamente con cada nuevo hash sin recargar la página).
+      - Multimedia y fuentes: `Cache-Control: public, max-age=2592000`.
+* **Impacto**:
+  - Se elimina al 100% el riesgo de contaminación cruzada entre entornos. El cliente frontend en Demo queda técnicamente incapacitado de emitir peticiones a la API de producción.
+  - Los usuarios reciben actualizaciones de forma transparente e instantánea al abrir la app o navegar, sin pestañeos, recargas bruscas ni necesidad de comandos técnicos.
+
 ### 2026-08-22 — Fase 7: Motor de Impulsores (Booster Profile), Escalera de Niveles, Red de Referidos y 106 Tests Unitarios (Android Nativo)
 * **Diagnóstico & Objetivo**: Implementar en Android nativo (`com.wintoncoin.app`) el módulo completo del **Programa de Impulsores (Booster Profile)** y la **Red de Referidos (Referral Network)** auditados contra la PWA web (`booster-profile.js` y `referrals.js`), garantizando paridad funcional al 100%, seguridad bancaria Zero-Trust y Clean Architecture (MVI + Jetpack Compose).
 * **Cambios Técnicos**:

@@ -34,12 +34,12 @@ registerRoute(
     new NetworkOnly()
 );
 
-// HTML General: Network First
+// HTML General: Network First ultra-rápido (prioriza el servidor en 1 segundo; si está offline, entrega caché)
 registerRoute(
     /\.html$/,
     new NetworkFirst({
-        cacheName: 'wintoncoin-html-v1',
-        networkTimeoutSeconds: 5,
+        cacheName: 'wintoncoin-html-v2',
+        networkTimeoutSeconds: 1,
         plugins: [
             new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 86400 }),
             new CacheableResponsePlugin({ statuses: [0, 200] })
