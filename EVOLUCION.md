@@ -13,6 +13,19 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-24 — DevOps & Tooling: Configuración del Entorno de Compilación Android (OpenJDK 21 + Gradle) en Antigravity IDE
+* **Diagnóstico & Objetivo**:
+  - Resolver las alertas de las extensiones `Language Support for Java` y `Gradle for Java` (`The Gradle client was unable to connect` / `Please download and install a JDK to compile your project`).
+  - Habilitar el soporte nativo de análisis, autocompletado y compilación del proyecto Android (`/android`) sin requerir descargas redundantes, reutilizando el entorno OpenJDK 21 provisto por Android Studio (`C:\Program Files\Android\Android Studio\jbr`).
+* **Cambios Técnicos**:
+  - **Configuración de Workspace (`.vscode/settings.json`)**:
+    - Declaradas las directivas `java.jdt.ls.java.home`, `gradle.java.home` y el runtime `JavaSE-21` apuntando al JBR de Android Studio.
+  - **Variables de Entorno Windows**:
+    - Registrada la variable de usuario `JAVA_HOME` (`C:\Program Files\Android\Android Studio\jbr`) y añadido el subdirectorio `bin` al `Path` de usuario.
+  - **Configuración de Proyecto (`android/gradle.properties`)**:
+    - Declarada la directiva `org.gradle.java.home=C:\\Program Files\\Android\\Android Studio\\jbr` para desacoplar las compilaciones de Gradle de la sesión de terminal activa.
+* **Impacto**:
+  - Gradle 9.1.0 y el compilador de Android quedan 100% operativos en el IDE y consola local con JDK 21.0.8, eliminando advertencias y permitiendo la ejecución fluida de tareas de compilación y pruebas unitarias.
 ### 2026-08-22 — Seguridad & Arquitectura: Blindaje de Aislamiento de Entornos Zero-Trust y Estrategia de Caché Transparente (Frontend Demo vs Producción)
 * **Diagnóstico & Objetivo**:
   - Proteger la segregación estricta de entornos bajo normativas bancarias FinTech y SOC 2 (Zero-Trust Environment Isolation), garantizando que las conexiones originadas desde `demo.wintoncoin.com` se enruten obligatoria e inmutablemente a `wintoncoin-backend-demo.onrender.com` (y su base de datos aislada `wintoncoin-demo-db`), evitando que un empaquetado o variable residual de compilación desvíe peticiones hacia el backend de producción.
