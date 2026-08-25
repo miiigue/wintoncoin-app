@@ -13,6 +13,31 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-25 — Android Nativo: Fase 9 — Centro de Notificaciones & Alertas Web3 (Paridad PWA y Navegación Contextual)
+* **Diagnóstico & Objetivo**:
+  - Portar de forma 100% nativa en Android (`com.wintoncoin.app`) el Centro de Notificaciones y Alertas Web3 (`/api/me/notifications`), siguiendo fielmente el diseño de las capturas en `Pantallas PWA/Pantalla notificaciones/`.
+  - Proveer bandejas de entrada para notificaciones no leídas e historial completo (hasta 50 elementos), categorización inteligente de mensajes por palabras clave (recompensas, aprobaciones, transferencias, solicitudes y alertas), acciones de limpieza masiva (`mark-read`), descarte individual y navegación contextual (Deep Linking) hacia los módulos relacionados.
+* **Cambios Técnicos**:
+  - **Capa de Red & DTOs (`NotificationDtos.kt`, `NotificationApiService.kt`, `NetworkModule.kt`)**:
+    - Creados DTOs serializables `NotificationDto`, `NotificationMarkReadResponseDto` y `NotificationDismissResponseDto`.
+    - Implementados endpoints Retrofit `/api/me/notifications`, `/api/me/notifications/history`, `/api/me/notifications/mark-read` y `/api/me/notifications/:id/dismiss` con autenticación JWT Bearer.
+    - Proveído `NotificationApiService` en `NetworkModule.kt`.
+  - **Capa de Dominio (`NotificationModels.kt`, `NotificationRepository.kt`, Use Cases, `RepositoryModule.kt`)**:
+    - Modelos de dominio inmutables `NotificationItem`, enums `NotificationCategory` y `NotificationNavigationTarget`.
+    - Implementado `NotificationRepositoryImpl` con clasificador inteligente (`categorizeNotification`) y formateador de fechas relativas ("Hace 5 min", "Hace 2 h", "dd MMM, HH:mm").
+    - Creados casos de uso puros y testeables: `GetUnreadNotificationsUseCase`, `GetNotificationHistoryUseCase`, `MarkAllNotificationsAsReadUseCase` y `DismissNotificationUseCase`.
+    - Vinculado `NotificationRepository` en Hilt dentro de `RepositoryModule.kt`.
+  - **Capa de Presentación MVI & Jetpack Compose (`NotificationsScreen.kt`, `NotificationsViewModel.kt`, `NotificationsState.kt`, `NotificationsEvent.kt`)**:
+    - Pantalla `NotificationsScreen` con tabs superiores (`Nuevas (X)` / `Historial Completo`), barra de filtros por chips horizontales (`Todas`, `💰 Recompensas`, `🎉 Aprobadas`, `💸 Pagos`, `📩 Solicitudes`, `⚠️ Alertas`) y botón de acción masiva `Limpiar todo`.
+    - Tarjetas interactivas con badges semánticos por color (naranja, verde, azul, púrpura y rojo), botón `✕` para descarte individual con animación suave y soporte para Deep Linking al tocar la tarjeta.
+    - Estado vacío con ilustración y CTA hacia el historial.
+    - Conectado el icono de campana y tarjeta de acceso rápido en `DashboardScreen.kt` y registrada la ruta `Screen.Notifications` en `NavGraph.kt`.
+  - **Pruebas Unitarias & Cobertura (`*Test.kt`)**:
+    - Creadas suites unitarias para `GetUnreadNotificationsUseCaseTest`, `GetNotificationHistoryUseCaseTest`, `MarkAllNotificationsAsReadUseCaseTest`, `DismissNotificationUseCaseTest`, `NotificationRepositoryImplTest` y `NotificationsViewModelTest`.
+    - **154 / 154 Tests Unitarios Aprobados (100% de éxito, 0 fallos)** en `47.371s`.
+* **Impacto**:
+  - Los usuarios de la aplicación móvil nativa disponen de un centro de alertas contables y operativas en tiempo real, trazable y auditable, reduciendo la fricción de seguimiento de tareas, pagos y recompensas.
+
 ### 2026-08-24 — Android Nativo: Fase 8 — Módulo de Estado de Cuenta Web3 & Auditoría Financiera Ledger (Paridad Total con PWA)
 * **Diagnóstico & Objetivo**:
   - Implementar de forma nativa en Android (`com.wintoncoin.app`) la pantalla de Estado de Cuenta Web3 (`estado-cuenta.html` y `estado-cuenta.js`), asegurando paridad visual y funcional absoluta con las capturas de diseño de `Pantallas PWA/Pantalla billetera web3`.
