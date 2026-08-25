@@ -13,6 +13,31 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-25 — Android Nativo: Fase 10 — WintonCoin Solidario & Sistema de Donaciones Comunitarias (Paridad PWA y Motor de Donaciones BLUE IOU)
+* **Diagnóstico & Objetivo**:
+  - Implementar de forma 100% nativa en Android (`com.wintoncoin.app`) el módulo completo de WintonCoin Solidario y Donaciones Comunitarias (`solicitud-solidaria.html`, `causa-solidaria.html` y endpoints `/api/humanitarian`), asegurando paridad visual y funcional absoluta con las capturas de diseño de `Pantallas PWA/Pantalla donaciones/` y `Pantallas PWA/Pantalla publicación de donación/`.
+  - Proveer el flujo integral de causas humanitarias: muro de causas aprobadas, mis postulaciones, formulario de postulación auditada con validación de nubes seguras (Google Drive, Dropbox, OneDrive, iCloud, Box, Mega) y redes oficiales, detalle con carrusel/banner `DEMO MODE`, barra de progreso en vivo, motor de donación de tokens BLUE IOU con salvaguarda Hold & Release anti-lavado AML, y muro público de donantes en tiempo real.
+* **Cambios Técnicos**:
+  - **Capa de Red & DTOs (`DonationDtos.kt`, `DonationApiService.kt`, `NetworkModule.kt`)**:
+    - Creados DTOs serializables `HumanitarianCauseDto`, `HumanitarianCausesResponseDto`, `CauseDetailResponseDto`, `DonationItemDto`, `DonationsSummaryDto`, `CauseUpdateDto`, `SubmitCauseRequestDto`, `DonateRequestDto` y `DonateResponseDto`.
+    - Implementados endpoints Retrofit `/api/humanitarian/causes/approved`, `/api/humanitarian/causes/my`, `/api/humanitarian/causes/:id`, `/api/humanitarian/causes/:id/donations`, `/api/humanitarian/causes/:id/updates`, `POST /api/humanitarian/causes`, `POST /api/humanitarian/causes/:id/donate` y `POST /api/humanitarian/causes/:id/cancel` con autenticación JWT Bearer.
+    - Proveído `DonationApiService` en `NetworkModule.kt` y unificados los DTOs en el Marketplace.
+  - **Capa de Dominio (`DonationModels.kt`, `DonationRepository.kt`, `DonationRepositoryImpl.kt`, Use Cases, `RepositoryModule.kt`)**:
+    - Diseñadas entidades de dominio inmutables `HumanitarianCause`, `DonationRecord`, `CauseDonationsSummary`, `CauseUpdate`, `SubmitCauseInput` y enums `CauseStatus` y `DonationStatus`.
+    - Implementado `DonationRepositoryImpl` con mapeadores robustos, cálculo de montos efectivos (`current + on_hold`), porcentajes dinámicos y formateador de fechas localizado.
+    - Creados casos de uso puros y testeables: `GetApprovedCausesUseCase`, `GetMyCausesUseCase`, `GetCauseDetailUseCase`, `SubmitCauseUseCase` (con validación estricta de dominios de almacenamiento y redes), `DonateToCauseUseCase` (con validación de saldo disponible y aceptación legal SOC 2) y `CancelCauseUseCase`.
+    - Vinculado `DonationRepository` en Hilt dentro de `RepositoryModule.kt`.
+  - **Capa de Presentación MVI & Jetpack Compose (`presentation/solidario/`)**:
+    - **Explorador (`CausesListScreen.kt`, `CausesListViewModel.kt`)**: Pestañas `Causas en Recaudación` y `Mis Postulaciones`, buscador reactivo, tarjetas con métricas de meta, recaudación, porcentaje y botón flotante `+ Postular Causa`.
+    - **Postulación (`SubmitCauseScreen.kt`, `SubmitCauseViewModel.kt`)**: Formulario completo con usuario verificado en base de datos, beneficiario, código de referido, redes sociales, meta en BLUE IOU, enlaces a nubes seguras, selector de imágenes, aceptación de términos y diálogo de confirmación.
+    - **Detalle & Donación (`CauseDetailScreen.kt`, `CauseDetailViewModel.kt`)**: Banner con badge `DEMO MODE`, historia completa, barra de progreso con desglose de fondos en hold, panel de donación de BLUE IOU (con saldo disponible en tiempo real y modal de confirmación), muro de donantes con etiquetas `DONADO` / `Liberado` / `En espera`, y pestaña de novedades.
+    - Conectada tarjeta de acceso en `DashboardScreen.kt` (`WintonCoin Solidario ❤️`) y rutas `Screen.Solidario`, `Screen.SubmitSolidario` y `Screen.SolidarioDetail(id)` en `NavGraph.kt`.
+  - **Pruebas Unitarias & Cobertura (`*Test.kt`)**:
+    - Creadas suites unitarias para `GetApprovedCausesUseCaseTest`, `GetMyCausesUseCaseTest`, `GetCauseDetailUseCaseTest`, `SubmitCauseUseCaseTest`, `DonateToCauseUseCaseTest`, `CancelCauseUseCaseTest`, `DonationRepositoryImplTest`, `CausesListViewModelTest`, `SubmitCauseViewModelTest` y `CauseDetailViewModelTest`.
+    - **180 / 180 Tests Unitarios Aprobados (100% de éxito, 0 fallos)** en la suite completa de Android.
+* **Impacto**:
+  - Los usuarios pueden participar activamente en la economía circular humanitaria de WintonCoin desde sus dispositivos Android, donando sus tokens BLUE IOU acumulados hacia causas sociales verificadas con total transparencia, seguridad criptográfica y trazabilidad contable.
+
 ### 2026-08-25 — Android Nativo: Fase 9 — Centro de Notificaciones & Alertas Web3 (Paridad PWA y Navegación Contextual)
 * **Diagnóstico & Objetivo**:
   - Portar de forma 100% nativa en Android (`com.wintoncoin.app`) el Centro de Notificaciones y Alertas Web3 (`/api/me/notifications`), siguiendo fielmente el diseño de las capturas en `Pantallas PWA/Pantalla notificaciones/`.
