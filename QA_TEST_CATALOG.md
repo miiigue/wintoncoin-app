@@ -426,6 +426,34 @@ PASOS:
 5. Revisa la lista de personas invitadas en la parte inferior y verifica que cada amigo tenga su etiqueta verde de KYC Aprobado o amarilla de KYC Pendiente según su estado real.
 ```
 
+---
+
+```text
+TITULO: QA-33 - Auditoría de Estado de Cuenta Web3 y Consulta de Smart Contracts en Android
+DESCRIPCION: Esta misión tiene como objetivo verificar que la pantalla de Estado de Cuenta Web3 en Android muestre con claridad tus saldos disponibles y en reserva, el desglose de tu límite crediticio y te permita consultar la información oficial de los contratos inteligentes en la blockchain.
+PASOS:
+2. Abre la aplicación de WintonCoin en tu teléfono móvil e inicia sesión.
+3. En el menú principal, presiona la tarjeta que dice Estado de Cuenta Web3.
+4. Confirma que la tarjeta azul muestre tu saldo disponible, el saldo en reserva y el cálculo estimado en dólares (1 BLUE = 1 USD).
+5. Toca el botón Ver Smart Contract BLUE y verifica que se abra la ventana con la dirección pública del contrato y el total de monedas emitidas en la blockchain.
+6. Cierra la ventana y toca el botón Ver Smart Contract RED para comprobar igualmente la información del contrato de obligaciones.
+7. Revisa la tarjeta de Identidad Web3 y confirma que muestre tu estado de red conectada y tu dirección pública de billetera con el botón para copiarla.
+```
+
+---
+
+```text
+TITULO: QA-34 - Simulación de Aumento de Límite en la Bóveda de Garantías desde Android
+DESCRIPCION: Esta prueba busca confirmar que puedas acceder al simulador de la Bóveda de Garantías en la aplicación móvil, seleccionar la moneda digital de respaldo y calcular en vivo cómo aumentará tu límite de crédito antes de realizar cualquier operación.
+PASOS:
+2. Abre la aplicación de WintonCoin e ingresa a la pantalla de Estado de Cuenta Web3.
+3. Ubica la tarjeta roja de Tokens RED y presiona el botón destacado Aumentar Límite RED.
+4. Comprueba que se despliegue el panel de la Bóveda de Garantías mostrando las opciones de monedas de respaldo (USDT, USDC y DAI).
+5. Selecciona la opción USDT y escribe un monto de prueba (por ejemplo, 50) en la casilla de monto a depositar.
+6. Verifica que la calculadora verde en pantalla actualice inmediatamente el cálculo de tu nuevo límite sumando tu respaldo a tu límite actual.
+7. Revisa las 4 tarjetas de estadísticas de actividad blockchain y toca el icono de información en cualquiera de ellas para leer su explicación en lenguaje sencillo.
+```
+
 
 
 

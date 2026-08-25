@@ -13,6 +13,42 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-24 — Android Nativo: Fase 8 — Módulo de Estado de Cuenta Web3 & Auditoría Financiera Ledger (Paridad Total con PWA)
+* **Diagnóstico & Objetivo**:
+  - Implementar de forma nativa en Android (`com.wintoncoin.app`) la pantalla de Estado de Cuenta Web3 (`estado-cuenta.html` y `estado-cuenta.js`), asegurando paridad visual y funcional absoluta con las capturas de diseño de `Pantallas PWA/Pantalla billetera web3`.
+  - Proveer auditoría en tiempo real de Smart Contracts (BLUE de liquidez y RED de compromiso), desglose de balances, equivalencia fiat (1 BLUE = 1 USD), panel interactivo de Bóveda de Garantías (Collateral Vault) con simulador dinámico de límite, y métricas 2x2 de actividad blockchain on-chain.
+* **Cambios Técnicos**:
+  - **Capa de Red & DTOs (`AccountStatementDtos.kt`, `AccountStatementApiService.kt`, `NetworkModule.kt`)**:
+    - Creados DTOs serializables `ContractItemDto`, `ContractsResponseDto`, `TransactionStatementItemDto`, `CollateralSyncRequestDto` y `CollateralSyncResponseDto`.
+    - Implementados endpoints `/api/contracts/info` (con caché anti-DDoS RPC), `/api/me/balance`, `/api/me/transactions` y `/api/me/collateral/sync`.
+  - **Capa de Dominio (`AccountStatementModels.kt`, `AccountStatementRepository.kt`, Use Cases)**:
+    - Diseñadas entidades inmutables `AccountStatementSummary`, `BlockchainActivityStats`, `SmartContractInfo`, `StatementTransaction` y enum `VaultCollateralToken` (USDT, USDC, DAI).
+    - Implementado `GetAccountStatementUseCase` para agregación concurrente y thread-safe de balances, estadísticas y transacciones.
+    - Implementado `GetSmartContractInfoUseCase` con validación de tipo de token (`BLUE`/`RED`).
+    - Implementado `SyncCollateralUseCase` para validación de montos, tokens y transacciones de depósito/retiro de colateral.
+  - **Capa de Presentación MVI & Jetpack Compose (`AccountStatementScreen.kt`, `AccountStatementViewModel.kt`, `AccountStatementState.kt`)**:
+    - **Tarjeta BLUE (Liquidez)**: Total disponible, saldo en Escrow bloqueado, próxima fecha/monto de liberación, contenedor destacado `USD Estimado ≈ $0,00 USD` y botón de consulta de Smart Contract BLUE.
+    - **Tarjeta RED (Obligaciones) & Bóveda**: Límite RED aprobado, disponible y utilizado, desglose de Score Orgánico vs Garantía en Bóveda, botón CTA `⚡ Aumentar Límite RED` con degradado ámbar a rojo, selector de tokens de colateral (USDT, USDC, DAI) y calculadora en vivo de nuevo límite.
+    - **Tarjeta Identidad Web3**: Estado de red (`Conectado a Optimism Sepolia ●`), estado KYC On-Chain (verificado/pendiente) y contenedor monospace con botón de copiado de llave pública.
+    - **Métricas de Actividad Blockchain (Grid 2x2)**: 4 cajas interactivas con modales informativos de ayuda para Interacciones Web3, Pagos Recibidos, Pagos Enviados y Compromiso Amortizado.
+    - **Historial de Transacciones Auditables**: Lista con badges de colores según tipo de movimiento y botones directos `Ver en Explorer ↗` para trazabilidad on-chain.
+    - **Navegación & Dashboard**: Integrada la ruta `Screen.AccountStatement` en `NavGraph.kt` y tarjeta de acceso directo en `DashboardScreen.kt`.
+  - **Pruebas Unitarias & Cobertura (`*Test.kt`)**:
+    - Creadas suites completas para `GetAccountStatementUseCaseTest`, `GetSmartContractInfoUseCaseTest`, `SyncCollateralUseCaseTest`, `AccountStatementRepositoryImplTest` y `AccountStatementViewModelTest` (incluyendo validaciones de límite, cálculos defensivos, manejo de errores HTTP y modales).
+    - **133 / 133 Tests Unitarios Aprobados (100% de éxito)**.
+* **Impacto**:
+  - La aplicación Android nativa cuenta con un módulo de auditoría contable y financiera de grado bancario y Web3, con paridad visual exacta a la PWA y alineado con los estándares SOC 2 / OWASP MASVS v2.0.
+
+### 2026-08-24 — UI/UX Assets & Tooling: Descompresión Automatizada de Recursos Visuales en Pantallas PWA
+* **Diagnóstico & Objetivo**:
+  - Descomprimir de manera masiva y ordenada los 12 paquetes `.zip` de capturas de pantallas e interfaces móviles almacenados en el directorio `Pantallas PWA/`.
+  - Garantizar que cada conjunto de imágenes JPEG/PNG se extraiga directamente dentro de su respectiva subcarpeta sin sobreescritura destructiva ni pérdida de archivos originales.
+* **Cambios Técnicos**:
+  - **Tooling (`scripts/unzip_pantallas.ps1`)**:
+    - Implementado script recursivo en PowerShell que itera sobre los subdirectorios de `Pantallas PWA` y ejecuta `Expand-Archive` extrayendo las capturas en sus carpetas correspondientes.
+* **Impacto**:
+  - Todas las subcarpetas de pantallas PWA (`Pantalla Documentacion`, `Pantalla billetera web3`, `Pantalla donaciones`, `Pantalla notificaciones`, `Pantalla publicaciónes`, etc.) cuentan ahora con sus recursos de imagen descomprimidos y listos para inspección visual y diseño UI/UX.
+
 ### 2026-08-24 — DevOps & Tooling: Configuración del Entorno de Compilación Android (OpenJDK 21 + Gradle) en Antigravity IDE
 * **Diagnóstico & Objetivo**:
   - Resolver las alertas de las extensiones `Language Support for Java` y `Gradle for Java` (`The Gradle client was unable to connect` / `Please download and install a JDK to compile your project`).
