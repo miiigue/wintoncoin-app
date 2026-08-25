@@ -511,6 +511,39 @@ PASOS:
 8. Revisa la pestaña de Muro de Donantes en la parte inferior y comprueba que tu donación aparezca listada con la etiqueta DONADO y su estado correspondiente.
 ```
 
+---
+
+```text
+TITULO: QA-39 - Censo y Registro de Emergencia para Damnificados en SOS Venezuela desde Android
+DESCRIPCION: Esta misión asegura que las personas afectadas por contingencias o desastres puedan registrar su expediente de emergencia desde la aplicación móvil, indicar el nivel de afectación y personas a cargo, verificar su código de 6 dígitos y obtener su número de expediente inteligente.
+PASOS:
+2. Abre la aplicación móvil de WintonCoin e ingresa a la sección SOS Venezuela desde la pantalla de inicio.
+3. Presiona la tarjeta roja de emergencia que dice Soy Afectado / Censo SOS.
+4. Completa tus datos personales verificando que la cédula comience con V- y el teléfono incluya el prefijo de Venezuela (+58).
+5. Selecciona tu estado, municipio, sector y escribe tu dirección o punto de referencia.
+6. Elige el nivel de afectación y ajusta los contadores de menores de edad o adultos mayores a tu cargo.
+7. Escribe la descripción de la situación, marca las dos casillas de autorización y presiona el botón Registrar Emergencia Humanitaria.
+8. En la ventana que aparece, escribe el código de 6 dígitos enviado a tu correo, define tu contraseña y presiona Activar Cuenta.
+9. Confirma que veas tu número de expediente inteligente generado con el formato SOS-VZLA.
+```
+
+---
+
+```text
+TITULO: QA-40 - Registro y Postulación en Brigadas de Voluntarios SOS desde Android
+DESCRIPCION: Esta prueba comprueba que cualquier persona interesada en brindar auxilio humanitario pueda postularse como voluntario en la aplicación móvil seleccionando su especialidad operativa, disponibilidad y completando la activación de su credencial.
+PASOS:
+2. Ingresa a la sección de SOS Venezuela en la pantalla principal de la aplicación móvil de WintonCoin.
+3. Toca la tarjeta azul que dice Quiero ser Voluntario SOS.
+4. Llena el formulario con tu nombre, cédula, fecha de nacimiento, correo y número telefónico.
+5. Selecciona tu especialidad o rol operativo (por ejemplo, Primeros Auxilios o Logística), tu disponibilidad horaria y modalidad.
+6. Describe brevemente tus habilidades o experiencia en el campo de texto.
+7. Marca las casillas de consentimiento de datos y código de conducta y presiona el botón Postularme como Voluntario SOS.
+8. Ingresa el código de 6 dígitos recibido por correo junto con tu contraseña para activar tu expediente.
+9. Verifica que la pantalla te muestre tu número oficial de expediente voluntario con el formato VOL-VZLA.
+```
+
+
 
 
 

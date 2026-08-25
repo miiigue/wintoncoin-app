@@ -22,6 +22,8 @@ import com.wintoncoin.app.data.repository.NotificationRepositoryImpl
 import com.wintoncoin.app.domain.repository.NotificationRepository
 import com.wintoncoin.app.data.repository.DonationRepositoryImpl
 import com.wintoncoin.app.domain.repository.DonationRepository
+import com.wintoncoin.app.data.repository.SosRepositoryImpl
+import com.wintoncoin.app.domain.repository.SosRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -63,4 +65,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindDonationRepository(impl: DonationRepositoryImpl): DonationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSosRepository(impl: SosRepositoryImpl): com.wintoncoin.app.domain.repository.SosRepository
 }

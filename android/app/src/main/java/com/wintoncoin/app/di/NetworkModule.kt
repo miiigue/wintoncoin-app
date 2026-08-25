@@ -127,4 +127,10 @@ object NetworkModule {
     fun provideDonationApiService(retrofit: Retrofit): com.wintoncoin.app.data.remote.api.DonationApiService {
         return retrofit.create(com.wintoncoin.app.data.remote.api.DonationApiService::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideSosApiService(retrofit: Retrofit): com.wintoncoin.app.data.remote.api.SosApiService {
+        return retrofit.create(com.wintoncoin.app.data.remote.api.SosApiService::class.java)
+    }
 }

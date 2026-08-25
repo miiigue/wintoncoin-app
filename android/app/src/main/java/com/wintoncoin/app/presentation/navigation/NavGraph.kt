@@ -47,6 +47,12 @@ import com.wintoncoin.app.presentation.solidario.submit.SubmitCauseScreen
 import com.wintoncoin.app.presentation.solidario.submit.SubmitCauseViewModel
 import com.wintoncoin.app.presentation.solidario.detail.CauseDetailScreen
 import com.wintoncoin.app.presentation.solidario.detail.CauseDetailViewModel
+import com.wintoncoin.app.presentation.sos.hub.SosHubScreen
+import com.wintoncoin.app.presentation.sos.hub.SosHubViewModel
+import com.wintoncoin.app.presentation.sos.victim.VictimRegistrationScreen
+import com.wintoncoin.app.presentation.sos.victim.VictimRegistrationViewModel
+import com.wintoncoin.app.presentation.sos.volunteer.VolunteerRegistrationScreen
+import com.wintoncoin.app.presentation.sos.volunteer.VolunteerRegistrationViewModel
 
 /**
  * Rutas de las pantallas de la aplicación.
@@ -61,6 +67,9 @@ sealed class Screen(val route: String) {
     object Notifications : Screen("notifications_screen")
     object Solidario : Screen("solidario_screen")
     object SubmitSolidario : Screen("submit_solidario_screen")
+    object SosHub : Screen("sos_hub_screen")
+    object SosVictimRegistration : Screen("sos_victim_registration_screen")
+    object SosVolunteerRegistration : Screen("sos_volunteer_registration_screen")
     object Marketplace : Screen("marketplace_screen")
     object CreatePublication : Screen("create_publication_screen")
     object BoosterProfile : Screen("booster_profile_screen")
@@ -182,6 +191,31 @@ fun NavGraph(
                 onNavigateToBoosterProfile = { onNavigateTo(Screen.BoosterProfile.route) }
             )
         }
+        currentScreen == Screen.SosHub.route -> {
+            val sosHubViewModel: SosHubViewModel = hiltViewModel()
+            SosHubScreen(
+                viewModel = sosHubViewModel,
+                onNavigateBack = { onNavigateTo(Screen.Dashboard.route) },
+                onNavigateToVictimRegistration = { onNavigateTo(Screen.SosVictimRegistration.route) },
+                onNavigateToVolunteerRegistration = { onNavigateTo(Screen.SosVolunteerRegistration.route) }
+            )
+        }
+        currentScreen == Screen.SosVictimRegistration.route -> {
+            val victimViewModel: VictimRegistrationViewModel = hiltViewModel()
+            VictimRegistrationScreen(
+                viewModel = victimViewModel,
+                onNavigateBack = { onNavigateTo(Screen.SosHub.route) },
+                onActivationSuccess = { onNavigateTo(Screen.Dashboard.route) }
+            )
+        }
+        currentScreen == Screen.SosVolunteerRegistration.route -> {
+            val volunteerViewModel: VolunteerRegistrationViewModel = hiltViewModel()
+            VolunteerRegistrationScreen(
+                viewModel = volunteerViewModel,
+                onNavigateBack = { onNavigateTo(Screen.SosHub.route) },
+                onActivationSuccess = { onNavigateTo(Screen.Dashboard.route) }
+            )
+        }
         currentScreen == Screen.Marketplace.route -> {
             val marketplaceViewModel: MarketplaceViewModel = hiltViewModel()
             MarketplaceScreen(
@@ -243,6 +277,7 @@ fun NavGraph(
                 onNavigateToAccountStatement = { onNavigateTo(Screen.AccountStatement.route) },
                 onNavigateToNotifications = { onNavigateTo(Screen.Notifications.route) },
                 onNavigateToSolidario = { onNavigateTo(Screen.Solidario.route) },
+                onNavigateToSos = { onNavigateTo(Screen.SosHub.route) },
                 onNavigateToMarketplace = { onNavigateTo(Screen.Marketplace.route) },
                 onNavigateToProfile = { username -> onNavigateTo("profile_screen/$username") },
                 onNavigateToBooster = { onNavigateTo(Screen.BoosterProfile.route) },

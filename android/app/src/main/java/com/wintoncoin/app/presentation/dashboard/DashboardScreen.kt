@@ -72,6 +72,7 @@ fun DashboardScreen(
     onNavigateToAccountStatement: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
     onNavigateToSolidario: () -> Unit = {},
+    onNavigateToSos: () -> Unit = {},
     onNavigateToMarketplace: () -> Unit,
     onNavigateToProfile: (String) -> Unit,
     onNavigateToBooster: () -> Unit,
@@ -563,6 +564,64 @@ fun DashboardScreen(
                             Text(
                                 text = "Apoyar",
                                 color = Color(0xFFFB7185),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Acceso a SOS Venezuela 🇻🇪
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color(0xFFFBBF24).copy(alpha = 0.4f)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B).copy(alpha = 0.95f)),
+                    onClick = onNavigateToSos
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFFFBBF24).copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = "🇻🇪", fontSize = 22.sp)
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column {
+                                Text(
+                                    text = "SOS Venezuela 🇻🇪",
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Censo Damnificados y Voluntarios",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFFBBF24).copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = "Acceder",
+                                color = Color(0xFFFBBF24),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)

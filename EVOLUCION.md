@@ -13,6 +13,31 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-25 — Android Nativo: Fase 11 — Módulo SOS Venezuela & Brigadas de Voluntarios / Damnificados (Paridad PWA y Censo de Emergencias Humanitarias)
+* **Diagnóstico & Objetivo**:
+  - Implementar de forma 100% nativa en Android (`com.wintoncoin.app`) el ecosistema completo de ayuda humanitaria y brigadas de emergencia de SOS Venezuela (`sos-venezuela.html`, `/api/public/sos-venezuela` y `/api/volunteers`).
+  - Proveer el censo de damnificados con algoritmo de expedientes inteligentes (`SOS-VZLA-[D1][D2][D3][D4]-[SECUENCIAL]`), registro de voluntarios por especialidad operativa (`#VOL-VZLA-XXXX-YYYYY`), verificación OTP de 6 dígitos con asignación de contraseña y activación de cuenta vinculada a la campaña comunitaria `@CadenaSOSVenezuela` con bono BLUE IOU.
+* **Cambios Técnicos**:
+  - **Capa de Red & DTOs (`SosDtos.kt`, `SosApiService.kt`, `NetworkModule.kt`)**:
+    - Creados DTOs serializables `RegisterVictimRequestDto`, `RegisterVictimResponseDto`, `RegisterVolunteerRequestDto`, `RegisterVolunteerResponseDto`, `VerifySosOtpRequestDto`, `VerifySosOtpResponseDto`, `ResendSosOtpRequestDto`, `ResendSosOtpResponseDto` y `SosCampaignSettingsDto`.
+    - Implementados endpoints Retrofit `POST /api/public/sos-venezuela/register`, `POST /api/public/sos-venezuela/verify-otp`, `POST /api/public/sos-venezuela/resend-otp`, `POST /api/volunteers/register`, `POST /api/volunteers/verify-otp`, `POST /api/volunteers/resend-otp` y `GET /api/referral-settings`.
+    - Proveído `SosApiService` en `NetworkModule.kt`.
+  - **Capa de Dominio (`SosModels.kt`, `SosRepository.kt`, `SosRepositoryImpl.kt`, Use Cases, `RepositoryModule.kt`)**:
+    - Diseñadas entidades de dominio inmutables `AffectationLevel`, `VolunteerSpecialty`, `VolunteerAvailability`, `VolunteerModality`, `VictimRegistrationInput`, `VolunteerRegistrationInput`, `SosRegistrationResult`, `SosOtpVerificationInput`, `SosAuthSession` y `SosCampaignInfo`.
+    - Implementado `SosRepositoryImpl` con manejo robusto de errores JSON, gestión de sesión segura en `TokenManager` tras verificación OTP y trazabilidad auditable con `AuditLogger`.
+    - Creados casos de uso puros: `RegisterVictimUseCase`, `RegisterVolunteerUseCase`, `VerifySosOtpUseCase`, `ResendSosOtpUseCase` y `GetSosCampaignConfigUseCase`.
+    - Vinculado `SosRepository` en Hilt dentro de `RepositoryModule.kt`.
+  - **Capa de Presentación MVI & Jetpack Compose (`presentation/sos/`)**:
+    - **Hub SOS (`SosHubScreen.kt`, `SosHubViewModel.kt`)**: Cinta tricolor de emergencia venezolana, visualización del código comunitario `SOSVENEZUELA`, botón para compartir en WhatsApp, tarjetas destacadas "🚨 Soy Afectado / Censo SOS" y "🤝 Quiero ser Voluntario SOS", y sección informativa de auditoría.
+    - **Censo de Damnificados (`VictimRegistrationScreen.kt`, `VictimRegistrationViewModel.kt`)**: Formulario completo estructurado en 5 secciones, auto-formato de cédula (`V-`/`E-`) y teléfono (`+58`), selectores de nivel de gravedad y personas a cargo, diálogo modal OTP para definición de contraseña y confirmación de número de expediente.
+    - **Brigadas de Voluntarios (`VolunteerRegistrationScreen.kt`, `VolunteerRegistrationViewModel.kt`)**: Formulario con menús desplegables de especialidades (médico, primeros auxilios, rescate, logística, apoyo psicológico, cocina, general), disponibilidad horaria, modalidad (presencial, remoto, híbrido), experiencia previa y modal de credencial activa `#VOL-VZLA-XXXX-YYYYY`.
+    - Conectada tarjeta de acceso en `DashboardScreen.kt` (`SOS Venezuela 🇻🇪`) y registradas las rutas `Screen.SosHub`, `Screen.SosVictimRegistration` y `Screen.SosVolunteerRegistration` en `NavGraph.kt`.
+  - **Pruebas Unitarias & Cobertura (`*Test.kt`)**:
+    - Creadas suites de pruebas unitarias para `RegisterVictimUseCaseTest`, `RegisterVolunteerUseCaseTest`, `VerifySosOtpUseCaseTest`, `ResendSosOtpUseCaseTest`, `GetSosCampaignConfigUseCaseTest`, `SosRepositoryImplTest`, `SosHubViewModelTest`, `VictimRegistrationViewModelTest` y `VolunteerRegistrationViewModelTest`.
+    - **209 / 209 Tests Unitarios Aprobados (100% de éxito, 0 fallos, 0 errores)** en la suite completa de Android.
+* **Impacto**:
+  - WintonCoin consolida una infraestructura móvil de respuesta humanitaria inmediata y censo de contingencias para Venezuela, permitiendo a los afectados registrar solicitudes de auxilio con trazabilidad auditable y a los brigadistas coordinarse eficientemente desde sus dispositivos Android nativos.
+
 ### 2026-08-25 — Android Nativo: Fase 10 — WintonCoin Solidario & Sistema de Donaciones Comunitarias (Paridad PWA y Motor de Donaciones BLUE IOU)
 * **Diagnóstico & Objetivo**:
   - Implementar de forma 100% nativa en Android (`com.wintoncoin.app`) el módulo completo de WintonCoin Solidario y Donaciones Comunitarias (`solicitud-solidaria.html`, `causa-solidaria.html` y endpoints `/api/humanitarian`), asegurando paridad visual y funcional absoluta con las capturas de diseño de `Pantallas PWA/Pantalla donaciones/` y `Pantallas PWA/Pantalla publicación de donación/`.
