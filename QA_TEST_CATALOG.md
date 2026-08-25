@@ -480,6 +480,38 @@ PASOS:
 6. Toca la pestaña Historial Completo y comprueba que puedas revisar tus notificaciones anteriores con su fecha y hora de registro.
 ```
 
+---
+
+```text
+TITULO: QA-37 - Postulación de Causa Humanitaria en WintonCoin Solidario desde Android
+DESCRIPCION: Esta misión tiene como objetivo comprobar que cualquier persona pueda postular una causa humanitaria desde la aplicación móvil completando el formulario de verificación, adjuntando enlaces de evidencias y enviándola a revisión del equipo de auditoría.
+PASOS:
+2. Abre la aplicación de WintonCoin en tu teléfono móvil e inicia sesión con tu cuenta.
+3. En la pantalla de inicio, presiona la tarjeta destacada que dice WintonCoin Solidario.
+4. En la parte inferior de la pantalla, presiona el botón flotante rojo que dice Postular Causa.
+5. Verifica que tu nombre de usuario aparezca automáticamente con el mensaje verde de usuario verificado en la base de datos.
+6. Escribe el título de tu causa, la historia detallada explicando la situación y la meta requerida en tokens BLUE IOU.
+7. Ingresa un enlace de evidencia de prueba en una nube autorizada (por ejemplo, Google Drive o Dropbox) y tus enlaces a redes sociales.
+8. Marca la casilla de aceptación de Términos y Condiciones y presiona el botón Enviar para Auditoría.
+9. Confirma que aparezca una ventana verde de confirmación indicando que tu postulación fue enviada con éxito.
+```
+
+---
+
+```text
+TITULO: QA-38 - Exploración de Causas, Donación de Tokens BLUE IOU y Muro de Donantes en Android
+DESCRIPCION: Esta prueba asegura que puedas explorar las causas solidarias activas, revisar el progreso de recaudación, donar tus tokens BLUE IOU acumulados y verificar que tu aporte aparezca registrado de inmediato en el muro de donantes.
+PASOS:
+2. Ingresa a la sección de WintonCoin Solidario desde la pantalla principal de la app móvil.
+3. En la pestaña de Causas en Recaudación, presiona cualquiera de las causas humanitarias activas para ver su detalle.
+4. Confirma que veas el banner con el distintivo de modo de prueba, el creador de la causa, la historia completa y la barra de progreso de recaudación.
+5. Ubica la tarjeta de Realizar Donación y verifica que tu saldo disponible de BLUE IOU se muestre correctamente.
+6. Escribe un monto a donar (por ejemplo, 10), marca la casilla de aceptación de términos y presiona el botón Donar BLUE IOU.
+7. En la ventana de confirmación, presiona Donar Ahora y verifica que aparezca el aviso de donación exitosa.
+8. Revisa la pestaña de Muro de Donantes en la parte inferior y comprueba que tu donación aparezca listada con la etiqueta DONADO y su estado correspondiente.
+```
+
+
 
 
 

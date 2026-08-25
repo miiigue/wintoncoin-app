@@ -60,7 +60,7 @@ class MarketplaceRepositoryImplTest {
             story = "Donaciones para comedor",
             goalAmount = 500.0,
             currentAmount = 100.0,
-            evidenceUrls = listOf("https://r2.cloudflare.com/uploads/evidence.png")
+            evidenceUrls = "https://r2.cloudflare.com/uploads/evidence.png"
         )
 
         coEvery { apiService.getActivePublications("testuser", any(), any()) } returns Response.success(listOf(pubDto))

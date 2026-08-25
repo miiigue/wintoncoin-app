@@ -59,6 +59,7 @@ import com.wintoncoin.app.presentation.wallet.WalletViewModel
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Star
@@ -70,6 +71,7 @@ fun DashboardScreen(
     onNavigateToWallet: () -> Unit,
     onNavigateToAccountStatement: () -> Unit = {},
     onNavigateToNotifications: () -> Unit = {},
+    onNavigateToSolidario: () -> Unit = {},
     onNavigateToMarketplace: () -> Unit,
     onNavigateToProfile: (String) -> Unit,
     onNavigateToBooster: () -> Unit,
@@ -498,6 +500,69 @@ fun DashboardScreen(
                             Text(
                                 text = "Ver",
                                 color = Color(0xFF38BDF8),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Acceso a WintonCoin Solidario ❤️
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color(0xFFFB7185).copy(alpha = 0.3f)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B).copy(alpha = 0.95f)),
+                    onClick = onNavigateToSolidario
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFFFB7185).copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Favorite,
+                                    contentDescription = "WintonCoin Solidario",
+                                    tint = Color(0xFFFB7185),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column {
+                                Text(
+                                    text = "WintonCoin Solidario ❤️",
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Causas comunitarias y donaciones",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFFB7185).copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = "Apoyar",
+                                color = Color(0xFFFB7185),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)

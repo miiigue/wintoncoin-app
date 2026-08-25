@@ -95,59 +95,7 @@ data class PublicationDto(
     val targetUsername: String? = null
 )
 
-/**
- * DTO para las Causas Humanitarias aprobadas (Winton Solidario).
- */
-@Serializable
-data class HumanitarianCauseDto(
-    @SerialName("id")
-    val id: Int,
 
-    @SerialName("title")
-    val title: String = "",
-
-    @SerialName("story")
-    val story: String? = null,
-
-    @SerialName("goal_amount")
-    val goalAmount: Double? = null,
-
-    @SerialName("current_amount")
-    val currentAmount: Double? = null,
-
-    @SerialName("amount_on_hold")
-    val amountOnHold: Double? = null,
-
-    @SerialName("evidence_urls")
-    val evidenceUrls: List<String>? = null,
-
-    @SerialName("created_at")
-    val createdAt: String? = null,
-
-    @SerialName("foundation_name")
-    val foundationName: String? = null,
-
-    @SerialName("creator_username")
-    val creatorUsername: String? = null,
-
-    @SerialName("beneficiary_username")
-    val beneficiaryUsername: String? = null,
-
-    @SerialName("beneficiary_referral_code")
-    val beneficiaryReferralCode: String? = null
-)
-
-/**
- * Respuesta envoltorio para el endpoint de causas aprobadas.
- */
-@Serializable
-data class HumanitarianCausesResponseDto(
-    @SerialName("success")
-    val success: Boolean = false,
-
-    @SerialName("causes")
-    val causes: List<HumanitarianCauseDto> = emptyList()
-)
 
 /**
  * DTO para la información de participantes en una tarea.
