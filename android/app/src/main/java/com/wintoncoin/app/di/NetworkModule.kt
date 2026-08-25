@@ -115,4 +115,10 @@ object NetworkModule {
     fun provideAccountStatementApiService(retrofit: Retrofit): com.wintoncoin.app.data.remote.api.AccountStatementApiService {
         return retrofit.create(com.wintoncoin.app.data.remote.api.AccountStatementApiService::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideNotificationApiService(retrofit: Retrofit): com.wintoncoin.app.data.remote.api.NotificationApiService {
+        return retrofit.create(com.wintoncoin.app.data.remote.api.NotificationApiService::class.java)
+    }
 }

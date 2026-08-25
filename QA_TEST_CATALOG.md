@@ -454,6 +454,33 @@ PASOS:
 7. Revisa las 4 tarjetas de estadísticas de actividad blockchain y toca el icono de información en cualquiera de ellas para leer su explicación en lenguaje sencillo.
 ```
 
+---
+
+```text
+TITULO: QA-35 - Monitoreo de Notificaciones y Filtrado por Categorías en Android
+DESCRIPCION: Esta misión tiene como objetivo verificar que puedas ingresar al Centro de Notificaciones desde la pantalla principal, revisar tus alertas de recompensas y pagos recibidos, y aplicar los filtros por categoría para encontrar eventos específicos de forma rápida.
+PASOS:
+2. Abre la aplicación de WintonCoin en tu teléfono e inicia sesión con tu cuenta.
+3. En la barra superior de la pantalla de inicio, toca el icono de la campana de notificaciones o presiona la tarjeta Centro de Notificaciones.
+4. Verifica que aparezca la lista de tus notificaciones no leídas con sus respectivos iconos de colores según el tipo de mensaje (recompensas, pagos o avisos).
+5. Toca los botones de filtro en la parte superior (por ejemplo, Recompensas o Pagos) y confirma que la lista muestre únicamente los mensajes correspondientes a esa categoría.
+6. Toca el botón Todas para volver a ver el listado completo de alertas pendientes.
+```
+
+---
+
+```text
+TITULO: QA-36 - Descarte Individual y Limpieza Total de Notificaciones en Android
+DESCRIPCION: Esta prueba asegura que puedas descartar notificaciones individuales con una animación fluida o utilizar el botón de limpieza masiva para marcar todas tus alertas pendientes como leídas y consultar el historial completo.
+PASOS:
+2. Ingresa al Centro de Notificaciones en la aplicación móvil de WintonCoin.
+3. Elige una de las notificaciones pendientes y presiona el botón con forma de equis en la esquina derecha de la tarjeta.
+4. Verifica que la notificación desaparezca de pantalla y el contador de alertas pendientes en la barra superior se actualice de inmediato.
+5. Presiona el botón Limpiar todo en la esquina superior derecha y confirma que la bandeja se vacíe mostrando el mensaje de que no tienes notificaciones nuevas.
+6. Toca la pestaña Historial Completo y comprueba que puedas revisar tus notificaciones anteriores con su fecha y hora de registro.
+```
+
+
 
 
 

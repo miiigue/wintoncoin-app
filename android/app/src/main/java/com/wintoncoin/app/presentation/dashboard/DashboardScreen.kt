@@ -57,7 +57,9 @@ import com.wintoncoin.app.presentation.wallet.RedBalanceCard
 import com.wintoncoin.app.presentation.wallet.WalletEvent
 import com.wintoncoin.app.presentation.wallet.WalletViewModel
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Star
 
@@ -67,6 +69,7 @@ fun DashboardScreen(
     walletViewModel: WalletViewModel,
     onNavigateToWallet: () -> Unit,
     onNavigateToAccountStatement: () -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {},
     onNavigateToMarketplace: () -> Unit,
     onNavigateToProfile: (String) -> Unit,
     onNavigateToBooster: () -> Unit,
@@ -133,12 +136,19 @@ fun DashboardScreen(
                     }
                 }
 
-                Row {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onNavigateToNotifications) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = "Notificaciones",
+                            tint = WintonGold
+                        )
+                    }
                     IconButton(onClick = { walletViewModel.onEvent(WalletEvent.Refresh) }) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Refrescar",
-                            tint = WintonGold
+                            tint = Color.LightGray
                         )
                     }
                     IconButton(onClick = onLogout) {
@@ -425,6 +435,69 @@ fun DashboardScreen(
                             Text(
                                 text = "Auditar",
                                 color = WintonGreen,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Acceso a Centro de Notificaciones & Alertas
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color(0xFF38BDF8).copy(alpha = 0.3f)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B).copy(alpha = 0.95f)),
+                    onClick = onNavigateToNotifications
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFF38BDF8).copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Notifications,
+                                    contentDescription = "Centro de Notificaciones",
+                                    tint = Color(0xFF38BDF8),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column {
+                                Text(
+                                    text = "Centro de Notificaciones",
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Alertas de pagos, tareas y sistema",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFF38BDF8).copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = "Ver",
+                                color = Color(0xFF38BDF8),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
