@@ -16,6 +16,8 @@ import com.wintoncoin.app.data.repository.MarketplaceRepositoryImpl
 import com.wintoncoin.app.domain.repository.MarketplaceRepository
 import com.wintoncoin.app.data.repository.BoosterRepositoryImpl
 import com.wintoncoin.app.domain.repository.BoosterRepository
+import com.wintoncoin.app.data.repository.AccountStatementRepositoryImpl
+import com.wintoncoin.app.domain.repository.AccountStatementRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -45,4 +47,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindBoosterRepository(impl: BoosterRepositoryImpl): BoosterRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAccountStatementRepository(impl: AccountStatementRepositoryImpl): AccountStatementRepository
 }

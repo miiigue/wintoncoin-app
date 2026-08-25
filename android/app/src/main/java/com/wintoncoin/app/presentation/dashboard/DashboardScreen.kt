@@ -57,6 +57,7 @@ import com.wintoncoin.app.presentation.wallet.RedBalanceCard
 import com.wintoncoin.app.presentation.wallet.WalletEvent
 import com.wintoncoin.app.presentation.wallet.WalletViewModel
 
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Star
 
@@ -65,6 +66,7 @@ fun DashboardScreen(
     username: String?,
     walletViewModel: WalletViewModel,
     onNavigateToWallet: () -> Unit,
+    onNavigateToAccountStatement: () -> Unit = {},
     onNavigateToMarketplace: () -> Unit,
     onNavigateToProfile: (String) -> Unit,
     onNavigateToBooster: () -> Unit,
@@ -364,6 +366,68 @@ fun DashboardScreen(
                                 color = Color.White,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Tarjeta de Estado de Cuenta Web3
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B).copy(alpha = 0.95f)),
+                    onClick = onNavigateToAccountStatement
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(WintonGreen.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Description,
+                                    contentDescription = "Estado de Cuenta",
+                                    tint = WintonGreen,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column {
+                                Text(
+                                    text = "Estado de Cuenta Web3",
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Auditoría de Smart Contracts y Ledger",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = WintonGreen.copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = "Auditar",
+                                color = WintonGreen,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                             )
                         }
                     }

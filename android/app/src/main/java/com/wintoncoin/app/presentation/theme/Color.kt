@@ -43,8 +43,10 @@ val WintonGreen = Color(0xFF10B981)
 val WintonSuccess = Color(0xFF27AE60)
 // Naranja advertencia (pendiente de aprobación, acciones requeridas)
 val WintonWarning = Color(0xFFE67E22)
+val WintonOrange = Color(0xFFF59E0B)
 // Rojo error (errores, sesión expirada, rechazos)
 val WintonError = Color(0xFFE74C3C)
+val WintonRed = Color(0xFFEF4444)
 // Amarillo info (participante esperando, notificaciones)
 val WintonInfo = Color(0xFFFFE600)
 
@@ -60,6 +62,7 @@ val WintonCardLight = Color(0xFFFFFFFF)
 val WintonSurfaceDark = Color(0xFF121212)
 // Fondo de tarjetas oscuro
 val WintonCardDark = Color(0xFF1E1E1E)
+val WintonCardBackground = Color(0xFF1E293B)
 
 // ============================================================================
 // COLORES DE TEXTO

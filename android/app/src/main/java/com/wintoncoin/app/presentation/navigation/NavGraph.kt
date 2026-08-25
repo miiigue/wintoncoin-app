@@ -37,6 +37,9 @@ import com.wintoncoin.app.presentation.marketplace.create.CreatePublicationViewM
 import com.wintoncoin.app.presentation.marketplace.detail.PublicationDetailScreen
 import com.wintoncoin.app.presentation.marketplace.detail.PublicationDetailViewModel
 
+import com.wintoncoin.app.presentation.statement.AccountStatementScreen
+import com.wintoncoin.app.presentation.statement.AccountStatementViewModel
+
 /**
  * Rutas de las pantallas de la aplicación.
  */
@@ -46,6 +49,7 @@ sealed class Screen(val route: String) {
     object ForgotPassword : Screen("forgot_password_screen")
     object Dashboard : Screen("dashboard_screen")
     object Wallet : Screen("wallet_screen")
+    object AccountStatement : Screen("account_statement_screen")
     object Marketplace : Screen("marketplace_screen")
     object CreatePublication : Screen("create_publication_screen")
     object BoosterProfile : Screen("booster_profile_screen")
@@ -115,6 +119,14 @@ fun NavGraph(
             val walletViewModel: WalletViewModel = hiltViewModel()
             WalletScreen(
                 viewModel = walletViewModel,
+                onNavigateBack = { onNavigateTo(Screen.Dashboard.route) },
+                onNavigateToAccountStatement = { onNavigateTo(Screen.AccountStatement.route) }
+            )
+        }
+        currentScreen == Screen.AccountStatement.route -> {
+            val statementViewModel: AccountStatementViewModel = hiltViewModel()
+            AccountStatementScreen(
+                viewModel = statementViewModel,
                 onNavigateBack = { onNavigateTo(Screen.Dashboard.route) }
             )
         }
@@ -176,6 +188,7 @@ fun NavGraph(
                 username = tokenManager.getUsername(),
                 walletViewModel = walletViewModel,
                 onNavigateToWallet = { onNavigateTo(Screen.Wallet.route) },
+                onNavigateToAccountStatement = { onNavigateTo(Screen.AccountStatement.route) },
                 onNavigateToMarketplace = { onNavigateTo(Screen.Marketplace.route) },
                 onNavigateToProfile = { username -> onNavigateTo("profile_screen/$username") },
                 onNavigateToBooster = { onNavigateTo(Screen.BoosterProfile.route) },

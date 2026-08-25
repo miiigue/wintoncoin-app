@@ -109,4 +109,10 @@ object NetworkModule {
     fun provideBoosterApiService(retrofit: Retrofit): com.wintoncoin.app.data.remote.api.BoosterApiService {
         return retrofit.create(com.wintoncoin.app.data.remote.api.BoosterApiService::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideAccountStatementApiService(retrofit: Retrofit): com.wintoncoin.app.data.remote.api.AccountStatementApiService {
+        return retrofit.create(com.wintoncoin.app.data.remote.api.AccountStatementApiService::class.java)
+    }
 }
