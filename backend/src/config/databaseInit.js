@@ -367,7 +367,8 @@ async function applyMigrations(client) {
                 expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
                 referral_code VARCHAR(255),
                 date_of_birth DATE,
-                is_minor BOOLEAN DEFAULT FALSE
+                is_minor BOOLEAN DEFAULT FALSE,
+                form_payload JSONB
             );
         `,
             `
@@ -806,7 +807,8 @@ async function initializeDatabase() {
             resend_count INTEGER NOT NULL DEFAULT 0,
             last_sent_at TIMESTAMPTZ,
             expires_at TIMESTAMPTZ NOT NULL,
-            referral_code VARCHAR(255)
+            referral_code VARCHAR(255),
+            form_payload JSONB
         );`,
         `CREATE TABLE IF NOT EXISTS publications (
             id SERIAL PRIMARY KEY,

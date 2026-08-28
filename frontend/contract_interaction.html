@@ -451,29 +451,15 @@
                 <div class="balances-container">
                     <!-- Sección BLUE -->
                     <div class="balance-section blue-section" onclick="window.location.href='estado-cuenta.html'" style="cursor: pointer;" title="Ver Estado de Cuenta">
-                        <h3 class="balance-title">
-                            <span class="info-text-clickable" role="button" tabindex="0"
-                                aria-label="Información sobre SALDO BLUE" data-tooltip-id="tooltip-saldo-blue">SALDO
-                                BLUE</span>
-                        </h3>
-                        <div id="tooltip-saldo-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
-                            <p>Los tokens BLUE son tu activo. Puedes usarlos para pagar servicios, recibirlos por
-                                trabajo
-                                realizado, o quemarlos para amortizar tu compromiso RED. Al lanzamiento oficial
-                                <strong>14-2-2027</strong>, <strong>1 BLUE = 1 USD</strong>.
-                            </p>
-                        </div>
                         <div class="balance-items">
                             <div class="balance-item-wrapper">
                                 <span class="balance-label">
                                     <span class="info-text-clickable" role="button" tabindex="0"
-                                        aria-label="Información sobre Disponibles"
-                                        data-tooltip-id="tooltip-disponibles">Disponibles</span>
+                                        aria-label="Información sobre Liquidez"
+                                        data-tooltip-id="tooltip-disponibles">LIQUIDEZ</span>
                                 </span>
                                 <div id="tooltip-disponibles" class="info-tooltip" role="tooltip" aria-hidden="true">
-                                    <p>Son tus tokens BLUE que puedes usar inmediatamente. Puedes pagar con ellos,
-                                        transferirlos
-                                        o quemarlos para amortizar tu compromiso RED.</p>
+                                    <p><strong>Los tokens BLUE son tu activo.</strong> Puedes usarlos para pagar servicios, transferirlos o quemarlos para amortizar tu compromiso RED. Al lanzamiento oficial <strong>14-2-2027</strong>, <strong>1 BLUE = 1 USD</strong>.</p>
                                 </div>
                                 <div class="balance-item">
                                     <span id="saldoBlue" class="balance-amount blue-amount">--</span>
@@ -496,31 +482,24 @@
                     </div>
 
                     <!-- Sección RED -->
-                    <div class="balance-section red-section" title="Ver Estado de Cuenta">
-                        <h3 class="balance-title">
-                            <span class="info-text-clickable" role="button" tabindex="0"
-                                aria-label="Información sobre Saldo RED" data-tooltip-id="tooltip-saldo-red">SALDO
-                                RED</span>
-                        </h3>
-                        <div id="tooltip-saldo-red" class="info-tooltip" role="tooltip" aria-hidden="true">
-                            <p>Los tokens RED representan tu compromiso en el sistema. Se crean cuando realizas un pago a otro usuario. Gracias a la <strong>Regla Materia-Antimateria</strong>, este compromiso se amortizará automáticamente de forma instantánea en cuanto recibas tokens BLUE. Si no logras amortizarlo antes del vencimiento, tu usuario será listado públicamente en la <strong>página L.O.V.</strong> (Lista de Obligaciones Vencidas).</p>
-                        </div>
+                    <div class="balance-section red-section" onclick="window.location.href='estado-cuenta.html'" style="cursor: pointer;" title="Ver Estado de Cuenta">
                         <div class="balance-items red-balance-items">
                             <div class="balance-item-wrapper red-balance-wrapper">
                                 <span class="balance-label">
                                     <span class="info-text-clickable" role="button" tabindex="0"
                                         aria-label="Información sobre Debes"
-                                        data-tooltip-id="tooltip-saldo-red-label">Tus
-                                        obligaciones</span>
+                                        data-tooltip-id="tooltip-saldo-red-label">Tu
+                                        compromiso</span>
                                 </span>
                                 <div id="tooltip-saldo-red-label" class="info-tooltip" role="tooltip"
                                     aria-hidden="true">
-                                    <p>Es la cantidad total de tokens RED (compromiso) que tienes actualmente. Este compromiso
-                                        tiene un
-                                        tiempo de vigencia. Se aniquilará matemáticamente en cuanto recibas tokens BLUE líquidos. Si llegas a la fecha límite sin haber amortizado el compromiso, serás listado en la <strong>página L.O.V.</strong>.</p>
+                                    <p><strong>Los tokens RED representan tu compromiso.</strong> Se crean cuando realizas un pago. Gracias a la <strong>Regla Materia-Antimateria</strong>, este compromiso se amortiza automáticamente al recibir tokens BLUE líquidos. Si llegas a la fecha límite sin haberlo amortizado, serás listado en la <strong>página L.O.V.</strong> (Lista de Obligaciones Vencidas).</p>
                                 </div>
                                 <div class="balance-item">
                                     <span id="saldoRed" class="balance-amount red-amount">--</span>
+                                    <div style="margin-top: 5px; font-size: 0.85rem; color: #ef4444; font-weight: 600; letter-spacing: 0.5px;">
+                                        DISPONIBLE: <span id="saldoRedDisponible">--</span>
+                                    </div>
                                 </div>
                                 <div id="debt-countdown-container" class="countdown-container" style="display: none;">
                                     <p id="debt-countdown-text" class="countdown-text info-text-clickable" role="button"
@@ -880,25 +859,7 @@
     <div class="beta-version-tag" style="display: none;">
         VERSION BETA
     </div>
-    <!-- Modal Pre-Lanzamiento Billetera -->
-    <div class="prelaunch-modal-overlay" id="prelaunchWalletModal" style="display: none;">
-        <div class="prelaunch-modal">
-            <div class="prelaunch-modal-icon">💰</div>
-            <h3 class="prelaunch-modal-title">Fase Pre-lanzamiento</h3>
-            <div class="prelaunch-modal-text">
-                <p style="margin-bottom: 10px;">
-                    Actualmente estás acumulando <strong>BLUE iou</strong> (pagarés).
-                </p>
-                <p>
-                    A partir del <strong class="highlight-date">14 de febrero de 2027</strong>, recibirás tus
-                    <strong>tokens
-                        BLUE</strong> conforme al <a href="https://boosters.wintoncoin.com/detalles/pagos.html"
-                        target="_blank" class="modal-link">Programa de Incentivos para Impulsores</a>.
-                </p>
-            </div>
-            <button class="prelaunch-modal-btn" id="prelaunchModalAccept">Entendido</button>
-        </div>
-    </div>
+
 
     <!-- Modal Aviso Pre-Lanzamiento (Crear Publicación) -->
     <div class="prelaunch-modal-overlay" id="createPostPrelaunchModal" style="display: none;">

@@ -4,14 +4,17 @@
 // Activity única (Single Activity Architecture) anotada con @AndroidEntryPoint.
 // Administra el contenedor principal de la UI en Jetpack Compose e inspecciona
 // la seguridad del dispositivo en cada inicio.
+//
+// Usa FragmentActivity (no ComponentActivity) para compatibilidad con
+// BiometricPrompt de AndroidX, que requiere un FragmentActivity como host.
 // ============================================================================
 
 package com.wintoncoin.app
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.fragment.app.FragmentActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -30,9 +33,10 @@ import javax.inject.Inject
 
 /**
  * MainActivity — Punto de entrada visual de la app.
+ * Extiende FragmentActivity (requerido por BiometricPrompt de AndroidX).
  */
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     @Inject
     lateinit var tokenManager: TokenManager
@@ -42,16 +46,34 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // enableEdgeToEdge seguro — en algunas ROMs puede fallar
+        try {
+            enableEdgeToEdge()
+        } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "enableEdgeToEdge: ${e.message}")
+        }
 
-        // Escaneo de seguridad de integridad del dispositivo al arrancar la app
-        rootDetector.checkSecurity()
+        // Escaneo de seguridad de integridad del dispositivo
+        try {
+            rootDetector.checkSecurity()
+        } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "rootDetector: ${e.message}")
+        }
 
         setContent {
-            // Verificar si hay sesión activa previa para decidir la pantalla inicial
-            val initialScreen = if (tokenManager.hasSession() && !tokenManager.isTokenExpired()) {
-                Screen.Dashboard.route
-            } else {
+            // Determinar pantalla inicial de forma segura
+            val initialScreen = try {
+                if (tokenManager.hasSession() && !tokenManager.isTokenExpired()) {
+                    if (tokenManager.isBiometricsEnabled()) {
+                        Screen.AppLock.route
+                    } else {
+                        Screen.Dashboard.route
+                    }
+                } else {
+                    Screen.Login.route
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "Session check: ${e.message}")
                 Screen.Login.route
             }
 

@@ -66,13 +66,31 @@ class EncryptedCookieJar @Inject constructor(
         private const val PREFS_NAME = "wintoncoin_secure_cookies"
     }
 
-    // SharedPreferences cifradas con AES-256-GCM
+    // SharedPreferences cifradas con AES-256-GCM y auto-recuperación ante errores de Keystore
     private val encryptedPrefs: SharedPreferences by lazy {
+        try {
+            createEncryptedPreferences()
+        } catch (t: Throwable) {
+            Log.e(TAG, "[SECURITY] Error initializing EncryptedCookieJar, auto-healing: ${t.message}")
+            try {
+                val prefsFile = java.io.File(context.applicationInfo.dataDir, "shared_prefs/$PREFS_NAME.xml")
+                if (prefsFile.exists()) {
+                    prefsFile.delete()
+                }
+                createEncryptedPreferences()
+            } catch (t2: Throwable) {
+                Log.e(TAG, "[SECURITY] Fallback to standard private preferences: ${t2.message}")
+                context.getSharedPreferences("${PREFS_NAME}_fallback", Context.MODE_PRIVATE)
+            }
+        }
+    }
+
+    private fun createEncryptedPreferences(): SharedPreferences {
         val masterKey = MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
 
-        EncryptedSharedPreferences.create(
+        return EncryptedSharedPreferences.create(
             context,
             PREFS_NAME,
             masterKey,

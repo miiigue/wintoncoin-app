@@ -543,6 +543,36 @@ PASOS:
 9. Verifica que la pantalla te muestre tu número oficial de expediente voluntario con el formato VOL-VZLA.
 ```
 
+---
+
+```text
+TITULO: QA-41 - Activación de Bloqueo Biométrico y Desbloqueo Seguro de la App en Android
+DESCRIPCION: Esta misión tiene como objetivo comprobar que puedas activar el bloqueo por huella dactilar o rostro desde la configuración de seguridad y que al salir o volver a abrir la aplicación se muestre la pantalla de bloqueo solicitando tu confirmación biométrica.
+PASOS:
+2. Abre la aplicación de WintonCoin en tu teléfono móvil e inicia sesión con tu cuenta.
+3. En la pantalla de inicio, ubica y presiona la tarjeta que dice Seguridad & Biometría.
+4. En la sección de Controles de Protección, activa el interruptor que dice Bloqueo Biométrico de la App.
+5. Verifica que aparezca un mensaje verde indicando que el bloqueo biométrico fue activado con éxito.
+6. Sal de la aplicación o ciérrala desde la vista de aplicaciones recientes de tu teléfono y vuelve a abrirla.
+7. Comprueba que aparezca la pantalla de bloqueo oscuro de WintonCoin con el icono de huella dactilar solicitando tu autenticación.
+8. Coloca tu huella dactilar o usa tu rostro y confirma que la aplicación se desbloquee de inmediato llevándote a tu pantalla principal.
+```
+
+---
+
+```text
+TITULO: QA-42 - Configuración de Autorización Biométrica para Transacciones Financieras en Android
+DESCRIPCION: Esta prueba asegura que puedas gestionar la exigencia de huella o rostro para la autorización de transferencias de fondos, donaciones solidarias y operaciones de billetera desde el panel de seguridad de la aplicación.
+PASOS:
+2. Ingresa a la sección de Seguridad & Biometría desde la pantalla principal de la aplicación móvil.
+3. Revisa la tarjeta superior y comprueba que se muestre el estado de tu sensor biométrico en color verde.
+4. En el interruptor que dice Autorizar Transacciones, desactívalo y actívalo nuevamente para comprobar la respuesta del sistema.
+5. Verifica que cada cambio muestre el aviso de confirmación correspondiente en la parte superior.
+6. Lee la sección inferior de Estándares de Ciberseguridad Bancaria y comprueba que se detalle el uso de cifrado seguro por hardware.
+7. Presiona el botón de flecha en la esquina superior izquierda para regresar al inicio sin errores.
+```
+
+
 
 
 

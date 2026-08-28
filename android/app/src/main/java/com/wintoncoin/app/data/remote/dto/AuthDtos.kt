@@ -19,11 +19,12 @@ import kotlinx.serialization.Serializable
 
 /**
  * Cuerpo del request de login.
- * Backend espera: { "username": "...", "password": "..." }
+ * Backend espera: { "identifier": "...", "password": "..." }
  */
 @Serializable
 data class LoginRequest(
-    val username: String,
+    @SerialName("identifier")
+    val identifier: String,
     val password: String
 )
 

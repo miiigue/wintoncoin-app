@@ -17,6 +17,7 @@ export * from './sanitize.js';
 export * from './clipboard.js';
 export * from './walletService.js';
 export * from './tableSort.js';
+export * from './formDraftManager.js';
 
 // ============================================================================
 // COMPATIBILIDAD GLOBAL (window.*)

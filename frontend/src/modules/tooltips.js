@@ -100,6 +100,10 @@ export function initializeInfoTooltip(triggerSelector, tooltipSelector) {
         if (isTooltipVisible) {
             hideTooltip();
         } else {
+            // Cerrar cualquier otro tooltip abierto antes de mostrar el nuevo
+            activeTooltips.forEach(t => {
+                if (t.hideTooltip) t.hideTooltip();
+            });
             showTooltip();
         }
     }

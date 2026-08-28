@@ -11,7 +11,7 @@
 
 'use strict';
 
-import { getApiUrl } from '../modules/index.js';
+import { getApiUrl, saveFormDraft, restoreFormDraft, clearFormDraft } from '../modules/index.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     // ── Referencias del DOM (Formulario Principal) ────────────────────────
@@ -316,6 +316,9 @@ document.addEventListener('DOMContentLoaded', () => {
             window._registeredDossierNumber = data.dossier_number;
             window._isNewUser = Boolean(data.is_new_user);
 
+            // Persistir borrador del formulario completo en sessionStorage (DRY)
+            saveFormDraft(victimForm, 'winton_victim_draft_data');
+
             try {
                 sessionStorage.setItem('sos_pending_otp', JSON.stringify({
                     email: window._registeredVictimEmail,
@@ -352,13 +355,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // ── 5.5 Botón de Retorno para Modificar Datos o Correo (UX Resiliente) ──
+    const btnBackToForm = document.getElementById('sos-btn-back-to-form');
+    if (btnBackToForm) {
+        btnBackToForm.addEventListener('click', () => {
+            if (resultCard) resultCard.style.display = 'none';
+            if (victimForm) {
+                victimForm.style.display = 'block';
+                restoreFormDraft(victimForm, 'winton_victim_draft_data');
+                evaluateFormCompleteness();
+                victimForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    }
+
     // ── 5.6 Restaurar Estado de OTP Pendiente al Recargar (sessionStorage) ──
     try {
         const savedOtpState = sessionStorage.getItem('sos_pending_otp');
         if (savedOtpState) {
             const parsed = JSON.parse(savedOtpState);
             // Expiración a los 15 minutos (900,000 ms)
-            if (parsed.email && parsed.dossier_number && (Date.now() - parsed.timestamp < 15 * 60 * 1000)) {
+            if (parsed.email && (Date.now() - parsed.timestamp < 15 * 60 * 1000)) {
                 window._registeredVictimEmail = parsed.email;
                 window._registeredDossierNumber = parsed.dossier_number;
                 window._isNewUser = (parsed.is_new_user !== undefined) ? Boolean(parsed.is_new_user) : true;
@@ -367,6 +384,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     resultCard.style.display = 'block';
                 }
                 configureOtpCardState();
+                // Restaurar los datos en el formulario en memoria por si el usuario decide hacer clic en "Modificar datos"
+                restoreFormDraft(victimForm, 'winton_victim_draft_data');
             } else {
                 sessionStorage.removeItem('sos_pending_otp');
             }
@@ -494,8 +513,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error(data.message || 'Código incorrecto.');
                 }
 
-                // Limpiar estado de OTP pendiente en sessionStorage
+                // Limpiar estado de OTP pendiente y borrador en sessionStorage
                 sessionStorage.removeItem('sos_pending_otp');
+                clearFormDraft('winton_victim_draft_data');
 
                 // ── 6.4 Sesión JWT: Guardar Token de Acceso ────────────────
                 if (data.token) {
