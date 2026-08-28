@@ -53,6 +53,10 @@ import com.wintoncoin.app.presentation.sos.victim.VictimRegistrationScreen
 import com.wintoncoin.app.presentation.sos.victim.VictimRegistrationViewModel
 import com.wintoncoin.app.presentation.sos.volunteer.VolunteerRegistrationScreen
 import com.wintoncoin.app.presentation.sos.volunteer.VolunteerRegistrationViewModel
+import com.wintoncoin.app.presentation.lock.AppLockScreen
+import com.wintoncoin.app.presentation.lock.AppLockViewModel
+import com.wintoncoin.app.presentation.settings.security.SecuritySettingsScreen
+import com.wintoncoin.app.presentation.settings.security.SecuritySettingsViewModel
 
 /**
  * Rutas de las pantallas de la aplicación.
@@ -70,6 +74,8 @@ sealed class Screen(val route: String) {
     object SosHub : Screen("sos_hub_screen")
     object SosVictimRegistration : Screen("sos_victim_registration_screen")
     object SosVolunteerRegistration : Screen("sos_volunteer_registration_screen")
+    object AppLock : Screen("app_lock_screen")
+    object SecuritySettings : Screen("security_settings_screen")
     object Marketplace : Screen("marketplace_screen")
     object CreatePublication : Screen("create_publication_screen")
     object BoosterProfile : Screen("booster_profile_screen")
@@ -216,6 +222,24 @@ fun NavGraph(
                 onActivationSuccess = { onNavigateTo(Screen.Dashboard.route) }
             )
         }
+        currentScreen == Screen.AppLock.route -> {
+            val lockViewModel: AppLockViewModel = hiltViewModel()
+            AppLockScreen(
+                viewModel = lockViewModel,
+                onUnlockSuccess = { onNavigateTo(Screen.Dashboard.route) },
+                onLogout = {
+                    tokenManager.clearSession()
+                    onNavigateToLogin()
+                }
+            )
+        }
+        currentScreen == Screen.SecuritySettings.route -> {
+            val securityViewModel: SecuritySettingsViewModel = hiltViewModel()
+            SecuritySettingsScreen(
+                viewModel = securityViewModel,
+                onNavigateBack = { onNavigateTo(Screen.Dashboard.route) }
+            )
+        }
         currentScreen == Screen.Marketplace.route -> {
             val marketplaceViewModel: MarketplaceViewModel = hiltViewModel()
             MarketplaceScreen(
@@ -278,6 +302,7 @@ fun NavGraph(
                 onNavigateToNotifications = { onNavigateTo(Screen.Notifications.route) },
                 onNavigateToSolidario = { onNavigateTo(Screen.Solidario.route) },
                 onNavigateToSos = { onNavigateTo(Screen.SosHub.route) },
+                onNavigateToSecurity = { onNavigateTo(Screen.SecuritySettings.route) },
                 onNavigateToMarketplace = { onNavigateTo(Screen.Marketplace.route) },
                 onNavigateToProfile = { username -> onNavigateTo("profile_screen/$username") },
                 onNavigateToBooster = { onNavigateTo(Screen.BoosterProfile.route) },

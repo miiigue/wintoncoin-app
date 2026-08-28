@@ -2,7 +2,7 @@
 // WintonCoin - Página de Estado de Cuenta Web3
 // ============================================================================
 
-import { getApiUrl, showCustomAlert, handleSessionExpired } from '../modules/index.js';
+import { getApiUrl, showCustomAlert, handleSessionExpired, initializeInfoTooltip } from '../modules/index.js';
 
 async function initializeEstadoCuenta() {
     const API_URL = getApiUrl();
@@ -617,6 +617,31 @@ async function initializeEstadoCuenta() {
         window.addEventListener('click', (e) => {
             if (e.target === elements.scModal) {
                 elements.scModal.style.display = 'none';
+            }
+        });
+
+        // Inicializar tooltips explicativos del Estado de Cuenta
+        const tooltips = [
+            { trigger: '[data-tooltip-id="tooltip-ec-liquido"]', tooltip: '#tooltip-ec-liquido' },
+            { trigger: '[data-tooltip-id="tooltip-ec-parking"]', tooltip: '#tooltip-ec-parking' },
+            { trigger: '[data-tooltip-id="tooltip-ec-liberacion"]', tooltip: '#tooltip-ec-liberacion' },
+            { trigger: '[data-tooltip-id="tooltip-ec-usd"]', tooltip: '#tooltip-ec-usd' },
+            { trigger: '[data-tooltip-id="tooltip-ec-red-limite"]', tooltip: '#tooltip-ec-red-limite' },
+            { trigger: '[data-tooltip-id="tooltip-ec-red-utilizado"]', tooltip: '#tooltip-ec-red-utilizado' },
+            { trigger: '[data-tooltip-id="tooltip-ec-red-disponible"]', tooltip: '#tooltip-ec-red-disponible' },
+            { trigger: '[data-tooltip-id="tooltip-ec-score-organico"]', tooltip: '#tooltip-ec-score-organico' },
+            { trigger: '[data-tooltip-id="tooltip-ec-garantia"]', tooltip: '#tooltip-ec-garantia' },
+            { trigger: '[data-tooltip-id="tooltip-ec-red-estado"]', tooltip: '#tooltip-ec-red-estado' },
+            { trigger: '[data-tooltip-id="tooltip-ec-kyc"]', tooltip: '#tooltip-ec-kyc' },
+            { trigger: '[data-tooltip-id="tooltip-ec-pubkey"]', tooltip: '#tooltip-ec-pubkey' },
+            { trigger: '[data-tooltip-id="tooltip-ec-stat-interactions"]', tooltip: '#tooltip-ec-stat-interactions' },
+            { trigger: '[data-tooltip-id="tooltip-ec-stat-received"]', tooltip: '#tooltip-ec-stat-received' },
+            { trigger: '[data-tooltip-id="tooltip-ec-stat-sent"]', tooltip: '#tooltip-ec-stat-sent' },
+            { trigger: '[data-tooltip-id="tooltip-ec-stat-burned"]', tooltip: '#tooltip-ec-stat-burned' }
+        ];
+        tooltips.forEach(({ trigger, tooltip }) => {
+            if (document.querySelector(trigger) && document.querySelector(tooltip)) {
+                initializeInfoTooltip(trigger, tooltip);
             }
         });
 

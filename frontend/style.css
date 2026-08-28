@@ -6035,15 +6035,59 @@ input:checked+.slider:before {
 /* Responsive: Ajustar tooltips informativos en móviles */
 @media (max-width: 768px) {
     .info-tooltip {
-        left: 50%;
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
         right: auto;
-        transform: translateX(-50%) translateY(8px);
-        min-width: calc(100vw - 32px);
-        max-width: 400px;
+        transform: translateY(0);
+        width: 260px;
+        min-width: 220px;
+        max-width: calc(100vw - 40px);
+        background: #ffffff;
+        border: 1px solid #e0e0e0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        z-index: 9999;
+        box-sizing: border-box;
+    }
+
+    .info-tooltip::before {
+        left: 20px;
+        transform: none;
+    }
+    .info-tooltip::after {
+        left: 20px;
+        transform: none;
     }
 
     .info-tooltip.show {
-        transform: translateX(-50%) translateY(0);
+        transform: translateY(0);
+    }
+
+    /* Modificador para tooltips en el lado derecho de la pantalla */
+    .info-tooltip.tooltip-right-align {
+        left: auto !important;
+        right: 0 !important;
+    }
+
+    .info-tooltip.tooltip-right-align::before,
+    .info-tooltip.tooltip-right-align::after {
+        left: auto !important;
+        right: 20px !important;
+    }
+
+    /* Modificador para tooltips centrados */
+    .info-tooltip.tooltip-center-align {
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%) !important;
+    }
+
+    .info-tooltip.tooltip-center-align::before,
+    .info-tooltip.tooltip-center-align::after {
+        left: 50% !important;
+        transform: translateX(-50%) !important;
     }
 
     .prelaunch-tooltip {

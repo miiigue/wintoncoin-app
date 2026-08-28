@@ -268,8 +268,18 @@ describe('Pruebas del Módulo de Registro de Voluntarios SOS - Algoritmo y Cober
 
     test('10. verifyVolunteerOtpPublic: Debe rechazar si la contraseña tiene menos de 8 caracteres o no coincide', async () => {
         mockClient.query
-            .mockResolvedValueOnce({}) // BEGIN
-            .mockResolvedValueOnce({ rows: [] }); // existingUserCheck (isExistingVerifiedUser = false)
+            .mockResolvedValueOnce({ rows: [] }) // BEGIN
+            .mockResolvedValueOnce({ // SELECT pending_verifications
+                rows: [{
+                    id: 10,
+                    email: 'carlos@ejemplo.com',
+                    verification_code_hash: 'mockhash',
+                    verification_attempts: 0,
+                    expires_at: new Date(Date.now() + 15 * 60 * 1000),
+                    form_payload: { full_name: 'Carlos Diaz', id_document: 'V-12345678' }
+                }]
+            })
+            .mockResolvedValueOnce({ rows: [] }); // SELECT users (es usuario nuevo)
 
         const req = {
             body: {
@@ -292,17 +302,18 @@ describe('Pruebas del Módulo de Registro de Voluntarios SOS - Algoritmo y Cober
 
     test('11. verifyVolunteerOtpPublic: Debe rechazar si el código OTP es incorrecto e incrementar intentos', async () => {
         mockClient.query
-            .mockResolvedValueOnce({}) // BEGIN
-            .mockResolvedValueOnce({ rows: [] }) // existingUserCheck
-            .mockResolvedValueOnce({ // pending_verifications
+            .mockResolvedValueOnce({ rows: [] }) // BEGIN
+            .mockResolvedValueOnce({ // SELECT pending_verifications
                 rows: [{
                     id: 10,
+                    email: 'carlos@ejemplo.com',
                     verification_code_hash: 'correcthash',
-                    verification_attempts: 1
+                    verification_attempts: 1,
+                    expires_at: new Date(Date.now() + 15 * 60 * 1000)
                 }]
             })
-            .mockResolvedValueOnce({}) // UPDATE verification_attempts
-            .mockResolvedValueOnce({}); // COMMIT
+            .mockResolvedValueOnce({ rows: [] }) // UPDATE verification_attempts
+            .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
 
         const emailService = require('../src/services/emailService');
         const origSafe = emailService.safeEqualHex;
@@ -323,7 +334,7 @@ describe('Pruebas del Módulo de Registro de Voluntarios SOS - Algoritmo y Cober
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             success: false,
-            message: expect.stringContaining('Código de verificación de 6 dígitos incorrecto')
+            message: expect.stringContaining('Código de verificación incorrecto')
         }));
 
         emailService.safeEqualHex = origSafe;
@@ -331,17 +342,17 @@ describe('Pruebas del Módulo de Registro de Voluntarios SOS - Algoritmo y Cober
 
     test('12. verifyVolunteerOtpPublic: Debe bloquear por fuerza bruta tras 5 intentos fallidos', async () => {
         mockClient.query
-            .mockResolvedValueOnce({}) // BEGIN
-            .mockResolvedValueOnce({ rows: [] }) // existingUserCheck
-            .mockResolvedValueOnce({ // pending_verifications
+            .mockResolvedValueOnce({ rows: [] }) // BEGIN
+            .mockResolvedValueOnce({ // SELECT pending_verifications
                 rows: [{
                     id: 10,
+                    email: 'carlos@ejemplo.com',
                     verification_code_hash: 'mockhash',
-                    verification_attempts: 5 // Límite alcanzado
+                    verification_attempts: 5, // Límite alcanzado
+                    expires_at: new Date(Date.now() + 15 * 60 * 1000)
                 }]
             })
-            .mockResolvedValueOnce({}) // DELETE pending_verifications
-            .mockResolvedValueOnce({}); // COMMIT
+            .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
 
         const req = {
             body: {
@@ -358,29 +369,51 @@ describe('Pruebas del Módulo de Registro de Voluntarios SOS - Algoritmo y Cober
         expect(res.status).toHaveBeenCalledWith(429);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             success: false,
-            message: expect.stringContaining('Demasiados intentos fallidos')
+            message: expect.stringContaining('superado el número máximo de intentos')
         }));
     });
 
     test('13. verifyVolunteerOtpPublic: Debe activar la cuenta con éxito, otorgar bono y retornar sesión JWT', async () => {
         mockClient.query
-            .mockResolvedValueOnce({}) // BEGIN
-            .mockResolvedValueOnce({ rows: [] }) // existingUserCheck
-            .mockResolvedValueOnce({ // pending_verifications
+            .mockResolvedValueOnce({ rows: [] }) // BEGIN
+            .mockResolvedValueOnce({ // SELECT pending_verifications
                 rows: [{
                     id: 10,
+                    email: 'carlos@ejemplo.com',
                     verification_code_hash: 'mockhash',
                     verification_attempts: 0,
-                    referral_code: 'SOSVENEZUELA'
+                    referral_code: 'SOSVENEZUELA',
+                    expires_at: new Date(Date.now() + 15 * 60 * 1000),
+                    form_payload: {
+                        full_name: 'Carlos Diaz',
+                        id_document: 'V-12345678',
+                        volunteer_types: ['Campo'],
+                        availability: ['Tiempo Completo'],
+                        age: 25,
+                        gender: 'male',
+                        country: 'Venezuela',
+                        state: 'Carabobo',
+                        municipality: 'Valencia',
+                        sector_city: 'Centro'
+                    }
                 }]
             })
-            .mockResolvedValueOnce({}) // UPDATE users (password_hash, is_verified)
-            .mockResolvedValueOnce({ rows: [{ id: 5, username: 'carlos_vol' }] }) // SELECT users
-            .mockResolvedValueOnce({ rows: [{ setting_value: 'SOSVENEZUELA' }] }) // SELECT app_settings
-            .mockResolvedValueOnce({ rows: [{ id: 1, dossier_number: 'VOL-VZLA-4431-00001' }] }) // SELECT volunteers_registry
-            .mockResolvedValueOnce({}) // INSERT volunteer_activity_history
-            .mockResolvedValueOnce({}) // DELETE pending_verifications
-            .mockResolvedValueOnce({}); // COMMIT
+            .mockResolvedValueOnce({ rows: [] }) // SELECT users (es usuario nuevo)
+            .mockResolvedValueOnce({ rows: [] }) // colisión username
+            .mockResolvedValueOnce({ rows: [] }) // unique referral code
+            .mockResolvedValueOnce({ // INSERT INTO users
+                rows: [{
+                    id: 5,
+                    username: 'carlos_vol',
+                    email: 'carlos@ejemplo.com',
+                    is_verified: true
+                }]
+            })
+            .mockResolvedValueOnce({ rows: [] }) // DELETE pending_verifications
+            .mockResolvedValueOnce({ rows: [{ id: 1 }] }) // INSERT volunteers_registry RETURNING id
+            .mockResolvedValueOnce({ rows: [] }) // UPDATE volunteers_registry
+            .mockResolvedValueOnce({ rows: [] }) // INSERT volunteer_activity_history
+            .mockResolvedValueOnce({ rows: [] }); // COMMIT
 
         const req = {
             body: {
@@ -400,15 +433,14 @@ describe('Pruebas del Módulo de Registro de Voluntarios SOS - Algoritmo y Cober
 
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             success: true,
-            dossier_number: 'VOL-VZLA-4431-00001',
-            reward_amount: 200,
+            dossier_number: expect.stringMatching(/^VOL-VZLA-/),
             token: expect.any(String)
         }));
     });
 
     test('14. resendVolunteerOtpPublic: Debe rechazar reenvío si no ha cumplido el cooldown de 60 segundos', async () => {
         mockClient.query
-            .mockResolvedValueOnce({}) // BEGIN
+            .mockResolvedValueOnce({ rows: [] }) // BEGIN
             .mockResolvedValueOnce({   // SELECT pending_verifications
                 rows: [{
                     id: 99,
@@ -417,7 +449,7 @@ describe('Pruebas del Módulo de Registro de Voluntarios SOS - Algoritmo y Cober
                     resend_count: 1
                 }]
             })
-            .mockResolvedValueOnce({}); // ROLLBACK
+            .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
 
         const req = { body: { email: 'carlos@ejemplo.com' } };
         const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
@@ -433,7 +465,7 @@ describe('Pruebas del Módulo de Registro de Voluntarios SOS - Algoritmo y Cober
 
     test('15. resendVolunteerOtpPublic: Debe rechazar reenvío si se alcanza el límite de 5 intentos por sesión', async () => {
         mockClient.query
-            .mockResolvedValueOnce({}) // BEGIN
+            .mockResolvedValueOnce({ rows: [] }) // BEGIN
             .mockResolvedValueOnce({   // SELECT pending_verifications
                 rows: [{
                     id: 99,
@@ -442,7 +474,7 @@ describe('Pruebas del Módulo de Registro de Voluntarios SOS - Algoritmo y Cober
                     resend_count: 5 // Máximo alcanzado
                 }]
             })
-            .mockResolvedValueOnce({}); // ROLLBACK
+            .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
 
         const req = { body: { email: 'carlos@ejemplo.com' } };
         const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };

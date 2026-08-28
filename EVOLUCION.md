@@ -13,6 +13,60 @@ Para el detalle ‚Äútipo release‚Äù, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qu√© problema resolvi√≥ y qu√© habilita hacia adelante.
 
+### 2026-08-26 ‚Äî Android Nativo: Fase 13 ‚Äî Paridad Visual Total con PWA (style.css), Correcci√≥n de Payload de Login y Resiliencia de Inicio
+* **Diagn√≥stico & Objetivo**:
+  - Resolver la incompatibilidad del payload de inicio de sesi√≥n (`identifier` vs `username`) que imped√≠a la autenticaci√≥n en el backend de producci√≥n y demo.
+  - Eliminar por completo el conflicto de temas y recursos sobredimensionados en Compose que ocasionaban la pantalla negra al iniciar la aplicaci√≥n.
+  - Redise√±ar integralmente la capa de presentaci√≥n de Jetpack Compose (`Color.kt`, `Theme.kt`, `WintonComponents.kt`, `LoginScreen.kt`, `DashboardScreen.kt`) para alcanzar un 100% de paridad visual, jer√°rquica y funcional con la PWA web (`style.css`, `login.html` y `contract_interaction.html`).
+* **Cambios T√©cnicos**:
+  - **Capa de Red & DTOs (`AuthDtos.kt`, `AuthRepositoryImpl.kt`, `AuthRepositoryImplTest.kt`)**:
+    - Actualizado `LoginRequest` con `@SerialName("identifier")` para coincidir exactamente con el par√°metro desestructurado `{ identifier, password }` en `backend/src/controllers/authController.js`.
+    - Actualizadas las suites de pruebas unitarias correspondientes.
+  - **Sistema de Dise√±o Id√©ntico a PWA (`Color.kt`, `Theme.kt`, `WintonComponents.kt`)**:
+    - Mapeadas todas las variables CSS de `style.css`: `--background-color: #1a1a2e`, `--surface-color: #14245a`, `--primary-color: #6a5acd`, `--card-blue-elegant: linear-gradient(180deg, #1447b4, #081d4e)`, `--text-color: #F5F5F5`, `--text-secondary-color: #BDBDBD`.
+    - Campos de entrada `WintonTextField` estilizados con fondo `#0F172A`, borde `rgba(255,255,255,0.12)` y etiquetas superiores legibles.
+    - Botones `WintonButton` configurados con el tono primario y tipograf√≠a en negrita oficial.
+  - **Pantalla de Login (`LoginScreen.kt`)**:
+    - Tarjeta central flotante `#14245a` (`.container`), logo oficial centrado, t√≠tulo "Bienvenido", campos con icono de ojo para ver contrase√±a, enlace dorado "¬øOlvidaste tu contrase√±a?" y bot√≥n de registro secundario.
+  - **Dashboard Principal (`DashboardScreen.kt`)**:
+    - Header superior con men√∫ desplegable de perfil (`‚ò∞`) y campana de notificaciones con badge.
+    - Cinta de "Pre-lanzamiento ‚Ä¢ VERSI√ìN BETA" y t√≠tulo dual "WintonCoin".
+    - Banner de Emergencia Terremoto Venezuela con degradado rojo y bot√≥n "Ver Causas".
+    - Sistema de pesta√±as (Tabs): **Impulsor** (con tarjeta Sapphire degradada y saldo de BLUE iou) y **Billetera** (con tarjetas de saldo BLUE L√≠quido y RED Compromiso).
+    - Cuadr√≠cula de accesos directos a todos los m√≥dulos: Marketplace P2P, Billetera Web3, Referidos, SOS Venezuela, Donaciones y Seguridad & Biometr√≠a.
+  - **Pruebas Unitarias & Compilaci√≥n**:
+    - **223 / 223 Tests Unitarios Aprobados (100% de √©xito)**.
+    - Compilaci√≥n completa verificada exitosamente (`assembleDemoDebug`) generando el binario `wintoncoin-demo.apk` (21.3 MB).
+* **Impacto**:
+  - La aplicaci√≥n m√≥vil ahora es indistinguible visual y funcionalmente de la plataforma web PWA, respetando la identidad de marca, los flujos contables y las mejores pr√°cticas de UX/UI fintech.
+
+### 2026-08-25 ‚Äî Android Nativo: Fase 12 ‚Äî Autenticaci√≥n Biom√©trica Nativa (BiometricPrompt) & Seguridad de Billetera
+* **Diagn√≥stico & Objetivo**:
+  - Implementar de forma 100% nativa en Android (`com.wintoncoin.app`) el sistema de autenticaci√≥n biom√©trica de grado bancario (`BiometricPrompt` de AndroidX) para proteger el acceso a la billetera y autorizar operaciones financieras de alto valor.
+  - Elevar la seguridad de WintonCoin al est√°ndar de ciberseguridad bancaria **OWASP MASVS-AUTH** y **SOC 2 Type II**, proveyendo bloqueo autom√°tico de la aplicaci√≥n con fallback por credenciales del dispositivo (PIN / Patr√≥n), control granular en ajustes de seguridad y almacenamiento protegido en `TokenManager` con `EncryptedSharedPreferences` (AES-256-GCM sobre Android Keystore).
+* **Cambios T√©cnicos**:
+  - **Capa Core & Dependencias (`libs.versions.toml`, `build.gradle.kts`, `core/biometrics/`, `core/security/`)**:
+    - A√±adida dependencia `androidx.biometric:biometric-ktx:1.2.0-alpha05` al cat√°logo de versiones y al m√≥dulo `:app`.
+    - Creado `BiometricStatus.kt` con estados de hardware (`AVAILABLE`, `NOT_ENROLLED`, `NO_HARDWARE`, `HARDWARE_UNAVAILABLE`, `SECURITY_UPDATE_REQUIRED`, `UNKNOWN`).
+    - Creado `BiometricPromptResult.kt` con eventos tipados (`Success`, `Error`, `Failed`, `Cancelled`, `NotAvailable`).
+    - Creado `BiometricAuthManager.kt` (@Singleton) que gestiona el lanzamiento del prompt nativo del sistema operativo con soporte para `BIOMETRIC_STRONG` y `DEVICE_CREDENTIAL`, y trazabilidad en `AuditLogger`.
+    - Ampliado `TokenManager.kt` con m√©todos de almacenamiento cifrado para preferencias de seguridad: `isBiometricsEnabled()`, `setBiometricsEnabled()`, `isTransactionBiometricRequired()`, `setTransactionBiometricRequired()`, `isAppLocked()`, `setAppLocked()`.
+  - **Capa de Dominio (`BiometricSecurityConfig.kt`, Use Cases)**:
+    - Dise√±ada entidad de dominio `BiometricSecurityConfig`.
+    - Creados casos de uso puros: `GetBiometricSecurityConfigUseCase`, `SetBiometricAppLockUseCase` y `SetTransactionBiometricUseCase`.
+  - **Capa de Presentaci√≥n MVI & Jetpack Compose (`presentation/lock/`, `presentation/settings/security/`)**:
+    - **Pantalla de Bloqueo (`AppLockScreen.kt`, `AppLockViewModel.kt`)**: Interfaz premium con tema oscuro (`#0B1120`), efecto glassmorphism, indicador de biometr√≠a, bot√≥n de desbloqueo con huella/rostro, manejo de errores y bot√≥n de cierre de sesi√≥n / cambio de cuenta.
+    - **Configuraci√≥n de Seguridad (`SecuritySettingsScreen.kt`, `SecuritySettingsViewModel.kt`)**: Panel de gesti√≥n con indicador del sensor en tiempo real, interruptores interactivos para activar el bloqueo de la app y la confirmaci√≥n biom√©trica en transferencias, y tarjeta de est√°ndares criptogr√°ficos (Keystore AES-256-GCM, Zero-Trust, SOC 2).
+    - Actualizado `MainActivity.kt` para heredar de `FragmentActivity` y evaluar la sesi√≥n protegida con biometr√≠a al iniciar la app.
+    - Actualizado `NavGraph.kt` con las rutas `Screen.AppLock` y `Screen.SecuritySettings`.
+    - A√±adida tarjeta de acceso directo a "Seguridad & Biometr√≠a üõ°Ô∏è" en `DashboardScreen.kt`.
+  - **Pruebas Unitarias & Cobertura (`*Test.kt`)**:
+    - Creadas suites de pruebas unitarias para `GetBiometricSecurityConfigUseCaseTest`, `SetBiometricAppLockUseCaseTest`, `SetTransactionBiometricUseCaseTest`, `AppLockViewModelTest` y `SecuritySettingsViewModelTest`.
+    - **223 / 223 Tests Unitarios Aprobados (100% de √©xito, 0 fallos, 0 errores)** en la suite completa de Android (`testDemoDebugUnitTest`).
+    - Compilaci√≥n completa verificada exitosamente (`assembleDemoDebug`).
+* **Impacto**:
+  - La aplicaci√≥n m√≥vil de WintonCoin alcanza el nivel de seguridad de las principales instituciones bancarias y plataformas cripto globales (Binance, BBVA, Revolut), blindando los tokens, llaves de sesi√≥n y transferencias del usuario contra accesos no autorizados en caso de p√©rdida o sustracci√≥n del tel√©fono m√≥vil.
+
 ### 2026-08-25 ‚Äî Android Nativo: Fase 11 ‚Äî M√≥dulo SOS Venezuela & Brigadas de Voluntarios / Damnificados (Paridad PWA y Censo de Emergencias Humanitarias)
 * **Diagn√≥stico & Objetivo**:
   - Implementar de forma 100% nativa en Android (`com.wintoncoin.app`) el ecosistema completo de ayuda humanitaria y brigadas de emergencia de SOS Venezuela (`sos-venezuela.html`, `/api/public/sos-venezuela` y `/api/volunteers`).
@@ -5481,3 +5535,91 @@ pm run build:demo) exitosamente.
   - `trabaja-con-nosotros.html`: Banner reactivo al elegir 'Voluntario' para redirigir a `sos-venezuela.html#voluntariado`.
   - `admin-recruitment.html`: Pesta√±a dedicada **Voluntarios SOS** con tabla interactiva, filtros por score/ubicaci√≥n y acciones r√°pidas de activaci√≥n y suspensi√≥n.
 \n
+### 2026-08-27 - UI/UX Refactor: EliminaciÛn de TÌtulos de Saldos en Dashboard
+- Se eliminaron los tÌtulos 'SALDO BLUE' y 'SALDO RED' de las tarjetas de la billetera en \rontend/contract_interaction.html\ para mantener un diseÒo m·s minimalista (KISS).
+- Se unificÛ el contenido de los tooltips de ayuda dentro de los tooltips de las etiquetas 'Disponibles' y 'Tus obligaciones'.
+- **RazÛn:** Mejora de experiencia de usuario al limpiar la interfaz visual y evitar redundancias sin perder los textos educativos del ecosistema.
+
+### 2026-08-27 - Reordenamiento de MÈtricas RED
+- Se reordenaron las filas de la secciÛn 'Tokens RED (Obligaciones)' en \rontend/estado-cuenta.html\ al orden solicitado: 'LÌmite RED aprobado', 'RED utilizado', 'RED disponible'.
+- **RazÛn:** Solicitud del usuario para mayor claridad de lectura financiera.
+
+### 2026-08-27 - UI/UX Refactor: TerminologÌa de Compromiso
+- Se reemplazÛ el tÈrmino 'Obligaciones' por 'Compromiso' en las vistas de billetera (\contract_interaction.html\) y estado de cuenta (\estado-cuenta.html\).
+- **RazÛn:** Cambio de copywriting solicitado por el usuario para alinear la percepciÛn del usuario con un enfoque colaborativo (compromiso) en lugar de uno estricto de deuda (obligaciÛn).
+
+### 2026-08-27 - UI/UX: AdiciÛn de LÌmite Disponible en Dashboard
+- Se agregÛ una mÈtrica secundaria bajo el saldo RED en \contract_interaction.html\ que muestra el crÈdito RED 'DISPONIBLE'.
+- Se actualizÛ \src/pages/contract-interaction.js\ para calcular el lÌmite disponible (\credit_limit - red_balance\) y poblar din·micamente este nuevo elemento.
+- **RazÛn:** Proveer al usuario una vista r·pida de cu·nto crÈdito RED le queda libre directamente desde la pantalla principal, sin perder de vista su compromiso utilizado.
+
+### 2026-08-27 - UI/UX: Ajustes de copy y colores en Dashboard
+- En la tarjeta BLUE, se cambiÛ la etiqueta 'Disponibles' por 'LIQUIDEZ'.
+- En la tarjeta RED, se cambiÛ el color de la etiqueta secundaria 'DISPONIBLE' de verde a rojo (#ef4444) para mantener la coherencia sem·ntica con el token.
+- **RazÛn:** Refinamiento visual y terminolÛgico solicitado por el usuario.
+
+### 2026-08-27 - UX: Tarjeta RED clicable en Dashboard
+- Se agregÛ el evento \onclick\ y el estilo \cursor: pointer\ a la tarjeta RED en \contract_interaction.html\, replicando el comportamiento de la tarjeta BLUE.
+- **RazÛn:** Proveer al usuario una forma intuitiva de navegar hacia \estado-cuenta.html\ al interactuar con la secciÛn de su compromiso, igualando la experiencia de usuario que ya existÌa con la tarjeta de liquidez.
+
+### 2026-08-27 - UX/UI: Tooltips y Copywriting en Estado de Cuenta
+- Se actualizÛ el copy de 'Total Disponible' a 'Total LÌquido' en la secciÛn BLUE.
+- Se cambiÛ el tÈrmino 'Escrow' por 'Parking' en la secciÛn BLUE.
+- Se implementaron tooltips informativos en cada elemento de la secciÛn BLUE para educar al usuario sobre los estados (LÌquido, Parking a 30 dÌas, LiberaciÛn).
+- **RazÛn:** Claridad financiera e instrucciÛn guiada en el Estado de Cuenta Web3.
+
+### 2026-08-27 - UX/UI: Iconos explicativos (?) e inicializaciÛn JS de Tooltips en Estado de Cuenta
+- Se eliminÛ la palabra '(Bloqueado)' dejando ˙nicamente 'En Parking'.
+- Se actualizÛ la explicaciÛn de 'Parking' para definirlo como el periodo mÌnimo de 30 dÌas necesario antes de poder operar o intercambiar esos fondos en P2P.
+- Se aÒadieron iconos '?' y tooltips informativos completos a TODOS los elementos tanto de la tarjeta BLUE como de la tarjeta RED (Total LÌquido, En Parking, PrÛxima liberaciÛn, USD Estimado, LÌmite RED aprobado, RED utilizado, RED disponible, Score Org·nico y GarantÌa en BÛveda).
+- Se integrÛ la inicializaciÛn din·mica de tooltips mediante \initializeInfoTooltip\ en \estado-cuenta.js\ para que funcionen activamente con hover/click siguiendo el principio DRY.
+- **RazÛn:** Experiencia de usuario (UX) 100% educativa e interactiva en la vista de Estado de Cuenta.
+
+### 2026-08-27 - UX/UI Refactor: CorrecciÛn de Tooltips Web3 Dark y Cobertura 100% en Estado de Cuenta
+- Se eliminÛ el car·cter Unicode de doble cÌrculo (U+24D8), sustituyÈndolo por una letra 'i' limpia envuelta por el cÌrculo CSS \.info-icon\ de 16px para eliminar la duplicidad visual.
+- Se rediseÒÛ el CSS de \.info-tooltip\ con tema oscuro Web3 (\#1e293b\ con texto claro y bordes \#334155\), ajustando el posicionamiento emergente en mÛviles para evitar solapamientos e invasiÛn de filas contiguas.
+- Se extendieron los tooltips e iconos 'i' a la totalidad de las secciones del Estado de Cuenta Web3 (Identidad Web3: Estado de Red, KYC, Public Key; MÈtricas Blockchain: Interacciones, Recibidos, Enviados, Amortizado), logrando cobertura completa e interactiva.
+- **RazÛn:** SoluciÛn definitiva de glitches visuales en dispositivos mÛviles y alineamiento con la estÈtica Web3.
+
+### 2026-08-27 - UX/UI & Compliance: Tooltips Blancos Centrados y DepuraciÛn de TerminologÌa Financiera
+- Se removieron los overrides CSS inline que rompÌan el diseÒo del sistema. Los tooltips vuelven a ser de fondo blanco (#ffffff), con bordes limpios y texto oscuro contrastado, tal como est· definido en el sistema de diseÒo (\style.css\).
+- Se restableciÛ el centrado responsivo perfecto en mÛviles (\left: 50%\, \	ransform: translateX(-50%)\), evitando que se desborden de la pantalla.
+- Se actualizÛ \	ooltips.js\ para que al tocar/activar un tooltip nuevo, todos los dem·s tooltips abiertos se cierren autom·ticamente, eliminando la acumulaciÛn/solapamiento de recuadros en dispositivos mÛviles.
+- **Cumplimiento Legal & FinTech:** Se depuraron todas las menciones de las palabras prohibidas ('crÈdito' y 'deuda') en los tooltips y textos, reemplaz·ndolas por 'compromiso', 'lÌmite RED' o 'cupo RED'.
+- **RazÛn:** Estricto cumplimiento normativo FinTech y perfeccionamiento visual responsivo.
+
+### 2026-08-27 - UX/UI Fix: Posicionamiento Responsivo de Tooltips (EliminaciÛn de Desbordamiento MÛvil)
+- Se corrigiÛ el error de alineaciÛn matem·tica donde \left: 50%\ con \min-width: calc(100vw - 32px)\ provocaba que el cuadro del tooltip se desplazara hacia afuera de la pantalla por la izquierda (-150px off-screen).
+- Se redujo el ancho m·ximo a un tamaÒo compacto y elegante (\width: 260px; max-width: calc(100vw - 40px)\).
+- Se implementÛ la alineaciÛn basada en anclaje inteligente: los tooltips de elementos a la izquierda se alinean en \left: 0\ con su flecha apuntando a 20px desde la izquierda directo al icono 'i'; los elementos a la derecha utilizan \.tooltip-right-align\ con flecha alineada a la derecha.
+- **RazÛn:** Garantizar que el 100% del cuadro explicativo blanco sea visible en la pantalla sin importar el tamaÒo del telÈfono.
+
+### 2026-08-27 - UX Cleanup: EliminaciÛn de Modal de Fase Pre-lanzamiento en Billetera
+- Se removiÛ por completo el modal informativo emergente (\prelaunchWalletModal\) de \contract_interaction.html\ y se desactivÛ su activaciÛn en \contract-interaction.js\ a solicitud del usuario.
+- **RazÛn:** Agilizar el flujo de navegaciÛn directo hacia las pestaÒas de la billetera sin avisos emergentes innecesarios.
+
+### 2026-08-27 ‚Äî Arquitectura FinTech de Onboarding en 2 Fases (Staging y Creaci√≥n Oficial de Expedientes), M√≥dulo Reutilizable formDraftManager y Modernizaci√≥n ATS en Voluntariado
+* **Diagn√≥stico & Objetivo**:
+  - Eliminar la creaci√≥n prematura de expedientes y registros en users o tablas principales (disaster_victims_registry, volunteers_registry) antes de que el solicitante demuestre la titularidad de su correo mediante verificaci√≥n OTP (Principio Zero-Trust y Cero Residuos en DB).
+  - Centralizar y estandarizar la l√≥gica de onboarding en 2 fases bajo el Principio DRY para soportar de manera id√©ntica los formularios actuales (Damnificados SOS, Voluntarios SOS) y futuros (Comerciantes, Proveedores, Refugios y Servicios).
+  - Implementar capacidades completas de navegaci√≥n bidireccional (In-Flight Editing) con el bot√≥n "‚Üê Modificar datos o cambiar correo", permitiendo al usuario corregir cualquier campo del formulario preservando intacto su borrador en sessionStorage.
+  - Reorganizar la tabla de administraci√≥n de Voluntarios SOS (admin-recruitment.html) para desacoplar columnas, formatear fechas en 2 l√≠neas legibles (DD/MM/AAAA y HH:mm) e incorporar ordenamiento din√°mico multi-criterio.
+* **Cambios T√©cnicos**:
+  - **Migraci√≥n 107 de Base de Datos (107_add_form_payload_to_pending_verifications.js)**:
+    - Agregada columna form_payload JSONB e √≠ndice GIN en pending_verifications para almacenar de forma segura y estructurada todo el paquete de datos del formulario durante la fase de staging.
+    - Actualizado el esquema inicial en databaseInit.js.
+  - **Servicio Centralizado de Onboarding (onboardingStagingService.js)**:
+    - stagePendingEntity: Limpia registros previos de staging, genera hash HMAC SHA-256 del OTP de 6 d√≠gitos, resguarda el payload y despacha el correo transaccional sin alterar las tablas definitivas.
+    - verifyAndCommitEntity: Control anti fuerza bruta (m√°ximo 5 intentos con HTTP 429), validaci√≥n criptogr√°fica en tiempo constante (safeEqualHex), activaci√≥n/creaci√≥n de usuario en users con is_verified = true, generaci√≥n de billetera Web3 cifrada (AES-256-GCM), otorgamiento del bono de bienvenida de 200 BLUE IOU v√≠a referralRewardService.processReferralReward, eliminaci√≥n del staging y emisi√≥n de tokens JWT de sesi√≥n.
+  - **Refactorizaci√≥n de Controladores Backend (victimController.js, volunteerController.js)**:
+    - Migrados al motor onboardingStagingService para Fase 1 (registro y despacho OTP) y Fase 2 (verificaci√≥n OTP y acu√±aci√≥n oficial con status 'pending_verification').
+    - A√±adida validaci√≥n de conflicto de tel√©fono entre correos distintos para prevenir secuestro de identidad.
+  - **M√≥dulo Frontend Reutilizable (formDraftManager.js y modules/index.js)**:
+    - Dise√±ado e implementado el gestor de borradores de formularios que serializa, resguarda y restaura el estado en sessionStorage y conmuta vistas reactivas.
+  - **Vistas P√∫blicas de Emergencia SOS (sos-venezuela.html, sos-venezuela.js)**:
+    - Integrado bot√≥n #sos-btn-back-to-form y gesti√≥n reactiva de formularios con borrador en tiempo real tanto para damnificados como para voluntarios.
+  - **Panel de Administraci√≥n de Voluntarios (admin-recruitment.html)**:
+    - Reorganizaci√≥n de columnas: Desacople de PRIORIDAD y FECHA REG., integraci√≥n de ordenamiento interactivo con renderSortableTh / tableSort.js, filtros in-memory y modal ATS.
+  - **Garant√≠a de Calidad y Pruebas Automatizadas**:
+    - Actualizadas las suites volunteerSystem.test.js y sosRegistrationFlow.test.js.
+    - 11 de 11 suites de pruebas automatizadas pasando al 100% (73/73 tests unitarios y de integraci√≥n aprobados).

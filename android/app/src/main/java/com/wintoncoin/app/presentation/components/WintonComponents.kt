@@ -1,12 +1,13 @@
 // ============================================================================
-// WintonCoin Android — Componentes de UI Reutilizables
+// WintonCoin Android — Componentes de UI Reutilizables (Idénticos a PWA)
 // ============================================================================
-// Componentes UI estandarizados siguiendo el Design System de WintonCoin.
-// Provee botones premium, campos de entrada con validación visual y modales de alerta.
+// Componentes UI estandarizados siguiendo el Design System de WintonCoin (style.css).
 // ============================================================================
 
 package com.wintoncoin.app.presentation.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -36,18 +37,25 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import com.wintoncoin.app.presentation.theme.WintonBlue
+import androidx.compose.ui.unit.sp
+import com.wintoncoin.app.presentation.theme.WintonBorderSoft
 import com.wintoncoin.app.presentation.theme.WintonError
+import com.wintoncoin.app.presentation.theme.WintonInputBg
+import com.wintoncoin.app.presentation.theme.WintonPrimary
+import com.wintoncoin.app.presentation.theme.WintonSurfaceDark
+import com.wintoncoin.app.presentation.theme.WintonTextMuted
+import com.wintoncoin.app.presentation.theme.WintonTextWhite
 
 /**
- * WintonButton — Botón primario de acción con estado de carga (spinner).
+ * WintonButton — Botón primario de acción estilizado con gradiente de la PWA.
  */
 @Composable
 fun WintonButton(
@@ -65,8 +73,10 @@ fun WintonButton(
         enabled = enabled && !isLoading,
         shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = WintonBlue,
-            contentColor = Color.White
+            containerColor = WintonPrimary, // #6A5ACD
+            contentColor = Color.White,
+            disabledContainerColor = WintonPrimary.copy(alpha = 0.5f),
+            disabledContentColor = Color.White.copy(alpha = 0.5f)
         )
     ) {
         if (isLoading) {
@@ -78,15 +88,16 @@ fun WintonButton(
         } else {
             Text(
                 text = text,
-                style = MaterialTheme.typography.labelLarge
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
             )
         }
     }
 }
 
 /**
- * WintonTextField — Campo de entrada de texto estilizado con soporte para iconos,
- * placeholder, deshabilitado en carga y mensajes de error.
+ * WintonTextField — Campo de entrada de texto con estilo PWA: fondo oscuro, borde fino y label arriba.
  */
 @Composable
 fun WintonTextField(
@@ -105,34 +116,47 @@ fun WintonTextField(
     var passwordVisible by remember { mutableStateOf(false) }
 
     Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            color = WintonTextMuted,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            label = { Text(label) },
-            placeholder = placeholder?.let { { Text(it, color = Color.Gray) } },
+            placeholder = placeholder?.let { { Text(it, color = WintonTextMuted.copy(alpha = 0.6f), fontSize = 14.sp) } },
             enabled = enabled,
             singleLine = true,
             isError = errorMessage != null,
             leadingIcon = leadingIcon?.let {
-                { Icon(imageVector = it, contentDescription = label) }
+                { Icon(imageVector = it, contentDescription = label, tint = WintonTextMuted) }
             },
             trailingIcon = if (isPassword) {
                 {
                     val image = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
                     val description = if (passwordVisible) "Ocultar contraseña" else "Mostrar contraseña"
                     IconButton(onClick = { passwordVisible = !passwordVisible }, enabled = enabled) {
-                        Icon(imageVector = image, contentDescription = description)
+                        Icon(imageVector = image, contentDescription = description, tint = WintonTextMuted)
                     }
                 }
             } else null,
             visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None,
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(10.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = WintonBlue,
-                unfocusedBorderColor = Color.LightGray,
-                errorBorderColor = WintonError
+                focusedContainerColor = WintonInputBg,
+                unfocusedContainerColor = WintonInputBg,
+                disabledContainerColor = WintonInputBg.copy(alpha = 0.5f),
+                focusedBorderColor = WintonPrimary,
+                unfocusedBorderColor = WintonBorderSoft,
+                errorBorderColor = WintonError,
+                focusedTextColor = WintonTextWhite,
+                unfocusedTextColor = WintonTextWhite,
+                cursorColor = WintonPrimary
             ),
             modifier = Modifier.fillMaxWidth()
         )
@@ -143,14 +167,14 @@ fun WintonTextField(
                 text = errorMessage,
                 color = WintonError,
                 style = MaterialTheme.typography.labelSmall,
-                modifier = Modifier.padding(start = 8.dp)
+                modifier = Modifier.padding(start = 4.dp)
             )
         }
     }
 }
 
 /**
- * WintonAlertDialog — Diálogo modal estandarizado.
+ * WintonAlertDialog — Diálogo modal estandarizado con estética PWA.
  */
 @Composable
 fun WintonAlertDialog(
@@ -166,20 +190,26 @@ fun WintonAlertDialog(
         title = {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleLarge
+                style = MaterialTheme.typography.titleLarge,
+                color = WintonTextWhite,
+                fontWeight = FontWeight.Bold
             )
         },
         text = {
             Text(
                 text = message,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
+                color = WintonTextMuted,
+                fontSize = 15.sp
             )
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text(confirmButtonText, color = WintonBlue)
+                Text(confirmButtonText, color = WintonPrimary, fontWeight = FontWeight.Bold)
             }
         },
-        shape = RoundedCornerShape(16.dp)
+        containerColor = WintonSurfaceDark,
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.border(1.dp, WintonBorderSoft, RoundedCornerShape(16.dp))
     )
 }

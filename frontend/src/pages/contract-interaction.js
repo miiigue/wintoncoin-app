@@ -567,8 +567,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Wallet Tabs (Impulsor / Billetera) ---
     // --- Wallet Tabs & Initialization ---
     function showPrelaunchModal() {
-        const modal = document.getElementById('prelaunchWalletModal');
-        if (modal) modal.style.display = 'flex';
+        // Modal deshabilitado permanentemente
     }
 
     function hidePrelaunchModal() {
@@ -2257,6 +2256,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const data = await response.json();
                 if (elements.saldoBlue) elements.saldoBlue.innerHTML = formatBalance(data.blue_balance);
                 if (elements.saldoRed) elements.saldoRed.innerHTML = formatBalance(data.red_balance);
+                
+                const saldoRedDisponibleEl = document.getElementById('saldoRedDisponible');
+                if (saldoRedDisponibleEl) {
+                    const debt = parseFloat(data.red_balance) || 0;
+                    const creditLimit = data.credit_limit || 0;
+                    const availableCredit = Math.max(0, creditLimit - debt);
+                    saldoRedDisponibleEl.innerHTML = formatBalance(availableCredit);
+                }
 
                 localStorage.setItem('blue_balance', data.blue_balance);
                 localStorage.setItem('escrow_blue_balance', data.escrow_blue_balance);

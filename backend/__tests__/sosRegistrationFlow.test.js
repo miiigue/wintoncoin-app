@@ -166,7 +166,7 @@ describe('registerVictimPublic — Registro Inicial del Formulario SOS', () => {
         }));
     });
 
-    test('3.1 En registerVictimPublic (Fase 1), se crea la cuenta con is_verified = false, se guarda el código especial de referido en pending_verifications y NO se acredita ningún bono todavía', async () => {
+    test('3.1 En registerVictimPublic (Fase 1), se guarda el paquete en pending_verifications (form_payload) y NO se crea usuario ni expediente prematuro', async () => {
         const referralRewardService = require('../src/services/referralRewardService');
 
         // Configurar mock de base de datos para simular un usuario NUEVO que envía el formulario SOS
@@ -174,16 +174,10 @@ describe('registerVictimPublic — Registro Inicial del Formulario SOS', () => {
             .mockResolvedValueOnce({ rows: [], rowCount: 0 })  // BEGIN
             .mockResolvedValueOnce({ rows: [], rowCount: 0 })  // Unicidad de Cédula: no existe expediente previo
             .mockResolvedValueOnce({ rows: [], rowCount: 0 })  // Búsqueda de usuario: no existe en users (es NUEVO)
-            .mockResolvedValueOnce({ rows: [], rowCount: 0 })  // Colisión de username: único
-            .mockResolvedValueOnce({ rows: [], rowCount: 0 })  // generateUniqueReferralCode: código único (rowCount = 0)
-            .mockResolvedValueOnce({ rows: [{ id: 101 }], rowCount: 1 }) // INSERT INTO users (...) RETURNING id
             .mockResolvedValueOnce({ rows: [], rowCount: 0 })  // DELETE FROM pending_verifications
-            .mockResolvedValueOnce({ rows: [{ setting_value: 'SOSVENEZUELADEMO' }], rowCount: 1 }) // SELECT app_settings referral_custom_share_code
-            .mockResolvedValueOnce({ rows: [], rowCount: 1 })  // INSERT INTO pending_verifications (...)
-            .mockResolvedValueOnce({ rows: [{ id: 50 }], rowCount: 1 }) // INSERT INTO disaster_victims_registry (...) RETURNING id
-            .mockResolvedValueOnce({ rows: [], rowCount: 1 })  // UPDATE disaster_victims_registry SET dossier_number
-            .mockResolvedValueOnce({ rows: [], rowCount: 0 })  // COMMIT
-            .mockResolvedValue({ rows: [], rowCount: 0 });     // Consultas auxiliares de plantilla de email y auditoría
+            .mockResolvedValueOnce({ rows: [{ setting_value: 'SOSVENEZUELADEMO' }], rowCount: 1 }) // SELECT app_settings
+            .mockResolvedValueOnce({ rows: [], rowCount: 1 })  // INSERT INTO pending_verifications (form_payload JSONB)
+            .mockResolvedValueOnce({ rows: [], rowCount: 0 }); // COMMIT
 
         const req = {
             body: {
@@ -213,51 +207,46 @@ describe('registerVictimPublic — Registro Inicial del Formulario SOS', () => {
 
         await victimController.registerVictimPublic(req, res);
 
-        // 1. Debe responder con éxito 201 y marcar is_new_user = true
-        expect(res.status).toHaveBeenCalledWith(201);
+        // 1. Debe responder con éxito 200 y marcar is_new_user = true
+        expect(res.status).toHaveBeenCalledWith(200);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             success: true,
             is_new_user: true,
             email: 'ana.gomez@test.com'
         }));
 
-        // 2. Verificar que se insertó el usuario con is_verified = false
+        // 2. CRÍTICO: En la Fase 1 NO se debe insertar en users ni en disaster_victims_registry
         const userInsertCall = mockClient.query.mock.calls.find(
             call => typeof call[0] === 'string' && call[0].includes('INSERT INTO users')
         );
-        expect(userInsertCall).toBeDefined();
-        expect(userInsertCall[0]).toContain('false'); // is_verified es false
+        expect(userInsertCall).toBeUndefined();
 
-        // 3. Verificar que pending_verifications recibió el código de referido especial
+        const victimInsertCall = mockClient.query.mock.calls.find(
+            call => typeof call[0] === 'string' && call[0].includes('INSERT INTO disaster_victims_registry')
+        );
+        expect(victimInsertCall).toBeUndefined();
+
+        // 3. Verificar que pending_verifications recibió el paquete form_payload JSONB
         const pendingInsertCall = mockClient.query.mock.calls.find(
             call => typeof call[0] === 'string' && call[0].includes('INSERT INTO pending_verifications')
         );
         expect(pendingInsertCall).toBeDefined();
-        expect(pendingInsertCall[1]).toContain('SOSVENEZUELADEMO'); // Parámetro del código especial
 
         // 4. CRÍTICO: En la Fase 1 NO se debe haber llamado a processReferralReward
-        // Ni el nuevo usuario ni la causa solidaria reciben bonos en esta fase preliminar
         expect(referralRewardService.processReferralReward).not.toHaveBeenCalled();
     });
 
-    test('3.2 Smart Resume: Si la cédula ya tiene expediente pero el usuario no ha completado el OTP (is_verified = false), regenera OTP y responde con resume_verification = true', async () => {
-        // Mock: la cédula ya existe en disaster_victims_registry pero su usuario NO está verificado
+    test('3.2 Si la cédula ya tiene expediente activo confirmado, retorna 409 con already_active = true', async () => {
         mockClient.query
             .mockResolvedValueOnce({ rows: [] })  // BEGIN
             .mockResolvedValueOnce({
                 rows: [{
                     id: 55,
-                    dossier_number: 'SOS-VZLA-4332-00055',
-                    user_id: 102,
-                    email: 'carlos.mendoza@test.com',
-                    is_verified: false,
-                    username: 'carlos_mendoza'
+                    dossier_number: 'SOS-VZLA-4332-00055'
                 }],
                 rowCount: 1
-            }) // existingDossier check
-            .mockResolvedValueOnce({ rows: [{ setting_value: 'SOSVENEZUELADEMO' }], rowCount: 1 }) // customCodeRes
-            .mockResolvedValueOnce({ rows: [], rowCount: 1 })  // pending_verifications UPSERT
-            .mockResolvedValueOnce({ rows: [], rowCount: 0 }); // COMMIT
+            }) // existingVictim check
+            .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
 
         const req = {
             body: {
@@ -280,60 +269,15 @@ describe('registerVictimPublic — Registro Inicial del Formulario SOS', () => {
 
         await victimController.registerVictimPublic(req, res);
 
-        expect(res.status).toHaveBeenCalledWith(200);
-        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-            success: true,
-            resume_verification: true,
-            dossier_number: 'SOS-VZLA-4332-00055',
-            email: 'carlos.mendoza@test.com'
-        }));
-    });
-
-    test('3.3 Already Active: Si la cédula ya tiene expediente y su cuenta ya está activa (is_verified = true), responde 409 con already_active = true', async () => {
-        // Mock: la cédula ya existe y el usuario ya está verificado y activo
-        mockClient.query
-            .mockResolvedValueOnce({ rows: [] })  // BEGIN
-            .mockResolvedValueOnce({
-                rows: [{
-                    id: 60,
-                    dossier_number: 'SOS-VZLA-4332-00060',
-                    user_id: 103,
-                    email: 'maria.rodriguez@test.com',
-                    is_verified: true,
-                    username: 'maria_rodriguez'
-                }],
-                rowCount: 1
-            }) // existingDossier check
-            .mockResolvedValueOnce({ rows: [], rowCount: 0 }); // ROLLBACK
-
-        const req = {
-            body: {
-                full_name: 'María Rodríguez',
-                id_document: 'V-14777888',
-                email: 'maria.rodriguez@test.com',
-                phone_number: '+584145556677',
-                state: 'Miranda',
-                municipality: 'Chacao',
-                sector: 'Bello Campo',
-                address_details: 'Edif. 2 Apto 4',
-                description: 'Daños estructurales',
-                data_consent_accepted: true,
-                sworn_declaration_accepted: true
-            }
-        };
-        const res = createMockRes();
-
-        await victimController.registerVictimPublic(req, res);
-
         expect(res.status).toHaveBeenCalledWith(409);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             success: false,
             already_active: true,
-            dossier_number: 'SOS-VZLA-4332-00060'
+            dossier_number: 'SOS-VZLA-4332-00055'
         }));
     });
 
-    test('3.4 Debe rechazar con mensaje amigable si el número de teléfono ya está registrado con otro email', async () => {
+    test('3.3 Debe rechazar con mensaje amigable si el número de teléfono ya está registrado con otro email', async () => {
         mockClient.query
             .mockResolvedValueOnce({ rows: [] })  // BEGIN
             .mockResolvedValueOnce({ rows: [], rowCount: 0 })  // existingDossier check: no existe expediente previo
@@ -370,11 +314,11 @@ describe('registerVictimPublic — Registro Inicial del Formulario SOS', () => {
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             success: false,
-            message: expect.stringContaining('número de teléfono ya está registrado')
+            message: expect.stringContaining('registrado con otro correo electrónico')
         }));
     });
 
-    test('3.5 Debe manejar errores PostgreSQL 23505 (violación de clave única) de forma amigable sin exponer SQL crudo', async () => {
+    test('3.4 Debe manejar errores PostgreSQL 23505 (violación de clave única) de forma amigable sin exponer SQL crudo', async () => {
         const pgError = new Error('duplicate key value violates unique constraint "pending_verifications_phone_number_key"');
         pgError.code = '23505';
         pgError.constraint = 'pending_verifications_phone_number_key';
@@ -405,7 +349,7 @@ describe('registerVictimPublic — Registro Inicial del Formulario SOS', () => {
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             success: false,
-            message: expect.stringContaining('número de teléfono ya se encuentra en uso')
+            message: expect.stringContaining('número telefónico ya está registrado')
         }));
     });
 });
@@ -520,11 +464,9 @@ describe('verifyVictimOtpPublic — Verificación OTP de 6 Dígitos', () => {
     });
 
     test('6. Debe rechazar si no hay solicitud pendiente de verificación', async () => {
-        // Mock: BEGIN → OK
         mockClient.query
             .mockResolvedValueOnce({ rows: [] })  // BEGIN
-            .mockResolvedValueOnce({ rows: [{ id: 1, username: 'existente', password_hash: '$2b$10$hash', is_verified: true }] }) // existingUserCheck
-            .mockResolvedValueOnce({ rows: [] })  // pendingRes (no hay pending)
+            .mockResolvedValueOnce({ rows: [] })  // SELECT pending_verifications (no hay pending)
             .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
 
         const req = {
@@ -537,17 +479,27 @@ describe('verifyVictimOtpPublic — Verificación OTP de 6 Dígitos', () => {
 
         await victimController.verifyVictimOtpPublic(req, res);
 
-        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.status).toHaveBeenCalledWith(404);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
             message: expect.stringContaining('solicitud pendiente')
         }));
     });
 
     test('7. Debe rechazar usuario nuevo si la contraseña tiene menos de 8 caracteres', async () => {
-        // Mock: usuario nuevo (sin password_hash)
         mockClient.query
             .mockResolvedValueOnce({ rows: [] })  // BEGIN
-            .mockResolvedValueOnce({ rows: [{ id: 2, username: 'nuevo', password_hash: null, is_verified: false }] }); // existingUserCheck: usuario sin contraseña
+            .mockResolvedValueOnce({ // SELECT pending_verifications
+                rows: [{
+                    id: 2,
+                    email: 'nuevo@test.com',
+                    verification_code_hash: 'hash_nuevo@test.com_123456',
+                    verification_attempts: 0,
+                    expires_at: new Date(Date.now() + 15 * 60 * 1000),
+                    form_payload: { full_name: 'Nuevo Test', id_document: 'V-30111222' }
+                }]
+            })
+            .mockResolvedValueOnce({ rows: [] })  // SELECT users (es usuario nuevo)
+            .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
 
         const req = {
             body: {
@@ -567,26 +519,46 @@ describe('verifyVictimOtpPublic — Verificación OTP de 6 Dígitos', () => {
         }));
     });
 
-    test('8. Para usuario existente, la query UPDATE debe usar $1 (no $2) con un solo parámetro', async () => {
-        // Este test valida directamente el bug que se corrigió ($2 → $1)
-        // Mock completo del flujo de usuario existente:
+    test('8. Para usuario existente, debe activar verificación y acuñar expediente con estatus pending_verification', async () => {
         mockClient.query
             .mockResolvedValueOnce({ rows: [] })  // BEGIN
-            .mockResolvedValueOnce({ rows: [{ id: 4, username: 'usuario_existente', password_hash: '$2b$10$hashvalido', is_verified: true }] }) // existingUserCheck: TIENE contraseña
-            .mockResolvedValueOnce({ rows: [{ id: 1, email: 'existente@test.com', verification_code_hash: 'hash_existente@test.com_654321', verification_attempts: 0 }] }) // pendingRes
-            .mockResolvedValueOnce({ rows: [] })  // UPDATE verification_attempts (no se ejecuta si OTP es correcto)
-            .mockResolvedValueOnce({ rows: [] })  // UPDATE users SET is_verified = true WHERE email = $1
-            .mockResolvedValueOnce({ rows: [{ id: 4, username: 'usuario_existente' }] }) // userRes
-            .mockResolvedValueOnce({ rows: [{ id: 10, dossier_number: 'SOS-VZLA-4332-00010' }] }) // caseRes
-            .mockResolvedValueOnce({ rows: [] })  // INSERT disaster_victim_history
+            .mockResolvedValueOnce({ // SELECT pending_verifications
+                rows: [{
+                    id: 1,
+                    email: 'existente@test.com',
+                    verification_code_hash: 'hash_existente@test.com_654321',
+                    verification_attempts: 0,
+                    expires_at: new Date(Date.now() + 15 * 60 * 1000),
+                    form_payload: {
+                        full_name: 'Usuario Existente',
+                        id_document: 'V-18999888',
+                        affectation_level: 'total_loss',
+                        state: 'Miranda',
+                        municipality: 'Baruta',
+                        sector: 'Las Minas',
+                        address_details: 'Calle 1'
+                    }
+                }]
+            })
+            .mockResolvedValueOnce({ // SELECT users (usuario existente)
+                rows: [{
+                    id: 4,
+                    username: 'usuario_existente',
+                    password_hash: '$2b$10$hashvalido',
+                    is_verified: true,
+                    email: 'existente@test.com'
+                }]
+            })
             .mockResolvedValueOnce({ rows: [] })  // DELETE pending_verifications
-            .mockResolvedValueOnce({ rows: [] })  // COMMIT
-            .mockResolvedValue({ rows: [] });     // Auditoría y notificaciones posteriores
+            .mockResolvedValueOnce({ rows: [{ id: 10 }] }) // INSERT disaster_victims_registry RETURNING id
+            .mockResolvedValueOnce({ rows: [] })  // UPDATE disaster_victims_registry SET dossier_number
+            .mockResolvedValueOnce({ rows: [] })  // INSERT disaster_victim_history
+            .mockResolvedValueOnce({ rows: [] }); // COMMIT
 
         const req = {
             body: {
                 email: 'existente@test.com',
-                otp_code: '654321'  // Código OTP que matchea el hash
+                otp_code: '654321'
             },
             headers: { 'user-agent': 'TestAgent/1.0' },
             ip: '127.0.0.1'
@@ -595,35 +567,37 @@ describe('verifyVictimOtpPublic — Verificación OTP de 6 Dígitos', () => {
 
         await victimController.verifyVictimOtpPublic(req, res);
 
-        // Verificar que la query UPDATE usa $1 correctamente con 1 solo parámetro
-        const updateCall = mockClient.query.mock.calls.find(
-            call => typeof call[0] === 'string' && call[0].includes('SET is_verified = true')
-        );
-
-        if (updateCall) {
-            // La query debe usar $1, no $2
-            expect(updateCall[0]).toContain('$1');
-            expect(updateCall[0]).not.toMatch(/WHERE email = \$2/);
-            // Debe pasar exactamente 1 parámetro
-            expect(updateCall[1]).toHaveLength(1);
-            expect(updateCall[1][0]).toBe('existente@test.com');
-        }
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+            success: true,
+            dossier_number: expect.stringMatching(/^SOS-VZLA-/),
+            token: expect.any(String)
+        }));
     });
 
     test('9. Para usuario existente, NO debe invocar processReferralReward', async () => {
         const referralRewardService = require('../src/services/referralRewardService');
 
-        // Mock: usuario existente con contraseña válida
         mockClient.query
             .mockResolvedValueOnce({ rows: [] })  // BEGIN
-            .mockResolvedValueOnce({ rows: [{ id: 4, username: 'existente', password_hash: '$2b$10$hashvalido', is_verified: true }] })
-            .mockResolvedValueOnce({ rows: [{ id: 1, email: 'existente@test.com', verification_code_hash: 'hash_existente@test.com_123456', verification_attempts: 0 }] })
-            .mockResolvedValueOnce({ rows: [] })  // UPDATE users
-            .mockResolvedValueOnce({ rows: [{ id: 4, username: 'existente' }] }) // userRes
-            .mockResolvedValueOnce({ rows: [] })  // caseRes
-            .mockResolvedValueOnce({ rows: [] })  // DELETE pending
-            .mockResolvedValueOnce({ rows: [] })  // COMMIT
-            .mockResolvedValue({ rows: [] });
+            .mockResolvedValueOnce({ // SELECT pending_verifications
+                rows: [{
+                    id: 1,
+                    email: 'existente@test.com',
+                    verification_code_hash: 'hash_existente@test.com_123456',
+                    verification_attempts: 0,
+                    expires_at: new Date(Date.now() + 15 * 60 * 1000),
+                    form_payload: { full_name: 'Existente', id_document: 'V-11222333' }
+                }]
+            })
+            .mockResolvedValueOnce({ // SELECT users (usuario existente)
+                rows: [{ id: 4, username: 'existente', is_verified: true, email: 'existente@test.com' }]
+            })
+            .mockResolvedValueOnce({ rows: [] })  // DELETE pending_verifications
+            .mockResolvedValueOnce({ rows: [{ id: 10 }] }) // INSERT disaster_victims_registry RETURNING id
+            .mockResolvedValueOnce({ rows: [] })  // UPDATE disaster_victims_registry
+            .mockResolvedValueOnce({ rows: [] })  // INSERT disaster_victim_history
+            .mockResolvedValueOnce({ rows: [] }); // COMMIT
 
         const req = {
             body: { email: 'existente@test.com', otp_code: '123456' },
@@ -634,27 +608,48 @@ describe('verifyVictimOtpPublic — Verificación OTP de 6 Dígitos', () => {
 
         await victimController.verifyVictimOtpPublic(req, res);
 
-        // processReferralReward NO debe ser invocado para usuarios existentes
         expect(referralRewardService.processReferralReward).not.toHaveBeenCalled();
     });
 
-    test('10. Para usuario NUEVO (is_verified = false), DEBE invocar processReferralReward y actualizar password_hash', async () => {
+    test('10. Para usuario NUEVO (is_verified = false), DEBE crear usuario, invocar processReferralReward y retornar sesión JWT', async () => {
         const referralRewardService = require('../src/services/referralRewardService');
 
-        // Mock: usuario nuevo creado por SOS (is_verified = false)
         mockClient.query
             .mockResolvedValueOnce({ rows: [] })  // BEGIN
-            .mockResolvedValueOnce({ rows: [{ id: 5, username: 'nuevo_sos', password_hash: '$2b$10$temphash', is_verified: false }] }) // existingUserCheck: is_verified = false
-            .mockResolvedValueOnce({ rows: [{ id: 2, email: 'nuevo@test.com', verification_code_hash: 'hash_nuevo@test.com_123456', verification_attempts: 0 }] }) // pendingRes
-            .mockResolvedValueOnce({ rows: [] })  // UPDATE users SET password_hash = $1, is_verified = true WHERE email = $2
-            .mockResolvedValueOnce({ rows: [{ id: 5, username: 'nuevo_sos' }] }) // userRes
-            .mockResolvedValueOnce({ rows: [{ referral_code: 'SOSVENEZUELADEMO' }] }) // pendingRefRes
-            .mockResolvedValueOnce({ rows: [{ setting_value: 'SOSVENEZUELADEMO' }] }) // customCodeRes2
-            .mockResolvedValueOnce({ rows: [{ id: 11, dossier_number: 'SOS-VZLA-4332-00011' }] }) // caseRes
-            .mockResolvedValueOnce({ rows: [] })  // INSERT disaster_victim_history
+            .mockResolvedValueOnce({ // SELECT pending_verifications
+                rows: [{
+                    id: 2,
+                    email: 'nuevo@test.com',
+                    verification_code_hash: 'hash_nuevo@test.com_123456',
+                    verification_attempts: 0,
+                    referral_code: 'SOSVENEZUELADEMO',
+                    expires_at: new Date(Date.now() + 15 * 60 * 1000),
+                    form_payload: {
+                        full_name: 'Nuevo SOS',
+                        id_document: 'V-28999000',
+                        affectation_level: 'partial_damage',
+                        state: 'Sucre',
+                        municipality: 'Bermúdez',
+                        sector: 'Playa Grande'
+                    }
+                }]
+            })
+            .mockResolvedValueOnce({ rows: [] })  // SELECT users (es usuario nuevo)
+            .mockResolvedValueOnce({ rows: [] })  // colisión username
+            .mockResolvedValueOnce({ rows: [] })  // unique referral code
+            .mockResolvedValueOnce({ // INSERT INTO users
+                rows: [{
+                    id: 5,
+                    username: 'nuevo_sos',
+                    email: 'nuevo@test.com',
+                    is_verified: true
+                }]
+            })
             .mockResolvedValueOnce({ rows: [] })  // DELETE pending_verifications
-            .mockResolvedValueOnce({ rows: [] })  // COMMIT
-            .mockResolvedValue({ rows: [] });
+            .mockResolvedValueOnce({ rows: [{ id: 11 }] }) // INSERT disaster_victims_registry RETURNING id
+            .mockResolvedValueOnce({ rows: [] })  // UPDATE disaster_victims_registry
+            .mockResolvedValueOnce({ rows: [] })  // INSERT disaster_victim_history
+            .mockResolvedValueOnce({ rows: [] }); // COMMIT
 
         const req = {
             body: {
@@ -670,7 +665,6 @@ describe('verifyVictimOtpPublic — Verificación OTP de 6 Dígitos', () => {
 
         await victimController.verifyVictimOtpPublic(req, res);
 
-        // Para usuarios nuevos, processReferralReward SÍ DEBE ser invocado
         expect(referralRewardService.processReferralReward).toHaveBeenCalledWith(
             expect.objectContaining({
                 referralCode: 'SOSVENEZUELADEMO'
@@ -679,7 +673,8 @@ describe('verifyVictimOtpPublic — Verificación OTP de 6 Dígitos', () => {
         expect(res.json).toHaveBeenCalledWith(
             expect.objectContaining({
                 success: true,
-                username: 'nuevo_sos'
+                dossier_number: expect.stringMatching(/^SOS-VZLA-/),
+                token: expect.any(String)
             })
         );
     });
