@@ -40,8 +40,18 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - **Orquestador de Tareas (`backend/src/workers/cronManager.js`)**:
     - Registro de `stagingCleanupJob` con intervalo de 48 horas (`STAGING_CLEANUP_INTERVAL_MS = 48 * 60 * 60 * 1000`) y ejecución inicial al arrancar el servidor.
   - **Suite de Pruebas Automatizadas (`backend/__tests__/stagingCleanupJob.test.js`)**:
-    - Cobertura total de purga de registros vencidos, caso base (0 eliminados) y manejo seguro de errores de base de datos.
+    - Pruebas unitarias completas simulando purga de expedientes vencidos y verificación de conexiones.
 
+### 2026-08-27 — Arquitectura FinTech de Onboarding en 2 Fases (Staging y Creación Oficial de Expedientes), Módulo Reutilizable formDraftManager y Modernización ATS en Voluntariado
+* **Diagnóstico & Objetivo**:
+  - Separar de forma atómica y estandarizada la recopilación preliminar de datos del registro definitivo en las tablas de negocio (`sos_victims`, `volunteers`), garantizando que los postulantes incompletos o en proceso de verificación OTP no ocupen expedientes oficiales prematuramente.
+  - Estandarizar la persistencia temporal en local storage mediante el módulo unificado `formDraftManager.js` (DRY) para formularios de Voluntariado y SOS Venezuela.
+* **Cambios Técnicos**:
+  - **Servicio de Onboarding Staging (`backend/src/services/onboardingStagingService.js`)**:
+    - Mapeo de metadatos de voluntariado (`availability_hours`, `driver_license_categories`, `skills`, `languages`, etc.) para serialización JSON segura en `pending_verifications`.
+    - Promoción atómica a la tabla `volunteers` solo tras la verificación OTP exitosa y aceptación de términos.
+  - **Form Draft Manager (`frontend/src/utils/formDraftManager.js`)**:
+    - Manejador genérico de borradores locales con auto-guardado, restauración ante recarga accidental y limpieza tras envío exitoso.
 
 ### 2026-08-26 — Android Nativo: Fase 13 — Paridad Visual Total con PWA (style.css), Corrección de Payload de Login y Resiliencia de Inicio
 * **Diagnóstico & Objetivo**:
