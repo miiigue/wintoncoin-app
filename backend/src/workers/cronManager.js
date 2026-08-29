@@ -1,6 +1,7 @@
 const debtCollectorJob = require('./debtCollectorJob');
 const tokenReleaserJob = require('./tokenReleaserJob');
 const donationRefundJob = require('./donationRefundJob');
+const stagingCleanupJob = require('./stagingCleanupJob');
 const { executeBoosterPayments } = require('../services/boosterService');
 const { processPendingBroadcasts } = require('../services/emailService');
 
@@ -10,6 +11,7 @@ const TOKEN_RELEASER_INTERVAL_MS = 1 * 60 * 1000; // 1 minuto
 const BOOSTER_PAYMENT_INTERVAL_MS = 60 * 1000;    // 1 minuto
 const MAIL_WORKER_INTERVAL_MS = 30 * 1000;        // 30 segundos
 const DONATION_REFUND_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos — Reembolso de donaciones vencidas (Winton Solidario)
+const STAGING_CLEANUP_INTERVAL_MS = 48 * 60 * 60 * 1000; // 48 horas — Purga de registros temporales expirados
 
 /**
  * Inicia todos los procesos en segundo plano de la plataforma
@@ -41,7 +43,13 @@ function startBackgroundJobs(pool) {
         donationRefundJob(pool);
     }, DONATION_REFUND_INTERVAL_MS);
 
-    // 4. Mail Worker (Procesamiento Batch)
+    // 5. Staging Cleanup (Purga periódica cada 48 horas de registros temporales en pending_verifications)
+    stagingCleanupJob(pool); // Ejecución inicial al arrancar el servidor
+    setInterval(() => {
+        stagingCleanupJob(pool);
+    }, STAGING_CLEANUP_INTERVAL_MS);
+
+    // 6. Mail Worker (Procesamiento Batch)
     async function runMailWorker() {
         try {
             await processPendingBroadcasts(pool);
