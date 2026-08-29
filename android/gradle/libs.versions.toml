@@ -16,6 +16,7 @@ androidxLifecycle = "2.8.7"
 androidxActivity = "1.9.3"
 androidxComposeBom = "2024.11.00"
 navigationCompose = "2.8.4"
+appcompat = "1.7.0"
 
 # --- Networking ---
 retrofit = "2.11.0"
@@ -29,6 +30,7 @@ hiltNavigationCompose = "1.2.0"
 
 # --- Security ---
 securityCrypto = "1.1.0-alpha06"
+androidxBiometric = "1.2.0-alpha05"
 
 # --- Images ---
 coil = "2.7.0"
@@ -46,6 +48,7 @@ androidxTestEspresso = "3.6.1"
 [libraries]
 # --- Core Android ---
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivity" }
 
 # --- Compose BOM & UI ---
@@ -76,8 +79,9 @@ hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt"
 hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hilt" }
 hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 
-# --- Security (EncryptedSharedPreferences) ---
+# --- Security (EncryptedSharedPreferences & Biometrics) ---
 security-crypto = { module = "androidx.security:security-crypto", version.ref = "securityCrypto" }
+androidx-biometric = { module = "androidx.biometric:biometric-ktx", version.ref = "androidxBiometric" }
 
 # --- Images (Coil for Compose) ---
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }

@@ -223,12 +223,24 @@
             height: 16px;
             border-radius: 50%;
             border: 1px solid #64748b;
-            color: #64748b;
-            font-size: 10px;
-            margin-left: 5px;
+            color: #94a3b8;
+            font-size: 11px;
+            font-family: system-ui, -apple-system, sans-serif;
+            font-weight: 700;
+            font-style: normal;
+            margin-left: 6px;
             cursor: pointer;
             vertical-align: middle;
+            transition: all 0.2s ease;
         }
+
+        .info-icon:hover {
+            border-color: #3b82f6;
+            color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+
 
         /* Modal extra para Smart Contracts */
         .sc-modal-content {
@@ -281,19 +293,47 @@
                         Tokens BLUE (Liquidez)
                     </h3>
                     <div class="data-row">
-                        <span class="data-label">Total Disponible</span>
+                        <span class="data-label" style="position: relative;">
+                            <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información sobre Liquidez" data-tooltip-id="tooltip-ec-liquido">
+                                Total Líquido <i class="info-icon">i</i>
+                            </span>
+                            <div id="tooltip-ec-liquido" class="info-tooltip" role="tooltip" aria-hidden="true">
+                                <p>Tus tokens BLUE totalmente libres y disponibles para usar en la plataforma, transferir o aniquilar compromisos RED.</p>
+                            </div>
+                        </span>
                         <span class="data-value highlight-blue" id="blueAvailable">0.0000 BLUE</span>
                     </div>
                     <div class="data-row">
-                        <span class="data-label">En Escrow (Bloqueado)</span>
+                        <span class="data-label" style="position: relative;">
+                            <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información sobre Parking" data-tooltip-id="tooltip-ec-parking">
+                                En Parking <i class="info-icon">i</i>
+                            </span>
+                            <div id="tooltip-ec-parking" class="info-tooltip" role="tooltip" aria-hidden="true">
+                                <p>El Parking es el periodo mínimo de <strong>30 días</strong> de resguardo necesario para que los fondos se liberen y puedan utilizarse o intercambiarse en P2P.</p>
+                            </div>
+                        </span>
                         <span class="data-value" id="blueEscrow">0.0000 BLUE</span>
                     </div>
                     <div class="data-row">
-                        <span class="data-label">Próxima liberación de Escrow</span>
+                        <span class="data-label" style="position: relative;">
+                            <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información sobre Liberación" data-tooltip-id="tooltip-ec-liberacion">
+                                Próxima liberación de Parking <i class="info-icon">i</i>
+                            </span>
+                            <div id="tooltip-ec-liberacion" class="info-tooltip" role="tooltip" aria-hidden="true">
+                                <p>Fecha exacta en la que tu próximo lote de tokens completará los 30 días en Parking y pasará a tu saldo líquido P2P.</p>
+                            </div>
+                        </span>
                         <span class="data-value" id="blueUnlockDate" style="font-size: 0.85rem;">--</span>
                     </div>
                     <div class="data-row" style="background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 8px; margin-top: 10px;">
-                        <span class="data-label" style="color:#e2e8f0; font-weight: 600;">USD Estimado</span>
+                        <span class="data-label" style="color:#e2e8f0; font-weight: 600; position: relative;">
+                            <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información sobre USD Estimado" data-tooltip-id="tooltip-ec-usd">
+                                USD Estimado <i class="info-icon">i</i>
+                            </span>
+                            <div id="tooltip-ec-usd" class="info-tooltip" role="tooltip" aria-hidden="true">
+                                <p>Equivalencia referencial estimada en dólares (1 BLUE = 1 USD sujeto al lanzamiento oficial).</p>
+                            </div>
+                        </span>
                         <span class="data-value highlight-green" id="fiatEquivalency">≈ $0.00 USD</span>
                     </div>
                     <p style="font-size: 0.75rem; color: #64748b; margin-top: 8px; text-align: center;">Valor referencial (1 BLUE = 1 USD). Sujeto al lanzamiento oficial.</p>
@@ -308,30 +348,65 @@
                 <div class="web3-card" style="border-left: 3px solid #ef4444;">
                     <h3>
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
-                        Tokens RED (Obligaciones)
+                        Tokens RED (Compromiso)
                     </h3>
                     <div class="data-row">
-                        <span class="data-label">Límite RED aprobado</span>
+                        <span class="data-label" style="position: relative;">
+                            <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información Límite RED Aprobado" data-tooltip-id="tooltip-ec-red-limite">
+                                Límite RED aprobado <i class="info-icon">i</i>
+                            </span>
+                            <div id="tooltip-ec-red-limite" class="info-tooltip" role="tooltip" aria-hidden="true">
+                                <p>Monto máximo de cupo de compromiso RED asignado según tu verificación y reputación.</p>
+                            </div>
+                        </span>
                         <span class="data-value" id="redCreditLimit">0.0000 RED</span>
                     </div>
                     <div class="data-row">
-                        <span class="data-label">Límite RED disponible</span>
-                        <span class="data-value highlight-green" id="redCreditAvailable">0.0000 RED</span>
+                        <span class="data-label" style="position: relative;">
+                            <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información RED Utilizado" data-tooltip-id="tooltip-ec-red-utilizado">
+                                RED utilizado <i class="info-icon">i</i>
+                            </span>
+                            <div id="tooltip-ec-red-utilizado" class="info-tooltip" role="tooltip" aria-hidden="true">
+                                <p>Monto de compromiso RED que estás utilizando actualmente y que está pendiente por amortizar.</p>
+                            </div>
+                        </span>
+                        <span class="data-value highlight-red" id="redDebtTotal">0.0000 RED</span>
                     </div>
                     <div class="data-row">
-                        <span class="data-label">Cupo RED utilizado</span>
-                        <span class="data-value highlight-red" id="redDebtTotal">0.0000 RED</span>
+                        <span class="data-label" style="position: relative;">
+                            <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información RED Disponible" data-tooltip-id="tooltip-ec-red-disponible">
+                                RED disponible <i class="info-icon">i</i>
+                            </span>
+                            <div id="tooltip-ec-red-disponible" class="info-tooltip" role="tooltip" aria-hidden="true">
+                                <p>Margen de compromiso RED libre que te queda disponible para realizar publicaciones o transacciones.</p>
+                            </div>
+                        </span>
+                        <span class="data-value highlight-green" id="redCreditAvailable">0.0000 RED</span>
                     </div>
 
                     <!-- Desglose transparente del Límite RED (Auditoría UX - estilo Aave/Nubank) -->
                     <div id="limitBreakdown" style="margin-top: 12px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);">
                         <p style="font-size: 0.75rem; color: #64748b; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 1px;">Desglose de tu Límite</p>
                         <div class="data-row" style="padding: 4px 0; border: none;">
-                            <span class="data-label" style="font-size: 0.82rem;">🟢 Score Orgánico (Referidos/KYC)</span>
+                            <span class="data-label" style="font-size: 0.82rem; position: relative;">
+                                <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información Score Orgánico" data-tooltip-id="tooltip-ec-score-organico">
+                                    🟢 Score Orgánico (Referidos/KYC) <i class="info-icon">i</i>
+                                </span>
+                                <div id="tooltip-ec-score-organico" class="info-tooltip" role="tooltip" aria-hidden="true">
+                                    <p>Cupo de compromiso obtenido por la validación de tu identidad (KYC) y los referidos activos en tu red.</p>
+                                </div>
+                            </span>
                             <span class="data-value" id="organicScore" style="font-size: 0.82rem;">0.0000 RED</span>
                         </div>
                         <div class="data-row" style="padding: 4px 0; border: none;">
-                            <span class="data-label" style="font-size: 0.82rem;">🔒 Garantía en Bóveda</span>
+                            <span class="data-label" style="font-size: 0.82rem; position: relative;">
+                                <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información Garantía Bóveda" data-tooltip-id="tooltip-ec-garantia">
+                                    🔒 Garantía en Bóveda <i class="info-icon">i</i>
+                                </span>
+                                <div id="tooltip-ec-garantia" class="info-tooltip" role="tooltip" aria-hidden="true">
+                                    <p>Cupo adicional de compromiso desbloqueado mediante colateral o garantías depositadas en la bóveda.</p>
+                                </div>
+                            </span>
                             <span class="data-value highlight-green" id="collateralDisplay" style="font-size: 0.82rem;">+0.0000 RED</span>
                         </div>
                     </div>
@@ -434,15 +509,36 @@
                         Identidad Web3
                     </h3>
                     <div class="data-row">
-                        <span class="data-label">Estado de Red</span>
+                        <span class="data-label" style="position: relative;">
+                            <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información Estado de Red" data-tooltip-id="tooltip-ec-red-estado">
+                                Estado de Red <i class="info-icon">i</i>
+                            </span>
+                            <div id="tooltip-ec-red-estado" class="info-tooltip" role="tooltip" aria-hidden="true">
+                                <p>Red Blockchain secundaria (Layer 2) donde se procesan todas tus transacciones con baja comisión.</p>
+                            </div>
+                        </span>
                         <span class="data-value highlight-green" id="networkStatusDisplay">Conectado a Optimism Sepolia <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10B981; margin-left:4px;"></span></span>
                     </div>
                     <div class="data-row">
-                        <span class="data-label">Estado KYC On-Chain</span>
+                        <span class="data-label" style="position: relative;">
+                            <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información KYC On-Chain" data-tooltip-id="tooltip-ec-kyc">
+                                Estado KYC On-Chain <i class="info-icon">i</i>
+                            </span>
+                            <div id="tooltip-ec-kyc" class="info-tooltip" role="tooltip" aria-hidden="true">
+                                <p>Verificación de identidad descentralizada (Know Your Customer) validada en la Blockchain.</p>
+                            </div>
+                        </span>
                         <span class="data-value" id="kycStatusDisplay">⏳ Consultando...</span>
                     </div>
                     <div style="margin-top: 15px;">
-                        <span class="data-label" id="publicKeyLabel">Llave Pública (Public Key)</span>
+                        <span class="data-label" id="publicKeyLabel" style="position: relative;">
+                            <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información Llave Pública" data-tooltip-id="tooltip-ec-pubkey">
+                                Llave Pública (Public Key) <i class="info-icon">i</i>
+                            </span>
+                            <div id="tooltip-ec-pubkey" class="info-tooltip" role="tooltip" aria-hidden="true">
+                                <p>Tu dirección única de billetera cripto en la red para recibir fondos y firmar operaciones.</p>
+                            </div>
+                        </span>
                         <div class="address-box">
                             <span class="address-text" id="publicKeyDisplay">0x...</span>
                             <button class="copy-btn" id="copyPublicKeyBtn">Copiar</button>
@@ -457,21 +553,49 @@
                         Métricas de Actividad Blockchain
                     </h3>
                     <div class="stats-grid">
-                        <div class="stat-box">
+                        <div class="stat-box" style="position: relative;">
                             <span class="stat-number" id="statInteractions">0</span>
-                            <span class="stat-desc">Interacciones Web3 <span class="info-icon" onclick="showCustomAlert('Suma total de veces que tu billetera ha interactuado con los contratos inteligentes de WintonCoin (BLUE/RED) u otras operaciones en Optimism Sepolia.')">i</span></span>
+                            <span class="stat-desc">
+                                <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información Interacciones Web3" data-tooltip-id="tooltip-ec-stat-interactions">
+                                    Interacciones Web3 <i class="info-icon">i</i>
+                                </span>
+                                <div id="tooltip-ec-stat-interactions" class="info-tooltip" role="tooltip" aria-hidden="true">
+                                    <p>Suma total de operaciones y llamadas enviadas a los contratos inteligentes de WintonCoin.</p>
+                                </div>
+                            </span>
                         </div>
-                        <div class="stat-box">
+                        <div class="stat-box" style="position: relative;">
                             <span class="stat-number" id="statReceived">0</span>
-                            <span class="stat-desc">Pagos Recibidos <span class="info-icon" onclick="showCustomAlert('Cantidad de transferencias entrantes exitosas en la blockchain. Representa las veces que has recibido BLUE.')">i</span></span>
+                            <span class="stat-desc">
+                                <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información Pagos Recibidos" data-tooltip-id="tooltip-ec-stat-received">
+                                    Pagos Recibidos <i class="info-icon">i</i>
+                                </span>
+                                <div id="tooltip-ec-stat-received" class="info-tooltip tooltip-right-align" role="tooltip" aria-hidden="true">
+                                    <p>Cantidad de transferencias entrantes exitosas registradas en la blockchain.</p>
+                                </div>
+                            </span>
                         </div>
-                        <div class="stat-box">
+                        <div class="stat-box" style="position: relative;">
                             <span class="stat-number" id="statSent">0</span>
-                            <span class="stat-desc">Pagos Enviados <span class="info-icon" onclick="showCustomAlert('Cantidad de transferencias salientes exitosas en la blockchain. Incluye pagos directos y liberación de fondos de Escrow.')">i</span></span>
+                            <span class="stat-desc">
+                                <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información Pagos Enviados" data-tooltip-id="tooltip-ec-stat-sent">
+                                    Pagos Enviados <i class="info-icon">i</i>
+                                </span>
+                                <div id="tooltip-ec-stat-sent" class="info-tooltip" role="tooltip" aria-hidden="true">
+                                    <p>Cantidad de transferencias salientes y liberación de fondos completadas.</p>
+                                </div>
+                            </span>
                         </div>
-                        <div class="stat-box">
+                        <div class="stat-box" style="position: relative;">
                             <span class="stat-number" id="statBurned">0</span>
-                            <span class="stat-desc">Compromiso Amortizado <span class="info-icon" onclick="showCustomAlert('Eventos de auto-amortización on-chain. Cantidad de veces que tus ingresos en BLUE liquidaron automáticamente el compromiso RED pendiente.')">i</span></span>
+                            <span class="stat-desc">
+                                <span class="info-text-clickable" role="button" tabindex="0" aria-label="Información Compromiso Amortizado" data-tooltip-id="tooltip-ec-stat-burned">
+                                    Compromiso Amortizado <i class="info-icon">i</i>
+                                </span>
+                                <div id="tooltip-ec-stat-burned" class="info-tooltip tooltip-right-align" role="tooltip" aria-hidden="true">
+                                    <p>Veces que tus ingresos en BLUE liquidaron y destruyeron automáticamente tu compromiso RED.</p>
+                                </div>
+                            </span>
                         </div>
                     </div>
                 </div>

@@ -1,8 +1,7 @@
 // ============================================================================
-// WintonCoin Android — Design System (Colores)
+// WintonCoin Android — Design System (Colores Idénticos a PWA style.css)
 // ============================================================================
-// Paleta de colores oficial de WintonCoin, extraída de la PWA.
-// Basada en los colores usados en style.css y landing.css del frontend.
+// Paleta de colores oficial de WintonCoin, extraída directamente de style.css.
 // ============================================================================
 
 package com.wintoncoin.app.presentation.theme
@@ -10,64 +9,58 @@ package com.wintoncoin.app.presentation.theme
 import androidx.compose.ui.graphics.Color
 
 // ============================================================================
-// COLORES PRIMARIOS DE MARCA
+// COLORES OFICIALES PWA (style.css :root)
 // ============================================================================
 
-// Azul WintonCoin Principal (del gradiente del dashboard y tarjetas)
+// --background-color: #1a1a2e (Azul noche profundo global)
+val WintonBackgroundDark = Color(0xFF1A1A2E)
+
+// --surface-color: #14245a (Zafiro elegante para tarjetas y contenedores .container)
+val WintonSurfaceDark = Color(0xFF14245A)
+
+// --primary-color: #6a5acd (Violeta / Slate Blue de botones e identidad)
+val WintonPrimary = Color(0xFF6A5ACD)
+val WintonPurple = Color(0xFF6A5ACD)
+
+// --card-blue-elegant: linear-gradient(180deg, #1447b4, #081d4e) (Tarjeta Premium Sapphire)
+val WintonCardBlueTop = Color(0xFF1447B4)
+val WintonCardBlueBottom = Color(0xFF081D4E)
 val WintonBlue = Color(0xFF1447B4)
-// Azul más claro (headers, fondos de sección)
 val WintonBlueLighter = Color(0xFF4A90D9)
-// Azul oscuro (textos sobre fondo claro, headers)
 val WintonBlueDark = Color(0xFF0D2E6B)
-// Azul del sidebar y navegación
-val WintonNavyBlue = Color(0xFF1A1A3E)
+val WintonNavyBlue = Color(0xFF1A1A2E)
 
-// ============================================================================
-// COLORES DE ACENTO
-// ============================================================================
-
-// Púrpura (botones de acción, badges premium)
-val WintonPurple = Color(0xFF8B5CF6)
-// Rosa/Magenta (cintas de demo, alertas especiales)
-val WintonPink = Color(0xFFE83E8C)
-// Dorado (insignias, niveles premium)
-val WintonGold = Color(0xFFFFD700)
-// Verde esmeralda (verificación, badges activos)
-val WintonGreen = Color(0xFF10B981)
-
-// ============================================================================
-// COLORES DE ESTADO (UX)
-// ============================================================================
-
-// Verde éxito (pagos completados, verificaciones exitosas)
-val WintonSuccess = Color(0xFF27AE60)
-// Naranja advertencia (pendiente de aprobación, acciones requeridas)
-val WintonWarning = Color(0xFFE67E22)
-// Rojo error (errores, sesión expirada, rechazos)
-val WintonError = Color(0xFFE74C3C)
-// Amarillo info (participante esperando, notificaciones)
-val WintonInfo = Color(0xFFFFE600)
-
-// ============================================================================
-// COLORES DE SUPERFICIE (fondos, tarjetas, etc.)
-// ============================================================================
-
-// Fondo principal claro
-val WintonSurfaceLight = Color(0xFFF8F9FA)
-// Fondo de tarjetas claro
-val WintonCardLight = Color(0xFFFFFFFF)
-// Fondo principal oscuro (modo nocturno)
-val WintonSurfaceDark = Color(0xFF121212)
-// Fondo de tarjetas oscuro
-val WintonCardDark = Color(0xFF1E1E1E)
-
-// ============================================================================
-// COLORES DE TEXTO
-// ============================================================================
-
-// Texto principal sobre fondo claro
-val WintonTextPrimary = Color(0xFF1A1A2E)
-// Texto secundario sobre fondo claro
-val WintonTextSecondary = Color(0xFF666666)
-// Texto sobre fondo azul/oscuro
+// --text-color: #F5F5F5 (Blanco puro legible)
+val WintonTextWhite = Color(0xFFF5F5F5)
 val WintonTextOnPrimary = Color(0xFFFFFFFF)
+
+// --text-secondary-color: #BDBDBD (Gris suave para subtítulos y labels)
+val WintonTextMuted = Color(0xFFBDBDBD)
+val WintonTextSecondary = Color(0xFFBDBDBD)
+val WintonTextPrimary = Color(0xFFF5F5F5)
+
+// --error-color: #ff5252
+val WintonError = Color(0xFFFF5252)
+val WintonRed = Color(0xFFEF4444)
+
+// Acentos de Marca (Dorado, Verde esmeralda, Magenta Demo, Cyan)
+val WintonGold = Color(0xFFF59E0B)
+val WintonGreen = Color(0xFF10B981)
+val WintonPink = Color(0xFFCE46A9)
+val WintonCyan = Color(0xFF38BDF8)
+val WintonSuccess = Color(0xFF10B981)
+val WintonWarning = Color(0xFFF59E0B)
+val WintonOrange = Color(0xFFF59E0B)
+val WintonInfo = Color(0xFF38BDF8)
+
+// Bordes y Fondos de Input
+val WintonBorderSoft = Color(0x1FFFFFFF) // rgba(255, 255, 255, 0.12)
+val WintonInputBg = Color(0xFF0F172A)
+val WintonCardDark = Color(0xFF14245A)
+val WintonCardBackground = Color(0xFF14245A)
+val WintonSurfaceLight = Color(0xFF1A1A2E)
+val WintonCardLight = Color(0xFF14245A)
+
+// Banner de Emergencia SOS Venezuela
+val WintonEmergencyRedTop = Color(0xFFEF4444)
+val WintonEmergencyRedBottom = Color(0xFFB91C1C)

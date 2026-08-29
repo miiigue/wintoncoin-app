@@ -13,6 +13,306 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-08-29 — Backend: Corrección de Scope en Outbox Pattern (`publicationService.js`) y Blindaje de Pagos en Modo Pre-Lanzamiento
+* **Diagnóstico & Objetivo**:
+  - Al presionar el botón "Confirmar Pago" en el Panel Administrativo para tareas completadas en Modo Pre-Lanzamiento (`pre_launch_mode_enabled = true`), el backend arrojaba un error `500 Internal Server Error: web3IntentId is not defined` impidiendo la confirmación y acreditación de BLUE IOUs.
+  - La causa raíz se originó en la función `processRequestPayment()` de `publicationService.js`: durante la incorporación del patrón de seguridad *Outbox Pattern* (Saga CeFi/DeFi), la variable `web3IntentId` se referenciaba en la sentencia `return`, pero no se encontraba declarada en la cabecera de la función. Al ejecutarse la rama de pre-lanzamiento (off-chain), se omitía la rama `else` donde se instanciaba dicha variable, provocando un fallo de tiempo de ejecución `ReferenceError`.
+* **Cambios Técnicos**:
+  - **Servicio de Publicaciones (`backend/src/services/publicationService.js`)**:
+    - Inicialización defensiva de `let web3IntentId = null;` en la cabecera de `processRequestPayment()`, garantizando que en Modo Pre-Lanzamiento retorne un valor nulo seguro sin fallos de scope.
+    - Actualizado `processDirectPaymentCompletion()` para retornar `web3IntentId` de forma homogénea con la interfaz de conciliación.
+    - Incorporación de *optional chaining* defensivo (`rows[0]?.total`, `rows[0]?.current_level`) en el helper `updateUserBoosterLevel()` para evitar excepciones ante consultas vacías.
+  - **Controlador de Publicaciones (`backend/src/controllers/publicationController.js`)**:
+    - Blindada la verificación posterior a la transacción con validación defensiva `if (result && result.web3IntentId)` en la ruta `POST /publications/:id/confirm-payment`.
+  - **Suite de Pruebas Unitarias (`backend/__tests__/publicationPayment.test.js`)**:
+    - Creada suite de pruebas unitarias automatizadas cubriendo el flujo de `processRequestPayment()` y `processDirectPaymentCompletion()` en Modo Pre-Lanzamiento con mocks de base de datos e inyección de dependencias aisladas.
+* **Impacto**:
+  - El Panel Administrativo confirma de inmediato las tareas culminadas, acreditando de forma atómica los BLUE IOUs en `booster_blue_ledger`, actualizando el nivel del impulsor y emitiendo la notificación push al usuario sin errores 500.
+
+### 2026-08-28 — Backend & Worker: Purga Automática y Mantenimiento de Staging a las 48 Horas (`stagingCleanupJob.js`)
+* **Diagnóstico & Objetivo**:
+  - Implementar un proceso automatizado y modular en segundo plano (Cron Job) que depure periódicamente de PostgreSQL las solicitudes temporales incompletas en `pending_verifications` que hayan superado las 48 horas de expiración.
+  - Mantener la base de datos ligera, limpia y optimizada sin intervención manual, preservando la ventana de soporte y telemetría de embudos (funnel drop-off) exigida por los estándares FinTech y bancarios.
+* **Cambios Técnicos**:
+  - **Worker Modular (`backend/src/workers/stagingCleanupJob.js`)**:
+    - Purga segura mediante `DELETE FROM pending_verifications WHERE expires_at < NOW() - INTERVAL '48 hours' RETURNING id;`.
+    - Tolerancia a fallos y liberación estricta de conexiones en bloque `try / catch / finally`.
+  - **Orquestador de Tareas (`backend/src/workers/cronManager.js`)**:
+    - Registro de `stagingCleanupJob` con intervalo de 48 horas (`STAGING_CLEANUP_INTERVAL_MS = 48 * 60 * 60 * 1000`) y ejecución inicial al arrancar el servidor.
+  - **Suite de Pruebas Automatizadas (`backend/__tests__/stagingCleanupJob.test.js`)**:
+    - Pruebas unitarias completas simulando purga de expedientes vencidos y verificación de conexiones.
+
+### 2026-08-27 — Arquitectura FinTech de Onboarding en 2 Fases (Staging y Creación Oficial de Expedientes), Módulo Reutilizable formDraftManager y Modernización ATS en Voluntariado
+* **Diagnóstico & Objetivo**:
+  - Separar de forma atómica y estandarizada la recopilación preliminar de datos del registro definitivo en las tablas de negocio (`sos_victims`, `volunteers`), garantizando que los postulantes incompletos o en proceso de verificación OTP no ocupen expedientes oficiales prematuramente.
+  - Estandarizar la persistencia temporal en local storage mediante el módulo unificado `formDraftManager.js` (DRY) para formularios de Voluntariado y SOS Venezuela.
+* **Cambios Técnicos**:
+  - **Servicio de Onboarding Staging (`backend/src/services/onboardingStagingService.js`)**:
+    - Mapeo de metadatos de voluntariado (`availability_hours`, `driver_license_categories`, `skills`, `languages`, etc.) para serialización JSON segura en `pending_verifications`.
+    - Promoción atómica a la tabla `volunteers` solo tras la verificación OTP exitosa y aceptación de términos.
+  - **Form Draft Manager (`frontend/src/utils/formDraftManager.js`)**:
+    - Manejador genérico de borradores locales con auto-guardado, restauración ante recarga accidental y limpieza tras envío exitoso.
+
+### 2026-08-26 — Android Nativo: Fase 13 — Paridad Visual Total con PWA (style.css), Corrección de Payload de Login y Resiliencia de Inicio
+* **Diagnóstico & Objetivo**:
+  - Resolver la incompatibilidad del payload de inicio de sesión (`identifier` vs `username`) que impedía la autenticación en el backend de producción y demo.
+  - Eliminar por completo el conflicto de temas y recursos sobredimensionados en Compose que ocasionaban la pantalla negra al iniciar la aplicación.
+  - Rediseñar integralmente la capa de presentación de Jetpack Compose (`Color.kt`, `Theme.kt`, `WintonComponents.kt`, `LoginScreen.kt`, `DashboardScreen.kt`) para alcanzar un 100% de paridad visual, jerárquica y funcional con la PWA web (`style.css`, `login.html` y `contract_interaction.html`).
+* **Cambios Técnicos**:
+  - **Capa de Red & DTOs (`AuthDtos.kt`, `AuthRepositoryImpl.kt`, `AuthRepositoryImplTest.kt`)**:
+    - Actualizado `LoginRequest` con `@SerialName("identifier")` para coincidir exactamente con el parámetro desestructurado `{ identifier, password }` en `backend/src/controllers/authController.js`.
+    - Actualizadas las suites de pruebas unitarias correspondientes.
+  - **Sistema de Diseño Idéntico a PWA (`Color.kt`, `Theme.kt`, `WintonComponents.kt`)**:
+    - Mapeadas todas las variables CSS de `style.css`: `--background-color: #1a1a2e`, `--surface-color: #14245a`, `--primary-color: #6a5acd`, `--card-blue-elegant: linear-gradient(180deg, #1447b4, #081d4e)`, `--text-color: #F5F5F5`, `--text-secondary-color: #BDBDBD`.
+    - Campos de entrada `WintonTextField` estilizados con fondo `#0F172A`, borde `rgba(255,255,255,0.12)` y etiquetas superiores legibles.
+    - Botones `WintonButton` configurados con el tono primario y tipografía en negrita oficial.
+  - **Pantalla de Login (`LoginScreen.kt`)**:
+    - Tarjeta central flotante `#14245a` (`.container`), logo oficial centrado, título "Bienvenido", campos con icono de ojo para ver contraseña, enlace dorado "¿Olvidaste tu contraseña?" y botón de registro secundario.
+  - **Dashboard Principal (`DashboardScreen.kt`)**:
+    - Header superior con menú desplegable de perfil (`☰`) y campana de notificaciones con badge.
+    - Cinta de "Pre-lanzamiento • VERSIÓN BETA" y título dual "WintonCoin".
+    - Banner de Emergencia Terremoto Venezuela con degradado rojo y botón "Ver Causas".
+    - Sistema de pestañas (Tabs): **Impulsor** (con tarjeta Sapphire degradada y saldo de BLUE iou) y **Billetera** (con tarjetas de saldo BLUE Líquido y RED Compromiso).
+    - Cuadrícula de accesos directos a todos los módulos: Marketplace P2P, Billetera Web3, Referidos, SOS Venezuela, Donaciones y Seguridad & Biometría.
+  - **Pruebas Unitarias & Compilación**:
+    - **223 / 223 Tests Unitarios Aprobados (100% de éxito)**.
+    - Compilación completa verificada exitosamente (`assembleDemoDebug`) generando el binario `wintoncoin-demo.apk` (21.3 MB).
+* **Impacto**:
+  - La aplicación móvil ahora es indistinguible visual y funcionalmente de la plataforma web PWA, respetando la identidad de marca, los flujos contables y las mejores prácticas de UX/UI fintech.
+
+### 2026-08-25 — Android Nativo: Fase 12 — Autenticación Biométrica Nativa (BiometricPrompt) & Seguridad de Billetera
+* **Diagnóstico & Objetivo**:
+  - Implementar de forma 100% nativa en Android (`com.wintoncoin.app`) el sistema de autenticación biométrica de grado bancario (`BiometricPrompt` de AndroidX) para proteger el acceso a la billetera y autorizar operaciones financieras de alto valor.
+  - Elevar la seguridad de WintonCoin al estándar de ciberseguridad bancaria **OWASP MASVS-AUTH** y **SOC 2 Type II**, proveyendo bloqueo automático de la aplicación con fallback por credenciales del dispositivo (PIN / Patrón), control granular en ajustes de seguridad y almacenamiento protegido en `TokenManager` con `EncryptedSharedPreferences` (AES-256-GCM sobre Android Keystore).
+* **Cambios Técnicos**:
+  - **Capa Core & Dependencias (`libs.versions.toml`, `build.gradle.kts`, `core/biometrics/`, `core/security/`)**:
+    - Añadida dependencia `androidx.biometric:biometric-ktx:1.2.0-alpha05` al catálogo de versiones y al módulo `:app`.
+    - Creado `BiometricStatus.kt` con estados de hardware (`AVAILABLE`, `NOT_ENROLLED`, `NO_HARDWARE`, `HARDWARE_UNAVAILABLE`, `SECURITY_UPDATE_REQUIRED`, `UNKNOWN`).
+    - Creado `BiometricPromptResult.kt` con eventos tipados (`Success`, `Error`, `Failed`, `Cancelled`, `NotAvailable`).
+    - Creado `BiometricAuthManager.kt` (@Singleton) que gestiona el lanzamiento del prompt nativo del sistema operativo con soporte para `BIOMETRIC_STRONG` y `DEVICE_CREDENTIAL`, y trazabilidad en `AuditLogger`.
+    - Ampliado `TokenManager.kt` con métodos de almacenamiento cifrado para preferencias de seguridad: `isBiometricsEnabled()`, `setBiometricsEnabled()`, `isTransactionBiometricRequired()`, `setTransactionBiometricRequired()`, `isAppLocked()`, `setAppLocked()`.
+  - **Capa de Dominio (`BiometricSecurityConfig.kt`, Use Cases)**:
+    - Diseñada entidad de dominio `BiometricSecurityConfig`.
+    - Creados casos de uso puros: `GetBiometricSecurityConfigUseCase`, `SetBiometricAppLockUseCase` y `SetTransactionBiometricUseCase`.
+  - **Capa de Presentación MVI & Jetpack Compose (`presentation/lock/`, `presentation/settings/security/`)**:
+    - **Pantalla de Bloqueo (`AppLockScreen.kt`, `AppLockViewModel.kt`)**: Interfaz premium con tema oscuro (`#0B1120`), efecto glassmorphism, indicador de biometría, botón de desbloqueo con huella/rostro, manejo de errores y botón de cierre de sesión / cambio de cuenta.
+    - **Configuración de Seguridad (`SecuritySettingsScreen.kt`, `SecuritySettingsViewModel.kt`)**: Panel de gestión con indicador del sensor en tiempo real, interruptores interactivos para activar el bloqueo de la app y la confirmación biométrica en transferencias, y tarjeta de estándares criptográficos (Keystore AES-256-GCM, Zero-Trust, SOC 2).
+    - Actualizado `MainActivity.kt` para heredar de `FragmentActivity` y evaluar la sesión protegida con biometría al iniciar la app.
+    - Actualizado `NavGraph.kt` con las rutas `Screen.AppLock` y `Screen.SecuritySettings`.
+    - Añadida tarjeta de acceso directo a "Seguridad & Biometría 🛡️" en `DashboardScreen.kt`.
+  - **Pruebas Unitarias & Cobertura (`*Test.kt`)**:
+    - Creadas suites de pruebas unitarias para `GetBiometricSecurityConfigUseCaseTest`, `SetBiometricAppLockUseCaseTest`, `SetTransactionBiometricUseCaseTest`, `AppLockViewModelTest` y `SecuritySettingsViewModelTest`.
+    - **223 / 223 Tests Unitarios Aprobados (100% de éxito, 0 fallos, 0 errores)** en la suite completa de Android (`testDemoDebugUnitTest`).
+    - Compilación completa verificada exitosamente (`assembleDemoDebug`).
+* **Impacto**:
+  - La aplicación móvil de WintonCoin alcanza el nivel de seguridad de las principales instituciones bancarias y plataformas cripto globales (Binance, BBVA, Revolut), blindando los tokens, llaves de sesión y transferencias del usuario contra accesos no autorizados en caso de pérdida o sustracción del teléfono móvil.
+
+### 2026-08-25 — Android Nativo: Fase 11 — Módulo SOS Venezuela & Brigadas de Voluntarios / Damnificados (Paridad PWA y Censo de Emergencias Humanitarias)
+* **Diagnóstico & Objetivo**:
+  - Implementar de forma 100% nativa en Android (`com.wintoncoin.app`) el ecosistema completo de ayuda humanitaria y brigadas de emergencia de SOS Venezuela (`sos-venezuela.html`, `/api/public/sos-venezuela` y `/api/volunteers`).
+  - Proveer el censo de damnificados con algoritmo de expedientes inteligentes (`SOS-VZLA-[D1][D2][D3][D4]-[SECUENCIAL]`), registro de voluntarios por especialidad operativa (`#VOL-VZLA-XXXX-YYYYY`), verificación OTP de 6 dígitos con asignación de contraseña y activación de cuenta vinculada a la campaña comunitaria `@CadenaSOSVenezuela` con bono BLUE IOU.
+* **Cambios Técnicos**:
+  - **Capa de Red & DTOs (`SosDtos.kt`, `SosApiService.kt`, `NetworkModule.kt`)**:
+    - Creados DTOs serializables `RegisterVictimRequestDto`, `RegisterVictimResponseDto`, `RegisterVolunteerRequestDto`, `RegisterVolunteerResponseDto`, `VerifySosOtpRequestDto`, `VerifySosOtpResponseDto`, `ResendSosOtpRequestDto`, `ResendSosOtpResponseDto` y `SosCampaignSettingsDto`.
+    - Implementados endpoints Retrofit `POST /api/public/sos-venezuela/register`, `POST /api/public/sos-venezuela/verify-otp`, `POST /api/public/sos-venezuela/resend-otp`, `POST /api/volunteers/register`, `POST /api/volunteers/verify-otp`, `POST /api/volunteers/resend-otp` y `GET /api/referral-settings`.
+    - Proveído `SosApiService` en `NetworkModule.kt`.
+  - **Capa de Dominio (`SosModels.kt`, `SosRepository.kt`, `SosRepositoryImpl.kt`, Use Cases, `RepositoryModule.kt`)**:
+    - Diseñadas entidades de dominio inmutables `AffectationLevel`, `VolunteerSpecialty`, `VolunteerAvailability`, `VolunteerModality`, `VictimRegistrationInput`, `VolunteerRegistrationInput`, `SosRegistrationResult`, `SosOtpVerificationInput`, `SosAuthSession` y `SosCampaignInfo`.
+    - Implementado `SosRepositoryImpl` con manejo robusto de errores JSON, gestión de sesión segura en `TokenManager` tras verificación OTP y trazabilidad auditable con `AuditLogger`.
+    - Creados casos de uso puros: `RegisterVictimUseCase`, `RegisterVolunteerUseCase`, `VerifySosOtpUseCase`, `ResendSosOtpUseCase` y `GetSosCampaignConfigUseCase`.
+    - Vinculado `SosRepository` en Hilt dentro de `RepositoryModule.kt`.
+  - **Capa de Presentación MVI & Jetpack Compose (`presentation/sos/`)**:
+    - **Hub SOS (`SosHubScreen.kt`, `SosHubViewModel.kt`)**: Cinta tricolor de emergencia venezolana, visualización del código comunitario `SOSVENEZUELA`, botón para compartir en WhatsApp, tarjetas destacadas "🚨 Soy Afectado / Censo SOS" y "🤝 Quiero ser Voluntario SOS", y sección informativa de auditoría.
+    - **Censo de Damnificados (`VictimRegistrationScreen.kt`, `VictimRegistrationViewModel.kt`)**: Formulario completo estructurado en 5 secciones, auto-formato de cédula (`V-`/`E-`) y teléfono (`+58`), selectores de nivel de gravedad y personas a cargo, diálogo modal OTP para definición de contraseña y confirmación de número de expediente.
+    - **Brigadas de Voluntarios (`VolunteerRegistrationScreen.kt`, `VolunteerRegistrationViewModel.kt`)**: Formulario con menús desplegables de especialidades (médico, primeros auxilios, rescate, logística, apoyo psicológico, cocina, general), disponibilidad horaria, modalidad (presencial, remoto, híbrido), experiencia previa y modal de credencial activa `#VOL-VZLA-XXXX-YYYYY`.
+    - Conectada tarjeta de acceso en `DashboardScreen.kt` (`SOS Venezuela 🇻🇪`) y registradas las rutas `Screen.SosHub`, `Screen.SosVictimRegistration` y `Screen.SosVolunteerRegistration` en `NavGraph.kt`.
+  - **Pruebas Unitarias & Cobertura (`*Test.kt`)**:
+    - Creadas suites de pruebas unitarias para `RegisterVictimUseCaseTest`, `RegisterVolunteerUseCaseTest`, `VerifySosOtpUseCaseTest`, `ResendSosOtpUseCaseTest`, `GetSosCampaignConfigUseCaseTest`, `SosRepositoryImplTest`, `SosHubViewModelTest`, `VictimRegistrationViewModelTest` y `VolunteerRegistrationViewModelTest`.
+    - **209 / 209 Tests Unitarios Aprobados (100% de éxito, 0 fallos, 0 errores)** en la suite completa de Android.
+* **Impacto**:
+  - WintonCoin consolida una infraestructura móvil de respuesta humanitaria inmediata y censo de contingencias para Venezuela, permitiendo a los afectados registrar solicitudes de auxilio con trazabilidad auditable y a los brigadistas coordinarse eficientemente desde sus dispositivos Android nativos.
+
+### 2026-08-25 — Android Nativo: Fase 10 — WintonCoin Solidario & Sistema de Donaciones Comunitarias (Paridad PWA y Motor de Donaciones BLUE IOU)
+* **Diagnóstico & Objetivo**:
+  - Implementar de forma 100% nativa en Android (`com.wintoncoin.app`) el módulo completo de WintonCoin Solidario y Donaciones Comunitarias (`solicitud-solidaria.html`, `causa-solidaria.html` y endpoints `/api/humanitarian`), asegurando paridad visual y funcional absoluta con las capturas de diseño de `Pantallas PWA/Pantalla donaciones/` y `Pantallas PWA/Pantalla publicación de donación/`.
+  - Proveer el flujo integral de causas humanitarias: muro de causas aprobadas, mis postulaciones, formulario de postulación auditada con validación de nubes seguras (Google Drive, Dropbox, OneDrive, iCloud, Box, Mega) y redes oficiales, detalle con carrusel/banner `DEMO MODE`, barra de progreso en vivo, motor de donación de tokens BLUE IOU con salvaguarda Hold & Release anti-lavado AML, y muro público de donantes en tiempo real.
+* **Cambios Técnicos**:
+  - **Capa de Red & DTOs (`DonationDtos.kt`, `DonationApiService.kt`, `NetworkModule.kt`)**:
+    - Creados DTOs serializables `HumanitarianCauseDto`, `HumanitarianCausesResponseDto`, `CauseDetailResponseDto`, `DonationItemDto`, `DonationsSummaryDto`, `CauseUpdateDto`, `SubmitCauseRequestDto`, `DonateRequestDto` y `DonateResponseDto`.
+    - Implementados endpoints Retrofit `/api/humanitarian/causes/approved`, `/api/humanitarian/causes/my`, `/api/humanitarian/causes/:id`, `/api/humanitarian/causes/:id/donations`, `/api/humanitarian/causes/:id/updates`, `POST /api/humanitarian/causes`, `POST /api/humanitarian/causes/:id/donate` y `POST /api/humanitarian/causes/:id/cancel` con autenticación JWT Bearer.
+    - Proveído `DonationApiService` en `NetworkModule.kt` y unificados los DTOs en el Marketplace.
+  - **Capa de Dominio (`DonationModels.kt`, `DonationRepository.kt`, `DonationRepositoryImpl.kt`, Use Cases, `RepositoryModule.kt`)**:
+    - Diseñadas entidades de dominio inmutables `HumanitarianCause`, `DonationRecord`, `CauseDonationsSummary`, `CauseUpdate`, `SubmitCauseInput` y enums `CauseStatus` y `DonationStatus`.
+    - Implementado `DonationRepositoryImpl` con mapeadores robustos, cálculo de montos efectivos (`current + on_hold`), porcentajes dinámicos y formateador de fechas localizado.
+    - Creados casos de uso puros y testeables: `GetApprovedCausesUseCase`, `GetMyCausesUseCase`, `GetCauseDetailUseCase`, `SubmitCauseUseCase` (con validación estricta de dominios de almacenamiento y redes), `DonateToCauseUseCase` (con validación de saldo disponible y aceptación legal SOC 2) y `CancelCauseUseCase`.
+    - Vinculado `DonationRepository` en Hilt dentro de `RepositoryModule.kt`.
+  - **Capa de Presentación MVI & Jetpack Compose (`presentation/solidario/`)**:
+    - **Explorador (`CausesListScreen.kt`, `CausesListViewModel.kt`)**: Pestañas `Causas en Recaudación` y `Mis Postulaciones`, buscador reactivo, tarjetas con métricas de meta, recaudación, porcentaje y botón flotante `+ Postular Causa`.
+    - **Postulación (`SubmitCauseScreen.kt`, `SubmitCauseViewModel.kt`)**: Formulario completo con usuario verificado en base de datos, beneficiario, código de referido, redes sociales, meta en BLUE IOU, enlaces a nubes seguras, selector de imágenes, aceptación de términos y diálogo de confirmación.
+    - **Detalle & Donación (`CauseDetailScreen.kt`, `CauseDetailViewModel.kt`)**: Banner con badge `DEMO MODE`, historia completa, barra de progreso con desglose de fondos en hold, panel de donación de BLUE IOU (con saldo disponible en tiempo real y modal de confirmación), muro de donantes con etiquetas `DONADO` / `Liberado` / `En espera`, y pestaña de novedades.
+    - Conectada tarjeta de acceso en `DashboardScreen.kt` (`WintonCoin Solidario ❤️`) y rutas `Screen.Solidario`, `Screen.SubmitSolidario` y `Screen.SolidarioDetail(id)` en `NavGraph.kt`.
+  - **Pruebas Unitarias & Cobertura (`*Test.kt`)**:
+    - Creadas suites unitarias para `GetApprovedCausesUseCaseTest`, `GetMyCausesUseCaseTest`, `GetCauseDetailUseCaseTest`, `SubmitCauseUseCaseTest`, `DonateToCauseUseCaseTest`, `CancelCauseUseCaseTest`, `DonationRepositoryImplTest`, `CausesListViewModelTest`, `SubmitCauseViewModelTest` y `CauseDetailViewModelTest`.
+    - **180 / 180 Tests Unitarios Aprobados (100% de éxito, 0 fallos)** en la suite completa de Android.
+* **Impacto**:
+  - Los usuarios pueden participar activamente en la economía circular humanitaria de WintonCoin desde sus dispositivos Android, donando sus tokens BLUE IOU acumulados hacia causas sociales verificadas con total transparencia, seguridad criptográfica y trazabilidad contable.
+
+### 2026-08-25 — Android Nativo: Fase 9 — Centro de Notificaciones & Alertas Web3 (Paridad PWA y Navegación Contextual)
+* **Diagnóstico & Objetivo**:
+  - Portar de forma 100% nativa en Android (`com.wintoncoin.app`) el Centro de Notificaciones y Alertas Web3 (`/api/me/notifications`), siguiendo fielmente el diseño de las capturas en `Pantallas PWA/Pantalla notificaciones/`.
+  - Proveer bandejas de entrada para notificaciones no leídas e historial completo (hasta 50 elementos), categorización inteligente de mensajes por palabras clave (recompensas, aprobaciones, transferencias, solicitudes y alertas), acciones de limpieza masiva (`mark-read`), descarte individual y navegación contextual (Deep Linking) hacia los módulos relacionados.
+* **Cambios Técnicos**:
+  - **Capa de Red & DTOs (`NotificationDtos.kt`, `NotificationApiService.kt`, `NetworkModule.kt`)**:
+    - Creados DTOs serializables `NotificationDto`, `NotificationMarkReadResponseDto` y `NotificationDismissResponseDto`.
+    - Implementados endpoints Retrofit `/api/me/notifications`, `/api/me/notifications/history`, `/api/me/notifications/mark-read` y `/api/me/notifications/:id/dismiss` con autenticación JWT Bearer.
+    - Proveído `NotificationApiService` en `NetworkModule.kt`.
+  - **Capa de Dominio (`NotificationModels.kt`, `NotificationRepository.kt`, Use Cases, `RepositoryModule.kt`)**:
+    - Modelos de dominio inmutables `NotificationItem`, enums `NotificationCategory` y `NotificationNavigationTarget`.
+    - Implementado `NotificationRepositoryImpl` con clasificador inteligente (`categorizeNotification`) y formateador de fechas relativas ("Hace 5 min", "Hace 2 h", "dd MMM, HH:mm").
+    - Creados casos de uso puros y testeables: `GetUnreadNotificationsUseCase`, `GetNotificationHistoryUseCase`, `MarkAllNotificationsAsReadUseCase` y `DismissNotificationUseCase`.
+    - Vinculado `NotificationRepository` en Hilt dentro de `RepositoryModule.kt`.
+  - **Capa de Presentación MVI & Jetpack Compose (`NotificationsScreen.kt`, `NotificationsViewModel.kt`, `NotificationsState.kt`, `NotificationsEvent.kt`)**:
+    - Pantalla `NotificationsScreen` con tabs superiores (`Nuevas (X)` / `Historial Completo`), barra de filtros por chips horizontales (`Todas`, `💰 Recompensas`, `🎉 Aprobadas`, `💸 Pagos`, `📩 Solicitudes`, `⚠️ Alertas`) y botón de acción masiva `Limpiar todo`.
+    - Tarjetas interactivas con badges semánticos por color (naranja, verde, azul, púrpura y rojo), botón `✕` para descarte individual con animación suave y soporte para Deep Linking al tocar la tarjeta.
+    - Estado vacío con ilustración y CTA hacia el historial.
+    - Conectado el icono de campana y tarjeta de acceso rápido en `DashboardScreen.kt` y registrada la ruta `Screen.Notifications` en `NavGraph.kt`.
+  - **Pruebas Unitarias & Cobertura (`*Test.kt`)**:
+    - Creadas suites unitarias para `GetUnreadNotificationsUseCaseTest`, `GetNotificationHistoryUseCaseTest`, `MarkAllNotificationsAsReadUseCaseTest`, `DismissNotificationUseCaseTest`, `NotificationRepositoryImplTest` y `NotificationsViewModelTest`.
+    - **154 / 154 Tests Unitarios Aprobados (100% de éxito, 0 fallos)** en `47.371s`.
+* **Impacto**:
+  - Los usuarios de la aplicación móvil nativa disponen de un centro de alertas contables y operativas en tiempo real, trazable y auditable, reduciendo la fricción de seguimiento de tareas, pagos y recompensas.
+
+### 2026-08-24 — Android Nativo: Fase 8 — Módulo de Estado de Cuenta Web3 & Auditoría Financiera Ledger (Paridad Total con PWA)
+* **Diagnóstico & Objetivo**:
+  - Implementar de forma nativa en Android (`com.wintoncoin.app`) la pantalla de Estado de Cuenta Web3 (`estado-cuenta.html` y `estado-cuenta.js`), asegurando paridad visual y funcional absoluta con las capturas de diseño de `Pantallas PWA/Pantalla billetera web3`.
+  - Proveer auditoría en tiempo real de Smart Contracts (BLUE de liquidez y RED de compromiso), desglose de balances, equivalencia fiat (1 BLUE = 1 USD), panel interactivo de Bóveda de Garantías (Collateral Vault) con simulador dinámico de límite, y métricas 2x2 de actividad blockchain on-chain.
+* **Cambios Técnicos**:
+  - **Capa de Red & DTOs (`AccountStatementDtos.kt`, `AccountStatementApiService.kt`, `NetworkModule.kt`)**:
+    - Creados DTOs serializables `ContractItemDto`, `ContractsResponseDto`, `TransactionStatementItemDto`, `CollateralSyncRequestDto` y `CollateralSyncResponseDto`.
+    - Implementados endpoints `/api/contracts/info` (con caché anti-DDoS RPC), `/api/me/balance`, `/api/me/transactions` y `/api/me/collateral/sync`.
+  - **Capa de Dominio (`AccountStatementModels.kt`, `AccountStatementRepository.kt`, Use Cases)**:
+    - Diseñadas entidades inmutables `AccountStatementSummary`, `BlockchainActivityStats`, `SmartContractInfo`, `StatementTransaction` y enum `VaultCollateralToken` (USDT, USDC, DAI).
+    - Implementado `GetAccountStatementUseCase` para agregación concurrente y thread-safe de balances, estadísticas y transacciones.
+    - Implementado `GetSmartContractInfoUseCase` con validación de tipo de token (`BLUE`/`RED`).
+    - Implementado `SyncCollateralUseCase` para validación de montos, tokens y transacciones de depósito/retiro de colateral.
+  - **Capa de Presentación MVI & Jetpack Compose (`AccountStatementScreen.kt`, `AccountStatementViewModel.kt`, `AccountStatementState.kt`)**:
+    - **Tarjeta BLUE (Liquidez)**: Total disponible, saldo en Escrow bloqueado, próxima fecha/monto de liberación, contenedor destacado `USD Estimado ≈ $0,00 USD` y botón de consulta de Smart Contract BLUE.
+    - **Tarjeta RED (Obligaciones) & Bóveda**: Límite RED aprobado, disponible y utilizado, desglose de Score Orgánico vs Garantía en Bóveda, botón CTA `⚡ Aumentar Límite RED` con degradado ámbar a rojo, selector de tokens de colateral (USDT, USDC, DAI) y calculadora en vivo de nuevo límite.
+    - **Tarjeta Identidad Web3**: Estado de red (`Conectado a Optimism Sepolia ●`), estado KYC On-Chain (verificado/pendiente) y contenedor monospace con botón de copiado de llave pública.
+    - **Métricas de Actividad Blockchain (Grid 2x2)**: 4 cajas interactivas con modales informativos de ayuda para Interacciones Web3, Pagos Recibidos, Pagos Enviados y Compromiso Amortizado.
+    - **Historial de Transacciones Auditables**: Lista con badges de colores según tipo de movimiento y botones directos `Ver en Explorer ↗` para trazabilidad on-chain.
+    - **Navegación & Dashboard**: Integrada la ruta `Screen.AccountStatement` en `NavGraph.kt` y tarjeta de acceso directo en `DashboardScreen.kt`.
+  - **Pruebas Unitarias & Cobertura (`*Test.kt`)**:
+    - Creadas suites completas para `GetAccountStatementUseCaseTest`, `GetSmartContractInfoUseCaseTest`, `SyncCollateralUseCaseTest`, `AccountStatementRepositoryImplTest` y `AccountStatementViewModelTest` (incluyendo validaciones de límite, cálculos defensivos, manejo de errores HTTP y modales).
+    - **133 / 133 Tests Unitarios Aprobados (100% de éxito)**.
+* **Impacto**:
+  - La aplicación Android nativa cuenta con un módulo de auditoría contable y financiera de grado bancario y Web3, con paridad visual exacta a la PWA y alineado con los estándares SOC 2 / OWASP MASVS v2.0.
+
+### 2026-08-24 — UI/UX Assets & Tooling: Descompresión Automatizada de Recursos Visuales en Pantallas PWA
+* **Diagnóstico & Objetivo**:
+  - Descomprimir de manera masiva y ordenada los 12 paquetes `.zip` de capturas de pantallas e interfaces móviles almacenados en el directorio `Pantallas PWA/`.
+  - Garantizar que cada conjunto de imágenes JPEG/PNG se extraiga directamente dentro de su respectiva subcarpeta sin sobreescritura destructiva ni pérdida de archivos originales.
+* **Cambios Técnicos**:
+  - **Tooling (`scripts/unzip_pantallas.ps1`)**:
+    - Implementado script recursivo en PowerShell que itera sobre los subdirectorios de `Pantallas PWA` y ejecuta `Expand-Archive` extrayendo las capturas en sus carpetas correspondientes.
+* **Impacto**:
+  - Todas las subcarpetas de pantallas PWA (`Pantalla Documentacion`, `Pantalla billetera web3`, `Pantalla donaciones`, `Pantalla notificaciones`, `Pantalla publicaciónes`, etc.) cuentan ahora con sus recursos de imagen descomprimidos y listos para inspección visual y diseño UI/UX.
+
+### 2026-08-24 — DevOps & Tooling: Configuración del Entorno de Compilación Android (OpenJDK 21 + Gradle) en Antigravity IDE
+* **Diagnóstico & Objetivo**:
+  - Resolver las alertas de las extensiones `Language Support for Java` y `Gradle for Java` (`The Gradle client was unable to connect` / `Please download and install a JDK to compile your project`).
+  - Habilitar el soporte nativo de análisis, autocompletado y compilación del proyecto Android (`/android`) sin requerir descargas redundantes, reutilizando el entorno OpenJDK 21 provisto por Android Studio (`C:\Program Files\Android\Android Studio\jbr`).
+* **Cambios Técnicos**:
+  - **Configuración de Workspace (`.vscode/settings.json`)**:
+    - Declaradas las directivas `java.jdt.ls.java.home`, `gradle.java.home` y el runtime `JavaSE-21` apuntando al JBR de Android Studio.
+  - **Variables de Entorno Windows**:
+    - Registrada la variable de usuario `JAVA_HOME` (`C:\Program Files\Android\Android Studio\jbr`) y añadido el subdirectorio `bin` al `Path` de usuario.
+  - **Configuración de Proyecto (`android/gradle.properties`)**:
+    - Declarada la directiva `org.gradle.java.home=C:\\Program Files\\Android\\Android Studio\\jbr` para desacoplar las compilaciones de Gradle de la sesión de terminal activa.
+* **Impacto**:
+  - Gradle 9.1.0 y el compilador de Android quedan 100% operativos en el IDE y consola local con JDK 21.0.8, eliminando advertencias y permitiendo la ejecución fluida de tareas de compilación y pruebas unitarias.
+### 2026-08-22 — Seguridad & Arquitectura: Blindaje de Aislamiento de Entornos Zero-Trust y Estrategia de Caché Transparente (Frontend Demo vs Producción)
+* **Diagnóstico & Objetivo**:
+  - Proteger la segregación estricta de entornos bajo normativas bancarias FinTech y SOC 2 (Zero-Trust Environment Isolation), garantizando que las conexiones originadas desde `demo.wintoncoin.com` se enruten obligatoria e inmutablemente a `wintoncoin-backend-demo.onrender.com` (y su base de datos aislada `wintoncoin-demo-db`), evitando que un empaquetado o variable residual de compilación desvíe peticiones hacia el backend de producción.
+  - Resolver el problema de caché en el navegador del usuario sin necesidad de recargas forzadas (`Ctrl+Shift+R`) ni interrupciones visuales, aplicando el estándar de la industria (Vite Cache-Busting + HTTP Headers + Service Worker Ultra-Fast NetworkFirst).
+* **Cambios Técnicos**:
+  - **`frontend/src/modules/config.js` (`getApiUrl`)**:
+    - Reestructurada la jerarquía de resolución de URLs de API: la detección dinámica del hostname (`demo.wintoncoin.com` o prefijo `demo.`) y el modo `MODE === 'demo'` ahora tienen **prioridad inviolable de seguridad**.
+    - Eliminada la trampa de precedencia donde `import.meta.env.VITE_API_URL` interceptaba la resolución antes de evaluar el hostname en producción/demo.
+    - Preservado el soporte para desarrollo local (`localhost`, `127.0.0.1`, subredes privadas `10.x`, `192.168.x`, `172.16-31.x` y `file://`).
+  - **`frontend/admin-email-templates.html` (`getApiUrl`)**:
+    - Actualizado el resolvedor inline para incluir validación estricta de `demo.wintoncoin.com` y rangos de IP locales antes de producción.
+  - **`frontend/src/sw-source.js` (Estrategias PWA)**:
+    - Actualizada la ruta `NetworkFirst` de archivos `.html` a `cacheName: 'wintoncoin-html-v2'` con `networkTimeoutSeconds: 1`, entregando siempre el HTML vivo del servidor en milisegundos y reservando el almacenamiento local solo para desconexión total (offline).
+  - **`frontend/public/.htaccess` (Directivas de Servidor Web Hostinger / LiteSpeed)**:
+    - Creadas directivas automáticas de cabeceras HTTP:
+      - Archivos `.html`, `.json` y `sw.js`: `Cache-Control: no-cache, no-store, must-revalidate` (servidos siempre vivos desde el servidor).
+      - Assets con hash de Vite (`/assets/*.js`, `/assets/*.css`): `Cache-Control: public, max-age=31536000, immutable` (descargados automáticamente con cada nuevo hash sin recargar la página).
+      - Multimedia y fuentes: `Cache-Control: public, max-age=2592000`.
+* **Impacto**:
+  - Se elimina al 100% el riesgo de contaminación cruzada entre entornos. El cliente frontend en Demo queda técnicamente incapacitado de emitir peticiones a la API de producción.
+  - Los usuarios reciben actualizaciones de forma transparente e instantánea al abrir la app o navegar, sin pestañeos, recargas bruscas ni necesidad de comandos técnicos.
+
+### 2026-08-22 — Fase 7: Motor de Impulsores (Booster Profile), Escalera de Niveles, Red de Referidos y 106 Tests Unitarios (Android Nativo)
+* **Diagnóstico & Objetivo**: Implementar en Android nativo (`com.wintoncoin.app`) el módulo completo del **Programa de Impulsores (Booster Profile)** y la **Red de Referidos (Referral Network)** auditados contra la PWA web (`booster-profile.js` y `referrals.js`), garantizando paridad funcional al 100%, seguridad bancaria Zero-Trust y Clean Architecture (MVI + Jetpack Compose).
+* **Cambios Técnicos**:
+  - **DTOs & API Service (`BoosterDtos.kt`, `BoosterApiService.kt`)**: DTOs inmutables con `@Serializable` para `BoosterProfileDto`, `BoosterLevelDto`, `BoosterLedgerItemDto`, `ReferralInfoResponseDto` y `ReferredUserDto`. Endpoints `/api/me/booster-profile`, `/api/users/:username/booster-profile` y `/api/users/:username/referral-info`.
+  - **Inyección de Dependencias (`NetworkModule.kt`, `RepositoryModule.kt`)**: Registro de `BoosterApiService` con cliente Retrofit seguro y vinculación de `BoosterRepository` a `BoosterRepositoryImpl`.
+  - **Repositorio & Dominio (`BoosterRepository.kt`, `BoosterRepositoryImpl.kt`, `BoosterModels.kt`)**: Mapeo defensivo de DTOs a entidades inmutables de dominio (`BoosterProfile`, `BoosterLevelInfo`, `BoosterLedgerMovement`, `ReferralNetworkData`, `ReferredMember`), con cálculo automático de progreso porcentual y saldo faltante para el siguiente nivel.
+  - **Casos de Uso de Dominio (`GetMyBoosterProfileUseCase.kt`, `GetUserBoosterProfileUseCase.kt`, `GetReferralInfoUseCase.kt`)**: Validación estricta de parámetros y consulta desacoplada.
+  - **UI Jetpack Compose - Perfil de Impulsor (`BoosterProfileScreen.kt`, `BoosterProfileViewModel.kt`)**:
+    - Vista para no-impulsores con invitación a realizar tareas en el marketplace.
+    - Cabecera de nivel con equivalencia monetaria `1 BLUE IOU = 1 BLUE = 1 USD`.
+    - Diálogo modal con medidas de seguridad anti-fraude (KYC requerido y actividad transaccional en los últimos 30 días).
+    - 8 Tarjetas de métricas FinTech (Total Acumulado, Habilitado KYC, Retenido Referidos, Disponible Donación, Meta Diaria Hoy vs Ayer con barra de progreso y felicitación animada, Ranking Mundial, Ranking Amigos y Tareas Completadas).
+    - Escalera interactiva del Sistema de Rangos (Booster Ranking System) con bono meta Nivel 3 (`+50.000 BLUE IOU`) y cálculo en vivo del faltante.
+    - Historial de ledger cruzado con transacciones legibles a 4 decimales.
+  - **UI Jetpack Compose - Red de Referidos (`ReferralsScreen.kt`, `ReferralsViewModel.kt`)**:
+    - Código de referido destacado con botón de copiado al portapapeles y generación de URL (`/register.html?ref=CODE`).
+    - Compartición nativa mediante Android Sharesheet (`Intent.ACTION_SEND`).
+    - Métricas de red (Total Invitados, Verificados KYC, BLUE IOU Total aportado).
+    - Lista de miembros referidos con badges de estado (`✅ Verificado` y `⏳ Pendiente`).
+  - **Navegación & Dashboard (`NavGraph.kt`, `DashboardScreen.kt`)**:
+    - Agregadas rutas `Screen.BoosterProfile`, `Screen.UserBoosterProfile` y `Screen.Referrals`.
+    - Agregadas tarjetas de acceso directo en el Dashboard y enlaces contextuales.
+  - **Suite de Pruebas Unitarias (106 Tests Aprobados / 100% Cobertura)**: Incorporadas 18 nuevas pruebas automatizadas (`GetMyBoosterProfileUseCaseTest`, `GetReferralInfoUseCaseTest`, `BoosterProfileViewModelTest`, `ReferralsViewModelTest`).
+  - **Compilación de Artefacto**: Generado y verificado `app-demo-debug.apk` (18.82 MB) con `BUILD SUCCESSFUL`.
+* **Impacto**: La suite de crecimiento orgánico y fidelización de usuarios (Momentum Engine / Booster & Referrals) queda completamente operativa y nativa en Android, lista para producción a gran escala.
+
+### 2026-08-22 — Fase 6: Creación de Publicaciones, Subida Multimedia WebP a Cloudflare R2, Truth-in-Pricing y 88 Tests Unitarios (Android Nativo)
+* **Diagnóstico & Objetivo**: Implementar el módulo completo para la creación de publicaciones (Tareas Comerciales, Ventas P2P, Ventas Rápidas y Causas Solidarias) en la app nativa Android (`com.wintoncoin.app`), con selector fotográfico de alta seguridad (Photo Picker API 33+), compresión WebP en dispositivo antes de la subida a Cloudflare R2 y cálculo reactivo en tiempo real de multiplicadores de etapa (Truth-in-Pricing).
+* **Cambios Técnicos**:
+  - **DTOs & API Service (`PublishDtos.kt`, `MarketplaceApiService.kt`)**: DTOs serializables para `CreatePublicationRequest`, `CreateQuickSaleRequest`, `MediaUploadResponseDto`, `BoosterMultiplierDto` y `PlatformSettingsDto`.
+  - **Compresión Pre-Upload (`ImageCompressor.kt`)**: Optimizador nativo que decodifica con `inSampleSize`, redimensiona proporcionalmente a 1080px y comprime a WebP (80% calidad), reduciendo el consumo de datos móviles hasta en un 85%.
+  - **Repositorio & Dominio (`MarketplaceRepository.kt`, `MarketplaceRepositoryImpl.kt`)**: Métodos para creación de publicaciones, ventas rápidas, subida multipart a `/api/media/upload`, consulta de multiplicadores (`/api/booster/current-multiplier`) y parámetros de plataforma (`/api/platform-settings`).
+  - **Casos de Uso (`CreatePublicationUseCase.kt`, `CreateQuickSaleUseCase.kt`, `UploadMediaUseCase.kt`, `GetBoosterMultiplierUseCase.kt`, `GetPlatformEconomicSettingsUseCase.kt`)**: Validación estricta de campos, montos positivos, código de beneficiario para donaciones y tiempos mínimos de enfriamiento.
+  - **UI Jetpack Compose (`CreatePublicationScreen.kt`, `CreatePublicationViewModel.kt`, `MarketplaceScreen.kt`)**: Selector de pestañas por tipo, previsualización de miniaturas con eliminación dinámica, lista editable de pasos de instrucción, y botón flotante ("Publicar") en el feed.
+  - **Calculadora Truth-in-Pricing**: Distinción estricta entre **BLUE IOU** (con multiplicador activo off-chain en modo prelanzamiento) y **BLUE Real** (on-chain nominal en postlanzamiento).
+  - **Suite de Pruebas Unitarias (88 Tests Aprobados / 100% Cobertura)**: Incorporadas 16 nuevas pruebas unitarias (`CreatePublicationUseCaseTest`, `CreateQuickSaleUseCaseTest`, `UploadMediaUseCaseTest`, `CreatePublicationViewModelTest`).
+  - **Compilación de Artefacto**: Generado `app-demo-debug.apk` (19.68 MB) verificado con `BUILD SUCCESSFUL`.
+* **Impacto**: El ciclo comercial y operativo del Marketplace de WintonCoin queda 100% cerrado y autónomo en Android (crear, postularse, realizar, entregar evidencia, auditar y pagar).
+### 2026-08-21 — DevOps & CI/CD: Pipeline de Despliegue Automatizado para Entorno Demo (demo.wintoncoin.com)
+* **Diagnóstico & Objetivo**:
+  - Habilitar entrega continua (CD) automatizada para el entorno de pruebas Staging (`demo.wintoncoin.com`) de modo que al fusionar cambios a la rama `demo`, GitHub Actions compile automáticamente el bundle con `npm run build:demo` y lo despliegue vía FTP seguro sin intervención manual.
+  - Mantener aislamiento estricto de credenciales y entornos (Zero-Trust) mediante cuenta FTP dedicada y enjaulada en Hostinger (`FTP_SERVER_DEMO`, `FTP_USERNAME_DEMO`, `FTP_PASSWORD_DEMO`), evitando cualquier riesgo de afectación accidental a producción (`sc.wintoncoin.com` y `wintoncoin.com`).
+* **Cambios Técnicos**:
+  - **GitHub Actions Workflow (`.github/workflows/deploy-frontend-demo.yml`)**:
+    - Creado pipeline disparado por `push` en rama `demo` sobre `frontend/**`.
+    - Ejecuta `npm run build:demo` generando `dist-demo/` e instala cliente `lftp` para sincronización en paralelo con Hostinger.
+* **Impacto**: Despliegues automáticos instantáneos en `demo.wintoncoin.com` con cada PR aprobado, aislamiento 100% garantizado y eliminación de tareas manuales propensas a errores.
+
+### 2026-08-21 — Optimización UI/UX & PWA: Bypass de Caché en Páginas Administrativas y Actualización de Menú a Talento / Voluntarios
+* **Diagnóstico & Objetivo**:
+  - Resolver el problema de caché agresivo del Service Worker y del navegador donde la página `admin-recruitment.html` cargaba una versión estática previa desactualizada al navegar desde el panel de administración, requiriendo recarga forzada (`Ctrl+Shift+R`).
+  - Actualizar el acceso del menú lateral en `admin-panel.html` de `🎯 Talento` a `🎯 Talento / Voluntarios` para reflejar con precisión la integración de la brigada humanitaria SOS.
+* **Cambios Técnicos**:
+  - **Service Worker (`sw-source.js`)**:
+    - Registrada estrategia `NetworkOnly` para todas las rutas HTML administrativas (`admin*.html`, `governance-panel.html`, `momentum-admin.html`), asegurando que el Service Worker nunca sirva HTML estático obsoleto y siempre consulte la versión en vivo del servidor.
+  - **Frontend Markup (`admin-recruitment.html` & `admin-panel.html`)**:
+    - Inyectados meta tags anti-caché (`Cache-Control: no-cache, no-store, must-revalidate`, `Pragma: no-cache`, `Expires: 0`) en la cabecera de `admin-recruitment.html`.
+    - Actualizado el texto del elemento de navegación en el sidebar de `admin-panel.html` a `🎯 Talento / Voluntarios`.
+* **Impacto**: Carga instantánea de la versión más reciente en cada navegación sin necesidad de recarga forzada por parte de los administradores.
+
 ### 2026-08-20 — Optimización UI/UX & Responsive: Compactación de Columnas de Saldos y Abreviación Fintech en Tabla de Usuarios
 * **Diagnóstico & Objetivo**:
   - Corregir el desbordamiento horizontal en pantallas de escritorio en la tabla de Usuarios (`#users-section`), donde los títulos extensos (`BLUE (Disponible)`, `BLUE (Pendiente)`, `Calificación`) y el padding excesivo (`1.5rem`) empujaban las columnas de fecha y acciones fuera del viewport.
@@ -5275,3 +5575,91 @@ pm run build:demo) exitosamente.
   - `trabaja-con-nosotros.html`: Banner reactivo al elegir 'Voluntario' para redirigir a `sos-venezuela.html#voluntariado`.
   - `admin-recruitment.html`: Pestaña dedicada **Voluntarios SOS** con tabla interactiva, filtros por score/ubicación y acciones rápidas de activación y suspensión.
 \n
+### 2026-08-27 - UI/UX Refactor: Eliminaci�n de T�tulos de Saldos en Dashboard
+- Se eliminaron los t�tulos 'SALDO BLUE' y 'SALDO RED' de las tarjetas de la billetera en \rontend/contract_interaction.html\ para mantener un dise�o m�s minimalista (KISS).
+- Se unific� el contenido de los tooltips de ayuda dentro de los tooltips de las etiquetas 'Disponibles' y 'Tus obligaciones'.
+- **Raz�n:** Mejora de experiencia de usuario al limpiar la interfaz visual y evitar redundancias sin perder los textos educativos del ecosistema.
+
+### 2026-08-27 - Reordenamiento de M�tricas RED
+- Se reordenaron las filas de la secci�n 'Tokens RED (Obligaciones)' en \rontend/estado-cuenta.html\ al orden solicitado: 'L�mite RED aprobado', 'RED utilizado', 'RED disponible'.
+- **Raz�n:** Solicitud del usuario para mayor claridad de lectura financiera.
+
+### 2026-08-27 - UI/UX Refactor: Terminolog�a de Compromiso
+- Se reemplaz� el t�rmino 'Obligaciones' por 'Compromiso' en las vistas de billetera (\contract_interaction.html\) y estado de cuenta (\estado-cuenta.html\).
+- **Raz�n:** Cambio de copywriting solicitado por el usuario para alinear la percepci�n del usuario con un enfoque colaborativo (compromiso) en lugar de uno estricto de deuda (obligaci�n).
+
+### 2026-08-27 - UI/UX: Adici�n de L�mite Disponible en Dashboard
+- Se agreg� una m�trica secundaria bajo el saldo RED en \contract_interaction.html\ que muestra el cr�dito RED 'DISPONIBLE'.
+- Se actualiz� \src/pages/contract-interaction.js\ para calcular el l�mite disponible (\credit_limit - red_balance\) y poblar din�micamente este nuevo elemento.
+- **Raz�n:** Proveer al usuario una vista r�pida de cu�nto cr�dito RED le queda libre directamente desde la pantalla principal, sin perder de vista su compromiso utilizado.
+
+### 2026-08-27 - UI/UX: Ajustes de copy y colores en Dashboard
+- En la tarjeta BLUE, se cambi� la etiqueta 'Disponibles' por 'LIQUIDEZ'.
+- En la tarjeta RED, se cambi� el color de la etiqueta secundaria 'DISPONIBLE' de verde a rojo (#ef4444) para mantener la coherencia sem�ntica con el token.
+- **Raz�n:** Refinamiento visual y terminol�gico solicitado por el usuario.
+
+### 2026-08-27 - UX: Tarjeta RED clicable en Dashboard
+- Se agreg� el evento \onclick\ y el estilo \cursor: pointer\ a la tarjeta RED en \contract_interaction.html\, replicando el comportamiento de la tarjeta BLUE.
+- **Raz�n:** Proveer al usuario una forma intuitiva de navegar hacia \estado-cuenta.html\ al interactuar con la secci�n de su compromiso, igualando la experiencia de usuario que ya exist�a con la tarjeta de liquidez.
+
+### 2026-08-27 - UX/UI: Tooltips y Copywriting en Estado de Cuenta
+- Se actualiz� el copy de 'Total Disponible' a 'Total L�quido' en la secci�n BLUE.
+- Se cambi� el t�rmino 'Escrow' por 'Parking' en la secci�n BLUE.
+- Se implementaron tooltips informativos en cada elemento de la secci�n BLUE para educar al usuario sobre los estados (L�quido, Parking a 30 d�as, Liberaci�n).
+- **Raz�n:** Claridad financiera e instrucci�n guiada en el Estado de Cuenta Web3.
+
+### 2026-08-27 - UX/UI: Iconos explicativos (?) e inicializaci�n JS de Tooltips en Estado de Cuenta
+- Se elimin� la palabra '(Bloqueado)' dejando �nicamente 'En Parking'.
+- Se actualiz� la explicaci�n de 'Parking' para definirlo como el periodo m�nimo de 30 d�as necesario antes de poder operar o intercambiar esos fondos en P2P.
+- Se a�adieron iconos '?' y tooltips informativos completos a TODOS los elementos tanto de la tarjeta BLUE como de la tarjeta RED (Total L�quido, En Parking, Pr�xima liberaci�n, USD Estimado, L�mite RED aprobado, RED utilizado, RED disponible, Score Org�nico y Garant�a en B�veda).
+- Se integr� la inicializaci�n din�mica de tooltips mediante \initializeInfoTooltip\ en \estado-cuenta.js\ para que funcionen activamente con hover/click siguiendo el principio DRY.
+- **Raz�n:** Experiencia de usuario (UX) 100% educativa e interactiva en la vista de Estado de Cuenta.
+
+### 2026-08-27 - UX/UI Refactor: Correcci�n de Tooltips Web3 Dark y Cobertura 100% en Estado de Cuenta
+- Se elimin� el car�cter Unicode de doble c�rculo (U+24D8), sustituy�ndolo por una letra 'i' limpia envuelta por el c�rculo CSS \.info-icon\ de 16px para eliminar la duplicidad visual.
+- Se redise�� el CSS de \.info-tooltip\ con tema oscuro Web3 (\#1e293b\ con texto claro y bordes \#334155\), ajustando el posicionamiento emergente en m�viles para evitar solapamientos e invasi�n de filas contiguas.
+- Se extendieron los tooltips e iconos 'i' a la totalidad de las secciones del Estado de Cuenta Web3 (Identidad Web3: Estado de Red, KYC, Public Key; M�tricas Blockchain: Interacciones, Recibidos, Enviados, Amortizado), logrando cobertura completa e interactiva.
+- **Raz�n:** Soluci�n definitiva de glitches visuales en dispositivos m�viles y alineamiento con la est�tica Web3.
+
+### 2026-08-27 - UX/UI & Compliance: Tooltips Blancos Centrados y Depuraci�n de Terminolog�a Financiera
+- Se removieron los overrides CSS inline que romp�an el dise�o del sistema. Los tooltips vuelven a ser de fondo blanco (#ffffff), con bordes limpios y texto oscuro contrastado, tal como est� definido en el sistema de dise�o (\style.css\).
+- Se restableci� el centrado responsivo perfecto en m�viles (\left: 50%\, \	ransform: translateX(-50%)\), evitando que se desborden de la pantalla.
+- Se actualiz� \	ooltips.js\ para que al tocar/activar un tooltip nuevo, todos los dem�s tooltips abiertos se cierren autom�ticamente, eliminando la acumulaci�n/solapamiento de recuadros en dispositivos m�viles.
+- **Cumplimiento Legal & FinTech:** Se depuraron todas las menciones de las palabras prohibidas ('cr�dito' y 'deuda') en los tooltips y textos, reemplaz�ndolas por 'compromiso', 'l�mite RED' o 'cupo RED'.
+- **Raz�n:** Estricto cumplimiento normativo FinTech y perfeccionamiento visual responsivo.
+
+### 2026-08-27 - UX/UI Fix: Posicionamiento Responsivo de Tooltips (Eliminaci�n de Desbordamiento M�vil)
+- Se corrigi� el error de alineaci�n matem�tica donde \left: 50%\ con \min-width: calc(100vw - 32px)\ provocaba que el cuadro del tooltip se desplazara hacia afuera de la pantalla por la izquierda (-150px off-screen).
+- Se redujo el ancho m�ximo a un tama�o compacto y elegante (\width: 260px; max-width: calc(100vw - 40px)\).
+- Se implement� la alineaci�n basada en anclaje inteligente: los tooltips de elementos a la izquierda se alinean en \left: 0\ con su flecha apuntando a 20px desde la izquierda directo al icono 'i'; los elementos a la derecha utilizan \.tooltip-right-align\ con flecha alineada a la derecha.
+- **Raz�n:** Garantizar que el 100% del cuadro explicativo blanco sea visible en la pantalla sin importar el tama�o del tel�fono.
+
+### 2026-08-27 - UX Cleanup: Eliminaci�n de Modal de Fase Pre-lanzamiento en Billetera
+- Se removi� por completo el modal informativo emergente (\prelaunchWalletModal\) de \contract_interaction.html\ y se desactiv� su activaci�n en \contract-interaction.js\ a solicitud del usuario.
+- **Raz�n:** Agilizar el flujo de navegaci�n directo hacia las pesta�as de la billetera sin avisos emergentes innecesarios.
+
+### 2026-08-27 — Arquitectura FinTech de Onboarding en 2 Fases (Staging y Creación Oficial de Expedientes), Módulo Reutilizable formDraftManager y Modernización ATS en Voluntariado
+* **Diagnóstico & Objetivo**:
+  - Eliminar la creación prematura de expedientes y registros en users o tablas principales (disaster_victims_registry, volunteers_registry) antes de que el solicitante demuestre la titularidad de su correo mediante verificación OTP (Principio Zero-Trust y Cero Residuos en DB).
+  - Centralizar y estandarizar la lógica de onboarding en 2 fases bajo el Principio DRY para soportar de manera idéntica los formularios actuales (Damnificados SOS, Voluntarios SOS) y futuros (Comerciantes, Proveedores, Refugios y Servicios).
+  - Implementar capacidades completas de navegación bidireccional (In-Flight Editing) con el botón "← Modificar datos o cambiar correo", permitiendo al usuario corregir cualquier campo del formulario preservando intacto su borrador en sessionStorage.
+  - Reorganizar la tabla de administración de Voluntarios SOS (admin-recruitment.html) para desacoplar columnas, formatear fechas en 2 líneas legibles (DD/MM/AAAA y HH:mm) e incorporar ordenamiento dinámico multi-criterio.
+* **Cambios Técnicos**:
+  - **Migración 107 de Base de Datos (107_add_form_payload_to_pending_verifications.js)**:
+    - Agregada columna form_payload JSONB e índice GIN en pending_verifications para almacenar de forma segura y estructurada todo el paquete de datos del formulario durante la fase de staging.
+    - Actualizado el esquema inicial en databaseInit.js.
+  - **Servicio Centralizado de Onboarding (onboardingStagingService.js)**:
+    - stagePendingEntity: Limpia registros previos de staging, genera hash HMAC SHA-256 del OTP de 6 dígitos, resguarda el payload y despacha el correo transaccional sin alterar las tablas definitivas.
+    - verifyAndCommitEntity: Control anti fuerza bruta (máximo 5 intentos con HTTP 429), validación criptográfica en tiempo constante (safeEqualHex), activación/creación de usuario en users con is_verified = true, generación de billetera Web3 cifrada (AES-256-GCM), otorgamiento del bono de bienvenida de 200 BLUE IOU vía referralRewardService.processReferralReward, eliminación del staging y emisión de tokens JWT de sesión.
+  - **Refactorización de Controladores Backend (victimController.js, volunteerController.js)**:
+    - Migrados al motor onboardingStagingService para Fase 1 (registro y despacho OTP) y Fase 2 (verificación OTP y acuñación oficial con status 'pending_verification').
+    - Añadida validación de conflicto de teléfono entre correos distintos para prevenir secuestro de identidad.
+  - **Módulo Frontend Reutilizable (formDraftManager.js y modules/index.js)**:
+    - Diseñado e implementado el gestor de borradores de formularios que serializa, resguarda y restaura el estado en sessionStorage y conmuta vistas reactivas.
+  - **Vistas Públicas de Emergencia SOS (sos-venezuela.html, sos-venezuela.js)**:
+    - Integrado botón #sos-btn-back-to-form y gestión reactiva de formularios con borrador en tiempo real tanto para damnificados como para voluntarios.
+  - **Panel de Administración de Voluntarios (admin-recruitment.html)**:
+    - Reorganización de columnas: Desacople de PRIORIDAD y FECHA REG., integración de ordenamiento interactivo con renderSortableTh / tableSort.js, filtros in-memory y modal ATS.
+  - **Garantía de Calidad y Pruebas Automatizadas**:
+    - Actualizadas las suites volunteerSystem.test.js y sosRegistrationFlow.test.js.
+    - 11 de 11 suites de pruebas automatizadas pasando al 100% (73/73 tests unitarios y de integración aprobados).

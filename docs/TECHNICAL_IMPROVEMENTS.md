@@ -377,20 +377,41 @@ Estas mejoras **no son obligatorias para que el sistema funcione hoy**, pero son
 
 ---
 
-## 14. Automatización de Despliegues con CI/CD (GitHub Actions)
+## 14. Automatizaciï¿½n de Despliegues con CI/CD (GitHub Actions)
 
-**Prioridad: Media / Alta (DevOps y Estandarización Profesional)**
+**Prioridad: Media / Alta (DevOps y Estandarizaciï¿½n Profesional)**
 
 **Problema Actual:**
-Actualmente los procesos de construcción (build) de los entornos de Producción (
-pm run build) y Demostración (
-pm run build:demo) se ejecutan de manera local. Aunque se ha solucionado el aislamiento de directorios (dist/ vs dist-demo/), depender de builds locales introduce riesgos de inconsistencia (diferentes versiones de Node, caché corrupta) y vulnera el estándar de cero confianza (Zero-Trust) para despliegues a producción.
+Actualmente los procesos de construcciï¿½n (build) de los entornos de Producciï¿½n (
+pm run build) y Demostraciï¿½n (
+pm run build:demo) se ejecutan de manera local. Aunque se ha solucionado el aislamiento de directorios (dist/ vs dist-demo/), depender de builds locales introduce riesgos de inconsistencia (diferentes versiones de Node, cachï¿½ corrupta) y vulnera el estï¿½ndar de cero confianza (Zero-Trust) para despliegues a producciï¿½n.
 
-**Solución Propuesta:**
+**Soluciï¿½n Propuesta:**
 1. **Implementar GitHub Actions:** Crear workflows (ej. .github/workflows/deploy-prod.yml y deploy-demo.yml) que automaticen el proceso de build y despliegue.
-2. **Entornos Efímeros:** Configurar el pipeline para que, ante cada push a la rama main o demo, levante un contenedor inmaculado, instale dependencias, ejecute el build correspondiente y lo transfiera automáticamente al proveedor de alojamiento vía FTP/SSH o integraciones directas.
-3. **Bloqueo de Modificaciones Manuales:** Requerir que todos los cambios pasen por Pull Requests revisados, garantizando que el código que llega a los usuarios fue compilado y auditado por los servidores de integración y no por la máquina de un desarrollador individual.
+2. **Entornos Efï¿½meros:** Configurar el pipeline para que, ante cada push a la rama main o demo, levante un contenedor inmaculado, instale dependencias, ejecute el build correspondiente y lo transfiera automï¿½ticamente al proveedor de alojamiento vï¿½a FTP/SSH o integraciones directas.
+3. **Bloqueo de Modificaciones Manuales:** Requerir que todos los cambios pasen por Pull Requests revisados, garantizando que el cï¿½digo que llega a los usuarios fue compilado y auditado por los servidores de integraciï¿½n y no por la mï¿½quina de un desarrollador individual.
 
 **Beneficios:**
-- **Seguridad Inquebrantable:** Cumplimiento total del estándar Zero-Trust, con auditoría de quién aprobó y qué bot ejecutó el despliegue.
-- **Eficiencia y Confiabilidad:** Se elimina el error humano (ej. subir dist-demo a producción accidentalmente) y se garantiza un entorno de compilación idéntico cada vez.
+- **Seguridad Inquebrantable:** Cumplimiento total del estï¿½ndar Zero-Trust, con auditorï¿½a de quiï¿½n aprobï¿½ y quï¿½ bot ejecutï¿½ el despliegue.
+- **Eficiencia y Confiabilidad:** Se elimina el error humano (ej. subir dist-demo a producciï¿½n accidentalmente) y se garantiza un entorno de compilaciï¿½n idï¿½ntico cada vez.
+
+---
+
+## 15. OptimizaciÃ³n de Base de Datos para Escala Masiva: Ãndice B-Tree en `pending_verifications(expires_at)`
+
+**Prioridad: Baja / Futura (Requerido Ãºnicamente para Millones de Usuarios Concurrentes)**
+
+**Contexto & DiagnÃ³stico:**
+El worker de mantenimiento `stagingCleanupJob.js` ejecuta periÃ³dicamente cada 48 horas la purga de registros temporales en `pending_verifications` (`WHERE expires_at < NOW() - INTERVAL '48 hours'`).
+En el volumen actual y a mediano plazo (cientos o miles de solicitudes diarias), la consulta se resuelve de forma instantÃ¡nea en memoria en menos de 2 milisegundos sin requerir Ã­ndices adicionales.
+
+**Mejora Propuesta para Escala Masiva:**
+Cuando la plataforma alcance un trÃ¡fico masivo de millones de registros o censos humanitarios concurrentes diarios, se recomienda crear una migraciÃ³n dedicada para aÃ±adir un Ã­ndice B-Tree sobre la columna `expires_at`:
+```sql
+CREATE INDEX IF NOT EXISTS idx_pending_verifications_expires_at 
+ON pending_verifications (expires_at);
+```
+
+**Beneficios a Escala:**
+- **TransformaciÃ³n a Escaneo de Ãndice O(log N):** Evita escaneos secuenciales de disco durante la purga en tablas con millones de registros histÃ³ricos.
+- **Cero Bloqueos:** Minimiza el tiempo de retenciÃ³n de bloqueos a nivel de fila a microsegundos, optimizando el consumo de I/O en hardware de base de datos a gran escala.

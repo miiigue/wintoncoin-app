@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ============================================================================
+     WintonCoin Android — network_security_config.xml (Blindaje de Red Nativo)
+     ============================================================================
+     [SEGURIDAD FINTECH / OWASP MASVS v2.0 / ZERO-TRUST]
+     - cleartextTrafficPermitted="false": Bloqueo absoluto de tráfico HTTP sin cifrar.
+     - src="system": Confía única y exclusivamente en autoridades CAs del sistema Android.
+     - Bloqueo de certificados de usuario: Impide intercepción por proxies o malware.
+     ============================================================================ -->
+<network-security-config>
+
+    <!-- Configuración Base Global -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Únicamente autoridades certificadoras oficiales del sistema operativo -->
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Configuración Específica para Dominios de Producción y Demo -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">wintoncoin.com</domain>
+        <domain includeSubdomains="true">onrender.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+</network-security-config>

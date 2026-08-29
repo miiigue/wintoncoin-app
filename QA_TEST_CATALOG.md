@@ -400,5 +400,182 @@ PASOS:
 6. Presiona el botón verde de aprobación para activar su expediente y confirma que la pantalla actualice su estatus a ACTIVO.
 ```
 
+---
+
+```text
+TITULO: QA-31 - Verificación del Perfil de Impulsor y Requisitos de Canje en Android
+DESCRIPCION: El objetivo de esta prueba es comprobar que la pantalla de perfil de impulsor en la aplicación móvil muestre tus 8 métricas financieras, el avance en la escalera de rangos y el diálogo explicativo de seguridad con las condiciones para canjear tus recompensas.
+PASOS:
+2. Abre la aplicación de WintonCoin en tu teléfono móvil e inicia sesión con tu cuenta.
+3. En la pantalla principal, presiona la tarjeta que dice Impulsores.
+4. Confirma que veas tu nivel actual de impulsor junto con el aviso de equivalencia 1 BLUE IOU = 1 USD.
+5. Toca el botón de información (icono de interrogación o candado) en la esquina superior y comprueba que se abra la ventana con los requisitos de seguridad anti-fraude.
+6. Revisa las tarjetas de saldo y verifica que tu saldo habilitado y el saldo retenido por referidos sin verificación aparezcan claramente separados.
+7. Desplázate hacia abajo y comprueba que la escalera de rangos señale tu nivel actual y te indique exactamente cuánto te falta para subir al siguiente nivel.
+```
+
+---
+
+```text
+TITULO: QA-32 - Invitación de Amigos y Monitoreo de Referidos con KYC en Android
+DESCRIPCION: Esta misión asegura que puedas compartir tu código y enlace de invitación directamente desde la aplicación móvil hacia tus redes sociales y ver el listado actualizado de las personas que se hayan registrado con tu enlace, identificando quiénes ya verificaron su identidad.
+PASOS:
+2. Abre la aplicación móvil y presiona el botón de Mis Referidos en la pantalla de inicio o desde tu perfil de impulsor.
+3. Presiona el botón Copiar Código y confirma que aparezca un mensaje indicando que el código fue copiado al portapapeles.
+4. Presiona el botón Compartir y comprueba que se abra el menú de aplicaciones de tu teléfono para enviarlo por WhatsApp o redes sociales.
+5. Revisa la lista de personas invitadas en la parte inferior y verifica que cada amigo tenga su etiqueta verde de KYC Aprobado o amarilla de KYC Pendiente según su estado real.
+```
+
+---
+
+```text
+TITULO: QA-33 - Auditoría de Estado de Cuenta Web3 y Consulta de Smart Contracts en Android
+DESCRIPCION: Esta misión tiene como objetivo verificar que la pantalla de Estado de Cuenta Web3 en Android muestre con claridad tus saldos disponibles y en reserva, el desglose de tu límite crediticio y te permita consultar la información oficial de los contratos inteligentes en la blockchain.
+PASOS:
+2. Abre la aplicación de WintonCoin en tu teléfono móvil e inicia sesión.
+3. En el menú principal, presiona la tarjeta que dice Estado de Cuenta Web3.
+4. Confirma que la tarjeta azul muestre tu saldo disponible, el saldo en reserva y el cálculo estimado en dólares (1 BLUE = 1 USD).
+5. Toca el botón Ver Smart Contract BLUE y verifica que se abra la ventana con la dirección pública del contrato y el total de monedas emitidas en la blockchain.
+6. Cierra la ventana y toca el botón Ver Smart Contract RED para comprobar igualmente la información del contrato de obligaciones.
+7. Revisa la tarjeta de Identidad Web3 y confirma que muestre tu estado de red conectada y tu dirección pública de billetera con el botón para copiarla.
+```
+
+---
+
+```text
+TITULO: QA-34 - Simulación de Aumento de Límite en la Bóveda de Garantías desde Android
+DESCRIPCION: Esta prueba busca confirmar que puedas acceder al simulador de la Bóveda de Garantías en la aplicación móvil, seleccionar la moneda digital de respaldo y calcular en vivo cómo aumentará tu límite de crédito antes de realizar cualquier operación.
+PASOS:
+2. Abre la aplicación de WintonCoin e ingresa a la pantalla de Estado de Cuenta Web3.
+3. Ubica la tarjeta roja de Tokens RED y presiona el botón destacado Aumentar Límite RED.
+4. Comprueba que se despliegue el panel de la Bóveda de Garantías mostrando las opciones de monedas de respaldo (USDT, USDC y DAI).
+5. Selecciona la opción USDT y escribe un monto de prueba (por ejemplo, 50) en la casilla de monto a depositar.
+6. Verifica que la calculadora verde en pantalla actualice inmediatamente el cálculo de tu nuevo límite sumando tu respaldo a tu límite actual.
+7. Revisa las 4 tarjetas de estadísticas de actividad blockchain y toca el icono de información en cualquiera de ellas para leer su explicación en lenguaje sencillo.
+```
+
+---
+
+```text
+TITULO: QA-35 - Monitoreo de Notificaciones y Filtrado por Categorías en Android
+DESCRIPCION: Esta misión tiene como objetivo verificar que puedas ingresar al Centro de Notificaciones desde la pantalla principal, revisar tus alertas de recompensas y pagos recibidos, y aplicar los filtros por categoría para encontrar eventos específicos de forma rápida.
+PASOS:
+2. Abre la aplicación de WintonCoin en tu teléfono e inicia sesión con tu cuenta.
+3. En la barra superior de la pantalla de inicio, toca el icono de la campana de notificaciones o presiona la tarjeta Centro de Notificaciones.
+4. Verifica que aparezca la lista de tus notificaciones no leídas con sus respectivos iconos de colores según el tipo de mensaje (recompensas, pagos o avisos).
+5. Toca los botones de filtro en la parte superior (por ejemplo, Recompensas o Pagos) y confirma que la lista muestre únicamente los mensajes correspondientes a esa categoría.
+6. Toca el botón Todas para volver a ver el listado completo de alertas pendientes.
+```
+
+---
+
+```text
+TITULO: QA-36 - Descarte Individual y Limpieza Total de Notificaciones en Android
+DESCRIPCION: Esta prueba asegura que puedas descartar notificaciones individuales con una animación fluida o utilizar el botón de limpieza masiva para marcar todas tus alertas pendientes como leídas y consultar el historial completo.
+PASOS:
+2. Ingresa al Centro de Notificaciones en la aplicación móvil de WintonCoin.
+3. Elige una de las notificaciones pendientes y presiona el botón con forma de equis en la esquina derecha de la tarjeta.
+4. Verifica que la notificación desaparezca de pantalla y el contador de alertas pendientes en la barra superior se actualice de inmediato.
+5. Presiona el botón Limpiar todo en la esquina superior derecha y confirma que la bandeja se vacíe mostrando el mensaje de que no tienes notificaciones nuevas.
+6. Toca la pestaña Historial Completo y comprueba que puedas revisar tus notificaciones anteriores con su fecha y hora de registro.
+```
+
+---
+
+```text
+TITULO: QA-37 - Postulación de Causa Humanitaria en WintonCoin Solidario desde Android
+DESCRIPCION: Esta misión tiene como objetivo comprobar que cualquier persona pueda postular una causa humanitaria desde la aplicación móvil completando el formulario de verificación, adjuntando enlaces de evidencias y enviándola a revisión del equipo de auditoría.
+PASOS:
+2. Abre la aplicación de WintonCoin en tu teléfono móvil e inicia sesión con tu cuenta.
+3. En la pantalla de inicio, presiona la tarjeta destacada que dice WintonCoin Solidario.
+4. En la parte inferior de la pantalla, presiona el botón flotante rojo que dice Postular Causa.
+5. Verifica que tu nombre de usuario aparezca automáticamente con el mensaje verde de usuario verificado en la base de datos.
+6. Escribe el título de tu causa, la historia detallada explicando la situación y la meta requerida en tokens BLUE IOU.
+7. Ingresa un enlace de evidencia de prueba en una nube autorizada (por ejemplo, Google Drive o Dropbox) y tus enlaces a redes sociales.
+8. Marca la casilla de aceptación de Términos y Condiciones y presiona el botón Enviar para Auditoría.
+9. Confirma que aparezca una ventana verde de confirmación indicando que tu postulación fue enviada con éxito.
+```
+
+---
+
+```text
+TITULO: QA-38 - Exploración de Causas, Donación de Tokens BLUE IOU y Muro de Donantes en Android
+DESCRIPCION: Esta prueba asegura que puedas explorar las causas solidarias activas, revisar el progreso de recaudación, donar tus tokens BLUE IOU acumulados y verificar que tu aporte aparezca registrado de inmediato en el muro de donantes.
+PASOS:
+2. Ingresa a la sección de WintonCoin Solidario desde la pantalla principal de la app móvil.
+3. En la pestaña de Causas en Recaudación, presiona cualquiera de las causas humanitarias activas para ver su detalle.
+4. Confirma que veas el banner con el distintivo de modo de prueba, el creador de la causa, la historia completa y la barra de progreso de recaudación.
+5. Ubica la tarjeta de Realizar Donación y verifica que tu saldo disponible de BLUE IOU se muestre correctamente.
+6. Escribe un monto a donar (por ejemplo, 10), marca la casilla de aceptación de términos y presiona el botón Donar BLUE IOU.
+7. En la ventana de confirmación, presiona Donar Ahora y verifica que aparezca el aviso de donación exitosa.
+8. Revisa la pestaña de Muro de Donantes en la parte inferior y comprueba que tu donación aparezca listada con la etiqueta DONADO y su estado correspondiente.
+```
+
+---
+
+```text
+TITULO: QA-39 - Censo y Registro de Emergencia para Damnificados en SOS Venezuela desde Android
+DESCRIPCION: Esta misión asegura que las personas afectadas por contingencias o desastres puedan registrar su expediente de emergencia desde la aplicación móvil, indicar el nivel de afectación y personas a cargo, verificar su código de 6 dígitos y obtener su número de expediente inteligente.
+PASOS:
+2. Abre la aplicación móvil de WintonCoin e ingresa a la sección SOS Venezuela desde la pantalla de inicio.
+3. Presiona la tarjeta roja de emergencia que dice Soy Afectado / Censo SOS.
+4. Completa tus datos personales verificando que la cédula comience con V- y el teléfono incluya el prefijo de Venezuela (+58).
+5. Selecciona tu estado, municipio, sector y escribe tu dirección o punto de referencia.
+6. Elige el nivel de afectación y ajusta los contadores de menores de edad o adultos mayores a tu cargo.
+7. Escribe la descripción de la situación, marca las dos casillas de autorización y presiona el botón Registrar Emergencia Humanitaria.
+8. En la ventana que aparece, escribe el código de 6 dígitos enviado a tu correo, define tu contraseña y presiona Activar Cuenta.
+9. Confirma que veas tu número de expediente inteligente generado con el formato SOS-VZLA.
+```
+
+---
+
+```text
+TITULO: QA-40 - Registro y Postulación en Brigadas de Voluntarios SOS desde Android
+DESCRIPCION: Esta prueba comprueba que cualquier persona interesada en brindar auxilio humanitario pueda postularse como voluntario en la aplicación móvil seleccionando su especialidad operativa, disponibilidad y completando la activación de su credencial.
+PASOS:
+2. Ingresa a la sección de SOS Venezuela en la pantalla principal de la aplicación móvil de WintonCoin.
+3. Toca la tarjeta azul que dice Quiero ser Voluntario SOS.
+4. Llena el formulario con tu nombre, cédula, fecha de nacimiento, correo y número telefónico.
+5. Selecciona tu especialidad o rol operativo (por ejemplo, Primeros Auxilios o Logística), tu disponibilidad horaria y modalidad.
+6. Describe brevemente tus habilidades o experiencia en el campo de texto.
+7. Marca las casillas de consentimiento de datos y código de conducta y presiona el botón Postularme como Voluntario SOS.
+8. Ingresa el código de 6 dígitos recibido por correo junto con tu contraseña para activar tu expediente.
+9. Verifica que la pantalla te muestre tu número oficial de expediente voluntario con el formato VOL-VZLA.
+```
+
+---
+
+```text
+TITULO: QA-41 - Activación de Bloqueo Biométrico y Desbloqueo Seguro de la App en Android
+DESCRIPCION: Esta misión tiene como objetivo comprobar que puedas activar el bloqueo por huella dactilar o rostro desde la configuración de seguridad y que al salir o volver a abrir la aplicación se muestre la pantalla de bloqueo solicitando tu confirmación biométrica.
+PASOS:
+2. Abre la aplicación de WintonCoin en tu teléfono móvil e inicia sesión con tu cuenta.
+3. En la pantalla de inicio, ubica y presiona la tarjeta que dice Seguridad & Biometría.
+4. En la sección de Controles de Protección, activa el interruptor que dice Bloqueo Biométrico de la App.
+5. Verifica que aparezca un mensaje verde indicando que el bloqueo biométrico fue activado con éxito.
+6. Sal de la aplicación o ciérrala desde la vista de aplicaciones recientes de tu teléfono y vuelve a abrirla.
+7. Comprueba que aparezca la pantalla de bloqueo oscuro de WintonCoin con el icono de huella dactilar solicitando tu autenticación.
+8. Coloca tu huella dactilar o usa tu rostro y confirma que la aplicación se desbloquee de inmediato llevándote a tu pantalla principal.
+```
+
+---
+
+```text
+TITULO: QA-42 - Configuración de Autorización Biométrica para Transacciones Financieras en Android
+DESCRIPCION: Esta prueba asegura que puedas gestionar la exigencia de huella o rostro para la autorización de transferencias de fondos, donaciones solidarias y operaciones de billetera desde el panel de seguridad de la aplicación.
+PASOS:
+2. Ingresa a la sección de Seguridad & Biometría desde la pantalla principal de la aplicación móvil.
+3. Revisa la tarjeta superior y comprueba que se muestre el estado de tu sensor biométrico en color verde.
+4. En el interruptor que dice Autorizar Transacciones, desactívalo y actívalo nuevamente para comprobar la respuesta del sistema.
+5. Verifica que cada cambio muestre el aviso de confirmación correspondiente en la parte superior.
+6. Lee la sección inferior de Estándares de Ciberseguridad Bancaria y comprueba que se detalle el uso de cifrado seguro por hardware.
+7. Presiona el botón de flecha en la esquina superior izquierda para regresar al inicio sin errores.
+```
+
+
+
+
+
+
 
 

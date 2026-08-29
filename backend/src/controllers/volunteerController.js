@@ -22,6 +22,7 @@ const { logAuditEvent } = require('../services/auditService'); // Registro inmut
 const emailService = require('../services/emailService'); // Envío de OTP y correos transaccionales
 const notificationService = require('../services/notificationService'); // Push Notifications
 const referralRewardService = require('../services/referralRewardService'); // Servicio de bonos de referido
+const onboardingStagingService = require('../services/onboardingStagingService');
 
 // Secreto JWT de respaldo (Zero Hardcoded Secrets)
 const jwtSecret = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'wintoncoin_fallback_secret_key_2026';
@@ -146,6 +147,12 @@ function maskEmailHelper(email) {
 // ============================================================================
 // POST /api/public/volunteers/register (Público - Registro de Voluntario)
 // ============================================================================
+// FASE 1: Validación Zero-Trust y Staging Modular DRY
+// 1. Valida campos obligatorios, mayoría de edad (18+) y consentimientos legales.
+// 2. Comprueba si la Cédula ya está registrada en un expediente oficial de voluntario activo.
+// 3. Resguarda el paquete completo en pending_verifications (form_payload JSONB).
+// 4. Despacha OTP de 6 dígitos al correo sin tocar volunteers_registry ni users.
+// ============================================================================
 exports.registerVolunteerPublic = async (req, res) => {
     const {
         full_name,
@@ -200,7 +207,7 @@ exports.registerVolunteerPublic = async (req, res) => {
     const cleanGender = (gender === 'male' || gender === 'hombre' || gender === 'm') ? 'male' : 'female';
     const cleanCountry = country.trim();
 
-    // Validación de formato internacional de teléfono (+ y al menos 7 dígitos numéricos)
+    // Validación de formato internacional de teléfono
     if (!/^\+[1-9]\d{6,16}$/.test(normPhone)) {
         return res.status(400).json({ success: false, message: "Ingresa un número telefónico internacional válido (ej: +584121234567, +13051234567, +34612345678)." });
     }
@@ -209,224 +216,83 @@ exports.registerVolunteerPublic = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // 2. Detección Inteligente de Cédula Duplicada
-        const existingVol = await client.query(`
-            SELECT v.id, v.dossier_number, v.user_id, v.email, u.is_verified, u.username
-            FROM volunteers_registry v
-            LEFT JOIN users u ON u.id = v.user_id
-            WHERE v.id_document = $1
-        `, [normDoc]);
+        // 2. Verificar si ya existe un expediente de voluntario confirmado con esta Cédula
+        const existingVol = await client.query(
+            'SELECT id, dossier_number FROM volunteers_registry WHERE id_document = $1',
+            [normDoc]
+        );
 
         if (existingVol.rows.length > 0) {
-            const vol = existingVol.rows[0];
-            if (vol.is_verified === true) {
-                await client.query('ROLLBACK');
-                return res.status(409).json({
-                    success: false,
-                    already_active: true,
-                    dossier_number: vol.dossier_number,
-                    message: `La Cédula ${normDoc} ya tiene un registro de voluntario activo bajo el expediente #${vol.dossier_number}. Inicia sesión con tu cuenta para consultar tu perfil.`
-                });
-            } else {
-                // Reanudación Inteligente (Smart Resume OTP)
-                const verificationCode = emailService.generateOtp6();
-                const verificationCodeHash = emailService.hashOtpForEmail(vol.email, verificationCode);
-                const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-
-                const customCodeRes = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'referral_custom_share_code'`);
-                const specialReferralCode = (customCodeRes.rows.length > 0 && customCodeRes.rows[0].setting_value) ? customCodeRes.rows[0].setting_value.trim() : 'SOSVENEZUELA';
-
-                await client.query(`
-                    INSERT INTO pending_verifications (
-                        username, email, password_hash, phone_number, referral_code,
-                        verification_code_hash, verification_attempts, resend_count, last_sent_at, expires_at
-                    ) VALUES ($1, $2, '', $3, $4, $5, 0, 0, NOW(), $6)
-                    ON CONFLICT (email) DO UPDATE
-                    SET referral_code = EXCLUDED.referral_code,
-                        verification_code_hash = EXCLUDED.verification_code_hash,
-                        expires_at = EXCLUDED.expires_at,
-                        verification_attempts = 0,
-                        resend_count = pending_verifications.resend_count + 1,
-                        last_sent_at = NOW()
-                `, [vol.username || normEmail.split('@')[0], vol.email, normPhone, specialReferralCode, verificationCodeHash, expiresAt]);
-
-                await client.query('COMMIT');
-
-                try {
-                    const ipRaw = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString();
-                    const ip = ipRaw.split(',')[0].trim();
-                    await emailService.sendOtpEmail({ toEmail: vol.email, otp: verificationCode, context: { ip, requestedAt: new Date().toISOString() } });
-                } catch (mErr) {
-                    console.error("[VOLUNTEER RESUME] Error enviando email de reanudación OTP:", mErr.message);
-                }
-
-                const maskedEmail = maskEmailHelper(vol.email);
-                return res.status(200).json({
-                    success: true,
-                    resume_verification: true,
-                    dossier_number: vol.dossier_number,
-                    email: vol.email,
-                    is_new_user: true,
-                    message: `Tu postulación ya fue recibida con el expediente #${vol.dossier_number}. Hemos enviado un nuevo código de 6 dígitos a tu correo (${maskedEmail}) para que actives tu cuenta.`
-                });
-            }
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                success: false,
+                already_active: true,
+                dossier_number: existingVol.rows[0].dossier_number,
+                message: `La Cédula ${normDoc} ya tiene un registro de voluntario activo bajo el expediente #${existingVol.rows[0].dossier_number}. Inicia sesión con tu cuenta para consultar tu perfil.`
+            });
         }
 
-        // 3. Buscar o Crear Cuenta WintonCoin (DRY)
-        let userId = null;
-        let username = null;
-        let isNewUser = false;
-
-        const userCheck = await client.query(
-            'SELECT id, username, email, phone_number FROM users WHERE email = $1 OR phone_number = $2',
+        // 3. Detectar si el usuario ya existe en 'users' (is_verified = true)
+        const existingUserRes = await client.query(
+            'SELECT id, email, phone_number, is_verified FROM users WHERE email = $1 OR phone_number = $2',
             [normEmail, normPhone]
         );
 
-        if (userCheck.rows.length > 0) {
-            const phoneConflict = userCheck.rows.find(u => u.phone_number === normPhone && u.email !== normEmail);
+        if (existingUserRes.rows.length > 0) {
+            const phoneConflict = existingUserRes.rows.find(u => u.phone_number === normPhone && u.email !== normEmail);
             if (phoneConflict) {
                 await client.query('ROLLBACK');
                 return res.status(400).json({
                     success: false,
-                    message: "El número telefónico ya pertenece a otra cuenta registrada."
+                    message: "El número de teléfono ya está registrado con otro correo electrónico."
                 });
             }
-            const emailConflict = userCheck.rows.find(u => u.email === normEmail && u.phone_number !== normPhone);
-            if (emailConflict) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({
-                    success: false,
-                    message: "El correo electrónico ya está registrado con otro número de teléfono."
-                });
-            }
-
-            userId = userCheck.rows[0].id;
-            username = userCheck.rows[0].username;
-            if (birth_date) {
-                await client.query('UPDATE users SET date_of_birth = $1 WHERE id = $2 AND date_of_birth IS NULL', [birth_date, userId]);
-            }
-        } else {
-            isNewUser = true;
-            const tempPassword = crypto.randomBytes(12).toString('hex');
-            const hashedPassword = await bcrypt.hash(tempPassword, 10);
-            const baseUsername = normEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').substring(0, 10);
-
-            let isUsernameUnique = false;
-            while (!isUsernameUnique) {
-                username = `${baseUsername}_${Math.floor(100 + Math.random() * 900)}`;
-                const collisionCheck = await client.query('SELECT id FROM users WHERE username = $1', [username]);
-                if (collisionCheck.rows.length === 0) isUsernameUnique = true;
-            }
-
-            const { generateUniqueReferralCode } = require('../config/databaseInit');
-            const ownReferralCode = await generateUniqueReferralCode(client, username);
-
-            const newUserRes = await client.query(`
-                INSERT INTO users (username, email, password_hash, phone_number, is_verified, date_of_birth, referral_code)
-                VALUES ($1, $2, $3, $4, false, $5, $6)
-                RETURNING id
-            `, [username, normEmail, hashedPassword, normPhone, birth_date, ownReferralCode]);
-
-            userId = newUserRes.rows[0].id;
         }
 
-        // 4. UPSERT en pending_verifications
-        await client.query('DELETE FROM pending_verifications WHERE email = $1 OR phone_number = $2 OR username = $3', [normEmail, normPhone, username]);
+        const isNewUser = (existingUserRes.rows.length === 0 || existingUserRes.rows[0].is_verified !== true);
 
-        const verificationCode = emailService.generateOtp6();
-        const verificationCodeHash = emailService.hashOtpForEmail(normEmail, verificationCode);
-        const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+        // 4. Guardar Borrador en Staging y Despachar OTP vía Servicio Modular DRY
+        const stagePayload = {
+            full_name: full_name.trim(),
+            id_document: normDoc,
+            birth_date,
+            age: calculatedAge,
+            gender: cleanGender,
+            email: normEmail,
+            phone_number: normPhone,
+            country: cleanCountry,
+            state: state.trim(),
+            municipality: municipality.trim(),
+            sector_city: sector_city.trim(),
+            volunteer_types: Array.isArray(volunteer_types) ? volunteer_types : [volunteer_types].filter(Boolean),
+            availability: Array.isArray(availability) ? availability : [availability].filter(Boolean),
+            profession_skills: (profession_skills || '').trim(),
+            data_consent_accepted: consentAccepted,
+            legal_disclaimer_accepted: legalAccepted
+        };
 
-        const customCodeRes = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'referral_custom_share_code'`);
-        const specialReferralCode = (customCodeRes.rows.length > 0 && customCodeRes.rows[0].setting_value) ? customCodeRes.rows[0].setting_value.trim() : 'SOSVENEZUELA';
-
-        await client.query(`
-            INSERT INTO pending_verifications (
-                username, email, password_hash, phone_number, referral_code,
-                verification_code_hash, verification_attempts, resend_count, last_sent_at, expires_at, date_of_birth
-            ) VALUES ($1, $2, '', $3, $4, $5, 0, 0, NOW(), $6, $7)
-        `, [username, normEmail, normPhone, specialReferralCode, verificationCodeHash, expiresAt, birth_date]);
-
-        // 5. Insertar Expediente en volunteers_registry (Paso 1: Código Temporal)
-        const tempDossierCode = `VOL-TEMP-${crypto.randomUUID().substring(0, 8).toUpperCase()}`;
-        const normalizedTypes = Array.isArray(volunteer_types) ? volunteer_types : [volunteer_types];
-        const normalizedAvailability = Array.isArray(availability) ? availability : [availability];
-
-        const insertRes = await client.query(`
-            INSERT INTO volunteers_registry (
-                dossier_number, user_id, full_name, id_document, birth_date, age, gender,
-                email, phone_number, country, state, municipality, sector_city,
-                volunteer_types, availability, profession_skills, priority_score, status,
-                data_consent_accepted, legal_disclaimer_accepted
-            ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7,
-                $8, $9, $10, $11, $12, $13,
-                $14, $15, $16, 0, 'pending_verification',
-                $17, $18
-            ) RETURNING id;
-        `, [
-            tempDossierCode, userId, full_name.trim(), normDoc, birth_date, calculatedAge, cleanGender,
-            normEmail, normPhone, cleanCountry, state.trim(), municipality.trim(), sector_city.trim(),
-            normalizedTypes, normalizedAvailability, profession_skills ? profession_skills.trim() : '',
-            consentAccepted, legalAccepted
-        ]);
-
-        const volunteerId = insertRes.rows[0].id;
-
-        // 6. Calcular Código de Expediente Inteligente (Paso 2)
-        const { smartCode, priorityScore } = calculateSmartVolunteerCode(
-            normalizedTypes, normalizedAvailability, calculatedAge, cleanGender, volunteerId
-        );
-
-        await client.query(`
-            UPDATE volunteers_registry
-            SET dossier_number = $1, priority_score = $2
-            WHERE id = $3
-        `, [smartCode, priorityScore, volunteerId]);
+        const stageRes = await onboardingStagingService.stagePendingEntity({
+            client,
+            registrationType: 'volunteer',
+            email: normEmail,
+            phone: normPhone,
+            birthDate: birth_date,
+            payload: stagePayload,
+            req
+        });
 
         await client.query('COMMIT');
 
-        // 7. Enviar Correo OTP y Bitácora de Registro
-        try {
-            const ipRaw = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString();
-            const ip = ipRaw.split(',')[0].trim();
-            await emailService.sendOtpEmail({ toEmail: normEmail, otp: verificationCode, context: { ip, requestedAt: new Date().toISOString() } });
-
-            await pool.query(
-                'INSERT INTO volunteer_activity_history (volunteer_id, event_type, message) VALUES ($1, $2, $3)',
-                [volunteerId, 'registered', `Expediente generado con código #${smartCode}. Estado inicial: En Proceso de Verificación.`]
-            );
-        } catch (mailErr) {
-            console.error("[VOLUNTEER] Error enviando email OTP:", mailErr.message);
-        }
-
-        // 8. Registro de Auditoría Inmutable (SOC 2)
-        await logAuditEvent(pool, req, {
-            eventType: 'sos.volunteer.registered',
-            actorUsername: normEmail,
-            category: 'volunteer',
-            metadata: { volunteer_id: volunteerId, dossier_number: smartCode, id_document: normDoc, is_new_user: isNewUser }
-        });
-
-        // 9. Respuesta Exitosa
-        res.status(201).json({
+        // 5. Respuesta Exitosa
+        res.status(200).json({
             success: true,
-            dossier_number: smartCode,
             email: normEmail,
             is_new_user: isNewUser,
-            message: "Registro de voluntario enviado exitosamente. Ingresa el código de 6 dígitos enviado a tu correo para activar tu cuenta."
+            message: stageRes.message
         });
     } catch (error) {
         await client.query('ROLLBACK');
         console.error("[VOLUNTEER] Error en registro público:", error);
-
-        if (error.code === '23505') {
-            const constraint = error.constraint || '';
-            if (constraint.includes('phone_number')) return res.status(400).json({ success: false, message: "El número telefónico ya está registrado." });
-            if (constraint.includes('email')) return res.status(400).json({ success: false, message: "El correo electrónico ya está registrado." });
-            if (constraint.includes('id_document')) return res.status(400).json({ success: false, message: `La Cédula ${normDoc} ya tiene una postulación registrada.` });
-        }
-
         res.status(500).json({
             success: false,
             message: "Error interno al procesar el registro de voluntario. Por favor intenta nuevamente."
@@ -437,7 +303,14 @@ exports.registerVolunteerPublic = async (req, res) => {
 };
 
 // ============================================================================
-// POST /api/public/volunteers/verify-otp (Público - Verificación OTP)
+// POST /api/public/volunteers/verify-otp (Público - Verificación OTP + Creación Oficial)
+// ============================================================================
+// FASE 2: Verificación Criptográfica, Activación de Usuario y Acuñación Oficial
+// 1. Valida OTP contra pending_verifications (anti brute-force).
+// 2. Crea/Activa usuario en 'users' (is_verified = true) y otorga 200 BLUE IOU.
+// 3. Acuña oficialmente el expediente en 'volunteers_registry' con status 'pending_verification'.
+// 4. Calcula el Código Inteligente #VOL-VZLA-XXXX-YYYYY y registra bitácora.
+// 5. Emite sesión JWT segura (Access + Refresh Token).
 // ============================================================================
 exports.verifyVolunteerOtpPublic = async (req, res) => {
     const { email, otp_code, password, password_confirm } = req.body;
@@ -449,6 +322,10 @@ exports.verifyVolunteerOtpPublic = async (req, res) => {
         return res.status(400).json({ success: false, message: "Ingresa tu correo y el código de 6 dígitos." });
     }
 
+    if (password && password_confirm && password !== password_confirm) {
+        return res.status(400).json({ success: false, message: "Las contraseñas no coinciden." });
+    }
+
     const normEmail = rawEmail.trim().toLowerCase();
     const cleanCode = rawCode.trim();
 
@@ -456,150 +333,118 @@ exports.verifyVolunteerOtpPublic = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        const existingUserCheck = await client.query('SELECT id, username, password_hash, is_verified FROM users WHERE email = $1', [normEmail]);
-        const isExistingVerifiedUser = (existingUserCheck.rows.length > 0 && existingUserCheck.rows[0].is_verified === true);
-
-        if (!isExistingVerifiedUser) {
-            if (!password || password.length < 8) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({ success: false, message: "La contraseña debe tener al menos 8 caracteres." });
-            }
-            if (password !== password_confirm) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({ success: false, message: "Las contraseñas no coinciden." });
-            }
-        }
-
-        const pendingRes = await client.query('SELECT * FROM pending_verifications WHERE email = $1', [normEmail]);
-        if (pendingRes.rows.length === 0) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ success: false, message: "No se encontró una solicitud pendiente o ya fue verificada." });
-        }
-
-        const pending = pendingRes.rows[0];
-
-        if ((pending.verification_attempts || 0) >= 5) {
-            await client.query('DELETE FROM pending_verifications WHERE id = $1', [pending.id]);
-            await client.query('COMMIT');
-            return res.status(429).json({ success: false, message: "Demasiados intentos fallidos. Solicita un nuevo código." });
-        }
-
-        const computedHash = emailService.hashOtpForEmail(normEmail, cleanCode);
-        if (!emailService.safeEqualHex(pending.verification_code_hash, computedHash)) {
-            await client.query('UPDATE pending_verifications SET verification_attempts = verification_attempts + 1 WHERE id = $1', [pending.id]);
-            await client.query('COMMIT');
-            return res.status(400).json({ success: false, message: "Código de verificación de 6 dígitos incorrecto." });
-        }
-
-        // Activar cuenta de usuario
-        if (!isExistingVerifiedUser && password) {
-            const hashedPassword = await bcrypt.hash(password, 10);
-            await client.query('UPDATE users SET password_hash = $1, is_verified = true WHERE email = $2', [hashedPassword, normEmail]);
-        } else {
-            await client.query('UPDATE users SET is_verified = true WHERE email = $1', [normEmail]);
-        }
-
-        const userRes = await client.query('SELECT id, username FROM users WHERE email = $1', [normEmail]);
-        if (userRes.rows.length === 0) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ success: false, message: "No se encontró la cuenta de usuario asociada." });
-        }
-        const user = userRes.rows[0];
-
-        // Acreditación de bono de bienvenida estándar por registro de usuario nuevo (DRY)
-        let rewardAmount = 0;
-        if (!isExistingVerifiedUser) {
-            try {
-                const customCodeRes2 = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'referral_custom_share_code'`);
-                const refCodeToUse = (pending.referral_code) || ((customCodeRes2.rows.length > 0 && customCodeRes2.rows[0].setting_value) ? customCodeRes2.rows[0].setting_value : 'SOSVENEZUELA');
-
-                const rewardResult = await referralRewardService.processReferralReward({
-                    client,
-                    newUser: user,
-                    referralCode: refCodeToUse
-                });
-                rewardAmount = parseFloat(rewardResult?.rewardAmount || 0);
-            } catch (rewardErr) {
-                console.error("[VOLUNTEER OTP] Error en bono de referido usuario nuevo:", rewardErr.message);
-            }
-        }
-
-        // Registrar activación en bitácora de voluntario
-        const volRes = await client.query('SELECT id, dossier_number FROM volunteers_registry WHERE email = $1 ORDER BY id DESC LIMIT 1', [normEmail]);
-        let smartDossierCode = '';
-        if (volRes.rows.length > 0) {
-            const volId = volRes.rows[0].id;
-            smartDossierCode = volRes.rows[0].dossier_number;
-            await client.query(
-                'INSERT INTO volunteer_activity_history (volunteer_id, event_type, message) VALUES ($1, $2, $3)',
-                [volId, 'otp_verified', `Cuenta activada exitosamente con OTP. Expediente #${smartDossierCode} listo para revisión de la directiva.`]
-            );
-        }
-
-        await client.query('DELETE FROM pending_verifications WHERE id = $1', [pending.id]);
-
-        // Generar Tokens JWT
-        const accessToken = jwt.sign(
-            { userId: user.id, username: user.username, tokenType: 'access' },
-            jwtSecret,
-            { expiresIn: '15m' }
-        );
-        const refreshToken = jwt.sign(
-            { userId: user.id, username: user.username, tokenType: 'refresh' },
-            jwtSecret,
-            { expiresIn: '7d' }
-        );
-
-        res.cookie('auth_refresh_token', refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production' && process.env.IS_DEMO_ENV !== 'true',
-            sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000
+        // 1. Validar OTP y Activar/Crear Cuenta vía Motor Centralizado DRY
+        const commitResult = await onboardingStagingService.verifyAndCommitEntity({
+            client,
+            email: normEmail,
+            otpCode: cleanCode,
+            password,
+            expectedType: 'volunteer',
+            req,
+            res
         });
+
+        if (!commitResult.valid) {
+            await client.query('ROLLBACK');
+            return res.status(commitResult.status || 400).json({
+                success: false,
+                message: commitResult.message
+            });
+        }
+
+        const { user, payload, isNewUser, accessToken } = commitResult;
+
+        // 2. Acuñar Oficialmente el Expediente en volunteers_registry
+        const tempCode = `VOL-TEMP-${crypto.randomUUID().substring(0, 8).toUpperCase()}`;
+        const insertRes = await client.query(`
+            INSERT INTO volunteers_registry (
+                dossier_number, user_id, full_name, id_document, birth_date, age, gender,
+                email, phone_number, country, state, municipality, sector_city,
+                volunteer_types, availability, profession_skills, priority_score, status,
+                data_consent_accepted, legal_disclaimer_accepted
+            ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7,
+                $8, $9, $10, $11, $12, $13,
+                $14, $15, $16, 0, 'pending_verification',
+                $17, $18
+            ) RETURNING id
+        `, [
+            tempCode, user.id, payload.full_name, payload.id_document, payload.birth_date,
+            payload.age || 18, payload.gender || 'female', payload.email || normEmail,
+            payload.phone_number, payload.country || 'Venezuela', payload.state,
+            payload.municipality, payload.sector_city,
+            payload.volunteer_types || [], payload.availability || [], (payload.profession_skills || '').trim(),
+            payload.data_consent_accepted !== false, payload.legal_disclaimer_accepted !== false
+        ]);
+
+        const volunteerId = (insertRes && insertRes.rows && insertRes.rows[0]) ? insertRes.rows[0].id : 1;
+
+        // 3. Calcular Código de Expediente Inteligente Oficial (#VOL-VZLA-XXXX-YYYYY)
+        const { smartCode, priorityScore } = calculateSmartVolunteerCode(
+            payload.volunteer_types || [],
+            payload.availability || [],
+            payload.age || 18,
+            payload.gender || 'female',
+            volunteerId
+        );
+
+        await client.query(`
+            UPDATE volunteers_registry
+            SET dossier_number = $1, priority_score = $2
+            WHERE id = $3
+        `, [smartCode, priorityScore, volunteerId]);
+
+        // 4. Bitácora de Auditoría del Voluntario
+        await client.query(
+            'INSERT INTO volunteer_activity_history (volunteer_id, event_type, message) VALUES ($1, $2, $3)',
+            [volunteerId, 'registered_and_verified', `Expediente oficial #${smartCode} generado tras validación de identidad digital. Estado inicial: En Proceso de Verificación.`]
+        );
 
         await client.query('COMMIT');
 
-        // Notificaciones asíncronas (Push, In-App y Email)
+        // 5. Notificaciones Asíncronas (Push, In-App y Email)
         try {
             await notificationService.sendNotificationToUser(user.id, {
                 title: "🤝 Registro de Voluntario Exitoso",
-                body: `Tu expediente de voluntario #${smartDossierCode} ha sido activado. Gracias por tu compromiso con la causa SOS Venezuela.`,
+                body: `Tu expediente #${smartCode} ha sido activado. Gracias por tu compromiso con la causa SOS Venezuela.`,
                 icon: "/assets/icons/icon-192x192.png",
                 data: { url: "/profile.html" }
             }, "SOCIAL");
 
             await pool.query(
                 'INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)',
-                [user.username, `Tu expediente de voluntario #${smartDossierCode} fue activado con éxito.`]
+                [user.username, `Tu expediente de voluntario #${smartCode} fue activado con éxito.`]
             );
 
             await emailService.sendCustomEmail(
                 normEmail,
-                `Expediente de Voluntario Confirmado - #${smartDossierCode}`,
+                `Expediente de Voluntario Confirmado - #${smartCode}`,
                 `<div style="font-family: Arial, sans-serif; padding: 20px; color: #1e293b;">
                     <h2>¡Bienvenido a la Brigada de Voluntarios WintonCoin!</h2>
-                    <p>Tu postulación ha sido recibida y tu cuenta ha sido activada exitosamente.</p>
-                    <p><strong>Número de Expediente:</strong> #${smartDossierCode}</p>
-                    <p>Nuestro equipo de coordinadores se pondrá en contacto contigo a través de WhatsApp o correo electrónico para asignar tareas o brigadas de apoyo.</p>
+                    <p>Hola <strong>${payload.full_name}</strong>, tu postulación ha sido verificada y tu cuenta ha sido activada exitosamente.</p>
+                    <p><strong>Número de Expediente:</strong> #${smartCode}</p>
+                    <p>Nuestro equipo de coordinadores se pondrá en contacto contigo a través de WhatsApp o correo electrónico para coordinar actividades.</p>
                 </div>`
             );
         } catch (nErr) {
             console.error("[VOLUNTEER OTP] Error en notificaciones asíncronas:", nErr.message);
         }
 
+        // 6. Auditoría Inmutable (SOC 2)
         await logAuditEvent(pool, req, {
-            eventType: 'sos.volunteer.activated',
-            actorUsername: normEmail,
+            eventType: 'sos.volunteer.registered_and_verified',
+            actorUsername: user.username,
             category: 'volunteer',
-            metadata: { user_id: user.id, dossier_number: smartDossierCode }
+            metadata: { volunteer_id: volunteerId, dossier_number: smartCode, id_document: payload.id_document, is_new_user: isNewUser }
         });
 
+        // 7. Respuesta Exitosa con Sesión JWT
         res.status(200).json({
             success: true,
             token: accessToken,
             user: { id: user.id, username: user.username, email: normEmail },
-            dossier_number: smartDossierCode,
-            reward_amount: rewardAmount,
+            dossier_number: smartCode,
+            is_new_user: isNewUser,
             message: "¡Cuenta activada exitosamente! Tu expediente de voluntario está registrado."
         });
 
@@ -771,12 +616,13 @@ exports.resendVolunteerOtpPublic = async (req, res) => {
 
         // 1. Buscar verificación pendiente
         const pendingRes = await client.query('SELECT * FROM pending_verifications WHERE email = $1', [normEmail]);
-        if (pendingRes.rows.length === 0) {
+        const pendingRows = (pendingRes && Array.isArray(pendingRes.rows)) ? pendingRes.rows : [];
+        if (pendingRows.length === 0) {
             await client.query('ROLLBACK');
             return res.status(404).json({ success: false, message: "No se encontró una solicitud pendiente para este correo." });
         }
 
-        const pending = pendingRes.rows[0];
+        const pending = pendingRows[0];
 
         // 2. Control de Frecuencia (Rate Limiting: Mínimo 60 segundos entre reenvíos)
         if (pending.last_sent_at) {

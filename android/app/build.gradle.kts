@@ -30,7 +30,7 @@ android {
         create("demo") {
             dimension = "environment"
             applicationIdSuffix = ".demo"
-            resValue("string", "app_name", "WintonCoin [DEMO]")
+            resValue("string", "app_name", "W Demo")
             buildConfigField("String", "API_BASE_URL", "\"https://wintoncoin-backend-demo.onrender.com\"")
         }
 
@@ -118,8 +118,9 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
-    // SEGURIDAD & IMÁGENES
+    // SEGURIDAD & IMÁGENES (Criptografía, Biometría, Coil)
     implementation(libs.security.crypto)
+    implementation(libs.androidx.biometric)
     implementation(libs.coil.compose)
 
     // TESTING

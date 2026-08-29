@@ -49,6 +49,9 @@ class TokenManager @Inject constructor(
         // Claves de almacenamiento (nombres descriptivos para auditoría)
         private const val KEY_ACCESS_TOKEN = "access_token"
         private const val KEY_USERNAME = "username"
+        private const val KEY_BIOMETRICS_ENABLED = "biometrics_enabled"
+        private const val KEY_TRANSACTION_BIOMETRIC_REQUIRED = "transaction_biometrics_required"
+        private const val KEY_APP_LOCKED = "app_locked"
 
         // Margen de seguridad: considerar expirado si le quedan menos de 30 segundos
         // (mismo valor que usa la PWA en auth.js línea 31)
@@ -62,16 +65,30 @@ class TokenManager @Inject constructor(
     // para no bloquear el inicio de la app.
     // ========================================================================
     private val encryptedPrefs: SharedPreferences by lazy {
-        // MasterKey: Clave maestra derivada del hardware del dispositivo (TEE/Strongbox)
-        // Cada dispositivo genera una clave única — si el archivo se copia a otro
-        // dispositivo, no se podrá descifrar.
+        try {
+            createEncryptedPreferences()
+        } catch (t: Throwable) {
+            Log.e(TAG, "[SECURITY] Error initializing EncryptedSharedPreferences, auto-healing: ${t.message}")
+            try {
+                // Eliminar físicamente el archivo XML corrupto de SharedPreferences en disco
+                val prefsFile = java.io.File(context.applicationInfo.dataDir, "shared_prefs/$PREFS_NAME.xml")
+                if (prefsFile.exists()) {
+                    prefsFile.delete()
+                }
+                createEncryptedPreferences()
+            } catch (t2: Throwable) {
+                Log.e(TAG, "[SECURITY] Fallback to standard private preferences: ${t2.message}")
+                context.getSharedPreferences("${PREFS_NAME}_fallback", Context.MODE_PRIVATE)
+            }
+        }
+    }
+
+    private fun createEncryptedPreferences(): SharedPreferences {
         val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM) // AES-256 en modo GCM
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
 
-        // EncryptedSharedPreferences: Envuelve SharedPreferences con cifrado
-        // automático de claves (AES-256-SIV) y valores (AES-256-GCM)
-        EncryptedSharedPreferences.create(
+        return EncryptedSharedPreferences.create(
             context,
             PREFS_NAME,
             masterKey,
@@ -120,6 +137,54 @@ class TokenManager @Inject constructor(
      */
     fun getUsername(): String? {
         return encryptedPrefs.getString(KEY_USERNAME, null)
+    }
+
+    // ========================================================================
+    // BIOMETRÍA & BLOQUEO FINTECH
+    // ========================================================================
+
+    /**
+     * Consulta si el usuario ha activado el desbloqueo biométrico de la app.
+     */
+    fun isBiometricsEnabled(): Boolean {
+        return encryptedPrefs.getBoolean(KEY_BIOMETRICS_ENABLED, false)
+    }
+
+    /**
+     * Configura el estado de activación de biometría para la app.
+     */
+    fun setBiometricsEnabled(enabled: Boolean) {
+        encryptedPrefs.edit().putBoolean(KEY_BIOMETRICS_ENABLED, enabled).apply()
+        Log.d(TAG, "[AUDIT] Preferencia de biometría actualizada: enabled=$enabled")
+    }
+
+    /**
+     * Consulta si se exige confirmación biométrica antes de transferencias financieras.
+     */
+    fun isTransactionBiometricRequired(): Boolean {
+        return encryptedPrefs.getBoolean(KEY_TRANSACTION_BIOMETRIC_REQUIRED, true)
+    }
+
+    /**
+     * Configura la exigencia de biometría para transacciones financieras.
+     */
+    fun setTransactionBiometricRequired(required: Boolean) {
+        encryptedPrefs.edit().putBoolean(KEY_TRANSACTION_BIOMETRIC_REQUIRED, required).apply()
+        Log.d(TAG, "[AUDIT] Exigencia de biometría en transacciones: required=$required")
+    }
+
+    /**
+     * Consulta si la aplicación se encuentra en estado bloqueado esperando autenticación.
+     */
+    fun isAppLocked(): Boolean {
+        return encryptedPrefs.getBoolean(KEY_APP_LOCKED, false)
+    }
+
+    /**
+     * Actualiza el estado de bloqueo de la app.
+     */
+    fun setAppLocked(locked: Boolean) {
+        encryptedPrefs.edit().putBoolean(KEY_APP_LOCKED, locked).apply()
     }
 
     // ========================================================================

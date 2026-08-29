@@ -50,7 +50,7 @@ class AuthRepositoryImplTest {
             isVerified = true,
             kycVerified = false
         )
-        coEvery { authApiService.login(LoginRequest("miguel_123", "password123")) } returns Response.success(loginResponse)
+        coEvery { authApiService.login(LoginRequest(identifier = "miguel_123", password = "password123")) } returns Response.success(loginResponse)
 
         val result = repository.login("miguel_123", "password123")
 
@@ -67,7 +67,7 @@ class AuthRepositoryImplTest {
     @Test
     fun `login with 401 error logs failure and returns Result Error`() = runTest {
         val errorBody = "{\"error\":\"Credenciales incorrectas\"}".toResponseBody()
-        coEvery { authApiService.login(LoginRequest("miguel_123", "wrong_pass")) } returns Response.error(401, errorBody)
+        coEvery { authApiService.login(LoginRequest(identifier = "miguel_123", password = "wrong_pass")) } returns Response.error(401, errorBody)
 
         val result = repository.login("miguel_123", "wrong_pass")
 

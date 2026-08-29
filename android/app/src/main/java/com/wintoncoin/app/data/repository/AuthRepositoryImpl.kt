@@ -39,7 +39,7 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun login(username: String, password: String): Result<UserSession> {
         return try {
-            val response = authApiService.login(LoginRequest(username, password))
+            val response = authApiService.login(LoginRequest(identifier = username, password = password))
 
             if (response.isSuccessful) {
                 val loginResponse = response.body()

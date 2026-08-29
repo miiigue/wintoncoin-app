@@ -25,10 +25,38 @@ import com.wintoncoin.app.presentation.register.RegisterViewModel
 import com.wintoncoin.app.presentation.wallet.WalletScreen
 import com.wintoncoin.app.presentation.wallet.WalletViewModel
 
+import com.wintoncoin.app.presentation.booster.BoosterProfileEvent
+import com.wintoncoin.app.presentation.booster.BoosterProfileScreen
+import com.wintoncoin.app.presentation.booster.BoosterProfileViewModel
+import com.wintoncoin.app.presentation.referrals.ReferralsScreen
+import com.wintoncoin.app.presentation.referrals.ReferralsViewModel
 import com.wintoncoin.app.presentation.marketplace.MarketplaceScreen
 import com.wintoncoin.app.presentation.marketplace.MarketplaceViewModel
+import com.wintoncoin.app.presentation.marketplace.create.CreatePublicationScreen
+import com.wintoncoin.app.presentation.marketplace.create.CreatePublicationViewModel
 import com.wintoncoin.app.presentation.marketplace.detail.PublicationDetailScreen
 import com.wintoncoin.app.presentation.marketplace.detail.PublicationDetailViewModel
+
+import com.wintoncoin.app.presentation.statement.AccountStatementScreen
+import com.wintoncoin.app.presentation.statement.AccountStatementViewModel
+import com.wintoncoin.app.presentation.notifications.NotificationsScreen
+import com.wintoncoin.app.presentation.notifications.NotificationsViewModel
+import com.wintoncoin.app.presentation.solidario.list.CausesListScreen
+import com.wintoncoin.app.presentation.solidario.list.CausesListViewModel
+import com.wintoncoin.app.presentation.solidario.submit.SubmitCauseScreen
+import com.wintoncoin.app.presentation.solidario.submit.SubmitCauseViewModel
+import com.wintoncoin.app.presentation.solidario.detail.CauseDetailScreen
+import com.wintoncoin.app.presentation.solidario.detail.CauseDetailViewModel
+import com.wintoncoin.app.presentation.sos.hub.SosHubScreen
+import com.wintoncoin.app.presentation.sos.hub.SosHubViewModel
+import com.wintoncoin.app.presentation.sos.victim.VictimRegistrationScreen
+import com.wintoncoin.app.presentation.sos.victim.VictimRegistrationViewModel
+import com.wintoncoin.app.presentation.sos.volunteer.VolunteerRegistrationScreen
+import com.wintoncoin.app.presentation.sos.volunteer.VolunteerRegistrationViewModel
+import com.wintoncoin.app.presentation.lock.AppLockScreen
+import com.wintoncoin.app.presentation.lock.AppLockViewModel
+import com.wintoncoin.app.presentation.settings.security.SecuritySettingsScreen
+import com.wintoncoin.app.presentation.settings.security.SecuritySettingsViewModel
 
 /**
  * Rutas de las pantallas de la aplicación.
@@ -39,9 +67,23 @@ sealed class Screen(val route: String) {
     object ForgotPassword : Screen("forgot_password_screen")
     object Dashboard : Screen("dashboard_screen")
     object Wallet : Screen("wallet_screen")
+    object AccountStatement : Screen("account_statement_screen")
+    object Notifications : Screen("notifications_screen")
+    object Solidario : Screen("solidario_screen")
+    object SubmitSolidario : Screen("submit_solidario_screen")
+    object SosHub : Screen("sos_hub_screen")
+    object SosVictimRegistration : Screen("sos_victim_registration_screen")
+    object SosVolunteerRegistration : Screen("sos_volunteer_registration_screen")
+    object AppLock : Screen("app_lock_screen")
+    object SecuritySettings : Screen("security_settings_screen")
     object Marketplace : Screen("marketplace_screen")
+    object CreatePublication : Screen("create_publication_screen")
+    object BoosterProfile : Screen("booster_profile_screen")
+    object Referrals : Screen("referrals_screen")
+    data class SolidarioDetail(val id: Int) : Screen("solidario_detail_screen/$id")
     data class VerifyOtp(val email: String) : Screen("verify_otp_screen/$email")
     data class Profile(val username: String) : Screen("profile_screen/$username")
+    data class UserBoosterProfile(val username: String) : Screen("booster_profile_screen/$username")
     data class PublicationDetail(val id: String) : Screen("publication_detail_screen/$id")
 }
 
@@ -104,6 +146,97 @@ fun NavGraph(
             val walletViewModel: WalletViewModel = hiltViewModel()
             WalletScreen(
                 viewModel = walletViewModel,
+                onNavigateBack = { onNavigateTo(Screen.Dashboard.route) },
+                onNavigateToAccountStatement = { onNavigateTo(Screen.AccountStatement.route) }
+            )
+        }
+        currentScreen == Screen.AccountStatement.route -> {
+            val statementViewModel: AccountStatementViewModel = hiltViewModel()
+            AccountStatementScreen(
+                viewModel = statementViewModel,
+                onNavigateBack = { onNavigateTo(Screen.Dashboard.route) }
+            )
+        }
+        currentScreen == Screen.Notifications.route -> {
+            val notificationsViewModel: NotificationsViewModel = hiltViewModel()
+            NotificationsScreen(
+                viewModel = notificationsViewModel,
+                onNavigateBack = { onNavigateTo(Screen.Dashboard.route) },
+                onNavigateToBoosterProfile = { onNavigateTo(Screen.BoosterProfile.route) },
+                onNavigateToWallet = { onNavigateTo(Screen.Wallet.route) },
+                onNavigateToAccountStatement = { onNavigateTo(Screen.AccountStatement.route) },
+                onNavigateToPublications = { onNavigateTo(Screen.Marketplace.route) }
+            )
+        }
+        currentScreen == Screen.Solidario.route -> {
+            val causesViewModel: CausesListViewModel = hiltViewModel()
+            CausesListScreen(
+                viewModel = causesViewModel,
+                onNavigateBack = { onNavigateTo(Screen.Dashboard.route) },
+                onNavigateToCauseDetail = { id -> onNavigateTo("solidario_detail_screen/$id") },
+                onNavigateToSubmitCause = { onNavigateTo(Screen.SubmitSolidario.route) }
+            )
+        }
+        currentScreen == Screen.SubmitSolidario.route -> {
+            val submitViewModel: SubmitCauseViewModel = hiltViewModel()
+            SubmitCauseScreen(
+                viewModel = submitViewModel,
+                currentUsername = tokenManager.getUsername(),
+                onNavigateBack = { onNavigateTo(Screen.Solidario.route) },
+                onSubmitSuccess = { onNavigateTo(Screen.Solidario.route) }
+            )
+        }
+        currentScreen.startsWith("solidario_detail_screen/") -> {
+            val causeId = currentScreen.removePrefix("solidario_detail_screen/").toIntOrNull() ?: 0
+            val detailViewModel: CauseDetailViewModel = hiltViewModel()
+            CauseDetailScreen(
+                viewModel = detailViewModel,
+                causeId = causeId,
+                onNavigateBack = { onNavigateTo(Screen.Solidario.route) },
+                onNavigateToCreatorProfile = { username -> onNavigateTo("profile_screen/$username") },
+                onNavigateToBoosterProfile = { onNavigateTo(Screen.BoosterProfile.route) }
+            )
+        }
+        currentScreen == Screen.SosHub.route -> {
+            val sosHubViewModel: SosHubViewModel = hiltViewModel()
+            SosHubScreen(
+                viewModel = sosHubViewModel,
+                onNavigateBack = { onNavigateTo(Screen.Dashboard.route) },
+                onNavigateToVictimRegistration = { onNavigateTo(Screen.SosVictimRegistration.route) },
+                onNavigateToVolunteerRegistration = { onNavigateTo(Screen.SosVolunteerRegistration.route) }
+            )
+        }
+        currentScreen == Screen.SosVictimRegistration.route -> {
+            val victimViewModel: VictimRegistrationViewModel = hiltViewModel()
+            VictimRegistrationScreen(
+                viewModel = victimViewModel,
+                onNavigateBack = { onNavigateTo(Screen.SosHub.route) },
+                onActivationSuccess = { onNavigateTo(Screen.Dashboard.route) }
+            )
+        }
+        currentScreen == Screen.SosVolunteerRegistration.route -> {
+            val volunteerViewModel: VolunteerRegistrationViewModel = hiltViewModel()
+            VolunteerRegistrationScreen(
+                viewModel = volunteerViewModel,
+                onNavigateBack = { onNavigateTo(Screen.SosHub.route) },
+                onActivationSuccess = { onNavigateTo(Screen.Dashboard.route) }
+            )
+        }
+        currentScreen == Screen.AppLock.route -> {
+            val lockViewModel: AppLockViewModel = hiltViewModel()
+            AppLockScreen(
+                viewModel = lockViewModel,
+                onUnlockSuccess = { onNavigateTo(Screen.Dashboard.route) },
+                onLogout = {
+                    tokenManager.clearSession()
+                    onNavigateToLogin()
+                }
+            )
+        }
+        currentScreen == Screen.SecuritySettings.route -> {
+            val securityViewModel: SecuritySettingsViewModel = hiltViewModel()
+            SecuritySettingsScreen(
+                viewModel = securityViewModel,
                 onNavigateBack = { onNavigateTo(Screen.Dashboard.route) }
             )
         }
@@ -112,7 +245,15 @@ fun NavGraph(
             MarketplaceScreen(
                 viewModel = marketplaceViewModel,
                 onNavigateBack = { onNavigateTo(Screen.Dashboard.route) },
-                onNavigateToDetail = { id -> onNavigateTo("publication_detail_screen/$id") }
+                onNavigateToDetail = { id -> onNavigateTo("publication_detail_screen/$id") },
+                onNavigateToCreatePublication = { onNavigateTo(Screen.CreatePublication.route) }
+            )
+        }
+        currentScreen == Screen.CreatePublication.route -> {
+            val createViewModel: CreatePublicationViewModel = hiltViewModel()
+            CreatePublicationScreen(
+                viewModel = createViewModel,
+                onNavigateBack = { onNavigateTo(Screen.Marketplace.route) }
             )
         }
         currentScreen.startsWith("publication_detail_screen/") -> {
@@ -124,14 +265,48 @@ fun NavGraph(
                 onNavigateBack = { onNavigateTo(Screen.Marketplace.route) }
             )
         }
+        currentScreen == Screen.BoosterProfile.route -> {
+            val boosterViewModel: BoosterProfileViewModel = hiltViewModel()
+            BoosterProfileScreen(
+                viewModel = boosterViewModel,
+                onNavigateBack = { onNavigateTo(Screen.Dashboard.route) },
+                onNavigateToReferrals = { onNavigateTo(Screen.Referrals.route) },
+                onNavigateToMarketplace = { onNavigateTo(Screen.Marketplace.route) }
+            )
+        }
+        currentScreen.startsWith("booster_profile_screen/") -> {
+            val targetUser = currentScreen.removePrefix("booster_profile_screen/")
+            val boosterViewModel: BoosterProfileViewModel = hiltViewModel()
+            boosterViewModel.onEvent(BoosterProfileEvent.LoadProfile(targetUser))
+            BoosterProfileScreen(
+                viewModel = boosterViewModel,
+                onNavigateBack = { onNavigateTo(Screen.Dashboard.route) },
+                onNavigateToReferrals = { onNavigateTo(Screen.Referrals.route) },
+                onNavigateToMarketplace = { onNavigateTo(Screen.Marketplace.route) }
+            )
+        }
+        currentScreen == Screen.Referrals.route -> {
+            val referralsViewModel: ReferralsViewModel = hiltViewModel()
+            ReferralsScreen(
+                viewModel = referralsViewModel,
+                onNavigateBack = { onNavigateTo(Screen.Dashboard.route) }
+            )
+        }
         currentScreen == Screen.Dashboard.route -> {
             val walletViewModel: WalletViewModel = hiltViewModel()
             DashboardScreen(
                 username = tokenManager.getUsername(),
                 walletViewModel = walletViewModel,
                 onNavigateToWallet = { onNavigateTo(Screen.Wallet.route) },
+                onNavigateToAccountStatement = { onNavigateTo(Screen.AccountStatement.route) },
+                onNavigateToNotifications = { onNavigateTo(Screen.Notifications.route) },
+                onNavigateToSolidario = { onNavigateTo(Screen.Solidario.route) },
+                onNavigateToSos = { onNavigateTo(Screen.SosHub.route) },
+                onNavigateToSecurity = { onNavigateTo(Screen.SecuritySettings.route) },
                 onNavigateToMarketplace = { onNavigateTo(Screen.Marketplace.route) },
                 onNavigateToProfile = { username -> onNavigateTo("profile_screen/$username") },
+                onNavigateToBooster = { onNavigateTo(Screen.BoosterProfile.route) },
+                onNavigateToReferrals = { onNavigateTo(Screen.Referrals.route) },
                 onLogout = {
                     tokenManager.clearSession()
                     onNavigateToLogin()

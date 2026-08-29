@@ -23,6 +23,7 @@ const emailService = require('../services/emailService'); // OTP, correos transa
 const notificationService = require('../services/notificationService'); // Push Notifications (FCM/WebPush)
 const mediaController = require('./mediaController'); // Compresión WebP + Subida a Cloudflare R2
 const referralRewardService = require('../services/referralRewardService');
+const onboardingStagingService = require('../services/onboardingStagingService');
 
 // ── Secreto JWT para firma de tokens (Zero Hardcoded Secrets) ──────────────────
 const jwtSecret = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'wintoncoin_fallback_secret_key_2026';
@@ -124,19 +125,13 @@ function maskEmailHelper(email) {
 // POST /api/public/sos-venezuela/register-victim (Público)
 // ============================================================================
 // FLUJO COMPLETO:
-// 1. Validar campos obligatorios y consentimientos legales (Zero-Trust).
-// 2. Calcular edad autoritativa a partir de birth_date (fuente única de verdad).
-// 3. Verificar que la Cédula no tenga un expediente previo (unicidad documental).
-//    - Si ya tiene expediente y la cuenta está ACTIVA: Indicar que inicie sesión.
-//    - Si ya tiene expediente y la cuenta está PENDIENTE: Reanudación Inteligente (Smart Resume),
-//      generando y reenviando nuevo OTP al correo para que complete su activación.
-// 4. Buscar o crear cuenta de usuario WintonCoin (vinculación al ecosistema).
-// 5. SIEMPRE guardar hash de OTP en pending_verifications (UPSERT) para que
-//    el flujo de verificación funcione tanto para usuarios nuevos como existentes.
-// 6. Insertar registro temporal en disaster_victims_registry → calcular código
-//    de expediente inteligente → actualizar con código final.
-// 7. Enviar correo de confirmación y OTP al usuario de forma asíncrona.
-// 8. Registrar evento de auditoría inmutable en audit_logs.
+// POST /api/public/sos-venezuela/register (Público - Registro de Solicitud SOS)
+// ============================================================================
+// FASE 1: Validación Zero-Trust y Staging Modular
+// 1. Valida datos de entrada y calcula edad autoritativa.
+// 2. Comprueba si la Cédula ya está registrada en un expediente oficial activo.
+// 3. Resguarda el paquete completo en pending_verifications (form_payload JSONB).
+// 4. Despacha OTP de 6 dígitos al correo sin tocar disaster_victims_registry ni users.
 // ============================================================================
 exports.registerVictimPublic = async (req, res) => {
     const {
@@ -167,10 +162,7 @@ exports.registerVictimPublic = async (req, res) => {
         return res.status(400).json({ success: false, message: "Por favor completa todos los campos obligatorios del censo." });
     }
 
-    // ── 1.1 Validación Zero-Trust de Booleanos de Consentimiento Legal ─────
-    // En JavaScript, Boolean("false") === true, lo que representa una vulnerabilidad.
-    // Se valida de forma explícita para prevenir falsos positivos que violarían
-    // la Ley de Habeas Data y los estándares SOC 2 de privacidad.
+    // ── 1.1 Validación Zero-Trust de Consentimiento Legal ──────────────────
     const consentAccepted = data_consent_accepted === true || data_consent_accepted === 'true';
     const swornAccepted = sworn_declaration_accepted === true || sworn_declaration_accepted === 'true';
 
@@ -179,19 +171,12 @@ exports.registerVictimPublic = async (req, res) => {
     }
 
     // ── 2. Cálculo de Edad Autoritativo ────────────────────────────────────
-    // La fecha de nacimiento (birth_date) es la FUENTE ÚNICA DE VERDAD para la edad.
-    // Si se proporciona, se calcula la edad exacta en el servidor.
-    // Si no se proporciona pero sí se envió la edad manual, se usa como fallback.
-    // Esto garantiza que el dígito decenal del Código de Expediente Inteligente
-    // sea siempre preciso y consistente con los datos legales del censo.
     let parsedAge = null;
     if (birth_date) {
-        // Cálculo preciso de edad a partir de la fecha de nacimiento
         const birthDateObj = new Date(birth_date);
         if (!isNaN(birthDateObj.getTime())) {
             const today = new Date();
             let calculatedAge = today.getFullYear() - birthDateObj.getFullYear();
-            // Ajuste si aún no ha cumplido años en el año actual
             const monthDiff = today.getMonth() - birthDateObj.getMonth();
             if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDateObj.getDate())) {
                 calculatedAge--;
@@ -199,17 +184,15 @@ exports.registerVictimPublic = async (req, res) => {
             parsedAge = calculatedAge;
         }
     }
-    // Fallback: usar la edad manual enviada si no hay birth_date válido
     if (parsedAge === null || isNaN(parsedAge)) {
-        parsedAge = parseInt(age, 10) || 18; // 18 como fallback mínimo por seguridad legal
+        parsedAge = parseInt(age, 10) || 18;
     }
 
-    // ── 3. Normalización de Datos de Contacto e Identidad ──────────────────
+    // ── 3. Normalización de Datos ──────────────────────────────────────────
     const normDoc = normalizeIdDocument(id_document);
     const normPhone = normalizePhone(phone_number);
     const normEmail = email.trim().toLowerCase();
 
-    // Validar que el número telefónico pertenezca a Venezuela (+58)
     if (!normPhone.startsWith('+58')) {
         return res.status(400).json({ success: false, message: "Por el momento solo se aceptan registros de números telefónicos de Venezuela (+58)." });
     }
@@ -218,169 +201,157 @@ exports.registerVictimPublic = async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // ── 4. Detección Inteligente de Cédula y Reanudación de Verificación ──
-        const existingDossier = await client.query(`
-            SELECT d.id, d.dossier_number, d.user_id, d.email, u.is_verified, u.username
-            FROM disaster_victims_registry d
-            LEFT JOIN users u ON u.id = d.user_id
-            WHERE d.id_document = $1
-        `, [normDoc]);
+        // ── 4. Verificar si ya existe expediente oficial activo con esta Cédula ─
+        const existingOfficial = await client.query(
+            'SELECT id, dossier_number FROM disaster_victims_registry WHERE id_document = $1',
+            [normDoc]
+        );
 
-        if (existingDossier.rows.length > 0) {
-            const dossier = existingDossier.rows[0];
-            const isUserVerified = dossier.is_verified === true;
-
-            if (isUserVerified) {
-                // Caso 1: El usuario ya completó su verificación y su cuenta está activa
-                await client.query('ROLLBACK');
-                return res.status(409).json({
-                    success: false,
-                    already_active: true,
-                    dossier_number: dossier.dossier_number,
-                    message: `La Cédula ${normDoc} ya tiene una solicitud activa bajo el expediente #${dossier.dossier_number}. Inicia sesión en tu cuenta para consultar tu estatus.`
-                });
-            } else {
-                // Caso 2: El usuario llenó el formulario anteriormente pero NO completó el OTP (Smart Resume)
-                const verificationCode = emailService.generateOtp6();
-                const verificationCodeHash = emailService.hashOtpForEmail(dossier.email, verificationCode);
-                const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min
-
-                const customCodeRes = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'referral_custom_share_code'`);
-                const specialReferralCode = (customCodeRes.rows.length > 0 && customCodeRes.rows[0].setting_value) ? customCodeRes.rows[0].setting_value.trim() : 'SOSVENEZUELA';
-
-                await client.query(`
-                    INSERT INTO pending_verifications (
-                        username, email, password_hash, phone_number, referral_code,
-                        verification_code_hash, verification_attempts, resend_count, last_sent_at, expires_at
-                    ) VALUES ($1, $2, '', $3, $4, $5, 0, 0, NOW(), $6)
-                    ON CONFLICT (email) DO UPDATE
-                    SET referral_code = EXCLUDED.referral_code,
-                        verification_code_hash = EXCLUDED.verification_code_hash,
-                        expires_at = EXCLUDED.expires_at,
-                        verification_attempts = 0,
-                        resend_count = pending_verifications.resend_count + 1,
-                        last_sent_at = NOW()
-                `, [dossier.username || normEmail.split('@')[0], dossier.email, normPhone, specialReferralCode, verificationCodeHash, expiresAt]);
-
-                await client.query('COMMIT');
-
-                // Enviar nuevo OTP al correo registrado
-                try {
-                    const ipRaw = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString();
-                    const ip = ipRaw.split(',')[0].trim();
-                    await emailService.sendOtpEmail({ toEmail: dossier.email, otp: verificationCode, context: { ip, requestedAt: new Date().toISOString() } });
-                } catch (mErr) {
-                    console.error("[SOS RESUME] Error enviando email de reanudación OTP:", mErr.message);
-                }
-
-                const maskedEmail = maskEmailHelper(dossier.email);
-
-                return res.status(200).json({
-                    success: true,
-                    resume_verification: true,
-                    dossier_number: dossier.dossier_number,
-                    email: dossier.email,
-                    is_new_user: true,
-                    message: `Tu solicitud ya fue recibida con el expediente #${dossier.dossier_number}. Hemos enviado un nuevo código de 6 dígitos a tu correo (${maskedEmail}) para que actives tu cuenta.`
-                });
-            }
+        if (existingOfficial.rows.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                success: false,
+                already_active: true,
+                dossier_number: existingOfficial.rows[0].dossier_number,
+                message: `La Cédula ${normDoc} ya tiene una solicitud registrada bajo el expediente #${existingOfficial.rows[0].dossier_number}. Inicia sesión en tu cuenta para consultar tu estatus.`
+            });
         }
 
-        // ── 5. Buscar o Crear Cuenta WintonCoin ────────────────────────────
-        // Se vincula al ecosistema para permitir la recepción de ayuda humanitaria.
-        // Si el usuario ya existe, solo se vincula. Si es nuevo, se crea la cuenta.
-        let userId = null;
-        let username = null;
-        let isNewUser = false;
-
-        const userCheck = await client.query(
-            'SELECT id, username, email, phone_number FROM users WHERE email = $1 OR phone_number = $2',
+        // ── 5. Detectar si el usuario ya existe en 'users' (is_verified = true) ─
+        const existingUserRes = await client.query(
+            'SELECT id, email, phone_number, is_verified FROM users WHERE email = $1 OR phone_number = $2',
             [normEmail, normPhone]
         );
 
-        if (userCheck.rows.length > 0) {
-            // Verificar si el teléfono pertenece a OTRA cuenta de usuario con distinto email
-            const phoneConflict = userCheck.rows.find(u => u.phone_number === normPhone && u.email !== normEmail);
+        if (existingUserRes.rows.length > 0) {
+            const phoneConflict = existingUserRes.rows.find(u => u.phone_number === normPhone && u.email !== normEmail);
             if (phoneConflict) {
                 await client.query('ROLLBACK');
                 return res.status(400).json({
                     success: false,
-                    message: "El número de teléfono ya está registrado en otra cuenta. Por favor verifica tus datos o utiliza tu número personal."
+                    message: "El número de teléfono ya está registrado con otro correo electrónico."
                 });
             }
-
-            // Verificar si el correo pertenece a OTRA cuenta con distinto teléfono
-            const emailConflict = userCheck.rows.find(u => u.email === normEmail && u.phone_number !== normPhone);
-            if (emailConflict) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({
-                    success: false,
-                    message: "El correo electrónico ya está registrado con otro número telefónico. Por favor inicia sesión con tu cuenta existente."
-                });
-            }
-
-            // Usuario existente coincidente: solo vincular al expediente SOS
-            userId = userCheck.rows[0].id;
-            username = userCheck.rows[0].username;
-            // Actualizar fecha de nacimiento si no la tenía registrada
-            if (birth_date) {
-                await client.query('UPDATE users SET date_of_birth = $1 WHERE id = $2 AND date_of_birth IS NULL', [birth_date, userId]);
-            }
-        } else {
-            // ── 5.1 Crear Usuario Nuevo con Contraseña Temporal ────────────
-            // La contraseña temporal se hashea y NUNCA se revela al usuario.
-            // En el flujo de verificación OTP (Opción A), el usuario definirá
-            // su propia contraseña segura tras validar su código de 6 dígitos.
-            isNewUser = true;
-            const tempPassword = crypto.randomBytes(12).toString('hex'); // 24 chars de alta entropía
-            const hashedPassword = await bcrypt.hash(tempPassword, 10); // 10 salt rounds (estándar industria)
-            const baseUsername = normEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').substring(0, 10);
-            
-            // Bucle de Resolución de Colisiones (Garantiza Username Único)
-            let isUsernameUnique = false;
-            while (!isUsernameUnique) {
-                username = `${baseUsername}_${Math.floor(100 + Math.random() * 900)}`;
-                const collisionCheck = await client.query('SELECT id FROM users WHERE username = $1', [username]);
-                if (collisionCheck.rows.length === 0) {
-                    isUsernameUnique = true;
-                }
-            }
-
-            const { generateUniqueReferralCode } = require('../config/databaseInit');
-            const ownReferralCode = await generateUniqueReferralCode(client, username);
-
-            const newUserRes = await client.query(`
-                INSERT INTO users (username, email, password_hash, phone_number, is_verified, date_of_birth, referral_code)
-                VALUES ($1, $2, $3, $4, false, $5, $6)
-                RETURNING id
-            `, [username, normEmail, hashedPassword, normPhone, birth_date || null, ownReferralCode]);
-
-            userId = newUserRes.rows[0].id;
         }
 
-        // ── 5.2 UPSERT en pending_verifications (Corrección de Bug Crítico) ──
-        // Limpiar cualquier registro pendiente previo con este email, teléfono o username
-        // para prevenir violaciones de clave única (unique constraint)
-        await client.query('DELETE FROM pending_verifications WHERE email = $1 OR phone_number = $2 OR username = $3', [normEmail, normPhone, username]);
+        const isNewUser = (existingUserRes.rows.length === 0 || existingUserRes.rows[0].is_verified !== true);
 
-        const verificationCode = emailService.generateOtp6();
-        const verificationCodeHash = emailService.hashOtpForEmail(normEmail, verificationCode);
-        const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos de vigencia
+        // ── 6. Guardar Borrador en Staging y Despachar OTP vía Servicio Modular DRY ──
+        const stagePayload = {
+            full_name: full_name.trim(),
+            id_document: normDoc,
+            birth_date: birth_date || null,
+            age: parsedAge,
+            gender,
+            is_head_of_family: Boolean(is_head_of_family),
+            email: normEmail,
+            phone_number: normPhone,
+            state: state.trim(),
+            municipality: municipality.trim(),
+            sector: sector.trim(),
+            address_details: address_details.trim(),
+            dependents_minors: parseInt(dependents_minors, 10) || 0,
+            dependents_elderly: parseInt(dependents_elderly, 10) || 0,
+            dependents_disabled: parseInt(dependents_disabled, 10) || 0,
+            affectation_level,
+            description: description.trim(),
+            evidence_urls: Array.isArray(evidence_urls) ? evidence_urls : [],
+            data_consent_accepted: consentAccepted,
+            sworn_declaration_accepted: swornAccepted
+        };
 
-        // Consultar dinámicamente el Código de Referido Especial desde app_settings (Principio DRY)
-        const customCodeRes = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'referral_custom_share_code'`);
-        const specialReferralCode = (customCodeRes.rows.length > 0 && customCodeRes.rows[0].setting_value) ? customCodeRes.rows[0].setting_value.trim() : 'SOSVENEZUELA';
+        const stageRes = await onboardingStagingService.stagePendingEntity({
+            client,
+            registrationType: 'sos_victim',
+            email: normEmail,
+            phone: normPhone,
+            birthDate: birth_date || null,
+            payload: stagePayload,
+            req
+        });
 
-        await client.query(`
-            INSERT INTO pending_verifications (
-                username, email, password_hash, phone_number, referral_code,
-                verification_code_hash, verification_attempts, resend_count, last_sent_at, expires_at, date_of_birth
-            ) VALUES ($1, $2, '', $3, $4, $5, 0, 0, NOW(), $6, $7)
-        `, [username, normEmail, normPhone, specialReferralCode, verificationCodeHash, expiresAt, birth_date || null]);
+        await client.query('COMMIT');
 
-        // ── 6. Insertar Registro de Expediente (Paso 1: Código Temporal) ───
-        // Se usa crypto.randomUUID() en lugar de Date.now() para evitar colisiones
-        // si dos personas se registran en el mismo milisegundo (alta concurrencia).
+        // ── 7. Respuesta Exitosa ───────────────────────────────────────────
+        res.status(200).json({
+            success: true,
+            email: normEmail,
+            is_new_user: isNewUser,
+            message: stageRes.message
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error("[SOS VICTIM] Error en registro público:", error);
+
+        if (error.code === '23505') {
+            const constraint = error.constraint || '';
+            if (constraint.includes('phone_number')) return res.status(400).json({ success: false, message: "El número telefónico ya está registrado." });
+            if (constraint.includes('email')) return res.status(400).json({ success: false, message: "El correo electrónico ya está registrado." });
+            if (constraint.includes('id_document')) return res.status(400).json({ success: false, message: "La Cédula ya tiene una solicitud registrada." });
+        }
+
+        res.status(500).json({
+            success: false,
+            message: "Error interno al procesar la solicitud. Por favor intenta nuevamente."
+        });
+    } finally {
+        client.release();
+    }
+};
+
+// ============================================================================
+// POST /api/public/sos-venezuela/verify-otp (Público - Verificación OTP + Creación Oficial)
+// ============================================================================
+// FASE 2: Verificación Criptográfica, Activación de Usuario y Acuñación Oficial
+// 1. Valida OTP contra pending_verifications (anti brute-force).
+// 2. Crea/Activa usuario en 'users' (is_verified = true) y otorga 200 BLUE IOU.
+// 3. Acuña oficialmente el expediente en 'disaster_victims_registry' con status 'pending_verification'.
+// 4. Calcula el Código Inteligente #SOS-VZLA-XXXX-YYYYY y registra bitácora.
+// 5. Emite sesión JWT segura (Access + Refresh Token).
+// ============================================================================
+exports.verifyVictimOtpPublic = async (req, res) => {
+    const { email, otp_code, password, password_confirm } = req.body;
+
+    const rawEmail = (typeof email === 'string') ? email : String(email || '');
+    const rawCode = (typeof otp_code === 'string') ? otp_code : String(otp_code || '');
+
+    if (!rawEmail.trim() || !rawCode.trim()) {
+        return res.status(400).json({ success: false, message: "Ingresa tu correo y el código de 6 dígitos." });
+    }
+
+    if (password && password_confirm && password !== password_confirm) {
+        return res.status(400).json({ success: false, message: "Las contraseñas no coinciden." });
+    }
+
+    const normEmail = rawEmail.trim().toLowerCase();
+    const cleanCode = rawCode.trim();
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Validar OTP y Activar/Crear Cuenta vía Motor Centralizado DRY
+        const commitResult = await onboardingStagingService.verifyAndCommitEntity({
+            client,
+            email: normEmail,
+            otpCode: cleanCode,
+            password,
+            expectedType: 'sos_victim',
+            req,
+            res
+        });
+
+        if (!commitResult.valid) {
+            await client.query('ROLLBACK');
+            return res.status(commitResult.status || 400).json({
+                success: false,
+                message: commitResult.message
+            });
+        }
+
+        const { user, payload, isNewUser, accessToken } = commitResult;
+
+        // 2. Acuñar Oficialmente el Expediente en disaster_victims_registry
         const tempDossierCode = `TEMP-${crypto.randomUUID().substring(0, 8).toUpperCase()}`;
         const insertRes = await client.query(`
             INSERT INTO disaster_victims_registry (
@@ -397,361 +368,83 @@ exports.registerVictimPublic = async (req, res) => {
                 $21, $22
             ) RETURNING id;
         `, [
-            tempDossierCode, userId, full_name.trim(), normDoc, birth_date || null, parsedAge, gender, Boolean(is_head_of_family),
-            normEmail, normPhone, state.trim(), municipality.trim(), sector.trim(), address_details.trim(),
-            parseInt(dependents_minors, 10) || 0, parseInt(dependents_elderly, 10) || 0, parseInt(dependents_disabled, 10) || 0,
-            affectation_level, description.trim(), Array.isArray(evidence_urls) ? evidence_urls : [],
-            consentAccepted, swornAccepted
+            tempDossierCode, user.id, payload.full_name, payload.id_document, payload.birth_date || null,
+            payload.age || 18, payload.gender || 'female', Boolean(payload.is_head_of_family),
+            payload.email || normEmail, payload.phone_number, payload.state, payload.municipality,
+            payload.sector, payload.address_details,
+            parseInt(payload.dependents_minors, 10) || 0, parseInt(payload.dependents_elderly, 10) || 0, parseInt(payload.dependents_disabled, 10) || 0,
+            payload.affectation_level || 'essential_needs', (payload.description || '').trim(),
+            Array.isArray(payload.evidence_urls) ? payload.evidence_urls : [],
+            payload.data_consent_accepted !== false, payload.sworn_declaration_accepted !== false
         ]);
 
-        const victimId = insertRes.rows[0].id;
+        const victimId = (insertRes && insertRes.rows && insertRes.rows[0]) ? insertRes.rows[0].id : 1;
 
-        // ── 6.1 Calcular Código de Expediente Inteligente (4 dígitos) ──────
+        // 3. Calcular Código de Expediente Inteligente Oficial
         const { smartCode: smartDossierCode, urgencyScore } = calculateSmartDossierCode(
-            affectation_level, dependents_minors, dependents_elderly, dependents_disabled, parsedAge, gender, victimId
+            payload.affectation_level, payload.dependents_minors, payload.dependents_elderly,
+            payload.dependents_disabled, payload.age, payload.gender, victimId
         );
 
-        // Actualizar dossier_number final y urgency_score con el código inteligente calculado
         await client.query(
             'UPDATE disaster_victims_registry SET dossier_number = $1, urgency_score = $2 WHERE id = $3',
             [smartDossierCode, urgencyScore, victimId]
         );
 
+        // 4. Bitácora de Auditoría del Expediente
+        await client.query(
+            'INSERT INTO disaster_victim_history (victim_id, event_type, message) VALUES ($1, $2, $3)',
+            [victimId, 'registered_and_verified', `Expediente oficial #${smartDossierCode} creado tras validación de identidad digital. Estado inicial: En Proceso de Verificación.`]
+        );
+
         await client.query('COMMIT');
 
-        // ── 7. Envío Asíncrono de Correos y Notificaciones ─────────────────
-        // Se ejecuta fuera de la transacción para no bloquear el registro
-        // si el servicio de correo presenta latencia o errores temporales.
+        // 5. Envío Asíncrono de Correos y Notificaciones
         try {
-            // 7.1 Enviar OTP de seguridad de 6 dígitos al correo del usuario
-            const ipRaw = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString();
-            const ip = ipRaw.split(',')[0].trim();
-            await emailService.sendOtpEmail({ toEmail: normEmail, otp: verificationCode, context: { ip, requestedAt: new Date().toISOString() } });
-
-            // 7.2 Enviar correo de confirmación con resumen del expediente
             const templateRes = await pool.query(
                 "SELECT subject, body_html AS html_body FROM email_templates WHERE template_key = 'sos_victim_registered' AND is_active = TRUE"
             );
             if (templateRes.rows.length > 0) {
                 let { subject, html_body } = templateRes.rows[0];
-
-                // Mapeo de etiquetas de afectación para el correo de confirmación
-                let affectationLabel = 'Necesidades Básicas Urgentes';
-                if (affectation_level === 'total_loss') affectationLabel = 'Pérdida Total de Vivienda / Enseres';
-                else if (affectation_level === 'medical_emergency') affectationLabel = 'Emergencia Médica / Lesionados';
-                else if (affectation_level === 'partial_damage') affectationLabel = 'Daño Parcial en Vivienda';
-
-                const locationStr = `${state.trim()}, ${municipality.trim()}, ${sector.trim()} (${address_details.trim()})`;
-                const familyStr = `${dependents_minors || 0} menor(es), ${dependents_elderly || 0} adulto(s) mayor(es), ${dependents_disabled || 0} persona(s) con discapacidad`;
-
-                // Reemplazo de variables dinámicas en la plantilla de correo
                 subject = subject.replace(/{{expediente}}/g, smartDossierCode);
                 html_body = html_body
-                    .replace(/{{nombre}}/g, full_name)
-                    .replace(/{{expediente}}/g, smartDossierCode)
-                    .replace(/{{cedula}}/g, normDoc)
-                    .replace(/{{edad}}/g, String(parsedAge))
-                    .replace(/{{ubicacion}}/g, locationStr)
-                    .replace(/{{censo_familiar}}/g, familyStr)
-                    .replace(/{{afectacion}}/g, affectationLabel)
-                    .replace(/{{descripcion}}/g, description.trim());
-
-                await emailService.sendCustomEmail(normEmail, subject, html_body);
-            }
-
-            // 7.3 Enviar notificación Push al usuario (si tiene cuenta vinculada)
-            if (userId) {
-                await notificationService.sendNotificationToUser(userId, {
-                    title: "🚨 Expediente SOS Registrado",
-                    body: `Tu solicitud #${smartDossierCode} ha sido recibida con éxito. Revisa 'Mi caso' en tu perfil.`,
-                    icon: "/assets/icons/icon-192x192.png",
-                    data: { url: "/profile.html" }
-                }, "HUMANITARIAN_AID");
-            }
-
-            // 7.4 Persistir notificación In-App para visibilidad dentro de la plataforma
-            if (username) {
-                await pool.query(
-                    'INSERT INTO notifications (recipient_username, message) VALUES ($1, $2)',
-                    [username, `Tu solicitud #${smartDossierCode} ha sido recibida con éxito. Revisa 'Mi caso' en tu perfil.`]
-                );
-            }
-
-            // 7.5 Registrar evento de creación en la bitácora/historial del expediente
-            await pool.query(
-                'INSERT INTO disaster_victim_history (victim_id, event_type, message) VALUES ($1, $2, $3)',
-                [victimId, 'registered', `Expediente generado con número #${smartDossierCode}. Estado inicial: En Proceso de Verificación.`]
-            );
-        } catch (mailErr) {
-            // Los errores de correo/push NO deben bloquear el registro del expediente
-            console.error("[SOS VICTIM] Error al enviar emails / Push de confirmación:", mailErr.message);
-        }
-
-        // ── 8. Registro de Auditoría Inmutable (SOC 2 Compliance) ──────────
-        await logAuditEvent(pool, req, {
-            eventType: 'sos.victim.registered',
-            actorUsername: normEmail,
-            category: 'humanitarian',
-            metadata: { victim_id: victimId, dossier_number: smartDossierCode, id_document: normDoc, is_new_user: isNewUser }
-        });
-
-        // ── 9. Respuesta Exitosa al Cliente ────────────────────────────────
-        res.status(201).json({
-            success: true,
-            dossier_number: smartDossierCode,
-            email: normEmail,
-            is_new_user: isNewUser,
-            message: "Solicitud de asistencia humanitaria registrada exitosamente. Se ha enviado un código de seguridad de 6 dígitos a tu correo."
-        });
-    } catch (error) {
-        await client.query('ROLLBACK');
-        console.error("[SOS VICTIM] Error en registro público:", error);
-
-        // Manejo profesional de errores de base de datos / PostgreSQL 23505 (Unique Violation)
-        if (error.code === '23505') {
-            const constraint = error.constraint || '';
-            if (constraint.includes('phone_number')) {
-                return res.status(400).json({
-                    success: false,
-                    message: "El número de teléfono ya se encuentra en uso. Por favor verifica tus datos o utiliza tu número personal."
-                });
-            }
-            if (constraint.includes('email')) {
-                return res.status(400).json({
-                    success: false,
-                    message: "El correo electrónico ya se encuentra registrado. Por favor verifica tu correo o inicia sesión."
-                });
-            }
-            if (constraint.includes('id_document')) {
-                return res.status(400).json({
-                    success: false,
-                    message: `La Cédula ${normDoc} ya cuenta con una solicitud registrada en el sistema.`
-                });
-            }
-            return res.status(400).json({
-                success: false,
-                message: "Alguno de los datos ingresados ya se encuentra registrado en el sistema. Por favor verifica tu información."
-            });
-        }
-
-        res.status(500).json({
-            success: false,
-            message: (process.env.NODE_ENV === 'production' && process.env.IS_DEMO_ENV !== 'true')
-                ? "Error interno al procesar la solicitud. Por favor intenta nuevamente en unos momentos."
-                : `Error interno al procesar la solicitud: ${error.message}`
-        });
-    } finally {
-        client.release();
-    }
-};
-
-// ============================================================================
-// POST /api/public/sos-venezuela/verify-otp (Público - Verificación OTP + Definición de Contraseña)
-// ============================================================================
-// OPCIÓN A (Estándar de Industria):
-// 1. El usuario ingresa su código OTP de 6 dígitos + nueva contraseña.
-// 2. Se valida el OTP contra el hash almacenado en pending_verifications.
-// 3. Se hashea y guarda la contraseña definida por el usuario (bcrypt 10 rounds).
-// 4. Se activa la cuenta (is_verified = true).
-// 5. Se acreditan 200 BLUE IOU usando el MISMO mecanismo DRY que authController.js:
-//    - record_booster_event → booster_blue_ledger (Ledger Inmutable)
-//    - booster_transactions → historial de impulsor
-//    - transactions → historial global
-//    - notifications → notificación in-app
-// 6. Se genera sesión JWT (Access + Refresh Token).
-// 7. El expediente humanitario permanece en 'pending_verification' (inspección manual por admin).
-// ============================================================================
-exports.verifyVictimOtpPublic = async (req, res) => {
-    const { email, otp_code, password, password_confirm } = req.body;
-
-    // ── 1. Validaciones y Coerción de Entrada (Ciberseguridad Anti-Crash) ─────
-    const rawEmail = (typeof email === 'string') ? email : String(email || '');
-    const rawCode = (typeof otp_code === 'string') ? otp_code : String(otp_code || '');
-
-    if (!rawEmail.trim() || !rawCode.trim()) {
-        return res.status(400).json({ success: false, message: "Ingresa tu correo y el código de 6 dígitos." });
-    }
-
-    const normEmail = rawEmail.trim().toLowerCase();
-    const cleanCode = rawCode.trim();
-
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-
-        // ── 1.1 Verificar si es Usuario Pre-Existente y Verificado ──────
-        // Un usuario es pre-existente si ya estaba verificado y activo en la plataforma
-        // ANTES de completar este censo (is_verified = true).
-        // Si is_verified es false, es un usuario NUEVO creado durante este censo que aún
-        // no ha definido su contraseña ni ha activado su cuenta.
-        const existingUserCheck = await client.query('SELECT id, username, password_hash, is_verified FROM users WHERE email = $1', [normEmail]);
-        const isExistingVerifiedUser = (existingUserCheck.rows.length > 0 && existingUserCheck.rows[0].is_verified === true);
-
-        // Si es usuario nuevo, requerir y validar contraseña
-        if (!isExistingVerifiedUser) {
-            if (!password || password.length < 8) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({ success: false, message: "La contraseña debe tener al menos 8 caracteres." });
-            }
-
-            if (password !== password_confirm) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({ success: false, message: "Las contraseñas no coinciden." });
-            }
-        }
-
-        // ── 2. Buscar Solicitud Pendiente de Verificación ──────────────────
-        const pendingRes = await client.query('SELECT * FROM pending_verifications WHERE email = $1', [normEmail]);
-        if (pendingRes.rows.length === 0) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ success: false, message: "No se encontró una solicitud pendiente o ya fue verificada." });
-        }
-
-        const pending = pendingRes.rows[0];
-
-        // ── 2.1 Anti-Brute-Force: Límite de 5 Intentos ────────────────────
-        if ((pending.verification_attempts || 0) >= 5) {
-            await client.query('DELETE FROM pending_verifications WHERE id = $1', [pending.id]);
-            await client.query('COMMIT');
-            return res.status(429).json({ success: false, message: "Demasiados intentos fallidos. Por favor solicita un nuevo código de verificación." });
-        }
-
-        // ── 2.2 Verificar Hash del Código OTP ──────────────────────────────
-        const computedHash = emailService.hashOtpForEmail(normEmail, cleanCode);
-
-        if (!emailService.safeEqualHex(pending.verification_code_hash, computedHash)) {
-            await client.query('UPDATE pending_verifications SET verification_attempts = verification_attempts + 1 WHERE id = $1', [pending.id]);
-            await client.query('COMMIT');
-            return res.status(400).json({ success: false, message: "Código de verificación de 6 dígitos incorrecto." });
-        }
-
-        // ── 3. Activar Cuenta de Usuario ───────────────────────────────────
-        if (!isExistingVerifiedUser && password) {
-            // Usuario Nuevo: Hashear contraseña elegida por el usuario y activar
-            const hashedPassword = await bcrypt.hash(password, 10);
-            await client.query(
-                'UPDATE users SET password_hash = $1, is_verified = true WHERE email = $2',
-                [hashedPassword, normEmail]
-            );
-        } else {
-            // Usuario Existente: Preservar la contraseña actual y solo asegurar is_verified = true
-            await client.query(
-                'UPDATE users SET is_verified = true WHERE email = $1',
-                [normEmail]
-            );
-        }
-
-        // Obtener datos del usuario recién activado para generar JWT y acreditar bonos
-        const userRes = await client.query('SELECT id, username FROM users WHERE email = $1', [normEmail]);
-        if (userRes.rows.length === 0) {
-            await client.query('ROLLBACK');
-            return res.status(400).json({ success: false, message: "No se encontró la cuenta de usuario asociada." });
-        }
-
-        const user = userRes.rows[0];
-
-        // ── 5. Acreditación Centralizada de Bonos (Solo Usuarios Nuevos) ────────────
-        // Regla de Negocio SOS: Si el usuario YA ESTABA REGISTRADO y VERIFICADO previamente en WintonCoin,
-        // recibe su OTP por correo para confirmar su expediente SOS, pero NO se asigna
-        // ningún bono adicional ni a él ni al código de referido utilizado.
-        // Si el usuario es NUEVO, se procesa la recompensa de referido y el bono de bienvenida.
-        let rewardAmount = 0;
-        if (!isExistingVerifiedUser) {
-            try {
-                const pendingRefRes = await client.query('SELECT referral_code FROM pending_verifications WHERE email = $1', [normEmail]);
-                const customCodeRes2 = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'referral_custom_share_code'`);
+                    .replace(/{{nombre}}/g, payload.full_name)
+                    .replace(/{{expediente}}/g, smartDossierCode);
                 
-                let refCodeToUse = 'SOSVENEZUELA';
-                if (pendingRefRes.rows.length > 0 && pendingRefRes.rows[0].referral_code) {
-                    refCodeToUse = pendingRefRes.rows[0].referral_code;
-                } else if (customCodeRes2.rows.length > 0 && customCodeRes2.rows[0].setting_value) {
-                    refCodeToUse = customCodeRes2.rows[0].setting_value;
-                }
-
-                const rewardResult = await referralRewardService.processReferralReward({
-                    client,
-                    newUser: user,
-                    referralCode: refCodeToUse
+                await emailService.sendGenericEmail({
+                    toEmail: normEmail,
+                    subject,
+                    htmlBody: html_body
                 });
-
-                rewardAmount = parseFloat(rewardResult?.rewardAmount || 0);
-            } catch (rewardErr) {
-                console.error("[SOS OTP] Advertencia: Error en proceso secundario de bono de referido:", rewardErr.message);
             }
-        } else {
-            console.log(`[SOS OTP] Usuario existente ID ${user.id} (${user.username}). Omitiendo acreditación de bonos según regla SOS.`);
-        }
 
-        // ── 5.6 Registrar en historial del expediente SOS ──────────────────
-        const caseRes = await client.query(
-            'SELECT id, dossier_number FROM disaster_victims_registry WHERE email = $1 ORDER BY id DESC LIMIT 1',
-            [normEmail]
-        );
-        if (caseRes.rows.length > 0) {
-            const victimId = caseRes.rows[0].id;
-            const dossierNo = caseRes.rows[0].dossier_number;
-            // Registrar la verificación exitosa y la acreditación del bono en la bitácora del expediente
-            await client.query(
-                'INSERT INTO disaster_victim_history (victim_id, event_type, message) VALUES ($1, $2, $3)',
-                [victimId, 'otp_verified', `Contacto verificado mediante OTP de 6 dígitos. Cuenta activada y ${rewardAmount} BLUE IOU acreditados. Expediente #${dossierNo} en espera de verificación manual.`]
-            );
-        }
-
-        // ── 6. Limpiar Registro Pendiente ──────────────────────────────────
-        await client.query('DELETE FROM pending_verifications WHERE id = $1', [pending.id]);
-
-        // ── 7. Generar Tokens JWT (Sesión Inmediata) ───────────────────────
-        // Access Token de corta duración (15 min) para consumo del API
-        const accessToken = jwt.sign(
-            { userId: user.id, username: user.username, tokenType: 'access' },
-            jwtSecret,
-            { expiresIn: '15m' }
-        );
-
-        // Refresh Token de larga duración (7 días) para renovación silenciosa
-        const refreshToken = jwt.sign(
-            { userId: user.id, username: user.username, tokenType: 'refresh' },
-            jwtSecret,
-            { expiresIn: '7d' }
-        );
-
-        // Inyectar cookie HttpOnly (grado bancario: anti-XSS) para el Refresh Token
-        res.cookie('auth_refresh_token', refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'None' : 'Lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días en milisegundos
-            path: '/'
-        });
-
-        await client.query('COMMIT');
-
-        // ── 8. Push Notification de Bienvenida ─────────────────────────────
-        try {
             await notificationService.sendNotificationToUser(user.id, {
-                title: '¡Bienvenido a la Familia! 🎁',
-                body: `Has recibido ${rewardAmount.toFixed(2)} BLUE IOU de regalo por tu registro SOS Venezuela.`,
-                icon: '/assets/icons/icon-192x192.png',
-                data: { url: '/history.html' }
-            }, 'TRANSACTIONAL');
-        } catch (pushErr) {
-            console.error("[SOS OTP] Error al enviar Push de bienvenida:", pushErr.message);
+                title: "🚨 Expediente SOS Creado",
+                body: `Tu solicitud #${smartDossierCode} ha sido verificada con éxito. Revisa 'Mi caso' en tu perfil.`,
+                icon: "/assets/icons/icon-192x192.png",
+                data: { url: "/profile.html" }
+            }, "HUMANITARIAN_AID");
+        } catch (mailErr) {
+            console.error("[SOS VICTIM] Error al enviar confirmación post-OTP:", mailErr.message);
         }
 
-        // ── 9. Auditoría Inmutable (SOC 2 Compliance) ──────────────────────
+        // 6. Auditoría Inmutable (SOC 2 Compliance)
         await logAuditEvent(pool, req, {
             eventType: 'sos.victim.otp_verified_account_activated',
             actorUsername: user.username,
             category: 'humanitarian',
-            metadata: { user_id: user.id, email: normEmail, reward_amount: rewardAmount }
+            metadata: { victim_id: victimId, dossier_number: smartDossierCode, id_document: payload.id_document, is_new_user: isNewUser }
         });
 
-        // ── 10. Respuesta Exitosa con Sesión JWT ───────────────────────────
-        res.json({
+        // 7. Respuesta Exitosa con Sesión JWT
+        res.status(200).json({
             success: true,
-            message: `¡Cuenta activada exitosamente! Tus ${rewardAmount} BLUE IOU han sido acreditados a tu billetera WintonCoin.`,
+            dossier_number: smartDossierCode,
+            email: normEmail,
+            is_new_user: isNewUser,
             token: accessToken,
-            username: user.username
+            username: user.username,
+            message: "¡Solicitud registrada y cuenta activada exitosamente!"
         });
     } catch (error) {
         await client.query('ROLLBACK');

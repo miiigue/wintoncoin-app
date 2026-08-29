@@ -1,0 +1,41 @@
+name: Deploy Frontend Demo to Hostinger (demo.wintoncoin.com)
+
+on:
+  push:
+    branches:
+      - demo
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/deploy-frontend-demo.yml'
+  workflow_dispatch:
+
+jobs:
+  demo-deploy:
+    name: Build & Deploy Demo
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Clonar repositorio (Checkout)
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Configurar entorno Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 📦 Instalar dependencias y Construir Demo (Build Demo)
+        run: |
+          cd frontend
+          npm install
+          npm run build:demo
+
+      - name: 🚀 Instalar cliente seguro LFTP
+        run: sudo apt-get update && sudo apt-get install -y lftp
+
+      - name: 🌐 Deploy a demo.wintoncoin.com
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER_DEMO }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME_DEMO }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD_DEMO }}
+        run: |
+          cd frontend/dist-demo
+          lftp -c "set ssl:verify-certificate no; open -u $FTP_USERNAME,$FTP_PASSWORD $FTP_SERVER; mirror -Rnev ./ ./ --parallel=10"

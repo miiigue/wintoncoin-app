@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
@@ -66,7 +67,8 @@ import com.wintoncoin.app.presentation.theme.WintonPurple
 @Composable
 fun WalletScreen(
     viewModel: WalletViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToAccountStatement: () -> Unit = {}
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val formatter = FormatBalanceUseCase()
@@ -201,6 +203,33 @@ fun WalletScreen(
                                     kycVerified = balance?.kycVerified ?: false,
                                     walletAddress = balance?.web3WalletAddress
                                 )
+                            }
+
+                            // Acceso directo a Estado de Cuenta Web3
+                            item {
+                                androidx.compose.material3.Button(
+                                    onClick = onNavigateToAccountStatement,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                                        containerColor = Color.White.copy(alpha = 0.08f)
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, WintonGreen.copy(alpha = 0.3f))
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Description,
+                                        contentDescription = null,
+                                        tint = WintonGreen,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Ver Estado de Cuenta Web3 Completo ↗",
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
 
                             item {
