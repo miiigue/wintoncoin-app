@@ -28,14 +28,14 @@ async function updateUserBoosterLevel(client, userId) {
         'SELECT SUM(amount) as total FROM booster_blue_ledger WHERE user_id = $1 AND amount > 0',
         [userId]
     );
-    const totalBoosterBlue = parseFloat(totalBlueResult.rows[0].total) || 0;
+    const totalBoosterBlue = parseFloat(totalBlueResult.rows[0]?.total) || 0;
 
     // 2. Encontrar el nivel más alto que el usuario ha alcanzado según las configuraciones de nivel
     const levelResult = await client.query(
         'SELECT MAX(level) as current_level FROM booster_level_settings WHERE min_blue_required <= $1',
         [totalBoosterBlue]
     );
-    const newLevel = levelResult.rows[0].current_level || 0;
+    const newLevel = levelResult.rows[0]?.current_level || 0;
 
     // 3. Actualizar de forma atómica el nivel del usuario en la tabla 'users'
     await client.query('UPDATE users SET booster_level = $1 WHERE id = $2', [newLevel, userId]);
@@ -195,6 +195,17 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
     const { blue_cost, base_blue_cost, title, author_username: author, author_id: authorId, workerUsername, workerId: workerIdFromQuery } = acceptance;
     let cost = parseFloat(blue_cost || 0);
     const baseCost = parseFloat(base_blue_cost || 0);
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // AUDITORÍA FINTECH & ZERO-TRUST: Inicialización Segura de Outbox Pattern
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Se inicializa en null de forma defensiva para asegurar que la función
+    // siempre retorne un objeto consistente sin lanzar ReferenceError cuando
+    // opera en Modo Pre-Lanzamiento (off-chain virtual en booster_blue_ledger).
+    // Si la transacción se procesa en Modo Normal Web3, se le asignará el ID
+    // generado en la tabla web3_pending_transactions.
+    // ═══════════════════════════════════════════════════════════════════════════
+    let web3IntentId = null;
 
     // MOTOR TRANSACCIONAL HÍBRIDO (OPCIÓN A):
     // Si la plataforma está en pre-lanzamiento o si la tarea en sí es una Tarea de Impulsor (is_booster_task = true),
@@ -817,7 +828,7 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
         await client.query(`UPDATE publication_acceptances SET status = 'confirmed_paid' WHERE id = $1`, [acceptance_id]);
     }
 
-    return { success: true, message: resultMessage };
+    return { success: true, message: resultMessage, web3IntentId };
 }
 
 module.exports = {

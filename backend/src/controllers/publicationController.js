@@ -1752,7 +1752,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             // Si hubo interacción con blockchain, marcamos la intención como
             // 'fully_resolved'. El cron de reconciliación ignorará este registro.
             // ═══════════════════════════════════════════════════════════════
-            if (result.web3IntentId) {
+            if (result && result.web3IntentId) {
                 await pool.query(
                     `UPDATE web3_pending_transactions SET status = 'fully_resolved', resolved_at = NOW() WHERE id = $1`,
                     [result.web3IntentId]

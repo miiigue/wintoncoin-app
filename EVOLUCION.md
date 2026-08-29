@@ -13,6 +13,46 @@ Para el detalle ‚Äútipo release‚Äù, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qu√© problema resolvi√≥ y qu√© habilita hacia adelante.
 
+### 2026-08-29 ‚Äî Backend: Correcci√≥n de Scope en Outbox Pattern (`publicationService.js`) y Blindaje de Pagos en Modo Pre-Lanzamiento
+* **Diagn√≥stico & Objetivo**:
+  - Al presionar el bot√≥n "Confirmar Pago" en el Panel Administrativo para tareas completadas en Modo Pre-Lanzamiento (`pre_launch_mode_enabled = true`), el backend arrojaba un error `500 Internal Server Error: web3IntentId is not defined` impidiendo la confirmaci√≥n y acreditaci√≥n de BLUE IOUs.
+  - La causa ra√≠z se origin√≥ en la funci√≥n `processRequestPayment()` de `publicationService.js`: durante la incorporaci√≥n del patr√≥n de seguridad *Outbox Pattern* (Saga CeFi/DeFi), la variable `web3IntentId` se referenciaba en la sentencia `return`, pero no se encontraba declarada en la cabecera de la funci√≥n. Al ejecutarse la rama de pre-lanzamiento (off-chain), se omit√≠a la rama `else` donde se instanciaba dicha variable, provocando un fallo de tiempo de ejecuci√≥n `ReferenceError`.
+* **Cambios T√©cnicos**:
+  - **Servicio de Publicaciones (`backend/src/services/publicationService.js`)**:
+    - Inicializaci√≥n defensiva de `let web3IntentId = null;` en la cabecera de `processRequestPayment()`, garantizando que en Modo Pre-Lanzamiento retorne un valor nulo seguro sin fallos de scope.
+    - Actualizado `processDirectPaymentCompletion()` para retornar `web3IntentId` de forma homog√©nea con la interfaz de conciliaci√≥n.
+    - Incorporaci√≥n de *optional chaining* defensivo (`rows[0]?.total`, `rows[0]?.current_level`) en el helper `updateUserBoosterLevel()` para evitar excepciones ante consultas vac√≠as.
+  - **Controlador de Publicaciones (`backend/src/controllers/publicationController.js`)**:
+    - Blindada la verificaci√≥n posterior a la transacci√≥n con validaci√≥n defensiva `if (result && result.web3IntentId)` en la ruta `POST /publications/:id/confirm-payment`.
+  - **Suite de Pruebas Unitarias (`backend/__tests__/publicationPayment.test.js`)**:
+    - Creada suite de pruebas unitarias automatizadas cubriendo el flujo de `processRequestPayment()` y `processDirectPaymentCompletion()` en Modo Pre-Lanzamiento con mocks de base de datos e inyecci√≥n de dependencias aisladas.
+* **Impacto**:
+  - El Panel Administrativo confirma de inmediato las tareas culminadas, acreditando de forma at√≥mica los BLUE IOUs en `booster_blue_ledger`, actualizando el nivel del impulsor y emitiendo la notificaci√≥n push al usuario sin errores 500.
+
+### 2026-08-28 ‚Äî Backend & Worker: Purga Autom√°tica y Mantenimiento de Staging a las 48 Horas (`stagingCleanupJob.js`)
+* **Diagn√≥stico & Objetivo**:
+  - Implementar un proceso automatizado y modular en segundo plano (Cron Job) que depure peri√≥dicamente de PostgreSQL las solicitudes temporales incompletas en `pending_verifications` que hayan superado las 48 horas de expiraci√≥n.
+  - Mantener la base de datos ligera, limpia y optimizada sin intervenci√≥n manual, preservando la ventana de soporte y telemetr√≠a de embudos (funnel drop-off) exigida por los est√°ndares FinTech y bancarios.
+* **Cambios T√©cnicos**:
+  - **Worker Modular (`backend/src/workers/stagingCleanupJob.js`)**:
+    - Purga segura mediante `DELETE FROM pending_verifications WHERE expires_at < NOW() - INTERVAL '48 hours' RETURNING id;`.
+    - Tolerancia a fallos y liberaci√≥n estricta de conexiones en bloque `try / catch / finally`.
+  - **Orquestador de Tareas (`backend/src/workers/cronManager.js`)**:
+    - Registro de `stagingCleanupJob` con intervalo de 48 horas (`STAGING_CLEANUP_INTERVAL_MS = 48 * 60 * 60 * 1000`) y ejecuci√≥n inicial al arrancar el servidor.
+  - **Suite de Pruebas Automatizadas (`backend/__tests__/stagingCleanupJob.test.js`)**:
+    - Pruebas unitarias completas simulando purga de expedientes vencidos y verificaci√≥n de conexiones.
+
+### 2026-08-27 ‚Äî Arquitectura FinTech de Onboarding en 2 Fases (Staging y Creaci√≥n Oficial de Expedientes), M√≥dulo Reutilizable formDraftManager y Modernizaci√≥n ATS en Voluntariado
+* **Diagn√≥stico & Objetivo**:
+  - Separar de forma at√≥mica y estandarizada la recopilaci√≥n preliminar de datos del registro definitivo en las tablas de negocio (`sos_victims`, `volunteers`), garantizando que los postulantes incompletos o en proceso de verificaci√≥n OTP no ocupen expedientes oficiales prematuramente.
+  - Estandarizar la persistencia temporal en local storage mediante el m√≥dulo unificado `formDraftManager.js` (DRY) para formularios de Voluntariado y SOS Venezuela.
+* **Cambios T√©cnicos**:
+  - **Servicio de Onboarding Staging (`backend/src/services/onboardingStagingService.js`)**:
+    - Mapeo de metadatos de voluntariado (`availability_hours`, `driver_license_categories`, `skills`, `languages`, etc.) para serializaci√≥n JSON segura en `pending_verifications`.
+    - Promoci√≥n at√≥mica a la tabla `volunteers` solo tras la verificaci√≥n OTP exitosa y aceptaci√≥n de t√©rminos.
+  - **Form Draft Manager (`frontend/src/utils/formDraftManager.js`)**:
+    - Manejador gen√©rico de borradores locales con auto-guardado, restauraci√≥n ante recarga accidental y limpieza tras env√≠o exitoso.
+
 ### 2026-08-26 ‚Äî Android Nativo: Fase 13 ‚Äî Paridad Visual Total con PWA (style.css), Correcci√≥n de Payload de Login y Resiliencia de Inicio
 * **Diagn√≥stico & Objetivo**:
   - Resolver la incompatibilidad del payload de inicio de sesi√≥n (`identifier` vs `username`) que imped√≠a la autenticaci√≥n en el backend de producci√≥n y demo.
@@ -5535,68 +5575,68 @@ pm run build:demo) exitosamente.
   - `trabaja-con-nosotros.html`: Banner reactivo al elegir 'Voluntario' para redirigir a `sos-venezuela.html#voluntariado`.
   - `admin-recruitment.html`: Pesta√±a dedicada **Voluntarios SOS** con tabla interactiva, filtros por score/ubicaci√≥n y acciones r√°pidas de activaci√≥n y suspensi√≥n.
 \n
-### 2026-08-27 - UI/UX Refactor: EliminaciÛn de TÌtulos de Saldos en Dashboard
-- Se eliminaron los tÌtulos 'SALDO BLUE' y 'SALDO RED' de las tarjetas de la billetera en \rontend/contract_interaction.html\ para mantener un diseÒo m·s minimalista (KISS).
-- Se unificÛ el contenido de los tooltips de ayuda dentro de los tooltips de las etiquetas 'Disponibles' y 'Tus obligaciones'.
-- **RazÛn:** Mejora de experiencia de usuario al limpiar la interfaz visual y evitar redundancias sin perder los textos educativos del ecosistema.
+### 2026-08-27 - UI/UX Refactor: EliminaciÔøΩn de TÔøΩtulos de Saldos en Dashboard
+- Se eliminaron los tÔøΩtulos 'SALDO BLUE' y 'SALDO RED' de las tarjetas de la billetera en \rontend/contract_interaction.html\ para mantener un diseÔøΩo mÔøΩs minimalista (KISS).
+- Se unificÔøΩ el contenido de los tooltips de ayuda dentro de los tooltips de las etiquetas 'Disponibles' y 'Tus obligaciones'.
+- **RazÔøΩn:** Mejora de experiencia de usuario al limpiar la interfaz visual y evitar redundancias sin perder los textos educativos del ecosistema.
 
-### 2026-08-27 - Reordenamiento de MÈtricas RED
-- Se reordenaron las filas de la secciÛn 'Tokens RED (Obligaciones)' en \rontend/estado-cuenta.html\ al orden solicitado: 'LÌmite RED aprobado', 'RED utilizado', 'RED disponible'.
-- **RazÛn:** Solicitud del usuario para mayor claridad de lectura financiera.
+### 2026-08-27 - Reordenamiento de MÔøΩtricas RED
+- Se reordenaron las filas de la secciÔøΩn 'Tokens RED (Obligaciones)' en \rontend/estado-cuenta.html\ al orden solicitado: 'LÔøΩmite RED aprobado', 'RED utilizado', 'RED disponible'.
+- **RazÔøΩn:** Solicitud del usuario para mayor claridad de lectura financiera.
 
-### 2026-08-27 - UI/UX Refactor: TerminologÌa de Compromiso
-- Se reemplazÛ el tÈrmino 'Obligaciones' por 'Compromiso' en las vistas de billetera (\contract_interaction.html\) y estado de cuenta (\estado-cuenta.html\).
-- **RazÛn:** Cambio de copywriting solicitado por el usuario para alinear la percepciÛn del usuario con un enfoque colaborativo (compromiso) en lugar de uno estricto de deuda (obligaciÛn).
+### 2026-08-27 - UI/UX Refactor: TerminologÔøΩa de Compromiso
+- Se reemplazÔøΩ el tÔøΩrmino 'Obligaciones' por 'Compromiso' en las vistas de billetera (\contract_interaction.html\) y estado de cuenta (\estado-cuenta.html\).
+- **RazÔøΩn:** Cambio de copywriting solicitado por el usuario para alinear la percepciÔøΩn del usuario con un enfoque colaborativo (compromiso) en lugar de uno estricto de deuda (obligaciÔøΩn).
 
-### 2026-08-27 - UI/UX: AdiciÛn de LÌmite Disponible en Dashboard
-- Se agregÛ una mÈtrica secundaria bajo el saldo RED en \contract_interaction.html\ que muestra el crÈdito RED 'DISPONIBLE'.
-- Se actualizÛ \src/pages/contract-interaction.js\ para calcular el lÌmite disponible (\credit_limit - red_balance\) y poblar din·micamente este nuevo elemento.
-- **RazÛn:** Proveer al usuario una vista r·pida de cu·nto crÈdito RED le queda libre directamente desde la pantalla principal, sin perder de vista su compromiso utilizado.
+### 2026-08-27 - UI/UX: AdiciÔøΩn de LÔøΩmite Disponible en Dashboard
+- Se agregÔøΩ una mÔøΩtrica secundaria bajo el saldo RED en \contract_interaction.html\ que muestra el crÔøΩdito RED 'DISPONIBLE'.
+- Se actualizÔøΩ \src/pages/contract-interaction.js\ para calcular el lÔøΩmite disponible (\credit_limit - red_balance\) y poblar dinÔøΩmicamente este nuevo elemento.
+- **RazÔøΩn:** Proveer al usuario una vista rÔøΩpida de cuÔøΩnto crÔøΩdito RED le queda libre directamente desde la pantalla principal, sin perder de vista su compromiso utilizado.
 
 ### 2026-08-27 - UI/UX: Ajustes de copy y colores en Dashboard
-- En la tarjeta BLUE, se cambiÛ la etiqueta 'Disponibles' por 'LIQUIDEZ'.
-- En la tarjeta RED, se cambiÛ el color de la etiqueta secundaria 'DISPONIBLE' de verde a rojo (#ef4444) para mantener la coherencia sem·ntica con el token.
-- **RazÛn:** Refinamiento visual y terminolÛgico solicitado por el usuario.
+- En la tarjeta BLUE, se cambiÔøΩ la etiqueta 'Disponibles' por 'LIQUIDEZ'.
+- En la tarjeta RED, se cambiÔøΩ el color de la etiqueta secundaria 'DISPONIBLE' de verde a rojo (#ef4444) para mantener la coherencia semÔøΩntica con el token.
+- **RazÔøΩn:** Refinamiento visual y terminolÔøΩgico solicitado por el usuario.
 
 ### 2026-08-27 - UX: Tarjeta RED clicable en Dashboard
-- Se agregÛ el evento \onclick\ y el estilo \cursor: pointer\ a la tarjeta RED en \contract_interaction.html\, replicando el comportamiento de la tarjeta BLUE.
-- **RazÛn:** Proveer al usuario una forma intuitiva de navegar hacia \estado-cuenta.html\ al interactuar con la secciÛn de su compromiso, igualando la experiencia de usuario que ya existÌa con la tarjeta de liquidez.
+- Se agregÔøΩ el evento \onclick\ y el estilo \cursor: pointer\ a la tarjeta RED en \contract_interaction.html\, replicando el comportamiento de la tarjeta BLUE.
+- **RazÔøΩn:** Proveer al usuario una forma intuitiva de navegar hacia \estado-cuenta.html\ al interactuar con la secciÔøΩn de su compromiso, igualando la experiencia de usuario que ya existÔøΩa con la tarjeta de liquidez.
 
 ### 2026-08-27 - UX/UI: Tooltips y Copywriting en Estado de Cuenta
-- Se actualizÛ el copy de 'Total Disponible' a 'Total LÌquido' en la secciÛn BLUE.
-- Se cambiÛ el tÈrmino 'Escrow' por 'Parking' en la secciÛn BLUE.
-- Se implementaron tooltips informativos en cada elemento de la secciÛn BLUE para educar al usuario sobre los estados (LÌquido, Parking a 30 dÌas, LiberaciÛn).
-- **RazÛn:** Claridad financiera e instrucciÛn guiada en el Estado de Cuenta Web3.
+- Se actualizÔøΩ el copy de 'Total Disponible' a 'Total LÔøΩquido' en la secciÔøΩn BLUE.
+- Se cambiÔøΩ el tÔøΩrmino 'Escrow' por 'Parking' en la secciÔøΩn BLUE.
+- Se implementaron tooltips informativos en cada elemento de la secciÔøΩn BLUE para educar al usuario sobre los estados (LÔøΩquido, Parking a 30 dÔøΩas, LiberaciÔøΩn).
+- **RazÔøΩn:** Claridad financiera e instrucciÔøΩn guiada en el Estado de Cuenta Web3.
 
-### 2026-08-27 - UX/UI: Iconos explicativos (?) e inicializaciÛn JS de Tooltips en Estado de Cuenta
-- Se eliminÛ la palabra '(Bloqueado)' dejando ˙nicamente 'En Parking'.
-- Se actualizÛ la explicaciÛn de 'Parking' para definirlo como el periodo mÌnimo de 30 dÌas necesario antes de poder operar o intercambiar esos fondos en P2P.
-- Se aÒadieron iconos '?' y tooltips informativos completos a TODOS los elementos tanto de la tarjeta BLUE como de la tarjeta RED (Total LÌquido, En Parking, PrÛxima liberaciÛn, USD Estimado, LÌmite RED aprobado, RED utilizado, RED disponible, Score Org·nico y GarantÌa en BÛveda).
-- Se integrÛ la inicializaciÛn din·mica de tooltips mediante \initializeInfoTooltip\ en \estado-cuenta.js\ para que funcionen activamente con hover/click siguiendo el principio DRY.
-- **RazÛn:** Experiencia de usuario (UX) 100% educativa e interactiva en la vista de Estado de Cuenta.
+### 2026-08-27 - UX/UI: Iconos explicativos (?) e inicializaciÔøΩn JS de Tooltips en Estado de Cuenta
+- Se eliminÔøΩ la palabra '(Bloqueado)' dejando ÔøΩnicamente 'En Parking'.
+- Se actualizÔøΩ la explicaciÔøΩn de 'Parking' para definirlo como el periodo mÔøΩnimo de 30 dÔøΩas necesario antes de poder operar o intercambiar esos fondos en P2P.
+- Se aÔøΩadieron iconos '?' y tooltips informativos completos a TODOS los elementos tanto de la tarjeta BLUE como de la tarjeta RED (Total LÔøΩquido, En Parking, PrÔøΩxima liberaciÔøΩn, USD Estimado, LÔøΩmite RED aprobado, RED utilizado, RED disponible, Score OrgÔøΩnico y GarantÔøΩa en BÔøΩveda).
+- Se integrÔøΩ la inicializaciÔøΩn dinÔøΩmica de tooltips mediante \initializeInfoTooltip\ en \estado-cuenta.js\ para que funcionen activamente con hover/click siguiendo el principio DRY.
+- **RazÔøΩn:** Experiencia de usuario (UX) 100% educativa e interactiva en la vista de Estado de Cuenta.
 
-### 2026-08-27 - UX/UI Refactor: CorrecciÛn de Tooltips Web3 Dark y Cobertura 100% en Estado de Cuenta
-- Se eliminÛ el car·cter Unicode de doble cÌrculo (U+24D8), sustituyÈndolo por una letra 'i' limpia envuelta por el cÌrculo CSS \.info-icon\ de 16px para eliminar la duplicidad visual.
-- Se rediseÒÛ el CSS de \.info-tooltip\ con tema oscuro Web3 (\#1e293b\ con texto claro y bordes \#334155\), ajustando el posicionamiento emergente en mÛviles para evitar solapamientos e invasiÛn de filas contiguas.
-- Se extendieron los tooltips e iconos 'i' a la totalidad de las secciones del Estado de Cuenta Web3 (Identidad Web3: Estado de Red, KYC, Public Key; MÈtricas Blockchain: Interacciones, Recibidos, Enviados, Amortizado), logrando cobertura completa e interactiva.
-- **RazÛn:** SoluciÛn definitiva de glitches visuales en dispositivos mÛviles y alineamiento con la estÈtica Web3.
+### 2026-08-27 - UX/UI Refactor: CorrecciÔøΩn de Tooltips Web3 Dark y Cobertura 100% en Estado de Cuenta
+- Se eliminÔøΩ el carÔøΩcter Unicode de doble cÔøΩrculo (U+24D8), sustituyÔøΩndolo por una letra 'i' limpia envuelta por el cÔøΩrculo CSS \.info-icon\ de 16px para eliminar la duplicidad visual.
+- Se rediseÔøΩÔøΩ el CSS de \.info-tooltip\ con tema oscuro Web3 (\#1e293b\ con texto claro y bordes \#334155\), ajustando el posicionamiento emergente en mÔøΩviles para evitar solapamientos e invasiÔøΩn de filas contiguas.
+- Se extendieron los tooltips e iconos 'i' a la totalidad de las secciones del Estado de Cuenta Web3 (Identidad Web3: Estado de Red, KYC, Public Key; MÔøΩtricas Blockchain: Interacciones, Recibidos, Enviados, Amortizado), logrando cobertura completa e interactiva.
+- **RazÔøΩn:** SoluciÔøΩn definitiva de glitches visuales en dispositivos mÔøΩviles y alineamiento con la estÔøΩtica Web3.
 
-### 2026-08-27 - UX/UI & Compliance: Tooltips Blancos Centrados y DepuraciÛn de TerminologÌa Financiera
-- Se removieron los overrides CSS inline que rompÌan el diseÒo del sistema. Los tooltips vuelven a ser de fondo blanco (#ffffff), con bordes limpios y texto oscuro contrastado, tal como est· definido en el sistema de diseÒo (\style.css\).
-- Se restableciÛ el centrado responsivo perfecto en mÛviles (\left: 50%\, \	ransform: translateX(-50%)\), evitando que se desborden de la pantalla.
-- Se actualizÛ \	ooltips.js\ para que al tocar/activar un tooltip nuevo, todos los dem·s tooltips abiertos se cierren autom·ticamente, eliminando la acumulaciÛn/solapamiento de recuadros en dispositivos mÛviles.
-- **Cumplimiento Legal & FinTech:** Se depuraron todas las menciones de las palabras prohibidas ('crÈdito' y 'deuda') en los tooltips y textos, reemplaz·ndolas por 'compromiso', 'lÌmite RED' o 'cupo RED'.
-- **RazÛn:** Estricto cumplimiento normativo FinTech y perfeccionamiento visual responsivo.
+### 2026-08-27 - UX/UI & Compliance: Tooltips Blancos Centrados y DepuraciÔøΩn de TerminologÔøΩa Financiera
+- Se removieron los overrides CSS inline que rompÔøΩan el diseÔøΩo del sistema. Los tooltips vuelven a ser de fondo blanco (#ffffff), con bordes limpios y texto oscuro contrastado, tal como estÔøΩ definido en el sistema de diseÔøΩo (\style.css\).
+- Se restableciÔøΩ el centrado responsivo perfecto en mÔøΩviles (\left: 50%\, \	ransform: translateX(-50%)\), evitando que se desborden de la pantalla.
+- Se actualizÔøΩ \	ooltips.js\ para que al tocar/activar un tooltip nuevo, todos los demÔøΩs tooltips abiertos se cierren automÔøΩticamente, eliminando la acumulaciÔøΩn/solapamiento de recuadros en dispositivos mÔøΩviles.
+- **Cumplimiento Legal & FinTech:** Se depuraron todas las menciones de las palabras prohibidas ('crÔøΩdito' y 'deuda') en los tooltips y textos, reemplazÔøΩndolas por 'compromiso', 'lÔøΩmite RED' o 'cupo RED'.
+- **RazÔøΩn:** Estricto cumplimiento normativo FinTech y perfeccionamiento visual responsivo.
 
-### 2026-08-27 - UX/UI Fix: Posicionamiento Responsivo de Tooltips (EliminaciÛn de Desbordamiento MÛvil)
-- Se corrigiÛ el error de alineaciÛn matem·tica donde \left: 50%\ con \min-width: calc(100vw - 32px)\ provocaba que el cuadro del tooltip se desplazara hacia afuera de la pantalla por la izquierda (-150px off-screen).
-- Se redujo el ancho m·ximo a un tamaÒo compacto y elegante (\width: 260px; max-width: calc(100vw - 40px)\).
-- Se implementÛ la alineaciÛn basada en anclaje inteligente: los tooltips de elementos a la izquierda se alinean en \left: 0\ con su flecha apuntando a 20px desde la izquierda directo al icono 'i'; los elementos a la derecha utilizan \.tooltip-right-align\ con flecha alineada a la derecha.
-- **RazÛn:** Garantizar que el 100% del cuadro explicativo blanco sea visible en la pantalla sin importar el tamaÒo del telÈfono.
+### 2026-08-27 - UX/UI Fix: Posicionamiento Responsivo de Tooltips (EliminaciÔøΩn de Desbordamiento MÔøΩvil)
+- Se corrigiÔøΩ el error de alineaciÔøΩn matemÔøΩtica donde \left: 50%\ con \min-width: calc(100vw - 32px)\ provocaba que el cuadro del tooltip se desplazara hacia afuera de la pantalla por la izquierda (-150px off-screen).
+- Se redujo el ancho mÔøΩximo a un tamaÔøΩo compacto y elegante (\width: 260px; max-width: calc(100vw - 40px)\).
+- Se implementÔøΩ la alineaciÔøΩn basada en anclaje inteligente: los tooltips de elementos a la izquierda se alinean en \left: 0\ con su flecha apuntando a 20px desde la izquierda directo al icono 'i'; los elementos a la derecha utilizan \.tooltip-right-align\ con flecha alineada a la derecha.
+- **RazÔøΩn:** Garantizar que el 100% del cuadro explicativo blanco sea visible en la pantalla sin importar el tamaÔøΩo del telÔøΩfono.
 
-### 2026-08-27 - UX Cleanup: EliminaciÛn de Modal de Fase Pre-lanzamiento en Billetera
-- Se removiÛ por completo el modal informativo emergente (\prelaunchWalletModal\) de \contract_interaction.html\ y se desactivÛ su activaciÛn en \contract-interaction.js\ a solicitud del usuario.
-- **RazÛn:** Agilizar el flujo de navegaciÛn directo hacia las pestaÒas de la billetera sin avisos emergentes innecesarios.
+### 2026-08-27 - UX Cleanup: EliminaciÔøΩn de Modal de Fase Pre-lanzamiento en Billetera
+- Se removiÔøΩ por completo el modal informativo emergente (\prelaunchWalletModal\) de \contract_interaction.html\ y se desactivÔøΩ su activaciÔøΩn en \contract-interaction.js\ a solicitud del usuario.
+- **RazÔøΩn:** Agilizar el flujo de navegaciÔøΩn directo hacia las pestaÔøΩas de la billetera sin avisos emergentes innecesarios.
 
 ### 2026-08-27 ‚Äî Arquitectura FinTech de Onboarding en 2 Fases (Staging y Creaci√≥n Oficial de Expedientes), M√≥dulo Reutilizable formDraftManager y Modernizaci√≥n ATS en Voluntariado
 * **Diagn√≥stico & Objetivo**:
