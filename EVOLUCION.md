@@ -13,6 +13,44 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-09-01 — Frontend PWA & Android Nativo: Fase 17 — Supresión Inteligente de Botones de Instalación Web dentro del Contenedor Nativo (`pwa-install.js`)
+* **Diagnóstico & Objetivo**:
+  - Al ejecutar la aplicación dentro del APK nativo de Android (`window.AndroidNative`), la presencia del botón o aviso web de "Instalar App PWA" resultaba redundante y confuso para la usabilidad UX del usuario, quien ya tiene la aplicación móvil nativa instalada.
+  - Se requería adaptar la lógica de detección en el módulo `pwa-install.js` para que identifique dinámicamente si se ejecuta dentro del contenedor Android y oculte automáticamente cualquier aviso, banner o botón flotante de instalación web.
+* **Cambios Técnicos**:
+  - **Módulo de Instalación PWA (`frontend/src/modules/pwa-install.js`)**:
+    - Actualizada la función central `isPWAInstalled()`: si detecta la presencia del objeto de puente nativo (`window.AndroidNative` o `window.WintonNative.isNativeApp()`), retorna `true` de forma inmediata.
+    - Esto hace que `initPWAInstall()` y `updateSettingsInstallButton()` reconozcan la app como 100% instalada, suprimiendo banners flotantes, modales de confirmación y deshabilitando el botón de instalación en la configuración del modal ⚙️.
+* **Impacto**:
+  - Experiencia de usuario (UX) impecable: los usuarios en la web móvil/escritorio ven la opción de instalar la PWA o ir a la Play Store, mientras que los usuarios dentro de la app Android nativa no ven avisos redundantes.
+
+### 2026-09-01 — Android Nativo: Fase 16 — Ajuste de Margen de Seguridad de la Barra de Estado (*System Status Bar Insets*)
+* **Diagnóstico & Objetivo**:
+  - En la captura entregada por el usuario se observaba que el menú de cabecera de la PWA (nombre de usuario `test8winto_575`, icono del menú hamburguesa `☰` y etiqueta `DEMO MODE`) se solapaba visualmente con los iconos del sistema Android (reloj `14:16`, nivel de batería y señal 4G).
+  - Esto ocurría porque `enableEdgeToEdge()` extiende la Activity hasta los bordes físicos del teléfono sin aplicar el margen dinámico de insets superior.
+* **Cambios Técnicos**:
+  - **Ajuste de Insets en Compose (`presentation/container/WintonWebViewContainer.kt`)**:
+    - Aplicado el modificador `statusBarsPadding()` en el `Box` contenedor principal del WebView.
+    - Este modificador consulta los `WindowInsets.statusBars` del sistema operativo Android y desplaza automáticamente la cabecera hacia abajo exactamente la altura del notch/barra de estado de cualquier modelo de teléfono (Samsung, Motorola, Xiaomi, etc.).
+  - **Recompilación & Verificación**:
+    - Recompilación exitosa (`assembleDemoDebug`) generando el binario actualizado `wintoncoin-demo.apk` (22.0 MB).
+* **Impacto**:
+  - La barra superior del sistema (hora, batería, notificaciones) queda perfectamente separada y aislada de la cabecera de la PWA de WintonCoin, logrando una presentación estética nativa limpia y profesional.
+
+### 2026-09-01 — Android Nativo: Fase 15 — Iconos Adaptativos Oficiales PWA Demo (`demo-icon-maskable-512x512.png`)
+* **Diagnóstico & Objetivo**:
+  - Reemplazar los iconos genéricos del lanzador de la aplicación Android (`.apk`) por los activos visuales oficiales de la PWA Demo (`frontend/public/assets/icons/demo-icon-maskable-512x512.png` y `icon-maskable-512x512.png` en producción).
+  - Cumplir rigurosamente con los estándares oficiales de Android (Android 8.0+ / API 26+ a Android 14/15) para iconos adaptativos (*Adaptive Launcher Icons*), generando de forma limpia las imágenes escaladas de alta calidad en todas las densidades de pantalla (`mdpi`, `hdpi`, `xhdpi`, `xxhdpi`, `xxxhdpi`).
+* **Cambios Técnicos**:
+  - **Generación de Recursos Multidensidad (`android/app/src/demo/res/mipmap-*/`, `src/production/res/mipmap-*/`)**:
+    - Procesamiento de imagen con algoritmo de muestreo bicúbico de alta fidelidad (`HighQualityBicubic`) produciendo las versiones exactas `ic_launcher.png` y `ic_launcher_round.png` para cada densidad: `mdpi` (48x48), `hdpi` (72x72), `xhdpi` (96x96), `xxhdpi` (144x144), `xxxhdpi` (192x192).
+  - **Verificación en Manifest (`AndroidManifest.xml`)**:
+    - Confirmada vinculación correcta en `<application android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round">`.
+  - **Compilación & Empaquetado**:
+    - Recompilación exitosa (`assembleDemoDebug`) generando el nuevo binario `wintoncoin-demo.apk` (22.0 MB) con los iconos oficiales del entorno Demo.
+* **Impacto**:
+  - Al instalar el APK en el teléfono móvil, el usuario ve el icono oficial violeta de la PWA Demo (`demo-icon-maskable`), garantizando coherencia de marca total desde el escritorio del dispositivo.
+
 ### 2026-09-01 — Android Nativo: Fase 14 — Arquitectura Híbrida Enterprise (Native Shell + Hardened WebView + Native JS Bridge + BiometricPrompt & Android Keystore)
 * **Diagnóstico & Objetivo**:
   - Implementar la arquitectura híbrida estándar de la industria (utilizada por multinacionales FinTech como Twitter Lite, Uber, Metamask y Binance) para lograr **paridad visual y funcional del 100%** entre la PWA y la aplicación móvil nativa de Android (`.apk`).
@@ -62,6 +100,13 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
     - Registrada la nueva entrada `adminUserDetail` en `rollupOptions.input` para empaquetado y precacheo PWA automatizado.
   - **Suite de Pruebas Unitarias (`backend/__tests__/adminUserDossier.test.js` y `adminSubmodulesIntegrity.test.js`)**:
     - Pruebas unitarias Jest con mocks puros (100% aisladas del motor PostgreSQL), respuesta 404, estructura 200 consolidada, registro de evento `admin.user.view_dossier`, sanitización Zero-Secrets, validación de entrada (DoS) y trazabilidad SOC 2 de mutaciones de estado.
+<<<<<<< HEAD
+  - **Alineación Estricta de Esquema SQL & Resiliencia en Tiempo de Ejecución**:
+    - Corregida la consulta base de `getUserDossier360` para consultar exclusivamente columnas existentes en `users`, sustituyendo referencias anómalas por `COALESCE`, fallback de tolerancia a fallos y derivando el scoring desde `user_trust_score_logs`.
+    - Ajustados nombres reales de tablas (`publication_acceptances`, `disaster_aid_disbursements`, `user_agreements_log`) y campos de cambio de balance contable (`blue_change`/`red_change`), eliminando los errores 500.
+    - Añadidos atributos `target="_blank" rel="noopener noreferrer"` en los hipervínculos del panel para asegurar una navegación limpia sin secuestro de contexto en navegadores de escritorio.
+=======
+>>>>>>> origin/demo
 * **Impacto**:
   - Los oficiales de cumplimiento y administradores de WintonCoin disponen de un centro de mando 360° auditable para cada usuario, agilizando la resolución de reclamos, moderación de tareas y trazabilidad contable con estándares bancarios.
 

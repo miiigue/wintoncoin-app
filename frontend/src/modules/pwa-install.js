@@ -574,6 +574,12 @@ export function updateSettingsInstallButton() {
  * @returns {boolean}
  */
 export function isPWAInstalled() {
+    // [DESARROLLO HÍBRIDO FINTECH] Si se ejecuta dentro de la app Android nativa (APK/Play Store),
+    // la aplicación ya está 100% instalada. Nunca mostrar botones de instalación PWA.
+    if (typeof window !== 'undefined' && (window.AndroidNative || (window.WintonNative && window.WintonNative.isNativeApp()))) {
+        return true;
+    }
+
     // Método 1: Media query estándar W3C (Chrome, Edge, Firefox, Samsung)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
     // Método 2: Propiedad propietaria de iOS Safari
