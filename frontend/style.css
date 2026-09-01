@@ -8441,7 +8441,7 @@ body.wallet-tour-active #prelaunchWalletModal {
 /* Forzar que las imágenes individuales cubran todo el ancho */
 .publication-item.has-images .card-images-container.single-image img {
     width: 100% !important;
-    max-height: 125px !important;
+    max-height: 180px !important;
     object-fit: cover !important;
     border-radius: 0 !important;
 }
@@ -8450,10 +8450,43 @@ body.wallet-tour-active #prelaunchWalletModal {
 .publication-item.has-images .card-images-container.is-carousel img {
     flex: 0 0 100% !important;
     width: 100% !important;
-    max-height: 125px !important;
+    max-height: 180px !important;
     object-fit: cover !important;
     border-radius: 0 !important;
     scroll-snap-align: center !important;
+}
+
+/* Hero Overlay Scrim */
+.hero-scrim {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60%;
+    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0) 100%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Hero Overlay Content */
+.hero-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 10px 1.25rem;
+    z-index: 2;
+    pointer-events: none;
+}
+.hero-content .publication-header h3, 
+.hero-content .pub-description {
+    color: #ffffff !important;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    margin-bottom: 0 !important;
+}
+.hero-content .pub-description {
+    opacity: 0.95;
+    margin-top: 2px !important;
 }
 
 /* Contenedor del título - Limitar espacio vertical */

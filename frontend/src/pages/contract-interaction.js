@@ -1720,6 +1720,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             ? `causa-solidaria.html?id=${pub.cause_id}`
             : `publication-detail.html?id=${pub.id}`;
 
+        const titleAndDescHTML = `
+            <div class="publication-header">
+                ${cardTitle}
+            </div>
+            ${pub.is_humanitarian_cause ? '' : `<p class="pub-description">${linkify(pub.description?.slice(0, 150) || '')}</p>`}
+        `;
+
         return `
             <a href="${detailUrl}" class="publication-item-link">
                 <div class="publication-item ${expirationInfo.isExpired ? 'expired' : ''} ${isDonation ? 'donation-card' : ''} ${(pub.image_urls && pub.image_urls.length > 0) ? 'has-images' : ''}" data-id="${pub.id}" data-author="${safeAuthorAttr}">
@@ -1734,6 +1741,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     ${pub.image_urls.map((_, i) => `<span class="carousel-dot ${i === 0 ? 'active' : ''}"></span>`).join('')}
                                 </div>
                             ` : ''}
+                            <div class="hero-scrim"></div>
+                            <div class="hero-content">
+                                ${titleAndDescHTML}
+                            </div>
                         </div>
                     ` : ''}
 
@@ -1745,13 +1756,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <div class="cost-ribbon-right ${ribbonClass}">${rewardText}</div>
                     </div>
 
-                    <div class="publication-header">
-                        ${cardTitle}
-                    </div>
+                    ${!(pub.image_urls && pub.image_urls.length > 0) ? titleAndDescHTML : ''}
                     
                     ${progressHTML}
-
-                    ${pub.is_humanitarian_cause ? '' : `<p class="pub-description">${linkify(pub.description?.slice(0, 150) || '')}</p>`}
                     
 
 
