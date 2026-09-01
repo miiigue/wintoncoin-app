@@ -96,7 +96,6 @@ describe('AdminUserController — Ficha de Auditoría de Usuario 360° y Cumplim
         mockQuery.mockResolvedValueOnce({ rows: [] }); // donations
         mockQuery.mockResolvedValueOnce({ rows: [{ id: 1, event_type: 'user.login', created_at: new Date() }] }); // audit events
         mockQuery.mockResolvedValueOnce({ rows: [{ id: 1, document_type: 'terms_of_service', document_version: 'v1.0' }] }); // legal acceptances
-        mockQuery.mockResolvedValueOnce({ rows: [{ new_limit: '85' }] }); // trust score log
 
         const req = { 
             params: { userId: '42' }, 
@@ -154,8 +153,8 @@ describe('AdminUserController — Ficha de Auditoría de Usuario 360° y Cumplim
             }]
         });
 
-        // Completar mocks de consultas secundarias vacías (15 proyecciones)
-        for (let i = 0; i < 15; i++) {
+        // Completar mocks de consultas secundarias vacías
+        for (let i = 0; i < 14; i++) {
             mockQuery.mockResolvedValueOnce({ rows: [] });
         }
 
@@ -210,8 +209,7 @@ describe('AdminUserController — Ficha de Auditoría de Usuario 360° y Cumplim
             }]
         });
 
-        // Legal acceptances y trust score
-        mockQuery.mockResolvedValueOnce({ rows: [] });
+        // Legal acceptances
         mockQuery.mockResolvedValueOnce({ rows: [] });
 
         const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };

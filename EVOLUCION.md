@@ -100,10 +100,13 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
     - Registrada la nueva entrada `adminUserDetail` en `rollupOptions.input` para empaquetado y precacheo PWA automatizado.
   - **Suite de Pruebas Unitarias (`backend/__tests__/adminUserDossier.test.js` y `adminSubmodulesIntegrity.test.js`)**:
     - Pruebas unitarias Jest con mocks puros (100% aisladas del motor PostgreSQL), respuesta 404, estructura 200 consolidada, registro de evento `admin.user.view_dossier`, sanitización Zero-Secrets, validación de entrada (DoS) y trazabilidad SOC 2 de mutaciones de estado.
+<<<<<<< HEAD
   - **Alineación Estricta de Esquema SQL & Resiliencia en Tiempo de Ejecución**:
     - Corregida la consulta base de `getUserDossier360` para consultar exclusivamente columnas existentes en `users`, sustituyendo referencias anómalas por `COALESCE`, fallback de tolerancia a fallos y derivando el scoring desde `user_trust_score_logs`.
     - Ajustados nombres reales de tablas (`publication_acceptances`, `disaster_aid_disbursements`, `user_agreements_log`) y campos de cambio de balance contable (`blue_change`/`red_change`), eliminando los errores 500.
     - Añadidos atributos `target="_blank" rel="noopener noreferrer"` en los hipervínculos del panel para asegurar una navegación limpia sin secuestro de contexto en navegadores de escritorio.
+=======
+>>>>>>> origin/demo
 * **Impacto**:
   - Los oficiales de cumplimiento y administradores de WintonCoin disponen de un centro de mando 360° auditable para cada usuario, agilizando la resolución de reclamos, moderación de tareas y trazabilidad contable con estándares bancarios.
 
