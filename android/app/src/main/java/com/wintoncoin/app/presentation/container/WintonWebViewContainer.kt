@@ -130,11 +130,20 @@ fun WintonWebViewContainer(
                 )
             }
 
-            // Vista WebView encapsulada
+            // Vista WebView encapsulada con SwipeRefreshLayout
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
-                    WebView(ctx).apply {
+                    val swipeLayout = androidx.swiperefreshlayout.widget.SwipeRefreshLayout(ctx).apply {
+                        layoutParams = ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                        setColorSchemeColors(android.graphics.Color.parseColor("#4da6ff"))
+                        setProgressBackgroundColorSchemeColor(android.graphics.Color.parseColor("#1A1A2E"))
+                    }
+
+                    val webView = WebView(ctx).apply {
                         layoutParams = ViewGroup.LayoutParams(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT
@@ -189,28 +198,40 @@ fun WintonWebViewContainer(
                             },
                             onPageFinishedCallback = {
                                 isLoading = false
+                                swipeLayout.isRefreshing = false
                             },
                             onErrorCallback = { err ->
                                 isLoading = false
                                 hasError = true
                                 errorMessage = err
+                                swipeLayout.isRefreshing = false
                             }
                         )
 
                         webChromeClient = WintonWebChromeClient(
                             onProgressChangedCallback = { progress ->
                                 loadProgress = progress
-                                if (progress >= 100) isLoading = false
+                                if (progress >= 100) {
+                                    isLoading = false
+                                    swipeLayout.isRefreshing = false
+                                }
                             }
                         )
 
                         // 6. Cargar URL oficial
                         loadUrl(targetUrl)
-                        webViewInstance = this
                     }
-                },
-                update = { webView ->
+
+                    swipeLayout.addView(webView)
+                    swipeLayout.setOnRefreshListener {
+                        webView.reload()
+                    }
+
                     webViewInstance = webView
+                    swipeLayout
+                },
+                update = {
+                    // El SwipeRefreshLayout se actualiza, la instancia del webview se mantiene
                 }
             )
         }
