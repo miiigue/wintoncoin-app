@@ -3954,7 +3954,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return `
             <tr data-user-id="${escapeHtml(user.id)}" data-username="${escapeHtml(user.username)}" data-status="${escapeHtml(user.status)}" data-referral-code="${escapeHtml(user.referral_code || '')}">
                 <td class="username-cell">
-                    <a href="admin-user-detail.html?id=${escapeHtml(user.id)}" target="_blank" title="Abrir Ficha de Auditoría 360°">${escapeHtml(user.username)}</a>
+                    <a href="admin-user-detail.html?id=${escapeHtml(user.id)}" target="_blank" rel="noopener noreferrer" title="Abrir Ficha de Auditoría 360° en una nueva pestaña">${escapeHtml(user.username)}</a>
                 </td>
                 <td align="center">${dossiersHTML}</td>
                 <td>${walletHTML}</td>
@@ -3972,7 +3972,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="action-menu-container">
                         <button class="action-button-admin menu-toggle">Acciones</button>
                         <div class="action-menu">
-                            <a href="admin-user-detail.html?id=${escapeHtml(user.id)}" target="_blank" class="action-button-admin" style="text-decoration: none; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; padding: 6px 10px; color: #60a5fa;">🔍 Ver Ficha 360°</a>
+                            <a href="admin-user-detail.html?id=${escapeHtml(user.id)}" target="_blank" rel="noopener noreferrer" class="action-button-admin" style="text-decoration: none; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; padding: 6px 10px; color: #60a5fa;">🔍 Ver Ficha 360°</a>
                             <button class="action-button-admin" data-action="edit-referral">✏️ Editar Código</button>
                             <button class="action-button-admin approve" data-action="activate">Reactivar</button>
                             <button class="action-button-admin suspend" data-action="suspend">Suspender</button>

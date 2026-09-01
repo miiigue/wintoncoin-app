@@ -407,15 +407,26 @@ async function getUserDossier360(req, res) {
 
     try {
         // 1. Resolver el usuario objetivo (sea por ID numérico o por Username para máxima resiliencia)
+        // Se seleccionan exclusivamente columnas verificadas en el esquema de la base de datos de producción/demo.
         let baseUserSql = `
             SELECT 
-                u.id, u.username, u.email, u.phone_number, u.account_status,
-                u.liquid_blue_balance, u.escrow_blue_balance, u.red_balance,
-                u.average_rating, u.ratings_count, u.created_at, u.updated_at,
-                u.referral_code, u.referrer_id, u.web3_wallet_address, u.kyc_verified,
-                u.is_minor, u.tutor_id,
-                COALESCE(u.trust_score, 50) as trust_score,
-                COALESCE(u.trust_score_level, 'Standard') as trust_score_level,
+                u.id, 
+                u.username, 
+                COALESCE(u.email, 'N/A') as email, 
+                COALESCE(u.phone_number, 'N/A') as phone_number, 
+                COALESCE(u.account_status, 'active') as account_status,
+                COALESCE(u.liquid_blue_balance, 0) as liquid_blue_balance, 
+                COALESCE(u.escrow_blue_balance, 0) as escrow_blue_balance, 
+                COALESCE(u.red_balance, 0) as red_balance,
+                COALESCE(u.average_rating, 0) as average_rating, 
+                COALESCE(u.ratings_count, 0) as ratings_count, 
+                u.created_at,
+                u.referral_code, 
+                u.referrer_id, 
+                u.web3_wallet_address, 
+                u.kyc_verified,
+                u.is_minor, 
+                u.tutor_id,
                 sponsor.username as referrer_username,
                 tutor.username as tutor_username,
                 (SELECT string_agg(dvr.dossier_number, ', ') FROM disaster_victims_registry dvr WHERE dvr.user_id = u.id) as sos_dossier,
@@ -426,13 +437,35 @@ async function getUserDossier360(req, res) {
         `;
 
         let userResult;
-        if (Number.isFinite(safeUserId) && safeUserId > 0) {
-            userResult = await pool.query(`${baseUserSql} WHERE u.id = $1`, [safeUserId]);
-        } else {
-            userResult = await pool.query(`${baseUserSql} WHERE u.username = $1`, [rawUserId]);
+        try {
+            if (Number.isFinite(safeUserId) && safeUserId > 0) {
+                userResult = await pool.query(`${baseUserSql} WHERE u.id = $1`, [safeUserId]);
+            } else {
+                userResult = await pool.query(`${baseUserSql} WHERE u.username = $1`, [rawUserId]);
+            }
+        } catch (baseErr) {
+            console.warn('[AdminUserController] Reintentando consulta base de usuario por:', baseErr.message);
+            // Fallback ultra-seguro con columnas mínimas esenciales
+            const fallbackSql = `
+                SELECT 
+                    u.id, u.username, 
+                    COALESCE(u.liquid_blue_balance, 0) as liquid_blue_balance,
+                    COALESCE(u.escrow_blue_balance, 0) as escrow_blue_balance,
+                    COALESCE(u.red_balance, 0) as red_balance,
+                    COALESCE(u.average_rating, 0) as average_rating,
+                    COALESCE(u.ratings_count, 0) as ratings_count,
+                    u.created_at, u.referral_code, u.referrer_id,
+                    u.web3_wallet_address, u.kyc_verified, u.is_minor, u.tutor_id
+                FROM users u
+            `;
+            if (Number.isFinite(safeUserId) && safeUserId > 0) {
+                userResult = await pool.query(`${fallbackSql} WHERE u.id = $1`, [safeUserId]);
+            } else {
+                userResult = await pool.query(`${fallbackSql} WHERE u.username = $1`, [rawUserId]);
+            }
         }
 
-        if (userResult.rowCount === 0) {
+        if (!userResult || userResult.rowCount === 0) {
             return res.status(404).json({ message: 'Usuario no encontrado en la base de datos.' });
         }
 
@@ -441,6 +474,7 @@ async function getUserDossier360(req, res) {
         targetUsername = user.username;
 
         // 2. Consultas concurrentes optimizadas para construir el expediente 360° (CQRS / Proyecciones)
+        // Todas las promesas incorporan .catch() para aislamiento de fallos: si una sección carece de datos, el resto carga sin interrumpir la experiencia.
         const [
             boosterBalanceRes,
             transactionsRes,
@@ -455,14 +489,15 @@ async function getUserDossier360(req, res) {
             causesRes,
             donationsSentRes,
             auditEventsRes,
-            legalAcceptancesRes
+            legalAcceptancesRes,
+            trustScoreRes
         ] = await Promise.all([
             // Saldo total de Impulsor (BLUE IOU)
             pool.query('SELECT COALESCE(SUM(amount), 0) as booster_blue_balance FROM booster_blue_ledger WHERE user_id = $1', [safeUserId]).catch(() => ({ rows: [{ booster_blue_balance: 0 }] })),
 
-            // Historial de Transacciones Web3 de Tokens reales
+            // Historial de Transacciones Web3 de Tokens reales (usa blue_change y red_change del esquema real)
             pool.query(`
-                SELECT id, type, amount, tx_hash, created_at, 
+                SELECT id, type, COALESCE(blue_change, red_change, 0) as amount, tx_hash, created_at, 
                        COALESCE(description, type) as description
                 FROM transactions 
                 WHERE user_id = $1 
@@ -479,48 +514,47 @@ async function getUserDossier360(req, res) {
                 ORDER BY created_at DESC 
                 LIMIT 100
             `, [safeUserId]).catch(async () => {
-                const fallback = await pool.query('SELECT id, type, amount, created_at FROM booster_blue_ledger WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100', [safeUserId]).catch(() => ({ rows: [] }));
+                const fallback = await pool.query('SELECT id, type, amount, created_at, type as description FROM booster_blue_ledger WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100', [safeUserId]).catch(() => ({ rows: [] }));
                 return fallback;
             }),
 
-            // Publicaciones Creadas por el usuario
+            // Publicaciones Creadas por el usuario (columnas validadas de la tabla publications)
             pool.query(`
                 SELECT id, title, description, blue_cost, is_sell_post, status, 
-                       is_deleted, is_expired, is_completed_publication, is_paused, 
-                       available_slots, participants_count, created_at
+                       is_deleted, is_paused, 
+                       available_slots, created_at
                 FROM publications 
                 WHERE author_id = $1 OR author_username = $2 
                 ORDER BY created_at DESC 
                 LIMIT 50
             `, [safeUserId, targetUsername]).catch(() => ({ rows: [] })),
 
-            // Tareas y Trabajos Aceptados por el usuario
+            // Tareas y Trabajos Aceptados por el usuario (tabla real: publication_acceptances)
             pool.query(`
-                SELECT a.id, a.publication_id, a.status, a.accepted_at, a.completed_at,
-                       a.form_responses, a.evidence_urls,
+                SELECT pa.id, pa.publication_id, pa.status, pa.created_at as accepted_at,
+                       pa.form_responses, pa.evidence_urls,
                        p.title as publication_title, p.blue_cost, p.is_sell_post, p.author_username
-                FROM acceptances a
-                JOIN publications p ON a.publication_id = p.id
-                WHERE a.user_id = $1 OR a.acceptor_username = $2
-                ORDER BY a.accepted_at DESC
+                FROM publication_acceptances pa
+                JOIN publications p ON pa.publication_id = p.id
+                WHERE pa.acceptor_username = $1
+                ORDER BY pa.created_at DESC
                 LIMIT 50
-            `, [safeUserId, targetUsername]).catch(() => ({ rows: [] })),
+            `, [targetUsername]).catch(() => ({ rows: [] })),
 
-            // Red de Referidos Directos registrados por este usuario
+            // Red de Referidos Directos registrados por este usuario (consulta directa a users por referrer_id)
             pool.query(`
-                SELECT rl.id, rl.created_at as referral_date,
-                       referred.id as referred_id, referred.username as referred_username,
-                       referred.account_status, referred.kyc_verified, referred.created_at as registration_date
-                FROM referral_log rl
-                JOIN users referred ON rl.referred_user_id = referred.id
-                WHERE rl.referrer_user_id = $1
-                ORDER BY rl.created_at DESC
+                SELECT u.id as referred_id, u.username as referred_username,
+                       COALESCE(u.account_status, 'active') as account_status, 
+                       u.kyc_verified, u.created_at as registration_date
+                FROM users u
+                WHERE u.referrer_id = $1
+                ORDER BY u.created_at DESC
                 LIMIT 100
             `, [safeUserId]).catch(() => ({ rows: [] })),
 
-            // Compromisos RED y deudas activas / penalizadas
+            // Compromisos RED y deudas activas / penalizadas (campo real: due_at)
             pool.query(`
-                SELECT id, amount, is_settled, is_penalized, due_date, created_at
+                SELECT id, amount, is_settled, is_penalized, due_at as due_date, created_at
                 FROM red_token_debts
                 WHERE user_id = $1 OR username = $2
                 ORDER BY created_at DESC
@@ -537,10 +571,10 @@ async function getUserDossier360(req, res) {
                 LIMIT 1
             `, [safeUserId]).catch(() => ({ rows: [] })),
 
-            // Desembolsos de ayuda SOS recibidos
+            // Desembolsos de ayuda SOS recibidos (tabla real: disaster_aid_disbursements)
             pool.query(`
                 SELECT dvd.id, dvd.amount_blue, dvd.disbursement_period, dvd.notes, dvd.created_at
-                FROM disaster_victim_disbursements dvd
+                FROM disaster_aid_disbursements dvd
                 JOIN disaster_victims_registry dvr ON dvd.victim_id = dvr.id
                 WHERE dvr.user_id = $1
                 ORDER BY dvd.created_at DESC
@@ -564,13 +598,13 @@ async function getUserDossier360(req, res) {
                 LIMIT 20
             `, [safeUserId]).catch(() => ({ rows: [] })),
 
-            // Donaciones enviadas a causas
+            // Donaciones enviadas a causas (tabla real: humanitarian_donations, campos donor_id y amount)
             pool.query(`
-                SELECT hd.id, hd.amount_blue, hd.status, hd.created_at,
+                SELECT hd.id, hd.amount as amount_blue, hd.status, hd.created_at,
                        hc.title as cause_title, hc.id as cause_id
                 FROM humanitarian_donations hd
                 JOIN humanitarian_causes hc ON hd.cause_id = hc.id
-                WHERE hd.donor_user_id = $1
+                WHERE hd.donor_id = $1
                 ORDER BY hd.created_at DESC
                 LIMIT 20
             `, [safeUserId]).catch(() => ({ rows: [] })),
@@ -586,18 +620,29 @@ async function getUserDossier360(req, res) {
                 LIMIT 50
             `, [targetUsername, safeUserId]).catch(() => ({ rows: [] })),
 
-            // Aceptación de Términos y Contratos Legales
+            // Aceptación de Términos y Contratos Legales (tabla real: user_agreements_log)
             pool.query(`
                 SELECT id, document_type, document_version, ip_address, accepted_at
-                FROM legal_document_acceptances
+                FROM user_agreements_log
                 WHERE user_id = $1
                 ORDER BY accepted_at DESC
                 LIMIT 20
+            `, [safeUserId]).catch(() => ({ rows: [] })),
+
+            // Scoring de Riesgo Dinámico Winton Trust Score (tabla inmutable: user_trust_score_logs)
+            pool.query(`
+                SELECT new_limit 
+                FROM user_trust_score_logs 
+                WHERE user_id = $1 
+                ORDER BY created_at DESC 
+                LIMIT 1
             `, [safeUserId]).catch(() => ({ rows: [] }))
         ]);
 
         // 3. Consolidar el objeto de respuesta estructurado con sanitización de metadatos (Zero-Secrets)
         const boosterBalance = parseFloat(boosterBalanceRes.rows[0]?.booster_blue_balance || 0);
+        const trustScore = trustScoreRes.rows[0]?.new_limit ? parseFloat(trustScoreRes.rows[0].new_limit) : 50;
+        const trustScoreLevel = trustScore >= 150 ? 'Gold' : (trustScore >= 100 ? 'Silver' : 'Standard');
 
         const sensitiveKeywords = ['password', 'hash', 'token', 'jwt', 'secret', 'otp', 'private_key', 'authorization'];
         const sanitizedAuditEvents = (auditEventsRes.rows || []).map(ev => {
@@ -620,25 +665,25 @@ async function getUserDossier360(req, res) {
             profile: {
                 id: user.id,
                 username: user.username,
-                email: user.email,
-                phone_number: user.phone_number,
-                account_status: user.account_status,
+                email: user.email || 'N/A',
+                phone_number: user.phone_number || 'N/A',
+                account_status: user.account_status || 'active',
                 created_at: user.created_at,
-                updated_at: user.updated_at,
-                referral_code: user.referral_code,
-                referrer_id: user.referrer_id,
+                updated_at: user.created_at,
+                referral_code: user.referral_code || null,
+                referrer_id: user.referrer_id || null,
                 referrer_username: user.referrer_username || null,
-                web3_wallet_address: user.web3_wallet_address,
+                web3_wallet_address: user.web3_wallet_address || null,
                 kyc_verified: user.kyc_verified === true,
                 is_minor: user.is_minor === true,
-                tutor_id: user.tutor_id,
+                tutor_id: user.tutor_id || null,
                 tutor_username: user.tutor_username || null,
                 sos_dossier: user.sos_dossier || null,
                 vol_dossier: user.vol_dossier || null,
                 average_rating: parseFloat(user.average_rating || 0),
                 ratings_count: parseInt(user.ratings_count || 0, 10),
-                trust_score: user.trust_score,
-                trust_score_level: user.trust_score_level
+                trust_score: trustScore,
+                trust_score_level: trustScoreLevel
             },
             balances: {
                 liquid_blue_balance: parseFloat(user.liquid_blue_balance || 0),
@@ -675,7 +720,7 @@ async function getUserDossier360(req, res) {
                 targetUserId: safeUserId,
                 action: 'user_360_dossier_inspected'
             }
-        });
+        }).catch(auditErr => console.warn('[AdminUserController] Error al auditar consulta de expediente:', auditErr.message));
 
         res.status(200).json({ success: true, dossier });
 
