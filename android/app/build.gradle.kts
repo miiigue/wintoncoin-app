@@ -122,6 +122,7 @@ dependencies {
     implementation(libs.security.crypto)
     implementation(libs.androidx.biometric)
     implementation(libs.coil.compose)
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
 
     // TESTING
     testImplementation(libs.junit)
