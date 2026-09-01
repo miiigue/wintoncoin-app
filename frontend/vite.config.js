@@ -125,6 +125,7 @@ export default defineConfig(({ mode }) => ({
         // Admin
         admin: resolve(__dirname, 'admin.html'),
         adminPanel: resolve(__dirname, 'admin-panel.html'),
+        adminUserDetail: resolve(__dirname, 'admin-user-detail.html'),
         adminRegister: resolve(__dirname, 'admin-register.html'),
 
         // Momentum System
