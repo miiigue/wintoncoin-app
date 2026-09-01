@@ -2,7 +2,7 @@
  * Pruebas Unitarias para el Expediente de Usuario 360° (adminUserDossier.test.js)
  * ════════════════════════════════════════════════════════════════════════════════════════
  * Valida la seguridad, segregación de datos, auditoría SOC 2 ("Auditar al Auditor")
- * y la estructura de la Ficha 360° en adminUserController.
+ * y la estructura de la Ficha 360° en adminUserController bajo Jest estándar.
  * ════════════════════════════════════════════════════════════════════════════════════════
  */
 
@@ -12,7 +12,10 @@
 const mockQuery = jest.fn();
 jest.mock('../src/config/db', () => ({
     query: (...args) => mockQuery(...args),
-    connect: jest.fn(),
+    connect: jest.fn().mockResolvedValue({
+        query: (...args) => mockQuery(...args),
+        release: jest.fn()
+    }),
     on: jest.fn()
 }));
 
@@ -21,9 +24,9 @@ jest.mock('../src/services/auditService', () => ({
     logAuditEvent: (...args) => mockLogAuditEvent(...args)
 }));
 
-const { getUserDossier360 } = require('../src/controllers/admin/adminUserController');
+const { getUserDossier360, updateUserStatus, updateUserReferralCode } = require('../src/controllers/admin/adminUserController');
 
-describe('getUserDossier360 — Ficha de Auditoría de Usuario 360°', () => {
+describe('AdminUserController — Ficha de Auditoría de Usuario 360° y Cumplimiento SOC 2', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -167,6 +170,102 @@ describe('getUserDossier360 — Ficha de Auditoría de Usuario 360°', () => {
         const jsonOutput = JSON.stringify(res.json.mock.calls[0][0]);
         expect(jsonOutput).not.toContain('supersecretneverleakthis');
         expect(jsonOutput).not.toContain('password_hash');
+    });
+
+    it('4. Validación de entrada estricta: Rechazo de userId vacío o con longitud excesiva (HTTP 400)', async () => {
+        const resEmpty = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+        await getUserDossier360({ params: { userId: '   ' } }, resEmpty);
+        expect(resEmpty.status).toHaveBeenCalledWith(400);
+
+        const resLong = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+        await getUserDossier360({ params: { userId: 'x'.repeat(105) } }, resLong);
+        expect(resLong.status).toHaveBeenCalledWith(400);
+    });
+
+    it('5. Purga defensiva de metadatos sensibles en la bitácora de auditoría', async () => {
+        mockQuery.mockResolvedValueOnce({
+            rowCount: 1,
+            rows: [{ id: 99, username: 'audit_test_user', account_status: 'active' }]
+        });
+
+        // 12 queries vacías
+        for (let i = 0; i < 12; i++) {
+            mockQuery.mockResolvedValueOnce({ rows: [] });
+        }
+
+        // Audit events con metadata que contiene campos sensibles
+        mockQuery.mockResolvedValueOnce({
+            rowCount: 1,
+            rows: [{
+                id: 1,
+                event_type: 'user.password_reset',
+                actor_username: 'system',
+                metadata: {
+                    ip: '127.0.0.1',
+                    temp_token: 'secret_leak_attempt_123',
+                    old_password_hash: '$2b$10$dangerous_hash',
+                    safe_action: 'requested_reset'
+                }
+            }]
+        });
+
+        // Legal acceptances
+        mockQuery.mockResolvedValueOnce({ rows: [] });
+
+        const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+        await getUserDossier360({ params: { userId: '99' }, user: { username: 'admin' } }, res);
+
+        expect(res.status).toHaveBeenCalledWith(200);
+        const auditMeta = res.json.mock.calls[0][0].dossier.audit_events[0].metadata;
+        expect(auditMeta.temp_token).toBeUndefined();
+        expect(auditMeta.old_password_hash).toBeUndefined();
+        expect(auditMeta.safe_action).toBe('requested_reset');
+    });
+
+    it('6. updateUserStatus registra motivo y estado previo en auditoría bancaria SOC 2', async () => {
+        mockQuery.mockResolvedValueOnce({
+            rows: [{ username: 'test_target', account_status: 'active' }]
+        });
+        mockQuery.mockResolvedValueOnce({
+            rows: [{ id: 42, username: 'test_target', status: 'suspended' }]
+        });
+
+        const req = {
+            params: { userId: '42' },
+            body: { status: 'suspended', reason: 'Sospecha de actividad inusual' },
+            user: { username: 'compliance_officer' }
+        };
+        const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+
+        await updateUserStatus(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(mockLogAuditEvent).toHaveBeenCalledWith(
+            expect.anything(),
+            req,
+            expect.objectContaining({
+                eventType: 'admin.user.status_updated',
+                actorUsername: 'compliance_officer',
+                targetUsername: 'test_target',
+                category: 'compliance',
+                metadata: expect.objectContaining({
+                    targetUserId: 42,
+                    previous_status: 'active',
+                    new_status: 'suspended',
+                    justification_reason: 'Sospecha de actividad inusual'
+                })
+            })
+        );
+    });
+
+    it('7. updateUserReferralCode valida límites de longitud y formato alfanumérico', async () => {
+        const resTooShort = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+        await updateUserReferralCode({ params: { userId: '5' }, body: { newReferralCode: 'AB' } }, resTooShort);
+        expect(resTooShort.status).toHaveBeenCalledWith(400);
+
+        const resInvalidChars = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+        await updateUserReferralCode({ params: { userId: '5' }, body: { newReferralCode: 'CODE WITH SPACES' } }, resInvalidChars);
+        expect(resInvalidChars.status).toHaveBeenCalledWith(400);
     });
 
 });

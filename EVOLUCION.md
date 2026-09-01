@@ -60,8 +60,8 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
     - Actualizado `getUserRowHTML` para que el enlace del nombre de usuario y el botón del menú contextual apunten a `admin-user-detail.html?id=${user.id}`.
   - **Configuración de Empaquetado Vite (`frontend/vite.config.js`)**:
     - Registrada la nueva entrada `adminUserDetail` en `rollupOptions.input` para empaquetado y precacheo PWA automatizado.
-  - **Suite de Pruebas Unitarias (`backend/__tests__/adminUserDossier.standalone.test.js`, `adminUserDossier.test.js` y `adminSubmodulesIntegrity.test.js`)**:
-    - Pruebas unitarias de integridad, respuesta 404, estructura 200 consolidada, registro de evento `admin.user.view_dossier` y verificación Zero-Secrets.
+  - **Suite de Pruebas Unitarias (`backend/__tests__/adminUserDossier.test.js` y `adminSubmodulesIntegrity.test.js`)**:
+    - Pruebas unitarias Jest con mocks puros (100% aisladas del motor PostgreSQL), respuesta 404, estructura 200 consolidada, registro de evento `admin.user.view_dossier`, sanitización Zero-Secrets, validación de entrada (DoS) y trazabilidad SOC 2 de mutaciones de estado.
 * **Impacto**:
   - Los oficiales de cumplimiento y administradores de WintonCoin disponen de un centro de mando 360° auditable para cada usuario, agilizando la resolución de reclamos, moderación de tareas y trazabilidad contable con estándares bancarios.
 
