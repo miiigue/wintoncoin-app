@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WintonCoin Admin — Ficha de Auditoría de Usuario 360°</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="admin-style.css">
+    <style>
+        :root {
+            --bg-dark: #090D16;
+            --card-bg: rgba(17, 24, 39, 0.85);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --primary-blue: #2563EB;
+            --primary-blue-glow: rgba(37, 99, 235, 0.2);
+            --text-main: #F8FAFC;
+            --text-muted: #94A3B8;
+            --accent-green: #10B981;
+            --accent-pink: #F43F5E;
+            --accent-amber: #F59E0B;
+            --accent-purple: #8B5CF6;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        .dossier-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* Barra de Navegación y Cabecera */
+        .dossier-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .dossier-nav-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .back-btn-admin {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            color: var(--text-main);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .back-btn-admin:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateX(-2px);
+        }
+
+        .user-identity-badge {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar-circle {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1E293B, #0F172A);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .user-title-box h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-id-sub {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .dossier-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-action-dossier {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-action-dossier.primary {
+            background: var(--primary-blue);
+            color: #fff;
+            box-shadow: 0 4px 12px var(--primary-blue-glow);
+        }
+        .btn-action-dossier.primary:hover {
+            background: #1D4ED8;
+            transform: translateY(-1px);
+        }
+
+        .btn-action-dossier.secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+        }
+        .btn-action-dossier.secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-action-dossier.warning {
+            background: rgba(245, 158, 11, 0.15);
+            border-color: rgba(245, 158, 11, 0.3);
+            color: #FBBF24;
+        }
+        .btn-action-dossier.danger {
+            background: rgba(244, 63, 94, 0.15);
+            border-color: rgba(244, 63, 94, 0.3);
+            color: #FB7185;
+        }
+
+        /* Grid de Resumen Superior */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+
+        .summary-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header-clean {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .card-title-clean {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #E2E8F0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+        }
+
+        .info-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.04);
+            font-size: 0.88rem;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .info-val {
+            font-weight: 600;
+            color: var(--text-main);
+            text-align: right;
+        }
+
+        .mono-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+        }
+
+        /* Pestañas de Navegación */
+        .tabs-header-dossier {
+            display: flex;
+            gap: 8px;
+            border-bottom: 1px solid var(--card-border);
+            margin-bottom: 20px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .tab-btn-dossier {
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-muted);
+            font-size: 0.92rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .tab-btn-dossier:hover {
+            color: var(--text-main);
+        }
+
+        .tab-btn-dossier.active {
+            color: var(--primary-blue);
+            border-bottom-color: var(--primary-blue);
+        }
+
+        .tab-badge {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .tab-btn-dossier.active .tab-badge {
+            background: rgba(37, 99, 235, 0.2);
+            color: #93C5FD;
+        }
+
+        /* Contenido de Pestañas */
+        .tab-pane-dossier {
+            display: none;
+        }
+        .tab-pane-dossier.active {
+            display: block;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .dossier-table-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            width: 100%;
+        }
+
+        /* Timeline de Auditoría */
+        .timeline-container {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .timeline-item {
+            display: flex;
+            gap: 16px;
+            position: relative;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .timeline-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .timeline-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .timeline-content {
+            flex: 1;
+        }
+
+        .timeline-title {
+            font-weight: 600;
+            font-size: 0.92rem;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .timeline-meta {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .timeline-desc {
+            font-size: 0.85rem;
+            color: #CBD5E1;
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+
+        /* Modal Generales */
+        .dossier-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 16px;
+        }
+
+        .dossier-modal.active {
+            display: flex;
+        }
+
+        .modal-inner-dossier {
+            background: #111827;
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            max-width: 540px;
+            width: 100%;
+            padding: 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+        }
+
+        .modal-title-clean {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.3rem;
+            margin: 0 0 16px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group-dossier {
+            margin-bottom: 16px;
+        }
+
+        .form-group-dossier label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .form-control-dossier {
+            width: 100%;
+            box-sizing: border-box;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+
+        .form-control-dossier:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px var(--primary-blue-glow);
+        }
+
+        .modal-btn-row {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* ==========================================================================
+           RESPONSIVE DESIGN (FINTECH MOBILE & TABLET ADAPTATION)
+           ========================================================================== */
+        @media (max-width: 992px) {
+            .summary-grid {
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dossier-container {
+                padding: 14px;
+            }
+
+            .dossier-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 16px;
+            }
+
+            .dossier-nav-left {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+                width: 100%;
+            }
+
+            .dossier-actions {
+                width: 100%;
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .btn-action-dossier {
+                width: 100%;
+                justify-content: center;
+                min-height: 44px; /* Touch target standard Google/Apple */
+                font-size: 0.9rem;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+
+            .tabs-header-dossier {
+                gap: 4px;
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+                -webkit-overflow-scrolling: touch;
+            }
+            .tabs-header-dossier::-webkit-scrollbar {
+                display: none;
+            }
+
+            .tab-btn-dossier {
+                padding: 10px 14px;
+                font-size: 0.85rem;
+            }
+
+            .info-row {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+                padding: 10px 0;
+            }
+
+            .info-val {
+                text-align: left;
+                word-break: break-word;
+            }
+
+            .modal-inner-dossier {
+                padding: 18px;
+                width: 95%;
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+
+            .modal-btn-row {
+                flex-direction: column;
+            }
+
+            .modal-btn-row .btn-action-dossier {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dossier-container">
+        
+        <!-- Cabecera de Navegación -->
+        <header class="dossier-header">
+            <div class="dossier-nav-left">
+                <a href="admin-panel.html#users" class="back-btn-admin">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                    Volver a Usuarios
+                </a>
+                <div class="user-identity-badge">
+                    <div class="user-avatar-circle" id="userAvatar">👤</div>
+                    <div class="user-title-box">
+                        <h1 id="userTitleUsername">Cargando...</h1>
+                        <div class="user-id-sub" id="userTitleId">ID: #---</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dossier-actions" id="dossierHeaderActions">
+                <button class="btn-action-dossier secondary" id="btnSyncKycOnChain">
+                    ⛓️ Sync KYC On-Chain
+                </button>
+                <button class="btn-action-dossier secondary" id="btnEditReferralCode">
+                    ✏️ Editar Código
+                </button>
+                <button class="btn-action-dossier warning" id="btnChangeStatus">
+                    ⚙️ Cambiar Estado
+                </button>
+            </div>
+        </header>
+
+        <!-- Spinner de Carga Principal -->
+        <div id="dossierLoadingSpinner" style="text-align: center; padding: 60px 0;">
+            <div class="loading-spinner"></div>
+            <p style="color: var(--text-muted); margin-top: 16px;">Consolidando expediente 360° y validando auditoría...</p>
+        </div>
+
+        <!-- Contenedor Principal de Datos -->
+        <div id="dossierContent" style="display: none;">
+            
+            <!-- Resumen Superior en 3 Tarjetas -->
+            <div class="summary-grid">
+                
+                <!-- Tarjeta 1: Identidad & Cumplimiento KYC -->
+                <div class="summary-card">
+                    <div class="card-header-clean">
+                        <h3 class="card-title-clean">👤 Identidad & Perfil Legal</h3>
+                        <span id="badgeAccountStatus" class="status-badge">---</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Nombre de Usuario:</span>
+                        <span class="info-val" id="infoUsername">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Correo Electrónico:</span>
+                        <span class="info-val" id="infoEmail">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Teléfono:</span>
+                        <span class="info-val" id="infoPhone">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Billetera Web3:</span>
+                        <span class="info-val mono-val" id="infoWallet">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Verificación KYC On-Chain:</span>
+                        <span class="info-val" id="infoKyc">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Expediente SOS / Voluntario:</span>
+                        <span class="info-val" id="infoDossiers">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Patrocinador (Invitado por):</span>
+                        <span class="info-val" id="infoSponsor">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Régimen de Minoridad:</span>
+                        <span class="info-val" id="infoMinor">-</span>
+                    </div>
+                </div>
+
+                <!-- Tarjeta 2: Posición Financiera y Balances -->
+                <div class="summary-card">
+                    <div class="card-header-clean">
+                        <h3 class="card-title-clean">💰 Balances Contables (Ledger)</h3>
+                        <span class="tab-badge">Auditoría Dual</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">BLUE Disponible (Líquido):</span>
+                        <span class="info-val saldo-blue-text" id="infoBlueLiquid">0,0000</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">BLUE en Custodia (Escrow):</span>
+                        <span class="info-val saldo-escrow-text" id="infoBlueEscrow">0,0000</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">BLUE IOU (Impulsor / Marketing):</span>
+                        <span class="info-val saldo-booster-text" id="infoBlueIou">0,0000</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Compromiso RED (Pasivo):</span>
+                        <span class="info-val saldo-red-text" id="infoRedBalance">0,0000</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Fecha de Registro:</span>
+                        <span class="info-val" id="infoCreatedAt">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Última Modificación:</span>
+                        <span class="info-val" id="infoUpdatedAt">-</span>
+                    </div>
+                </div>
+
+                <!-- Tarjeta 3: Scoring de Riesgo y Reputación -->
+                <div class="summary-card">
+                    <div class="card-header-clean">
+                        <h3 class="card-title-clean">🛡️ Riesgo & Reputación</h3>
+                        <span class="tab-badge" id="badgeTrustLevel">Standard</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Winton Trust Score:</span>
+                        <span class="info-val" id="infoTrustScore">50 pts</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Calificación de la Comunidad:</span>
+                        <span class="info-val" id="infoCommunityRating">⭐ Sin calif.</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Total de Reseñas:</span>
+                        <span class="info-val" id="infoRatingsCount">0</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Compromisos RED en Mora:</span>
+                        <span class="info-val" id="infoDebtsCount">0</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Código de Referido Propio:</span>
+                        <span class="info-val mono-val" id="infoReferralCode">-</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Navegación por Pestañas 360° -->
+            <div class="tabs-header-dossier">
+                <button class="tab-btn-dossier active" data-tab="tab-web3-ledger">
+                    💳 Ledger Web3 <span class="tab-badge" id="countWeb3Tx">0</span>
+                </button>
+                <button class="tab-btn-dossier" data-tab="tab-booster-ledger">
+                    🚀 Ledger Impulsor (IOU) <span class="tab-badge" id="countBoosterTx">0</span>
+                </button>
+                <button class="tab-btn-dossier" data-tab="tab-tasks-created">
+                    📋 Publicaciones Creadas <span class="tab-badge" id="countPubsCreated">0</span>
+                </button>
+                <button class="tab-btn-dossier" data-tab="tab-tasks-worked">
+                    🛠️ Tareas Realizadas <span class="tab-badge" id="countTasksWorked">0</span>
+                </button>
+                <button class="tab-btn-dossier" data-tab="tab-referrals-tree">
+                    👥 Red de Referidos <span class="tab-badge" id="countReferrals">0</span>
+                </button>
+                <button class="tab-btn-dossier" data-tab="tab-sos-solidario">
+                    🆘 Solidario & Ayuda <span class="tab-badge" id="countSolidario">0</span>
+                </button>
+                <button class="tab-btn-dossier" data-tab="tab-audit-security">
+                    🔒 Auditoría & Seguridad <span class="tab-badge" id="countAudit">0</span>
+                </button>
+            </div>
+
+            <!-- Contenedores de las Pestañas -->
+
+            <!-- Pestaña 1: Ledger Web3 -->
+            <div class="tab-pane-dossier active" id="tab-web3-ledger">
+                <div class="dossier-table-card">
+                    <div class="table-responsive">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Tipo de Evento</th>
+                                    <th style="text-align: right;">Monto (BLUE)</th>
+                                    <th>Tx Hash (Blockchain)</th>
+                                    <th>Descripción</th>
+                                    <th style="text-align: center;">Fecha</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyWeb3Transactions">
+                                <tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 30px;">Sin transacciones Web3 registradas.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pestaña 2: Ledger Impulsor (IOU) -->
+            <div class="tab-pane-dossier" id="tab-booster-ledger">
+                <div class="dossier-table-card">
+                    <div class="table-responsive">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Tipo de Recompensa</th>
+                                    <th style="text-align: right;">Puntos (BLUE IOU)</th>
+                                    <th>Concepto / Detalle</th>
+                                    <th style="text-align: center;">Fecha</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyBoosterTransactions">
+                                <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">Sin movimientos de impulsor registrados.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pestaña 3: Publicaciones Creadas -->
+            <div class="tab-pane-dossier" id="tab-tasks-created">
+                <div class="dossier-table-card">
+                    <div class="table-responsive">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Título de la Publicación</th>
+                                    <th>Tipo</th>
+                                    <th style="text-align: right;">Valor (BLUE)</th>
+                                    <th style="text-align: center;">Cupos / Solicitudes</th>
+                                    <th style="text-align: center;">Estado</th>
+                                    <th style="text-align: center;">Fecha Creación</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyPublicationsCreated">
+                                <tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">Sin publicaciones creadas.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pestaña 4: Tareas Realizadas / Trabajadas -->
+            <div class="tab-pane-dossier" id="tab-tasks-worked">
+                <div class="dossier-table-card">
+                    <div class="table-responsive">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>ID Aceptación</th>
+                                    <th>Publicación Objetivo</th>
+                                    <th>Autor</th>
+                                    <th style="text-align: right;">Recompensa</th>
+                                    <th style="text-align: center;">Estado</th>
+                                    <th style="text-align: center;">Evidencias / Form</th>
+                                    <th style="text-align: center;">Fecha Aceptación</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyTasksWorked">
+                                <tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">Sin tareas trabajadas.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pestaña 5: Red de Referidos -->
+            <div class="tab-pane-dossier" id="tab-referrals-tree">
+                <div class="dossier-table-card">
+                    <div class="table-responsive">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>ID Registro</th>
+                                    <th>Usuario Invitado</th>
+                                    <th style="text-align: center;">Estado de Cuenta</th>
+                                    <th style="text-align: center;">KYC Verificado</th>
+                                    <th style="text-align: center;">Fecha de Registro</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyReferralsTree">
+                                <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">No ha registrado referidos directos.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pestaña 6: Solidario & Ayuda Humanitaria -->
+            <div class="tab-pane-dossier" id="tab-sos-solidario">
+                <div id="sosContainerDossier" style="display: flex; flex-direction: column; gap: 20px;">
+                    <!-- Se inyecta dinámicamente -->
+                </div>
+            </div>
+
+            <!-- Pestaña 7: Auditoría & Ciberseguridad -->
+            <div class="tab-pane-dossier" id="tab-audit-security">
+                <div class="dossier-table-card">
+                    <div class="timeline-container" id="timelineAuditSecurity">
+                        <!-- Eventos inmutables de auditoría -->
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Modal de Cambio de Estado con Justificación SOC-2 -->
+    <div class="dossier-modal" id="modalChangeStatus">
+        <div class="modal-inner-dossier">
+            <h3 class="modal-title-clean">⚙️ Modificar Estado de Cuenta</h3>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px;">
+                Esta acción modificará el acceso del usuario a la plataforma y quedará registrada en el log de auditoría bancaria.
+            </p>
+            <div class="form-group-dossier">
+                <label>Nuevo Estado:</label>
+                <select class="form-control-dossier" id="selectNewStatus">
+                    <option value="active">Activo (Acceso Completo)</option>
+                    <option value="suspended">Suspendido (Acceso Restringido)</option>
+                    <option value="banned">Baneado (Bloqueo Permanente)</option>
+                </select>
+            </div>
+            <div class="form-group-dossier">
+                <label>Motivo / Justificación de Auditoría:</label>
+                <textarea class="form-control-dossier" id="txtStatusReason" rows="3" placeholder="Ej: Revisión rutinaria de cumplimiento, solicitud del usuario, sospecha de fraude..."></textarea>
+            </div>
+            <div class="modal-btn-row">
+                <button class="btn-action-dossier secondary" id="btnCancelStatusModal">Cancelar</button>
+                <button class="btn-action-dossier primary" id="btnConfirmStatusChange">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Editar Código de Referido -->
+    <div class="dossier-modal" id="modalEditReferral">
+        <div class="modal-inner-dossier">
+            <h3 class="modal-title-clean">✏️ Modificar Código de Referido</h3>
+            <div class="form-group-dossier">
+                <label>Nuevo Código de Referido (Único):</label>
+                <input type="text" class="form-control-dossier" id="txtNewReferralCode" placeholder="Ej: WINTONPRO2026" style="text-transform: uppercase;">
+            </div>
+            <div class="modal-btn-row">
+                <button class="btn-action-dossier secondary" id="btnCancelReferralModal">Cancelar</button>
+                <button class="btn-action-dossier primary" id="btnConfirmReferralChange">Actualizar Código</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Visor de Respuestas y Evidencias de Tarea -->
+    <div class="dossier-modal" id="modalTaskEvidence">
+        <div class="modal-inner-dossier" style="max-width: 680px;">
+            <h3 class="modal-title-clean" id="taskEvidenceModalTitle">📋 Detalle de Entrega de Tarea</h3>
+            <div id="taskEvidenceModalContent" style="max-height: 480px; overflow-y: auto; padding-right: 8px;">
+                <!-- Contenido dinámico -->
+            </div>
+            <div class="modal-btn-row">
+                <button class="btn-action-dossier secondary" id="btnCloseEvidenceModal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Alerta y Notificación -->
+    <div id="customAlertModal" class="dossier-modal">
+        <div class="modal-inner-dossier" style="max-width: 420px; text-align: center;">
+            <p id="customAlertMessage" style="font-size: 1rem; margin: 0 0 20px 0; line-height: 1.5;"></p>
+            <button class="btn-action-dossier primary alert-close-button" style="width: 100%; justify-content: center;">Entendido</button>
+        </div>
+    </div>
+
+    <!-- ES Module Script -->
+    <script type="module" src="src/pages/admin-user-detail.js"></script>
+
+</body>
+</html>

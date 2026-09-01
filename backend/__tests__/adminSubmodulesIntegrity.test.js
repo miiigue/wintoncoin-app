@@ -47,9 +47,9 @@ describe('Pruebas de Integridad de Submódulos Administrativos', () => {
         });
     });
 
-    it('2. Submódulo Usuarios & KYC — Debe exportar 6 funciones válidas', () => {
+    it('2. Submódulo Usuarios & KYC — Debe exportar 7 funciones válidas (incluyendo getUserDossier360)', () => {
         const keys = Object.keys(adminUserController);
-        expect(keys.length).toBe(6);
+        expect(keys.length).toBe(7);
         keys.forEach(key => {
             expect(typeof adminUserController[key]).toBe('function');
         });
@@ -87,9 +87,9 @@ describe('Pruebas de Integridad de Submódulos Administrativos', () => {
         });
     });
 
-    it('6. Fachada adminController — Debe consolidar exactamente 57 funciones (12+6+6+8+24+1)', () => {
+    it('6. Fachada adminController — Debe consolidar exactamente 58 funciones (12+7+6+8+24+1)', () => {
         const facadeKeys = Object.keys(adminFacade);
-        expect(facadeKeys.length).toBe(57);
+        expect(facadeKeys.length).toBe(58);
         facadeKeys.forEach(key => {
             expect(typeof adminFacade[key]).toBe('function');
         });
