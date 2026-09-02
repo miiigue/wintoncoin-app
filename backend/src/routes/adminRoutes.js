@@ -33,6 +33,7 @@ router.post('/boosters/config-stages', verifyAdminToken, adminController.saveBoo
 
 // Gestión de Usuarios, Deudores y KYC
 router.get('/users', verifyAdminToken, adminController.getUsers);
+router.get('/users/:userId/dossier', verifyAdminToken, adminController.getUserDossier360);
 router.get('/users/:userId/kyc-status', web3RpcLimiter, verifyAdminToken, adminController.getUserKycStatus);
 router.post('/users/:userId/status', verifyAdminToken, adminController.updateUserStatus);
 router.put('/users/:userId/referral-code', verifyAdminToken, adminController.updateUserReferralCode);

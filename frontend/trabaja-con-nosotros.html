@@ -17,6 +17,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
+        * {
+            box-sizing: border-box;
+        }
         :root {
             --primary-winton: #3B82F6;
             --primary-glow: rgba(59, 130, 246, 0.3);
@@ -29,6 +32,9 @@
             font-family: 'Inter', sans-serif;
             margin: 0;
             padding: 0;
+            overflow-x: hidden;
+            width: 100vw;
+            max-width: 100%;
         }
 
         .talent-container {
@@ -40,6 +46,7 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 28px;
             box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+            width: 92%;
         }
 
         .header-talent {
@@ -80,6 +87,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            flex-wrap: wrap;
         }
 
         .multiplier-badge {
@@ -230,6 +238,26 @@
         .form-helper.invalid {
             color: #F87171;
         }
+
+        @media (max-width: 768px) {
+            .talent-container {
+                margin: 30px auto;
+                padding: 1.5rem;
+                width: 95%;
+            }
+            .header-talent h1 {
+                font-size: 2rem;
+            }
+            .compensation-box {
+                padding: 1.2rem;
+            }
+            .compensation-box h3 {
+                font-size: 1.1rem;
+            }
+            .compensation-text {
+                font-size: 0.9rem;
+            }
+        }
     </style>
 </head>
 
@@ -318,6 +346,145 @@
             </div>
 
             <div class="form-group">
+                <label for="linkedin_url">Enlace LinkedIn</label>
+                <input type="text" id="linkedin_url" name="linkedin_url" placeholder="linkedin.com/in/tuperfil">
+                <span class="form-helper" id="linkedinHelper">El enlace debe ser seguro (https://). Se formateará automáticamente.</span>
+            </div>
+
+            <div class="form-group">
+                <label for="portfolio_url">Portfolio / Sitio Web Personal</label>
+                <input type="text" id="portfolio_url" name="portfolio_url" placeholder="behance.net/tuperfil o tumarca.com">
+            </div>
+
+            <div class="form-group">
+                <label for="github_url">GitHub / GitLab</label>
+                <input type="text" id="github_url" name="github_url" placeholder="github.com/tuusuario">
+            </div>
+
+            <div class="form-group">
+                <label for="expected_salary">Ingreso mensual pretendido (USD)</label>
+                <input type="text" id="expected_salary" name="expected_salary" placeholder="Ej: $1,500" required>
+            </div>
+
+            <div class="form-group">
+                <label for="cover_letter">Carta de Presentación / ¿Por qué deseas unirte a WintonCoin?</label>
+                <textarea id="cover_letter" name="cover_letter" rows="4" style="width: 100%; padding: 1.1rem; background: #ffffff !important; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; color: #1e293b !important; font-size: 0.95rem; font-family: inherit; box-sizing: border-box;" placeholder="Cuéntanos brevemente sobre tus logros principales, proyectos destacados o motivación para sumarte..." required></textarea>
+            </div>
+
+            <p class="legal-clause">
+                Al enviar tu postulación aceptas que <strong>WTN Solutions LLC</strong> almacene y procese tus datos con fines de reclutamiento y contacto profesional.
+            </p>
+
+            <button type="submit" class="btn-submit" id="submitBtn">Enviar Postulación</button>
+            <div id="statusMsg" class="status-msg"></div>
+        </form>
+    </div>
+
+    <script>
+        function getApiUrl() {
+            const hostname = window.location.hostname;
+            const isFileProtocol = window.location.protocol === 'file:';
+            const isPrivateIp = /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
+            const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || isPrivateIp || isFileProtocol;
+
+            if (isFileProtocol) return 'http://localhost:3000';
+            if (isLocal) return `http://${hostname}:3000`;
+            if (hostname.startsWith('demo.') || hostname.includes('demo.')) {
+                return 'https://wintoncoin-backend-demo.onrender.com';
+            }
+            return 'https://wintoncoin-backend.onrender.com';
+        }
+
+        const API_URL = getApiUrl();
+        let currentRecruitmentMultiplier = 1;
+        const form = document.getElementById('recruitmentForm');
+        const statusMsg = document.getElementById('statusMsg');
+        const submitBtn = document.getElementById('submitBtn');
+
+        const roleSelect = document.getElementById('role');
+        const otherRoleGroup = document.getElementById('otherRoleGroup');
+        const otherRoleInput = document.getElementById('other_role');
+
+        if (roleSelect && otherRoleGroup && otherRoleInput) {
+            roleSelect.addEventListener('change', () => {
+                if (roleSelect.value === 'Otro') {
+                    otherRoleGroup.style.display = 'block';
+                    otherRoleInput.setAttribute('required', 'required');
+                } else {
+                    otherRoleGroup.style.display = 'none';
+                    otherRoleInput.removeAttribute('required');
+                    otherRoleInput.value = '';
+                }
+            });
+        }
+
+        function updateCompensationUI(multiplier) {
+            const safeMultiplier = Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;
+            currentRecruitmentMultiplier = safeMultiplier;
+
+            const dynMultiplierEl = document.getElementById('dynMultiplier');
+            const smallMultiplierEl = document.getElementById('smallMultiplier');
+            const exampleCalcEl = document.getElementById('exampleCalc');
+
+            if (dynMultiplierEl) dynMultiplierEl.textContent = `${safeMultiplier}X ACTIVO`;
+            if (smallMultiplierEl) smallMultiplierEl.textContent = String(safeMultiplier);
+            if (exampleCalcEl) {
+                const exampleValue = (100 * safeMultiplier).toLocaleString('es-ES');
+                exampleCalcEl.textContent = `${exampleValue} BLUE IOU`;
+            }
+        }
+
+        async function loadRecruitmentConfig() {
+            try {
+                const response = await fetch(`${API_URL}/api/recruitment/config`);
+                const data = await response.json();
+                if (data.success) {
+                    updateCompensationUI(Number(data.recruitmentMultiplier));
+                } else {
+                    updateCompensationUI(1);
+                }
+            } catch (error) {
+                console.warn('[RECRUITMENT] No se pudo cargar el multiplicador dinámico:', error);
+                updateCompensationUI(1);
+            }
+        }
+
+        function normalizeUrlInput(inputEl) {
+            if (!inputEl) return '';
+            let val = inputEl.value.trim();
+            if (!val) return '';
+
+            if (val.toLowerCase().startsWith('http://')) {
+                val = 'https://' + val.substring(7);
+            }
+            if (!/^https?:\/\//i.test(val)) {
+                val = 'https://' + val;
+            }
+            inputEl.value = val;
+            return val;
+        }
+
+        const linkedinInput = document.getElementById('linkedin_url');
+        const linkedinHelper = document.getElementById('linkedinHelper');
+        const cvInput = document.getElementById('cv_url');
+        const cvHelper = document.getElementById('cvUrlHelper');
+
+        function validateLinkedin() {
+            if (!linkedinInput || !linkedinHelper) return true;
+            let val = normalizeUrlInput(linkedinInput);
+            if (!val) {
+                linkedinHelper.textContent = 'El enlace debe ser seguro (https://). Se formateará automáticamente.';
+                linkedinHelper.className = 'form-helper';
+                return true;
+            }
+
+            try {
+                const parsedUrl = new URL(val);
+                const hostname = parsedUrl.hostname.toLowerCase();
+                if (hostname === 'linkedin.com' || hostname.endsWith('.linkedin.com')) {
+                    linkedinHelper.textContent = '✅ Enlace de LinkedIn verificado de forma segura.';
+                    linkedinHelper.className = 'form-helper valid';
+                    return true;
                 } else {
                     linkedinHelper.textContent = '❌ Por seguridad, el dominio debe ser estrictamente linkedin.com.';
                     linkedinHelper.className = 'form-helper invalid';

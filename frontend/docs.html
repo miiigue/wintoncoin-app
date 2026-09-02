@@ -13,6 +13,10 @@
     <link rel="stylesheet" href="landing.css">
     <style>
         /* Whitepaper Specific Styles */
+        * {
+            box-sizing: border-box;
+        }
+
         :root {
             --wp-bg: #ffffff;
             --wp-text: #1a202c;
@@ -28,6 +32,9 @@
             margin: 0;
             display: flex;
             min-height: 100vh;
+            overflow-x: hidden;
+            width: 100%;
+            max-width: 100%;
         }
 
         /* Layout */
@@ -39,6 +46,7 @@
             background: white;
             box-shadow: 0 0 50px rgba(0, 0, 0, 0.05);
             min-height: 100vh;
+            overflow-x: hidden;
         }
 
         /* Sidebar Navigation */
@@ -104,6 +112,7 @@
             padding: 4rem 6rem;
             max-width: 900px;
             margin: 0 auto;
+            min-width: 0; /* Fix flexbox shrink bug */
         }
 
         /* Typography */
@@ -517,6 +526,8 @@
         @media (max-width: 900px) {
             .wp-container {
                 flex-direction: column;
+                width: 100%;
+                max-width: 100%;
             }
 
             .wp-sidebar {
@@ -552,12 +563,17 @@
                 padding: 2rem 1.25rem;
                 /* Much smaller padding */
                 overflow-x: hidden;
+                width: 100%;
+                max-width: 100%;
             }
 
             h1.wp-title {
                 font-size: 1.8rem;
                 /* Smaller title */
                 word-wrap: break-word;
+                overflow-wrap: break-word;
+                word-break: break-word;
+                hyphens: auto;
             }
 
             h2 {
@@ -573,6 +589,8 @@
             li {
                 font-size: 1rem;
                 text-align: justify;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
             }
 
             /* Responsive Tables & Code */
