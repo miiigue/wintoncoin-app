@@ -8441,7 +8441,7 @@ body.wallet-tour-active #prelaunchWalletModal {
 /* Forzar que las imágenes individuales cubran todo el ancho */
 .publication-item.has-images .card-images-container.single-image img {
     width: 100% !important;
-    max-height: 180px !important;
+    max-height: 125px !important;
     object-fit: cover !important;
     border-radius: 0 !important;
 }
@@ -8450,7 +8450,7 @@ body.wallet-tour-active #prelaunchWalletModal {
 .publication-item.has-images .card-images-container.is-carousel img {
     flex: 0 0 100% !important;
     width: 100% !important;
-    max-height: 180px !important;
+    max-height: 125px !important;
     object-fit: cover !important;
     border-radius: 0 !important;
     scroll-snap-align: center !important;
