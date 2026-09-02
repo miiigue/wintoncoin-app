@@ -8474,19 +8474,30 @@ body.wallet-tour-active #prelaunchWalletModal {
     bottom: 0;
     left: 0;
     right: 0;
-    padding: 10px 1.25rem;
+    padding: 0 1.25rem 6px 1.25rem !important; /* Minimal bottom padding to hug the bottom edge */
     z-index: 2;
     pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
 }
-.hero-content .publication-header h3, 
+.hero-content .publication-header {
+    margin-bottom: 0 !important; /* Override the default 10px margin */
+}
+.hero-content .publication-header h3 {
+    color: #ffffff !important;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+    margin-bottom: 0 !important;
+    line-height: 1.2;
+}
 .hero-content .pub-description {
     color: #ffffff !important;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
-    margin-bottom: 0 !important;
-}
-.hero-content .pub-description {
-    opacity: 0.95;
-    margin-top: 2px !important;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+    opacity: 0.9;
+    margin-top: 0 !important; /* Bring description right under the title */
+    margin-bottom: 0 !important; /* Override the default 10px margin */
+    line-height: 1.2;
+    font-size: 0.85rem;
 }
 
 /* Contenedor del título - Limitar espacio vertical */
