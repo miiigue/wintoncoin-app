@@ -17,6 +17,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <style>
+        * {
+            box-sizing: border-box;
+        }
         :root {
             --primary-winton: #3B82F6;
             --primary-glow: rgba(59, 130, 246, 0.3);
@@ -29,6 +32,9 @@
             font-family: 'Inter', sans-serif;
             margin: 0;
             padding: 0;
+            overflow-x: hidden;
+            width: 100vw;
+            max-width: 100%;
         }
 
         .talent-container {
@@ -40,6 +46,7 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 28px;
             box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+            width: 92%;
         }
 
         .header-talent {
@@ -80,6 +87,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            flex-wrap: wrap;
         }
 
         .multiplier-badge {
@@ -229,6 +237,26 @@
         }
         .form-helper.invalid {
             color: #F87171;
+        }
+
+        @media (max-width: 768px) {
+            .talent-container {
+                margin: 30px auto;
+                padding: 1.5rem;
+                width: 95%;
+            }
+            .header-talent h1 {
+                font-size: 2rem;
+            }
+            .compensation-box {
+                padding: 1.2rem;
+            }
+            .compensation-box h3 {
+                font-size: 1.1rem;
+            }
+            .compensation-text {
+                font-size: 0.9rem;
+            }
         }
     </style>
 </head>
