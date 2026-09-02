@@ -13,6 +13,23 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-09-02 — Android Nativo: Fase 18 — Blindaje de Sesión, Soporte de Cookies de Terceros y Bloqueo Vertical Fijo (*Portrait Lock*)
+* **Diagnóstico & Objetivo**:
+  - Al girar el dispositivo a posición horizontal (*landscape*), el sistema operativo Android destruía y recreaba la `MainActivity` por defecto. Al recrearse el `WebView`, las cookies de sesión `HttpOnly` entre `demo.wintoncoin.com` y `wintoncoin-backend-demo.onrender.com` (consideradas cookies de terceros entre distintos dominios) no estaban persistidas en el almacenamiento no volátil del teléfono ni habilitadas para terceros, provocando un error 401 que expulsaba al usuario a la pantalla de login.
+  - Siguiendo el estándar de la industria FinTech (Binance, BBVA, Revolut, Coinbase), las aplicaciones de billetera financiera deben operar con orientación vertical fija (*Portrait*) para proteger la seguridad visual de saldos e integridad de datos.
+* **Cambios Técnicos**:
+  - **Manifest de Android (`android/app/src/main/AndroidManifest.xml`)**:
+    - Agregado `android:screenOrientation="portrait"` en `MainActivity`, fijando la orientación vertical estricta.
+    - Agregado `android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize"` para garantizar que ante cambios de pantalla (ej. ventanas divididas o dispositivos plegables), el sistema operativo Android nunca destruya la Activity ni reinicie la sesión.
+  - **Contenedor Nativo (`android/app/src/main/java/com/wintoncoin/app/presentation/container/WintonWebViewContainer.kt`)**:
+    - Configurado `CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)`, habilitando el tráfico seguro de cookies de sesión entre el frontend y el backend de Render.
+    - Implementado `CookieManager.getInstance().flush()` tanto en `onPageFinishedCallback` como en el ciclo de vida `DisposableEffect (onDispose)`, forzando el guardado inmediato de las cookies de sesión en el almacenamiento permanente flash del dispositivo.
+  - **Compilación & Tests**:
+    - **223 / 223 Tests Unitarios Aprobados (100% de éxito)**.
+    - Compilación limpia (`assembleDemoDebug`) generando el binario actualizado `wintoncoin-demo.apk` (22.0 MB).
+* **Impacto**:
+  - Cero cierres de sesión: la sesión permanece blindada y guardada en el hardware del teléfono, y la orientación se mantiene fija en vertical con fluidez total y sin deformaciones.
+
 ### 2026-09-01 — Frontend PWA & Android Nativo: Fase 17 — Supresión Inteligente de Botones de Instalación Web dentro del Contenedor Nativo (`pwa-install.js`)
 * **Diagnóstico & Objetivo**:
   - Al ejecutar la aplicación dentro del APK nativo de Android (`window.AndroidNative`), la presencia del botón o aviso web de "Instalar App PWA" resultaba redundante y confuso para la usabilidad UX del usuario, quien ya tiene la aplicación móvil nativa instalada.
