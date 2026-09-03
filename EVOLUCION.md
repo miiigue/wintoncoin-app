@@ -13,6 +13,82 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-09-02 — Arquitectura Frontend: Fase 5 — Migración de Registro a React (`Register.jsx`, Wizard & Verificación OTP)
+* **Diagnóstico & Objetivo**:
+  - La pantalla de registro (`register.html` y `src/pages/register.js`) operaba como un documento HTML independiente con recargas completas, provocando parpadeos y desarticulando el flujo fluido de incorporación de usuarios (onboarding).
+  - Se requería migrar el onboarding completo a un componente React moderno (`Register.jsx`) con Wizard de 3 pasos, verificación de disponibilidad de datos en tiempo real, restricción de país (+58), cumplimiento legal FinTech (SOC 2), paso de verificación OTP de 6 dígitos con cuenta regresiva, modales de campañas de referidos y estilos 100% aislados (`Register.module.css`).
+* **Cambios Técnicos**:
+  - **Componente React (`src/pages/Register.jsx`)**:
+    - Implementación del Wizard de 3 pasos (1. Credenciales, 2. Identidad, 3. Legal & Referidos) con preservación reactiva de datos al navegar hacia adelante y hacia atrás.
+    - Validación asíncrona de disponibilidad para email (`/api/check-email`), usuario (`/api/check-username`) y teléfono (`/api/check-phone`).
+    - Comprobación dinámica de restricción geográfica (+58) vía `/api/public-settings` y detección de minoría de edad (13 a 17 años).
+    - Carga de documentos legales activos (`/api/legal/documents/active`) y envío del hash de contenido para validez de auditoría.
+    - Paso de verificación OTP (código de 6 dígitos) con temporizador de reenvío de 60 segundos y envío seguro a `/api/register-verify`.
+    - Modales interactivos de campañas de referidos (200 BLUE IOU / causa SOS Venezuela) y advertencia de cuenta única.
+  - **Estilos Encapsulados (`src/pages/Register.module.css`)**:
+    - Aislamiento absoluto de estilos (Zero CSS Leakage) para la tarjeta, barra de progreso del asistente, estados de validación y modales.
+  - **Enrutamiento e Interconexión SPA**:
+    - Rutas `/register` y `/register.html` agregadas a `src/App.jsx`.
+    - Botones y enlaces actualizados con `<Link to="/register">` en `Header.jsx`, `Footer.jsx`, `Login.jsx`, `MarketplaceSection.jsx` y `FomoSection.jsx`.
+* **Impacto**:
+  - La incorporación de nuevos usuarios se ejecuta con una experiencia de usuario rápida y sin recargas, con verificación en vivo y cumpliendo con estándares de ciberseguridad y auditoría legal.
+
+### 2026-09-02 — Arquitectura Frontend: Blindaje de Estilos mediante CSS Modules (`Login.module.css` & Zero-Leakage)
+* **Diagnóstico & Objetivo**:
+  - Al importar `style.css` globalmente dentro de `Login.jsx`, las definiciones de `.container` (ancho fijo de 450px con fondo azul `#14245a`) colisionaron con la clase homónima de la Landing Page (`landing.css`), provocando deformaciones en el ancho de la página de inicio.
+  - Se requería aislar estrictamente los estilos de la pantalla de autenticación bajo el estándar de la industria (CSS Modules) para garantizar la coexistencia pacífica entre el diseño de la Landing y los formularios de autenticación.
+* **Cambios Técnicos**:
+  - **Módulo Encapsulado (`src/pages/Login.module.css`)**:
+    - Creación de clases con alcance local (`.authWrapper`, `.authCard`, `.authLogo`, `.formInput`, `.btnSubmit`, etc.) que el bundler procesa con hashes criptográficos únicos.
+    - Se eliminaron las importaciones globales de `style.css` en `Login.jsx`.
+  - **Verificación Automatizada**:
+    - Validación mediante subagente de navegador confirmando la restauración al 100% de la Landing Page en `/` y el renderizado perfecto y centrado del Login en `/login`.
+* **Impacto**:
+  - Aislamiento total de estilos (Zero CSS Leakage). La Landing Page mantiene su diseño espacioso y el Login conserva su estética de tarjeta segura sin interferencias mutuas.
+
+### 2026-09-02 — Arquitectura Frontend: Fase 4 — Migración de Autenticación a React (`Login.jsx` & SPA Routing)
+* **Diagnóstico & Objetivo**:
+  - La pantalla de inicio de sesión (`login.html` y `src/pages/login.js`) operaba como un archivo HTML aislado que requería una recarga de ventana completa al navegar desde la Landing Page, generando parpadeos blancos (white-screen flashes) e interrumpiendo la fluidez nativa en el WebView de Android.
+  - Se requería migrar la pantalla a un componente React puro (`src/pages/Login.jsx`) con enrutamiento SPA (`/login`), manteniendo el 100% de la lógica de ciberseguridad FinTech (Zero-Trust, cookies HttpOnly, sesiones JWT, sync push y políticas de cuenta única).
+* **Cambios Técnicos**:
+  - **Componente de Autenticación (`src/pages/Login.jsx`)**:
+    - Manejo de estado reactivo para credenciales (`identifier`, `password`), alternador visual de visibilidad de contraseña (ojo SVG) y modal de política de cuenta única persistido en `sessionStorage`.
+    - Envío autenticado a `${getApiUrl()}/login` con `credentials: 'include'` asegurando el flujo de cookies entre dominios y almacenamiento seguro en `localStorage.getItem('token')`.
+    - Sanitización de redirección segura con `getSafeReturnTo` y sincronización de suscripciones push en segundo plano (`syncPendingPushSubscription`).
+  - **Enrutamiento SPA (`src/App.jsx`)**:
+    - Registro de las rutas independientes `/login` y `/login.html` fuera del `MainLayout` para preservar la estética minimalista y limpia del formulario original.
+  - **Transición Fluida en Landing (`HeroSection.jsx` y `Footer.jsx`)**:
+    - Actualizados los enlaces hacia el login utilizando el componente `<Link to="/login">` de `react-router-dom`, habilitando transiciones instantáneas a 60 fps.
+* **Impacto**:
+  - La navegación entre la Landing Page y el Login ahora ocurre de forma instantánea sin recarga de página (experiencia nativa FinTech de alta gama). La seguridad bancaria de sesiones permanece 100% intacta.
+
+### 2026-09-02 — Arquitectura Frontend: Refactorización Modular Estricta (SOLID) de la Landing Page & Botón Flotante React
+* **Diagnóstico & Objetivo**:
+  - Tras la migración inicial del HTML base hacia `Home.jsx`, el código se mantenía consolidado en un único archivo de >540 líneas (monolito JSX). Esto dificultaba la trazabilidad, violaba el principio de Responsabilidad Única (SRP) y carecía de modularidad industrial para pruebas unitarias y mantenimiento FinTech.
+  - Adicionalmente, se detectó código muerto en el script legacy (`card-float`, `floating-img` para un parallax en desuso) y la falta de integración en React del botón flotante "Volver Arriba" (`#btn-back-to-top`).
+* **Cambios Técnicos**:
+  - **Componente Reutilizable (`src/components/common/BackToTop.jsx`)**:
+    - Implementación de botón flotante con listener pasivo de scroll throttled mediante `requestAnimationFrame` y scroll suave (`window.scrollTo`), integrado a nivel global en `src/layouts/MainLayout.jsx`.
+    - Eliminado el botón estático duplicado de `index.html`.
+  - **Modularización Completa (`src/components/landing/`)**:
+    - Desacoplamiento de `Home.jsx` en 14 submódulos puros con documentación exhaustiva: `EmergencyBanner.jsx`, `HeroSection.jsx`, `CommunitySection.jsx`, `StepsSection.jsx`, `TrustSection.jsx`, `IntegritySection.jsx`, `SecuritySection.jsx`, `CareersSection.jsx`, `MarketplaceSection.jsx`, `GlassActionSection.jsx`, `EconomicsSection.jsx`, `FomoSection.jsx`, `MomentumSection.jsx` y `SolidarioSection.jsx`.
+    - Retirada la cláusula fija de canje de tokens IOU en `SolidarioSection.jsx` para alineación regulatoria y legal.
+  - **Orquestador Central (`src/pages/Home.jsx`)**:
+    - Rediseñado como orquestador limpio (<85 líneas) gestionando un único `IntersectionObserver` de alto rendimiento anclado por `useRef` para animaciones en cascada con recolección de basura (unobserve).
+* **Impacto**:
+  - Código 100% auditable, desacoplado y conforme a los más altos estándares de ingeniería de software (SOLID, Clean Architecture). Paridad visual absoluta mantenida en Vite HMR sin errores de consola.
+
+### 2026-09-02 — Arquitectura Frontend: Migración Incremental a React SPA (Fase 1 a 3 - Strangler Fig)
+* **Diagnóstico & Objetivo**:
+  - La plataforma web presentaba una arquitectura monolítica (Vanilla JS, +40 archivos HTML en raíz y un CSS de casi 200KB) que limitaba la escalabilidad, complicaba el mantenimiento y afectaba la fluidez nativa (UX) al integrarse mediante WebView en Android.
+  - El objetivo fue migrar la interfaz hacia un framework moderno basado en componentes (React.js SPA) para alcanzar el nivel industrial de aplicaciones FinTech, garantizando transiciones sin recargas (Zero White-Screen) y sin romper la funcionalidad actual usando el patrón "Strangler Fig".
+* **Cambios Técnicos**:
+  - **Entorno y Configuración**: Instalación segura de dependencias (`react`, `react-router-dom`) y configuración de `@vitejs/plugin-react@4` en `vite.config.js` para permitir la convivencia híbrida entre componentes JSX y los HTML legacy.
+  - **Componentización Base**: Diseño de la estructura `src/` (components, pages, layouts, context). Extracción limpia del `<nav>` y `<footer>` hacia los componentes reutilizables `<Header />` y `<Footer />`, controlados por `MainLayout.jsx` y el enrutador `App.jsx`.
+  - **Migración Quirúrgica (Landing Page)**: Conversión de `index.html` a `src/pages/Home.jsx`. Se adaptó el código HTML a JSX purificando los estilos en línea e inyectando el motor de React en el `index.html` raíz, preservando una copia de seguridad en `landing-legacy.html`.
+* **Impacto**:
+  - La página principal (Landing) ahora opera bajo arquitectura Single Page Application (SPA). Al navegar en el WebView de Android, la sensación visual es 100% nativa. El proyecto está listo para continuar la migración iterativa de las demás pantallas con cero tiempo de inactividad (Zero Downtime).
+
 ### 2026-09-02 — Android Nativo: Fase 18 — Blindaje de Sesión, Soporte de Cookies de Terceros y Bloqueo Vertical Fijo (*Portrait Lock*)
 * **Diagnóstico & Objetivo**:
   - Al girar el dispositivo a posición horizontal (*landscape*), el sistema operativo Android destruía y recreaba la `MainActivity` por defecto. Al recrearse el `WebView`, las cookies de sesión `HttpOnly` entre `demo.wintoncoin.com` y `wintoncoin-backend-demo.onrender.com` (consideradas cookies de terceros entre distintos dominios) no estaban persistidas en el almacenamiento no volátil del teléfono ni habilitadas para terceros, provocando un error 401 que expulsaba al usuario a la pantalla de login.

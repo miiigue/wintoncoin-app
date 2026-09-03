@@ -10,6 +10,7 @@
 
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
 // Plugin personalizado para inyectar alertas visuales de DEMO en la interfaz
@@ -174,6 +175,7 @@ export default defineConfig(({ mode }) => ({
   // PWA CONFIGURATION (Workbox) & CUSTOM PLUGINS
   // ============================================================================
   plugins: [
+    react(), // Soporte para React SPA
     demoModePlugin(mode), // Inyecta listones visuales si mode === 'demo'
     VitePWA({
       // Modo de registro del Service Worker

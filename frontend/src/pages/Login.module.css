@@ -1,0 +1,256 @@
+/**
+ * ============================================================================
+ * [WINTONCOIN] - CSS MODULE: Login (Estilos Encapsulados)
+ * ============================================================================
+ * Proporciona el diseño exacto de autenticación sin fugas de CSS global.
+ * Cumple con principios de Zero-Leakage de CSS en Single Page Applications.
+ * ============================================================================
+ */
+
+.authWrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #1a1a2e;
+  padding: 1.5rem;
+  box-sizing: border-box;
+  font-family: 'Poppins', sans-serif;
+}
+
+.authCard {
+  background-color: #14245a;
+  padding: 2.5rem 3rem;
+  border-radius: 15px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+  width: 100%;
+  max-width: 450px;
+  box-sizing: border-box;
+  text-align: center;
+  position: relative;
+}
+
+.authLogo {
+  display: block;
+  margin: 0 auto 1.25rem auto;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+
+.authLogo:hover {
+  transform: scale(1.05);
+}
+
+.authTitle {
+  color: #6a5acd;
+  margin-top: 0;
+  margin-bottom: 1.75rem;
+  font-size: 1.85rem;
+  font-weight: 700;
+}
+
+.formGroup {
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
+.formLabel {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 400;
+  color: #BDBDBD;
+  font-size: 0.95rem;
+}
+
+.formInput {
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid #2a3b5c;
+  background-color: #ffffff;
+  border-radius: 8px;
+  color: #111111;
+  font-size: 1rem;
+  font-family: 'Poppins', sans-serif;
+  box-sizing: border-box;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.formInput:focus {
+  outline: none;
+  border-color: #6a5acd;
+  box-shadow: 0 0 10px rgba(106, 90, 205, 0.5);
+}
+
+.passwordWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.passwordWrapper input {
+  padding-right: 45px;
+}
+
+.passwordToggle {
+  position: absolute;
+  right: 12px;
+  cursor: pointer;
+  color: #BDBDBD;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.3s;
+}
+
+.passwordToggle:hover {
+  color: #6a5acd;
+}
+
+.passwordToggle svg {
+  width: 20px;
+  height: 20px;
+}
+
+.forgotPasswordWrapper {
+  text-align: right;
+  margin-top: 8px;
+}
+
+.forgotPasswordLink {
+  color: #6a5acd;
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+}
+
+.forgotPasswordLink:hover {
+  text-decoration: underline;
+  color: #8372e0;
+}
+
+.btnSubmit {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 8px;
+  background-color: #6a5acd;
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+  box-sizing: border-box;
+  margin-top: 0.5rem;
+}
+
+.btnSubmit:hover {
+  background-color: #5a4ab9;
+  transform: translateY(-2px);
+}
+
+.btnSecondary {
+  display: block;
+  width: 100%;
+  padding: 15px;
+  margin-top: 1rem;
+  border: none;
+  border-radius: 8px;
+  background-color: #140277;
+  color: #F5F5F5;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.3s, color 0.3s, transform 0.2s;
+  box-sizing: border-box;
+}
+
+.btnSecondary:hover {
+  background-color: #2a1b8a;
+  color: white;
+  transform: translateY(-2px);
+  text-decoration: none;
+}
+
+.backHomeLink {
+  display: inline-block;
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+}
+
+.backHomeLink:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+/* Modal de Política */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.modalContent {
+  background-color: #14245a;
+  border-radius: 12px;
+  max-width: 420px;
+  width: 100%;
+  padding: 2rem;
+  box-sizing: border-box;
+  color: #F5F5F5;
+  position: relative;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.modalCloseBtn {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  font-size: 1.5rem;
+  color: #BDBDBD;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  width: auto;
+}
+
+.modalCloseBtn:hover {
+  color: #ffffff;
+}
+
+.modalIcon {
+  font-size: 2.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.modalTitle {
+  color: #ffffff;
+  margin: 0 0 1rem 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.modalText {
+  color: #BDBDBD;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
