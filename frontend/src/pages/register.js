@@ -322,11 +322,11 @@ function setupFieldValidation(API_URL, checkAgreements) {
 
             const isAllowed = allowedPrefixes.some(prefix => val.startsWith(prefix));
             if (!isAllowed) {
-                phoneFeedback.textContent = `Por el momento solo se aceptan registros con prefijo ${allowedPrefixes.join(' o ')}.`;
-                phoneFeedback.style.color = '#dc3545';
+                phoneFeedback.innerHTML = '<strong>⚠️ Prefijo no admitido:</strong> Por ahora solo se admiten registros con prefijo ' + allowedPrefixes.join(' o ') + ' (Venezuela). Escribe tu número con +58 o directamente 0414...';
+                phoneFeedback.className = 'feedback-msg feedback-error';
                 phoneFeedback.style.display = 'block';
-                phoneFeedback.style.fontWeight = 'bold';
-                phoneInput.style.borderColor = '#dc3545';
+                phoneInput.classList.add('input-error');
+                phoneInput.classList.remove('input-success');
                 if (step2NextBtn) {
                     step2NextBtn.disabled = true;
                     step2NextBtn.style.opacity = '0.5';
@@ -334,6 +334,10 @@ function setupFieldValidation(API_URL, checkAgreements) {
                 }
                 return false;
             }
+
+            phoneFeedback.style.display = 'none';
+            phoneFeedback.className = 'feedback-msg';
+            phoneInput.classList.remove('input-error');
 
             if (step2NextBtn) {
                 step2NextBtn.disabled = false;
@@ -345,20 +349,24 @@ function setupFieldValidation(API_URL, checkAgreements) {
 
         phoneInput.addEventListener('blur', async () => {
             const phone = phoneInput.value.trim();
-            phoneFeedback.style.display = 'none';
-            phoneInput.style.borderColor = '';
-
-            if (!phone) return;
+            if (!phone) {
+                phoneFeedback.style.display = 'none';
+                phoneFeedback.className = 'feedback-msg';
+                phoneInput.classList.remove('input-error', 'input-success');
+                return;
+            }
 
             // Validar restricción por prefijo de país
             if (!validatePhonePrefix()) {
                 return;
             }
 
-            if (phone.length < 7) {
-                phoneFeedback.textContent = 'El teléfono parece demasiado corto.';
-                phoneFeedback.style.color = '#dc3545';
+            if (phone.length < 11) {
+                phoneFeedback.innerHTML = '<strong>⚠️ Número incompleto:</strong> Asegúrate de incluir tus 10 u 11 dígitos.';
+                phoneFeedback.className = 'feedback-msg feedback-error';
                 phoneFeedback.style.display = 'block';
+                phoneInput.classList.add('input-error');
+                phoneInput.classList.remove('input-success');
                 return;
             }
 
@@ -369,18 +377,18 @@ function setupFieldValidation(API_URL, checkAgreements) {
                 const data = await response.json();
 
                 if (!data.available) {
-                    phoneFeedback.textContent = data.message;
-                    phoneFeedback.style.color = '#dc3545';
+                    phoneFeedback.innerHTML = '<strong>🚫 Teléfono ya registrado:</strong> Este número ya pertenece a una cuenta activa en WintonCoin. Si es tu cuenta, puedes iniciar sesión o recuperarla.';
+                    phoneFeedback.className = 'feedback-msg feedback-error';
                     phoneFeedback.style.display = 'block';
-                    phoneFeedback.style.fontWeight = 'bold';
-                    phoneInput.style.borderColor = '#dc3545';
+                    phoneInput.classList.add('input-error');
+                    phoneInput.classList.remove('input-success');
                     isPhoneTaken = true;
                 } else {
-                    phoneFeedback.textContent = 'Teléfono disponible.';
-                    phoneFeedback.style.color = '#28a745';
+                    phoneFeedback.innerHTML = '<strong>✅ Teléfono disponible:</strong> Número válido y listo para recibir tu código de seguridad.';
+                    phoneFeedback.className = 'feedback-msg feedback-success';
                     phoneFeedback.style.display = 'block';
-                    phoneFeedback.style.fontWeight = 'bold';
-                    phoneInput.style.borderColor = '#28a745';
+                    phoneInput.classList.add('input-success');
+                    phoneInput.classList.remove('input-error');
                     isPhoneTaken = false;
                 }
                 checkAgreements();
@@ -390,11 +398,20 @@ function setupFieldValidation(API_URL, checkAgreements) {
         });
 
         phoneInput.addEventListener('input', () => {
+            let val = phoneInput.value;
+            // Auto-normalización inteligente para Venezuela
+            if (/^0[24]/.test(val)) {
+                phoneInput.value = '+58 ' + val.substring(1);
+            } else if (/^[42][0-9]/.test(val) && !val.startsWith('+')) {
+                phoneInput.value = '+58 ' + val;
+            }
+
             validatePhonePrefix();
             if (isPhoneTaken) {
                 isPhoneTaken = false;
                 phoneFeedback.style.display = 'none';
-                phoneInput.style.borderColor = '';
+                phoneFeedback.className = 'feedback-msg';
+                phoneInput.classList.remove('input-error', 'input-success');
                 checkAgreements();
             }
         });

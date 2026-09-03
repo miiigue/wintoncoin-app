@@ -221,30 +221,86 @@ function Register() {
     }
   };
 
+  const handlePhoneChange = (e) => {
+    let val = e.target.value;
+
+    // Normalización automática para usuarios de Venezuela:
+    // Si empieza con 0414, 0424, 0412, 0416, 0426 o 02... reemplaza el 0 inicial por +58
+    if (/^0[24]/.test(val)) {
+      val = '+58 ' + val.substring(1);
+    } else if (/^[42][0-9]/.test(val) && !val.startsWith('+')) {
+      // Si el usuario escribe directamente 414... o 424...
+      val = '+58 ' + val;
+    }
+
+    setPhone(val);
+    setPhoneFeedback({ text: '', isError: false, title: '', type: '' });
+  };
+
+  const handlePhoneFocus = () => {
+    if (!phone.trim()) {
+      setPhone('+58 ');
+    }
+  };
+
   const checkPhoneAvailability = async () => {
     const trimmed = phone.trim().replace(/[\s\-\(\)]/g, '');
-    if (!trimmed) return;
+    if (!trimmed || trimmed === '+58' || trimmed === '+') {
+      setPhoneFeedback({ text: '', isError: false, title: '', type: '' });
+      setIsPhoneTaken(false);
+      return;
+    }
 
+    // 1. Verificación de prefijo permitido (+58)
     const isAllowed = allowedPrefixes.some(prefix => trimmed.startsWith(prefix));
     if (!isAllowed) {
-      setPhoneFeedback({ text: `Solo se aceptan registros con prefijo ${allowedPrefixes.join(' o ')}.`, isError: true });
+      setPhoneFeedback({
+        title: 'Formato o Prefijo no Admitido',
+        text: `Por ahora solo se admiten registros con prefijo ${allowedPrefixes.join(' o ')} (Venezuela). Escribe tu número iniciando con +58 o directamente 0414...`,
+        isError: true,
+        type: 'format'
+      });
       setIsPhoneTaken(true);
       return;
     }
 
+    // 2. Verificación de longitud mínima
+    if (trimmed.length < 11) {
+      setPhoneFeedback({
+        title: 'Número Incompleto',
+        text: 'El número telefónico parece demasiado corto. Asegúrate de incluir tus 10 u 11 dígitos.',
+        isError: true,
+        type: 'format'
+      });
+      setIsPhoneTaken(true);
+      return;
+    }
+
+    // 3. Verificación de existencia en la base de datos
     const API_URL = getApiUrl();
     try {
       const res = await fetch(`${API_URL}/api/check-phone/${encodeURIComponent(trimmed)}`);
       const data = await res.json();
       if (!data.available) {
-        setPhoneFeedback({ text: data.message || 'Teléfono ya registrado.', isError: true });
+        setPhoneFeedback({
+          title: 'Teléfono ya Registrado',
+          text: 'Este número ya pertenece a una cuenta activa en WintonCoin. Si es tu cuenta, inicia sesión o recupérala.',
+          isError: true,
+          type: 'taken'
+        });
         setIsPhoneTaken(true);
       } else {
-        setPhoneFeedback({ text: 'Teléfono disponible.', isError: false });
+        setPhoneFeedback({
+          title: 'Teléfono Disponible',
+          text: 'Número válido y listo para recibir tu código de seguridad.',
+          isError: false,
+          type: 'available'
+        });
         setIsPhoneTaken(false);
       }
-    } catch {
-      setPhoneFeedback({ text: '', isError: false });
+    } catch (error) {
+      console.error('[Register] Error verificando teléfono:', error);
+      setPhoneFeedback({ text: '', isError: false, title: '', type: '' });
     }
   };
 
@@ -518,9 +574,10 @@ function Register() {
                 onBlur={checkEmailAvailability}
               />
               {emailFeedback.text && (
-                <span className={`${styles.feedbackMsg} ${emailFeedback.isError ? styles.feedbackError : styles.feedbackSuccess}`}>
-                  {emailFeedback.text}
-                </span>
+                <div className={`${styles.feedbackBox} ${emailFeedback.isError ? styles.feedbackErrorBox : styles.feedbackSuccessBox}`}>
+                  <span>{emailFeedback.isError ? '⚠️' : '✅'}</span>
+                  <div>{emailFeedback.text}</div>
+                </div>
               )}
             </div>
 
@@ -617,33 +674,56 @@ function Register() {
                   setUsernameFeedback({ text: '', isError: false });
                 }}
                 onBlur={checkUsernameAvailability}
+                className={
+                  usernameFeedback.text
+                    ? usernameFeedback.isError
+                      ? styles.inputError
+                      : styles.inputSuccess
+                    : ''
+                }
               />
               {usernameFeedback.text && (
-                <span className={`${styles.feedbackMsg} ${usernameFeedback.isError ? styles.feedbackError : styles.feedbackSuccess}`}>
-                  {usernameFeedback.text}
-                </span>
+                <div className={`${styles.feedbackBox} ${usernameFeedback.isError ? styles.feedbackErrorBox : styles.feedbackSuccessBox}`}>
+                  <span>{usernameFeedback.isError ? '⚠️' : '✅'}</span>
+                  <div>{usernameFeedback.text}</div>
+                </div>
               )}
             </div>
 
             <div className={styles.formGroup}>
               <label htmlFor="phone">Teléfono (con Código de País)</label>
-              <small className={styles.hintText}>Para seguridad y recuperación (WhatsApp).</small>
+              <small className={styles.hintText}>Para seguridad y recuperación de cuenta (WhatsApp/SMS).</small>
               <input
                 type="tel"
                 id="phone"
                 required
                 placeholder="+58 414 123 4567"
                 value={phone}
-                onChange={(e) => {
-                  setPhone(e.target.value);
-                  setPhoneFeedback({ text: '', isError: false });
-                }}
+                onChange={handlePhoneChange}
+                onFocus={handlePhoneFocus}
                 onBlur={checkPhoneAvailability}
+                className={
+                  phoneFeedback.text
+                    ? phoneFeedback.isError
+                      ? styles.inputError
+                      : styles.inputSuccess
+                    : ''
+                }
               />
               {phoneFeedback.text && (
-                <span className={`${styles.feedbackMsg} ${phoneFeedback.isError ? styles.feedbackError : styles.feedbackSuccess}`}>
-                  {phoneFeedback.text}
-                </span>
+                <div className={`${styles.feedbackBox} ${phoneFeedback.isError ? styles.feedbackErrorBox : styles.feedbackSuccessBox}`}>
+                  <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>
+                    {phoneFeedback.type === 'taken' ? '🚫' : phoneFeedback.isError ? '⚠️' : '✅'}
+                  </span>
+                  <div>
+                    {phoneFeedback.title && (
+                      <div style={{ fontWeight: 700, marginBottom: '2px' }}>
+                        {phoneFeedback.title}
+                      </div>
+                    )}
+                    <div>{phoneFeedback.text}</div>
+                  </div>
+                </div>
               )}
             </div>
 

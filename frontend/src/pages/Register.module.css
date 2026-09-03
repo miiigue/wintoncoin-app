@@ -228,19 +228,41 @@
   margin-bottom: 6px;
 }
 
-.feedbackMsg {
-  display: block;
-  font-size: 0.8rem;
-  margin-top: 4px;
-  font-weight: 600;
+.feedbackBox {
+  margin-top: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.4;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  box-sizing: border-box;
+  animation: fadeIn 0.2s ease-in-out;
 }
 
-.feedbackSuccess {
-  color: #16a34a;
+.feedbackErrorBox {
+  background-color: #fef2f2;
+  border: 1px solid #f87171;
+  color: #991b1b;
 }
 
-.feedbackError {
-  color: #dc2626;
+.feedbackSuccessBox {
+  background-color: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #166534;
+}
+
+.inputError {
+  border-color: #ef4444 !important;
+  background-color: #fffafa !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+}
+
+.inputSuccess {
+  border-color: #22c55e !important;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15) !important;
 }
 
 .passwordWrapper {

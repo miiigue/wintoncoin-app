@@ -13,6 +13,23 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-09-02 — Arquitectura Frontend: Optimización FinTech Móvil (Auto-normalización de Teléfono Venezuela y Cápsulas de Alerta)
+* **Diagnóstico & Objetivo**:
+  - Al probar el registro en dispositivos móviles, se detectaron dos fricciones de experiencia de usuario (UX):
+    1. Ambigüedad y deficiencia visual en los mensajes de validación de teléfono (se mostraban como un texto rojo diminuto sin bordes ni padding que en pantallas móviles no diferenciaba si el error era por formato o porque el número ya estaba en uso).
+    2. Fricción por prefijo internacional (+58): los usuarios locales acostumbran ingresar formatos nacionales (`0414...` o `414...`) sin escribir el prefijo `+58`, lo que generaba rechazos inmediatos.
+    3. Vite entregaba la versión legacy `register.html` en solicitudes directas por omisión de rewrite SPA.
+* **Cambios Técnicos**:
+  - **Auto-normalización Inteligente (`Register.jsx` y `register.js`)**:
+    - Detección reactiva en tiempo real: Si el usuario escribe números que empiezan con `04...`, `02...` o `4...`, el sistema normaliza automáticamente a `+58 4...`.
+    - Auto-completado al hacer foco: Si el campo está vacío, antepone `+58 ` para evitar buscar el símbolo `+` en el teclado móvil.
+  - **Cápsula de Alerta UI Móvil (`Register.module.css` y `register.html`)**:
+    - Reemplazo de texto plano por badges/pills con fondo suave (`#fef2f2`), borde de contraste (`#f87171`), padding táctil (`10px 14px`), tipografía nítida (`14px`), ícono explícito (⚠️ para formato, 🚫 para ya registrado, ✅ para disponible) y resaltado en el borde del input (`input-error` / `input-success`).
+  - **Enrutamiento SPA en Vite (`vite.config.js`)**:
+    - Implementación del plugin `spaFallbackPlugin` para asegurar que accesos directos desde teléfonos a `/register`, `/login` o `/forgot-password` entreguen siempre `index.html` (SPA React).
+* **Impacto**:
+  - Reducción drástica del abandono en registro móvil, experiencia fluida al nivel de Uber/Binance y claridad total para el usuario.
+
 ### 2026-09-02 — Arquitectura Frontend: Fase 6 — Migración de Recuperación de Contraseña (`ForgotPassword.jsx` & CSS Modules)
 * **Diagnóstico & Objetivo**:
   - La pantalla de recuperación de contraseña (`forgot-password.html` y `src/pages/forgot-password.js`) operaba de forma aislada, forzando recargas completas que rompían el túnel de conversión y la consistencia visual de la SPA.
