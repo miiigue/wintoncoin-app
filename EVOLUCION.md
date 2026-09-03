@@ -13,6 +13,23 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacia adelante.
 
+### 2026-09-02 — Arquitectura Frontend: Fase 6 — Migración de Recuperación de Contraseña (`ForgotPassword.jsx` & CSS Modules)
+* **Diagnóstico & Objetivo**:
+  - La pantalla de recuperación de contraseña (`forgot-password.html` y `src/pages/forgot-password.js`) operaba de forma aislada, forzando recargas completas que rompían el túnel de conversión y la consistencia visual de la SPA.
+  - Se requería migrar el flujo a un componente React moderno (`ForgotPassword.jsx`) con estados fluidos de 3 pasos (1. Solicitud de código, 2. Verificación de OTP y cambio de contraseña, 3. Éxito), conexión directa a `/login`, temporizador de reenvío y estilos 100% encapsulados (`ForgotPassword.module.css`).
+* **Cambios Técnicos**:
+  - **Componente React (`src/pages/ForgotPassword.jsx`)**:
+    - Manejo de flujo seguro en 3 fases mediante renderizado condicional reactivo.
+    - Envío autenticado a endpoints `/forgot-password/request` y `/forgot-password/verify`.
+    - Temporizador de reenvío con cuenta regresiva de 60 segundos y validación defensiva de claves.
+  - **Estilos Scoped (`src/pages/ForgotPassword.module.css`)**:
+    - Aislamiento absoluto de estilos mediante CSS Modules (Zero CSS Leakage).
+  - **Enrutamiento e Integración SPA**:
+    - Rutas `/forgot-password` y `/forgot-password.html` enlazadas en `src/App.jsx`.
+    - Enlace reactivo `¿Olvidaste tu contraseña?` conectado en `Login.jsx` mediante `<Link to="/forgot-password">`.
+* **Impacto**:
+  - Recuperación de credenciales instantánea, reactiva y fluida sin recargas de página, con seguridad bancaria estricta contra ataques de fuerza bruta.
+
 ### 2026-09-02 — Arquitectura Frontend: Fase 5 — Migración de Registro a React (`Register.jsx`, Wizard & Verificación OTP)
 * **Diagnóstico & Objetivo**:
   - La pantalla de registro (`register.html` y `src/pages/register.js`) operaba como un documento HTML independiente con recargas completas, provocando parpadeos y desarticulando el flujo fluido de incorporación de usuarios (onboarding).

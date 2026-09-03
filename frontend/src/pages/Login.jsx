@@ -208,9 +208,9 @@ function Login() {
               </span>
             </div>
             <div className={styles.forgotPasswordWrapper}>
-              <a href="forgot-password.html" className={styles.forgotPasswordLink}>
+              <Link to="/forgot-password" className={styles.forgotPasswordLink}>
                 ¿Olvidaste tu contraseña?
-              </a>
+              </Link>
             </div>
           </div>
 
