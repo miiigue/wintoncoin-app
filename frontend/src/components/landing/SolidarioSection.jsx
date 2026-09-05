@@ -57,6 +57,9 @@ function SolidarioSection() {
               Postular Causa Solidaria
             </a>
           </div>
+          <p className="canje-note">
+            Tokens BLUE IOU canjeables a partir de <strong>febrero de 2027</strong> según T&C.
+          </p>
         </div>
       </div>
     </section>

@@ -113,7 +113,7 @@ function Login() {
               }
             );
           } else {
-            // Redirección exitosa hacia el Dashboard/Billetera
+            // Redirección exitosa hacia el Dashboard/Billetera original
             window.location.href = returnTo || 'contract_interaction.html';
           }
         } else {
