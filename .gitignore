@@ -119,4 +119,6 @@ android/captures/
 *.keystore
 !**/keystore/example.keystore
 
-
+# Hardhat Build & Cache Artifacts
+web3-contracts/artifacts/
+web3-contracts/cache/
