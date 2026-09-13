@@ -14,6 +14,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
 ### 2026-09-13 (Madrugada) — Arquitectura FinTech & Protocolo WintonCoin: Interacción Marketplace-Exchange bajo la Regla de BLUE Virgen, Ciclo de Dos Estados (Parking vs Maduro Líquido) y Mitigaciones de Fraude (ANTIGRAVITY-019)
+* **Evidencia**: Commit `ca39a45` (`feat/react-spa-landing-and-auth`).
 * **Diagnóstico & Consulta Fundamental de Miguel**:
   - Planteamiento del dilema: Si para realizar pagos entre usuarios el receptor siempre recibe BLUE virgen con 30 días de parking, ¿cómo opera y se utiliza el Exchange? ¿De dónde sale el BLUE a la venta y qué recibe el comprador con USDT?
 * **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-019)**:
