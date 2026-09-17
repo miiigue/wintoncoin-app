@@ -13,6 +13,28 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-17 — Blindaje FinTech y Resiliencia en Registro OTP SOS Venezuela / Voluntarios: Manejo Atómico de Unicidad (Postgres 23505/23502), Deserialización Defensiva y Compatibilidad de Email Master (ANTIGRAVITY-032)
+* **Diagnóstico & Incidente Reportado**:
+  - En el formulario de registro SOS Venezuela (`/sos-venezuela.html#registro-damnificados`), la petición `POST /api/public/sos-venezuela/verify-otp` arrojaba error `500 (Internal Server Error)` con modal de "Error interno del servidor".
+  - *Causas Raíz Identificadas*:
+    1. **Falta de Mapeo de Restricciones de Unicidad**: En `victimController.js` y `volunteerController.js`, si el usuario ya existía o si un teléfono/cédula colisionaba con una restricción única (`23505`), el bloque `catch` devolvía error genérico 500 en producción en vez de un código HTTP 409 Conflict con mensaje amigable y claro.
+    2. **Deserialización de Payload de Staging**: Si `pendingRecord.form_payload` se recibía como string serializado en ciertos clientes de PostgreSQL, no se parseaba defensivamente, generando `undefined` en campos obligatorios y disparando error `23502` (NOT NULL violation).
+    3. **Compatibilidad de Servicio de Email**: Existían llamadas y referencias a `emailService.sendGenericEmail` que no estaban exportadas en la interfaz modular de `emailService.js`.
+    4. **Aislamiento de Entornos**: Se observó que las pruebas se ejecutaban en el dominio de producción (`wintoncoin.com`) en lugar del entorno Demo obligatorio (`demo.wintoncoin.com`).
+* **Resoluciones y Blindaje Implementado**:
+  1. **Manejo Atómico de Conflictos (PostgreSQL 23505 & 23502)**:
+     - En `onboardingStagingService.js`, se implementó captura de `23505` en la inserción de `users` mapeando colisiones de teléfono, correo o nombre de usuario a respuestas HTTP 409 legibles y accionables.
+     - En `victimController.js` y `volunteerController.js`, se integró manejo específico de `23505` (cédula duplicada, teléfono duplicado, correo duplicado o colisión de expediente) retornando 409 Conflict, y `23502` retornando 400 Bad Request.
+  2. **Deserialización Defensiva Zero-Trust**:
+     - `onboardingStagingService.js` ahora analiza y deserializa `form_payload` de forma resiliente tanto si llega como objeto como si llega como string JSON, con fallback seguro a objeto vacío.
+  3. **Compatibilidad Retroactiva y Blindaje de Email**:
+     - En `emailService.js`, se exportó `sendGenericEmail` canalizado hacia `sendCustomEmail` con el Layout Máster Corporativo No-Reply.
+     - En los controladores, la invocación de correo cuenta con verificación dinámica (`typeof === 'function'`) y fallback defensivo, impidiendo que cualquier incidencia en el despacho de emails interrumpa la transacción o bloquee al usuario.
+  4. **Suite de Pruebas Unitarias al 100%**:
+     - Ejecutadas las 14 suites del backend (`86/86` tests pasando exitosamente), certificando la ausencia de regresiones.
+
+---
+
 ### 2026-09-17 — Arquitectura FinTech & Protocolo WintonCoin: Evaluación de los 28 Escenarios Adversariales, Débito Agregado en O(1), Fondeo Asistido desde Binance y Remediación de Collateral Vault (ANTIGRAVITY-031 / CODEX-049, CODEX-050, CODEX-051)
 * **Diagnóstico & Ampliación de Codex (CODEX-049, CODEX-050, CODEX-051)**:
   - Presentación exhaustiva de la matriz de 28 escenarios adversariales (doble liberación, pagos concurrentes, amortización con órdenes en espera, límites, y casos de fondeo directo desde Binance 29-33).

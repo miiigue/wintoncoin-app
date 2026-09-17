@@ -49,6 +49,8 @@ jest.mock('../src/services/emailService', () => ({
     safeEqualHex: (a, b) => a === b,
     sendOtpEmail: jest.fn().mockResolvedValue(true),
     sendCustomEmail: jest.fn().mockResolvedValue(true),
+    sendGenericEmail: jest.fn().mockResolvedValue(true),
+    sendTemplatedEmail: jest.fn().mockResolvedValue(true),
     sendTransactionEmail: jest.fn().mockResolvedValue(true)
 }));
 

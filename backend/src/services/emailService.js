@@ -960,6 +960,14 @@ async function sendTemplatedEmail({ pool, templateKey, toEmail, variables = {}, 
   return true;
 }
 
+/**
+ * Helper para compatibilidad retroactiva con llamadas legacy a sendGenericEmail.
+ * Canaliza el envío a sendCustomEmail aplicando el Layout Máster Corporativo.
+ */
+async function sendGenericEmail({ toEmail, subject, htmlBody, contextLabel }) {
+  return sendCustomEmail(toEmail, subject, htmlBody, contextLabel);
+}
+
 module.exports = {
   generateOtp6,
   hashOtpForEmail,
@@ -969,6 +977,7 @@ module.exports = {
   sendAnnouncementEmail,
   sendGovernanceEmail,
   sendCustomEmail,
+  sendGenericEmail,
   sendTemplatedEmail,
   buildMasterEmailWrapper,
   processPendingBroadcasts,

@@ -354,6 +354,15 @@ exports.verifyVolunteerOtpPublic = async (req, res) => {
 
         const { user, payload, isNewUser, accessToken } = commitResult;
 
+        // Validación Zero-Trust: Asegurar que existan datos mínimos de identidad en el payload
+        if (!payload || !payload.full_name || !payload.id_document) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+                success: false,
+                message: "No se encontraron los datos de la postulación asociados a esta verificación. Por favor completa el formulario nuevamente."
+            });
+        }
+
         // 2. Acuñar Oficialmente el Expediente en volunteers_registry
         const tempCode = `VOL-TEMP-${crypto.randomUUID().substring(0, 8).toUpperCase()}`;
         const insertRes = await client.query(`
@@ -450,7 +459,37 @@ exports.verifyVolunteerOtpPublic = async (req, res) => {
 
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error("[VOLUNTEER OTP] Error en verificación OTP:", error);
+        console.error("[VOLUNTEER OTP] Error en verificación OTP:", {
+            message: error.message,
+            code: error.code,
+            detail: error.detail,
+            constraint: error.constraint
+        });
+
+        // ── Manejo específico de violaciones de unicidad en BD ──
+        if (error.code === '23505') {
+            const constraint = error.constraint || '';
+            let userMsg = "Ya existe un registro con estos datos en el sistema.";
+            if (constraint.includes('id_document')) {
+                userMsg = "La Cédula ingresada ya tiene un expediente de voluntario registrado.";
+            } else if (constraint.includes('phone_number')) {
+                userMsg = "El número telefónico ya se encuentra registrado con otra cuenta.";
+            } else if (constraint.includes('email')) {
+                userMsg = "El correo electrónico ya se encuentra registrado con otra cuenta.";
+            }
+            return res.status(409).json({
+                success: false,
+                message: userMsg
+            });
+        }
+
+        if (error.code === '23502') {
+            return res.status(400).json({
+                success: false,
+                message: "Faltan datos obligatorios para completar el registro de voluntario."
+            });
+        }
+
         res.status(500).json({ success: false, message: "Error interno al verificar el código OTP." });
     } finally {
         client.release();

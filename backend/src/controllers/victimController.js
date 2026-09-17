@@ -351,6 +351,15 @@ exports.verifyVictimOtpPublic = async (req, res) => {
 
         const { user, payload, isNewUser, accessToken } = commitResult;
 
+        // Validación Zero-Trust: Asegurar que existan datos mínimos de identidad en el payload
+        if (!payload || !payload.full_name || !payload.id_document) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+                success: false,
+                message: "No se encontraron los datos del censo asociados a esta verificación. Por favor completa el formulario nuevamente."
+            });
+        }
+
         // 2. Acuñar Oficialmente el Expediente en disaster_victims_registry
         const tempDossierCode = `TEMP-${crypto.randomUUID().substring(0, 8).toUpperCase()}`;
         const insertRes = await client.query(`
@@ -401,29 +410,39 @@ exports.verifyVictimOtpPublic = async (req, res) => {
 
         // 5. Envío Asíncrono de Correos y Notificaciones
         try {
-            const templateRes = await pool.query(
-                "SELECT subject, body_html AS html_body FROM email_templates WHERE template_key = 'sos_victim_registered' AND is_active = TRUE"
-            );
-            if (templateRes.rows.length > 0) {
-                let { subject, html_body } = templateRes.rows[0];
-                subject = subject.replace(/{{expediente}}/g, smartDossierCode);
-                html_body = html_body
-                    .replace(/{{nombre}}/g, payload.full_name)
-                    .replace(/{{expediente}}/g, smartDossierCode);
-                
-                await emailService.sendGenericEmail({
+            if (typeof emailService.sendTemplatedEmail === 'function') {
+                await emailService.sendTemplatedEmail({
+                    pool,
+                    templateKey: 'sos_victim_registered',
                     toEmail: normEmail,
-                    subject,
-                    htmlBody: html_body
+                    variables: {
+                        nombre: payload.full_name,
+                        expediente: smartDossierCode,
+                        cedula: payload.id_document || '',
+                        edad: payload.age || 18,
+                        ubicacion: `${payload.sector || ''}, ${payload.municipality || ''}, ${payload.state || ''}`,
+                        censo_familiar: `${payload.dependents_minors || 0} menores, ${payload.dependents_elderly || 0} adultos mayores, ${payload.dependents_disabled || 0} con discapacidad`,
+                        afectacion: payload.affectation_level || 'essential_needs',
+                        descripcion: (payload.description || '').trim()
+                    },
+                    contextLabel: 'Expediente SOS Confirmado'
                 });
+            } else if (typeof emailService.sendCustomEmail === 'function') {
+                await emailService.sendCustomEmail(
+                    normEmail,
+                    `Expediente SOS Confirmado - #${smartDossierCode}`,
+                    `<p>Hola <strong>${payload.full_name}</strong>, tu solicitud ha sido confirmada con expediente #${smartDossierCode}.</p>`
+                );
             }
 
-            await notificationService.sendNotificationToUser(user.id, {
-                title: "🚨 Expediente SOS Creado",
-                body: `Tu solicitud #${smartDossierCode} ha sido verificada con éxito. Revisa 'Mi caso' en tu perfil.`,
-                icon: "/assets/icons/icon-192x192.png",
-                data: { url: "/profile.html" }
-            }, "HUMANITARIAN_AID");
+            if (typeof notificationService.sendNotificationToUser === 'function') {
+                await notificationService.sendNotificationToUser(user.id, {
+                    title: "🚨 Expediente SOS Creado",
+                    body: `Tu solicitud #${smartDossierCode} ha sido verificada con éxito. Revisa 'Mi caso' en tu perfil.`,
+                    icon: "/assets/icons/icon-192x192.png",
+                    data: { url: "/profile.html" }
+                }, "SOCIAL");
+            }
         } catch (mailErr) {
             console.error("[SOS VICTIM] Error al enviar confirmación post-OTP:", mailErr.message);
         }
@@ -448,11 +467,43 @@ exports.verifyVictimOtpPublic = async (req, res) => {
         });
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error("[SOS OTP] Error al verificar OTP:", error);
+        console.error("[SOS OTP] Error crítico al verificar OTP:", {
+            message: error.message,
+            code: error.code,
+            detail: error.detail,
+            constraint: error.constraint
+        });
+
+        // ── Manejo específico de violaciones de integridad referencial o unicidad en BD ──
+        if (error.code === '23505') {
+            const constraint = error.constraint || '';
+            let userMsg = "Ya existe un registro con estos datos en el sistema.";
+            if (constraint.includes('id_document')) {
+                userMsg = "La Cédula ingresada ya tiene una solicitud registrada bajo otro expediente.";
+            } else if (constraint.includes('phone_number')) {
+                userMsg = "El número telefónico ya se encuentra registrado con otra cuenta.";
+            } else if (constraint.includes('email')) {
+                userMsg = "El correo electrónico ya se encuentra registrado con otra cuenta.";
+            } else if (constraint.includes('dossier_number')) {
+                userMsg = "Conflicto al asignar número de expediente. Por favor intenta de nuevo.";
+            }
+            return res.status(409).json({
+                success: false,
+                message: userMsg
+            });
+        }
+
+        if (error.code === '23502') {
+            return res.status(400).json({
+                success: false,
+                message: "Faltan campos obligatorios para registrar el expediente. Por favor completa la solicitud nuevamente."
+            });
+        }
+
         res.status(500).json({
             success: false,
             message: (process.env.NODE_ENV === 'production' && process.env.IS_DEMO_ENV !== 'true')
-                ? "Error interno del servidor."
+                ? "Error interno del servidor al procesar la solicitud. Por favor intenta de nuevo en unos momentos."
                 : `Error interno al procesar OTP: ${error.message}`
         });
     } finally {
