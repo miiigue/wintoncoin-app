@@ -13,6 +13,31 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-17 — Resolución de Pantalla en Blanco en Android WebView & PWA Móvil: Enrutamiento Resiliente (/index.html, Fallback Comodín *), React ErrorBoundary, Base Absoluta y Reglas SPA en .htaccess (ANTIGRAVITY-033)
+* **Diagnóstico del Incidente (Producción & Demo en Teléfonos)**:
+  - Al abrir la aplicación en teléfonos Android (tanto en el APK nativo con `WintonWebViewContainer` como en la PWA instalada en producción y demo), la pantalla quedaba completamente en blanco con únicamente el fondo degradado (`.background-mesh`) y el listón estático `DEMO MODE` en demo, sin renderizar el contenido dentro de `#root`.
+  - *Causas Raíz Identificadas y Demostradas*:
+    1. **Desajuste de Ruta en React Router (`BrowserRouter`)**: En `App.jsx`, solo existía la ruta exacta `<Route path="/" />`. En navegadores móviles, cachés de Service Worker (`sw-source.js`) y servidores web (Hostinger/LiteSpeed), la URL activa frecuentemente se resuelve o consulta como `/index.html` o `/index`. Al acceder a `/index.html`, React Router v7 registraba `[warning] No routes matched location "/index.html"` y renderizaba `null`, vaciando por completo el contenedor `#root`.
+    2. **Inexistencia de Ruta Comodín (Fallback Route)**: `App.jsx` carecía de una ruta comodín `<Route path="*" />`, por lo que cualquier acceso profundo o parámetro no registrado resultaba en una pantalla en blanco silenciosa.
+    3. **Ausencia de `ErrorBoundary` de Ciberseguridad**: No existía una barrera de contención contra excepciones no controladas de renderizado React, lo que provocaba que cualquier fallo en WebViews móviles desmontara el árbol DOM al 100%.
+    4. **Base Relativa en Vite (`base: './'`)**: En rutas SPA con segmentos (`/register`, `/login`), las referencias relativas `./assets/...` provocaban que el navegador buscara los scripts en `/register/assets/...`, derivando en errores 404 de red y fallo en la carga del bundle.
+    5. **Carencia de `mod_rewrite` SPA en `.htaccess` (Hostinger)**: Las peticiones directas del navegador a rutas como `/register` devolvían error 404 ("This Page Does Not Exist") en Apache/LiteSpeed por no estar reescritas a `index.html`.
+* **Acciones Correctivas y Blindaje Implementado**:
+  1. **Enrutamiento Resiliente en `App.jsx`**:
+     - Añadidas rutas explícitas para `/index.html` e `/index` (tanto como rutas anidadas en `MainLayout` como rutas directas de nivel superior).
+     - Incorporado fallback comodín `<Route path="*" element={<Navigate to="/" replace />} />` para asegurar que ningún enlace o ruta huérfana deje jamás la pantalla en blanco.
+  2. **Componente de Alta Disponibilidad `ErrorBoundary.jsx`**:
+     - Creado en `frontend/src/components/common/ErrorBoundary.jsx` con diseño FinTech Sapphire/Dark, registro auditable en consola y botón de autorecuperación ("Reiniciar Aplicación").
+     - Integrado en `frontend/src/main.jsx` envolviendo `<BrowserRouter>` y `<App />`.
+  3. **Base Absoluta en `vite.config.js`**:
+     - Actualizado a `base: '/'` para garantizar que todos los módulos JS y hojas de estilo CSS apunten a `/assets/...` sin importar la profundidad de la URL activa.
+  4. **Directivas `mod_rewrite` en `frontend/public/.htaccess`**:
+     - Incorporadas reglas que preservan archivos físicos reales (`-f`, `-d`) y reescriben limpiamente las rutas SPA (`register`, `login`, `forgot-password`, `home`) hacia `index.html` con parámetros QSA.
+  5. **Compilación y Verificación de Builds**:
+     - Compiladas exitosamente las versiones Demo (`dist-demo/`) y Producción (`dist/`), verificando la integridad de hashes y assets absolutos.
+
+---
+
 ### 2026-09-17 — Blindaje FinTech y Resiliencia en Registro OTP SOS Venezuela / Voluntarios: Manejo Atómico de Unicidad (Postgres 23505/23502), Deserialización Defensiva y Compatibilidad de Email Master (ANTIGRAVITY-032)
 * **Diagnóstico & Incidente Reportado**:
   - En el formulario de registro SOS Venezuela (`/sos-venezuela.html#registro-damnificados`), la petición `POST /api/public/sos-venezuela/verify-otp` arrojaba error `500 (Internal Server Error)` con modal de "Error interno del servidor".

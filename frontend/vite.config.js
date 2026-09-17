@@ -67,8 +67,8 @@ export default defineConfig(({ mode }) => ({
   // Directorio raíz del proyecto
   root: '.',
 
-  // Base URL para assets (./ para rutas relativas - compatible con Hostinger)
-  base: './',
+  // Base URL absoluta para assets (garantiza resolución correcta en rutas SPA profundas como /register)
+  base: '/',
 
   // Directorio para archivos estáticos (se copian tal cual al dist)
   publicDir: 'public',
