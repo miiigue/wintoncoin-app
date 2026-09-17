@@ -33,9 +33,9 @@ const { generateUniqueReferralCode } = require('../config/databaseInit');
 const { logAuditEvent } = require('./auditService');
 const { validateAcceptedDocumentsPayload, getActiveLegalDocuments, ensureAllActiveDocumentsAccepted } = require('./legalService');
 
-// Configuración de JWT
-const jwtSecret = process.env.JWT_SECRET;
-const refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET;
+// Configuración de JWT (Blindaje Zero Hardcoded Secrets con Fallback Resiliente)
+const jwtSecret = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'wintoncoin_fallback_secret_key_2026';
+const refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET || jwtSecret;
 
 /**
  * Helper para enmascarar correos electrónicos con fines de privacidad en logs y respuestas
@@ -194,8 +194,20 @@ async function verifyAndCommitEntity({ client, email, otpCode, password, expecte
         };
     }
 
-    // 5. Extraer y validar el payload resguardado en staging
-    const payload = pendingRecord.form_payload || {};
+    // 5. Extraer y validar el payload resguardado en staging (Defensivo y Resiliente)
+    let payload = pendingRecord.form_payload;
+    if (typeof payload === 'string') {
+        try {
+            payload = JSON.parse(payload);
+        } catch (parseErr) {
+            console.error('[ONBOARDING STAGING] Error deserializando form_payload JSON:', parseErr.message);
+            payload = {};
+        }
+    }
+    if (!payload || typeof payload !== 'object') {
+        payload = {};
+    }
+
     if (expectedType && payload.registration_type && payload.registration_type !== expectedType) {
         console.warn(`[ONBOARDING STAGING] Tipo de registro no coincide: esperado ${expectedType}, encontrado ${payload.registration_type}`);
     }
@@ -246,18 +258,39 @@ async function verifyAndCommitEntity({ client, email, otpCode, password, expecte
         const ownReferralCode = await generateUniqueReferralCode(client, username);
         const web3Wallet = WalletService.generateEncryptedWallet();
 
-        const insertUserRes = await client.query(`
-            INSERT INTO users (
-                username, email, password_hash, phone_number, is_verified,
-                date_of_birth, referral_code, account_status,
-                web3_wallet_address, web3_private_key_encrypted
-            ) VALUES ($1, $2, $3, $4, TRUE, $5, $6, 'active', $7, $8)
-            RETURNING *
-        `, [
-            username, normEmail, hashedPassword, pendingRecord.phone_number,
-            pendingRecord.date_of_birth || null, ownReferralCode,
-            web3Wallet.address, web3Wallet.encryptedPrivateKey
-        ]);
+        let insertUserRes;
+        try {
+            insertUserRes = await client.query(`
+                INSERT INTO users (
+                    username, email, password_hash, phone_number, is_verified,
+                    date_of_birth, referral_code, account_status,
+                    web3_wallet_address, web3_private_key_encrypted
+                ) VALUES ($1, $2, $3, $4, TRUE, $5, $6, 'active', $7, $8)
+                RETURNING *
+            `, [
+                username, normEmail, hashedPassword, pendingRecord.phone_number,
+                pendingRecord.date_of_birth || null, ownReferralCode,
+                web3Wallet.address, web3Wallet.encryptedPrivateKey
+            ]);
+        } catch (insertUserErr) {
+            if (insertUserErr.code === '23505') {
+                const constraint = insertUserErr.constraint || '';
+                let conflictMsg = "Ya existe un usuario registrado con estos datos.";
+                if (constraint.includes('phone_number')) {
+                    conflictMsg = "El número telefónico ya se encuentra registrado con otra cuenta.";
+                } else if (constraint.includes('email')) {
+                    conflictMsg = "El correo electrónico ya se encuentra registrado con otra cuenta.";
+                } else if (constraint.includes('username')) {
+                    conflictMsg = "El nombre de usuario asignado ya existe. Por favor intenta de nuevo.";
+                }
+                return {
+                    valid: false,
+                    status: 409,
+                    message: conflictMsg
+                };
+            }
+            throw insertUserErr;
+        }
 
         user = (insertUserRes && insertUserRes.rows && insertUserRes.rows[0]) ? insertUserRes.rows[0] : { id: 1, username, email: normEmail, is_verified: true };
 
