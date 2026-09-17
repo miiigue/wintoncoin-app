@@ -18,7 +18,7 @@ El proyecto Winton Coin es homenaje a la obra de Nicholas Winton, un hombre que 
 
 El proyecto Winton Coin es una propuesta orientada a la inclusión de cualquier persona u organismo a un sistema económico novedoso pero simple, brindando la oportunidad a las personas de obtener ayuda en actividades en las que necesitan colaboradores, pero no tienen dinero disponible para pagar en ese momento. 
 
-De esta manera la persona que recibió ayuda sin tener dinero disponible, recompensa al colaborador con **tokens BLUE**, y, al mismo tiempo, toma una deuda equivalente en **tokens RED**, lo que significa que se compromete a hacer una tarea solicitada por otra persona en el futuro para adquirir tokens BLUE, que serán necesarios para eliminar los tokens RED, es decir, saldar su deuda más adelante en un periodo menor a 30 días.
+De esta manera la persona que recibió ayuda sin tener dinero disponible, recompensa al colaborador con **tokens BLUE**, y, al mismo tiempo, toma un compromiso equivalente en **tokens RED**, lo que significa que se compromete a realizar una tarea solicitada por otra persona en el futuro para adquirir tokens BLUE con los cuales cumplir su compromiso RED. La duración del Ciclo de Compromiso RED es un parámetro configurable administrativamente dentro de las reglas de WintonCoin (por ejemplo, un plazo de referencia de 30 días). El usuario podrá cumplir su compromiso antes del vencimiento cuando las reglas aplicables lo permitan.
 
 Con esta simple acción se crea una cadena infinita de colaboración que permite a las personas ayudarse mutuamente, sin necesidad de tener dinero en efectivo creando un ciclo positivo de intercambio y beneficio para los participantes.
 
@@ -36,7 +36,7 @@ Con la implementación de este proyecto, también se espera acelerar la adopció
 
 -   **Token:** ficha, criptomoneda, moneda digital, activo digital. Los tokens pueden representar monedas digitales, bienes físicos, activos financieros. En este caso un Token representa el pago de un favor, mientras más grande sea el favor más cantidad de tokens requiere. Para este contexto se entiende que tokens y criptomonedas son lo mismo.
 
--   **Quemar:** eliminar, desaparecer, quitar. En este contexto se salda la deuda quemando los tokens ROJO que se tienen en la cuenta con los tokens AZUL que se adquieran, es decir, se eliminan los tokens
+-   **Quemar:** eliminar, desaparecer, quitar. En este contexto se salda la deuda amortizando los tokens ROJO que se tienen en la cuenta mediante tokens AZUL según el ciclo de compromiso establecido, es decir, se eliminan los tokens
 
 -   **Stablecoin:** token o criptomoneda que tiene un valor fijado a 1 Dólar u otra moneda fíat, es decir, 1 token igual 1 Dólar, en este contexto 1 token AZUL = 1 Dólar. Algunas stablecoins populares son el USDT, USDC, DAI, BUSD
 
@@ -51,7 +51,7 @@ A continuación se muestra un diagrama de flujo generalizado que describe el pro
 -   **Usuario A (Solicitante):**
     -   Es la persona que necesita y hace la solicitud, entra a la plataforma y describe la tarea colocando los detalles.
     -   Puede seleccionar si pagará en efectivo o en tokens.
-    -   Si el pago es en **tokens**, se le advierte que generará una deuda en **tokens ROJO** (monto + comisión).
+    -   Si el pago es en **tokens**, se le advierte que generará un compromiso en **tokens ROJO** (monto + comisión).
     -   Si el pago es en **efectivo**, se le advierte que se cargará una comisión en **token ROJO**.
     -   Al aceptar se genera un Smart Contract con las condiciones seleccionadas.
 
@@ -76,14 +76,24 @@ A continuación se muestra un diagrama de flujo generalizado que describe el pro
 
 ---
 
-## REGLAS DEL SMART CONTRACT
+## REGLAS DEL SMART CONTRACT Y CICLO DE COMPROMISO RED
 
 1.  **Creación Dual y Equilibrada:** Se mintean dos tokens distintos al mismo tiempo y en cantidades iguales: **token BLUE** y **token RED**.
-2.  **Utilidad del Token BLUE:** Puede ser quemado 1 a 1 con tokens RED o canjeado 1 a 1 por USDT (stablecoins).
-3.  **Utilidad del Token RED:** Solo puede ser quemado.
-4.  **Mecanismo de Quema:** Para quemar tokens RED se necesita una cantidad igual de tokens BLUE.
-5.  **Balance Único:** El saldo de un usuario solo puede tener tokens BLUE o tokens RED, pero nunca ambos. Si se juntan, se eliminan (queman) automáticamente, quedando como saldo la diferencia.
-6.  **Comisiones:** Todas las transacciones que involucren un pago mintean adicionalmente un porcentaje en tokens BLUE (para la plataforma) y RED (para el solicitante) como comisión de servicio.
+2.  **Utilidad del Token BLUE:** Puede ser utilizado para cumplir compromisos RED dentro del ecosistema o intercambiado por USDT a través del motor `WintonFifoExchange`. El intercambio opera a tasa bruta fija 1:1, recibiendo el usuario el monto neto tras deducir la comisión institucional aplicable (`net = gross - fee`).
+3.  **Utilidad del Token RED:** Representa un compromiso pendiente intransferible dentro del ecosistema. No puede ser transferido libremente entre usuarios y solo se amortiza conforme a las reglas de la plataforma.
+4.  **Ciclo de Compromiso RED:**
+    - La duración del Ciclo de Compromiso RED es un parámetro configurable administrativamente en WintonCoin (con un valor de referencia operativa inicial de 30 días).
+    - El usuario puede cumplir su compromiso antes del vencimiento cuando las reglas del ecosistema lo permitan.
+    - Si el plazo expira sin que el usuario haya saldado completamente los RED correspondientes:
+      $$\text{RED pendiente} \longrightarrow \text{RED vencido}$$
+    - Al entrar en estado vencido, la plataforma aplica las consecuencias estipuladas por la gobernanza:
+      * Inclusión del identificador de usuario en la Lista LOV (Lista de Obligaciones Vencidas).
+      * Reducción periódica y progresiva del límite de compromiso RED.
+      * Halving del límite RED cada 30 días mientras persistan las condiciones de mora.
+      * Restricciones para asumir nuevos compromisos.
+      * Afectación del score reputacional comunitario.
+    - *Desacoplamiento Institucional*: Todas estas penalizaciones, cálculos de límites y reglas reputacionales son gestionados por WintonProtocol, el backend y las políticas de plataforma. El motor `WintonFifoExchange` permanece completamente desacoplado e independiente de estas penalidades.
+5.  **Comisiones:** Todas las transacciones que involucren un pago mintean adicionalmente un porcentaje en tokens BLUE (para la plataforma) y RED (para el solicitante) como comisión de servicio.
 
 ---
 
@@ -147,15 +157,25 @@ Se habilita un sistema de crédito P2P (persona a persona) sin necesidad de inte
 
 ---
 
-## PRIVACIDAD
-Este proyecto utiliza la blockchain para guardar los datos de los usuarios de manera descentralizada.
+## PRIVACIDAD Y PROTECCIÓN DE DATOS (PRECAUCIÓN LEGAL SOBRE LISTA LOV)
+
+WintonCoin opera bajo estrictos principios de privacidad y cumplimiento normativo en materia de protección de datos personales:
+- **Cero Datos Personales en Blockchain**: Está expresamente prohibido registrar en la blockchain nombres reales, documentos de identidad oficiales, números telefónicos, domicilios o cualquier dato de Información de Identificación Personal (PII) de forma pública e irreversible.
+- **Gestión de la Lista LOV**: La eventual exposición de perfiles o identificadores de obligaciones vencidas se gestiona a nivel de plataforma respetando el derecho a la rectificación, la aclaración de disputas y errores, los plazos de regularización y la normativa aplicable a informes crediticios.
 
 ---
 
-## CIRCULACIÓN DE LOS TOKENS
+## CIRCULACIÓN DE LOS TOKENS E INTERCAMBIO (WINTONFIFOEXCHANGE)
+
+### Mecanismo de Intercambio 1:1 FIFO
+El intercambio entre el token utilitario `BLUE` y `USDT` se realiza mediante el contrato descentralizado `WintonFifoExchange`:
+- **Tasa Bruta 1:1**: Cruce paritario exacto entre BLUE y USDT a nivel bruto.
+- **Prelación FIFO On-Chain**: Prioridad estricta y transparente gobernada por el identificador secuencial `sequenceId` asignado irreversiblemente en el bloque.
+- **Transparencia en Liquidaciones**: Si existe una comisión activa (`feeBps`), el usuario recibe el monto neto exacto: $\text{net} = \text{gross} - \text{fee}$.
+- **Custodia Segregada de Fondos**: El Exchange opera con verificación de saldo recibido y resguardo inviolable de las reservas de los usuarios.
 
 ### Parking de Asignación
-Los tokens BLUE obtenidos tendrán un "parking" (periodo de espera) de 7 días antes de poder ser intercambiados por stablecoins (USDT). Esto incentiva el uso de los tokens dentro del ecosistema y previene la manipulación del mercado.
+Los tokens BLUE obtenidos podrán tener un "parking" (periodo de espera) de 7 días antes de poder ser intercambiados por stablecoins (USDT) en fases tempranas. Esto incentiva el uso de los tokens dentro del ecosistema y previene la manipulación del mercado.
 
 ### Sistema de Ranking y Beneficios
 Un buen récord y reputación desbloquearán niveles y beneficios, como límites de deuda más altos o la posibilidad de recibir ayuda en efectivo. Los mejores usuarios serán destacados en una sección VIP.

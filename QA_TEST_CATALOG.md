@@ -572,10 +572,46 @@ PASOS:
 7. Presiona el botón de flecha en la esquina superior izquierda para regresar al inicio sin errores.
 ```
 
+---
 
+```text
+TITULO: QA-43 - Exploración del Dashboard y Alternancia de Billetera en la Nueva SPA
+DESCRIPCION: Esta misión asegura que puedas ingresar al nuevo panel principal de WintonCoin, consultar tu saldo acumulado de Impulsor en BLUE IOU y alternar instantáneamente hacia tu Billetera Web3 para verificar tu liquidez en tokens BLUE, tu compromiso en tokens RED y copiar tu dirección de billetera con un solo toque.
+PASOS:
+2. Abre la aplicación de WintonCoin o ingresa desde tu navegador a la pantalla principal del Dashboard.
+3. Observa la pestaña de Impulsor seleccionada por defecto y comprueba que se muestre tu Saldo de Impulsor Acumulado en BLUE IOU dentro de la tarjeta morada.
+4. Presiona la pestaña Billetera ubicada en el selector superior.
+5. Verifica que la pantalla cambie de inmediato mostrando la casilla con tu dirección de billetera y el botón para copiarla.
+6. Presiona el botón de copiar y comprueba que aparezca el aviso verde indicando que la dirección fue copiada.
+7. Revisa las dos tarjetas inferiores y confirma que veas tu saldo de Liquidez BLUE en azul y tu saldo de Compromiso RED en rojo con su respectivo disponible.
+```
 
+---
 
+```text
+TITULO: QA-44 - Exploración del Marketplace, Filtros de Publicaciones y Modal de Publicación
+DESCRIPCION: Esta prueba busca confirmar que puedas explorar todas las ofertas de servicios y productos disponibles en la plataforma, utilizar los botones de filtro rápido para ver categorías específicas, buscar por palabras clave y abrir la ventana para crear una nueva publicación de forma fluida.
+PASOS:
+2. Desplázate hacia abajo en el Dashboard hasta llegar a la sección de Publicaciones Activas.
+3. Observa las tarjetas de servicios y productos publicadas en el catálogo.
+4. Toca los diferentes botones de filtro (Servicios, Productos, Solidario) y comprueba que la lista se actualice al instante mostrando solo los elementos de esa categoría.
+5. Escribe una palabra clave en la barra de búsqueda (por ejemplo, Asesoría o Auxilios) y confirma que los resultados se filtren en tiempo real mientras escribes.
+6. Presiona el botón azul Crear Nueva Publicación.
+7. Comprueba que se abra la ventana emergente con los campos de Título, Categoría, Precio en BLUE y Descripción.
+8. Presiona la cruz en la esquina superior para cerrar la ventana sin errores.
+```
 
+---
 
-
+```text
+TITULO: QA-45 - Banner de Emergencia Venezuela y Menú de Perfil en Dashboard SPA
+DESCRIPCION: Esta misión valida que el banner informativo de emergencia para Venezuela se muestre de manera clara y permita abrir la ventana de causas solidarias, y que el menú desplegable de tu usuario te permita navegar con facilidad hacia tu perfil y cerrar sesión de manera segura.
+PASOS:
+2. Ubica el banner rojo de Emergencia Venezuela en la parte superior de tu pantalla principal.
+3. Presiona el botón blanco que dice Ver Causas y verifica que se abra la ventana explicativa del fondo solidario.
+4. Presiona el botón dentro de la ventana para filtrar las causas humanitarias y confirma que el marketplace muestre la categoría solidaria.
+5. En la barra superior, toca tu nombre de usuario o avatar circular para desplegar el menú de opciones.
+6. Verifica que veas los accesos directos a Mi Perfil, Billetera Web3, Perfil Impulsor e Historial.
+7. Toca fuera del menú para cerrarlo y comprueba que la pantalla responda con total fluidez.
+```
 

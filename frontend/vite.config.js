@@ -10,6 +10,7 @@
 
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
 // Plugin personalizado para inyectar alertas visuales de DEMO en la interfaz
@@ -40,6 +41,24 @@ const demoModePlugin = (mode) => {
         return modifiedHtml;
       }
       return html;
+    }
+  };
+};
+
+// Plugin para enrutar rutas SPA migradas (/register, /login, /forgot-password) hacia index.html
+const spaFallbackPlugin = () => {
+  return {
+    name: 'spa-fallback-plugin',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const pathname = req.url ? req.url.split('?')[0] : '';
+        // Rutas migradas a la SPA React
+        if (['/register', '/login', '/forgot-password'].includes(pathname)) {
+          const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+          req.url = '/index.html' + query;
+        }
+        next();
+      });
     }
   };
 };
@@ -174,6 +193,8 @@ export default defineConfig(({ mode }) => ({
   // PWA CONFIGURATION (Workbox) & CUSTOM PLUGINS
   // ============================================================================
   plugins: [
+    react(), // Soporte para React SPA
+    spaFallbackPlugin(), // Enruta /register, /login, /forgot-password hacia index.html (SPA)
     demoModePlugin(mode), // Inyecta listones visuales si mode === 'demo'
     VitePWA({
       // Modo de registro del Service Worker
