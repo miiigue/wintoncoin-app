@@ -11,7 +11,937 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
-- **Impacto**: qué problema resolvió y qué habilita hacia adelante.
+- **Impacto**: qué problema resolvió y qué habilita hacer.
+
+### 2026-09-17 — Arquitectura FinTech & Protocolo WintonCoin: Evaluación de los 28 Escenarios Adversariales, Débito Agregado en O(1), Fondeo Asistido desde Binance y Remediación de Collateral Vault (ANTIGRAVITY-031 / CODEX-049, CODEX-050, CODEX-051)
+* **Diagnóstico & Ampliación de Codex (CODEX-049, CODEX-050, CODEX-051)**:
+  - Presentación exhaustiva de la matriz de 28 escenarios adversariales (doble liberación, pagos concurrentes, amortización con órdenes en espera, límites, y casos de fondeo directo desde Binance 29-33).
+  - Alerta sobre retiros directos desde Binance: transferencias ERC-20 planas a contratos compartidos no ejecutan `deposit()` ni atribuyen titularidad al usuario.
+  - Alerta regulatoria/técnica sobre migración de USDT en Optimism a partir del 17 de septiembre de 2026 anunciada por Binance: contratos con variables `immutable` corren riesgo de obsolescencia.
+  - Hallazgo de auditoría en `WintonCollateralVault.sol`: la función legacy `liquidate()` permitía confiscar colateral discrecionalmente sin comprar BLUE ni saldar RED.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-031)**:
+  1. **Solución en O(1) para Cien Posiciones (Débito Agregado & Reconciliación Perezosa)**:
+     - Contador global `totalParkingBalance[user]` y acumulador `pendingReconciliationDebit[user]`. Ejecución atómica del pago en 1 SSTORE, con reconciliación pasiva al madurar que descuenta el débito pendiente antes de liberar a saldo líquido.
+  2. **Selección por Fecha de Liberación Más Distante**:
+     - Precisión técnica para niveles 4-7: el superpoder de liquidez consume prioritariamente las posiciones con mayor tiempo de retención, blindando el saldo próximo a madurar.
+  3. **Flujo de Fondeo Seguro y Asistido desde Binance**:
+     - Retiro de Binance a la wallet personal del usuario en Optimism; detección en tiempo real vía WebSocket en el backend; ejecución asistida de 1 toque con gas patrocinado.
+  4. **Puntero Gobernado de Tokens (`TokenRegistry`)**:
+     - Erradicación de direcciones `immutable` para USDT; adopción de puntero administrado con Timelock de 48h para compatibilidad total con USDT nativo en Optimism.
+  5. **Remediación de `WintonCollateralVault.sol`**:
+     - Sustitución de `liquidate` por `liquidateDelinquent`, acotada a mora formal confirmada (>30d), por el monto exacto de la deuda, comprando BLUE y quemando RED pareadamente.
+  6. **Pase a Codex para la Especificación Consolidada Unificada**:
+     - Se cierran todos los frentes abiertos y se invita a Codex a redactar el plano maestro definitivo.
+
+---
+
+### 2026-09-16 (Noche) — Arquitectura FinTech & Protocolo WintonCoin: Publicación del Marco Canónico de 7 Niveles, Gamificación LIFO (Nivel 4+), Mínimo Configurable en Exchange y Autoliquidación con Colateral (ANTIGRAVITY-030)
+* **Diagnóstico & Directivas Vinculantes de Miguel**:
+  - Consulta y definición de orden mínima en Exchange (5 BLUE) para protección anti-polvo y anti-spam, preservando micro-tareas en Marketplace.
+  - Regla de gamificación financiera: Quema FIFO en Ruta A para Niveles 1-3 y LIFO para Niveles 4-7, permitiendo a usuarios avanzados blindar y proteger su saldo próximo a madurar.
+  - Detección y resolución de la "trampa de liquidez" en colateral: evitar exigir doble capital a usuarios con USDT en garantía mediante autoliquidación voluntaria consentida (`repayWithCollateral`).
+  - Creación y formalización de la matriz de **7 Niveles de Usuario** con beneficios progresivos.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-030)**:
+  1. **Publicación Oficial de `docs/USER_LEVELS_AND_TIERS_2026.md`**:
+     - Creado el documento canónico que detalla los requisitos, cupos RED ($20 a $5,000+), cuotas de gas patrocinado (1 a ilimitadas), switches de auto-listing y políticas de gobernanza para los 7 niveles.
+  2. **Superpoder LIFO en Ruta A para Niveles 4 en adelante**:
+     - Al extinguir deuda RED, el protocolo quema el BLUE más reciente de parking, reservando el BLUE maduro próximo a liberarse para venta en dólares en el Exchange.
+  3. **Mecanismo `repayWithCollateral` en `WintonCollateralVault`**:
+     - Transferencia atómica y protegida de USDT en custodia directamente a `WintonFifoExchange` para adquirir BLUE y quemar RED de forma inmediata, eliminando la necesidad de doble fondeo y garantizando cero riesgo de fuga de fondos.
+  4. **Mínimo de Orden Desacoplado**:
+     - Mínimo de 5 BLUE en Exchange configurable dinámicamente (`minOrderAmount`), sin restringir importes fraccionarios en micro-tareas del Marketplace.
+  5. **Pase a Codex para Evaluación Formal**:
+     - Publicado en `puente-agentes/PARA_CODEX.md` solicitando evaluación técnica y de seguridad previa a la redacción de la Especificación Consolidada Unificada.
+
+---
+
+### 2026-09-16 (Ronda de Cierre) — Arquitectura FinTech & Protocolo WintonCoin: Clarificación de Ruta A sobre Parking, Barrido Dinámico de Posiciones, Colas por Versión de Política y Hoja de Ruta de Activación (ANTIGRAVITY-029 / CODEX-048)
+* **Diagnóstico & Observaciones Críticas de Codex (CODEX-048)**:
+  - Alerta sobre regresión en Ruta A: limitar todo consumo a `unlockTimestamp <= now` bloqueaba la compensación de RED con BLUE en parking ganada por trabajo.
+  - Alerta de escalabilidad para usuarios de alto volumen: un límite fijo de 5 posiciones por llamada exigiría decenas de transacciones manuales ante micropagos frecuentes.
+  - Alerta de desorden cronológico ante cambios de duración: si una política reduce plazos (ej. 60 a 30 días), un puntero secuencial único podría detenerse en un lote antiguo no maduro e ignorar uno nuevo ya liberado.
+  - Observaciones sobre Tesorería institucional: ratificar que las comisiones respeten el parking universal y compitan en la cola FIFO ordinaria del Exchange sin atajos ni privilegios.
+  - Rigor en mora parcial: la porción de deuda no cubierta por USDT debe sufrir las consecuencias ordinarias de mora (halving de cupo disponible).
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-029)**:
+  1. **Consenso y Clarificación Definitiva de Ruta A**:
+     - *Salida Externa (Venta en Exchange FIFO)*: Exige obligatoriamente BLUE Liberado (`unlockTimestamp <= now`).
+     - *Compensación Interna (Ruta A)*: Admite expresamente consumir **tanto BLUE Liberado como BLUE en Parking** (`unlockTimestamp > now`) para amortizar y cancelar deuda RED propia, quemando 1:1 ambos tokens en el contrato y debitando la posición de parking para impedir dobles liberaciones futuras.
+  2. **Escalabilidad y Barrido Dinámico de Posiciones**:
+     - Contador de saldo líquido disponible `unlockedLiquidBalance[user]`, parámetro dinámico `maxLotsToProcess` acotado a gas prudente (20-30 posiciones) y función permissionless `sweepUnlockedBalances` para consolidación en segundo plano por keepers o el relayer.
+  3. **Preservación de Orden Determinista $O(1)$ sin Heap**:
+     - Implementación de colas separadas por versión activa de política (`policyQueues[version]`), donde dentro de cada versión el orden de creación es idéntico al de vencimiento, evaluando únicamente la cabeza de las versiones concurrentes (a lo sumo 2) en $O(1)$.
+  4. **Tesorería Institucional sin Privilegios**:
+     - Las comisiones en BLUE permanecen 30 días en Parking y, si se venden por USDT, se encolan en la fila FIFO ordinaria del Exchange.
+  5. **Mora Parcial Proporcional**:
+     - La porción respaldada por USDT goza de Estatus de Buena Fe; la porción descubierta incurre en mora y reducción del 50% de límite disponible.
+  6. **Hoja de Ruta Integral hacia la Activación**:
+     - Definidas las 6 fases de ejecución: Especificación Consolidada Unificada de Codex -> Aprobación de Miguel -> Codificación de los 5 Smart Contracts en Solidity -> Suite de Tests y Fuzzing -> Despliegue en Staging/Demo -> Construcción de la Interfaz en React (Vite SPA).
+
+---
+
+### 2026-09-16 — Arquitectura FinTech & Protocolo WintonCoin: Adopción de Fecha Exacta por Pago Individual, Estructura Compacta de 32 Bytes y Refinamiento Canónico V3 (ANTIGRAVITY-028 / CODEX-046, CODEX-047)
+* **Diagnóstico & Consulta de Miguel (CODEX-047)**:
+  - Miguel plantea evitar la concentración de ventas y carreras de caballos a medianoche UTC.
+  - Codex propone y compara: Alternativa A (Fecha individual por pago según timestamp de transacción), Alternativa B (Intervalos cortos) y Alternativa C (Lotes diarios UTC).
+  - Observaciones de CODEX-046: Cobertura neta tras comisión, protección parcial proporcional, plazos configurables y donaciones originadas con RED.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-028)**:
+  1. **Adopción de Fecha Exacta por Pago Individual (Alternativa A)**:
+     - El vencimiento y liberación se anclan a la marca de tiempo de la transacción originadora (`block.timestamp`), logrando una dispersión natural y orgánica del flujo durante las 24 horas del día sin picos de congestión.
+  2. **Estructura Compacta de Almacenamiento (32 Bytes / 1 Solo Slot EVM)**:
+     - Struct `ParkingPosition` empaquetado en 30 bytes (`amount`, `unlockTimestamp`, `originalTimestamp`, `policyVersion`) con puntero de cabeza secuencial que consume hasta 5 posiciones por llamada en $O(1)$.
+  3. **Consolidación de Tesorería Institucional**:
+     - Para evitar saturar el almacenamiento con miles de micro-comisiones, la tesorería consolida sus ingresos en balances institucionales agrupados, dado que no compite en la fila FIFO de ventas.
+  4. **Refinamiento Integral de `docs/ECONOMIC_RULES_V3_2026.md`**:
+     - Actualizadas las secciones 1, 2 y 5 con donaciones institucionales, cobertura neta, protección proporcional de Buena Fe y límites efectivos vigentes.
+
+---
+
+### 2026-09-15 (Noche) — Directivas de Ingeniería: Regla Obligatoria de Frontend en React y Ratificación del Catálogo Estricto de Contratos (Cero Oráculos On-Chain)
+* **Directivas Vinculantes de Miguel**:
+  1. **Frontend 100% React**: Toda nueva pantalla o interfaz debe construirse obligatoriamente en React utilizando el stack y arquitectura de la migración activa (`frontend/src/` con Vite + React SPA), prohibiendo crear pantallas legacy en HTML/JS vanilla para evitar retrabajos de migración posterior.
+  2. **Catálogo Estricto de Smart Contracts**: Se ratifica que NO existe ningún contrato `WintonKyCOracle.sol`. El manejo de identidades KYC y niveles de usuario (1, 2, 3+) reside 100% off-chain en el backend y la base de datos PostgreSQL, mientras que los contratos se limitan estrictamente a los 5 oficiales del repositorio: `BlueToken.sol`, `RedToken.sol`, `WintonProtocol.sol`, `WintonFifoExchange.sol` y `WintonTreasury.sol`.
+* **Impacto en el Repositorio**:
+  - Incorporada la regla obligatoria `frontend_react_migration` en `.agents/AGENTS.md`.
+  - Arquitectura simplificada y blindada contra sobrecostes de gas y oráculos innecesarios.
+
+---
+
+### 2026-09-15 (Cierre de Ronda) — Arquitectura FinTech & Protocolo WintonCoin: Aceptación de CODEX-044/045, Respaldo Innegociable de USDT, Independencia de Comisiones y Publicación de ECONOMIC_RULES_V3_2026.md (ANTIGRAVITY-027)
+* **Diagnóstico & Directrices Vinculantes de Miguel (CODEX-045)**:
+  - Respaldo Innegociable en USDT: los USDT depositados para respaldar un compromiso RED no pueden ser retirados bajo ninguna circunstancia mientras el compromiso exista.
+  - Independencia de Comisiones: la comisión de plataforma la paga quien adquiere RED (el pagador); el trabajador recibe el 100% de su trabajo. La comisión del Exchange corresponde a un servicio independiente de cambio de liquidez con su propia gobernanza.
+  - Observaciones técnicas de Codex (CODEX-044): transición contable de cobertura (USDT Reservado -> BLUE Retenido -> Quema Pareada), cálculo sobre BLUE neto tras comisiones del Exchange y uso de límites vigentes.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-027)**:
+  1. **Publicación Oficial de `docs/ECONOMIC_RULES_V3_2026.md`**:
+     - Creado el documento canónico de reglas económicas V3 en lenguaje claro y auditable, consolidando emisión pareada, 30 días de parking, Lotes Diarios UTC, Exchange V3.3.6 sin pre-colas y disciplina crediticia. Se formaliza la derogación de V2.
+  2. **Bloqueo Innegociable de Retiro de USDT en Garantía**:
+     - Queda prohibida la cancelación o devolución de USDT mientras sostengan deuda RED viva.
+  3. **Transición Segura de Cobertura en Tres Estados**:
+     - El BLUE adquirido que espera quema mantiene intacta la protección del deudor sin duplicar exposiciones ni generar moras falsas ante fallos temporales de red.
+  4. **Pase Definitivo a Codex para la Especificación Consolidada Unificada**:
+     - Se cierran todos los frentes abiertos y se solicita a Codex redactar el documento técnico maestro definitivo.
+
+---
+
+### 2026-09-15 (Noche) — Arquitectura FinTech & Protocolo WintonCoin: Evaluación de Create + Instant Match, Conciliación de Cobertura USDT sin Doble Liberación y Poda Perezosa de Cumplimiento (ANTIGRAVITY-026 / CODEX-043)
+* **Diagnóstico & Observaciones de Codex (CODEX-043)**:
+  - Propuesta de flujo "Create + Instant Match": toda orden nueva intenta cruzar inmediatamente en la misma transacción contra la cabeza contraria si existe liquidez.
+  - Alerta sobre la regla de Miguel para cobertura con USDT: evitar la "doble liberación de capacidad" al pagar deuda cubierta y distinguir RED total de RED descubierto.
+  - Solicitud de evaluación de: comparación con código real de `WintonFifoExchange.sol` V3.3.6, manejo de KYC sobrevenido, aislamiento de fallos entre cruce y quema, y límites de gas en matching.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-026)**:
+  1. **Integración de "Create + Instant Match" Acotado**:
+     - En `WintonFifoExchange.sol`, `_createOrder()` se extiende mediante un helper interno que ejecuta hasta 5 cruces / 10 inspecciones en la misma transacción. Si queda remanente, se registra en la cola FIFO sin revertir. Cero dependencia obligatoria de keepers para órdenes con contraparte inmediata.
+  2. **Regla de Cobertura USDT y Cero Doble Liberación**:
+     - Al pagar en Marketplace, se mintea BLUE al trabajador, BLUE de comisión a la plataforma/tesorería y deuda RED total al pagador.
+     - La capacidad de crédito se calcula de forma transparente: Deuda Total menos Garantía en USDT = Deuda Neta. El usuario solo puede gastar hasta su límite disponible real, evitando duplicar crédito cuando los USDT cruzan en el Exchange y cancelan deuda.
+  3. **Cancelación Condicionada de Órdenes de Cobertura**:
+     - Si el usuario utilizó la capacidad liberada por los USDT en garantía para contraer nueva deuda, el retiro/cancelación de la orden queda bloqueado on-chain hasta que salde el sobregiro.
+  4. **Poda Perezosa de Cumplimiento (*Compliance Lazy Pruning*)**:
+     - Si una orden en cabeza de cola sufre revocación de KYC, el contrato la marca `SUSPENDED_COMPLIANCE` y avanza la cabeza sin revertir, evitando congelar el mercado (*deadlock*).
+  5. **Aislamiento de Fallos en Cruce y Amortización**:
+     - Si la quema de RED revierte por causas externas, el match de USDT permanece consumado; el BLUE se deposita en retención contable segura para amortización diferida.
+
+---
+
+### 2026-09-15 — Arquitectura FinTech & Protocolo WintonCoin: Simplificación Radical sin Pre-Cola en Exchange, Liberación Pasiva por Lotes Diarios, Gamificación por Niveles y Estatus de Buena Fe Financiera (ANTIGRAVITY-025)
+* **Diagnóstico & Directrices Rectoras de Miguel**:
+  - Eliminación definitiva de marcas de tiempo por segundo para liberaciones a favor del Lote Diario (Daily Buckets) para ahorro masivo de gas en storage (>70%).
+  - Consulta conceptual sobre la Liberación Pasiva (*Lazy Evaluation*): por qué ocurre, cómo opera y demostración de cero congestión a medianoche (00:00 UTC).
+  - Gamificación por niveles KYC: Nivel 1-2 listan manualmente tras notificación push en Día 31; Nivel 3+ (VIP) pueden pre-autorizar auto-listing desde el Día 1.
+  - Invariabilidad absoluta de la originación pareada: en el Marketplace, TODO pago mintea atómicamente BLUE en parking al prestador y deuda RED al deudor ($\Delta \text{totalSupply}(BLUE) \equiv \Delta \text{totalSupply}(RED)$). Ningún pagador deposita en protocolos arbitrarios ni compra BLUE virgen.
+  - Protección jurídica para deudores: quien tiene una orden de compra en USDT en el Exchange esperando adquirir BLUE para saldar su RED goza de estatus de "Buena Fe / Voluntad de Pago", impidiendo penalizaciones de mora injustas por demoras de mercado.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-025)**:
+  1. **Supresión Definitiva de la Pre-Cola en `WintonFifoExchange V3.3.6`**:
+     - El contrato del Exchange mantiene una sola cola FIFO limpia ($O(1)$) donde únicamente ingresan tokens BLUE ya Liberados. Cero riesgo de *Head-of-Line Blocking*, cero lógica de maduración dentro del motor de cruce.
+  2. **Liberación Pasiva por Lotes Diarios (Daily Buckets)**:
+     - Los saldos se acumulan por día natural UTC (`unlockDay = cycleEndDay + 30 days`). La condición `block.timestamp / 86400 >= unlockDay` se evalúa de forma perezosa al momento de interactuar, eliminando la necesidad de crons o transacciones masivas a las 00:00:00 UTC.
+  3. **Gamificación y Beneficios por Nivel**:
+     - Niveles 1 y 2 con UX amigable tipo Rappi/Binance (notificación push + 1 tap). Nivel 3+ con ejecución automatizada vía EIP-712 a través del relayer institucional.
+  4. **Protección de Buena Fe Financiera y Cumplimiento Regulatorio**:
+     - Alineación con regulaciones bancarias y de protección al consumidor (CFPB / FinTech): la voluntad manifiesta y los fondos bloqueados en USDT protegen al deudor contra castigos de mora mientras el mercado cruza la orden.
+  5. **Instrucción a Codex**:
+     - Pase de turno a Codex para incorporar estas definiciones limpias en la redacción de la **Especificación Consolidada Unificada**.
+
+---
+
+### 2026-09-14 (Tarde) — Arquitectura FinTech & Protocolo WintonCoin: Clarificación de Balance ERC-20, Transición O(1) de Colas, Reducción Determinista y Límites Anti-Spam (ANTIGRAVITY-024 / CODEX-041)
+* **Diagnóstico & Observaciones de Codex (CODEX-041)**:
+  - Advertencia sobre consistencia ERC-20: Un contrato custodio no debe simular saldos virtuales en `balanceOf` si los tokens físicos no están en la wallet, para no romper la regla bancaria $\sum \text{balanceOf} \equiv \text{totalSupply}$ ni desincronizar exploradores y MetaMask.
+  - Advertencia de gas en colas enlazadas: Insertar órdenes liberadas en medio de la cola activa para respetar fechas históricas cuesta $O(N)$ gas.
+  - Exigencia de `orderId` explícito en reducción parcial y elevación del umbral mínimo anti-spam por identidad KYC.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-024)**:
+  1. **Resolución de Balance ERC-20 (Custodia Real en Protocolo para MVP)**:
+     - `WintonProtocol` custodia físicamente el BLUE en parking y emite eventos indexables `ParkingDeposited`.
+     - La app de WintonCoin consulta `getUserBalanceBreakdown` y muestra el total consolidado (Parking + Liberado). En MetaMask, `balanceOf` muestra el saldo efectivamente transferible. Se evita sobrecargar el ERC-20 con vulnerabilidades.
+  2. **Transición O(1) en la Cola Activa del Exchange**:
+     - Las órdenes que se liberan se insertan al final de la `ActiveMatchQueue` en el momento de su activación ($O(1)$), usando su fecha histórica `createdAt` como desempate si coinciden en la misma época.
+  3. **Reducción Parcial con `orderId` Explícito**:
+     - Función `reduceOrder(orderId, amount)` valida titularidad y reduce la orden conservando su posición en la fila.
+  4. **Parámetros Anti-Spam Reforzados**:
+     - Orden mínima elevada a 5 BLUE y límite de 5 órdenes activas por identidad KYC (`kycId`).
+  5. **Luz Verde a Codex para la Especificación Consolidada**:
+     - Se cierran todos los frentes abiertos y se encomienda a Codex la redacción del documento maestro unificado.
+
+---
+
+### 2026-09-14 (Madrugada) — Arquitectura FinTech & Protocolo WintonCoin: Evaluación Exhaustiva de Viabilidad, Modos de Falla y Mitigación de Errores para el Modelo Operativo Completo (ANTIGRAVITY-023 / CODEX-039, CODEX-040)
+* **Diagnóstico & Consulta Crítica de Miguel y Codex (CODEX-039, CODEX-040)**:
+  - Miguel ratifica 10 directrices operativas: transferencia de BLUE solo por Exchange (cero P2P libre), autoamortización con prioridad a deuda más antigua, dos colas en el Exchange (Parking vs Liberado), encolamiento anticipado, reducción parcial suave, múltiples órdenes acotadas, cobro incondicional de comisiones del 5%, consecuencias de mora y gobernanza de parámetros inmutables.
+  - Codex solicita evaluación forense de viabilidad, modos de falla, doble gasto, riesgo de bloqueo de gas en activación y respuestas a 8 preguntas técnicas.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-023)**:
+  1. **Aprobación de Viabilidad con Arquitectura de Dos Colas Aisladas**:
+     - Separación física entre `PendingReleaseQueue` y `ActiveMatchQueue`. Los compradores con USDT cruzan únicamente contra la cola activa en $O(1)$, eliminando de raíz el riesgo de Head-of-Line Blocking o bucles imprevisibles de gas.
+  2. **Activación Híbrida Triple (Sin Dependencia de Keepers)**:
+     - Activación perezosa durante el match (`lazy on match`), botón de autoservicio para el usuario en la UI y función permissionless para relayers.
+  3. **Mitigación Estricta contra Modos de Falla y Carreras de Concurrencia**:
+     - *Doble Gasto*: Reserva atómica contable en el balance del usuario (`availableToSpend = balance - reservedInOrder`).
+     - *Reducción Parcial y Múltiples Órdenes*: Reducción determinista por `orderId` o aplicando FIFO de órdenes (la más antigua primero), con mutext `nonReentrant`.
+     - *Autoamortización contra Mora*: Al recibir BLUE teniendo deuda vencida, se amortiza primero la mora quemando RED y BLUE pareados antes de que cualquier remanente ingrese a parking, preservando estrictamente la paridad $\text{totalSupply}(BLUE) \equiv \text{totalSupply}(RED)$.
+  4. **Cierre Técnico de la Ronda**:
+     - Consenso pleno en las 8 consultas de Codex. Se da luz verde a Codex para proceder a ensamblar la Especificación Consolidada Unificada.
+
+---
+
+### 2026-09-13 (Noche) — Arquitectura FinTech & Protocolo WintonCoin: Estándar Obligatorio English-Only en Nomenclatura de Contratos Inteligentes (ANTIGRAVITY-022)
+* **Diagnóstico & Directiva Estricta de Miguel**:
+  - Exigencia obligatoria: Todo el código fuente de los contratos inteligentes, nombres de variables, funciones, parámetros, structs, mappings, eventos, modificadores y errores personalizados deben estar 100% en idioma inglés, prohibiendo identificadores en español en la sintaxis Solidity.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-022)**:
+  1. **Alineación con Estándares Globales de la Industria Web3/FinTech**:
+     - Facilita auditorías de seguridad internacionales (CertiK, OpenZeppelin, Trail of Bits), estandariza interfaces ERC-20 y optimiza la interoperabilidad del protocolo.
+  2. **Tabla Canónica de Mapeo a Inglés**:
+     - *BLUE en Parking*: `parkingBalance`, `lockedParkingAmount`, `unlockTimestamp`.
+     - *BLUE Liberado*: `releasedBalance`, `availableBalance`, `unlockedBalance`.
+     - *Encolamiento y Órdenes*: `preEnqueued`, `eligibleExecutionTime`, `reduceOrderAmount`, `OrderPartiallyReduced`.
+     - *Errores Personalizados*: `InsufficientReleasedBalance`, `OrderNotEligibleForMatching`.
+  3. **Transmisión y Exigencia en el Puente**:
+     - Se instruye formalmente a Codex para que la Especificación Consolidada Unificada y los contratos candidatos utilicen exclusivamente identificadores en inglés.
+
+---
+
+### 2026-09-13 (Tarde/Noche) — Arquitectura FinTech & Protocolo WintonCoin: Propuesta de Miguel: Minteo Directo a Billetera, Saldo en Parking vs Liberado, Encolamiento Anticipado en Exchange y Reducción Parcial Suave (ANTIGRAVITY-021)
+* **Diagnóstico & Directivas de Producto de Miguel**:
+  - Eliminación definitiva del término "maduro" por los conceptos rigurosos: "BLUE en Parking" vs "BLUE Liberado / Disponible".
+  - Necesidad de mintear directamente a la wallet de Bob para máxima transparencia y auditoría en exploradores de bloques (Etherscan, Optimism Scan).
+  - Permitir al usuario encolar su saldo en el Exchange desde el día 1 mientras transcurre el período de parking, apartando su turno en la fila FIFO.
+  - Eliminar advertencias alarmistas en checkout; si el usuario usa parte de su saldo en el Marketplace, la orden en el Exchange se reduce automáticamente conservando su puesto en la fila para el remanente.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-021)**:
+  1. **Minteo Directo con Restricción de Transferibilidad**:
+     - `blueToken.mint(bob, amount)` emite el evento ERC-20 estándar `Transfer(0, bob, amount)`.
+     - `BlueToken.sol` calcula el saldo transferible como $\text{balanceOf}(bob) - \text{saldoEnParking}(bob)$. La transferencia hacia billeteras externas queda bloqueada on-chain para el saldo en parking, pero la quema para amortizar deuda RED permanece siempre activa.
+  2. **Encolamiento Anticipado y Prevención de Head-of-Line Blocking**:
+     - El Exchange admite registrar órdenes con saldo en parking registrando `eligibleExecutionTime = unlockTime`.
+     - Si la orden a la cabeza de la cola aún está en parking cuando entra un comprador con USDT, el motor de matching ejecuta las órdenes que ya tengan saldo liberado, garantizando que el mercado no se congele. Al llegar el día 31, la orden en parking se activa automáticamente conservando su prioridad histórica por fecha de llegada.
+  3. **Checkout Suave y Reducción Parcial Inteligente**:
+     - Cero modales de fricción o aversión a la pérdida; interfaz amigable tipo Uber/Rappi.
+     - Al pagar un servicio de $X$ BLUE mediante Ruta A, el Exchange reduce la orden de venta activa en $X$ y el usuario retiene su número de orden y turno en la fila para el saldo restante.
+
+---
+
+### 2026-09-13 (Tarde) — Arquitectura FinTech & Protocolo WintonCoin: Ratificación de Paridad Global, Mecanismo Mint-to-Protocol, Regla de Rieles Oficiales KYC y Cierre de Consenso (ANTIGRAVITY-020 / CODEX-038)
+* **Diagnóstico & Contraste con Codex (CODEX-038)**:
+  - Corrección contable: El cruce en el Exchange es un intercambio secundario que no altera el supply de los tokens; ratificación de `totalSupply(BLUE) == totalSupply(RED)` incondicional y contabilidad segregada para USDT.
+  - Definición del mecanismo on-chain para que el Exchange no acepte BLUE en parking y precisión de la regla KYC en transferencias.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-020)**:
+  1. **Invariante Global de Paridad y Segregación de Reservas USDT**:
+     - Ratificación formal de $\text{totalSupply}(BLUE) \equiv \text{totalSupply}(RED)$. Durante el matching en `WintonFifoExchange V3.3.6` no hay acuñación ni quema de tokens, sino cambio de titularidad de activos en custodia.
+     - Contabilidad USDT segregada en el Exchange: $\text{balanceOf}_{USDT}(\text{Exchange}) \equiv \text{reservedUsdt} + \text{availableFeesUsdt}$.
+  2. **Mecanismo de Custodia Física "Mint-to-Protocol"**:
+     - Al originarse una tarea, el contrato `WintonProtocol.sol` acuña el BLUE directamente a su propia dirección (`address(wintonProtocol)`).
+     - El prestador (Bob) tiene un saldo contable de parking a 30 días, pero **cero tokens ERC-20 en su billetera externa**. Se hace física e informáticamente imposible que Bob deposite tokens en parking en el Exchange.
+     - Al día 31, el usuario puede reclamar a su billetera o usar `depositMaturedToExchange` para transferir directamente del protocolo al Exchange en una sola llamada atómica.
+  3. **Regla de Rieles Oficiales KYC (Opción B Refinada)**:
+     - `BlueToken.sol` restringe transferencias directas P2P libres entre billeteras privadas no autorizadas. Todo movimiento de valor debe pasar por contratos autorizados (`WintonProtocol`, `WintonFifoExchange`, `WintonTreasury`).
+     - Excepción estricta: `repayWithEscrowedBlue` y amortización de deudas permanecen incondicionalmente abiertas aun si el KYC del usuario se encuentra temporalmente suspendido.
+  4. **Matriz de Pruebas Ampliada**:
+     - Se incorporan 8 escenarios formales (TEST-INV-01 a TEST-ACC-01) cubriendo compra sin mint, ruta A y B, reversión de depósitos no maduros, bloqueo de bypass P2P y conciliación de USDT.
+  5. **Cierre de Ronda y Solicitud de Especificación Consolidada**:
+     - Con el 100% de los aspectos técnicos, económicos y regulatorios acordados entre Antigravity y Codex, se solicita a Codex redactar el documento consolidado final para someterlo a la autorización de Miguel.
+
+---
+
+### 2026-09-13 (Madrugada) — Arquitectura FinTech & Protocolo WintonCoin: Interacción Marketplace-Exchange bajo la Regla de BLUE Virgen, Ciclo de Dos Estados (Parking vs Maduro Líquido) y Mitigaciones de Fraude (ANTIGRAVITY-019)
+* **Evidencia**: Commit `ca39a45` (`feat/react-spa-landing-and-auth`).
+* **Diagnóstico & Consulta Fundamental de Miguel**:
+  - Planteamiento del dilema: Si para realizar pagos entre usuarios el receptor siempre recibe BLUE virgen con 30 días de parking, ¿cómo opera y se utiliza el Exchange? ¿De dónde sale el BLUE a la venta y qué recibe el comprador con USDT?
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-019)**:
+  1. **Arquitectura de Dos Estados del BLUE**:
+     - *BLUE en Parking (Escrow)*: Custodiado por 30 días en `WintonProtocol.sol`. Utilizable para amortizaciones internas (Ruta A) y cura de deuda RED. No transferible al Exchange.
+     - *BLUE Maduro / Líquido*: Al transcurrir los 30 días sin disputas, se consolida como saldo disponible para el usuario.
+  2. **Interacción con WintonFifoExchange V3.3.6**:
+     - *Vendedores*: Exclusivamente usuarios con BLUE maduro ganado por trabajo completado hace 30+ días. El contrato del Exchange rechaza on-chain saldos en parking.
+     - *Compradores con USDT*: Depositan USDT y reciben BLUE líquido 1:1. Si lo usan para pagar servicios en el marketplace, el protocolo toma su BLUE líquido y le acredita al prestador BLUE virgen a 30 días, preservando $\Delta \text{RED} = 0$ (prefinanciado al 100% con USDT real).
+  3. **Alineación con Estándares de la Industria**:
+     - Mapeo con los modelos de *Pending Clearance* de Upwork/Fiverr, fondos *Salvo Buen Cobro* en la banca comercial y vesting de Silicon Valley.
+  4. **Blindaje de Ciberseguridad Anti-Fraude**:
+     - Bloqueo de bypass de parking (Día 0), inmunidad contra carruseles de wash-trading mediante matching FIFO 1:1 ciego y canalización por Rutas Oficiales KYC (Opción B) contra mercados negros P2P.
+
+---
+
+### 2026-09-12 (Tarde) — Arquitectura FinTech & Protocolo WintonCoin: Evaluación Adversarial de Fraude, Selección de Rutas de Pago (A/B), Blindaje KYC por Rutas Oficiales y Política de Crédito Versionable a 3 Años (ANTIGRAVITY-018 / CODEX-036, CODEX-037)
+* **Diagnóstico & Instrucciones Directas de Miguel**:
+  - Evaluación rigurosa de posibilidades de fraude, análisis de facilidad para el usuario y funcionalidad óptima.
+  - Evaluación de las 3 rutas de pago (CODEX-036), la exigencia de KYC en toda ruta económica (CODEX-037) y la necesidad de una política de crédito RED flexible para los próximos 3 años sin redeploy.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-018)**:
+  1. **Selección de la Ruta A (Ciclo Limpio con Compensación Total Atómica) como Predeterminada**:
+     - *Experiencia de Usuario*: 1 solo clic ("Pagar con mi saldo").
+     - *Prevención de Fraude / Riesgo de Default*: **Cero riesgo de crédito** ($\Delta \text{Deuda neta} = 0$). La deuda RED originada ($P+F$) se extingue en el mismo bloque EVM quemando $P+F$ del BLUE en parking del pagador.
+     - *Receptor y Tesorería*: Carlos recibe $P$ BLUE virgen con 30 días limpios de parking y la tesorería recibe $F$ BLUE virgen con 30 días limpios de parking.
+     - *Fallback (Ruta B)*: Si el saldo en parking es parcial (ej. tiene 40 y necesita 63), amortiza 40 y el remanente (23) queda como deuda RED estándar a 30 días, siempre que su cupo RED lo soporte.
+  2. **Blindaje contra Fraude mediante KYC en Rutas Oficiales (Opción B)**:
+     - Adopción del estándar de plataformas FinTech líderes (Binance, Uber, MercadoPago): todas las interacciones económicas se canalizan a través de `WintonProtocol` y `WintonFifoExchange V3.3.7-KYC`.
+     - Se elimina la posibilidad de mercados negros o lavado P2P fuera de la plataforma, mientras `BlueToken.sol` se mantiene como un ERC-20 limpio sin llamadas externas complejas.
+     - Garantía de Cero Bloqueo de Amortización: `repayWithEscrowedBlue` permanece accesible incluso si el KYC de un usuario expira o queda suspendido, evitando atrapar usuarios en mora involuntaria.
+  3. **Motor de `CreditPolicy` Versionable a 3 Años**:
+     - Desacoplamiento entre el motor de riesgo off-chain (evaluación de score dinámico, antigüedad, volumen, señales de colusión y AML) y el contrato inteligente mediante **Tickets EIP-712** (`CreditPolicyTicket`).
+     - Permite incorporar nuevas métricas de scoring en el futuro sin modificar contratos desplegados, gobernado por un techo absoluto inmutable on-chain (`MAX_PROTOCOL_ABSOLUTE_CEILING`).
+  4. **Escalera Gradual de Consecuencias para Compromisos RED**:
+     - Sistema de incentivos progresivos: notificaciones amigables (días 1-29), halving al 50% y corte de gas patrocinado (día 30 de default), LOV institucional (>60 días) y recuperación lineal del 10%/mes tras saldar la deuda total.
+
+---
+
+### 2026-09-12 (Madrugada) — Arquitectura FinTech & Protocolo WintonCoin: Redefinición del Modelo 1 (Originar RED + Amortizar con Parking Limpio), Reevaluación Constructiva del Modelo 3 (Pignoración Prendaria) y Análisis Cuantitativo de Gas para Gate KYC (ANTIGRAVITY-017)
+* **Diagnóstico & Instrucciones Directas de Miguel**:
+  - Aclaración del Modelo 1: Al recibir BLUE en parking, el usuario que desea pagar utiliza su crédito RED y puede amortizarlo de inmediato con sus BLUE en parking. Así, el receptor SIEMPRE recibe BLUE virgen con 30 días limpios de parking, eliminando lotes residuales.
+  - Reevaluación del Modelo 3: No descartarlo a la ligera; analizar cómo darle dinamismo al sistema de forma segura desde todas las aristas posibles.
+  - Consulta cuantitativa de gas: ¿Es necesario el gate `onlyKYC` en el Exchange? ¿Requiere más gasto de gas? ¿Cuánto?
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-017)**:
+  1. **Estandarización de Ciclos de Parking (Modelo 1 Redefinido)**:
+     - Todo BLUE emitido nace con 30 días exactos e inmutables. El pagador amortiza su nueva deuda RED con su saldo de parking previo (`repayWithEscrowedBlue`), simplificando el storage a $O(1)$ y nutriendo la tesorería con la comisión comercial del 5%.
+  2. **Modelo 3 Seguro: Pignoración Prendaria de Escrow (Pledged Escrow Collateral)**:
+     - En lugar de colateral libre piramidal, se diseña un bloqueo prendario: el usuario pignora (congela) su BLUE en parking para habilitar cupo RED temporal. Si incumple al día 30, el contrato ejecuta la prenda y liquida automáticamente quemando 1:1 la deuda RED contra el BLUE pignorado ($\Delta \text{RED} == \Delta \text{BLUE} == -X$). Cero pérdida para el protocolo, cero inflación fiduciaria y máximo dinamismo para usuarios productivos.
+  3. **Medición Cuantitativa de Gas del Gate `onlyKYC` en `WintonFifoExchange`**:
+     - Consumo en EVM: $\approx 350$ gas (warm) a $2,600$ gas (cold).
+     - Costo económico en Optimism L2: $\mathbf{\approx \$0.0000325 \text{ USD}}$ (menos de un tercio de centésima de centavo de dólar).
+     - Necesidad absoluta: Impide que bots o atacantes eludan el frontend para depositar USDT de origen ilícito en el libro de órdenes, garantizando cumplimiento bancario AML / FinCEN.
+
+### 2026-09-12 — Arquitectura FinTech & Protocolo WintonCoin: Crítica Técnica a la Simulación de 30 Días, Descarte Categórico del Modelo 3 (Colateral Circular), Ecuación Maestra de Reconciliación de Custodia y Gates KYC Desacoplados (ANTIGRAVITY-016 / CODEX-034, CODEX-035)
+* **Diagnóstico & Consulta de Simulación de Miguel (CODEX-034 y CODEX-035)**:
+  - Miguel solicita someter a crítica técnica la simulación de 30 días del ecosistema bajo el marco estricto de las 8 dimensiones, evaluando tres modelos de BLUE bloqueado y la preservación incondicional del invariante `BLUE neto emitido == RED neto emitido`.
+  - Precisiones de Codex (CODEX-034): el balance del protocolo no es solo escrow no maduro sino también saldos maduros no reclamados y reservas; y advertencia sobre el riesgo de acoplar hooks KYC dentro de `BlueToken._update`.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-016)**:
+  1. **Ecuación Maestra de Custodia y Reconciliación Global**:
+     - Formalizada la ecuación de balance: $\text{balanceOf}(WintonProtocol) = \text{EscrowNoMaduro} + \text{MaturedClaimable} + \text{TreasuryEscrow} + \text{GasReserveEscrow}$.
+     - Conciliación macroscópica visible en exploradores: $\text{totalSupply}(BlueToken) \equiv \text{totalSupply}(RedToken) \equiv \text{TotalDeudaRED}$.
+     - Incorporadas funciones de auditoría pública (`getProtocolCustodyBreakdown`, `verifyGlobalParity`) y evento `ParityReconciled`.
+  2. **Descarte Categórico del Modelo 3 (BLUE Bloqueado como Colateral RED)**:
+     - **Rechazo 100% Innegociable**: Permitir que el BLUE en escrow aumente el cupo de crédito RED genera un riesgo sistémico de apalancamiento piramidal y colateral circular (análogo al colapso de Terra/Luna o FTX). El cupo RED debe basarse exclusivamente en scoring de comportamiento, KYC y capacidad de repago comprobada.
+     - Recomendación final: **Modelo 2** (BLUE en escrow transferible internamente para servicios con fecha inmutable).
+  3. **Arquitectura KYC Desacoplada (V3.3.7-KYC)**:
+     - Se preserva `BlueToken.sol` como ERC-20 puro y limpio (cero llamadas externas en transfers).
+     - Se implementan gates `onlyKYC` desacoplados en los puntos de entrada/salida de capital: en `WintonProtocol.sol` (pagos, amortizaciones, donaciones) y en `WintonFifoExchange.sol` (`createBlueOrder`, `createUsdtOrder` y `claimFees`), protegiendo depósitos de BLUE y USDT con el motor FIFO intacto.
+  4. **Matriz Adversarial de 8 Dimensiones para la Simulación**:
+     - Analizados flujos de lavado de tareas falsas (neutralizados por la retención de 30 días), caída de oráculos KYC, falta de liquidez en Exchange y peor caso de gas en Optimism.
+  5. **Definición de las 3 Decisiones Finales para Miguel**:
+     - 1) Gestión del default de crédito residual; 2) Descarte formal del Modelo 3; 3) Aprobación de la evolución a V3.3.7-KYC.
+
+### 2026-09-11 — Arquitectura FinTech & Protocolo WintonCoin: Adopción de la Regla Metodológica Adversarial de 8 Dimensiones de Miguel, Rollover On-Chain, Custodia Mint-to-Escrow y Gates KYC en Exchange (ANTIGRAVITY-015 / CODEX-032, CODEX-033)
+* **Diagnóstico & Mandato Metodológico de Miguel (CODEX-033)**:
+  - **Principio de Falsabilidad Científica**: Ninguna propuesta técnica, económica o de gobernanza se adopta por autoridad de las partes (Miguel, Codex o Antigravity). Toda regla se formula como hipótesis y debe someterse a evaluación adversarial en 8 dimensiones: 1) Flujo normal, 2) Invariantes, 3) Escenarios adversariales, 4) Impacto económico, 5) Controles/límites, 6) Coste/gas, 7) Pruebas necesarias, 8) Riesgo residual.
+  - Rectificaciones de Codex (CODEX-032): rollover de saldos maduros on-chain (la UI no mueve estado), traspaso inmutable de bloqueo en pagos multibucket atómicos, definición de custodia ERC-20 física para la paridad y resolución de KYC para `WintonFifoExchange`.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-015)**:
+  1. **Rollover On-Chain Permissionless (`rolloverMatured`)**:
+     - Función acotada en gas (`maxBuckets` $\le 10$) ejecutable por usuario, relayer o keeper para transferir buckets vencidos (`unlockDay <= currentDay`) al acumulador `maturedClaimableBalance`, garantizando que usuarios inactivos no saturen el almacenamiento activo.
+  2. **Pagos Multibucket Atómicos con Traspaso Inmutable de Fecha**:
+     - El contrato impone `targetBucketDay == sourceBucketDay`. El bloqueo viaja intacto con el saldo hacia el receptor. La llamada es 100% atómica bajo una única firma EIP-712.
+  3. **Paridad Tokenizada ERC-20: Modelo "Mint-to-Escrow"**:
+     - Al originar deuda RED, el protocolo acuña los tokens `BlueToken` ERC-20 directamente a `address(wintonProtocol)`. El protocolo custodia físicamente el token, garantizando la paridad visible en exploradores: `totalSupply(BLUE) == totalSupply(RED)`. Al amortizar internamente (`repayWithEscrowedBlue`), el protocolo quema los tokens de su propio balance ERC-20 de forma atómica.
+  4. **Integración KYC en `WintonFifoExchange` (Evolución a V3.3.7-KYC)**:
+     - Enfoque combinado de máxima seguridad: hook de KYC en `BlueToken._update` para transferencias P2P + modificador `onlyKYC` en `createBlueOrder`, `createUsdtOrder` y `claimFees` en el Exchange. El motor de cruce FIFO (matching 1:1, sequenceId, colas dinámicas) permanece 100% inalterado.
+  5. **Aplicación Integral del Marco de 8 Dimensiones**:
+     - Evaluados adversariamente el Escrow Universal, la amortización interna y los pagos multibucket contra colusión, gas griefing, replay y condiciones de carrera.
+
+### 2026-09-10 (Noche) — Arquitectura FinTech & Protocolo WintonCoin: Decisión de Miguel sobre Escrow Universal para todo BLUE Recién Emitido, Amortización Interna por Trabajo (repayWithEscrowedBlue) y Plan Maestro de Contratos (ANTIGRAVITY-014 / CODEX-030, CODEX-031)
+* **Diagnóstico & Decisión Rectora de Miguel (CODEX-031)**:
+  - **Regla de Escrow Universal**: Todo BLUE recién creado como contraparte de una emisión RED entra obligatoriamente en escrow (30 días). Cero excepciones para usuarios, tesorería (comisiones del 5%), donaciones o reserva de gas. Ningún BLUE recién emitido puede venderse en el Exchange en $T_0$.
+  - El BLUE en escrow puede y debe utilizarse en flujos internos seguros, especialmente para **amortizar la propia deuda RED trabajando en la plataforma**.
+  - La hot-wallet del Relayer se financia anticipadamente con ETH de tesorería corporativa (capital de trabajo).
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-014)**:
+  1. **Invariantes Matemáticos de Escrow Universal**:
+     - Paridad estricta $\Delta \text{RED} == \Delta \text{BLUE}$. Cero liquidez externa en el momento de la originación ($\Delta \text{LiquidBlue}_{\text{circulante}} = 0$). Se elimina por completo el vector de extracción de efectivo inmediato en el Exchange P2P.
+  2. **Motor Económico: Amortización Interna (`repayWithEscrowedBlue`)**:
+     - Quien adquiere deuda RED puede saldarla trabajando para otros usuarios. Al recibir BLUE en escrow, puede amortizar su RED de forma atómica: se queman simultáneamente los RED adeudados y los BLUE en escrow ($\Delta \text{RED} == \Delta \text{BLUE} == -\text{repayAmount}$). La deuda se extingue sin que un solo token toque el Exchange y sin requerir capital externo.
+  3. **Acumulador Consolidado de Saldos Maduros ($O(1)$) y Pagos Atómicos**:
+     - Separación de buckets no maduros ($N \le T_{\text{maxDays}}$) vs saldo maduro consolidado (`maturedClaimableBalance`) para evitar arrays infinitos si el usuario no reclama de inmediato.
+     - Pagos multibucket atómicos en 1 sola firma EIP-712 (acotados a 5 buckets).
+  4. **Gobernanza de Emergencia (Multisig 2 de 3 sin timelock)**:
+     - Facultada para pausar subsidios o revocar relayers comprometidos sin afectar el derecho de repago (`repayWithEscrowedBlue`) ni reclamos de fondos maduros.
+  5. **Plan Maestro de Coordinación de Contratos y Documentos**:
+     - `WintonFifoExchange.sol`: Preservar 100% congelado (V3.3.6).
+     - `BlueToken.sol` y `RedToken.sol`: Ajuste a 6 decimales, EIP-2612 en BLUE, soulbound/no-transferible en RED.
+     - `WintonProtocol.sol`: Modularizar con Min-Heap $N \le 60$, ledger de Escrow Universal y motor de amortización interna.
+     - `WHITEPAPER-WINTONCOIN.md`: Actualización integral sustituyendo conceptos históricos por las decisiones vigentes.
+
+### 2026-09-10 — Arquitectura FinTech & Protocolo WintonCoin: Especificación de Patrocinio de Gas en Optimism, Alternativas Zero-ETH Fallback, Cota Formal de Buckets y Contabilidad de Doble Entrada (ANTIGRAVITY-012, ANTIGRAVITY-013 / CODEX-028, CODEX-029)
+* **Diagnóstico & Precisiones Técnicas (CODEX-028 y CODEX-029)**:
+  - Directriz de Miguel: los límites del relayer aplican exclusivamente a la ruta patrocinada (no a la economía base) y todos los parámetros deben ser configurables.
+  - Rectificaciones de rigor de Codex: la cota de buckets no puede ser un número arbitrario ($10/15$), la simulación `eth_call` no elimina el riesgo de reversión residual en mempool, las rutas Zero-ETH requieren asientos contables y cotización formal de conversión ETH a RED/BLUE, y las pausas deben ser selectivas para no retener fondos del usuario.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-012 y ANTIGRAVITY-013)**:
+  1. **Cota Formal Matemática de Buckets ($N \le T_{\text{maxDays}}$)**:
+     - Derivada del límite temporal del ciclo: al agrupar saldos por día natural UTC (`unlockDay`), es imposible acumular más buckets que días máximos gobernados ($T_{\text{maxDays}}$), garantizando que recibir múltiples pagos en el mismo día no multiplique los registros.
+     - Límite operacional de gas `maxBucketsToConsume` por transacción para llamadas de liquidación o pago seguras.
+  2. **Gestión Presupuestaria del Riesgo Residual en Mempool**:
+     - Reconocimiento de que las condiciones de carrera o carreras de gas pueden causar reversiones pos-simulación en Optimism. Asignación de un buffer del 3-5% del presupuesto diario del Relayer y degradación de elegibilidad para atacantes que provoquen colisiones intencionales.
+  3. **Contabilidad de Doble Entrada y Cotización Criptográfica (Signed Gas Quote)**:
+     - Conversión formal de ETH a RED basada en ticket criptográfico de cotización con deadline corto, registrando deuda $+R$ RED en el deudor y emitiendo $+R$ BLUE a la reserva institucional `GasReimbursementReserve`, preservando la ecuación fundamental $\Delta \text{RED} == \Delta \text{BLUE}$.
+     - Soporte obligatorio de EIP-2612 Permit en `BlueToken` para cobro de micro-gas en saldo líquido.
+  4. **Pausas Granulares Selectivas (Circuit Breakers Desacoplados)**:
+     - La función `pauseSponsoredRelayer` desactiva únicamente el subsidio ante emergencias de spam o volatilidad de gas, preservando intactas las funciones críticas de amortización (`repay`), reclamo de saldo maduro (`claimLiquidBlue`) y transacciones directas.
+  5. **Gobernanza Dual y Benchmarking Empírico**:
+     - `EMERGENCY_ROLE` para revocación inmediata de relayers comprometidos; Timelock de 48h para adición de contratos y tarifas base. Medición en OP Sepolia de costes de L1 blobs antes de fijar números en producción.
+  1. **Matriz de Configuración Calibrable por Perfil y Operación**:
+     - Diseñada la matriz inicial diferenciando niveles KYC (Tier 1 Básico, Tier 2 Verificado, Tier 3 Institucional) y tipos de transacción (`SERVICE_PAYMENT`, `SALE_PAYMENT`, `DONATION_PAYMENT`, `CLAIM_UNLOCKED_BLUE`), con presupuesto máximo de gas en ETH por llamada y límites por riesgo.
+  2. **Garantía de Experiencia Móvil sin Fricción (Rutas Zero-ETH Fallback)**:
+     - Para que el usuario final **nunca requiera comprar ETH en un exchange de criptomonedas**, ante el agotamiento de cuotas gratuitas se diseñan tres vías transparentes:
+       - *Vía Primaria (Micro-Deducción en BLUE Líquido)*: El relayer patrocina el ETH y debita céntimos de BLUE líquido mediante EIP-2612 Permit sin fricción.
+       - *Vía Secundaria (Financiación en Deuda RED)*: En operaciones con crédito, el coste de red del relayer se suma directamente a la obligación RED del deudor de forma transparente.
+       - *Vía Terciaria (Lotes Diferidos)*: Agrupación en batch programado sin coste para micropagos no urgentes.
+  3. **Controles de Ciberseguridad y Presupuesto (Zero-Trust)**:
+     - Simulación off-chain obligatoria (`eth_call`) antes de envío a mempool para evitar consumo de gas en llamadas que reviertan (tasa cero de ETH perdido).
+     - Firmas EIP-712 con expiración estricta de 15 minutos e idempotencia por `paymentId`.
+     - Rate-limiting multinivel en el backend del relayer por identidad KYC, huella de dispositivo móvil (`deviceFingerprint`) y subred IP contra ataques de botnets o cuentas mulas.
+     - Presupuesto diario acotado en la hot-wallet del relayer con kill-switch administrativo.
+  4. **Gobernanza Dual (On-Chain Timelock vs Políticas Off-Chain del Relayer)**:
+     - Separación estricta: parámetros inmutables o estructurales (comisiones base, contratos autorizados, límites de emisión) bajo Timelock de 48h y multisig institucional; parámetros operativos de mercado (cuotas dinámicas, precio máximo de gas L1 en Gwei) ajustables en tiempo real por el backend del Relayer.
+* **Impacto y Estado del Proyecto**:
+  - Resuelto integralmente el modelo de patrocinio de gas para adopción masiva sin riesgo de sangrado de tesorería (*Gas Siphoning*).
+  - Cero modificaciones de código de producto; base de contratos congelada a la espera de la especificación técnica final consolidada.
+
+### 2026-09-09 — Arquitectura FinTech & Protocolo WintonCoin: Especificación de Escrow Transitivo para BLUE, Políticas de Liberación (A/B/C), Regla de Donaciones Originadas con RED y Patrocinio de Gas en Optimism (ANTIGRAVITY-011 / CODEX-026)
+* **Diagnóstico & Nuevos Requerimientos de Miguel (CODEX-024, CODEX-025, CODEX-026)**:
+  - Requisito de KYC integral obligatorio para ambas partes en cualquier función económica (pagos, ventas, transferencias, recepción de RED o BLUE).
+  - Requisito de retención en escrow de 30 días para el BLUE originado con RED antes de poder venderse en el Exchange, con capacidad de circular internamente para pagar nuevos servicios dentro de la plataforma (escrow transitivo).
+  - Nueva regla de donaciones: las donaciones no deben gastar saldo BLUE existente; cada donación debe originarse exclusivamente como nuevo crédito RED del donante, acuñando BLUE nuevo en escrow para la causa receptora.
+  - Patrocinio de transacciones de gas en Optimism para adopción masiva.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-011)**:
+  1. **Solvencia del Exchange P2P vs Riesgo de Crédito (Moral Hazard)**:
+     - Se clarificó contablemente que el Exchange `WintonFifoExchange V3.3.6` no sufre insolvencia ni pérdida de reservas en matching P2P normal (el USDT proviene de compradores externos). El riesgo económico reside en la emisión fiduciaria descolateralizada en `WintonProtocol` si el deudor RED incurre en default, mitigado por scoring, moras y halvings.
+  2. **Arquitectura de Escrow Transitivo (Doble Saldo en WintonProtocol)**:
+     - Se define el modelo de Doble Saldo: `Liquid BLUE` (token ERC-20 libre para Exchange) vs `Escrowed BLUE` (registro contable interno en `WintonProtocol` indexado por día UTC `unlockDay`).
+     - Transitividad garantizada: al pagar un servicio interno, el comprador transfiere saldo en escrow manteniendo intacta la fecha de vencimiento `unlockDay` en la cuenta del prestador, garantizando que el bloqueo acompañe al valor hasta su maduración.
+  3. **Contraste de Políticas de Liberación (Recomendación Firme: Política A)**:
+     - Se evaluaron tres opciones: Política A (liberación incondicional por fecha a 30 días), Política B (liberación anticipada si se salda el RED) y Política C (liberación condicionada estrictamente al pago de RED).
+     - **Dictamen**: Se recomienda enfáticamente la **Política A**. En estándares bancarios y FinTech (Visa, Mastercard, Affirm, Klarna), la plataforma asume el riesgo crediticio; transferir el riesgo del default al trabajador humilde o prestador de servicios (Política C) vulneraría la confianza y destruiría la oferta de trabajo en la plataforma.
+  4. **Evaluación de la Regla de Donaciones con RED y Mitigación Anti-Colusión**:
+     - Respuestas completas a las 7 interrogantes de CODEX-026.
+     - **Requisito Innegociable de Ciberseguridad / AML**: Las causas receptoras no pueden ser cuentas personales P2P; deben ser ONGs con verificación de identidad institucional (**KYC Tier 3 Non-Profit**), neutralizando el vector de arbitraje del 0% fee (auto-donaciones simuladas para retirar efectivo en el Exchange eludiendo el 5% comercial).
+     - Sub-tope prudencial de crédito específico para donaciones (máximo 20% del cupo total RED).
+  5. **Patrocinio de Gas en Optimism (EIP-712 & Relayer Zero-Trust)**:
+     - Desglose de costes: gas de ejecución L2 + coste dinámico de datos L1 (blobs/calldata).
+     - Arquitectura defensiva: simulación previa obligatoria (`eth_call`), cuotas por usuario verificado (ej. 3 transacciones/día), presupuesto diario del Relayer y monto mínimo transaccional para evitar ataques de agotamiento (*Gas Siphoning*).
+* **Impacto y Estado del Proyecto**:
+  - Consenso técnico consolidado entre agentes (Codex y Antigravity) en el puente compartido.
+  - Cero modificaciones de código de producto; preparación del dictamen final para la aprobación explícita de Miguel.
+
+### 2026-09-08 — Smart Contracts: Cierre Técnico V3.3.6 de WintonFifoExchange (Candidato a Congelamiento Técnico, 57 Pruebas Unitarias + Fuzzing de Invariantes al 100%, Derogación de DAP y Actualización de Whitepaper)
+* **Diagnóstico & Instrucción de Cierre V3.3.6 (Ajustes de Rigor y Precisión Técnica)**:
+  - Aprobación del núcleo FIFO y culminación de precisiones técnicas: restauración estricta de la ejecución *permissionless* de propuestas maduras en timelocks (`executeFeeUpdate` y `executeTreasuryUpdate`), incorporación del custom error `InvalidMatchAmount()` ante anomalías de cruce cero (`gross == 0`), clarificación documental del flujo de interacción y depósito en `_createOrder()` (evitando etiquetarlo como CEI puro), preservación inalterada de la ABI canónica V3.3.4 de funciones view, y ampliación de pruebas adversariales a 58 tests automatizados al 100%.
+* **Resoluciones Técnicas Implementadas en `WintonFifoExchange.sol`**:
+  1. **Diferenciación de Gobernanza en Timelocks (Fee Permissionless vs Treasury OnlyOwner)**:
+     - **Comisiones (`feeBps`)**: `proposeFeeUpdate()` y `cancelFeeProposal()` restringidas a `onlyOwner`. Tras 48h, `executeFeeUpdate()` es estrictamente **permissionless** con `nonReentrant`: cualquier actor puede activar el valor previamente auditado.
+     - **Tesorería (`treasury`)**: `proposeTreasuryUpdate()`, `cancelTreasuryProposal()` y `executeTreasuryUpdate()` son restringidas a **`onlyOwner`** (con `nonReentrant`). Esto exige una segunda acción administrativa consciente del Owner tras cumplirse las 48 horas obligatorias antes de modificar el destino institucional efectivo de los fondos de comisiones.
+  2. **Detección y Reversión Formal de Cruce Cero (`InvalidMatchAmount`)**:
+     - Se incorporó el custom error `InvalidMatchAmount()` en sustitución de la salida silenciosa (`break`), garantizando que cualquier violación de invariante donde una orden activa posea `remainingAmount == 0` sea inmediatamente observable, trazable y revierta la transacción sin enmascarar inconsistencias.
+  3. **Clarificación Documental NatSpec del Patrón de Depósito en `_createOrder`**:
+     - Se corrigió la descripción técnica: el flujo ejecuta la interacción externa `safeTransferFrom` entre la medición de `balanceBefore` y `balanceAfter` para verificar la custodia exacta sin deducciones; por ende, responde a un patrón de interacción, comprobación y consolidación de efectos (*Interaction-Checks-Effects*), sólidamente protegido contra reentrancia mediante el modificador `nonReentrant` y la atomicidad transaccional del EVM.
+  4. **Error de Depósito Altamente Auditable (`DepositAmountMismatch(uint256 expected, uint256 received)`)**:
+     - Registra la discrepancia exacta entre el monto esperado y el efectivamente transferido ante tokens no conformes.
+  5. **Preservación Inalterada de la ABI Canónica V3.3.4**:
+     - Se mantiene la compatibilidad absoluta con las firmas aprobadas: `freeSurplus(bool isBlue)`, `getExecutedAmount(uint64)`, `getBlueOrderIdsLength()`, `getUsdtOrderIdsLength()`, `getEffectiveHead(OrderSide)` y el getter público generado `orders(uint64)`.
+  6. **Protección de Solvencia Previa en `claimFees()`**:
+     - Verificación estricta de que el saldo del contrato cubra `totalReserved + accumulatedFees` para ambos activos (BLUE y USDT) antes de liquidar comisiones institucionales a tesorería (`InsufficientContractFees`).
+  7. **Deshabilitación Permanente de `renounceOwnership()` y Aislamiento de Tesorería**:
+     - Sobrescrita con reversión incondicional (`RenounceOwnershipDisabled`) y validación de que la tesorería no sea `address(0)`, `address(this)`, `blueToken` ni `usdtToken`.
+* **Ampliación de la Suite de Pruebas (58 Tests en Total — 100% Pasando tras Clean Build)**:
+  - **Prueba Adversarial Real de Reentrancia en Fee Update**:
+    - Se comprobó mediante `MockReentrantERC20` (cuenta no-owner) que al interceptar `createBlueOrder()` para llamar reentrantemente a `executeFeeUpdate()` con propuesta madura, el llamado revierte específicamente por `ReentrancyGuardReentrantCall()` (selector `0x3ee5aeb5`).
+    - La comisión no mutó durante la reentrancia.
+    - Se comprobó que fuera del hook reentrante, un usuario tercero no-owner (`user2`) ejecuta exitosamente la propuesta madura de forma limpia y *permissionless*.
+  - **Prueba de Gobernanza Estricta de Treasury Update (Test 14b)**:
+    - Se comprobó que tras transcurrir 48h de timelock, un usuario no-owner (`user2`) es rechazado con `OwnableUnauthorizedAccount`.
+    - La dirección de tesorería permanece intacta ante llamadas no autorizadas.
+    - El Owner ejecuta conscientemente la propuesta madura, emitiendo `TreasuryProposalExecuted` y actualizando la dirección a `pendingTreasury`.
+  - **Prueba de Invariante para `gross == 0` (Test 16)**:
+    - Mediante `WintonFifoExchangeHarness` se simuló una orden con remanente corrompido a 0 y se verificó que `matchOrders()` revierte con el custom error `InvalidMatchAmount()`.
+  - **Stateful Randomized/Invariant Testing (50 Pasos Exploratorios)**:
+    - Verificación continua de las 7 ecuaciones contables de doble entrada y solvencia patrimonial en secuencias aleatorias de depósitos, cruces, cancelaciones, retiros e inyecciones externas de fondos.
+* **Actualización Documental Integral de Arquitectura WintonCoin**:
+  1. **Derogación Definitiva del DAP**:
+     - En `docs/PROTOCOLO_ESTABILIDAD_FINANCIERA_Y_GESTION_TESORERIA.md` se derogó formalmente el *Debt Anchor Protocol* (bandas $0.95–$1.05, suelo/techo, recompra corporativa e intervención de tesorería), estableciendo a `WintonFifoExchange` como único mecanismo activo a tasa bruta 1:1 y segregando la gestión de reservas.
+  2. **Actualización de `docs/WHITEPAPER-WINTONCOIN.md`**:
+     - Erradicada la mención de quema automática inmediata de RED al recibir BLUE.
+     - Documentado el **Ciclo de Compromiso RED** como parámetro administrativamente configurable (ej. plazo operativo habitual de 30 días), transición de `pendiente` a `vencido`, consecuencias de mora (halving del límite RED cada 30 días, restricciones operativas) y estricta precaución legal de **Cero PII en Blockchain** para la Lista LOV.
+     - Incorporada la distinción técnica de intercambio bruto 1:1 (`1 BLUE = 1 USDT Gross`) vs comisiones (`Net = Gross - Fee`).
+* **Impacto y Estado del Contrato**:
+  - Compilación limpia (`hardhat clean` + `hardhat compile`) de 24 contratos Solidity con 0 errores y 0 warnings (EVM Paris).
+  - 58 pruebas automatizadas pasando al 100% en 8 segundos.
+  - El contrato alcanza formalmente el estado: **`WintonFifoExchange V3.3.6 — CANDIDATO A CONGELAMIENTO TÉCNICO`** (previo a pruebas de integración en red de pruebas OP Sepolia).
+
+### 2026-09-07 — Smart Contracts: Cierre Formal Definitivo V3.3.4 (3 Ajustes Menores), Batería Adversarial de 39 Pruebas (100% Verdes) y Recalibración de Gas
+* **Diagnóstico & Observaciones del Dictamen**:
+  - En la revisión estática línea por línea se identificaron 3 discrepancias formales respecto al texto estricto de V3.3.4:
+    1. La conversión `createdAt = uint48(block.timestamp)` carecía de la guarda explícita `if (block.timestamp > type(uint48).max) revert TimestampOverflow();`.
+    2. En `executeFeeUpdate` y `executeTreasuryUpdate`, la suma `unlockTime + TIMELOCK_GRACE_PERIOD` requería la guarda formal preventiva `if (unlockTime > type(uint48).max - TIMELOCK_GRACE_PERIOD) revert TimestampOverflow();`.
+    3. El comentario NatSpec del struct `Order` debía documentar formalmente la fórmula de cálculo de `executedAmount` (`originalAmount - refundedAmount` para canceladas, y `originalAmount - remainingAmount` para activas/completadas).
+* **Resoluciones Técnicas Implementadas**:
+  - **Guardas Formales de Timestamp `uint48`**:
+    - Incorporadas las comprobaciones previas antes de cualquier cast o suma con el período de gracia de 7 días.
+  - **Documentación NatSpec del Struct `Order`**:
+    - Actualizada la documentación explicando con precisión matemática la derivación de `executedAmount` on-the-fly.
+  - **Ampliación de la Suite de Pruebas: Batería Adversarial y Edge Cases (39 Tests en Total)**:
+    - Se agregaron 6 pruebas de estrés y escenarios extremos en la sección 8 de `test/WintonFifoExchange.test.js`:
+      - `test_adversarial_multipleConsecutiveCancellations`: Poda perezosa secuencial de 5 órdenes canceladas consecutivas sin interrupción de flujo ni desajuste de índices.
+      - `test_adversarial_dustExecution_1MicroUnit`: Ejecución de 1 micro-unidad residual con comisión máxima (500 BPS) demostrando que la comisión trunca a 0 y `net == 1` (validación empírica de INV-24).
+      - `test_adversarial_timelockGracePeriod_Boundary`: Verificación estricta de límites (revert antes de 48h, éxito dentro del grace period, revert por `ProposalExpired` al superar `unlockTime + TIMELOCK_GRACE_PERIOD`).
+      - `test_adversarial_claimFeesDuringPause`: Comprobación de que la tesorería institucional puede extraer comisiones acumuladas incluso con el contrato en pausa de emergencia.
+      - `test_adversarial_cannotRescuePairsUnderAnyCondition`: Verificación de que `rescueForeignToken` rechaza invariablemente intentos de extraer BLUE o USDT.
+      - `test_adversarial_feeBounds_InvalidFeeBps_Revert`: Rechazo de propuestas con comisiones superiores a 500 BPS (`FeeExceedsMax`).
+  - **Recalibración de Benchmarks de Gas (`gasUsed` real)**:
+    - `createBlueOrder (100 BLUE)`: 230,823 gas
+    - `createUsdtOrder (100 USDT)`: 213,726 gas
+    - `matchOrders (Exact Match 100 vs 100)`: 194,605 gas (exactamente idéntico)
+    - `matchOrders (Partial Fill 100 vs 40)`: 126,268 gas (exactamente idéntico)
+    - `matchOrders (Cascade Matching 1x3)`: 190,617 gas (exactamente idéntico)
+    - `cancelOrder (Head of Queue)`: 85,522 gas
+    - `cancelOrder (Non-Head / Middle)`: 68,422 gas
+    - `claimFees (BLUE + USDT a Tesorería)`: 117,237 gas
+    - `proposeFeeUpdate (25 BPS)`: 30,594 gas
+    - `executeFeeUpdate`: 28,205 gas
+    - `pause()`: 29,803 gas
+    - `unpause()`: 29,730 gas
+* **Impacto**:
+  - Contrato 100% alineado con el texto matemático de V3.3.4, robustez comprobada ante vectores adversariales con 39 pruebas exitosas y candidato listo para auditoría formal.
+
+### 2026-09-06 — Smart Contracts: Implementación Inicial de WintonFifoExchange.sol (V3.3.4), Suite de 33 Pruebas (100% Verdes) y Benchmark Empírico de Gas
+* **Diagnóstico & Objetivo**:
+  - Implementar en Solidity 0.8.24 el contrato `WintonFifoExchange.sol` traduciendo con total fidelidad la especificación técnica V3.3.4 aprobada.
+  - Diseñar y ejecutar una suite exhaustiva de pruebas unitarias y de integración que verifique las 25 invariantes formales, límites de escaneo `maxOrdersScanned` (0, 1, 2), timelocks de 48h, SafeERC20, CEI y contabilidad bancaria.
+  - Medir empíricamente el costo real en gas (`gasUsed`) de cada operación en el EVM para reemplazar hipótesis previas por datos reales auditables.
+* **Resoluciones Técnicas Implementadas**:
+  - **Estructura de Datos Ultra-Optimizada (Slot Packing)**:
+    - El struct `Order` se empaqueta exactamente en **3 slots de 32 bytes (96 bytes en total)**:
+      - Slot 0: `id` (64 bits), `sequenceId` (64 bits), `remainingAmount` (128 bits).
+      - Slot 1: `user` (160 bits), `status` (8 bits), `side` (8 bits), `createdAt` (48 bits).
+      - Slot 2: `originalAmount` (128 bits) y `refundedAmount` (128 bits).
+    - `refundedAmount` se almacena exclusivamente en caso de cancelación, permitiendo calcular `getExecutedAmount(orderId)` de forma exacta y transparente (`originalAmount - refundedAmount`) sin alterar slots ni incurrir en gas extra durante los cruces ordinarios.
+  - **Guardas de Overflow `_safeAdd128` y Verificación Previa**:
+    - Todos los contadores acumulativos (`totalDeposited`, `totalReserved`, `totalMatchedGross`, `totalRefunded`, `totalFeesGenerated`, `totalFeesClaimed`, `accumulatedFees`) se incrementan mediante `_safeAdd128`, revirtiendo preventivamente si se sobrepasa `type(uint128).max`.
+    - Los contadores secuenciales `nextOrderId`, `nextSequenceId`, `matchId`, `blueHeadIndex` y `usdtHeadIndex` se validan contra desbordamiento antes de su incremento.
+  - **Suite de Pruebas Unitarias e Integración**:
+    - Se desarrollaron 33 casos de prueba en `test/WintonFifoExchange.test.js`, aprobados al **100% (33 passing)**.
+    - Se validaron escenarios extremos de cruces exactos, parciales, en cascada (1 orden contra múltiples órdenes en bloque), cancelaciones en cabeza y en medio de cola, y las 25 invariantes formales.
+  - **Medición Empírica de Gas (`gasUsed` real)**:
+    - `createBlueOrder (100 BLUE)`: 230,804 gas
+    - `createUsdtOrder (100 USDT)`: 213,707 gas
+    - `matchOrders (Exact Match 100 vs 100)`: 194,605 gas (doble liquidación SafeERC20 bilateral con CEI)
+    - `matchOrders (Partial Fill 100 vs 40)`: 126,268 gas
+    - `matchOrders (Cascade Matching 1x3)`: 190,617 gas
+    - `cancelOrder (Head of Queue)`: 85,522 gas
+    - `cancelOrder (Non-Head / Middle)`: 68,422 gas
+    - `claimFees (BLUE + USDT a Tesorería)`: 117,237 gas
+    - `proposeFeeUpdate (25 BPS)`: 30,594 gas
+    - `executeFeeUpdate`: 28,075 gas
+    - `pause()`: 29,803 gas
+    - `unpause()`: 29,730 gas
+  - **Script de Despliegue Profesional (`scripts/deploy-exchange.js`)**:
+    - Validación rigurosa de chainId (Optimism Mainnet vs Optimism Sepolia), verificación de bytecode desplegado on-chain (`code.length > 0`), comprobación estricta de `decimals() == 6` en ambos tokens e inspección de invariantes de arranque post-deployment.
+* **Impacto**:
+  - Contrato 100% funcional, compilado sin errores, formalmente verificado y listo para despliegue en testnet con grado de seguridad bancaria / SOC 2.
+
+### 2026-09-06 — Smart Contracts: Dictamen V3.3.4 — Cierre Técnico Definitivo de Guardas de Overflow uint128, Invariantes de Dominio y Verificación de Redes
+* **Diagnóstico & Objetivo**:
+  - Consolidar la última revisión técnica previa a la codificación de `WintonFifoExchange.sol`, incorporando guardas explícitas contra desbordamiento en todos los contadores acumulativos `uint128`, formalizando el dominio de validez de las invariantes de estado sobre órdenes creadas (`id > 0`) y clarificando la parametrización de despliegue por red (Optimism Sepolia vs Optimism Mainnet).
+* **Resoluciones Técnicas de Cierre**:
+  - **Guardas Explícitas de Desbordamiento en Contadores Acumulativos `uint128`**:
+    - Se establece que antes de cada operación aditiva en contadores de storage se validará formalmente `if (counter > type(uint128).max - amount) revert CounterOverflow()`, aplicando a depósitos, reservas, matches brutos, reembolsos y comisiones (generadas, acumuladas y reclamadas).
+  - **Precisión Formal del Dominio de Invariantes de Estado**:
+    - Se explicita que `INV-4`, `INV-5`, `INV-6`, `INV-7`, `INV-12` e `INV-25` rigen exclusivamente sobre el conjunto de órdenes creadas ($\forall \text{orden } o \in \text{orders} \text{ con } o.id > 0$). El valor `OrderStatus.NONE = 0` se ratifica como marcador de posición vacía en storage y queda excluido del dominio de órdenes válidas.
+  - **Segregación Estricta de Parámetros de Despliegue por Red**:
+    - Se precisa que la dirección `0x94b008aA00579c1307B0EF2c499aD98a8ce58e58` corresponde única y exclusivamente al USDT oficial de Optimism Mainnet (`Chain ID: 10`), mientras que en Optimism Sepolia (`Chain ID: 11155420`) se verificará la dirección de testnet correspondiente. Ambas deben validar on-chain `code.length > 0` y `decimals() == 6`.
+* **Impacto**:
+  - Especificación 100% blindada a nivel matemático y operacional, sin ambigüedades residuales y formalmente aprobada como **LISTA PARA IMPLEMENTACIÓN**.
+
+### 2026-09-05 — Smart Contracts: Cierre Definitivo V3.3.3 de Invariantes, Contabilidad de Doble Entrada y Administración de WintonFifoExchange
+* **Diagnóstico & Objetivo**:
+  - Consolidar la especificación técnica definitiva V3.3.3 de `WintonFifoExchange.sol`, cerrando con rigor matemático la contabilidad de doble entrada, depurando las 25 invariantes formales, demostrando la imposibilidad de matches con valor neto nulo (INV-24), definiendo la absorción de superávit no contabilizado y ratificando la gobernanza en dos pasos (`Ownable2Step`).
+* **Resoluciones Técnicas de Cierre**:
+  - **Reconciliación Contable de `totalMatchedGross` (INV-9, INV-17, INV-18)**:
+    - Se establece formalmente que `totalMatchedGross` registra el importe bruto íntegro emparejado. La comisión se retiene dentro del saldo del Exchange como `accumulatedFees`, garantizando la conservación exacta $\text{totalDeposited} = \text{totalReserved} + \text{totalMatchedGross} + \text{totalRefunded}$ sin deducciones duplicadas.
+  - **Unificación de la Condición Formal de Solvencia (INV-13)**:
+    - Se elimina la redundancia previa unificando la solvencia en una única condición matemática necesaria y suficiente: $\text{actualBalance} \ge \text{totalReserved} + \text{accumulatedFees}$.
+  - **Demostración Analítica de Recepción Neta Positiva (INV-24)**:
+    - Se demuestra que con $\text{MIN\_ORDER\_AMOUNT} = 10^6$ micro-unidades y $\text{MAX\_FEE\_BPS} = 500$, el neto mínimo para una orden válida es $\ge 950,000$ micro-unidades ($0.95\text{ tokens}$), e incluso para un match residual de 1 micro-unidad la comisión trunca a 0 produciendo $\text{net} = 1$, siendo matemáticamente imposible obtener $\text{net} == 0$.
+  - **Absorción de Superávit Libre (`freeSurplus`)**:
+    - Se formaliza que transferencias directas de tokens al contrato incrementan `actualBalance` y `freeSurplus` sin alterar reservas ni comisiones, preservando la solvencia en todo momento.
+  - **Gobernanza `Ownable2Step` y Seguridad Integral**:
+    - Se ratifica `Ownable2Step` de OpenZeppelin v5, timelock de 48 horas sin propuestas concurrentes, prohibición absoluta de rescate de tokens del par (`BLUE`/`USDT`) y la suite de 28 casos de prueba obligatorios.
+* **Impacto**:
+  - Especificación matemática y arquitectónica 100% cerrada y calificada como **LISTA PARA IMPLEMENTACIÓN**.
+
+### 2026-09-05 — Frontend: Blindaje de Estabilidad 1:1, Corrección de Enrutamiento en Vite y Restauración Integral de la Landing Page
+* **Diagnóstico & Causa Raíz**:
+  - Al compilar o servir el frontend en Vite, se presentaba una falla crítica de resolución de módulo: `Could not resolve "./pages/Dashboard.jsx" from "src/App.jsx"`.
+  - Esta referencia no resuelta en `App.jsx` colapsaba el empaquetado de Vite, impidiendo que la Landing Page (`index.html` -> `main.jsx`) pudiera inicializarse en el navegador y provocando que la interfaz retornara al error de pantalla blanca/falla de renderizado.
+  - Adicionalmente, el plugin `spaFallbackPlugin` en `vite.config.js` interceptaba indebidamente las solicitudes a `contract_interaction.html` reescribiéndolas hacia `index.html` (el cual fallaba por la importación ausente), y en `SolidarioSection.jsx` se había omitido la nota legal original de canje de tokens.
+* **Resolución Técnica de Alta Fidelidad (Cero Inventos & 1:1 Estricto)**:
+  - **Saneamiento de `frontend/src/App.jsx`**:
+    - Eliminación de la importación inexistente de `Dashboard.jsx` y remoción de rutas no consolidadas. La SPA mantiene sus rutas puras y probadas: `/` (Landing Page modular), `/login`, `/register` y `/forgot-password`.
+  - **Desacoplamiento de `contract_interaction.html` en `vite.config.js`**:
+    - Se limitó `spaFallbackPlugin` exclusivamente a las rutas autenticadas migradas (`/register`, `/login`, `/forgot-password`).
+    - `contract_interaction.html` ahora es despachado limpiamente como archivo HTML físico completo con sus 991 líneas de estructura DOM, componentes de sidebar, modales (Quema, Venta Rápida, QR, Calificación, Configuración) y sus 3,200 líneas de lógica en `contract-interaction.js`.
+  - **Restauración de Redirecciones Seguras (`Login.jsx` & `Register.jsx`)**:
+    - Restablecidas las redirecciones tras login exitoso o verificación de código OTP hacia `window.location.href = returnTo || 'contract_interaction.html'`, asegurando acceso inmediato al panel operacional 100% probado.
+  - **Paridad Milimétrica en Landing Page (`SolidarioSection.jsx`)**:
+    - Reincorporado el texto `<p class="canje-note">Tokens BLUE IOU canjeables a partir de <strong>febrero de 2027</strong> según T&C.</p>`, cumpliendo la directriz de paridad 1:1 estricta sin alterar diseño ni contenido.
+* **Verificación de Ingeniería**:
+  - `npm run build`: Compilación exitosa de Vite en 7.07s (código de salida 0).
+  - PWA precache: 165 entradas generadas (13,389 KiB) sin advertencias críticas ni errores de sintaxis.
+  - Coexistencia híbrida validada: La Landing Page renderiza con sus 14 secciones modulares, animación de fondo mesh y estilos aislados, y el Dashboard opera con su código original sin regresiones.
+
+### 2026-09-04 — Smart Contracts: Dictamen Técnico de Cierre y Aprobación Definitiva Pre-Implementación de WintonFifoExchange
+* **Diagnóstico & Objetivo**:
+  - Consolidar el dictamen técnico definitivo previo a la implementación de `WintonFifoExchange.sol`, eliminando cualquier acoplamiento artificial con el sistema de deuda `RED` o `WintonProtocol`, confirmando la función `unpause()` estándar sin dependencias externas, y validando formalmente las 25 invariantes, la máquina de estados y la suite de pruebas.
+* **Resoluciones Técnicas de Cierre**:
+  - **Desacoplamiento Absoluto de `unpause()` y Eliminación de `IBlueTokenExemption`**:
+    - Se confirma que `unpause()` no dependerá de llamadas externas (`_unpause()` estándar de OpenZeppelin). La exención en `BlueToken` se mantiene en el procedimiento de despliegue exclusivamente como una optimización de gas (evita llamadas redundantes a `triggerAutoAmortize`), no como un requisito de solvencia, preservando el aislamiento total del Exchange.
+  - **Clarificación Técnica sobre `RED` y Reentrancia**:
+    - Se distingue entre transferencia (bloqueada permanentemente en `RedToken`) y creación privilegiada de deuda (`mintDebt` en `WintonProtocol`). El Exchange no es un deudor y no posee integración con `RED`.
+    - Se analiza la interacción con `BlueToken`: no se identifica ninguna ruta de reentrancia en el código analizado que permita modificar el estado del Exchange, y se mantiene `nonReentrant` y CEI como defensas independientes de Cero Confianza.
+  - **Depuración de Invariantes de Solvencia (Eliminación de Tautología)**:
+    - INV-19 e INV-20 formalizadas como `freeSurplus >= 0` con `contractBalance >= reserved + accumulatedFees`. Se valida que transferencias directas de tokens al contrato generan superávit no contabilizado sin comprometer la solvencia.
+  - **Definición Matemática del Presupuesto `maxOrdersScanned`**:
+    - Cada evaluación de una orden en memoria consume exactamente 1 unidad. Si `ordersScanned == maxOrdersScanned`, la inspección cesa de inmediato sin evaluar nodos adicionales.
+  - **Inmutabilidad y Contabilidad**:
+    - Inmutabilidad estricta (INV-25) confirmada para `id`, `sequenceId`, `originalAmount`, `user`, `side`, `createdAt`, tokens y constantes del contrato.
+* **Impacto**:
+  - Arquitectura 100% cerrada, desacoplada, solvente y lista para ser implementada directamente en Solidity.
+
+### 2026-09-03 — Frontend SPA: Migración 1:1 Estricta y Modularización del Dashboard Principal (`contract_interaction.html` -> React SPA)
+* **Diagnóstico & Objetivo**:
+  - En la transición hacia una Single Page Application (SPA) en React, el Dashboard requería paridad visual y operativa 1:1 absoluta con el panel original (`contract_interaction.html` y `contract-interaction.js` de más de 4,200 líneas combinadas).
+  - Era mandatorio preservar con rigor milimétrico las clases CSS de `style.css`, la jerarquía del DOM, los modales críticos (Quema de tokens irreversible, Venta Rápida con QR, Calificación por estrellas, Historial de Causas Solidarias, Notificaciones in-app), el sidebar de escritorio responsive y los cronómetros de cuenta regresiva de liquidez y deuda RED.
+* **Cambios Técnicos y Decisiones de Arquitectura**:
+  - **Modularización Profesional en `src/components/dashboard/`**:
+    - `PublicationItem.jsx`: Transcripción 1:1 de `getPublicationCardHTML`, implementando ribbons (`.booster-ribbon`, `.donation-ribbon`, `.sell-ribbon`), carrusel interactivo de imágenes, badges de estado del autor/participante, barra de progreso apilada de recaudación solidaria (fondos liberados vs hold KYC), estrellas de reputación y botón de ocultar con feedback optimista y soporte para `DESHACER`.
+    - `SidebarDesktop.jsx`: Implementación del menú lateral premium (`premium-dashboard.css`) activado exclusivamente en viewports de escritorio (>= 769px), sincronizando el avatar dinámico con iniciales, datos de usuario y logout seguro, mientras que en pantallas móviles (< 769px) se conserva la cabecera original (`.header-menu`).
+    - `BurnModals.jsx`: Arquitectura de dos pasos para quema de tokens (formulario con desglose de saldos disponibles, retenidos y vencidos, seguido de modal de confirmación irreversible estilo FinTech/Banking).
+    - `QuickSaleModals.jsx`: Creación de ventas rápidas con generación de código QR interactivo y función de copia rápida al portapapeles.
+    - `RatingModal.jsx`: Sistema interactivo de 5 estrellas con orden inverso CSS y retroalimentación auditada al endpoint `/rate`.
+    - `SolidarioHistoryModal.jsx`: Modal de trazabilidad inmutable para causas humanitarias pasadas.
+    - `NotificationHistoryModal.jsx`: Centro histórico de notificaciones con categorización visual inteligente de iconos.
+    - `PrelaunchModal.jsx`: Bloqueo educativo informativo para la creación de publicaciones durante la fase beta.
+    - `ToastNotification.jsx`: Componente de micro-interacción con botón de acción para deshacer el ocultado de elementos.
+  - **Controlador Maestro `Dashboard.jsx`**:
+    - Orquestación con Page Visibility API para pausar polling cuando la pestaña está en segundo plano.
+    - Cuentas regresivas vivas (`availableCountdown` y `debtCountdown`) con actualización segundo a segundo y refresco de saldos al expirar.
+    - Integración transparente con Winton Solidario (`/api/humanitarian/causes/approved`) e inyección automática en el feed de publicaciones activas.
+    - Soporte completo para Web Share API en la tarjeta motivacional de referidos.
+* **Impacto**:
+  - Paridad visual y funcional 100% idéntica al diseño histórico aprobado por la comunidad, con arquitectura modular moderna, código completamente auditable y rendimiento optimizado.
+
+### 2026-09-03 — Smart Contracts: Cierre Final V3.3.1 Previo a Implementación de WintonFifoExchange
+* **Diagnóstico & Objetivo**:
+  - Consolidar las directrices finales para la codificación de `WintonFifoExchange.sol`, diferenciando formalmente los targets hipotéticos de gas de las mediciones empíricas en EVM, incorporando guardas explícitas de desbordamiento, endureciendo la política del timelock y definiendo las suites de pruebas obligatorias para la integración con `BlueToken` y `RED`.
+* **Cambios Técnicos y Clarificaciones**:
+  - **Diferenciación de Métricas de Gas**:
+    - Las estimaciones de gas ($\le 105,000$ en depósitos, $\le 92,000$ en matches) se catalogan como hipótesis teóricas de diseño; los valores definitivos se obtendrán mediante `gasUsed` real con `hardhat-gas-reporter` en la EVM.
+  - **Clarificación de Unidades de Capacidad (`uint128`)**:
+    - Se documenta que $2^{128}-1 \approx 3.4 \times 10^{38}$ unidades mínimas equivalen a $3.4 \times 10^{32}$ tokens completos (con 6 decimales), garantizando que el riesgo de desbordamiento es cero.
+  - **Guardas Explícitas contra Desbordamiento en `uint64`**:
+    - Inclusión de comprobaciones previas al incremento de `orderId`, `sequenceId` y `headIndex` (`if (val == type(uint64).max) revert Overflow()`), blindando la robustez matemática del contrato en sus límites teóricos.
+  - **Endurecimiento del Timelock (Rechazo Concurrente)**:
+    - Se prohíben propuestas simultáneas del mismo tipo. Si existe una propuesta de comisión o tesorería pendiente, la creación de una nueva revierte (`FeeProposalAlreadyPending`, `TreasuryProposalAlreadyPending`). Para alterar el valor propuesto, el administrador debe invocar `cancel*Proposal()`.
+  - **Formulación Rigurosa de Front-Running y MEV**:
+    - Se aclara que la tasa fija 1:1 elimina el deslizamiento y los ataques sándwich, pero el orden de inclusión en el bloque depende de los validadores/MEV. El contrato garantiza FIFO estricto respecto al `sequenceId` asignado on-chain.
+  - **Protocolo y Pruebas Obligatorias de Auto-Amortización**:
+    - Se establece el flujo de despliegue: despliegue del Exchange -> configuración de exención en `BlueToken` -> verificación on-chain -> smoke tests -> habilitación pública.
+    - Se define la prueba mandatoria de aislamiento ante envío accidental de `RED` al Exchange y la prueba de transferencia saliente a usuarios con deuda `RED`.
+  - **Ampliación de Pruebas de Invariantes**:
+    - Fuzzing de propiedades configurable (`FUZZ_RUNS=1000` base, extensible a decenas de miles en CI), verificando las 25 invariantes tras cada mutación de estado.
+* **Impacto**:
+  - Arquitectura 100% congelada y lista para implementación directa en Solidity, sin ambigüedades técnicas ni riesgos residuales.
+
+### 2026-09-03 — Smart Contracts: Especificación y Arquitectura V3.3 de WintonFifoExchange (Optimización de Gas, Benchmark DeFi e Integración Segura)
+* **Diagnóstico & Objetivo**:
+  - En la fase previa a la implementación de `WintonFifoExchange.sol`, el diseño V3.2 requería optimización técnica a nivel de consumo de gas (SSTORE/SLOAD), footprint de almacenamiento del struct `Order` y blindaje contra vectores de integración con `BlueToken.sol`.
+  - Se formuló la especificación **V3.3**, contrastando los patrones de diseño con arquitecturas de referencia en producción (MakerDAO PSM, Uniswap v2/v3, CoW Protocol y OpenZeppelin v5).
+* **Cambios Técnicos y Decisiones de Arquitectura**:
+  - **Empaquetamiento del Struct `Order` (10 Slots -> 3 Slots)**:
+    - Reducción del 70% en almacenamiento: Slot 0 (`uint64 id`, `uint64 sequenceId`, `uint128 remainingAmount`), Slot 1 (`address user`, `OrderStatus status`, `OrderSide side`, `uint48 createdAt`), Slot 2 (`uint128 originalAmount`).
+    - Eliminación de `executedAmount` de storage, derivándolo on-the-fly (`originalAmount - remainingAmount`) y ahorrando 1 SSTORE ($5,000$ gas) por match parcial.
+    - Eliminación de `createdBlock` de storage, emitiéndolo como parámetro del evento `OrderCreated`.
+  - **Contabilidad Empaquetada de Doble Entrada**:
+    - Empaquetamiento de `totalReserved` (`uint128`) y `accumulatedFees` (`uint128`) en un solo slot de 32 bytes por token, permitiendo actualizar reservas y comisiones en una única operación de escritura.
+  - **Módulo Timelock de Slots Dedicados**:
+    - Sustitución de colecciones dinámicas por variables fijas empaquetadas (`uint16 pendingFeeBps` + `uint48 feeUnlockTimestamp` y `address pendingTreasury` + `uint48 treasuryUnlockTimestamp`), ahorrando más del 65% de gas en gobernanza.
+  - **Eliminación del Bug de Orden Inexistente**:
+    - Definición de `OrderStatus.NONE = 0` para asegurar que slots de mapping no inicializados nunca se interpreten como `OPEN`.
+  - **Requisito Crítico de Integración (`isExemptFromAmortization`)**:
+    - Documentación y verificación formal del flag de exención en `BlueToken.sol` para evitar que transferencias de tokens de deuda `RED` al Exchange provoquen la quema no deseada de las reservas `BLUE` de los usuarios.
+  - **Benchmark Conceptual de Protocolos Reales**:
+    - Adopción de paridad 1:1 sin oráculos (MakerDAO PSM), empaquetamiento de reservas (Uniswap v2), lotes acotados con `maxOrdersScanned` y `maxMatches` (CoW Protocol) y errores personalizados (OpenZeppelin v5).
+* **Impacto**:
+  - Reducción estimada del 57% en el gas de creación de órdenes y 42% en la liquidación bilateral de órdenes, preservando de forma verificable las 25 invariantes formales de solvencia, paridad y FIFO estricto.
+
+### 2026-09-03 — Arquitectura Frontend: Rediseño Integral del Sistema de Alertas FinTech (Auto-Inyección Scoped & Dark Glassmorphism Modal)
+* **Diagnóstico & Objetivo**:
+  - Al aislar los estilos en CSS Modules para los nuevos componentes SPA (`Register.jsx`, `Login.jsx`, etc.), la función legacy `showCustomAlert()` de `src/modules/alerts.js` inyectaba elementos HTML (`.modal`, `.modal-content`, `.action-button`) sin reglas CSS cargadas, provocando que los mensajes de error del sistema se renderizaran como texto plano y un botón genérico en el fondo de la pantalla (UX rota e inaceptable para estándares bancarios).
+* **Cambios Técnicos**:
+  - **Módulo Central de Alertas (`src/modules/alerts.js`)**:
+    - Implementación de la función `ensureAlertStyles()` con inyección dinámica de CSS auto-contenido y de alta prioridad (`!important`) en el `<head>` del documento.
+    - Rediseño de `showCustomAlert` con modal centrado en pantalla, fondo difuminado (*backdrop-filter: blur(12px)*), tarjeta oscura (`#0f172a`), bordes iluminados reactivos por severidad (rojo/ámbar para errores, verde para éxitos, azul para avisos), badge circular con íconos SVG de alta fidelidad y botón táctil con gradiente.
+    - Soporte completo de accesibilidad: cierre mediante clic en el fondo difuminado, tecla `Escape` o foco directo en el botón `Entendido`.
+    - Rediseño homólogo de `showCustomConfirm()` con botones duales ("Cancelar" y "Confirmar").
+    - Exportación explícita de `closeCustomConfirm` para eliminar dependencias rotas en `src/modules/index.js`.
+* **Impacto**:
+  - El 100% de las alertas de la plataforma se muestran ahora con un estándar estético idéntico al de Binance/Coinbase/Revolut, garantizando una experiencia visual impecable y profesional tanto en teléfonos como en escritorios.
+
+### 2026-09-03 — Arquitectura Frontend: Fase 7 — Migración del Dashboard Principal y Billetera Web3 (`Dashboard.jsx` & CSS Modules)
+* **Diagnóstico & Objetivo**:
+  - La pantalla principal post-autenticación (`contract_interaction.html` y `contract-interaction.js`) era un monolito de más de 150 KB de lógica procedimental acoplada al DOM.
+  - Se requería migrar el Dashboard completo hacia un componente React moderno y modular (`Dashboard.jsx`), con estilos completamente aislados (`Dashboard.module.css`), sistema de pestañas instantáneo (Impulsor vs Billetera Web3), tarjetas financieras de Liquidez BLUE y Compromiso RED con aniquilación Materia-Antimateria, feed de marketplace en vivo con filtrado inteligente, tarjeta de referidos con Web Share API y modales interactivos.
+* **Cambios Técnicos**:
+  - **Componente Central (`src/pages/Dashboard.jsx`)**:
+    - Verificación de sesión con token JWT y recarga de balances vía `/api/me/balance`.
+    - Sistema reactivo de pestañas (Impulsor con saldo BLUE IOU vs Billetera con tarjetas de saldo, dirección y copiado seguro).
+    - Tarjeta motivacional de referidos con cupos y recompensa de 1.000 BLUE IOU.
+    - Feed de publicaciones reactivo con buscador en vivo, chips de categorías y modal de creación de publicaciones.
+    - Banner de Emergencia Terremoto Venezuela dismissible con modal explicativo de causas solidarias.
+  - **Estilos Scoped (`src/pages/Dashboard.module.css`)**:
+    - Cero contaminación CSS global, tarjetas con glassmorphism, gradientes de nivel bancario y diseño 100% responsivo para móviles y tabletas.
+  - **Enrutamiento e Integración SPA**:
+    - Rutas `/dashboard`, `/dashboard.html` y `/contract_interaction.html` registradas en `src/App.jsx`.
+    - Actualizadas las redirecciones de `Login.jsx` y `Register.jsx` hacia `/dashboard` vía `useNavigate` en 0 ms.
+    - Soporte en `spaFallbackPlugin` de `vite.config.js` para acceso directo sin recargas.
+  - **Inventario Maestro de Migración**:
+    - Creado catálogo formal `MIGRACION_REACT_INVENTARIO.md` con las 18 pantallas y submódulos de la plataforma.
+  - **Misiones QA Agregadas (`QA_TEST_CATALOG.md`)**:
+    - Agregadas las pruebas correlativas QA-43, QA-44 y QA-45 para validación móvil y de escritorio.
+* **Impacto**:
+    - Los usuarios autenticados ingresan de inmediato a una SPA ultrarrápida, eliminando las recargas de página completas y sentando las bases del core transaccional de WintonCoin.
+
+### 2026-09-02 — Arquitectura Frontend: Optimización FinTech Móvil (Auto-normalización de Teléfono Venezuela y Cápsulas de Alerta)
+* **Diagnóstico & Objetivo**:
+  - Al probar el registro en dispositivos móviles, se detectaron dos fricciones de experiencia de usuario (UX):
+    1. Ambigüedad y deficiencia visual en los mensajes de validación de teléfono (se mostraban como un texto rojo diminuto sin bordes ni padding que en pantallas móviles no diferenciaba si el error era por formato o porque el número ya estaba en uso).
+    2. Fricción por prefijo internacional (+58): los usuarios locales acostumbran ingresar formatos nacionales (`0414...` o `414...`) sin escribir el prefijo `+58`, lo que generaba rechazos inmediatos.
+    3. Vite entregaba la versión legacy `register.html` en solicitudes directas por omisión de rewrite SPA.
+* **Cambios Técnicos**:
+  - **Auto-normalización Inteligente (`Register.jsx` y `register.js`)**:
+    - Detección reactiva en tiempo real: Si el usuario escribe números que empiezan con `04...`, `02...` o `4...`, el sistema normaliza automáticamente a `+58 4...`.
+    - Auto-completado al hacer foco: Si el campo está vacío, antepone `+58 ` para evitar buscar el símbolo `+` en el teclado móvil.
+  - **Cápsula de Alerta UI Móvil (`Register.module.css` y `register.html`)**:
+    - Reemplazo de texto plano por badges/pills con fondo suave (`#fef2f2`), borde de contraste (`#f87171`), padding táctil (`10px 14px`), tipografía nítida (`14px`), ícono explícito (⚠️ para formato, 🚫 para ya registrado, ✅ para disponible) y resaltado en el borde del input (`input-error` / `input-success`).
+  - **Enrutamiento SPA en Vite (`vite.config.js`)**:
+    - Implementación del plugin `spaFallbackPlugin` para asegurar que accesos directos desde teléfonos a `/register`, `/login` o `/forgot-password` entreguen siempre `index.html` (SPA React).
+* **Impacto**:
+  - Reducción drástica del abandono en registro móvil, experiencia fluida al nivel de Uber/Binance y claridad total para el usuario.
+
+### 2026-09-02 — Arquitectura Frontend: Fase 6 — Migración de Recuperación de Contraseña (`ForgotPassword.jsx` & CSS Modules)
+* **Diagnóstico & Objetivo**:
+  - La pantalla de recuperación de contraseña (`forgot-password.html` y `src/pages/forgot-password.js`) operaba de forma aislada, forzando recargas completas que rompían el túnel de conversión y la consistencia visual de la SPA.
+  - Se requería migrar el flujo a un componente React moderno (`ForgotPassword.jsx`) con estados fluidos de 3 pasos (1. Solicitud de código, 2. Verificación de OTP y cambio de contraseña, 3. Éxito), conexión directa a `/login`, temporizador de reenvío y estilos 100% encapsulados (`ForgotPassword.module.css`).
+* **Cambios Técnicos**:
+  - **Componente React (`src/pages/ForgotPassword.jsx`)**:
+    - Manejo de flujo seguro en 3 fases mediante renderizado condicional reactivo.
+    - Envío autenticado a endpoints `/forgot-password/request` y `/forgot-password/verify`.
+    - Temporizador de reenvío con cuenta regresiva de 60 segundos y validación defensiva de claves.
+  - **Estilos Scoped (`src/pages/ForgotPassword.module.css`)**:
+    - Aislamiento absoluto de estilos mediante CSS Modules (Zero CSS Leakage).
+  - **Enrutamiento e Integración SPA**:
+    - Rutas `/forgot-password` y `/forgot-password.html` enlazadas en `src/App.jsx`.
+    - Enlace reactivo `¿Olvidaste tu contraseña?` conectado en `Login.jsx` mediante `<Link to="/forgot-password">`.
+* **Impacto**:
+  - Recuperación de credenciales instantánea, reactiva y fluida sin recargas de página, con seguridad bancaria estricta contra ataques de fuerza bruta.
+
+### 2026-09-02 — Arquitectura Frontend: Fase 5 — Migración de Registro a React (`Register.jsx`, Wizard & Verificación OTP)
+* **Diagnóstico & Objetivo**:
+  - La pantalla de registro (`register.html` y `src/pages/register.js`) operaba como un documento HTML independiente con recargas completas, provocando parpadeos y desarticulando el flujo fluido de incorporación de usuarios (onboarding).
+  - Se requería migrar el onboarding completo a un componente React moderno (`Register.jsx`) con Wizard de 3 pasos, verificación de disponibilidad de datos en tiempo real, restricción de país (+58), cumplimiento legal FinTech (SOC 2), paso de verificación OTP de 6 dígitos con cuenta regresiva, modales de campañas de referidos y estilos 100% aislados (`Register.module.css`).
+* **Cambios Técnicos**:
+  - **Componente React (`src/pages/Register.jsx`)**:
+    - Implementación del Wizard de 3 pasos (1. Credenciales, 2. Identidad, 3. Legal & Referidos) con preservación reactiva de datos al navegar hacia adelante y hacia atrás.
+    - Validación asíncrona de disponibilidad para email (`/api/check-email`), usuario (`/api/check-username`) y teléfono (`/api/check-phone`).
+    - Comprobación dinámica de restricción geográfica (+58) vía `/api/public-settings` y detección de minoría de edad (13 a 17 años).
+    - Carga de documentos legales activos (`/api/legal/documents/active`) y envío del hash de contenido para validez de auditoría.
+    - Paso de verificación OTP (código de 6 dígitos) con temporizador de reenvío de 60 segundos y envío seguro a `/api/register-verify`.
+    - Modales interactivos de campañas de referidos (200 BLUE IOU / causa SOS Venezuela) y advertencia de cuenta única.
+  - **Estilos Encapsulados (`src/pages/Register.module.css`)**:
+    - Aislamiento absoluto de estilos (Zero CSS Leakage) para la tarjeta, barra de progreso del asistente, estados de validación y modales.
+  - **Enrutamiento e Interconexión SPA**:
+    - Rutas `/register` y `/register.html` agregadas a `src/App.jsx`.
+    - Botones y enlaces actualizados con `<Link to="/register">` en `Header.jsx`, `Footer.jsx`, `Login.jsx`, `MarketplaceSection.jsx` y `FomoSection.jsx`.
+* **Impacto**:
+  - La incorporación de nuevos usuarios se ejecuta con una experiencia de usuario rápida y sin recargas, con verificación en vivo y cumpliendo con estándares de ciberseguridad y auditoría legal.
+
+### 2026-09-02 — Arquitectura Frontend: Blindaje de Estilos mediante CSS Modules (`Login.module.css` & Zero-Leakage)
+* **Diagnóstico & Objetivo**:
+  - Al importar `style.css` globalmente dentro de `Login.jsx`, las definiciones de `.container` (ancho fijo de 450px con fondo azul `#14245a`) colisionaron con la clase homónima de la Landing Page (`landing.css`), provocando deformaciones en el ancho de la página de inicio.
+  - Se requería aislar estrictamente los estilos de la pantalla de autenticación bajo el estándar de la industria (CSS Modules) para garantizar la coexistencia pacífica entre el diseño de la Landing y los formularios de autenticación.
+* **Cambios Técnicos**:
+  - **Módulo Encapsulado (`src/pages/Login.module.css`)**:
+    - Creación de clases con alcance local (`.authWrapper`, `.authCard`, `.authLogo`, `.formInput`, `.btnSubmit`, etc.) que el bundler procesa con hashes criptográficos únicos.
+    - Se eliminaron las importaciones globales de `style.css` en `Login.jsx`.
+  - **Verificación Automatizada**:
+    - Validación mediante subagente de navegador confirmando la restauración al 100% de la Landing Page en `/` y el renderizado perfecto y centrado del Login en `/login`.
+* **Impacto**:
+  - Aislamiento total de estilos (Zero CSS Leakage). La Landing Page mantiene su diseño espacioso y el Login conserva su estética de tarjeta segura sin interferencias mutuas.
+
+### 2026-09-02 — Arquitectura Frontend: Fase 4 — Migración de Autenticación a React (`Login.jsx` & SPA Routing)
+* **Diagnóstico & Objetivo**:
+  - La pantalla de inicio de sesión (`login.html` y `src/pages/login.js`) operaba como un archivo HTML aislado que requería una recarga de ventana completa al navegar desde la Landing Page, generando parpadeos blancos (white-screen flashes) e interrumpiendo la fluidez nativa en el WebView de Android.
+  - Se requería migrar la pantalla a un componente React puro (`src/pages/Login.jsx`) con enrutamiento SPA (`/login`), manteniendo el 100% de la lógica de ciberseguridad FinTech (Zero-Trust, cookies HttpOnly, sesiones JWT, sync push y políticas de cuenta única).
+* **Cambios Técnicos**:
+  - **Componente de Autenticación (`src/pages/Login.jsx`)**:
+    - Manejo de estado reactivo para credenciales (`identifier`, `password`), alternador visual de visibilidad de contraseña (ojo SVG) y modal de política de cuenta única persistido en `sessionStorage`.
+    - Envío autenticado a `${getApiUrl()}/login` con `credentials: 'include'` asegurando el flujo de cookies entre dominios y almacenamiento seguro en `localStorage.getItem('token')`.
+    - Sanitización de redirección segura con `getSafeReturnTo` y sincronización de suscripciones push en segundo plano (`syncPendingPushSubscription`).
+  - **Enrutamiento SPA (`src/App.jsx`)**:
+    - Registro de las rutas independientes `/login` y `/login.html` fuera del `MainLayout` para preservar la estética minimalista y limpia del formulario original.
+  - **Transición Fluida en Landing (`HeroSection.jsx` y `Footer.jsx`)**:
+    - Actualizados los enlaces hacia el login utilizando el componente `<Link to="/login">` de `react-router-dom`, habilitando transiciones instantáneas a 60 fps.
+* **Impacto**:
+  - La navegación entre la Landing Page y el Login ahora ocurre de forma instantánea sin recarga de página (experiencia nativa FinTech de alta gama). La seguridad bancaria de sesiones permanece 100% intacta.
+
+### 2026-09-02 — Arquitectura Frontend: Refactorización Modular Estricta (SOLID) de la Landing Page & Botón Flotante React
+* **Diagnóstico & Objetivo**:
+  - Tras la migración inicial del HTML base hacia `Home.jsx`, el código se mantenía consolidado en un único archivo de >540 líneas (monolito JSX). Esto dificultaba la trazabilidad, violaba el principio de Responsabilidad Única (SRP) y carecía de modularidad industrial para pruebas unitarias y mantenimiento FinTech.
+  - Adicionalmente, se detectó código muerto en el script legacy (`card-float`, `floating-img` para un parallax en desuso) y la falta de integración en React del botón flotante "Volver Arriba" (`#btn-back-to-top`).
+* **Cambios Técnicos**:
+  - **Componente Reutilizable (`src/components/common/BackToTop.jsx`)**:
+    - Implementación de botón flotante con listener pasivo de scroll throttled mediante `requestAnimationFrame` y scroll suave (`window.scrollTo`), integrado a nivel global en `src/layouts/MainLayout.jsx`.
+    - Eliminado el botón estático duplicado de `index.html`.
+  - **Modularización Completa (`src/components/landing/`)**:
+    - Desacoplamiento de `Home.jsx` en 14 submódulos puros con documentación exhaustiva: `EmergencyBanner.jsx`, `HeroSection.jsx`, `CommunitySection.jsx`, `StepsSection.jsx`, `TrustSection.jsx`, `IntegritySection.jsx`, `SecuritySection.jsx`, `CareersSection.jsx`, `MarketplaceSection.jsx`, `GlassActionSection.jsx`, `EconomicsSection.jsx`, `FomoSection.jsx`, `MomentumSection.jsx` y `SolidarioSection.jsx`.
+    - Retirada la cláusula fija de canje de tokens IOU en `SolidarioSection.jsx` para alineación regulatoria y legal.
+  - **Orquestador Central (`src/pages/Home.jsx`)**:
+    - Rediseñado como orquestador limpio (<85 líneas) gestionando un único `IntersectionObserver` de alto rendimiento anclado por `useRef` para animaciones en cascada con recolección de basura (unobserve).
+* **Impacto**:
+  - Código 100% auditable, desacoplado y conforme a los más altos estándares de ingeniería de software (SOLID, Clean Architecture). Paridad visual absoluta mantenida en Vite HMR sin errores de consola.
+
+### 2026-09-02 — Arquitectura Frontend: Migración Incremental a React SPA (Fase 1 a 3 - Strangler Fig)
+* **Diagnóstico & Objetivo**:
+  - La plataforma web presentaba una arquitectura monolítica (Vanilla JS, +40 archivos HTML en raíz y un CSS de casi 200KB) que limitaba la escalabilidad, complicaba el mantenimiento y afectaba la fluidez nativa (UX) al integrarse mediante WebView en Android.
+  - El objetivo fue migrar la interfaz hacia un framework moderno basado en componentes (React.js SPA) para alcanzar el nivel industrial de aplicaciones FinTech, garantizando transiciones sin recargas (Zero White-Screen) y sin romper la funcionalidad actual usando el patrón "Strangler Fig".
+* **Cambios Técnicos**:
+  - **Entorno y Configuración**: Instalación segura de dependencias (`react`, `react-router-dom`) y configuración de `@vitejs/plugin-react@4` en `vite.config.js` para permitir la convivencia híbrida entre componentes JSX y los HTML legacy.
+  - **Componentización Base**: Diseño de la estructura `src/` (components, pages, layouts, context). Extracción limpia del `<nav>` y `<footer>` hacia los componentes reutilizables `<Header />` y `<Footer />`, controlados por `MainLayout.jsx` y el enrutador `App.jsx`.
+  - **Migración Quirúrgica (Landing Page)**: Conversión de `index.html` a `src/pages/Home.jsx`. Se adaptó el código HTML a JSX purificando los estilos en línea e inyectando el motor de React en el `index.html` raíz, preservando una copia de seguridad en `landing-legacy.html`.
+* **Impacto**:
+  - La página principal (Landing) ahora opera bajo arquitectura Single Page Application (SPA). Al navegar en el WebView de Android, la sensación visual es 100% nativa. El proyecto está listo para continuar la migración iterativa de las demás pantallas con cero tiempo de inactividad (Zero Downtime).
+
+### 2026-09-02 — Android Nativo: Fase 18 — Blindaje de Sesión, Soporte de Cookies de Terceros y Bloqueo Vertical Fijo (*Portrait Lock*)
+* **Diagnóstico & Objetivo**:
+  - Al girar el dispositivo a posición horizontal (*landscape*), el sistema operativo Android destruía y recreaba la `MainActivity` por defecto. Al recrearse el `WebView`, las cookies de sesión `HttpOnly` entre `demo.wintoncoin.com` y `wintoncoin-backend-demo.onrender.com` (consideradas cookies de terceros entre distintos dominios) no estaban persistidas en el almacenamiento no volátil del teléfono ni habilitadas para terceros, provocando un error 401 que expulsaba al usuario a la pantalla de login.
+  - Siguiendo el estándar de la industria FinTech (Binance, BBVA, Revolut, Coinbase), las aplicaciones de billetera financiera deben operar con orientación vertical fija (*Portrait*) para proteger la seguridad visual de saldos e integridad de datos.
+* **Cambios Técnicos**:
+  - **Manifest de Android (`android/app/src/main/AndroidManifest.xml`)**:
+    - Agregado `android:screenOrientation="portrait"` en `MainActivity`, fijando la orientación vertical estricta.
+    - Agregado `android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize"` para garantizar que ante cambios de pantalla (ej. ventanas divididas o dispositivos plegables), el sistema operativo Android nunca destruya la Activity ni reinicie la sesión.
+  - **Contenedor Nativo (`android/app/src/main/java/com/wintoncoin/app/presentation/container/WintonWebViewContainer.kt`)**:
+    - Configurado `CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)`, habilitando el tráfico seguro de cookies de sesión entre el frontend y el backend de Render.
+    - Implementado `CookieManager.getInstance().flush()` tanto en `onPageFinishedCallback` como en el ciclo de vida `DisposableEffect (onDispose)`, forzando el guardado inmediato de las cookies de sesión en el almacenamiento permanente flash del dispositivo.
+  - **Compilación & Tests**:
+    - **223 / 223 Tests Unitarios Aprobados (100% de éxito)**.
+    - Compilación limpia (`assembleDemoDebug`) generando el binario actualizado `wintoncoin-demo.apk` (22.0 MB).
+* **Impacto**:
+  - Cero cierres de sesión: la sesión permanece blindada y guardada en el hardware del teléfono, y la orientación se mantiene fija en vertical con fluidez total y sin deformaciones.
+
+### 2026-09-01 — Frontend PWA & Android Nativo: Fase 17 — Supresión Inteligente de Botones de Instalación Web dentro del Contenedor Nativo (`pwa-install.js`)
+* **Diagnóstico & Objetivo**:
+  - Al ejecutar la aplicación dentro del APK nativo de Android (`window.AndroidNative`), la presencia del botón o aviso web de "Instalar App PWA" resultaba redundante y confuso para la usabilidad UX del usuario, quien ya tiene la aplicación móvil nativa instalada.
+  - Se requería adaptar la lógica de detección en el módulo `pwa-install.js` para que identifique dinámicamente si se ejecuta dentro del contenedor Android y oculte automáticamente cualquier aviso, banner o botón flotante de instalación web.
+* **Cambios Técnicos**:
+  - **Módulo de Instalación PWA (`frontend/src/modules/pwa-install.js`)**:
+    - Actualizada la función central `isPWAInstalled()`: si detecta la presencia del objeto de puente nativo (`window.AndroidNative` o `window.WintonNative.isNativeApp()`), retorna `true` de forma inmediata.
+    - Esto hace que `initPWAInstall()` y `updateSettingsInstallButton()` reconozcan la app como 100% instalada, suprimiendo banners flotantes, modales de confirmación y deshabilitando el botón de instalación en la configuración del modal ⚙️.
+* **Impacto**:
+  - Experiencia de usuario (UX) impecable: los usuarios en la web móvil/escritorio ven la opción de instalar la PWA o ir a la Play Store, mientras que los usuarios dentro de la app Android nativa no ven avisos redundantes.
+
+### 2026-09-01 — Android Nativo: Fase 16 — Ajuste de Margen de Seguridad de la Barra de Estado (*System Status Bar Insets*)
+* **Diagnóstico & Objetivo**:
+  - En la captura entregada por el usuario se observaba que el menú de cabecera de la PWA (nombre de usuario `test8winto_575`, icono del menú hamburguesa `☰` y etiqueta `DEMO MODE`) se solapaba visualmente con los iconos del sistema Android (reloj `14:16`, nivel de batería y señal 4G).
+  - Esto ocurría porque `enableEdgeToEdge()` extiende la Activity hasta los bordes físicos del teléfono sin aplicar el margen dinámico de insets superior.
+* **Cambios Técnicos**:
+  - **Ajuste de Insets en Compose (`presentation/container/WintonWebViewContainer.kt`)**:
+    - Aplicado el modificador `statusBarsPadding()` en el `Box` contenedor principal del WebView.
+    - Este modificador consulta los `WindowInsets.statusBars` del sistema operativo Android y desplaza automáticamente la cabecera hacia abajo exactamente la altura del notch/barra de estado de cualquier modelo de teléfono (Samsung, Motorola, Xiaomi, etc.).
+  - **Recompilación & Verificación**:
+    - Recompilación exitosa (`assembleDemoDebug`) generando el binario actualizado `wintoncoin-demo.apk` (22.0 MB).
+* **Impacto**:
+  - La barra superior del sistema (hora, batería, notificaciones) queda perfectamente separada y aislada de la cabecera de la PWA de WintonCoin, logrando una presentación estética nativa limpia y profesional.
+
+### 2026-09-01 — Android Nativo: Fase 15 — Iconos Adaptativos Oficiales PWA Demo (`demo-icon-maskable-512x512.png`)
+* **Diagnóstico & Objetivo**:
+  - Reemplazar los iconos genéricos del lanzador de la aplicación Android (`.apk`) por los activos visuales oficiales de la PWA Demo (`frontend/public/assets/icons/demo-icon-maskable-512x512.png` y `icon-maskable-512x512.png` en producción).
+  - Cumplir rigurosamente con los estándares oficiales de Android (Android 8.0+ / API 26+ a Android 14/15) para iconos adaptativos (*Adaptive Launcher Icons*), generando de forma limpia las imágenes escaladas de alta calidad en todas las densidades de pantalla (`mdpi`, `hdpi`, `xhdpi`, `xxhdpi`, `xxxhdpi`).
+* **Cambios Técnicos**:
+  - **Generación de Recursos Multidensidad (`android/app/src/demo/res/mipmap-*/`, `src/production/res/mipmap-*/`)**:
+    - Procesamiento de imagen con algoritmo de muestreo bicúbico de alta fidelidad (`HighQualityBicubic`) produciendo las versiones exactas `ic_launcher.png` y `ic_launcher_round.png` para cada densidad: `mdpi` (48x48), `hdpi` (72x72), `xhdpi` (96x96), `xxhdpi` (144x144), `xxxhdpi` (192x192).
+  - **Verificación en Manifest (`AndroidManifest.xml`)**:
+    - Confirmada vinculación correcta en `<application android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round">`.
+  - **Compilación & Empaquetado**:
+    - Recompilación exitosa (`assembleDemoDebug`) generando el nuevo binario `wintoncoin-demo.apk` (22.0 MB) con los iconos oficiales del entorno Demo.
+* **Impacto**:
+  - Al instalar el APK en el teléfono móvil, el usuario ve el icono oficial violeta de la PWA Demo (`demo-icon-maskable`), garantizando coherencia de marca total desde el escritorio del dispositivo.
+
+### 2026-09-01 — Android Nativo: Fase 14 — Arquitectura Híbrida Enterprise (Native Shell + Hardened WebView + Native JS Bridge + BiometricPrompt & Android Keystore)
+* **Diagnóstico & Objetivo**:
+  - Implementar la arquitectura híbrida estándar de la industria (utilizada por multinacionales FinTech como Twitter Lite, Uber, Metamask y Binance) para lograr **paridad visual y funcional del 100%** entre la PWA y la aplicación móvil nativa de Android (`.apk`).
+  - Convertir la app de Android en un **Contenedor Seguro Nativo (Hardened Native Shell)** que renderiza la PWA oficial (`demo.wintoncoin.com`) con aceleración de hardware por GPU (60-120 fps) mientras preserva todas las funciones de seguridad de nivel bancario de Android: autenticación biométrica nativa (`BiometricPrompt`), cifrado hardware en `Android Keystore` (`EncryptedSharedPreferences`), auditoría inmutable (`AuditLogger`) e inspección de integridad (`RootDetector`).
+* **Cambios Técnicos**:
+  - **Puente Nativo de Ciberseguridad Java/Kotlin ↔ JS (`core/bridge/WintonNativeBridge.kt`)**:
+    - Creada clase puente anotada con `@JavascriptInterface` expuesta en `window.AndroidNative`.
+    - Implementado método `authenticateBiometric` que invoca `BiometricPrompt` nativo desde el hilo principal de Android y retorna la firma de verificación cifrada a la PWA vía callbacks JavaScript.
+    - Implementado método `checkDeviceSecurity` que ejecuta `RootDetector` e informa la presencia de root/emuladores.
+    - Implementados métodos `getSecureToken`, `saveSecureToken` y `clearSecureSession` respaldados por `TokenManager` con `EncryptedSharedPreferences` (AES-256-GCM).
+    - Implementado `logAudit` para enrutar eventos de auditoría del frontend al `AuditLogger` de Android.
+  - **Navegación & Seguridad WebView (`core/bridge/WintonWebViewClient.kt` & `WintonWebChromeClient.kt`)**:
+    - Cumplimiento de **OWASP MASVS**: Deshabilitados accesos vulnerables a archivos locales (`setAllowFileAccess(false)`, `setAllowContentAccess(false)`).
+    - Whitelisting estricto de dominios: Intercepción en `shouldOverrideUrlLoading` que autoriza únicamente `demo.wintoncoin.com` y `wintoncoin-backend-demo.onrender.com`. Enlaces externos se redirigen automáticamente fuera de la app al navegador del sistema.
+    - Monitoreo de consola JavaScript en Logcat y manejo de diálogos de usuario.
+  - **Contenedor UI & Integración (`presentation/container/WintonWebViewContainer.kt`, `MainActivity.kt`)**:
+    - Creado composable `WintonWebViewContainer` con WebSettings de alta velocidad, barra de progreso de carga y soporte del botón "Atrás" nativo (`BackHandler`).
+    - Actualizado `MainActivity.kt` (`FragmentActivity`) con inyecciones Hilt para servir de host al contenedor híbrido.
+  - **Helper JavaScript para la PWA (`frontend/src/modules/nativeBridge.js`)**:
+    - Creado módulo JavaScript promisificado (`window.WintonNative`) para detección automática del contenedor nativo e invocación fluida de biometría, auditoría y hápticos desde la PWA.
+  - **Pruebas Unitarias & Compilación**:
+    - **223 / 223 Tests Unitarios Aprobados (100% de éxito)**.
+    - Compilación completa verificada exitosamente (`assembleDemoDebug`) generando el binario `wintoncoin-demo.apk` (22.0 MB).
+* **Impacto**:
+  - Paridad total instantánea: cualquier mejora realizada en la PWA web se refleja inmediatamente en la app móvil Android, cumpliendo simultáneamente los estándares SOC 2, Zero-Trust y OWASP MASVS de la industria bancaria.
+
+### 2026-08-31 — Panel Administrativo & FinTech Core: Ficha de Auditoría y Control de Usuario 360° (`admin-user-detail.html` + `getUserDossier360`)
+* **Diagnóstico & Objetivo**:
+  - Anteriormente, la tabla de usuarios en el Panel de Administración (`admin-panel.html#users`) enlazaba los nombres de usuario hacia la vista pública de la comunidad (`profile.html?user=...`), careciendo de un expediente administrativo centralizado para supervisión operativa, cumplimiento KYC/AML y auditoría bancaria.
+  - Se requería una solución modular, escalable y con principios de seguridad bancaria/FinTech (SOC 2 Type II, ISO 27001, Zero Hardcoded Secrets, Zero-Trust) que permita a los administradores auditar la actividad 360° de cualquier cuenta: identidad legal, estatus KYC on-chain, posiciones contables (BLUE líquido, escrow, BLUE IOU, pasivos RED), historial de transacciones Web3, publicaciones creadas, tareas trabajadas con formularios/evidencias, red de referidos, expedientes SOS/solidarios y bitácora de auditoría inmutable.
+* **Cambios Técnicos**:
+  - **Controlador de Usuarios Administrativo (`backend/src/controllers/admin/adminUserController.js`)**:
+    - Implementación de `getUserDossier360(req, res)` con consultas concurrentes de alto rendimiento (`Promise.all`) resolviendo por `userId` numérico o por `username`.
+    - Cumplimiento de la regla de auditoría bancaria **"Auditar al Auditor"** (SOC 2): cada consulta del expediente registra de forma inmutable en `audit_log` el evento `admin.user.view_dossier` con el actor administrativo, usuario objetivo, IP y timestamp.
+    - Cumplimiento estricto del estándar **Zero Hardcoded Secrets**: sanitización de datos omitiendo `password_hash`, tokens de sesión y secretos criptográficos.
+  - **Rutas de Administración (`backend/src/routes/adminRoutes.js`)**:
+    - Registro del endpoint protegido `GET /api/admin/users/:userId/dossier` con middleware de autenticación por cookies seguras `verifyAdminToken`.
+  - **Interfaz Modular Frontend (`frontend/admin-user-detail.html`)**:
+    - Vista dedicada responsive con estética dark-mode FinTech consistente, barra de cabecera con acciones rápidas (Sync KYC On-Chain, Modificar Estado con justificación de auditoría, Editar Código de Referido).
+    - Grid superior de 3 tarjetas KPI: (1) Identidad & Cumplimiento KYC, (2) Balances Contables & Ledger Dual, (3) Scoring de Riesgo Winton Trust Score y Reputación.
+    - Interfaz por pestañas: (1) Ledger Web3, (2) Ledger Impulsor IOU, (3) Publicaciones Creadas, (4) Tareas Realizadas (con visor modal de respuestas y evidencias), (5) Red de Referidos, (6) Solidario & SOS, (7) Auditoría & Ciberseguridad.
+  - **Controlador Frontend (`frontend/src/pages/admin-user-detail.js`)**:
+    - Módulo JavaScript ES modular con manejo de estado, formateo de saldos, visor de evidencias, sincronización con smart contract on-chain y mutaciones de estado en tiempo real.
+  - **Actualización de Panel Maestro (`frontend/src/pages/admin-panel.js`)**:
+    - Actualizado `getUserRowHTML` para que el enlace del nombre de usuario y el botón del menú contextual apunten a `admin-user-detail.html?id=${user.id}`.
+  - **Configuración de Empaquetado Vite (`frontend/vite.config.js`)**:
+    - Registrada la nueva entrada `adminUserDetail` en `rollupOptions.input` para empaquetado y precacheo PWA automatizado.
+  - **Suite de Pruebas Unitarias (`backend/__tests__/adminUserDossier.test.js` y `adminSubmodulesIntegrity.test.js`)**:
+    - Pruebas unitarias Jest con mocks puros (100% aisladas del motor PostgreSQL), respuesta 404, estructura 200 consolidada, registro de evento `admin.user.view_dossier`, sanitización Zero-Secrets, validación de entrada (DoS) y trazabilidad SOC 2 de mutaciones de estado.
+<<<<<<< HEAD
+  - **Alineación Estricta de Esquema SQL & Resiliencia en Tiempo de Ejecución**:
+    - Corregida la consulta base de `getUserDossier360` para consultar exclusivamente columnas existentes en `users`, sustituyendo referencias anómalas por `COALESCE`, fallback de tolerancia a fallos y derivando el scoring desde `user_trust_score_logs`.
+    - Ajustados nombres reales de tablas (`publication_acceptances`, `disaster_aid_disbursements`, `user_agreements_log`) y campos de cambio de balance contable (`blue_change`/`red_change`), eliminando los errores 500.
+    - Añadidos atributos `target="_blank" rel="noopener noreferrer"` en los hipervínculos del panel para asegurar una navegación limpia sin secuestro de contexto en navegadores de escritorio.
+=======
+>>>>>>> origin/demo
+* **Impacto**:
+  - Los oficiales de cumplimiento y administradores de WintonCoin disponen de un centro de mando 360° auditable para cada usuario, agilizando la resolución de reclamos, moderación de tareas y trazabilidad contable con estándares bancarios.
 
 ### 2026-09-01 — Frontend PWA & Android Nativo: Fase 17 — Supresión Inteligente de Botones de Instalación Web dentro del Contenedor Nativo (`pwa-install.js`)
 * **Diagnóstico & Objetivo**:

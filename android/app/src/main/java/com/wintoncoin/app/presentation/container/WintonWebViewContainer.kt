@@ -177,6 +177,12 @@ fun WintonWebViewContainer(
                             userAgentString = "$userAgentString WintonCoinNativeApp/${BuildConfig.VERSION_NAME}"
                         }
 
+                        // 3.5. Configuración de Cookies de Sesión y Soporte Multi-Dominio (Cross-Site Cookies)
+                        // Imprescindible para preservar la sesión entre demo.wintoncoin.com y el backend en onrender.com
+                        val cookieManager = android.webkit.CookieManager.getInstance()
+                        cookieManager.setAcceptCookie(true)
+                        cookieManager.setAcceptThirdPartyCookies(this, true)
+
                         // 4. Inyección del Puente Nativo JavaScript (window.AndroidNative)
                         if (activity != null) {
                             val bridge = WintonNativeBridge(
@@ -199,6 +205,12 @@ fun WintonWebViewContainer(
                             onPageFinishedCallback = {
                                 isLoading = false
                                 swipeLayout.isRefreshing = false
+                                // Persistir inmediatamente las cookies de sesión en el almacenamiento flash
+                                try {
+                                    android.webkit.CookieManager.getInstance().flush()
+                                } catch (e: Exception) {
+                                    android.util.Log.w("WintonWebView", "Error al guardar cookies: ${e.message}")
+                                }
                             },
                             onErrorCallback = { err ->
                                 isLoading = false
@@ -316,6 +328,11 @@ fun WintonWebViewContainer(
     // Limpieza de recursos al destruir el composable
     DisposableEffect(Unit) {
         onDispose {
+            try {
+                android.webkit.CookieManager.getInstance().flush()
+            } catch (e: Exception) {
+                // Ignorar
+            }
             webViewInstance?.run {
                 stopLoading()
                 removeJavascriptInterface(WintonNativeBridge.JS_INTERFACE_NAME)

@@ -27,3 +27,8 @@ PASOS:
 
 Nunca entregues las pruebas en tablas o listas markdown tradicionales. Usa estrictamente este formato.
 </RULE[qa_manual_tests]>
+
+<RULE[frontend_react_migration]>
+A partir de ahora, cualquier pantalla, interfaz, vista o componente visual nuevo que se cree DEBE construirse obligatoriamente en React, utilizando el stack y la arquitectura de la migración activa ubicada en `frontend/src/` (Vite + React SPA).
+Queda terminantemente prohibido crear nuevas pantallas en HTML o JavaScript vanilla legado, garantizando que todo el trabajo nuevo quede actualizado de una vez en React sin requerir una segunda migración posterior.
+</RULE[frontend_react_migration]>

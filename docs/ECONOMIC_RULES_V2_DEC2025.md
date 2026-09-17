@@ -1,8 +1,10 @@
-# Reglas Económicas Inmutables de WintonCoin
+# Reglas Económicas Inmutables de WintonCoin (Versión 2 - Histórica)
 
-Este documento describe las reglas fundamentales e inquebrantables que rigen la economía del ecosistema WintonCoin. Estas reglas aseguran la estabilidad, equidad y previsibilidad del sistema. Todo el código, tanto del backend como del frontend, debe adherirse estrictamente a estos principios.
+> [!IMPORTANT]
+> **DOCUMENTO HISTÓRICO / SUPERADO (2025)**:
+> La versión vigente, canónica y oficial de las reglas económicas del ecosistema se encuentra en [ECONOMIC_RULES_V3_2026.md](file:///C:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/docs/ECONOMIC_RULES_V3_2026.md), que incorpora el período de 30 días de parking, Lotes Diarios UTC, WintonFifoExchange V3.3.6 (1:1 bruto sin pre-colas), comisiones independientes, respaldo en USDT no retirable y disciplina crediticia.
 
-Debido a la naturaleza evolutiva del proyecto, las reglas se dividen en dos fases operativas distintas.
+Este documento se conserva únicamente para fines de auditoría histórica y registro evolutivo.
 
 ---
 
