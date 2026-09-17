@@ -13,6 +13,252 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-17 — Arquitectura FinTech & Protocolo WintonCoin: Evaluación de los 28 Escenarios Adversariales, Débito Agregado en O(1), Fondeo Asistido desde Binance y Remediación de Collateral Vault (ANTIGRAVITY-031 / CODEX-049, CODEX-050, CODEX-051)
+* **Diagnóstico & Ampliación de Codex (CODEX-049, CODEX-050, CODEX-051)**:
+  - Presentación exhaustiva de la matriz de 28 escenarios adversariales (doble liberación, pagos concurrentes, amortización con órdenes en espera, límites, y casos de fondeo directo desde Binance 29-33).
+  - Alerta sobre retiros directos desde Binance: transferencias ERC-20 planas a contratos compartidos no ejecutan `deposit()` ni atribuyen titularidad al usuario.
+  - Alerta regulatoria/técnica sobre migración de USDT en Optimism a partir del 17 de septiembre de 2026 anunciada por Binance: contratos con variables `immutable` corren riesgo de obsolescencia.
+  - Hallazgo de auditoría en `WintonCollateralVault.sol`: la función legacy `liquidate()` permitía confiscar colateral discrecionalmente sin comprar BLUE ni saldar RED.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-031)**:
+  1. **Solución en O(1) para Cien Posiciones (Débito Agregado & Reconciliación Perezosa)**:
+     - Contador global `totalParkingBalance[user]` y acumulador `pendingReconciliationDebit[user]`. Ejecución atómica del pago en 1 SSTORE, con reconciliación pasiva al madurar que descuenta el débito pendiente antes de liberar a saldo líquido.
+  2. **Selección por Fecha de Liberación Más Distante**:
+     - Precisión técnica para niveles 4-7: el superpoder de liquidez consume prioritariamente las posiciones con mayor tiempo de retención, blindando el saldo próximo a madurar.
+  3. **Flujo de Fondeo Seguro y Asistido desde Binance**:
+     - Retiro de Binance a la wallet personal del usuario en Optimism; detección en tiempo real vía WebSocket en el backend; ejecución asistida de 1 toque con gas patrocinado.
+  4. **Puntero Gobernado de Tokens (`TokenRegistry`)**:
+     - Erradicación de direcciones `immutable` para USDT; adopción de puntero administrado con Timelock de 48h para compatibilidad total con USDT nativo en Optimism.
+  5. **Remediación de `WintonCollateralVault.sol`**:
+     - Sustitución de `liquidate` por `liquidateDelinquent`, acotada a mora formal confirmada (>30d), por el monto exacto de la deuda, comprando BLUE y quemando RED pareadamente.
+  6. **Pase a Codex para la Especificación Consolidada Unificada**:
+     - Se cierran todos los frentes abiertos y se invita a Codex a redactar el plano maestro definitivo.
+
+---
+
+### 2026-09-16 (Noche) — Arquitectura FinTech & Protocolo WintonCoin: Publicación del Marco Canónico de 7 Niveles, Gamificación LIFO (Nivel 4+), Mínimo Configurable en Exchange y Autoliquidación con Colateral (ANTIGRAVITY-030)
+* **Diagnóstico & Directivas Vinculantes de Miguel**:
+  - Consulta y definición de orden mínima en Exchange (5 BLUE) para protección anti-polvo y anti-spam, preservando micro-tareas en Marketplace.
+  - Regla de gamificación financiera: Quema FIFO en Ruta A para Niveles 1-3 y LIFO para Niveles 4-7, permitiendo a usuarios avanzados blindar y proteger su saldo próximo a madurar.
+  - Detección y resolución de la "trampa de liquidez" en colateral: evitar exigir doble capital a usuarios con USDT en garantía mediante autoliquidación voluntaria consentida (`repayWithCollateral`).
+  - Creación y formalización de la matriz de **7 Niveles de Usuario** con beneficios progresivos.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-030)**:
+  1. **Publicación Oficial de `docs/USER_LEVELS_AND_TIERS_2026.md`**:
+     - Creado el documento canónico que detalla los requisitos, cupos RED ($20 a $5,000+), cuotas de gas patrocinado (1 a ilimitadas), switches de auto-listing y políticas de gobernanza para los 7 niveles.
+  2. **Superpoder LIFO en Ruta A para Niveles 4 en adelante**:
+     - Al extinguir deuda RED, el protocolo quema el BLUE más reciente de parking, reservando el BLUE maduro próximo a liberarse para venta en dólares en el Exchange.
+  3. **Mecanismo `repayWithCollateral` en `WintonCollateralVault`**:
+     - Transferencia atómica y protegida de USDT en custodia directamente a `WintonFifoExchange` para adquirir BLUE y quemar RED de forma inmediata, eliminando la necesidad de doble fondeo y garantizando cero riesgo de fuga de fondos.
+  4. **Mínimo de Orden Desacoplado**:
+     - Mínimo de 5 BLUE en Exchange configurable dinámicamente (`minOrderAmount`), sin restringir importes fraccionarios en micro-tareas del Marketplace.
+  5. **Pase a Codex para Evaluación Formal**:
+     - Publicado en `puente-agentes/PARA_CODEX.md` solicitando evaluación técnica y de seguridad previa a la redacción de la Especificación Consolidada Unificada.
+
+---
+
+### 2026-09-16 (Ronda de Cierre) — Arquitectura FinTech & Protocolo WintonCoin: Clarificación de Ruta A sobre Parking, Barrido Dinámico de Posiciones, Colas por Versión de Política y Hoja de Ruta de Activación (ANTIGRAVITY-029 / CODEX-048)
+* **Diagnóstico & Observaciones Críticas de Codex (CODEX-048)**:
+  - Alerta sobre regresión en Ruta A: limitar todo consumo a `unlockTimestamp <= now` bloqueaba la compensación de RED con BLUE en parking ganada por trabajo.
+  - Alerta de escalabilidad para usuarios de alto volumen: un límite fijo de 5 posiciones por llamada exigiría decenas de transacciones manuales ante micropagos frecuentes.
+  - Alerta de desorden cronológico ante cambios de duración: si una política reduce plazos (ej. 60 a 30 días), un puntero secuencial único podría detenerse en un lote antiguo no maduro e ignorar uno nuevo ya liberado.
+  - Observaciones sobre Tesorería institucional: ratificar que las comisiones respeten el parking universal y compitan en la cola FIFO ordinaria del Exchange sin atajos ni privilegios.
+  - Rigor en mora parcial: la porción de deuda no cubierta por USDT debe sufrir las consecuencias ordinarias de mora (halving de cupo disponible).
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-029)**:
+  1. **Consenso y Clarificación Definitiva de Ruta A**:
+     - *Salida Externa (Venta en Exchange FIFO)*: Exige obligatoriamente BLUE Liberado (`unlockTimestamp <= now`).
+     - *Compensación Interna (Ruta A)*: Admite expresamente consumir **tanto BLUE Liberado como BLUE en Parking** (`unlockTimestamp > now`) para amortizar y cancelar deuda RED propia, quemando 1:1 ambos tokens en el contrato y debitando la posición de parking para impedir dobles liberaciones futuras.
+  2. **Escalabilidad y Barrido Dinámico de Posiciones**:
+     - Contador de saldo líquido disponible `unlockedLiquidBalance[user]`, parámetro dinámico `maxLotsToProcess` acotado a gas prudente (20-30 posiciones) y función permissionless `sweepUnlockedBalances` para consolidación en segundo plano por keepers o el relayer.
+  3. **Preservación de Orden Determinista $O(1)$ sin Heap**:
+     - Implementación de colas separadas por versión activa de política (`policyQueues[version]`), donde dentro de cada versión el orden de creación es idéntico al de vencimiento, evaluando únicamente la cabeza de las versiones concurrentes (a lo sumo 2) en $O(1)$.
+  4. **Tesorería Institucional sin Privilegios**:
+     - Las comisiones en BLUE permanecen 30 días en Parking y, si se venden por USDT, se encolan en la fila FIFO ordinaria del Exchange.
+  5. **Mora Parcial Proporcional**:
+     - La porción respaldada por USDT goza de Estatus de Buena Fe; la porción descubierta incurre en mora y reducción del 50% de límite disponible.
+  6. **Hoja de Ruta Integral hacia la Activación**:
+     - Definidas las 6 fases de ejecución: Especificación Consolidada Unificada de Codex -> Aprobación de Miguel -> Codificación de los 5 Smart Contracts en Solidity -> Suite de Tests y Fuzzing -> Despliegue en Staging/Demo -> Construcción de la Interfaz en React (Vite SPA).
+
+---
+
+### 2026-09-16 — Arquitectura FinTech & Protocolo WintonCoin: Adopción de Fecha Exacta por Pago Individual, Estructura Compacta de 32 Bytes y Refinamiento Canónico V3 (ANTIGRAVITY-028 / CODEX-046, CODEX-047)
+* **Diagnóstico & Consulta de Miguel (CODEX-047)**:
+  - Miguel plantea evitar la concentración de ventas y carreras de caballos a medianoche UTC.
+  - Codex propone y compara: Alternativa A (Fecha individual por pago según timestamp de transacción), Alternativa B (Intervalos cortos) y Alternativa C (Lotes diarios UTC).
+  - Observaciones de CODEX-046: Cobertura neta tras comisión, protección parcial proporcional, plazos configurables y donaciones originadas con RED.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-028)**:
+  1. **Adopción de Fecha Exacta por Pago Individual (Alternativa A)**:
+     - El vencimiento y liberación se anclan a la marca de tiempo de la transacción originadora (`block.timestamp`), logrando una dispersión natural y orgánica del flujo durante las 24 horas del día sin picos de congestión.
+  2. **Estructura Compacta de Almacenamiento (32 Bytes / 1 Solo Slot EVM)**:
+     - Struct `ParkingPosition` empaquetado en 30 bytes (`amount`, `unlockTimestamp`, `originalTimestamp`, `policyVersion`) con puntero de cabeza secuencial que consume hasta 5 posiciones por llamada en $O(1)$.
+  3. **Consolidación de Tesorería Institucional**:
+     - Para evitar saturar el almacenamiento con miles de micro-comisiones, la tesorería consolida sus ingresos en balances institucionales agrupados, dado que no compite en la fila FIFO de ventas.
+  4. **Refinamiento Integral de `docs/ECONOMIC_RULES_V3_2026.md`**:
+     - Actualizadas las secciones 1, 2 y 5 con donaciones institucionales, cobertura neta, protección proporcional de Buena Fe y límites efectivos vigentes.
+
+---
+
+### 2026-09-15 (Noche) — Directivas de Ingeniería: Regla Obligatoria de Frontend en React y Ratificación del Catálogo Estricto de Contratos (Cero Oráculos On-Chain)
+* **Directivas Vinculantes de Miguel**:
+  1. **Frontend 100% React**: Toda nueva pantalla o interfaz debe construirse obligatoriamente en React utilizando el stack y arquitectura de la migración activa (`frontend/src/` con Vite + React SPA), prohibiendo crear pantallas legacy en HTML/JS vanilla para evitar retrabajos de migración posterior.
+  2. **Catálogo Estricto de Smart Contracts**: Se ratifica que NO existe ningún contrato `WintonKyCOracle.sol`. El manejo de identidades KYC y niveles de usuario (1, 2, 3+) reside 100% off-chain en el backend y la base de datos PostgreSQL, mientras que los contratos se limitan estrictamente a los 5 oficiales del repositorio: `BlueToken.sol`, `RedToken.sol`, `WintonProtocol.sol`, `WintonFifoExchange.sol` y `WintonTreasury.sol`.
+* **Impacto en el Repositorio**:
+  - Incorporada la regla obligatoria `frontend_react_migration` en `.agents/AGENTS.md`.
+  - Arquitectura simplificada y blindada contra sobrecostes de gas y oráculos innecesarios.
+
+---
+
+### 2026-09-15 (Cierre de Ronda) — Arquitectura FinTech & Protocolo WintonCoin: Aceptación de CODEX-044/045, Respaldo Innegociable de USDT, Independencia de Comisiones y Publicación de ECONOMIC_RULES_V3_2026.md (ANTIGRAVITY-027)
+* **Diagnóstico & Directrices Vinculantes de Miguel (CODEX-045)**:
+  - Respaldo Innegociable en USDT: los USDT depositados para respaldar un compromiso RED no pueden ser retirados bajo ninguna circunstancia mientras el compromiso exista.
+  - Independencia de Comisiones: la comisión de plataforma la paga quien adquiere RED (el pagador); el trabajador recibe el 100% de su trabajo. La comisión del Exchange corresponde a un servicio independiente de cambio de liquidez con su propia gobernanza.
+  - Observaciones técnicas de Codex (CODEX-044): transición contable de cobertura (USDT Reservado -> BLUE Retenido -> Quema Pareada), cálculo sobre BLUE neto tras comisiones del Exchange y uso de límites vigentes.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-027)**:
+  1. **Publicación Oficial de `docs/ECONOMIC_RULES_V3_2026.md`**:
+     - Creado el documento canónico de reglas económicas V3 en lenguaje claro y auditable, consolidando emisión pareada, 30 días de parking, Lotes Diarios UTC, Exchange V3.3.6 sin pre-colas y disciplina crediticia. Se formaliza la derogación de V2.
+  2. **Bloqueo Innegociable de Retiro de USDT en Garantía**:
+     - Queda prohibida la cancelación o devolución de USDT mientras sostengan deuda RED viva.
+  3. **Transición Segura de Cobertura en Tres Estados**:
+     - El BLUE adquirido que espera quema mantiene intacta la protección del deudor sin duplicar exposiciones ni generar moras falsas ante fallos temporales de red.
+  4. **Pase Definitivo a Codex para la Especificación Consolidada Unificada**:
+     - Se cierran todos los frentes abiertos y se solicita a Codex redactar el documento técnico maestro definitivo.
+
+---
+
+### 2026-09-15 (Noche) — Arquitectura FinTech & Protocolo WintonCoin: Evaluación de Create + Instant Match, Conciliación de Cobertura USDT sin Doble Liberación y Poda Perezosa de Cumplimiento (ANTIGRAVITY-026 / CODEX-043)
+* **Diagnóstico & Observaciones de Codex (CODEX-043)**:
+  - Propuesta de flujo "Create + Instant Match": toda orden nueva intenta cruzar inmediatamente en la misma transacción contra la cabeza contraria si existe liquidez.
+  - Alerta sobre la regla de Miguel para cobertura con USDT: evitar la "doble liberación de capacidad" al pagar deuda cubierta y distinguir RED total de RED descubierto.
+  - Solicitud de evaluación de: comparación con código real de `WintonFifoExchange.sol` V3.3.6, manejo de KYC sobrevenido, aislamiento de fallos entre cruce y quema, y límites de gas en matching.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-026)**:
+  1. **Integración de "Create + Instant Match" Acotado**:
+     - En `WintonFifoExchange.sol`, `_createOrder()` se extiende mediante un helper interno que ejecuta hasta 5 cruces / 10 inspecciones en la misma transacción. Si queda remanente, se registra en la cola FIFO sin revertir. Cero dependencia obligatoria de keepers para órdenes con contraparte inmediata.
+  2. **Regla de Cobertura USDT y Cero Doble Liberación**:
+     - Al pagar en Marketplace, se mintea BLUE al trabajador, BLUE de comisión a la plataforma/tesorería y deuda RED total al pagador.
+     - La capacidad de crédito se calcula de forma transparente: Deuda Total menos Garantía en USDT = Deuda Neta. El usuario solo puede gastar hasta su límite disponible real, evitando duplicar crédito cuando los USDT cruzan en el Exchange y cancelan deuda.
+  3. **Cancelación Condicionada de Órdenes de Cobertura**:
+     - Si el usuario utilizó la capacidad liberada por los USDT en garantía para contraer nueva deuda, el retiro/cancelación de la orden queda bloqueado on-chain hasta que salde el sobregiro.
+  4. **Poda Perezosa de Cumplimiento (*Compliance Lazy Pruning*)**:
+     - Si una orden en cabeza de cola sufre revocación de KYC, el contrato la marca `SUSPENDED_COMPLIANCE` y avanza la cabeza sin revertir, evitando congelar el mercado (*deadlock*).
+  5. **Aislamiento de Fallos en Cruce y Amortización**:
+     - Si la quema de RED revierte por causas externas, el match de USDT permanece consumado; el BLUE se deposita en retención contable segura para amortización diferida.
+
+---
+
+### 2026-09-15 — Arquitectura FinTech & Protocolo WintonCoin: Simplificación Radical sin Pre-Cola en Exchange, Liberación Pasiva por Lotes Diarios, Gamificación por Niveles y Estatus de Buena Fe Financiera (ANTIGRAVITY-025)
+* **Diagnóstico & Directrices Rectoras de Miguel**:
+  - Eliminación definitiva de marcas de tiempo por segundo para liberaciones a favor del Lote Diario (Daily Buckets) para ahorro masivo de gas en storage (>70%).
+  - Consulta conceptual sobre la Liberación Pasiva (*Lazy Evaluation*): por qué ocurre, cómo opera y demostración de cero congestión a medianoche (00:00 UTC).
+  - Gamificación por niveles KYC: Nivel 1-2 listan manualmente tras notificación push en Día 31; Nivel 3+ (VIP) pueden pre-autorizar auto-listing desde el Día 1.
+  - Invariabilidad absoluta de la originación pareada: en el Marketplace, TODO pago mintea atómicamente BLUE en parking al prestador y deuda RED al deudor ($\Delta \text{totalSupply}(BLUE) \equiv \Delta \text{totalSupply}(RED)$). Ningún pagador deposita en protocolos arbitrarios ni compra BLUE virgen.
+  - Protección jurídica para deudores: quien tiene una orden de compra en USDT en el Exchange esperando adquirir BLUE para saldar su RED goza de estatus de "Buena Fe / Voluntad de Pago", impidiendo penalizaciones de mora injustas por demoras de mercado.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-025)**:
+  1. **Supresión Definitiva de la Pre-Cola en `WintonFifoExchange V3.3.6`**:
+     - El contrato del Exchange mantiene una sola cola FIFO limpia ($O(1)$) donde únicamente ingresan tokens BLUE ya Liberados. Cero riesgo de *Head-of-Line Blocking*, cero lógica de maduración dentro del motor de cruce.
+  2. **Liberación Pasiva por Lotes Diarios (Daily Buckets)**:
+     - Los saldos se acumulan por día natural UTC (`unlockDay = cycleEndDay + 30 days`). La condición `block.timestamp / 86400 >= unlockDay` se evalúa de forma perezosa al momento de interactuar, eliminando la necesidad de crons o transacciones masivas a las 00:00:00 UTC.
+  3. **Gamificación y Beneficios por Nivel**:
+     - Niveles 1 y 2 con UX amigable tipo Rappi/Binance (notificación push + 1 tap). Nivel 3+ con ejecución automatizada vía EIP-712 a través del relayer institucional.
+  4. **Protección de Buena Fe Financiera y Cumplimiento Regulatorio**:
+     - Alineación con regulaciones bancarias y de protección al consumidor (CFPB / FinTech): la voluntad manifiesta y los fondos bloqueados en USDT protegen al deudor contra castigos de mora mientras el mercado cruza la orden.
+  5. **Instrucción a Codex**:
+     - Pase de turno a Codex para incorporar estas definiciones limpias en la redacción de la **Especificación Consolidada Unificada**.
+
+---
+
+### 2026-09-14 (Tarde) — Arquitectura FinTech & Protocolo WintonCoin: Clarificación de Balance ERC-20, Transición O(1) de Colas, Reducción Determinista y Límites Anti-Spam (ANTIGRAVITY-024 / CODEX-041)
+* **Diagnóstico & Observaciones de Codex (CODEX-041)**:
+  - Advertencia sobre consistencia ERC-20: Un contrato custodio no debe simular saldos virtuales en `balanceOf` si los tokens físicos no están en la wallet, para no romper la regla bancaria $\sum \text{balanceOf} \equiv \text{totalSupply}$ ni desincronizar exploradores y MetaMask.
+  - Advertencia de gas en colas enlazadas: Insertar órdenes liberadas en medio de la cola activa para respetar fechas históricas cuesta $O(N)$ gas.
+  - Exigencia de `orderId` explícito en reducción parcial y elevación del umbral mínimo anti-spam por identidad KYC.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-024)**:
+  1. **Resolución de Balance ERC-20 (Custodia Real en Protocolo para MVP)**:
+     - `WintonProtocol` custodia físicamente el BLUE en parking y emite eventos indexables `ParkingDeposited`.
+     - La app de WintonCoin consulta `getUserBalanceBreakdown` y muestra el total consolidado (Parking + Liberado). En MetaMask, `balanceOf` muestra el saldo efectivamente transferible. Se evita sobrecargar el ERC-20 con vulnerabilidades.
+  2. **Transición O(1) en la Cola Activa del Exchange**:
+     - Las órdenes que se liberan se insertan al final de la `ActiveMatchQueue` en el momento de su activación ($O(1)$), usando su fecha histórica `createdAt` como desempate si coinciden en la misma época.
+  3. **Reducción Parcial con `orderId` Explícito**:
+     - Función `reduceOrder(orderId, amount)` valida titularidad y reduce la orden conservando su posición en la fila.
+  4. **Parámetros Anti-Spam Reforzados**:
+     - Orden mínima elevada a 5 BLUE y límite de 5 órdenes activas por identidad KYC (`kycId`).
+  5. **Luz Verde a Codex para la Especificación Consolidada**:
+     - Se cierran todos los frentes abiertos y se encomienda a Codex la redacción del documento maestro unificado.
+
+---
+
+### 2026-09-14 (Madrugada) — Arquitectura FinTech & Protocolo WintonCoin: Evaluación Exhaustiva de Viabilidad, Modos de Falla y Mitigación de Errores para el Modelo Operativo Completo (ANTIGRAVITY-023 / CODEX-039, CODEX-040)
+* **Diagnóstico & Consulta Crítica de Miguel y Codex (CODEX-039, CODEX-040)**:
+  - Miguel ratifica 10 directrices operativas: transferencia de BLUE solo por Exchange (cero P2P libre), autoamortización con prioridad a deuda más antigua, dos colas en el Exchange (Parking vs Liberado), encolamiento anticipado, reducción parcial suave, múltiples órdenes acotadas, cobro incondicional de comisiones del 5%, consecuencias de mora y gobernanza de parámetros inmutables.
+  - Codex solicita evaluación forense de viabilidad, modos de falla, doble gasto, riesgo de bloqueo de gas en activación y respuestas a 8 preguntas técnicas.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-023)**:
+  1. **Aprobación de Viabilidad con Arquitectura de Dos Colas Aisladas**:
+     - Separación física entre `PendingReleaseQueue` y `ActiveMatchQueue`. Los compradores con USDT cruzan únicamente contra la cola activa en $O(1)$, eliminando de raíz el riesgo de Head-of-Line Blocking o bucles imprevisibles de gas.
+  2. **Activación Híbrida Triple (Sin Dependencia de Keepers)**:
+     - Activación perezosa durante el match (`lazy on match`), botón de autoservicio para el usuario en la UI y función permissionless para relayers.
+  3. **Mitigación Estricta contra Modos de Falla y Carreras de Concurrencia**:
+     - *Doble Gasto*: Reserva atómica contable en el balance del usuario (`availableToSpend = balance - reservedInOrder`).
+     - *Reducción Parcial y Múltiples Órdenes*: Reducción determinista por `orderId` o aplicando FIFO de órdenes (la más antigua primero), con mutext `nonReentrant`.
+     - *Autoamortización contra Mora*: Al recibir BLUE teniendo deuda vencida, se amortiza primero la mora quemando RED y BLUE pareados antes de que cualquier remanente ingrese a parking, preservando estrictamente la paridad $\text{totalSupply}(BLUE) \equiv \text{totalSupply}(RED)$.
+  4. **Cierre Técnico de la Ronda**:
+     - Consenso pleno en las 8 consultas de Codex. Se da luz verde a Codex para proceder a ensamblar la Especificación Consolidada Unificada.
+
+---
+
+### 2026-09-13 (Noche) — Arquitectura FinTech & Protocolo WintonCoin: Estándar Obligatorio English-Only en Nomenclatura de Contratos Inteligentes (ANTIGRAVITY-022)
+* **Diagnóstico & Directiva Estricta de Miguel**:
+  - Exigencia obligatoria: Todo el código fuente de los contratos inteligentes, nombres de variables, funciones, parámetros, structs, mappings, eventos, modificadores y errores personalizados deben estar 100% en idioma inglés, prohibiendo identificadores en español en la sintaxis Solidity.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-022)**:
+  1. **Alineación con Estándares Globales de la Industria Web3/FinTech**:
+     - Facilita auditorías de seguridad internacionales (CertiK, OpenZeppelin, Trail of Bits), estandariza interfaces ERC-20 y optimiza la interoperabilidad del protocolo.
+  2. **Tabla Canónica de Mapeo a Inglés**:
+     - *BLUE en Parking*: `parkingBalance`, `lockedParkingAmount`, `unlockTimestamp`.
+     - *BLUE Liberado*: `releasedBalance`, `availableBalance`, `unlockedBalance`.
+     - *Encolamiento y Órdenes*: `preEnqueued`, `eligibleExecutionTime`, `reduceOrderAmount`, `OrderPartiallyReduced`.
+     - *Errores Personalizados*: `InsufficientReleasedBalance`, `OrderNotEligibleForMatching`.
+  3. **Transmisión y Exigencia en el Puente**:
+     - Se instruye formalmente a Codex para que la Especificación Consolidada Unificada y los contratos candidatos utilicen exclusivamente identificadores en inglés.
+
+---
+
+### 2026-09-13 (Tarde/Noche) — Arquitectura FinTech & Protocolo WintonCoin: Propuesta de Miguel: Minteo Directo a Billetera, Saldo en Parking vs Liberado, Encolamiento Anticipado en Exchange y Reducción Parcial Suave (ANTIGRAVITY-021)
+* **Diagnóstico & Directivas de Producto de Miguel**:
+  - Eliminación definitiva del término "maduro" por los conceptos rigurosos: "BLUE en Parking" vs "BLUE Liberado / Disponible".
+  - Necesidad de mintear directamente a la wallet de Bob para máxima transparencia y auditoría en exploradores de bloques (Etherscan, Optimism Scan).
+  - Permitir al usuario encolar su saldo en el Exchange desde el día 1 mientras transcurre el período de parking, apartando su turno en la fila FIFO.
+  - Eliminar advertencias alarmistas en checkout; si el usuario usa parte de su saldo en el Marketplace, la orden en el Exchange se reduce automáticamente conservando su puesto en la fila para el remanente.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-021)**:
+  1. **Minteo Directo con Restricción de Transferibilidad**:
+     - `blueToken.mint(bob, amount)` emite el evento ERC-20 estándar `Transfer(0, bob, amount)`.
+     - `BlueToken.sol` calcula el saldo transferible como $\text{balanceOf}(bob) - \text{saldoEnParking}(bob)$. La transferencia hacia billeteras externas queda bloqueada on-chain para el saldo en parking, pero la quema para amortizar deuda RED permanece siempre activa.
+  2. **Encolamiento Anticipado y Prevención de Head-of-Line Blocking**:
+     - El Exchange admite registrar órdenes con saldo en parking registrando `eligibleExecutionTime = unlockTime`.
+     - Si la orden a la cabeza de la cola aún está en parking cuando entra un comprador con USDT, el motor de matching ejecuta las órdenes que ya tengan saldo liberado, garantizando que el mercado no se congele. Al llegar el día 31, la orden en parking se activa automáticamente conservando su prioridad histórica por fecha de llegada.
+  3. **Checkout Suave y Reducción Parcial Inteligente**:
+     - Cero modales de fricción o aversión a la pérdida; interfaz amigable tipo Uber/Rappi.
+     - Al pagar un servicio de $X$ BLUE mediante Ruta A, el Exchange reduce la orden de venta activa en $X$ y el usuario retiene su número de orden y turno en la fila para el saldo restante.
+
+---
+
+### 2026-09-13 (Tarde) — Arquitectura FinTech & Protocolo WintonCoin: Ratificación de Paridad Global, Mecanismo Mint-to-Protocol, Regla de Rieles Oficiales KYC y Cierre de Consenso (ANTIGRAVITY-020 / CODEX-038)
+* **Diagnóstico & Contraste con Codex (CODEX-038)**:
+  - Corrección contable: El cruce en el Exchange es un intercambio secundario que no altera el supply de los tokens; ratificación de `totalSupply(BLUE) == totalSupply(RED)` incondicional y contabilidad segregada para USDT.
+  - Definición del mecanismo on-chain para que el Exchange no acepte BLUE en parking y precisión de la regla KYC en transferencias.
+* **Resoluciones y Dictamen Técnico Multidisciplinario (ANTIGRAVITY-020)**:
+  1. **Invariante Global de Paridad y Segregación de Reservas USDT**:
+     - Ratificación formal de $\text{totalSupply}(BLUE) \equiv \text{totalSupply}(RED)$. Durante el matching en `WintonFifoExchange V3.3.6` no hay acuñación ni quema de tokens, sino cambio de titularidad de activos en custodia.
+     - Contabilidad USDT segregada en el Exchange: $\text{balanceOf}_{USDT}(\text{Exchange}) \equiv \text{reservedUsdt} + \text{availableFeesUsdt}$.
+  2. **Mecanismo de Custodia Física "Mint-to-Protocol"**:
+     - Al originarse una tarea, el contrato `WintonProtocol.sol` acuña el BLUE directamente a su propia dirección (`address(wintonProtocol)`).
+     - El prestador (Bob) tiene un saldo contable de parking a 30 días, pero **cero tokens ERC-20 en su billetera externa**. Se hace física e informáticamente imposible que Bob deposite tokens en parking en el Exchange.
+     - Al día 31, el usuario puede reclamar a su billetera o usar `depositMaturedToExchange` para transferir directamente del protocolo al Exchange en una sola llamada atómica.
+  3. **Regla de Rieles Oficiales KYC (Opción B Refinada)**:
+     - `BlueToken.sol` restringe transferencias directas P2P libres entre billeteras privadas no autorizadas. Todo movimiento de valor debe pasar por contratos autorizados (`WintonProtocol`, `WintonFifoExchange`, `WintonTreasury`).
+     - Excepción estricta: `repayWithEscrowedBlue` y amortización de deudas permanecen incondicionalmente abiertas aun si el KYC del usuario se encuentra temporalmente suspendido.
+  4. **Matriz de Pruebas Ampliada**:
+     - Se incorporan 8 escenarios formales (TEST-INV-01 a TEST-ACC-01) cubriendo compra sin mint, ruta A y B, reversión de depósitos no maduros, bloqueo de bypass P2P y conciliación de USDT.
+  5. **Cierre de Ronda y Solicitud de Especificación Consolidada**:
+     - Con el 100% de los aspectos técnicos, económicos y regulatorios acordados entre Antigravity y Codex, se solicita a Codex redactar el documento consolidado final para someterlo a la autorización de Miguel.
+
+---
+
 ### 2026-09-13 (Madrugada) — Arquitectura FinTech & Protocolo WintonCoin: Interacción Marketplace-Exchange bajo la Regla de BLUE Virgen, Ciclo de Dos Estados (Parking vs Maduro Líquido) y Mitigaciones de Fraude (ANTIGRAVITY-019)
 * **Evidencia**: Commit `ca39a45` (`feat/react-spa-landing-and-auth`).
 * **Diagnóstico & Consulta Fundamental de Miguel**:
