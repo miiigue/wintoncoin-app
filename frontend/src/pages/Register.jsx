@@ -151,10 +151,59 @@ function Register() {
       sessionStorage.setItem('policyModalShown', 'true');
     }
 
-    // 5. Comprobar si ya había una verificación pendiente en localStorage
+    // 5. Comprobar si ya había una verificación pendiente en localStorage (Persistencia al cerrar o cambiar de app en móvil)
+    const pendingStep = localStorage.getItem('pendingVerificationStep');
     const pendingEmail = localStorage.getItem('pendingVerificationEmail');
+    const pendingPhone = localStorage.getItem('pendingVerificationPhone');
+    const pendingTime = localStorage.getItem('pendingVerificationTime');
+
     if (pendingEmail) {
       setEmail(pendingEmail);
+    }
+    if (pendingPhone) {
+      setPhone(pendingPhone);
+    }
+
+    if (pendingStep === 'otp' && pendingEmail) {
+      const elapsed = Date.now() - (parseInt(pendingTime, 10) || 0);
+      const OTP_EXPIRATION_MS = 15 * 60 * 1000; // 15 minutos de validez estándar FinTech
+
+      if (elapsed < OTP_EXPIRATION_MS) {
+        // Restaurar pantalla OTP inmediatamente para evitar parpadeos o formularios vacíos
+        setCurrentStep('otp');
+        const secondsLeft = Math.max(0, 60 - Math.floor(elapsed / 1000));
+        setResendTimer(secondsLeft);
+        setCanResend(secondsLeft === 0);
+
+        // Validación asíncrona con el backend (Zero-Trust: comprobar si sigue activa en base de datos)
+        if (pendingPhone) {
+          fetch(`${API_URL}/api/auth/pending-status`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: pendingPhone, email: pendingEmail }),
+          })
+            .then(res => res.json())
+            .then(statusData => {
+              if (statusData && statusData.isValid === false) {
+                // Si expiró o ya no existe en el servidor, limpiar y volver a paso 1
+                localStorage.removeItem('pendingVerificationStep');
+                localStorage.removeItem('pendingVerificationTime');
+                localStorage.removeItem('pendingVerificationPhone');
+                localStorage.removeItem('pendingVerificationEmail');
+                setCurrentStep(1);
+              }
+            })
+            .catch(err => {
+              console.warn('[Register] Error verificando pending-status con servidor:', err);
+            });
+        }
+      } else {
+        // Expirado por tiempo local
+        localStorage.removeItem('pendingVerificationStep');
+        localStorage.removeItem('pendingVerificationTime');
+        localStorage.removeItem('pendingVerificationPhone');
+        localStorage.removeItem('pendingVerificationEmail');
+      }
     }
   }, []);
 
@@ -419,6 +468,8 @@ function Register() {
 
       if (response.ok) {
         showCustomAlert(result.message || 'Código de verificación enviado a tu correo.');
+        localStorage.setItem('pendingVerificationStep', 'otp');
+        localStorage.setItem('pendingVerificationTime', Date.now().toString());
         localStorage.setItem('pendingVerificationPhone', phone.trim());
         localStorage.setItem('pendingVerificationEmail', email.trim());
         setCurrentStep('otp');
@@ -468,6 +519,8 @@ function Register() {
         localStorage.setItem('token', result.token);
         localStorage.setItem('username', result.username);
 
+        localStorage.removeItem('pendingVerificationStep');
+        localStorage.removeItem('pendingVerificationTime');
         localStorage.removeItem('pendingVerificationPhone');
         localStorage.removeItem('pendingVerificationEmail');
         localStorage.removeItem('pending_referral_code');
@@ -502,6 +555,7 @@ function Register() {
       const result = await response.json();
       if (response.ok) {
         showCustomAlert(result.message || 'Nuevo código enviado.');
+        localStorage.setItem('pendingVerificationTime', Date.now().toString());
         setResendTimer(60);
         setCanResend(false);
       } else {
@@ -884,6 +938,22 @@ function Register() {
                 Reenviar código
               </button>
               {!canResend && <span>(espera {resendTimer}s)</span>}
+            </div>
+
+            {/* Opción para corregir correo o volver al paso 1 */}
+            <div style={{ marginTop: '1.25rem', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem' }}>
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                style={{ width: '100%', fontSize: '0.88rem', padding: '10px' }}
+                onClick={() => {
+                  localStorage.removeItem('pendingVerificationStep');
+                  localStorage.removeItem('pendingVerificationTime');
+                  setCurrentStep(1);
+                }}
+              >
+                &larr; Modificar datos o cambiar correo
+              </button>
             </div>
           </div>
         )}

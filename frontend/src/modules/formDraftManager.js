@@ -4,7 +4,7 @@
  * ══════════════════════════════════════════════════════════════════════════════
  * Permite serializar, resguardar y restaurar el 100% de los datos de cualquier
  * formulario del ecosistema (Damnificados SOS, Voluntarios SOS, Comerciantes,
- * Refugios, etc.) en 'sessionStorage'.
+ * Refugios, etc.) en 'localStorage'.
  *
  * Ofrece la experiencia estándar de la industria ("In-Flight Editing"):
  * Si el usuario se equivoca de correo o de cualquier otro campo al recibir el OTP,
@@ -14,10 +14,10 @@
  */
 
 /**
- * Guarda todos los campos editables de un formulario en sessionStorage
+ * Guarda todos los campos editables de un formulario en localStorage (persistente ante cierre de app)
  * 
  * @param {string|HTMLFormElement} form - ID del formulario o elemento HTML
- * @param {string} storageKey - Clave única para sessionStorage
+ * @param {string} storageKey - Clave única para localStorage
  */
 export function saveFormDraft(form, storageKey) {
     try {
@@ -44,17 +44,17 @@ export function saveFormDraft(form, storageKey) {
         });
 
         draftData._timestamp = Date.now();
-        sessionStorage.setItem(storageKey, JSON.stringify(draftData));
+        localStorage.setItem(storageKey, JSON.stringify(draftData));
     } catch (e) {
         console.warn(`[FORM DRAFT] No se pudo guardar el borrador (${storageKey}):`, e.message);
     }
 }
 
 /**
- * Restaura todos los campos de un formulario desde sessionStorage y dispara eventos reactivos
+ * Restaura todos los campos de un formulario desde localStorage/sessionStorage y dispara eventos reactivos
  * 
  * @param {string|HTMLFormElement} form - ID del formulario o elemento HTML
- * @param {string} storageKey - Clave única de sessionStorage
+ * @param {string} storageKey - Clave única de almacenamiento
  * @returns {boolean} true si se restauraron datos válidos
  */
 export function restoreFormDraft(form, storageKey) {
@@ -62,7 +62,8 @@ export function restoreFormDraft(form, storageKey) {
         const formEl = (typeof form === 'string') ? document.getElementById(form) : form;
         if (!formEl) return false;
 
-        const rawData = sessionStorage.getItem(storageKey);
+        // Comprobar primero en localStorage (persistente), con fallback a sessionStorage
+        const rawData = localStorage.getItem(storageKey) || sessionStorage.getItem(storageKey);
         if (!rawData) return false;
 
         const draftData = JSON.parse(rawData);
@@ -70,6 +71,7 @@ export function restoreFormDraft(form, storageKey) {
 
         // Expiración del borrador a las 24 horas
         if (draftData._timestamp && (Date.now() - draftData._timestamp > 24 * 60 * 60 * 1000)) {
+            localStorage.removeItem(storageKey);
             sessionStorage.removeItem(storageKey);
             return false;
         }
@@ -100,12 +102,13 @@ export function restoreFormDraft(form, storageKey) {
 }
 
 /**
- * Limpia el borrador almacenado en sessionStorage
+ * Limpia el borrador almacenado en localStorage y sessionStorage
  * 
  * @param {string} storageKey 
  */
 export function clearFormDraft(storageKey) {
     try {
+        localStorage.removeItem(storageKey);
         sessionStorage.removeItem(storageKey);
     } catch (e) {
         // Silencioso

@@ -40,16 +40,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // IDs de los checkboxes legales obligatorios (Habeas Data y Declaración Jurada)
     const requiredCheckboxIds = ['sos-data-consent', 'sos-sworn-declaration'];
 
+    // Colección en memoria de archivos de evidencia seleccionados (acumulativo y con eliminación)
+    let selectedEvidenceFiles = [];
+
     /**
-     * Evalúa si TODOS los campos obligatorios tienen contenido y
-     * AMBOS checkboxes legales están marcados. Activa o desactiva
-     * el botón de envío en consecuencia con feedback visual.
+     * Evalúa si TODOS los campos obligatorios tienen contenido,
+     * AMBOS checkboxes legales están marcados, y SE HA ADJUNTADO AL MENOS 1 FOTO.
+     * Solo activa el botón de envío si se cumplen TODAS las condiciones.
      * 
-     * Analogía: Es como una puerta de seguridad que solo se abre
-     * cuando todas las llaves (campos) están en su lugar.
+     * Principio FinTech: Zero Unverified Claims. Ninguna solicitud de emergencia
+     * puede enviarse a revisión sin soporte probatorio de daños o identidad.
      */
     function evaluateFormCompleteness() {
-        // Verificar que todos los campos de texto tengan contenido válido (no solo prefijos iniciales)
+        // 1. Verificar que todos los campos de texto tengan contenido válido (no solo prefijos)
         const allFieldsFilled = requiredFieldIds.every(id => {
             const el = document.getElementById(id);
             if (!el) return false;
@@ -59,20 +62,50 @@ document.addEventListener('DOMContentLoaded', () => {
             return val !== '';
         });
 
-        // Verificar que todos los checkboxes legales estén marcados (checked)
+        // 2. Verificar que todos los checkboxes legales estén marcados (checked)
         const allCheckboxesChecked = requiredCheckboxIds.every(id => {
             const el = document.getElementById(id);
             return el && el.checked;
         });
 
-        // Solo habilitar el botón si AMBAS condiciones se cumplen
-        const isComplete = allFieldsFilled && allCheckboxesChecked;
+        // 3. Regla Estricta: Mínimo 1 imagen obligatoria (o enlace externo verificado)
+        const photoLinkInput = document.getElementById('sos-photo-link');
+        const hasExternalLink = photoLinkInput && photoLinkInput.value.trim().length > 5;
+        const hasAttachedFiles = selectedEvidenceFiles.length >= 1;
+        const hasEvidence = hasAttachedFiles || hasExternalLink;
+
+        // 4. Actualizar badge visual en tiempo real para guiar al usuario en móviles
+        const photosBadge = document.getElementById('sos-photos-badge');
+        if (photosBadge) {
+            if (hasEvidence) {
+                const count = selectedEvidenceFiles.length;
+                photosBadge.textContent = count > 0 ? `✅ ${count} foto(s) lista(s)` : '✅ Enlace listo';
+                photosBadge.style.background = '#ecfdf5';
+                photosBadge.style.color = '#059669';
+                photosBadge.style.borderColor = '#a7f3d0';
+            } else {
+                photosBadge.textContent = '⚠️ Obligatorio: Mínimo 1 foto';
+                photosBadge.style.background = '#fef2f2';
+                photosBadge.style.color = '#dc2626';
+                photosBadge.style.borderColor = '#fecaca';
+            }
+        }
+
+        // Solo habilitar el botón si TODAS las condiciones se cumplen
+        const isComplete = allFieldsFilled && allCheckboxesChecked && hasEvidence;
 
         if (submitBtn) {
             // Activar/Desactivar el botón de envío con feedback visual
             submitBtn.disabled = !isComplete;
             submitBtn.style.opacity = isComplete ? '1' : '0.5';
             submitBtn.style.cursor = isComplete ? 'pointer' : 'not-allowed';
+            if (!isComplete) {
+                submitBtn.title = !hasEvidence 
+                    ? 'Debes adjuntar al menos 1 fotografía de evidencia para activar el envío.' 
+                    : 'Completa todos los campos obligatorios y acepta los términos para activar el envío.';
+            } else {
+                submitBtn.title = 'Enviar solicitud de censo con evidencias adjuntas';
+            }
         }
     }
 
@@ -95,6 +128,13 @@ document.addEventListener('DOMContentLoaded', () => {
             el.addEventListener('change', evaluateFormCompleteness);
         }
     });
+
+    // Listener para el enlace manual opcional de fotos
+    const photoLinkInputEl = document.getElementById('sos-photo-link');
+    if (photoLinkInputEl) {
+        photoLinkInputEl.addEventListener('input', evaluateFormCompleteness);
+        photoLinkInputEl.addEventListener('change', evaluateFormCompleteness);
+    }
 
     // Ejecutar evaluación inicial por si el navegador autocompleta campos
     evaluateFormCompleteness();
@@ -149,33 +189,109 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // SECCIÓN 4: VISTA PREVIA DE ARCHIVOS DE EVIDENCIA SELECCIONADOS
+    // SECCIÓN 4: VISTA PREVIA Y CONTROL TÁCTIL DE ARCHIVOS DE EVIDENCIA (PWA)
     // ═══════════════════════════════════════════════════════════════════════
 
     const photoFilesInput = document.getElementById('sos-photo-files');
     const photoPreviewsContainer = document.getElementById('sos-photo-previews');
+    const photoDropzone = document.getElementById('sos-photo-dropzone');
 
-    if (photoFilesInput && photoPreviewsContainer) {
-        photoFilesInput.addEventListener('change', () => {
-            // Limpiar previews anteriores
-            photoPreviewsContainer.innerHTML = '';
-            // Limitar a 15 archivos máximo
-            const files = Array.from(photoFilesInput.files).slice(0, 15);
-            files.forEach(file => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    // Crear miniatura de preview para cada foto seleccionada
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.style.width = '60px';
-                    img.style.height = '60px';
-                    img.style.objectFit = 'cover';
-                    img.style.borderRadius = '6px';
-                    img.style.border = '1px solid rgba(219,39,119,0.5)';
-                    photoPreviewsContainer.appendChild(img);
-                };
-                reader.readAsDataURL(file);
+    // 4.1 Activación táctil para móviles y PWA (Disparo nativo de cámara/galería)
+    if (photoDropzone && photoFilesInput) {
+        photoDropzone.addEventListener('click', () => {
+            photoFilesInput.click();
+        });
+
+        // Soporte de accesibilidad por teclado
+        photoDropzone.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                photoFilesInput.click();
+            }
+        });
+    }
+
+    // 4.2 Renderizado de previsualizaciones interactivas con botón individual de eliminar
+    function renderPhotoPreviews() {
+        if (!photoPreviewsContainer) return;
+        photoPreviewsContainer.innerHTML = '';
+
+        selectedEvidenceFiles.forEach((file, index) => {
+            const card = document.createElement('div');
+            card.style.position = 'relative';
+            card.style.width = '72px';
+            card.style.height = '72px';
+            card.style.borderRadius = '10px';
+            card.style.overflow = 'hidden';
+            card.style.border = '2px solid #db2777';
+            card.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+            card.style.background = '#f1f5f9';
+
+            const img = document.createElement('img');
+            const blobUrl = URL.createObjectURL(file);
+            img.src = blobUrl;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
+            img.alt = file.name;
+
+            // Botón eliminar ✕
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.innerHTML = '&times;';
+            removeBtn.title = 'Eliminar esta foto';
+            removeBtn.style.position = 'absolute';
+            removeBtn.style.top = '3px';
+            removeBtn.style.right = '3px';
+            removeBtn.style.width = '20px';
+            removeBtn.style.height = '20px';
+            removeBtn.style.background = 'rgba(220, 38, 38, 0.95)';
+            removeBtn.style.color = '#ffffff';
+            removeBtn.style.border = 'none';
+            removeBtn.style.borderRadius = '50%';
+            removeBtn.style.fontSize = '14px';
+            removeBtn.style.fontWeight = 'bold';
+            removeBtn.style.cursor = 'pointer';
+            removeBtn.style.display = 'flex';
+            removeBtn.style.alignItems = 'center';
+            removeBtn.style.justifyContent = 'center';
+            removeBtn.style.boxShadow = '0 1px 4px rgba(0,0,0,0.3)';
+
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                URL.revokeObjectURL(blobUrl);
+                selectedEvidenceFiles.splice(index, 1);
+                renderPhotoPreviews();
+                evaluateFormCompleteness();
             });
+
+            card.appendChild(img);
+            card.appendChild(removeBtn);
+            photoPreviewsContainer.appendChild(card);
+        });
+
+        // Reevaluar estado del formulario inmediatamente
+        evaluateFormCompleteness();
+    }
+
+    if (photoFilesInput) {
+        photoFilesInput.addEventListener('change', () => {
+            if (!photoFilesInput.files || photoFilesInput.files.length === 0) return;
+
+            // Acumular archivos seleccionados sin exceder 15
+            const incomingFiles = Array.from(photoFilesInput.files);
+            incomingFiles.forEach(newFile => {
+                // Prevenir duplicados idénticos por nombre y tamaño
+                const alreadyAdded = selectedEvidenceFiles.some(f => f.name === newFile.name && f.size === newFile.size);
+                if (!alreadyAdded && selectedEvidenceFiles.length < 15) {
+                    selectedEvidenceFiles.push(newFile);
+                }
+            });
+
+            // Limpiar el valor del input para permitir re-selección o disparos sucesivos de cámara
+            photoFilesInput.value = '';
+
+            renderPhotoPreviews();
         });
     }
 
@@ -216,10 +332,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const dataConsent = document.getElementById('sos-data-consent').checked;
         const swornDeclaration = document.getElementById('sos-sworn-declaration').checked;
 
-        // ── 5.2 Validación Final de Checkboxes (Defensa en profundidad) ────
-        // Aunque el botón esté deshabilitado, se valida de nuevo por seguridad
+        // ── 5.2 Validación Final de Checkboxes y Evidencias (Defensa en profundidad Zero-Trust) ────
         if (!dataConsent || !swornDeclaration) {
             showError('Debes marcar las casillas de consentimiento legal y declaración jurada.');
+            return;
+        }
+
+        const hasFinalEvidence = selectedEvidenceFiles.length >= 1 || (photoLink && photoLink.length > 5);
+        if (!hasFinalEvidence) {
+            showError('⚠️ Es obligatorio adjuntar al menos una (1) foto de evidencia para enviar la solicitud.');
+            evaluateFormCompleteness();
             return;
         }
 
@@ -232,10 +354,10 @@ document.addEventListener('DOMContentLoaded', () => {
         let evidenceUrls = [];
 
         // ── 5.4 Subida Directa de Archivos (Fotos desde teléfono/PC - Hasta 15 fotos) ──
-        if (photoFilesInput && photoFilesInput.files.length > 0) {
+        if (selectedEvidenceFiles.length > 0) {
             const formData = new FormData();
             formData.append('max_images', '15');
-            Array.from(photoFilesInput.files).slice(0, 15).forEach(f => formData.append('images', f));
+            selectedEvidenceFiles.slice(0, 15).forEach(f => formData.append('images', f));
 
             try {
                 const upRes = await fetch(`${API_URL}/api/public/sos-venezuela/upload-evidence`, {
@@ -245,9 +367,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const upData = await upRes.json();
                 if (upRes.ok && upData.success && Array.isArray(upData.urls)) {
                     evidenceUrls.push(...upData.urls);
+                } else {
+                    console.warn('[SOS UPLOAD] Error o formato inesperado en respuesta de subida:', upData);
                 }
             } catch (upErr) {
-                // No bloquear el envío si falla la subida de fotos
                 console.warn('[SOS UPLOAD] No se pudieron subir algunos archivos:', upErr);
             }
         }
@@ -255,6 +378,17 @@ document.addEventListener('DOMContentLoaded', () => {
         // Agregar enlace manual de Google Fotos/Drive si fue proporcionado
         if (photoLink) {
             evidenceUrls.push(photoLink);
+        }
+
+        // Validación estricta: Si se exigió evidencia y la subida falló por completo
+        if (evidenceUrls.length === 0) {
+            showError('❌ No se pudieron cargar las fotos de evidencia. Verifica tu conexión a internet e intenta nuevamente.');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+                evaluateFormCompleteness();
+            }
+            return;
         }
 
         // ── 5.5 Envío del Registro al API Backend ──────────────────────────
@@ -320,12 +454,13 @@ document.addEventListener('DOMContentLoaded', () => {
             saveFormDraft(victimForm, 'winton_victim_draft_data');
 
             try {
-                sessionStorage.setItem('sos_pending_otp', JSON.stringify({
+                localStorage.setItem('sos_pending_otp', JSON.stringify({
                     email: window._registeredVictimEmail,
                     dossier_number: data.dossier_number,
                     is_new_user: window._isNewUser,
                     timestamp: Date.now()
                 }));
+                sessionStorage.removeItem('sos_pending_otp');
             } catch (sErr) {}
 
             // Configurar UI de la tarjeta OTP según si es usuario nuevo o existente
@@ -369,9 +504,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ── 5.6 Restaurar Estado de OTP Pendiente al Recargar (sessionStorage) ──
+    // ── 5.6 Restaurar Estado de OTP Pendiente al Recargar (localStorage) ──
     try {
-        const savedOtpState = sessionStorage.getItem('sos_pending_otp');
+        const savedOtpState = localStorage.getItem('sos_pending_otp') || sessionStorage.getItem('sos_pending_otp');
         if (savedOtpState) {
             const parsed = JSON.parse(savedOtpState);
             // Expiración a los 15 minutos (900,000 ms)
@@ -387,10 +522,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Restaurar los datos en el formulario en memoria por si el usuario decide hacer clic en "Modificar datos"
                 restoreFormDraft(victimForm, 'winton_victim_draft_data');
             } else {
+                localStorage.removeItem('sos_pending_otp');
                 sessionStorage.removeItem('sos_pending_otp');
             }
         }
     } catch (e) {
+        localStorage.removeItem('sos_pending_otp');
         sessionStorage.removeItem('sos_pending_otp');
     }
 
@@ -513,7 +650,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error(data.message || 'Código incorrecto.');
                 }
 
-                // Limpiar estado de OTP pendiente y borrador en sessionStorage
+                // Limpiar estado de OTP pendiente y borrador en localStorage y sessionStorage
+                localStorage.removeItem('sos_pending_otp');
                 sessionStorage.removeItem('sos_pending_otp');
                 clearFormDraft('winton_victim_draft_data');
 
@@ -822,10 +960,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         function restorePendingVolunteerSession() {
             try {
-                const storedVolPending = sessionStorage.getItem('winton_vol_pending');
+                const storedVolPending = localStorage.getItem('winton_vol_pending') || sessionStorage.getItem('winton_vol_pending');
                 if (storedVolPending) {
                     const parsed = JSON.parse(storedVolPending);
-                    if (parsed && parsed.email) {
+                    if (parsed && parsed.email && (!parsed.timestamp || (Date.now() - parsed.timestamp < 15 * 60 * 1000))) {
                         currentVolEmail = parsed.email;
                         isVolunteerNewUser = (parsed.isNewUser !== false);
 
@@ -839,9 +977,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             passContainer.style.display = isVolunteerNewUser ? 'block' : 'none';
                         }
                         validateVolOtpForm();
+                    } else {
+                        localStorage.removeItem('winton_vol_pending');
+                        sessionStorage.removeItem('winton_vol_pending');
                     }
                 }
             } catch (e) {
+                localStorage.removeItem('winton_vol_pending');
                 sessionStorage.removeItem('winton_vol_pending');
             }
         }
@@ -944,11 +1086,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentVolEmail = payload.email;
                 isVolunteerNewUser = (data.is_new_user !== false);
 
-                // Guardar en sessionStorage para persistencia ante F5 / recargas
-                sessionStorage.setItem('winton_vol_pending', JSON.stringify({
+                // Guardar en localStorage para persistencia ante cierre de app / recargas
+                localStorage.setItem('winton_vol_pending', JSON.stringify({
                     email: currentVolEmail,
-                    isNewUser: isVolunteerNewUser
+                    isNewUser: isVolunteerNewUser,
+                    timestamp: Date.now()
                 }));
+                sessionStorage.removeItem('winton_vol_pending');
 
                 // Ocultar formulario y mostrar tarjeta OTP
                 volForm.style.display = 'none';
@@ -1132,6 +1276,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // ── 9.3 Botón de Regresar al Formulario (Modificar Datos con Relleno Automático) ───
         if (btnVolBackToForm) {
             btnVolBackToForm.addEventListener('click', () => {
+                localStorage.removeItem('winton_vol_pending');
                 sessionStorage.removeItem('winton_vol_pending');
                 restoreVolunteerFormData();
                 if (volResultCard) volResultCard.style.display = 'none';
@@ -1175,8 +1320,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         throw new Error(data.message || 'Código OTP incorrecto.');
                     }
 
-                    // Limpiar estado de verificación pendiente y borrador de sessionStorage
+                    // Limpiar estado de verificación pendiente y borrador de localStorage y sessionStorage
+                    localStorage.removeItem('winton_vol_pending');
                     sessionStorage.removeItem('winton_vol_pending');
+                    localStorage.removeItem('winton_vol_draft_data');
                     sessionStorage.removeItem('winton_vol_draft_data');
 
                     // Guardar credenciales de sesión activa para el voluntario
