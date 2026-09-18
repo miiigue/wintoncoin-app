@@ -230,17 +230,45 @@
                     <small style="color: #64748b; margin-top: 4px; display: block;">💡 Describe los detalles principales para ayudar a nuestro equipo a priorizar tu atención.</small>
                 </div>
 
-                <!-- Evidencias Fotográficas -->
+                <!-- Evidencias Fotográficas (Requisito Obligatorio: Mínimo 1 Foto) -->
                 <div style="background: #f8fafc; padding: 1.25rem; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.02);">
-                    <label for="sos-photo-files" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 0.5rem;">
-                        📷 Subir Fotos de Evidencia (Vivienda / Daños / Documentos):
-                    </label>
-                    <input type="file" id="sos-photo-files" accept="image/*" multiple style="width: 100%; padding: 10px; border-radius: 8px; border: 1px dashed #db2777; background: #ffffff; color: #0f172a; cursor: pointer;">
-                    <small style="color: #64748b; margin-top: 6px; display: block;">💡 Sube mín. 5 fotos que describan lo ocurrido (hasta 15 fotos permitidas).</small>
-                    <div id="sos-photo-previews" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;"></div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 8px;">
+                        <label style="font-weight: 700; color: #1e293b; font-size: 0.98rem; margin: 0;">
+                            📷 Subir Fotos de Evidencia (Vivienda / Daños / Documentos): <span style="color: #db2777;">*</span>
+                        </label>
+                        <span id="sos-photos-badge" style="font-size: 0.82rem; font-weight: 700; padding: 4px 12px; border-radius: 20px; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; transition: all 0.3s ease;">
+                            ⚠️ Obligatorio: Mínimo 1 foto
+                        </span>
+                    </div>
 
-                    <div style="margin-top: 1rem; border-top: 1px dashed #cbd5e1; padding-top: 1rem;">
-                        <label for="sos-photo-link" style="font-size: 0.9rem; color: #475569; font-weight: 600; display: block; margin-bottom: 0.3rem;">O pega un Enlace de Google Fotos / Drive (Opcional):</label>
+                    <!-- Botón y Dropzone Táctil PWA Mobile-First (Garantiza activación táctil en cualquier teléfono/PWA) -->
+                    <div id="sos-photo-dropzone" role="button" tabindex="0" style="cursor: pointer; text-align: center; padding: 1.5rem 1rem; border: 2px dashed #db2777; border-radius: 12px; background: #fff5f8; transition: all 0.2s ease; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
+                        <span style="font-size: 2.3rem; line-height: 1;">📸</span>
+                        <div style="font-weight: 700; color: #be123c; font-size: 1.05rem;">
+                            Toca aquí para seleccionar fotos
+                        </div>
+                        <div style="font-size: 0.84rem; color: #64748b;">
+                            Cámara o Galería de tu teléfono (JPG, PNG, WebP)
+                        </div>
+                        <button type="button" id="sos-btn-select-photos" style="margin-top: 6px; padding: 10px 22px; background: linear-gradient(135deg, #db2777, #be123c); color: #ffffff; border: none; border-radius: 25px; font-weight: 700; font-size: 0.92rem; cursor: pointer; box-shadow: 0 4px 10px rgba(219,39,119,0.3); pointer-events: none;">
+                            📷 Abrir Galería o Cámara
+                        </button>
+                    </div>
+
+                    <!-- Input nativo oculto pero accesible programáticamente -->
+                    <input type="file" id="sos-photo-files" accept="image/*" multiple style="display: none;">
+
+                    <small style="color: #64748b; margin-top: 8px; display: block; font-size: 0.85rem;">
+                        💡 <strong>Mínimo 1 foto obligatoria</strong> para activar el botón de envío (recomendado 5 fotos, hasta 15 permitidas).
+                    </small>
+
+                    <!-- Previsualizaciones interactivas con botón de eliminación individual -->
+                    <div id="sos-photo-previews" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px;"></div>
+
+                    <div style="margin-top: 1.25rem; border-top: 1px dashed #cbd5e1; padding-top: 1rem;">
+                        <label for="sos-photo-link" style="font-size: 0.9rem; color: #475569; font-weight: 600; display: block; margin-bottom: 0.3rem;">
+                            O pega un Enlace de Google Fotos / Drive (Opcional):
+                        </label>
                         <input type="url" id="sos-photo-link" placeholder="Ej: https://photos.app.goo.gl/..." style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a;">
                     </div>
                 </div>

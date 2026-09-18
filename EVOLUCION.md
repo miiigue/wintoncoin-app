@@ -13,6 +13,51 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-18 — Componente Táctil PWA Mobile-First para Subida de Evidencias Fotográficas y Regla Estricta de Activación (Mín. 1 Foto) en Censo SOS Venezuela (ANTIGRAVITY-035)
+* **Diagnóstico del Incidente en PWA Móvil**:
+  - *Comportamiento Observado*: Al probar el formulario de registro de damnificados de la campaña SOS Venezuela (`/sos-venezuela.html#registro-damnificados`) desde la PWA instalada en teléfonos móviles, al pulsar el área de subida de imágenes el selector de archivos / cámara no se abría. Asimismo, el formulario permitía ser enviado sin adjuntar ninguna evidencia fotográfica, activando el botón de envío únicamente con los campos de texto y las casillas legales.
+  - *Causas Técnicas Identificadas*:
+    1. **Incompatibilidad Táctil del `<input type="file">` plano en PWA**: El selector dependía de un elemento `<input type="file">` estilizado con `padding` y borde discontinuo. En navegadores móviles y entornos PWA (Android Chrome y WebKit), los eventos táctiles en las áreas de padding o contenedores con estilos personalizados no activan el disparador nativo de la cámara o galería si no se cuenta con un manejador explícito `click` con propagación controlada hacia el input nativo.
+    2. **Omisión de Evidencias en `evaluateFormCompleteness()`**: La función de evaluación de completitud del formulario solo verificaba la validez de los campos de texto obligatorios (`requiredFieldIds`) y las casillas de consentimiento legal, omitiendo comprobar si el usuario había adjuntado al menos una imagen de evidencia o un enlace verificado. En consecuencia, el botón `sos-submit-btn` se habilitaba de forma prematura permitiendo envíos con 0 imágenes.
+* **Acciones Correctivas y Blindaje Mobile-First**:
+  1. **Dropzone Táctil PWA Mobile-First**:
+     - En `sos-venezuela.html`, se rediseñó el área de evidencias incorporando un Dropzone táctil interactivo con botón destacado `📷 Abrir Galería o Cámara`.
+     - Se ocultó el input nativo (`display: none`) y se vinculó un listener en `sos-venezuela.js` que dispara programáticamente `photoFilesInput.click()` tanto por toque táctil como por accesibilidad de teclado (`Enter` / `Space`).
+  2. **Regla de Negocio Estricta: Mínimo 1 Imagen Obligatoria**:
+     - En `sos-venezuela.js`, se actualizó `evaluateFormCompleteness()` para exigir como condición obligatoria que `selectedEvidenceFiles.length >= 1` o `photoLink.length > 5`.
+     - El botón de envío `sos-submit-btn` permanece estrictamente bloqueado (`disabled = true`, opacidad reducida y cursor `not-allowed`) hasta que se adjunte al menos una fotografía.
+  3. **Feedback Visual y Previsualización Interactiva con Eliminación**:
+     - Implementado un badge dinámico (`#sos-photos-badge`) que guía al usuario en tiempo real: `⚠️ Obligatorio: Mínimo 1 foto` mientras no haya imágenes, y `✅ X foto(s) lista(s)` una vez seleccionadas.
+     - Implementada la función `renderPhotoPreviews()` con tarjetas de previsualización que permiten eliminar fotos de forma individual (`✕`) con liberación limpia de memoria (`URL.revokeObjectURL`).
+     - Soporte acumulativo que permite al usuario tomar o seleccionar fotos sucesivamente sin perder las anteriores (hasta el límite de 15).
+  4. **Defensa en Profundidad (Zero-Trust) en el Envío**:
+     - En el manejador `submit`, se valida nuevamente que existan evidencias antes de despachar hacia `upload-evidence` y `register-victim`, impidiendo la creación de expedientes humanitarios sin respaldo probatorio.
+
+---
+
+### 2026-09-17 — Persistencia de Sesión OTP en Registro y Formularios Móviles ante Cierre de App y Multitarea Android/PWA: Migración a localStorage con TTL (15 min), Restauración Automática y Botón de Corrección de Datos (ANTIGRAVITY-034)
+* **Diagnóstico & Causa Raíz del Problema en Teléfonos Móviles**:
+  - *Comportamiento Observado*: Al completar el formulario de registro y pasar a la pantalla del código OTP, el usuario minimizaba o cerraba la aplicación de WintonCoin en su teléfono para abrir su gestor de correo (Gmail, Outlook, Yahoo) y copiar el código de 6 dígitos. Al volver a abrir WintonCoin (WebView en APK o PWA), la aplicación no mantenía la pantalla del código OTP, sino que se reiniciaba en el formulario vacío del Paso 1, perdiendo el estado de verificación e impidiendo ingresar el código recibido.
+  - *Causas Técnicas Identificadas*:
+    1. **Volatilidad de `sessionStorage` en el Ciclo de Vida Móvil**: Los módulos de borrador (`formDraftManager.js`) y de registro SOS (`sos-venezuela.js`) utilizaban `sessionStorage` para guardar los identificadores de verificación pendiente (`sos_pending_otp`, `winton_vol_pending`, `winton_victim_draft_data`, `winton_vol_draft_data`). En sistemas operativos móviles (Android/iOS), cuando el sistema suspende la actividad del WebView o el usuario cierra la app para ir al correo, el contexto de navegación de `sessionStorage` se destruye por completo.
+    2. **Inicialización Estática en React (`Register.jsx`)**: El componente React SPA (`frontend/src/pages/Register.jsx`) inicializaba siempre su estado en `const [currentStep, setCurrentStep] = useState(1)`. Aunque leía `pendingVerificationEmail` del almacenamiento, nunca evaluaba si había un paso OTP activo ni actualizaba `currentStep` a `'otp'`, forzando al usuario a ver el Paso 1 en cada inicio de la aplicación.
+    3. **Ausencia de Validación Cruzada con Backend**: No se validaba contra el endpoint `/api/auth/pending-status` si la verificación continuaba vigente en la base de datos para restaurar la vista OTP de forma segura y consistente.
+* **Solución Implementada y Arquitectura de Resiliencia**:
+  1. **Migración a `localStorage` con TTL Estricto (15 Minutos)**:
+     - En `frontend/src/modules/formDraftManager.js` y `frontend/src/pages/sos-venezuela.js`, se migraron todas las claves de persistencia de borradores y sesiones de verificación pendiente de `sessionStorage` a `localStorage`.
+     - Se incorporó una marca de tiempo (`_timestamp`) con validación de caducidad máxima de 15 minutos (estándar de ciberseguridad FinTech bancaria), eliminando registros obsoletos automáticamente para evitar estados zombies.
+  2. **Restauración Automática Inmediata en `Register.jsx`**:
+     - Al montar el componente (`useEffect`), se verifica si existe `pendingVerificationStep === 'otp'` y `pendingVerificationEmail` con antigüedad menor a 15 minutos.
+     - Si es válido, se restaura inmediatamente `setCurrentStep('otp')`, se precargan `email` y `phone`, y se sincroniza el temporizador de cuenta regresiva del botón de reenvío.
+     - Se ejecuta una validación asíncrona Zero-Trust contra `POST /api/auth/pending-status`. Si el servidor indica que el registro ya expiró o fue completado, se limpia el almacenamiento y se restablece al Paso 1 limpiamente.
+  3. **Control Total para el Usuario ("In-Flight Editing")**:
+     - Se incorporó en la pantalla OTP de `Register.jsx` un botón de escape: `← Modificar datos o cambiar correo`.
+     - Si el usuario cometió un error tipográfico en su correo o desea modificar cualquier dato, puede regresar al formulario inicial de forma explícita y sin quedar bloqueado.
+  4. **Limpieza Auditada al Completar Verificación**:
+     - Al confirmar exitosamente el código OTP (`handleVerifyOtp`), se purgan de forma atómica todas las claves de registro pendiente (`pendingVerificationStep`, `pendingVerificationTime`, `pendingVerificationPhone`, `pendingVerificationEmail`).
+
+---
+
 ### 2026-09-17 — Resolución de Pantalla en Blanco en Android WebView & PWA Móvil: Enrutamiento Resiliente (/index.html, Fallback Comodín *), React ErrorBoundary, Base Absoluta y Reglas SPA en .htaccess (ANTIGRAVITY-033)
 * **Diagnóstico del Incidente (Producción & Demo en Teléfonos)**:
   - Al abrir la aplicación en teléfonos Android (tanto en el APK nativo con `WintonWebViewContainer` como en la PWA instalada en producción y demo), la pantalla quedaba completamente en blanco con únicamente el fondo degradado (`.background-mesh`) y el listón estático `DEMO MODE` en demo, sin renderizar el contenido dentro de `#root`.
