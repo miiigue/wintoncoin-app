@@ -295,14 +295,24 @@ async function verifyAndCommitEntity({ client, email, otpCode, password, expecte
         user = (insertUserRes && insertUserRes.rows && insertUserRes.rows[0]) ? insertUserRes.rows[0] : { id: 1, username, email: normEmail, is_verified: true };
 
         // Procesar bono de bienvenida (200 BLUE IOU) y referidos de forma DRY y centralizada
+        // [BLINDAJE FINTECH ZERO-TRUST] Usamos un SAVEPOINT para que, ante cualquier contingencia
+        // en la lógica contable o de referidos, la transacción principal de activación de cuenta y
+        // expedientes NO sea abortada por PostgreSQL (prevención activa de error 25P02).
         try {
+            await client.query('SAVEPOINT referral_reward_savepoint');
             await referralRewardService.processReferralReward({
                 client,
                 newUser: user,
                 referralCode: pendingRecord.referral_code || 'SOSVENEZUELA'
             });
+            await client.query('RELEASE SAVEPOINT referral_reward_savepoint');
         } catch (rErr) {
-            console.error("[ONBOARDING STAGING] Error al procesar bono de bienvenida:", rErr.message);
+            try {
+                await client.query('ROLLBACK TO SAVEPOINT referral_reward_savepoint');
+            } catch (spErr) {
+                console.warn("[ONBOARDING STAGING] Rollback a savepoint omitido:", spErr.message);
+            }
+            console.error("[ONBOARDING STAGING] Error al procesar bono de bienvenida (transacción protegida vía SAVEPOINT):", rErr.message);
         }
     }
 

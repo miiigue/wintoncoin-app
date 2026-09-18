@@ -12,6 +12,25 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
+### 2026-09-18 — Resolución de Envenenamiento de Transacción (PostgreSQL 25P02 / ON CONFLICT) en Verificación OTP SOS Venezuela: Migración 108, Inserción Resiliente WHERE NOT EXISTS y Aislamiento Transaccional con SAVEPOINT (ANTIGRAVITY-036)
+* **Diagnóstico & Causa Raíz del Error 500 en Producción**:
+  - *Comportamiento Observado*: Al verificar el código OTP en el formulario de damnificados SOS Venezuela (`POST /api/public/sos-venezuela/verify-otp`) en el entorno de Producción, el servidor retornaba error HTTP 500: `"Error interno del servidor al procesar la solicitud. Por favor intenta de nuevo en unos momentos."`, a pesar de que en el entorno Demo el mismo flujo funcionaba con 200 OK.
+  - *Causas Técnicas Identificadas mediante Telemetría de Logs en Render*:
+    1. **Falta de Restricción UNIQUE en `referral_log.referred_user_id` en Base de Datos de Producción**: La tabla `referral_log` en Producción fue creada en una versión temprana sin la restricción `UNIQUE` en `referred_user_id`. Al registrar un nuevo usuario con el código de campaña `'SOSVENEZUELA'`, `referralRewardService.js` ejecutaba `INSERT INTO referral_log ... ON CONFLICT (referred_user_id) DO NOTHING`. PostgreSQL rechazó la consulta con el error fatal: `"there is no unique or exclusion constraint matching the ON CONFLICT specification"`.
+    2. **Envenenamiento de la Transacción Principal de PostgreSQL (Error 25P02)**: En PostgreSQL, cuando una consulta falla dentro de un bloque `BEGIN ... COMMIT`, toda la conexión entra en estado `ABORTED`. Aunque Node.js capturaba el error en un `try/catch`, las consultas posteriores sobre la misma transacción (`DELETE FROM pending_verifications` e `INSERT INTO disaster_victims_registry`) fueron rechazadas con código `25P02 (current transaction is aborted, commands ignored until end of transaction block)`.
+    3. **Divergencia entre Entornos**: En Demo, la base de datos había sido reconstruida recientemente con la restricción `UNIQUE`, por lo que el `ON CONFLICT` pasaba sin fallos; en Producción, al tener la tabla histórica, fallaba.
+* **Resoluciones y Blindaje de Grado FinTech Bancario (Zero-Trust & SOC-2)**:
+  1. **Migración 108 (`108_ensure_referral_log_unique_constraint.js`)**:
+     - Creada migración idempotente y compatible con `migrationRunner.js`.
+     - Depura cualquier duplicado histórico preservando el registro original cronológico (`MIN(id)`).
+     - Aplica de forma segura la restricción `referral_log_referred_user_id_key` y el índice auxiliar `idx_referral_log_referrer_user_id`.
+  2. **Inserción Defensiva e Idempotente con `WHERE NOT EXISTS`**:
+     - En `referralRewardService.js`, se reemplazó la sintaxis frágil de `ON CONFLICT` por `INSERT INTO referral_log ... SELECT $1, $2 WHERE NOT EXISTS (...)`.
+     - Esta sintaxis ANSI SQL garantiza idempotencia universal sin depender de la existencia o nombre de una restricción específica.
+  3. **Aislamiento de Transacción mediante `SAVEPOINT` en `onboardingStagingService.js`**:
+     - Se encapsuló la llamada a `processReferralReward` dentro de un bloque `SAVEPOINT referral_reward_savepoint`.
+     - Si cualquier cálculo de bono secundario experimenta una incidencia, se ejecuta `ROLLBACK TO SAVEPOINT`, restaurando la transacción a un estado completamente sano y garantizando que la creación del usuario oficial y la acuñación del expediente en `disaster_victims_registry` nunca sean abortadas ni interrumpidas.
+---
 
 ### 2026-09-18 — Componente Táctil PWA Mobile-First para Subida de Evidencias Fotográficas y Regla Estricta de Activación (Mín. 1 Foto) en Censo SOS Venezuela (ANTIGRAVITY-035)
 * **Diagnóstico del Incidente en PWA Móvil**:

@@ -127,9 +127,16 @@ async function processReferralReward({ client, newUser, referralCode }) {
                 LIMIT 1
             `, [referrer.id]);
 
-            // VINCULACIÓN DE DATOS DE GENEALOGÍA (ON CONFLICT DO NOTHING para seguridad frente a duplicados)
+            // VINCULACIÓN DE DATOS DE GENEALOGÍA (Resiliente e Idempotente bajo estándares FinTech)
+            // Uso de WHERE NOT EXISTS para compatibilidad universal en PostgreSQL sin fragilidad de ON CONFLICT
             await client.query('UPDATE users SET referrer_id = $1 WHERE id = $2', [referrer.id, newUser.id]);
-            await client.query('INSERT INTO referral_log (referrer_user_id, referred_user_id) VALUES ($1, $2) ON CONFLICT (referred_user_id) DO NOTHING', [referrer.id, newUser.id]);
+            await client.query(`
+                INSERT INTO referral_log (referrer_user_id, referred_user_id)
+                SELECT $1, $2
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM referral_log WHERE referred_user_id = $2
+                )
+            `, [referrer.id, newUser.id]);
 
             if (causeCheck.rowCount > 0) {
                 const activeCause = causeCheck.rows[0];
