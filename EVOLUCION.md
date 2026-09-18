@@ -30,7 +30,6 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   3. **Aislamiento de Transacción mediante `SAVEPOINT` en `onboardingStagingService.js`**:
      - Se encapsuló la llamada a `processReferralReward` dentro de un bloque `SAVEPOINT referral_reward_savepoint`.
      - Si cualquier cálculo de bono secundario experimenta una incidencia, se ejecuta `ROLLBACK TO SAVEPOINT`, restaurando la transacción a un estado completamente sano y garantizando que la creación del usuario oficial y la acuñación del expediente en `disaster_victims_registry` nunca sean abortadas ni interrumpidas.
-
 ---
 
 ### 2026-09-18 — Componente Táctil PWA Mobile-First para Subida de Evidencias Fotográficas y Regla Estricta de Activación (Mín. 1 Foto) en Censo SOS Venezuela (ANTIGRAVITY-035)
