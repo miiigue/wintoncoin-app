@@ -82,7 +82,6 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
      - Compiladas exitosamente las versiones Demo (`dist-demo/`) y Producción (`dist/`), verificando la integridad de hashes y assets absolutos.
 
 ---
-
 ### 2026-09-17 — Blindaje FinTech y Resiliencia en Registro OTP SOS Venezuela / Voluntarios: Manejo Atómico de Unicidad (Postgres 23505/23502), Deserialización Defensiva y Compatibilidad de Email Master (ANTIGRAVITY-032)
 * **Diagnóstico & Incidente Reportado**:
   - En el formulario de registro SOS Venezuela (`/sos-venezuela.html#registro-damnificados`), la petición `POST /api/public/sos-venezuela/verify-otp` arrojaba error `500 (Internal Server Error)` con modal de "Error interno del servidor".
