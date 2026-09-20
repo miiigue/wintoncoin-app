@@ -22,8 +22,16 @@ function Wallet() {
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
-  // Suscripción reactiva al motor financiero
+  // Suscripción reactiva al motor financiero y validación de sesión
   useEffect(() => {
+    const token = localStorage.getItem('token');
+    const username = localStorage.getItem('username');
+    if (!token && !username) {
+      const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
+      window.location.replace(`/login.html?returnTo=${returnTo}`);
+      return;
+    }
+
     const unsubscribe = mockFinancialService.subscribe((updatedState) => {
       setData(updatedState);
     });

@@ -149,10 +149,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // --- Initialize ---
-    if (!storedUsername) {
-        showCustomAlert('Debes iniciar sesión para acceder a esta página.', () => {
-            window.location.href = 'index.html';
-        });
+    if (!storedUsername || !localStorage.getItem('token')) {
+        const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
+        window.location.replace(`/login.html?returnTo=${returnTo}`);
         return;
     }
 

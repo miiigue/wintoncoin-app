@@ -30,8 +30,16 @@ export default function Exchange() {
   const [feedbackMsg, setFeedbackMsg] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
 
-  // Suscripción reactiva a ambos servicios
+  // Suscripción reactiva a ambos servicios y validación de sesión
   useEffect(() => {
+    const token = localStorage.getItem('token');
+    const username = localStorage.getItem('username');
+    if (!token && !username) {
+      const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
+      window.location.replace(`/login.html?returnTo=${returnTo}`);
+      return;
+    }
+
     const unsubFin = mockFinancialService.subscribe((newState) => setFinState(newState));
     const unsubEx = mockExchangeService.subscribe((newState) => setExchangeState(newState));
     return () => {

@@ -12,6 +12,17 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 
+### 2026-09-20 — Seguridad & UX FinTech: Implementación de Auth Guard Inmediato en Head para Redirección a login.html sin Sesión Activa
+* **Diagnóstico & Resoluciones Forenses**:
+  - *Causa Raíz del Error*: Al limpiar datos de navegación en el teléfono, el almacenamiento local queda vacío (`token` y `username` nulos). Al abrir el dashboard (`contract_interaction.html`), el script legacy detenía su ejecución con un `return;` tras invocar una alerta modal, dejando el DOM congelado con datos dummy ("Usuario", "0 BLUE iou", "Quedan -- cupos") y sin registrar los eventos del menú hamburguesa ni de cierre de sesión, impidiendo al usuario salir o interactuar.
+  - *Auth Guard Inmediato en Head*: Se implementó un script síncrono ultra-rápido en el `<head>` de todas las páginas protegidas (`contract_interaction.html`, `estado-cuenta.html`, `profile.html`, `history.html`, `transactions.html`, `publish.html`, `referrals.html`, `booster-profile.html`, `Wallet.jsx` y `Exchange.jsx`). Si no se detecta sesión activa, ejecuta inmediatamente `window.location.replace('/login.html?returnTo=...')` antes de procesar o pintar el DOM.
+  - *Blindaje en Enlace de Cerrar Sesión*: Se añadió lógica inline indestructible (`onclick="localStorage.removeItem('token'); localStorage.removeItem('username'); window.location.href='/login.html'; return false;"`) para que el botón de cerrar sesión siempre funcione sin depender del estado del hilo principal.
+  - *Preservación de Destino*: El parámetro `returnTo` permite que, tras iniciar sesión, el usuario vuelva automáticamente a la página que deseaba consultar.
+* **Impacto Operativo**:
+  - Elimina de raíz cualquier pantalla rota o congelada por falta de sesión; garantiza una experiencia bancaria profesional idéntica a Binance o Revolut: sin sesión activa, la app abre directamente en el inicio de sesión.
+
+---
+
 ### 2026-09-20 — Frontend Vite Build & Rutas Estáticas: Solución de 404 en Demo con Creación de wallet.html y exchange.html y Ajuste de Etiquetas en Menú
 * **Diagnóstico & Resoluciones**:
   - *Causa del Error 404*: En servidores estáticos de producción/demo (como Render/Cloudflare/Nginx), las rutas directas `/exchange` y `/wallet` devolvían 404 al no existir archivos físicos HTML correspondientes registrados en `rollupOptions.input` de Vite.
