@@ -22,6 +22,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - *Reinicio Instantáneo de Simulación*: Se implementó `resetToDefault()` en `mockFinancialService.js` y un botón interactivo `🔄 Reiniciar Datos` en la cabecera de la Billetera para restablecer balances y transacciones iniciales en 1 toque.
 * **Impacto Operativo**:
   - Interfaz 100% limpia sin pie de página invasivo y transparencia absoluta en las fechas y montos de vencimiento de compromisos RED.
+* **Evidencia**: Commit `c5ac9a8` (rama `demo`). Compilación `build:demo` limpia.
 
 ---
 
