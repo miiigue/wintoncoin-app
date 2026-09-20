@@ -53,7 +53,7 @@ const spaFallbackPlugin = () => {
       server.middlewares.use((req, res, next) => {
         const pathname = req.url ? req.url.split('?')[0] : '';
         // Rutas migradas a la SPA React
-        if (['/register', '/login', '/forgot-password'].includes(pathname)) {
+        if (['/register', '/login', '/forgot-password', '/wallet'].includes(pathname)) {
           const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
           req.url = '/index.html' + query;
         }
